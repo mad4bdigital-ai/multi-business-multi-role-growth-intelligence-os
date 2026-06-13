@@ -361,3 +361,36 @@ The governed pipeline integrity audit must preserve:
 If the governed pipeline integrity audit completes with unresolved blocking disconnects:
 - system_bootstrap must classify as `blocked`
 - repair-aware continuation may still be prepared when policy permits
+
+Activation Awareness Completeness Contract
+
+Hard activation must separate validation, evidence preparation, transport delivery, and consumer acknowledgement. These states must not be collapsed into one success flag:
+
+- `validation_state`
+- `evidence_state`
+- `delivery_state`
+- `consumer_ack_state`
+
+Retryable activation calls must support an idempotency key and a governed session policy. The default policy is `reuse_or_create`; retries with the same tenant, user, and idempotency key inside the configured reuse window must reuse the existing active session/run instead of creating parallel duplicate activation rows. `create_new`, `reuse_only`, and `read_only` remain explicit alternatives.
+
+The default hard-activation response profile is `evidence`. It must preserve complete awareness while limiting row hydration. A valid evidence response must include:
+
+- current activation classification and evidence matrix
+- account, workspace, Brand, permission, integration, agent, skill, task, action, and other available authorized counts
+- Dynamic Tabs manifests for every visible container
+- Operational Dashboard tile manifests
+- attention-first summaries and freshness state
+- `completeness` with known, visible, summarized, hydrated, deferred, blocked, stale, and degraded surface counts
+- `awareness_index`
+- snapshot id, registry version, and data watermark
+- governed detail references with cursor support for every deferred surface
+- `details_omitted_silently=false`
+- `secrets_included=false`
+
+Deferred hydration must not be classified as missing access, empty scope, or removed functionality. Dynamic Tabs and Dashboard must remain available in all response profiles. `diagnostic` and `full` may hydrate complete operational rows only when explicitly requested or required by governed diagnostics.
+
+The response budget must be applied in semantic layers: attention rows, freshness detail, section metadata, then selected detail. If a response still exceeds the hard budget, the runtime must return governed chunk-continuation metadata; arbitrary string truncation is forbidden.
+
+Snapshot preparation must be persisted before delivery. Successful transport updates the snapshot to delivered. Consumer acknowledgement is a separate explicit transition. A response must not claim acknowledged merely because HTTP delivery completed.
+
+Tenant detail reads must derive tenant and user scope from signed JWT membership, enforce object-level scope, and ignore client-supplied identity overrides. Admin detail reads may span authorized workspaces and Brands, but must preserve explicit subject scope and secret-field stripping.
