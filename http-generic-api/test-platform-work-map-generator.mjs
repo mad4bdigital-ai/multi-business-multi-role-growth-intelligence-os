@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS \`asset_equivalence_groups\` (\`group_id\` VARCHAR(36
 CREATE TABLE IF NOT EXISTS \`commercial_profiles\` (\`profile_id\` VARCHAR(36) PRIMARY KEY, \`tenant_id\` VARCHAR(36));
 CREATE TABLE IF NOT EXISTS \`repo_source_registry\` (\`source_id\` VARCHAR(36) PRIMARY KEY, \`status\` VARCHAR(32));
 CREATE TABLE IF NOT EXISTS \`platform_graph_nodes\` (\`node_id\` VARCHAR(36) PRIMARY KEY, \`resource_type_id\` VARCHAR(36));
+CREATE OR REPLACE VIEW \`v_platform_capabilities_current\` AS SELECT 1;
 CREATE TABLE IF NOT EXISTS \`output_artifacts\` (\`artifact_id\` VARCHAR(36) PRIMARY KEY, \`tenant_id\` VARCHAR(36));
 CREATE TABLE IF NOT EXISTS \`tickets\` (\`ticket_id\` VARCHAR(36) PRIMARY KEY, \`tenant_id\` VARCHAR(36));
 CREATE TABLE IF NOT EXISTS \`data_migration_inventory\` (\`migration_id\` VARCHAR(36) PRIMARY KEY, \`status\` VARCHAR(32));
