@@ -239,10 +239,10 @@ SELECT r.run_id, r.session_id, r.tenant_id, r.user_id, r.idempotency_key, r.sess
        r.delivered_status_code, r.delivered_at, r.consumer_ack_at, r.created_at, r.updated_at
 FROM activation_runs r
 JOIN (
-  SELECT tenant_id, COALESCE(user_id, ''), MAX(created_at) AS max_created_at
+  SELECT tenant_id, COALESCE(user_id, '') AS user_scope, MAX(created_at) AS max_created_at
   FROM activation_runs
   GROUP BY tenant_id, COALESCE(user_id, '')
 ) latest
   ON latest.tenant_id = r.tenant_id
- AND latest.`COALESCE(user_id, '')` = COALESCE(r.user_id, '')
+ AND latest.user_scope = COALESCE(r.user_id, '')
  AND latest.max_created_at = r.created_at;
