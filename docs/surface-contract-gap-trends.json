@@ -6,7 +6,7 @@
   "current_triaged_items": 4,
   "current_gate_candidates": 1,
   "blocking_new_item_count": 1,
-  "docs_completion_percent": 99.02,
+  "docs_completion_percent": 99.03,
   "openapi_sql_route_coverage_percent": 100,
   "openapi_exempt_sql_route_count": 535,
   "total_sql_route_like_count": 535,

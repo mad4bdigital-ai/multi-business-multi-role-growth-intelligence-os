@@ -7,16 +7,7 @@ import {
   recordAgentToolCallFailed,
   recordAgentToolCallStarted,
 } from "./agentRuntimeLedger.js";
-
-function buildSystemPrompt(logicBody = {}, userInput = "") {
-  const parts = [];
-  if (logicBody.trigger_phrase) parts.push(`Trigger: ${logicBody.trigger_phrase}`);
-  if (logicBody.action_class) parts.push(`Action class: ${logicBody.action_class}`);
-  if (logicBody.execution_layer) parts.push(`Execution layer: ${logicBody.execution_layer}`);
-  if (logicBody.module_binding) parts.push(`Module: ${logicBody.module_binding}`);
-  if (logicBody.system_prompt) parts.push(logicBody.system_prompt);
-  return parts.join("\n") + (userInput ? `\n\nUser request: ${userInput}` : "");
-}
+import { assembleAgentSystemPrompt } from "./agentPromptAssembler.js";
 
 function extractContent(response = {}) {
   if (typeof response.content === "string") return response.content;
@@ -69,7 +60,7 @@ export async function runLogicWithModel(input = {}, deps = {}) {
   } = input;
 
   const execution_trace_id = randomUUID();
-  const systemPrompt = buildSystemPrompt(logic_body, user_input);
+  const systemPrompt = assembleAgentSystemPrompt({ logicBody: logic_body, context });
 
   let messages = [
     { role: "system", content: systemPrompt },

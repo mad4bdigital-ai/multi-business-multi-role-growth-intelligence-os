@@ -123,6 +123,9 @@ const ownershipPlan = buildDatabaseTableLifecycleRegisterPlan([
   { table_name: "repo_ingestion_jobs", approx_rows: 10, size_mb: 0.1 },
   { table_name: "database_lifecycle_report_snapshots", approx_rows: 10, size_mb: 0.1 },
   { table_name: "tenant_ssh_cli_approval_requests", approx_rows: 0, size_mb: 0.1 },
+  { table_name: "growth_intelligence_actions", approx_rows: 10, size_mb: 0.1 },
+  { table_name: "execution_plan_steps", approx_rows: 10, size_mb: 0.1 },
+  { table_name: "execution_plan_events", approx_rows: 10, size_mb: 0.1 },
 ]);
 assert.deepEqual(
   ownershipPlan.upsert_rows.map(({ owner_engine_key }) => owner_engine_key),
@@ -130,10 +133,13 @@ assert.deepEqual(
     "platform_contract_governance_engine",
     "resource_authority_engine",
     "workflow_runtime_engine",
+    "workflow_runtime_engine",
     "schema_cleanup_engine",
     "platform_private_capability_vault_engine",
     "developer_platform_lifecycle_engine",
     "database_table_lifecycle_engine",
+    "workflow_runtime_engine",
+    "workflow_runtime_engine",
     "workflow_runtime_engine",
   ],
 );

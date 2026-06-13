@@ -247,6 +247,9 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "232_sprint68_chunked_tool_response_continuation_policy.sql",
   "233_sprint68_local_connector_tunnel_provisioning_continuation_policy.sql",
   "235_sprint68_local_manager_chatgpt_url_capture_action.sql",
+  "243_sprint68_growth_intelligence_product_registry.sql",
+  "244_sprint68_sequential_plan_orchestrator.sql",
+  "245_sprint68_agent_governance_runtime.sql",
 ]);
 
 const RUNNER_VERSION = "governed-migration-runner-v2";

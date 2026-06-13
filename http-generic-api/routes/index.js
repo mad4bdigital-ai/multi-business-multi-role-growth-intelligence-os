@@ -102,6 +102,8 @@ import { buildSessionInsightTargetWriteReadbackRoutes } from "./sessionInsightTa
 import { buildRuntimeVerificationRoutes } from "./runtimeVerificationRoutes.js";
 import { buildOperationalConsoleRoutes } from "./operationalConsoleRoutes.js";
 import { buildActivationGuidanceRoutes } from "./activationGuidanceRoutes.js";
+import { buildGrowthIntelligenceRoutes } from "./growthIntelligenceRoutes.js";
+import { buildAgentGovernanceRoutes } from "./agentGovernanceRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
@@ -177,6 +179,7 @@ export function registerRoutes(app, deps) {
   app.use(buildPlatformSmokeRoutes());
   app.use(buildPlatformEvolutionRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildPlatformEngineRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildAgentGovernanceRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildPlatformPrivateCapabilityVaultRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildConnectedExecutionRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSessionInsightPromotionReviewRoutes({ ...deps, requireAdminPrincipal }));
@@ -207,6 +210,7 @@ export function registerRoutes(app, deps) {
   app.use(buildAgentIntelligenceRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAiResolverRoutes(deps));
   app.use(buildTenantsRoutes(deps));
+  app.use(buildGrowthIntelligenceRoutes(deps));
   app.use(buildIdentityRoutes(deps));
   app.use(buildAccessRoutes(deps));
   app.use(buildCustomerRoutes(deps));
