@@ -16024,8 +16024,8 @@ paths:
 
   /platform/agent-governance/response-profile/resolve:
     post:
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       tags: [platform-agent-governance]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: resolveAgentGovernanceResponseProfile
       summary: Resolve a presentation-only response profile
       description: Resolves presentation preferences only and grants no tool, policy, approval, or execution authority.
@@ -16051,8 +16051,8 @@ paths:
 
   /platform/agent-governance/research-policy/resolve:
     post:
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       tags: [platform-agent-governance]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: resolveAgentGovernanceResearchPolicy
       summary: Resolve an internal-first research policy
       requestBody:
@@ -16076,8 +16076,8 @@ paths:
 
   /platform/agent-governance/research-executions:
     post:
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       tags: [platform-agent-governance]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: recordAgentGovernanceResearchExecution
       summary: Record secret-free research source evidence
       requestBody:
@@ -16107,10 +16107,10 @@ paths:
 
   /platform/agent-governance/research-plans:
     post:
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       tags: [platform-agent-governance]
-      summary: Create and compile an internal-first sequential research plan
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: createGovernedResearchPlan
+      summary: Create and compile an internal-first sequential research plan
       requestBody:
         required: true
         content:
@@ -16137,12 +16137,12 @@ paths:
         "409": { description: Stored policy snapshot or plan contract failed integrity validation }
   /platform/agent-governance/research-plans/{plan_id}/run:
     post:
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       tags: [platform-agent-governance]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: runGovernedResearchPlan
       summary: Run a governed research plan through approved adapters
-        - { name: plan_id, in: path, required: true, schema: { type: string } }
       parameters:
+        - { name: plan_id, in: path, required: true, schema: { type: string } }
       requestBody:
         required: true
         content:
@@ -16165,9 +16165,10 @@ paths:
 
   /platform/agent-governance/handoffs:
     post:
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       tags: [platform-agent-governance]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: createAgentGovernanceHandoff
+      summary: Create opaque expiring agent handoff state
       requestBody:
         required: true
         content:
@@ -16187,7 +16188,6 @@ paths:
                 allowed_actions: { type: array, items: { type: string } }
                 expires_at: { type: string, format: date-time }
                 one_time_use: { type: boolean, default: true }
-      summary: Create opaque expiring agent handoff state
       responses:
         "201": { description: Opaque handoff state created without returning its state hash }
         "400": { $ref: "#/components/responses/BadRequest" }
@@ -16196,14 +16196,14 @@ paths:
 
   /platform/agent-governance/handoffs/{state_id}:
     get:
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       tags: [platform-agent-governance]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: readAgentGovernanceHandoff
       summary: Read tenant- and actor-scoped governed handoff state
       parameters:
+        - { name: state_id, in: path, required: true, schema: { type: string } }
         - { name: tenant_id, in: query, schema: { type: string } }
         - { name: requested_action, in: query, schema: { type: string } }
-        - { name: state_id, in: path, required: true, schema: { type: string } }
       responses:
         "200": { description: Governed handoff state or a fail-closed denial reason }
         "401": { $ref: "#/components/responses/Unauthorized" }
@@ -16211,11 +16211,12 @@ paths:
 
   /platform/agent-governance/handoffs/{state_id}/consume:
     post:
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       tags: [platform-agent-governance]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: consumeAgentGovernanceHandoff
       summary: Consume one-time or record access to reusable handoff state
       parameters:
+        - { name: state_id, in: path, required: true, schema: { type: string } }
       requestBody:
         required: false
         content:
@@ -16226,7 +16227,6 @@ paths:
               properties:
                 tenant_id: { type: string }
                 requested_action: { type: string }
-        - { name: state_id, in: path, required: true, schema: { type: string } }
       responses:
         "200": { description: Handoff consumption result }
         "400": { $ref: "#/components/responses/BadRequest" }
@@ -16235,11 +16235,12 @@ paths:
         "409": { description: Handoff is expired, revoked, consumed, or changed concurrently }
   /platform/agent-governance/handoffs/{state_id}/revoke:
     post:
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       tags: [platform-agent-governance]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: revokeAgentGovernanceHandoff
       summary: Revoke governed handoff state without executing its allowed action
       parameters:
+        - { name: state_id, in: path, required: true, schema: { type: string } }
       requestBody:
         required: false
         content:
@@ -16250,7 +16251,6 @@ paths:
               properties:
                 tenant_id: { type: string }
                 requested_action: { type: string }
-        - { name: state_id, in: path, required: true, schema: { type: string } }
       responses:
         "200": { description: Handoff revocation result }
         "401": { $ref: "#/components/responses/Unauthorized" }
@@ -16258,9 +16258,10 @@ paths:
 
   /platform/agent-governance/external-prompts/classify:
     post:
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       tags: [platform-agent-governance]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: classifyExternalPromptArtifact
+      summary: Quarantine and classify an external prompt-like artifact
       description: Stores only hash, findings, and a bounded summary. The artifact receives zero execution, tool, and policy authority.
       requestBody:
         required: true
@@ -16276,7 +16277,6 @@ paths:
                 user_id: { type: string }
                 source_ref: { type: string, maxLength: 500 }
                 content: { type: string }
-      summary: Quarantine and classify an external prompt-like artifact
       responses:
         "201": { description: Artifact quarantined without authority or content preview storage }
         "400": { $ref: "#/components/responses/BadRequest" }
@@ -16285,8 +16285,8 @@ paths:
 
   /platform/agent-governance/skill-coverage:
     get:
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       tags: [platform-agent-governance]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: getAgentGovernanceSkillCoverage
       summary: Read skill runtime coverage gaps
       responses:
@@ -16296,8 +16296,8 @@ paths:
 
   /platform/agent-governance/readiness:
     get:
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       tags: [platform-agent-governance]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: getAgentGovernanceReadiness
       summary: Read governance schema, policy, skill coverage, and source-adapter readiness
       responses:
@@ -16307,9 +16307,10 @@ paths:
 
   /platform/agent-governance/memory-scope/resolve:
     post:
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       tags: [platform-agent-governance]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: resolveAgentGovernanceMemoryScope
+      summary: Resolve tenant-bound memory scopes and explicit cross-scope links
       requestBody:
         required: true
         content:
@@ -16323,9 +16324,8 @@ paths:
                 scopes:
                   type: object
                   additionalProperties: { type: string }
-      summary: Resolve tenant-bound memory scopes and explicit cross-scope links
       responses:
+        "200": { description: Deny-by-default memory scope resolution }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { description: Admin principal required }
-        "200": { description: Deny-by-default memory scope resolution }
