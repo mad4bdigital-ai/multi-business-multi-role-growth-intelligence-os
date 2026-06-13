@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const migration = readFileSync(new URL("./migrations/239_sprint67_google_ads_budget_preflight_binding.sql", import.meta.url), "utf8");
+const migration = readFileSync(new URL("./migrations/239_sprint67_google_ads_budget_preflight_binding.sql", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const runner = readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
 
 assert.match(migration, /google_ads_budget_preflight_binding_policy_v1/);

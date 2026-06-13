@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
-import path from "node:path";
 
 const surfaceDir = new URL("./activation-surfaces/", import.meta.url);
 const manifests = readdirSync(surfaceDir).filter((file) => file.endsWith(".json")).sort();
@@ -38,7 +37,7 @@ const requiredCoveredTables = new Set([
 
 const covered = new Set();
 for (const file of manifests) {
-  const manifest = JSON.parse(readFileSync(path.join(surfaceDir.pathname, file), "utf8"));
+  const manifest = JSON.parse(readFileSync(new URL(file, surfaceDir), "utf8"));
   if (String(manifest.source_table || "").startsWith("v_activation_")) {
     assert(Array.isArray(manifest.covered_source_tables) && manifest.covered_source_tables.length > 0, `${file} must declare covered_source_tables`);
   }

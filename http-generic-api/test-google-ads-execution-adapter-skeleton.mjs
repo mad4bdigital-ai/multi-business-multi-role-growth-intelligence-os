@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const script = readFileSync(new URL("./scripts/google-ads-budget-change-execution-adapter.mjs", import.meta.url), "utf8");
-const migration = readFileSync(new URL("./migrations/245_sprint67_google_ads_execution_adapter_skeleton.sql", import.meta.url), "utf8");
+const migration = readFileSync(new URL("./migrations/245_sprint67_google_ads_execution_adapter_skeleton.sql", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const adminCli = readFileSync(new URL("./routes/adminCliRoutes.js", import.meta.url), "utf8");
 const runner = readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
 
