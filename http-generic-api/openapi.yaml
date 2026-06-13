@@ -673,6 +673,107 @@ components:
             session_context_claim_requires: { type: string }
         secrets_included: { type: boolean, enum: [false] }
 
+    ActivationAwarenessResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, activation_layer, response_profile, snapshot, dynamic_tabs, operational_summary, dashboard, completeness, awareness_index, auth_context, secrets_included]
+      properties:
+        ok: { type: boolean }
+        activation_layer: { type: string, enum: [activation_awareness_readback] }
+        response_profile: { type: string, enum: [evidence, summary, dashboard, diagnostic, full] }
+        snapshot: { type: object, additionalProperties: true }
+        dynamic_tabs: { type: object, additionalProperties: true }
+        operational_summary: { type: object, additionalProperties: true }
+        dashboard: { type: object, additionalProperties: true }
+        completeness:
+          type: object
+          additionalProperties: true
+          required: [known_surfaces, visible_surfaces, summarized_surfaces, fully_hydrated_surfaces, deferred_surfaces, blocked_surfaces, stale_surfaces, coverage_status, details_omitted_silently]
+          properties:
+            known_surfaces: { type: integer }
+            visible_surfaces: { type: integer }
+            summarized_surfaces: { type: integer }
+            fully_hydrated_surfaces: { type: integer }
+            deferred_surfaces: { type: integer }
+            blocked_surfaces: { type: integer }
+            stale_surfaces: { type: integer }
+            degraded_surfaces: { type: integer }
+            coverage_status: { type: string }
+            details_omitted_silently: { type: boolean, enum: [false] }
+            deferred_details_have_refs: { type: boolean }
+        awareness_index:
+          type: object
+          additionalProperties: false
+          properties:
+            score: { type: integer, minimum: 0, maximum: 100 }
+            coverage: { type: integer, minimum: 0, maximum: 100 }
+            freshness: { type: integer, minimum: 0, maximum: 100 }
+            authorization_visibility: { type: integer, minimum: 0, maximum: 100 }
+            attention_detection: { type: integer, minimum: 0, maximum: 100 }
+            detail_availability: { type: integer, minimum: 0, maximum: 100 }
+        auth_context: { type: object, additionalProperties: true }
+        secrets_included: { type: boolean, enum: [false] }
+
+    ActivationDynamicTabDetailResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, activation_layer, snapshot, subject, container, tab, sections, page, policy, secrets_included]
+      properties:
+        ok: { type: boolean }
+        activation_layer: { type: string, enum: [activation_dynamic_tab_detail] }
+        snapshot: { type: object, additionalProperties: true }
+        subject: { type: object, additionalProperties: true }
+        container: { type: object, additionalProperties: true }
+        tab: { type: object, additionalProperties: true }
+        sections:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              section_key: { type: string }
+              row_count: { type: integer }
+              rows:
+                type: array
+                items: { type: object, additionalProperties: true }
+              page:
+                type: object
+                additionalProperties: false
+                properties:
+                  cursor: { type: integer }
+                  limit: { type: integer }
+                  has_more: { type: boolean }
+                  next_cursor: { type: integer, nullable: true }
+        page:
+          type: object
+          additionalProperties: false
+          properties:
+            cursor: { type: integer }
+            limit: { type: integer }
+            returned_rows: { type: integer }
+            has_more: { type: boolean }
+            next_cursor: { type: integer, nullable: true }
+        policy: { type: object, additionalProperties: true }
+        secrets_included: { type: boolean, enum: [false] }
+
+    ActivationRunAckRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        acknowledged_by: { type: string, maxLength: 180 }
+        consumer_state: { type: string, enum: [acknowledged, rejected], default: acknowledged }
+
+    ActivationRunAckResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, run_id, affected_rows, secrets_included]
+      properties:
+        ok: { type: boolean }
+        run_id: { type: string }
+        affected_rows: { type: integer }
+        error: { type: object, nullable: true, additionalProperties: true }
+        secrets_included: { type: boolean, enum: [false] }
+
     AuditPayloadEvidenceSmokeRequest:
       type: object
       additionalProperties: false
