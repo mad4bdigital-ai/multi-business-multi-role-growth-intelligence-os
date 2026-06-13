@@ -84,46 +84,46 @@ flowchart TD
 
 | Object | Type | Domain | Source migrations | Columns discovered | References |
 |---|---|---|---:|---:|---|
-| `activation_freshness_policy_registry` | table | Governance & authority | 1 | - | - |
+| `activation_freshness_policy_registry` | table | Activation & onboarding | 1 | - | - |
 | `admin_scope_grants` | table | Governance & authority | 1 | 17 | `tenants`, `users` |
 | `agent_skill_grants` | table | Agents & intelligence | 1 | 10 | `agents`, `tenants` |
 | `agent_supervision_policy` | table | Agents & intelligence | 1 | 6 | `agents`, `tenants` |
 | `app_action_grants` | table | Governance & authority | 2 | 12 | `agents` |
-| `browser_runtime_policy` | table | Governance & authority | 1 | 10 | `tenants` |
+| `browser_runtime_policy` | table | Connectors & providers | 1 | 10 | `tenants` |
 | `budget_quota_authority_registry` | table | Governance & authority | 1 | - | - |
-| `capability_apply_authorization_policy_registry` | table | Governance & authority | 1 | 21 | - |
-| `cms_site_access_grants` | table | Governance & authority | 3 | - | - |
+| `capability_apply_authorization_policy_registry` | table | Platform resources & graph | 1 | 21 | - |
+| `cms_site_access_grants` | table | Connectors & providers | 3 | - | - |
 | `compliance_profiles` | table | Governance & authority | 1 | 8 | `tenants` |
 | `credential_bindings` | table | Connectors & providers | 2 | 20 | `installations`, `tenants`, `users` |
 | `database_collation_policy_exception_registry` | table | Governance & authority | 1 | - | - |
 | `database_collation_policy_registry` | table | Governance & authority | 1 | - | - |
-| `entitlements` | table | Tenancy & identity | 1 | 8 | `tenants` |
-| `external_delivery_provider_send_mode_policy_registry` | table | Connectors & providers | 1 | 14 | `external_delivery_provider_adapter_contract_registry` |
+| `entitlements` | table | Commercial & usage | 1 | 8 | `tenants` |
+| `external_delivery_provider_send_mode_policy_registry` | table | Delivery & support | 1 | 14 | `external_delivery_provider_adapter_contract_registry` |
 | `google_ads_budget_execution_gate_audit` | table | Governance & authority | 1 | - | - |
 | `google_ads_budget_preflight_ledger` | table | Governance & authority | 1 | - | - |
-| `intelligence_policy_rules` | table | Governance & authority | 1 | - | - |
-| `local_connector_capability_grants` | table | Connectors & providers | 1 | 10 | - |
+| `intelligence_policy_rules` | table | Agents & intelligence | 1 | - | - |
+| `local_connector_capability_grants` | table | Platform resources & graph | 1 | 10 | - |
 | `local_connector_file_access_rules` | table | Connectors & providers | 2 | 8 | `local_connector_user_configs` |
 | `permission_grants` | table | Governance & authority | 1 | 8 | `installations`, `tenants` |
 | `platform_engine_policy_registry` | table | Agents & intelligence | 1 | - | - |
 | `platform_engine_policy_rules` | table | Agents & intelligence | 1 | - | - |
-| `platform_resource_authority_bindings` | table | Governance & authority | 1 | - | - |
-| `platform_resource_authority_requirements` | table | Governance & authority | 1 | - | - |
+| `platform_resource_authority_bindings` | table | Platform resources & graph | 1 | - | - |
+| `platform_resource_authority_requirements` | table | Platform resources & graph | 1 | - | - |
 | `policy_logic_bindings` | table | Agents & intelligence | 1 | 12 | - |
 | `policy_logic_mirror_classification` | table | Agents & intelligence | 1 | - | - |
 | `quota_rules` | table | Governance & authority | 1 | 10 | `tenants` |
 | `rate_limit_rules` | table | Governance & authority | 1 | 11 | `tenants` |
 | `resource_authority_route_family_registry` | table | Workflow & tasks | 1 | 16 | - |
 | `role_assignments` | table | Tenancy & identity | 1 | 9 | `tenants`, `users` |
-| `ticket_permission_snapshots` | table | Governance & authority | 1 | 14 | `tenants`, `tickets`, `users` |
+| `ticket_permission_snapshots` | table | Delivery & support | 1 | 14 | `tenants`, `tickets`, `users` |
 | `workspace_access_requests` | table | Tenancy & identity | 3 | - | - |
 | `workspace_resource_grants` | table | Tenancy & identity | 2 | - | - |
-| `v_activation_agent_skill_grants` | view | Agents & intelligence | 1 | - | - |
-| `v_activation_app_action_grants` | view | Governance & authority | 1 | - | - |
+| `v_activation_agent_skill_grants` | view | Activation & onboarding | 1 | - | - |
+| `v_activation_app_action_grants` | view | Activation & onboarding | 1 | - | - |
 | `v_active_memberships_missing_workspace_grants` | view | Tenancy & identity | 1 | - | - |
-| `v_cms_active_grant_duplicate_groups` | view | Governance & authority | 1 | - | - |
+| `v_cms_active_grant_duplicate_groups` | view | Connectors & providers | 1 | - | - |
 | `v_cms_grants_without_workspace_membership` | view | Tenancy & identity | 1 | - | - |
-| `v_cms_publish_grants_missing_resource_grants` | view | Governance & authority | 1 | - | - |
+| `v_cms_publish_grants_missing_resource_grants` | view | Connectors & providers | 1 | - | - |
 | `v_database_collation_policy_status` | view | Governance & authority | 1 | - | - |
 | `v_database_collation_policy_violations` | view | Governance & authority | 1 | - | - |
 | `v_hostinger_apply_policy_readiness` | view | Connectors & providers | 1 | - | - |

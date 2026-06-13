@@ -102,12 +102,12 @@ flowchart TD
 
 | Object | Type | Domain | Source migrations | Columns discovered | References |
 |---|---|---|---:|---:|---|
-| `activation_connector_pack_component_registry` | table | Connectors & providers | 1 | - | `activation_connector_pack_registry` |
-| `activation_connector_pack_registry` | table | Connectors & providers | 1 | - | - |
-| `ads_provider_capability_profile_registry` | table | Connectors & providers | 1 | - | - |
+| `activation_connector_pack_component_registry` | table | Activation & onboarding | 1 | - | `activation_connector_pack_registry` |
+| `activation_connector_pack_registry` | table | Activation & onboarding | 1 | - | - |
+| `ads_provider_capability_profile_registry` | table | Platform resources & graph | 1 | - | - |
 | `ads_provider_preflight_contract_registry` | table | Connectors & providers | 1 | - | - |
 | `ads_provider_preflight_surface_blueprint_registry` | table | Connectors & providers | 1 | - | - |
-| `ads_provider_profile_onboarding_requests` | table | Connectors & providers | 1 | - | - |
+| `ads_provider_profile_onboarding_requests` | table | Activation & onboarding | 1 | - | - |
 | `ai_model_providers` | table | Agents & intelligence | 1 | - | - |
 | `api_credentials` | table | Connectors & providers | 1 | 12 | `tenants` |
 | `app_integration_action_bindings` | table | Connectors & providers | 1 | 11 | - |
@@ -119,22 +119,22 @@ flowchart TD
 | `credential_intake_sessions` | table | Connectors & providers | 3 | 21 | `tenants`, `users` |
 | `dev_agent_provider_registry` | table | Agents & intelligence | 1 | - | - |
 | `dev_agent_runtime_provider_profiles` | table | Agents & intelligence | 1 | - | - |
-| `external_delivery_provider_adapter_contract_registry` | table | Connectors & providers | 1 | 20 | `external_delivery_provider_family_registry` |
-| `external_delivery_provider_adapter_enablement_proposals` | table | Connectors & providers | 1 | 17 | `external_delivery_provider_adapter_contract_registry` |
-| `external_delivery_provider_adapter_future_pr_scopes` | table | Connectors & providers | 1 | 19 | `external_delivery_provider_adapter_contract_registry`, `external_delivery_provider_adapter_enablement_proposals`, `external_delivery_provider_adapter_readiness_checklists`, `external_delivery_provider_adapter_readiness_decisions` |
-| `external_delivery_provider_adapter_readiness_checklists` | table | Connectors & providers | 1 | 12 | `external_delivery_provider_adapter_contract_registry`, `external_delivery_provider_adapter_enablement_proposals` |
-| `external_delivery_provider_adapter_readiness_decisions` | table | Connectors & providers | 1 | 18 | `external_delivery_provider_adapter_contract_registry`, `external_delivery_provider_adapter_enablement_proposals`, `external_delivery_provider_adapter_readiness_checklists` |
-| `external_delivery_provider_family_registry` | table | Connectors & providers | 1 | 12 | - |
-| `external_delivery_provider_send_mode_policy_registry` | table | Connectors & providers | 1 | 14 | `external_delivery_provider_adapter_contract_registry` |
+| `external_delivery_provider_adapter_contract_registry` | table | Delivery & support | 1 | 20 | `external_delivery_provider_family_registry` |
+| `external_delivery_provider_adapter_enablement_proposals` | table | Repository & development | 1 | 17 | `external_delivery_provider_adapter_contract_registry` |
+| `external_delivery_provider_adapter_future_pr_scopes` | table | Delivery & support | 1 | 19 | `external_delivery_provider_adapter_contract_registry`, `external_delivery_provider_adapter_enablement_proposals`, `external_delivery_provider_adapter_readiness_checklists`, `external_delivery_provider_adapter_readiness_decisions` |
+| `external_delivery_provider_adapter_readiness_checklists` | table | Delivery & support | 1 | 12 | `external_delivery_provider_adapter_contract_registry`, `external_delivery_provider_adapter_enablement_proposals` |
+| `external_delivery_provider_adapter_readiness_decisions` | table | Platform resources & graph | 1 | 18 | `external_delivery_provider_adapter_contract_registry`, `external_delivery_provider_adapter_enablement_proposals`, `external_delivery_provider_adapter_readiness_checklists` |
+| `external_delivery_provider_family_registry` | table | Delivery & support | 1 | 12 | - |
+| `external_delivery_provider_send_mode_policy_registry` | table | Delivery & support | 1 | 14 | `external_delivery_provider_adapter_contract_registry` |
 | `google_ads_credential_readiness_ledger` | table | Connectors & providers | 1 | - | - |
 | `installations` | table | Connectors & providers | 1 | 10 | `tenants` |
 | `local_connector_app_allowlists` | table | Connectors & providers | 1 | 15 | - |
 | `local_connector_app_routes` | table | Workflow & tasks | 1 | 12 | `local_connector_user_configs` |
-| `local_connector_capability_grants` | table | Connectors & providers | 1 | 10 | - |
+| `local_connector_capability_grants` | table | Platform resources & graph | 1 | 10 | - |
 | `local_connector_device_aliases` | table | Connectors & providers | 1 | 10 | `tenants`, `users` |
 | `local_connector_device_routes` | table | Workflow & tasks | 1 | 25 | `tenants`, `users` |
 | `local_connector_file_access_rules` | table | Connectors & providers | 2 | 8 | `local_connector_user_configs` |
-| `local_connector_recovery_events` | table | Connectors & providers | 1 | 15 | `tenants`, `users` |
+| `local_connector_recovery_events` | table | Migration & lifecycle | 1 | 15 | `tenants`, `users` |
 | `local_connector_shell_allowlists` | table | Connectors & providers | 3 | 9 | `local_connector_user_configs` |
 | `local_connector_user_configs` | table | Tenancy & identity | 7 | 10 | `tenants`, `users` |
 | `local_gateway_tool_call_log` | table | Connectors & providers | 3 | 26 | `tenants`, `users` |
@@ -144,20 +144,20 @@ flowchart TD
 | `user_credentials` | table | Tenancy & identity | 1 | 6 | `users` |
 | `webhook_deliveries` | table | Connectors & providers | 1 | - | - |
 | `webhooks` | table | Connectors & providers | 1 | 11 | `tenants` |
-| `v_activation_app_integration_catalog` | view | Connectors & providers | 1 | - | - |
-| `v_activation_local_gateway_tool_catalog` | view | Connectors & providers | 1 | - | - |
-| `v_app_integration_capability_map` | view | Connectors & providers | 2 | - | - |
+| `v_activation_app_integration_catalog` | view | Activation & onboarding | 1 | - | - |
+| `v_activation_local_gateway_tool_catalog` | view | Activation & onboarding | 1 | - | - |
+| `v_app_integration_capability_map` | view | Platform resources & graph | 2 | - | - |
 | `v_app_integration_tool_map` | view | Connectors & providers | 1 | - | - |
 | `v_connector_family_coverage` | view | Connectors & providers | 2 | - | - |
 | `v_database_lifecycle_credential_review` | view | Connectors & providers | 1 | - | - |
-| `v_external_delivery_provider_adapter_future_pr_scope_summary` | view | Connectors & providers | 1 | - | - |
-| `v_external_delivery_provider_adapter_readiness_checklist_summary` | view | Connectors & providers | 1 | - | - |
-| `v_external_delivery_provider_adapter_readiness_decision_summary` | view | Connectors & providers | 1 | - | - |
-| `v_external_delivery_provider_contract_readiness` | view | Connectors & providers | 1 | - | - |
-| `v_external_delivery_provider_enablement_proposal_readiness` | view | Connectors & providers | 1 | - | - |
+| `v_external_delivery_provider_adapter_future_pr_scope_summary` | view | Delivery & support | 1 | - | - |
+| `v_external_delivery_provider_adapter_readiness_checklist_summary` | view | Delivery & support | 1 | - | - |
+| `v_external_delivery_provider_adapter_readiness_decision_summary` | view | Platform resources & graph | 1 | - | - |
+| `v_external_delivery_provider_contract_readiness` | view | Delivery & support | 1 | - | - |
+| `v_external_delivery_provider_enablement_proposal_readiness` | view | Repository & development | 1 | - | - |
 | `v_hostinger_apply_policy_readiness` | view | Connectors & providers | 1 | - | - |
 | `v_hostinger_apply_policy_safe_field_readiness` | view | Connectors & providers | 1 | - | - |
-| `v_hostinger_recovery_option_readiness` | view | Connectors & providers | 1 | - | - |
+| `v_hostinger_recovery_option_readiness` | view | Migration & lifecycle | 1 | - | - |
 
 ## Coverage counters
 

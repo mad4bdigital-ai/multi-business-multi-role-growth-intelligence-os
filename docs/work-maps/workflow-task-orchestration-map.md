@@ -86,7 +86,7 @@ flowchart TD
 
 | Object | Type | Domain | Source migrations | Columns discovered | References |
 |---|---|---|---:|---:|---|
-| `activation_auth_source_router` | table | Workflow & tasks | 1 | - | - |
+| `activation_auth_source_router` | table | Activation & onboarding | 1 | - | - |
 | `agent_workflow_bindings` | table | Agents & intelligence | 1 | 5 | `agents` |
 | `approval_holds` | table | Workflow & tasks | 2 | 15 | `step_runs`, `tenants` |
 | `browser_data_extraction_jobs` | table | Workflow & tasks | 1 | 13 | `tenants`, `users` |
@@ -105,37 +105,37 @@ flowchart TD
 | `platform_orchestration_stages` | table | Workflow & tasks | 1 | 17 | - |
 | `platform_orchestration_state_snapshots` | table | Workflow & tasks | 1 | 22 | `decision_runs`, `tenants` |
 | `platform_pending_tasks` | table | Workflow & tasks | 1 | - | - |
-| `platform_resource_recipe_steps` | table | Workflow & tasks | 1 | 18 | - |
-| `repo_ingestion_jobs` | table | Workflow & tasks | 2 | - | - |
-| `repo_snapshot_files` | table | Observability & release | 1 | - | - |
-| `repo_snapshots` | table | Observability & release | 1 | - | - |
+| `platform_resource_recipe_steps` | table | Platform resources & graph | 1 | 18 | - |
+| `repo_ingestion_jobs` | table | Repository & development | 2 | - | - |
+| `repo_snapshot_files` | table | Repository & development | 1 | - | - |
+| `repo_snapshots` | table | Repository & development | 1 | - | - |
 | `resource_authority_route_family_registry` | table | Workflow & tasks | 1 | 16 | - |
 | `runtime_verification_steps` | table | Workflow & tasks | 1 | - | `runtime_verification_runs` |
 | `runtime_verification_workflow_registry` | table | Workflow & tasks | 1 | - | - |
 | `schema_import_jobs` | table | Workflow & tasks | 2 | 16 | - |
-| `session_insight_capability_envelope_approval_decisions` | table | Workflow & tasks | 1 | 30 | `approval_holds`, `session_insight_capability_envelope_actual_requests` |
+| `session_insight_capability_envelope_approval_decisions` | table | Platform resources & graph | 1 | 30 | `approval_holds`, `session_insight_capability_envelope_actual_requests` |
 | `step_runs` | table | Workflow & tasks | 2 | 15 | `tenants` |
-| `summary_development_agent_approvals` | table | Agents & intelligence | 1 | - | - |
+| `summary_development_agent_approvals` | table | Repository & development | 1 | - | - |
 | `tenant_ssh_cli_approval_requests` | table | Tenancy & identity | 1 | - | - |
-| `ticket_permission_snapshots` | table | Governance & authority | 1 | 14 | `tenants`, `tickets`, `users` |
-| `ticket_workflow_links` | table | Workflow & tasks | 1 | 12 | `approval_holds`, `plans`, `tenants`, `tickets` |
+| `ticket_permission_snapshots` | table | Delivery & support | 1 | 14 | `tenants`, `tickets`, `users` |
+| `ticket_workflow_links` | table | Delivery & support | 1 | 12 | `approval_holds`, `plans`, `tenants`, `tickets` |
 | `workflow_runs` | table | Workflow & tasks | 3 | 16 | `plans`, `tenants`, `users` |
 | `workflow_runtime_bindings` | table | Workflow & tasks | 1 | 20 | `tenants` |
 | `workflows` | table | Workflow & tasks | 1 | - | - |
-| `v_activation_pending_tasks` | view | Workflow & tasks | 1 | - | - |
-| `v_activation_task_route_catalog` | view | Workflow & tasks | 1 | - | - |
-| `v_activation_workflow_catalog` | view | Workflow & tasks | 1 | - | - |
-| `v_activation_workflow_runtime_bindings` | view | Workflow & tasks | 1 | - | - |
+| `v_activation_pending_tasks` | view | Activation & onboarding | 1 | - | - |
+| `v_activation_task_route_catalog` | view | Activation & onboarding | 1 | - | - |
+| `v_activation_workflow_catalog` | view | Activation & onboarding | 1 | - | - |
+| `v_activation_workflow_runtime_bindings` | view | Activation & onboarding | 1 | - | - |
 | `v_approval_hold_parent_resolution` | view | Workflow & tasks | 1 | - | - |
 | `v_database_lifecycle_backup_snapshot_review` | view | Observability & release | 1 | - | - |
 | `v_database_lifecycle_report_snapshot_schedule_readiness` | view | Observability & release | 1 | - | - |
 | `v_database_lifecycle_report_snapshot_summary` | view | Observability & release | 1 | - | - |
 | `v_platform_orchestration_ads_governance_readiness` | view | Workflow & tasks | 1 | - | - |
-| `v_platform_orchestration_external_delivery_readiness` | view | Workflow & tasks | 1 | - | - |
+| `v_platform_orchestration_external_delivery_readiness` | view | Delivery & support | 1 | - | - |
 | `v_platform_orchestration_graph_readiness` | view | Workflow & tasks | 3 | - | - |
-| `v_platform_orchestration_support_ticket_lifecycle_readiness` | view | Workflow & tasks | 1 | - | - |
-| `v_session_insight_capability_envelope_approval_decision_issues` | view | Workflow & tasks | 1 | - | - |
-| `v_session_insight_capability_envelope_approval_readiness` | view | Workflow & tasks | 1 | - | - |
+| `v_platform_orchestration_support_ticket_lifecycle_readiness` | view | Delivery & support | 1 | - | - |
+| `v_session_insight_capability_envelope_approval_decision_issues` | view | Platform resources & graph | 1 | - | - |
+| `v_session_insight_capability_envelope_approval_readiness` | view | Platform resources & graph | 1 | - | - |
 
 ## Coverage counters
 

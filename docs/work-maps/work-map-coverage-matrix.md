@@ -10,16 +10,23 @@
 
 | Domain | Tables | Views | Generated maps | Status |
 |---|---:|---:|---|---|
-| Agents & intelligence | 38 | 18 | `agent-skill-plugin-map.md`, `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
+| Activation & onboarding | 23 | 24 | `agent-skill-plugin-map.md`, `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
+| Agents & intelligence | 37 | 8 | `agent-skill-plugin-map.md`, `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
+| Assets & packages | 17 | 0 | `data-model-domain-map.md`, `observability-release-map.md` | covered |
 | Brand & business | 4 | 0 | `data-model-domain-map.md` | covered |
-| Connectors & providers | 34 | 14 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md` | covered |
-| Developer & API | 7 | 1 | `data-model-domain-map.md` | covered |
-| Governance & authority | 19 | 6 | `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
-| Observability & release | 30 | 30 | `data-model-domain-map.md`, `observability-release-map.md`, `workflow-task-orchestration-map.md` | covered |
-| Other / uncategorized | 107 | 31 | `data-model-domain-map.md` | covered |
-| Sessions & memory | 37 | 45 | `data-model-domain-map.md`, `observability-release-map.md`, `session-memory-map.md` | covered |
-| Tenancy & identity | 33 | 12 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
-| Workflow & tasks | 24 | 11 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
+| Commercial & usage | 9 | 0 | `data-model-domain-map.md`, `policy-authority-map.md` | covered |
+| Connectors & providers | 36 | 8 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md` | covered |
+| Delivery & support | 18 | 9 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
+| Developer & API | 6 | 1 | `data-model-domain-map.md` | covered |
+| Governance & authority | 15 | 5 | `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md` | covered |
+| Migration & lifecycle | 9 | 3 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md` | covered |
+| Observability & release | 23 | 23 | `data-model-domain-map.md`, `observability-release-map.md`, `workflow-task-orchestration-map.md` | covered |
+| Other / uncategorized | 8 | 16 | `data-model-domain-map.md` | covered |
+| Platform resources & graph | 35 | 21 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
+| Repository & development | 22 | 6 | `agent-skill-plugin-map.md`, `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `workflow-task-orchestration-map.md` | covered |
+| Sessions & memory | 25 | 34 | `data-model-domain-map.md`, `observability-release-map.md`, `session-memory-map.md` | covered |
+| Tenancy & identity | 25 | 7 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
+| Workflow & tasks | 21 | 3 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
 
 ## Generated map inventory
 
@@ -34,143 +41,29 @@
 ## Uncategorized schema objects
 
 - `actions` (table)
-- `activation_attention_rule_registry` (table)
-- `activation_authorized_surface_registry` (table)
-- `activation_callback_registry` (table)
-- `activation_container_relationship_type_registry` (table)
-- `activation_container_relationships` (table)
-- `activation_dynamic_tab_discovery_rule_registry` (table)
-- `activation_dynamic_tab_registry` (table)
-- `activation_dynamic_tab_section_registry` (table)
-- `activation_freshness_ledger` (table)
-- `activation_guidance_invocation_registry` (table)
-- `activation_operational_tile_registry` (table)
-- `activation_section_action_registry` (table)
-- `activation_signal_inbox` (table)
-- `activation_signal_processing_log` (table)
-- `adaptation_records` (table)
 - `app_action_requests` (table)
-- `asset_equivalence_groups` (table)
-- `asset_equivalence_members` (table)
-- `auth_email_outbox` (table)
-- `auth_password_reset_tokens` (table)
-- `browser_runtime_artifacts` (table)
-- `browser_runtime_bindings` (table)
-- `browser_runtime_capabilities` (table)
-- `browser_runtime_events` (table)
-- `browser_runtime_registry` (table)
-- `browser_site_inspection_runs` (table)
-- `capability_resolution_envelope_ledger` (table)
-- `checkpoint_auto_rollups` (table)
-- `cms_account_claims` (table)
-- `cms_sites` (table)
-- `commercial_profiles` (table)
 - `connected_execution_resume_actions` (table)
-- `credit_balances` (table)
-- `credit_ledger` (table)
-- `data_migration_inventory` (table)
-- `database_table_lifecycle_registry` (table)
-- `decision_runs` (table)
-- `execution_enablement_registry` (table)
-- `execution_enablement_requests` (table)
-- `external_delivery_recipient_allowlist_registry` (table)
-- `governed_migration_authorization_registry` (table)
-- `governed_migration_ledger` (table)
-- `intelligence_policies` (table)
-- `intent_resolutions` (table)
-- `json_asset_subject_links` (table)
-- `local_project_path_events` (table)
-- `local_project_path_registry` (table)
-- `local_project_path_repair_runs` (table)
-- `onboarding_escalations` (table)
-- `onboarding_states` (table)
-- `output_artifacts` (table)
-- `pack_attachments` (table)
-- `platform_capability_source_resolutions` (table)
-- `platform_contract_surfaces` (table)
-- `platform_copy_locations` (table)
-- `platform_graph_edges` (table)
-- `platform_graph_nodes` (table)
-- `platform_graph_projection_runs` (table)
-- `platform_graph_query_log` (table)
-- `platform_graph_taxonomy` (table)
-- `platform_graph_validation_runs` (table)
-- `platform_package_variant_assets` (table)
-- `platform_package_variant_patches` (table)
-- `platform_package_variants` (table)
-- `platform_package_versions` (table)
-- `platform_private_package_assets` (table)
-- `platform_private_packages` (table)
-- `platform_private_repo_mirrors` (table)
-- `platform_recovery_failure_taxonomy` (table)
-- `platform_resource_adapters` (table)
-- `platform_resource_recipes` (table)
-- `platform_resource_types` (table)
 - `platform_runtime_config` (table)
-- `platform_secrets` (table)
-- `platform_variant_merge_runs` (table)
-- `preflight_ledger_validator_registry` (table)
-- `proposal_discussions` (table)
-- `registry_surfaces_catalog` (table)
-- `remote_runtime_command_allowlists` (table)
-- `remote_runtime_targets` (table)
-- `repo_candidate_assets` (table)
-- `repo_capability_candidates` (table)
-- `repo_install_diff_items` (table)
-- `repo_install_diff_runs` (table)
-- `repo_install_requests` (table)
-- `repo_source_registry` (table)
-- `reporting_views` (table)
-- `runtime_ci_check_classification_registry` (table)
-- `runtime_deployment_parity_status` (table)
 - `runtime_gap_remediation_registry` (table)
 - `runtime_verification_gaps` (table)
 - `runtime_verification_runs` (table)
-- `secret_references` (table)
-- `sink_dispatch_log` (table)
 - `summary_comparison_runs` (table)
-- `summary_development_automation_runs` (table)
-- `summary_development_signals` (table)
-- `threads` (table)
-- `ticket_lifecycle_events` (table)
-- `ticket_resource_links` (table)
-- `tickets` (table)
-- `timeline_events` (table)
-- `tracked_events` (table)
-- `usage_limits` (table)
-- `usage_meters` (table)
-- `validation_repair` (table)
-- `connected_execution_latest_checkpoint` (view)
-- `v_activation_app_binding_catalog` (view)
-- `v_activation_connected_app_connections` (view)
 - `v_core_runtime_context_dimension_coverage` (view)
 - `v_database_lifecycle_growth_hotspots` (view)
 - `v_database_lifecycle_high_risk_review` (view)
 - `v_database_lifecycle_owner_coverage` (view)
 - `v_database_lifecycle_placeholder_review` (view)
 - `v_database_lifecycle_status_summary` (view)
-- `v_external_delivery_admin_overview` (view)
-- `v_external_delivery_gmail_connections` (view)
-- `v_external_delivery_recent_send_events` (view)
-- `v_migration_status_compact` (view)
 - `v_platform_bindings_current` (view)
 - `v_platform_capabilities_current` (view)
-- `v_platform_capability_gaps` (view)
-- `v_platform_capability_maturity` (view)
 - `v_platform_exports_current` (view)
 - `v_platform_exports_current_v2` (view)
 - `v_platform_relationship_integrity_issues` (view)
 - `v_platform_relationship_integrity_score` (view)
 - `v_platform_relationship_integrity_summary` (view)
-- `v_platform_resource_capability_baseline` (view)
-- `v_remote_runtime_target_coverage_issues` (view)
-- `v_repo_branch_hygiene_compact` (view)
-- `v_resource_recipe_registry_compact` (view)
-- `v_runtime_ci_check_gate` (view)
 - `v_runtime_context_dimension_enrichment_fillable` (view)
 - `v_runtime_production_parity` (view)
 - `v_runtime_verification_latest` (view)
-- `v_smoke_branch_cleanup_gate_readback` (view)
 
 ## Coverage policy
 

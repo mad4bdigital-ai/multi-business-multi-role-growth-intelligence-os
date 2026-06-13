@@ -92,19 +92,19 @@ flowchart TD
 
 | Object | Type | Domain | Source migrations | Columns discovered | References |
 |---|---|---|---:|---:|---|
-| `browser_runtime_sessions` | table | Sessions & memory | 1 | 11 | `tenants`, `users` |
+| `browser_runtime_sessions` | table | Connectors & providers | 1 | 11 | `tenants`, `users` |
 | `connected_execution_sessions` | table | Sessions & memory | 1 | 24 | `tenants`, `users` |
 | `credential_intake_sessions` | table | Connectors & providers | 3 | 21 | `tenants`, `users` |
 | `customer_sessions` | table | Brand & business | 5 | 22 | `tenants`, `users` |
 | `gpt_session_conversation_refs` | table | Sessions & memory | 2 | 19 | `tenants`, `users` |
 | `gpt_session_turns` | table | Sessions & memory | 5 | 7 | - |
-| `graph_memory_usage_events` | table | Sessions & memory | 1 | 18 | `tenants`, `users` |
+| `graph_memory_usage_events` | table | Commercial & usage | 1 | 18 | `tenants`, `users` |
 | `local_manager_device_link_sessions` | table | Connectors & providers | 1 | 17 | `tenants`, `users` |
 | `memory_scope_links` | table | Sessions & memory | 1 | 36 | `memory_scope_type_registry`, `tenants`, `users` |
 | `memory_scope_type_registry` | table | Sessions & memory | 1 | 19 | - |
 | `offsite_drive_upload_sessions` | table | Sessions & memory | 1 | - | - |
-| `platform_graph_memory_rank_rules` | table | Sessions & memory | 1 | 7 | - |
-| `platform_variant_edit_sessions` | table | Sessions & memory | 1 | - | - |
+| `platform_graph_memory_rank_rules` | table | Platform resources & graph | 1 | 7 | - |
+| `platform_variant_edit_sessions` | table | Assets & packages | 1 | - | - |
 | `request_envelopes` | table | Sessions & memory | 1 | 15 | `tenants`, `users` |
 | `session_assimilation_queue` | table | Sessions & memory | 1 | 10 | `tenants` |
 | `session_drive_artifacts` | table | Sessions & memory | 1 | 14 | - |
@@ -112,16 +112,16 @@ flowchart TD
 | `session_insight_backlog_target_items` | table | Sessions & memory | 1 | 19 | - |
 | `session_insight_backlog_target_writes` | table | Sessions & memory | 1 | 33 | `session_insight_backlog_target_items`, `session_insight_capability_envelope_remaining_scope_completions` |
 | `session_insight_candidates` | table | Sessions & memory | 1 | 31 | `tenants`, `users` |
-| `session_insight_capability_envelope_actual_request_preflights` | table | Sessions & memory | 1 | 29 | `session_insight_capability_envelope_dispatch_dry_runs` |
-| `session_insight_capability_envelope_actual_requests` | table | Sessions & memory | 1 | 34 | `session_insight_capability_envelope_actual_request_preflights`, `session_insight_capability_envelope_dispatch_dry_runs` |
-| `session_insight_capability_envelope_adapter_execution_gates` | table | Sessions & memory | 1 | 29 | `session_insight_capability_envelope_dispatch_readbacks` |
-| `session_insight_capability_envelope_approval_decisions` | table | Workflow & tasks | 1 | 30 | `approval_holds`, `session_insight_capability_envelope_actual_requests` |
-| `session_insight_capability_envelope_dispatch_dry_runs` | table | Sessions & memory | 2 | 26 | `session_insight_capability_envelope_request_gates` |
-| `session_insight_capability_envelope_dispatch_readbacks` | table | Sessions & memory | 1 | 33 | `approval_holds`, `session_insight_capability_envelope_approval_decisions` |
-| `session_insight_capability_envelope_plans` | table | Tenancy & identity | 1 | 24 | `session_insight_promotion_payload_previews` |
-| `session_insight_capability_envelope_remaining_scope_completions` | table | Sessions & memory | 1 | 35 | `session_insight_capability_envelope_adapter_execution_gates` |
-| `session_insight_capability_envelope_request_gate_review_events` | table | Sessions & memory | 1 | 18 | `session_insight_capability_envelope_request_gates` |
-| `session_insight_capability_envelope_request_gates` | table | Sessions & memory | 2 | 25 | `session_insight_capability_envelope_plans` |
+| `session_insight_capability_envelope_actual_request_preflights` | table | Platform resources & graph | 1 | 29 | `session_insight_capability_envelope_dispatch_dry_runs` |
+| `session_insight_capability_envelope_actual_requests` | table | Platform resources & graph | 1 | 34 | `session_insight_capability_envelope_actual_request_preflights`, `session_insight_capability_envelope_dispatch_dry_runs` |
+| `session_insight_capability_envelope_adapter_execution_gates` | table | Platform resources & graph | 1 | 29 | `session_insight_capability_envelope_dispatch_readbacks` |
+| `session_insight_capability_envelope_approval_decisions` | table | Platform resources & graph | 1 | 30 | `approval_holds`, `session_insight_capability_envelope_actual_requests` |
+| `session_insight_capability_envelope_dispatch_dry_runs` | table | Platform resources & graph | 2 | 26 | `session_insight_capability_envelope_request_gates` |
+| `session_insight_capability_envelope_dispatch_readbacks` | table | Platform resources & graph | 1 | 33 | `approval_holds`, `session_insight_capability_envelope_approval_decisions` |
+| `session_insight_capability_envelope_plans` | table | Platform resources & graph | 1 | 24 | `session_insight_promotion_payload_previews` |
+| `session_insight_capability_envelope_remaining_scope_completions` | table | Platform resources & graph | 1 | 35 | `session_insight_capability_envelope_adapter_execution_gates` |
+| `session_insight_capability_envelope_request_gate_review_events` | table | Platform resources & graph | 1 | 18 | `session_insight_capability_envelope_request_gates` |
+| `session_insight_capability_envelope_request_gates` | table | Platform resources & graph | 2 | 25 | `session_insight_capability_envelope_plans` |
 | `session_insight_dispatch_dry_run_review_events` | table | Sessions & memory | 1 | 21 | `session_insight_capability_envelope_dispatch_dry_runs` |
 | `session_insight_payload_preview_review_events` | table | Sessions & memory | 1 | 16 | `session_insight_promotion_payload_previews` |
 | `session_insight_promotion_adapter_contracts` | table | Sessions & memory | 1 | 21 | `session_insight_promotion_target_adapters` |
@@ -138,8 +138,8 @@ flowchart TD
 | `v_gpt_session_archive_monitoring_issues` | view | Sessions & memory | 5 | - | - |
 | `v_gpt_session_archive_monitoring_summary` | view | Sessions & memory | 1 | - | - |
 | `v_memory_scope_link_registry_issues` | view | Sessions & memory | 1 | - | - |
-| `v_session_insight_actual_preflight_issues` | view | Sessions & memory | 1 | - | - |
-| `v_session_insight_actual_preflight_readiness` | view | Sessions & memory | 1 | - | - |
+| `v_session_insight_actual_preflight_issues` | view | Governance & authority | 1 | - | - |
+| `v_session_insight_actual_preflight_readiness` | view | Governance & authority | 1 | - | - |
 | `v_session_insight_actual_request_readiness` | view | Sessions & memory | 1 | - | - |
 | `v_session_insight_adapter_apply_readiness` | view | Sessions & memory | 1 | - | - |
 | `v_session_insight_adapter_apply_readiness_gate` | view | Sessions & memory | 1 | - | - |
@@ -152,19 +152,19 @@ flowchart TD
 | `v_session_insight_backlog_target_write_issues` | view | Sessions & memory | 1 | - | - |
 | `v_session_insight_backlog_target_write_readiness` | view | Sessions & memory | 1 | - | - |
 | `v_session_insight_candidate_issues` | view | Sessions & memory | 1 | - | - |
-| `v_session_insight_capability_envelope_actual_request_issues` | view | Sessions & memory | 1 | - | - |
-| `v_session_insight_capability_envelope_approval_decision_issues` | view | Workflow & tasks | 1 | - | - |
-| `v_session_insight_capability_envelope_approval_readiness` | view | Workflow & tasks | 1 | - | - |
-| `v_session_insight_capability_envelope_dispatch_dry_run_issues` | view | Sessions & memory | 1 | - | - |
-| `v_session_insight_capability_envelope_dispatch_dry_run_readiness` | view | Sessions & memory | 1 | - | - |
-| `v_session_insight_capability_envelope_dispatch_readback_issues` | view | Sessions & memory | 1 | - | - |
-| `v_session_insight_capability_envelope_plan_issues` | view | Tenancy & identity | 1 | - | - |
-| `v_session_insight_capability_envelope_plan_readiness` | view | Tenancy & identity | 1 | - | - |
-| `v_session_insight_capability_envelope_request_dispatch_readiness` | view | Sessions & memory | 1 | - | - |
-| `v_session_insight_capability_envelope_request_gate_issues` | view | Sessions & memory | 1 | - | - |
-| `v_session_insight_capability_envelope_request_gate_readiness` | view | Sessions & memory | 1 | - | - |
-| `v_session_insight_capability_envelope_request_review_issues` | view | Sessions & memory | 1 | - | - |
-| `v_session_insight_capability_envelope_request_review_queue` | view | Sessions & memory | 1 | - | - |
+| `v_session_insight_capability_envelope_actual_request_issues` | view | Platform resources & graph | 1 | - | - |
+| `v_session_insight_capability_envelope_approval_decision_issues` | view | Platform resources & graph | 1 | - | - |
+| `v_session_insight_capability_envelope_approval_readiness` | view | Platform resources & graph | 1 | - | - |
+| `v_session_insight_capability_envelope_dispatch_dry_run_issues` | view | Platform resources & graph | 1 | - | - |
+| `v_session_insight_capability_envelope_dispatch_dry_run_readiness` | view | Platform resources & graph | 1 | - | - |
+| `v_session_insight_capability_envelope_dispatch_readback_issues` | view | Platform resources & graph | 1 | - | - |
+| `v_session_insight_capability_envelope_plan_issues` | view | Platform resources & graph | 1 | - | - |
+| `v_session_insight_capability_envelope_plan_readiness` | view | Platform resources & graph | 1 | - | - |
+| `v_session_insight_capability_envelope_request_dispatch_readiness` | view | Platform resources & graph | 1 | - | - |
+| `v_session_insight_capability_envelope_request_gate_issues` | view | Platform resources & graph | 1 | - | - |
+| `v_session_insight_capability_envelope_request_gate_readiness` | view | Platform resources & graph | 1 | - | - |
+| `v_session_insight_capability_envelope_request_review_issues` | view | Platform resources & graph | 1 | - | - |
+| `v_session_insight_capability_envelope_request_review_queue` | view | Platform resources & graph | 1 | - | - |
 | `v_session_insight_dispatch_dry_run_review_issues` | view | Sessions & memory | 1 | - | - |
 | `v_session_insight_dispatch_dry_run_review_queue` | view | Sessions & memory | 1 | - | - |
 | `v_session_insight_dispatch_readback_readiness` | view | Sessions & memory | 1 | - | - |
