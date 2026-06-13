@@ -453,8 +453,11 @@ export async function buildProfiledHardActivationResponse({
 export async function recordPreparedActivationResponse(responseBody) {
   const runId = responseBody?.run_id;
   if (!runId) return { ok: true, skipped: true, reason: "missing_run_id" };
+  const pool = getPool();
+  const connection = await pool.getConnection();
   try {
-    const [result] = await getPool().query(
+    await connection.beginTransaction();
+    const [result] = await connection.query(
       `UPDATE activation_runs
           SET snapshot_id = ?, response_profile = ?, response_bytes = ?,
               validation_state = ?, evidence_state = 'complete', delivery_state = 'prepared',
@@ -469,9 +472,43 @@ export async function recordPreparedActivationResponse(responseBody) {
         runId,
       ]
     );
-    return { ok: true, affected_rows: safeNumber(result?.affectedRows) };
+    const snapshot = responseBody.snapshot || {};
+    if (snapshot.snapshot_id) {
+      await connection.query(
+        `INSERT INTO activation_snapshot_ledger
+          (snapshot_id, run_id, session_id, tenant_id, user_id, registry_version,
+           data_watermark, response_profile, subject_scope, snapshot_status,
+           completeness_json, awareness_index_json, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'prepared', ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())
+         ON DUPLICATE KEY UPDATE
+           run_id = VALUES(run_id), session_id = VALUES(session_id), tenant_id = VALUES(tenant_id),
+           user_id = VALUES(user_id), registry_version = VALUES(registry_version),
+           data_watermark = VALUES(data_watermark), response_profile = VALUES(response_profile),
+           subject_scope = VALUES(subject_scope), snapshot_status = 'prepared',
+           completeness_json = VALUES(completeness_json), awareness_index_json = VALUES(awareness_index_json),
+           updated_at = UTC_TIMESTAMP()`,
+        [
+          snapshot.snapshot_id,
+          runId,
+          responseBody.session_id || null,
+          responseBody.session_context?.subject?.tenant_id || responseBody.dynamic_tabs_manifest?.subject?.tenant_id || null,
+          responseBody.session_context?.subject?.user_id || responseBody.dynamic_tabs_manifest?.subject?.user_id || null,
+          snapshot.registry_version || null,
+          new Date(snapshot.data_watermark || snapshot.generated_at || Date.now()),
+          responseBody.response_profile,
+          snapshot.subject_scope || "platform_admin",
+          JSON.stringify(responseBody.completeness || {}),
+          JSON.stringify(responseBody.awareness_index || {}),
+        ]
+      );
+    }
+    await connection.commit();
+    return { ok: true, affected_rows: safeNumber(result?.affectedRows), snapshot_persisted: Boolean(snapshot.snapshot_id) };
   } catch (err) {
+    await connection.rollback().catch(() => {});
     return { ok: false, error: compactError(err, "activation_run_prepare_record_failed") };
+  } finally {
+    connection.release();
   }
 }
 
