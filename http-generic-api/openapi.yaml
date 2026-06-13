@@ -4834,6 +4834,230 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /activation/awareness:
+    get:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: readActivationAwareness
+      x-openai-isConsequential: false
+      summary: Read complete activation awareness manifests
+      description: Returns Dynamic Tabs and Dashboard manifests, attention summaries, completeness, freshness, awareness index, snapshot metadata, and governed detail references without silently omitting surfaces.
+      parameters:
+        - in: query
+          name: profile
+          schema: { type: string, enum: [evidence, summary, dashboard, diagnostic, full], default: evidence }
+        - in: query
+          name: attention_limit
+          schema: { type: integer, minimum: 1, maximum: 20, default: 10 }
+      responses:
+        '200':
+          description: Activation awareness readback.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActivationAwarenessResponse' }
+        '401':
+          description: Authentication required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500':
+          description: Awareness read failed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /activation/dynamic-tabs/detail:
+    get:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: readActivationDynamicTabDetail
+      x-openai-isConsequential: false
+      summary: Read one authorized Dynamic Tab detail page
+      parameters:
+        - in: query
+          name: container_key
+          required: true
+          schema: { type: string }
+        - in: query
+          name: tab_key
+          required: true
+          schema: { type: string }
+        - in: query
+          name: section_key
+          schema: { type: string }
+        - in: query
+          name: cursor
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - in: query
+          name: snapshot_id
+          schema: { type: string }
+      responses:
+        '200':
+          description: Cursor-paginated Dynamic Tab detail.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActivationDynamicTabDetailResponse' }
+        '400':
+          description: Missing or invalid detail scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Container, tab, or section not found within caller scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /activation/runs/{runId}/ack:
+    post:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: acknowledgeActivationRun
+      x-openai-isConsequential: false
+      summary: Record consumer acknowledgement for an activation run
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ActivationRunAckRequest' }
+      responses:
+        '200':
+          description: Acknowledgement recorded.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActivationRunAckResponse' }
+        '404':
+          description: Activation run not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /tenant/activation/awareness:
+    get:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+      operationId: readTenantActivationAwareness
+      x-openai-isConsequential: false
+      summary: Read signed-in tenant activation awareness
+      description: Tenant scope is resolved from the signed user JWT and active membership. Client-supplied tenant identity is not trusted.
+      parameters:
+        - in: query
+          name: profile
+          schema: { type: string, enum: [evidence, summary, dashboard], default: evidence }
+        - in: query
+          name: attention_limit
+          schema: { type: integer, minimum: 1, maximum: 20, default: 10 }
+      responses:
+        '200':
+          description: Tenant-scoped activation awareness.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActivationAwarenessResponse' }
+        '401':
+          description: User JWT required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Active tenant membership required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /tenant/activation/dynamic-tabs/detail:
+    get:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+      operationId: readTenantActivationDynamicTabDetail
+      x-openai-isConsequential: false
+      summary: Read one tenant-authorized Dynamic Tab detail page
+      parameters:
+        - in: query
+          name: container_key
+          required: true
+          schema: { type: string }
+        - in: query
+          name: tab_key
+          required: true
+          schema: { type: string }
+        - in: query
+          name: section_key
+          schema: { type: string }
+        - in: query
+          name: cursor
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - in: query
+          name: snapshot_id
+          schema: { type: string }
+      responses:
+        '200':
+          description: Tenant-scoped cursor-paginated Dynamic Tab detail.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActivationDynamicTabDetailResponse' }
+        '400':
+          description: Missing or invalid detail scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Caller lacks active tenant membership or requested object scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Container, tab, or section not found within caller scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /activation/hard-run/legacy-full:
+    post:
+      deprecated: true
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: runLegacyFullHardActivation
+      x-openai-isConsequential: false
+      summary: Run legacy full hard activation response
+      description: Compatibility route for callers that require the previous fully hydrated Dynamic Tabs, Operational Intelligence, and Dashboard payload. New callers should use /activation/hard-run with response_profile=full only when necessary.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HardActivationRunRequest' }
+      responses:
+        '200':
+          description: Legacy full activation completed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HardActivationRunResponse' }
+        '424':
+          description: Required activation evidence incomplete.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HardActivationRunResponse' }
+
   /activation/hard-run:
     post:
       tags: [activation]
