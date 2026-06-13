@@ -32,9 +32,11 @@ const result = runGrowthIntelligencePilot({
 });
 
 assert.equal(result.ok, true);
-assert.equal(result.workflow.status, "pass");
+assert.equal(result.workflow.status, "analysis_complete_no_execution");
 assert.equal(result.workflow.stages.length, 10);
-assert(result.workflow.stages.every((stage) => stage.status === "pass"));
+assert.equal(result.workflow.stages.find((stage) => stage.stage === "brand_core_resolution").status, "pass");
+assert.equal(result.workflow.stages.find((stage) => stage.stage === "prompt_router").status, "planned");
+assert.equal(result.workflow.stages.find((stage) => stage.stage === "governed_tool_dispatch").status, "not_executed");
 assert.equal(result.report.schema_version, "1.0.0");
 assert.equal(result.report.brand_context.brandCoreStatus, "ready");
 assert.equal(result.report.activity_intelligence.businessActivityTypeKey, "hvac_services");
