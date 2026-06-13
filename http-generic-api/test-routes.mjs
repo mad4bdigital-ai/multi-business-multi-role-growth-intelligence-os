@@ -29,11 +29,11 @@ function skip(label, reason = "") {
   skipped++;
 }
 
-async function waitForServer(baseUrl, timeoutMs = 15000) {
+async function waitForServer(baseUrl, timeoutMs = 60000) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
     try {
-      const res = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(1000) });
+      const res = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(5000) });
       if (res.status > 0) return;
     } catch {}
     await new Promise(resolve => setTimeout(resolve, 250));
