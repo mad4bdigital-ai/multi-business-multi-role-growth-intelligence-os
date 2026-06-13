@@ -61,6 +61,11 @@ function main() {
   run("node", ["scripts/update-repo-planning-docs.mjs"]);
   steps.push("update-repo-planning-docs");
 
+  if (fileExists("http-generic-api/scripts/platform-work-map-generator.mjs")) {
+    run("node", ["scripts/platform-work-map-generator.mjs", write ? "--write" : "--check"].filter(Boolean));
+    steps.push("platform-work-map-generator");
+  }
+
   if (fileExists("http-generic-api/scripts/surface-contract-discovery.mjs")) {
     run("node", ["scripts/surface-contract-discovery.mjs", write ? "--write" : "--check"].filter(Boolean));
     steps.push("surface-contract-discovery");

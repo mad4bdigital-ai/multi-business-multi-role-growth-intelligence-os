@@ -40,18 +40,20 @@ jobs:
         id: agent
         run: node http-generic-api/scripts/docs-agent-runner.mjs --write --mode pull_request
 
-      - name: Commit docs impact note to PR branch
-        if: steps.agent.outputs.should_write == 'true'
+      - name: Generate dynamic text work maps
+        run: node http-generic-api/scripts/platform-work-map-generator.mjs --write
+
+      - name: Commit generated documentation to PR branch
         run: |
           set -e
-          if [ -z "$(git status --porcelain -- docs/auto-docs-agent)" ]; then
-            echo "Docs Agent: no generated docs changes to commit."
+          if [ -z "$(git status --porcelain -- docs/auto-docs-agent docs/work-maps)" ]; then
+            echo "Docs Agent: no generated docs or work-map changes to commit."
             exit 0
           fi
           git config user.name "docs-agent[bot]"
           git config user.email "docs-agent[bot]@users.noreply.github.com"
-          git add docs/auto-docs-agent
-          git commit -m "Docs agent: update PR impact note"
+          git add docs/auto-docs-agent docs/work-maps
+          git commit -m "Docs agent: update generated documentation"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
           gh workflow run ci.yml --ref ${{ github.event.pull_request.head.ref }} || true
 
@@ -82,23 +84,25 @@ jobs:
         id: agent
         run: node http-generic-api/scripts/docs-agent-runner.mjs --write --mode push --base '${{ github.event.before }}' --head '${{ github.event.after }}'
 
+      - name: Generate dynamic text work maps
+        run: node http-generic-api/scripts/platform-work-map-generator.mjs --write
+
       - name: Create docs-only follow-up PR and enable auto-merge
-        if: steps.agent.outputs.should_write == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCS_AGENT_BRANCH: docs-agent/${{ github.event.after }}
           DOCS_AGENT_SHA: ${{ github.event.after }}
         run: |
           set -e
-          if [ -z "$(git status --porcelain -- docs/auto-docs-agent)" ]; then
-            echo "Docs Agent: no generated docs changes to publish."
+          if [ -z "$(git status --porcelain -- docs/auto-docs-agent docs/work-maps)" ]; then
+            echo "Docs Agent: no generated docs or work-map changes to publish."
             exit 0
           fi
           git config user.name "docs-agent[bot]"
           git config user.email "docs-agent[bot]@users.noreply.github.com"
           git checkout -b "$DOCS_AGENT_BRANCH"
-          git add docs/auto-docs-agent
-          git commit -m "Docs agent: impact note for ${DOCS_AGENT_SHA:0:12}"
+          git add docs/auto-docs-agent docs/work-maps
+          git commit -m "Docs agent: generated documentation for ${DOCS_AGENT_SHA:0:12}"
           git push origin "$DOCS_AGENT_BRANCH"
           PR_URL=$(gh pr create \
             --base main \
