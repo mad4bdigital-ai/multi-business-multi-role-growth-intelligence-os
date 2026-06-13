@@ -266,6 +266,28 @@ const observabilityMap = read("docs/work-maps/observability-release-map.md");
 assert.match(observabilityMap, /execution_log/);
 assert.match(observabilityMap, /release_readiness_runs/);
 
+const activationMap = read("docs/work-maps/activation-onboarding-map.md");
+assert.match(activationMap, /activation_signal_inbox/);
+
+const assetMap = read("docs/work-maps/asset-package-map.md");
+assert.match(assetMap, /asset_equivalence_groups/);
+
+const commercialMap = read("docs/work-maps/commercial-usage-map.md");
+assert.match(commercialMap, /commercial_profiles/);
+
+const repositoryMap = read("docs/work-maps/repository-development-map.md");
+assert.match(repositoryMap, /repo_source_registry/);
+
+const graphMap = read("docs/work-maps/platform-resource-graph-map.md");
+assert.match(graphMap, /platform_graph_nodes/);
+
+const deliveryMap = read("docs/work-maps/delivery-support-map.md");
+assert.match(deliveryMap, /output_artifacts/);
+assert.match(deliveryMap, /tickets/);
+
+const lifecycleMap = read("docs/work-maps/migration-lifecycle-map.md");
+assert.match(lifecycleMap, /data_migration_inventory/);
+
 const coverage = read("docs/work-maps/work-map-coverage-matrix.md");
 assert.match(coverage, /Work Map Coverage Matrix/);
 assert.match(coverage, /data-model-domain-map\.md/);
