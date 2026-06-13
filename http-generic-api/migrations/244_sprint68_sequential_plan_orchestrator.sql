@@ -3,10 +3,7 @@
 -- Additive and idempotent. Does not widen provider execution authority.
 
 ALTER TABLE execution_plans
-  MODIFY COLUMN plan_status ENUM(
-    'draft','validated','approved','executing','awaiting_approval','paused',
-    'blocked','completed','failed','cancelled'
-  ) NOT NULL DEFAULT 'draft';
+  ADD COLUMN IF NOT EXISTS runtime_status VARCHAR(64) NULL AFTER plan_status;
 
 CREATE TABLE IF NOT EXISTS execution_plan_steps (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
