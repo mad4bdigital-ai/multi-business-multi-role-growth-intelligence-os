@@ -446,14 +446,15 @@ export function buildSchemaIntelligenceMaps({ repoRoot }) {
   const memory = parseMemoryStates(repoRoot);
   const maps = {
     "data-model-domain-map.md": renderDomainCatalog(repoRoot, catalog),
-    "agent-skill-plugin-map.md": renderSpecialized(repoRoot, catalog, SPECIALIZED_MAPS[0]),
-    "workflow-task-orchestration-map.md": renderSpecialized(repoRoot, catalog, SPECIALIZED_MAPS[1]),
-    "policy-authority-map.md": renderPolicyAuthority(repoRoot, catalog),
-    "connector-provider-map.md": renderSpecialized(repoRoot, catalog, SPECIALIZED_MAPS[3]),
     "session-memory-map.md": renderSessionMemory(repoRoot, catalog, memory),
-    "observability-release-map.md": renderSpecialized(repoRoot, catalog, SPECIALIZED_MAPS[4]),
   };
+  for (const spec of SPECIALIZED_MAPS) {
+    maps[spec.file] = spec.file === "policy-authority-map.md"
+      ? renderPolicyAuthority(repoRoot, catalog)
+      : renderSpecialized(repoRoot, catalog, spec);
+  }
   maps["work-map-coverage-matrix.md"] = renderCoverageMatrix(repoRoot, catalog, Object.keys(maps));
+  const allObjects = [...catalog.tables, ...catalog.views];
   return {
     maps,
     sourceFiles: uniq([...catalog.files, memory.file].filter(Boolean)),
@@ -463,7 +464,10 @@ export function buildSchemaIntelligenceMaps({ repoRoot }) {
       views_discovered: catalog.views.length,
       policy_keys_discovered: catalog.policies.length,
       memory_states_discovered: memory.states.length,
-      uncategorized_objects: [...catalog.tables, ...catalog.views].filter((object) => object.domain === "Other / uncategorized").length,
+      domain_count: uniq(allObjects.map((object) => object.domain)).length,
+      specialized_map_count: SPECIALIZED_MAPS.length,
+      uncategorized_objects: allObjects.filter((object) => object.domain === "Other / uncategorized").length,
+      classified_objects: allObjects.filter((object) => object.domain !== "Other / uncategorized").length,
     },
   };
 }
