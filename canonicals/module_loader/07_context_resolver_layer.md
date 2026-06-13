@@ -50,3 +50,20 @@ identity block the step instead of skipping it.
 # Governed Agent Context
 
 Resolve response profile and memory scope after tenant/brand/role context, but treat both as non-authoritative context. Resolve research source policy before creating sequential research steps. Resolve handoff state by opaque ID with expiry and tenant checks.
+
+## Activation Awareness Loading Policy
+
+For hard activation, load validation evidence and complete surface manifests before detailed operational rows. The loader must preserve every authorized Dynamic Tab and Dashboard tile as a manifest even when its rows are deferred.
+
+The default `evidence` profile loads:
+- session and provider validation evidence
+- account/workspace/permission counts
+- Dynamic Tabs manifests
+- Dashboard tile manifests
+- attention-first summaries
+- freshness and completeness metadata
+- governed cursor references for deferred rows
+
+Detailed rows must use progressive hydration (`manifest_only` -> `summary_loaded` -> `detail_loaded`). Global or otherwise shared surfaces must be represented once and referenced from containers. Full or diagnostic loading must batch each section across visible containers and distribute rows in memory; a container-by-section query loop is forbidden.
+
+The loader must preserve snapshot id, registry version, data watermark, response budget, and explicit deferred-surface metadata. Response truncation without a governed detail reference is forbidden.
