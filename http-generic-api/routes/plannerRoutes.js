@@ -11,6 +11,19 @@ import {
   SEQUENTIAL_PLAN_RUN_JOB_TYPE,
   tickSequentialPlan,
 } from "../sequentialPlanOrchestrator.js";
+function persistedPlanStatus(runtimeStatus = "draft") {
+  if (runtimeStatus === "blocked") return "failed";
+  if (["awaiting_approval", "paused"].includes(runtimeStatus)) return "validated";
+  return runtimeStatus;
+}
+
+function principalActor(req) {
+  return String(
+    req.auth?.user_id || req.auth?.admin_id || req.auth?.email ||
+    req.auth?.sub || req.auth?.mode || "backend_api_key"
+  ).trim();
+}
+
 
 export function buildPlannerRoutes(deps) {
   const { requireBackendApiKey } = deps;
@@ -208,7 +221,7 @@ export function buildPlannerRoutes(deps) {
       if (!VALID.includes(status)) {
         return res.status(400).json({ ok: false, error: { code: "invalid_status", message: `status must be one of: ${VALID.join(", ")}` } });
       }
-      await getPool().query("UPDATE `execution_plans` SET plan_status = ? WHERE plan_id = ?", [status, req.params.id]);
+      await getPool().query("UPDATE `execution_plans` SET plan_status = ?, runtime_status = ? WHERE plan_id = ?", [persistedPlanStatus(status), status, req.params.id]);
       return res.status(200).json({ ok: true, plan_id: req.params.id, plan_status: status });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "plan_update_failed", message: err.message } });
@@ -225,7 +238,7 @@ export function buildPlannerRoutes(deps) {
       const apply         = req.query.apply === "true" || req.body?.apply === true;
       const post_types    = req.body?.post_types || ["post"];
       const publish_status = req.body?.publish_status || "draft";
-      const actor_id      = req.body?.actor_id || null;
+      const actor_id      = principalActor(req);
 
       const result = await dispatchPlan(plan_id, { apply, post_types, publish_status, actor_id });
       const httpStatus = result.ok ? 200 : (result.error?.code === "plan_not_found" ? 404 : 400);
@@ -244,7 +257,7 @@ export function buildPlannerRoutes(deps) {
         planId: req.params.id,
         tenantId,
         steps,
-        actorId: req.body?.actor_id || null,
+        actorId: principalActor(req),
       });
       return res.status(201).json({ ok: true, ...result });
     } catch (err) {
@@ -254,7 +267,7 @@ export function buildPlannerRoutes(deps) {
 
   router.post("/planner/plans/:id/tick", requireBackendApiKey, async (req, res) => {
     try {
-      const result = await tickSequentialPlan({ pool: getPool(), planId: req.params.id, actorId: req.body?.actor_id || null });
+      const result = await tickSequentialPlan({ pool: getPool(), planId: req.params.id, actorId: principalActor(req) });
       return res.status(200).json(result);
     } catch (err) {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "sequential_plan_tick_failed", message: err.message }, secrets_included: false });
@@ -266,7 +279,7 @@ export function buildPlannerRoutes(deps) {
       const result = await runSequentialPlan({
         pool: getPool(),
         planId: req.params.id,
-        actorId: req.body?.actor_id || null,
+        actorId: principalActor(req),
         maxTicks: req.body?.max_ticks || 25,
       });
       return res.status(200).json(result);
@@ -280,7 +293,7 @@ export function buildPlannerRoutes(deps) {
       if (!deps.executionFacade || typeof deps.executionFacade.submitJob !== "function") {
         return res.status(503).json({ ok: false, error: { code: "sequential_plan_queue_unavailable", message: "Background execution queue is unavailable." }, secrets_included: false });
       }
-      const actorId = String(req.body?.actor_id || "sequential_plan_orchestrator").trim();
+      const actorId = principalActor(req);
       const idempotencyKey = String(req.body?.idempotency_key || req.header("Idempotency-Key") || `sequential-plan:${req.params.id}`).trim();
       const submitted = await deps.executionFacade.submitJob({
         job_type: SEQUENTIAL_PLAN_RUN_JOB_TYPE,
@@ -300,7 +313,7 @@ export function buildPlannerRoutes(deps) {
 
   router.post("/planner/plans/:id/resume", requireBackendApiKey, async (req, res) => {
     try {
-      const result = await resumeSequentialPlan({ pool: getPool(), planId: req.params.id, actorId: req.body?.actor_id || null });
+      const result = await resumeSequentialPlan({ pool: getPool(), planId: req.params.id, actorId: principalActor(req) });
       return res.status(200).json(result);
     } catch (err) {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "sequential_plan_resume_failed", message: err.message }, secrets_included: false });
