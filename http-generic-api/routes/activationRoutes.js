@@ -1518,6 +1518,10 @@ export async function buildActivationSessionContext(req) {
 
   return {
     session_id: newSessionId,
+    run_id: activationRunId || sessionOpen.run_id || null,
+    idempotency_key: sessionOpen.idempotency_key || null,
+    session_policy: sessionOpen.session_policy || lifecycleOptions.session_policy,
+    session_reused: sessionOpen.reused === true,
     closed_sessions,
     session_management: sessionOpen.session_management,
     subject,
