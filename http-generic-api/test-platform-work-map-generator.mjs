@@ -140,7 +140,7 @@ write("docs/work-maps/manual-notes.md", "# Manual notes\nThis file must survive 
 
 const first = syncWorkMaps({ repoRoot, mode: "write" });
 assert.equal(first.ok, true);
-assert.equal(first.generated_count, 13);
+assert.equal(first.generated_count, 20);
 assert.equal(first.image_assets_generated, false);
 assert.equal(first.secrets_included, false);
 assert.equal(first.schema_intelligence_metrics.migrations_scanned, 3);
@@ -148,6 +148,10 @@ assert.ok(first.schema_intelligence_metrics.tables_discovered >= 12);
 assert.ok(first.schema_intelligence_metrics.views_discovered >= 2);
 assert.ok(first.schema_intelligence_metrics.policy_keys_discovered >= 2);
 assert.equal(first.schema_intelligence_metrics.memory_states_discovered, 4);
+assert.equal(first.schema_intelligence_metrics.specialized_map_count, 12);
+assert.ok(first.schema_intelligence_metrics.domain_count >= 6);
+assert.equal(first.schema_intelligence_metrics.uncategorized_objects, 0);
+assert.ok(first.schema_intelligence_metrics.classified_objects >= 14);
 assert.ok(first.stale_generated_files.includes("docs/work-maps/stale-generated-map.md"));
 assert.equal(fs.existsSync(path.join(repoRoot, "docs/work-maps/stale-generated-map.md")), false);
 assert.equal(fs.existsSync(path.join(repoRoot, "docs/work-maps/manual-notes.md")), true);
