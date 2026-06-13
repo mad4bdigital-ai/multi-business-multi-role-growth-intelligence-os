@@ -28,7 +28,7 @@ assert.deepEqual(
 );
 
 const state = {
-  plans: [{ plan_id: "plan-1", tenant_id: "tenant-1", plan_status: "draft" }],
+  plans: [{ plan_id: "plan-1", tenant_id: "tenant-1", plan_status: "draft", runtime_status: "draft" }],
   steps: [],
   events: [],
   holds: [],
@@ -41,7 +41,7 @@ const connection = {
   release() {},
   async query(sql, params = []) {
     const text = String(sql).replace(/\s+/g, " ").trim();
-    if (text.startsWith("SELECT plan_id, tenant_id, plan_status FROM execution_plans")) return [[state.plans[0]]];
+    if (text.startsWith("SELECT plan_id, tenant_id, plan_status, runtime_status FROM execution_plans")) return [[state.plans[0]]];
     if (text.startsWith("SELECT * FROM execution_plans WHERE plan_id")) return [[state.plans[0]]];
     if (text.startsWith("SELECT * FROM execution_plan_steps WHERE plan_id")) return [[...state.steps].sort((a, b) => a.step_order - b.step_order)];
     if (text.startsWith("SELECT * FROM execution_plan_steps WHERE plan_step_id")) {
@@ -60,10 +60,16 @@ const connection = {
     }
     if (text.startsWith("INSERT INTO execution_plan_events")) { state.events.push({ params }); return [{ affectedRows: 1 }]; }
     if (text.startsWith("INSERT INTO approval_holds")) { state.holds.push({ hold_id: params[0], plan_step_id: params[2] }); return [{ affectedRows: 1 }]; }
-    if (text.startsWith("UPDATE execution_plans SET plan_status = 'validated'")) { state.plans[0].plan_status = "validated"; return [{ affectedRows: 1 }]; }
-    if (text.startsWith("UPDATE execution_plans SET plan_status = 'executing'")) { state.plans[0].plan_status = "executing"; return [{ affectedRows: 1 }]; }
-    if (text.startsWith("UPDATE execution_plans SET plan_status = 'awaiting_approval'")) { state.plans[0].plan_status = "awaiting_approval"; return [{ affectedRows: 1 }]; }
-    if (text.startsWith("UPDATE execution_plans SET plan_status = ?")) { state.plans[0].plan_status = params[0]; return [{ affectedRows: 1 }]; }
+    if (text.startsWith("UPDATE execution_plans SET plan_status = 'validated', runtime_status = 'validated'")) {
+      state.plans[0].plan_status = "validated";
+      state.plans[0].runtime_status = "validated";
+      return [{ affectedRows: 1 }];
+    }
+    if (text.startsWith("UPDATE execution_plans SET plan_status = ?, runtime_status = ?")) {
+      state.plans[0].plan_status = params[0];
+      state.plans[0].runtime_status = params[1];
+      return [{ affectedRows: 1 }];
+    }
     if (text.startsWith("UPDATE execution_plan_steps SET status = 'ready'")) {
       const step = state.steps.find((item) => item.plan_step_id === params[0]);
       if (step) step.status = "ready";
@@ -108,7 +114,8 @@ const run = await runSequentialPlan({
 });
 assert.deepEqual(executed, ["first", "second"]);
 assert.equal(run.last_tick.reason, "awaiting_approval");
-assert.equal(state.plans[0].plan_status, "awaiting_approval");
+assert.equal(state.plans[0].plan_status, "validated");
+assert.equal(state.plans[0].runtime_status, "awaiting_approval");
 assert.equal(state.holds.length, 1);
 assert.equal(state.steps[2].status, "awaiting_approval");
 
@@ -119,13 +126,16 @@ const duplicateTick = await tickSequentialPlan({
 });
 assert.equal(duplicateTick.reason, "awaiting_approval");
 assert.equal(duplicateTick.plan_status, "awaiting_approval");
-assert.equal(state.plans[0].plan_status, "awaiting_approval");
+assert.equal(state.plans[0].plan_status, "validated");
+assert.equal(state.plans[0].runtime_status, "awaiting_approval");
 
 const migration = readFileSync("migrations/244_sprint68_sequential_plan_orchestrator.sql", "utf8");
 const plannerRoutes = readFileSync("routes/plannerRoutes.js", "utf8");
 const approvalRoutes = readFileSync("routes/workflowOrchestrationRoutes.js", "utf8");
 const jobRunner = readFileSync("jobRunner.js", "utf8");
+const sequentialRuntime = readFileSync("sequentialPlanOrchestrator.js", "utf8");
 const governedMigrationRunner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
+assert.match(migration, /ADD COLUMN IF NOT EXISTS runtime_status/);
 const openapi = readFileSync("openapi.yaml", "utf8");
 assert.match(migration, /CREATE TABLE IF NOT EXISTS execution_plan_steps/);
 assert.match(migration, /CREATE TABLE IF NOT EXISTS execution_plan_events/);
@@ -137,7 +147,20 @@ assert.match(plannerRoutes, /\/planner\/plans\/:id\/resume/);
 assert.match(plannerRoutes, /\/planner\/plans\/:id\/timeline/);
 assert.match(approvalRoutes, /sequential_plan_orchestrator/);
 assert.match(jobRunner, /SEQUENTIAL_PLAN_RUN_JOB_TYPE/);
+assert.match(plannerRoutes, /function principalActor\(req\)/);
+assert.equal(plannerRoutes.includes("req.body?.actor_id"), false, "planner routes must derive audit actor from authenticated principal");
+assert.match(approvalRoutes, /LIMIT 1 FOR UPDATE/);
+assert.match(approvalRoutes, /hold_decision_race/);
+assert.match(approvalRoutes, /step_status: nextStepStatus/);
+assert.equal(approvalRoutes.includes("const { decision, decision_by"), false, "approval actor must not come from request body");
+assert.match(sequentialRuntime, /claim_token_hash: sha256\(claimToken\)/);
+assert.equal(sequentialRuntime.includes("evidence: { claim_token: claimToken }"), false, "raw claim token must never enter audit evidence");
 assert.match(jobRunner, /runSequentialPlan/);
+const sequentialOpenApiSection = openapi.slice(
+  openapi.indexOf("  /planner/plans/{plan_id}/compile:"),
+  openapi.indexOf("  /planner/plans/{plan_id}/timeline:") + 1200
+);
+assert.equal(sequentialOpenApiSection.includes("actor_id:"), false, "Sequential Plan OpenAPI must derive audit actor from authentication");
 assert.match(governedMigrationRunner, /244_sprint68_sequential_plan_orchestrator\.sql/);
 for (const operationId of ["compileSequentialPlan", "tickSequentialPlan", "runSequentialPlan", "enqueueSequentialPlan", "resumeSequentialPlan", "getSequentialPlanTimeline"]) {
   assert.match(openapi, new RegExp(`operationId: ${operationId}`));
