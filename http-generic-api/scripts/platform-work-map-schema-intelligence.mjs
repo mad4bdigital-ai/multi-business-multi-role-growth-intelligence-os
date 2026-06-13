@@ -7,7 +7,7 @@ const DOMAIN_RULES = [
   ["Assets & packages", /asset|package|pack_attachment|copy_location|variant|equivalence/i],
   ["Commercial & usage", /commercial|credit|usage|billing|pricing|meter|subscription|entitlement/i],
   ["Repository & development", /repo_|git|branch|source_registry|proposal|summary_development|runtime_ci|deployment_parity|install_diff/i],
-  ["Platform resources & graph", /platform_graph|platform_resource|resource_recipe|resource_type|resource_adapter|contract_surface|registry_surfaces|capability|decision|intent|adaptation|platform_binding|platform_export|relationship_integrity|platform_runtime_config/i],
+  ["Platform resources & graph", /platform_graph|platform_resource|resource_recipe|resource_type|resource_adapter|contract_surface|registry_surfaces|capabilit|decision|intent|adaptation|platform_binding|platform_export|relationship_integrity|platform_runtime_config/i],
   ["Delivery & support", /ticket|thread|timeline|email_outbox|recipient_allowlist|external_delivery|sink_dispatch|output_artifact|reporting|tracked_event/i],
   ["Migration & lifecycle", /migration|database_table_lifecycle|database_lifecycle|checkpoint|validation_repair|recovery|repair_run/i],
   ["Tenancy & identity", /tenant|membership|user|role|workspace|actor|invitation|plan|assistance/i],
