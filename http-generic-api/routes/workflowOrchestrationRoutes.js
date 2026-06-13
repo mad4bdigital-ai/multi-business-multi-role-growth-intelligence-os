@@ -247,7 +247,11 @@ export function buildWorkflowOrchestrationRoutes(deps) {
 
       return res.status(200).json({ ok: true, hold_id: req.params.id, decision, run_id, run_status: new_run_status });
     } catch (err) {
-      return res.status(500).json({ ok: false, error: { code: "hold_decide_failed", message: err.message } });
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: { code: err.code || "hold_decide_failed", message: err.message },
+        secrets_included: false,
+      });
     }
   });
 
