@@ -151,17 +151,17 @@ export function runGrowthIntelligencePilot(input = {}) {
   const reportId = text(input.report_id, randomUUID());
   const auditId = stableId("audit", `${reportId}:${tenantId}:${brandKey}`);
   const stages = [
-    "tenant_activation",
-    "brand_core_resolution",
-    "business_activity_resolution",
-    "prompt_router",
-    "module_loader",
-    "engine_compatibility",
-    "governed_tool_dispatch",
-    "approval_hold",
-    "readback",
-    "audit_evidence",
-  ].map((stage) => ({ stage, status: "pass" }));
+    { stage: "tenant_activation", status: "not_executed", reason: "validated_by_authenticated_route_not_pure_pilot_function" },
+    { stage: "brand_core_resolution", status: "pass" },
+    { stage: "business_activity_resolution", status: "pass" },
+    { stage: "prompt_router", status: "planned", reason: "no_runtime_router_dispatch" },
+    { stage: "module_loader", status: "planned", reason: "no_runtime_module_load" },
+    { stage: "engine_compatibility", status: "planned", reason: "no_runtime_engine_dispatch" },
+    { stage: "governed_tool_dispatch", status: "not_executed", reason: "read_only_analysis" },
+    { stage: "approval_hold", status: "planned", reason: "created_only_when_internal_registry_persistence_is_requested" },
+    { stage: "readback", status: "pass" },
+    { stage: "audit_evidence", status: "pass" },
+  ];
 
   const report = {
     report_id: reportId,
@@ -191,7 +191,7 @@ export function runGrowthIntelligencePilot(input = {}) {
       workflow_key: "tenant_brand_growth_intelligence_pilot_v1",
       mode: "read_only_dry_run",
       stages,
-      status: "pass",
+      status: "analysis_complete_no_execution",
     },
     report,
     markdown_report: renderMarkdown({ tenantId, brand, activity, opportunities, actions }),
@@ -200,7 +200,11 @@ export function runGrowthIntelligencePilot(input = {}) {
       audit_id: auditId,
       stage_count: stages.length,
       all_stages_passed: stages.every((item) => item.status === "pass"),
-      approval_hold_count: report.approval_queue_view.length,
+      executed_stage_count: stages.filter((item) => item.status === "pass").length,
+      planned_stage_count: stages.filter((item) => item.status === "planned").length,
+      not_executed_stage_count: stages.filter((item) => item.status === "not_executed").length,
+      approval_hold_count: 0,
+      approval_queue_item_count: report.approval_queue_view.length,
       provider_writes: 0,
       external_sends: 0,
       secrets_included: false,
@@ -217,4 +221,3 @@ export function runGrowthIntelligencePilot(input = {}) {
     secrets_included: false,
   };
 }
-
