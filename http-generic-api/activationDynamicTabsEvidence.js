@@ -552,18 +552,33 @@ export async function buildActivationDynamicTabsEvidence({ sessionContext = null
     sectionsByTab.set(section.tab_key, list);
   }
 
+  const sectionBatches = await Promise.all(
+    sections.rows.map((section) => loadSectionRowsBatch(section, containerResult.containers, subject))
+  );
+  const batchBySection = new Map(sectionBatches.map((batch) => [batch.section_key, batch]));
   const containers = [];
   for (const container of containerResult.containers) {
     const renderedTabs = [];
     for (const tab of tabs.rows) {
       const registeredSections = sectionsByTab.get(tab.tab_key) || [];
-      const renderedSections = [];
-      for (const section of registeredSections) {
-        const sectionEvidence = await loadSectionRows(section, container, subject);
-        renderedSections.push(sectionEvidence);
+      const renderedSections = registeredSections.map((section) => {
+        const batch = batchBySection.get(section.section_key);
+        return batch?.result_by_container?.get(container.container_key) || {
+          ok: false,
+          section_key: section.section_key,
+          display_name: section.display_name,
+          source_table: section.source_table,
+          aggregation_mode: section.aggregation_mode,
+          row_count: 0,
+          rows: [],
+          error: { code: "dynamic_tab_batch_result_missing", message: "Batched section evidence was not available." },
+          secrets_included: false,
+        };
+      });
+      for (const sectionEvidence of renderedSections) {
         if (sectionEvidence.ok === false) {
           degradedSurfaces.push({
-            surface: `dynamic_tab:${tab.tab_key}:${section.section_key}`,
+            surface: `dynamic_tab:${tab.tab_key}:${sectionEvidence.section_key}`,
             error: sectionEvidence.error,
           });
         }
