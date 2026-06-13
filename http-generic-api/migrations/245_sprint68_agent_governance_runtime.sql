@@ -110,8 +110,8 @@ SELECT s.skill_key, s.display_name, s.skill_type, s.scope, s.status AS agent_ski
        CASE WHEN m.skill_key IS NOT NULL AND p.skill_key IS NOT NULL THEN 'covered' ELSE 'gap' END AS coverage_status
 FROM agent_skills s
 LEFT JOIN agent_skill_grants g ON g.skill_id = s.skill_id
-LEFT JOIN skill_manifests m ON m.skill_key = s.skill_key
-LEFT JOIN platform_engine_skill_prompt_registry p ON p.skill_key = s.skill_key
+LEFT JOIN skill_manifests m ON m.skill_key COLLATE utf8mb4_unicode_ci = s.skill_key COLLATE utf8mb4_unicode_ci
+LEFT JOIN platform_engine_skill_prompt_registry p ON p.skill_key COLLATE utf8mb4_unicode_ci = s.skill_key COLLATE utf8mb4_unicode_ci
 GROUP BY s.skill_key, s.display_name, s.skill_type, s.scope, s.status, m.status, p.status, m.skill_key, p.skill_key;
 
 INSERT INTO agent_response_profile_registry
