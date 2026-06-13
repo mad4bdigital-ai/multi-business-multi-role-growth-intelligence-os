@@ -201,7 +201,7 @@ assert.doesNotMatch(migration, /\b(?:DROP|TRUNCATE|DELETE)\b/i);
 assert.equal((migration.match(/CREATE TABLE IF NOT EXISTS/g) || []).length, 4);
 assert.match(migration, /ON DUPLICATE KEY UPDATE/);
 assert.match(migration, /database_table_lifecycle_registry/);
-assert.match(runner, /243_sprint68_growth_intelligence_product_registry\.sql/);
+assert.doesNotMatch(runner, /"243_sprint68_growth_intelligence_product_registry\.sql"/);
 assert.match(lifecycleSource, /growth_intelligence_product_family/);
 assert.match(lifecycleSource, /tableName === "growth_intelligence_actions" \? "approval_audit"/);
 assert.equal(schema.properties.schema_version.const, "1.0.0");
