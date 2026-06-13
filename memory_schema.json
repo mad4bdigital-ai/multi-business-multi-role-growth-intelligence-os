@@ -16,6 +16,7 @@
     "activation_state",
     "auto_bootstrap_state",
     "hard_activation_wrapper_state",
+    "activation_awareness_state",
     "execution_logging_state",
     "governance_rules",
     "governance_drift_state",
