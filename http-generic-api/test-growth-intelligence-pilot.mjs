@@ -46,6 +46,12 @@ assert(result.report.approval_queue_view.every((action) => action.approval_state
 assert.equal(result.readback.provider_writes, 0);
 assert.equal(result.readback.external_sends, 0);
 assert.equal(result.readback.secrets_included, false);
+assert.equal(result.readback.all_stages_passed, false);
+assert.equal(result.readback.executed_stage_count, 4);
+assert.equal(result.readback.planned_stage_count, 4);
+assert.equal(result.readback.not_executed_stage_count, 2);
+assert.equal(result.readback.approval_hold_count, 0);
+assert.equal(result.readback.approval_queue_item_count, result.report.approval_queue_view.length);
 assert.match(result.markdown_report, /No provider writes, external sends, or secrets were used/);
 
 assert.throws(
