@@ -289,17 +289,37 @@ export async function acknowledgeActivationRun(pool, { runId, acknowledgedBy = n
     err.code = "activation_run_id_required";
     throw err;
   }
-  const result = await querySafe(
-    pool,
-    `UPDATE activation_runs
-        SET consumer_ack_state = ?,
-            acknowledged_by = ?,
-            consumer_ack_at = UTC_TIMESTAMP(),
-            updated_at = UTC_TIMESTAMP()
-      WHERE run_id = ?`,
-    [consumerState, normalizeText(acknowledgedBy, 180), runId]
-  );
-  return { ok: result.ok, affected_rows: Number(result.result?.affectedRows || 0), error: result.error || null };
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const result = await querySafe(
+      connection,
+      `UPDATE activation_runs
+          SET consumer_ack_state = ?,
+              acknowledged_by = ?,
+              consumer_ack_at = UTC_TIMESTAMP(),
+              updated_at = UTC_TIMESTAMP()
+        WHERE run_id = ?`,
+      [consumerState, normalizeText(acknowledgedBy, 180), runId]
+    );
+    if (!result.ok) throw Object.assign(new Error(result.error?.message || "Activation acknowledgement failed."), result.error || {});
+    if (Number(result.result?.affectedRows || 0) > 0 && consumerState === "acknowledged") {
+      await querySafe(
+        connection,
+        `UPDATE activation_snapshot_ledger
+            SET snapshot_status = 'acknowledged', updated_at = UTC_TIMESTAMP()
+          WHERE run_id = ?`,
+        [runId]
+      );
+    }
+    await connection.commit();
+    return { ok: true, affected_rows: Number(result.result?.affectedRows || 0), error: null };
+  } catch (err) {
+    await connection.rollback().catch(() => {});
+    return { ok: false, affected_rows: 0, error: compactError(err, "activation_acknowledgement_update_failed") };
+  } finally {
+    connection.release();
+  }
 }
 
 export const _testingActivationSessionLifecycle = {
