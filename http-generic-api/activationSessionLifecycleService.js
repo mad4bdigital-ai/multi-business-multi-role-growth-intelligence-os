@@ -249,17 +249,37 @@ export async function markActivationRunPrepared(pool, {
 
 export async function markActivationRunDelivered(pool, { runId, statusCode = 200, deliveryState = "delivered" } = {}) {
   if (!runId) return { ok: true, skipped: true, reason: "missing_run_id" };
-  return querySafe(
-    pool,
-    `UPDATE activation_runs
-        SET delivery_state = ?,
-            delivered_status_code = ?,
-            delivered_at = UTC_TIMESTAMP(),
-            run_status = CASE WHEN ? = 'delivered' THEN 'delivered' ELSE run_status END,
-            updated_at = UTC_TIMESTAMP()
-      WHERE run_id = ?`,
-    [deliveryState, statusCode, deliveryState, runId]
-  );
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const update = await querySafe(
+      connection,
+      `UPDATE activation_runs
+          SET delivery_state = ?,
+              delivered_status_code = ?,
+              delivered_at = UTC_TIMESTAMP(),
+              run_status = CASE WHEN ? = 'delivered' THEN 'delivered' ELSE run_status END,
+              updated_at = UTC_TIMESTAMP()
+        WHERE run_id = ?`,
+      [deliveryState, statusCode, deliveryState, runId]
+    );
+    if (!update.ok) throw Object.assign(new Error(update.error?.message || "Activation run delivery update failed."), update.error || {});
+    await querySafe(
+      connection,
+      `UPDATE activation_snapshot_ledger
+          SET snapshot_status = CASE WHEN ? = 'delivered' THEN 'delivered' ELSE snapshot_status END,
+              updated_at = UTC_TIMESTAMP()
+        WHERE run_id = ?`,
+      [deliveryState, runId]
+    );
+    await connection.commit();
+    return update;
+  } catch (err) {
+    await connection.rollback().catch(() => {});
+    return { ok: false, rows: [], result: null, error: compactError(err, "activation_delivery_state_update_failed") };
+  } finally {
+    connection.release();
+  }
 }
 
 export async function acknowledgeActivationRun(pool, { runId, acknowledgedBy = null, consumerState = "acknowledged" } = {}) {
