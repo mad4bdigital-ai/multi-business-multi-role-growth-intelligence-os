@@ -15,14 +15,13 @@
 | Assets & packages | 17 | 0 | `asset-package-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `repository-development-map.md` | covered |
 | Brand & business | 4 | 0 | `data-model-domain-map.md` | covered |
 | Commercial & usage | 9 | 0 | `commercial-usage-map.md`, `data-model-domain-map.md`, `policy-authority-map.md` | covered |
-| Connectors & providers | 36 | 7 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md` | covered |
+| Connectors & providers | 35 | 7 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md` | covered |
 | Delivery & support | 18 | 9 | `connector-provider-map.md`, `data-model-domain-map.md`, `delivery-support-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
 | Developer & API | 6 | 1 | `data-model-domain-map.md` | covered |
 | Governance & authority | 15 | 5 | `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md` | covered |
 | Migration & lifecycle | 13 | 13 | `connector-provider-map.md`, `data-model-domain-map.md`, `migration-lifecycle-map.md`, `observability-release-map.md`, `workflow-task-orchestration-map.md` | covered |
 | Observability & release | 25 | 23 | `data-model-domain-map.md`, `observability-release-map.md`, `workflow-task-orchestration-map.md` | covered |
-| Other / uncategorized | 0 | 1 | `data-model-domain-map.md` | taxonomy gap |
-| Platform resources & graph | 36 | 27 | `connector-provider-map.md`, `data-model-domain-map.md`, `delivery-support-map.md`, `observability-release-map.md`, `platform-resource-graph-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
+| Platform resources & graph | 37 | 28 | `connector-provider-map.md`, `data-model-domain-map.md`, `delivery-support-map.md`, `observability-release-map.md`, `platform-resource-graph-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
 | Repository & development | 22 | 6 | `agent-skill-plugin-map.md`, `connector-provider-map.md`, `data-model-domain-map.md`, `delivery-support-map.md`, `observability-release-map.md`, `platform-resource-graph-map.md`, `repository-development-map.md`, `workflow-task-orchestration-map.md` | covered |
 | Sessions & memory | 25 | 34 | `data-model-domain-map.md`, `observability-release-map.md`, `session-memory-map.md` | covered |
 | Tenancy & identity | 28 | 7 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
@@ -47,4 +46,4 @@
 
 ## Uncategorized schema objects
 
-- `v_platform_capabilities_current` (view)
+- None.

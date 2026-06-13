@@ -13,14 +13,13 @@ flowchart LR
   n_Assets___packages["Assets & packages<br/>17 tables / 0 views"]
   n_Brand___business["Brand & business<br/>4 tables / 0 views"]
   n_Commercial___usage["Commercial & usage<br/>9 tables / 0 views"]
-  n_Connectors___providers["Connectors & providers<br/>36 tables / 7 views"]
+  n_Connectors___providers["Connectors & providers<br/>35 tables / 7 views"]
   n_Delivery___support["Delivery & support<br/>18 tables / 9 views"]
   n_Developer___API["Developer & API<br/>6 tables / 1 views"]
   n_Governance___authority["Governance & authority<br/>15 tables / 5 views"]
   n_Migration___lifecycle["Migration & lifecycle<br/>13 tables / 13 views"]
   n_Observability___release["Observability & release<br/>25 tables / 23 views"]
-  n_Other___uncategorized["Other / uncategorized<br/>0 tables / 1 views"]
-  n_Platform_resources___graph["Platform resources & graph<br/>36 tables / 27 views"]
+  n_Platform_resources___graph["Platform resources & graph<br/>37 tables / 28 views"]
   n_Repository___development["Repository & development<br/>22 tables / 6 views"]
   n_Sessions___memory["Sessions & memory<br/>25 tables / 34 views"]
   n_Tenancy___identity["Tenancy & identity<br/>28 tables / 7 views"]
@@ -36,14 +35,13 @@ flowchart LR
 | Assets & packages | 17 | 0 | `asset_audit_events`, `asset_equivalence_groups`, `asset_equivalence_members`, `json_asset_subject_links`, `pack_attachments`, `platform_copy_locations`, `platform_package_variant_assets`, `platform_package_variant_patches`, `platform_package_variants`, `platform_package_versions`, ... |
 | Brand & business | 4 | 0 | `brand_site_bindings`, `contacts`, `customer_sessions`, `customers` |
 | Commercial & usage | 9 | 0 | `commercial_profiles`, `credit_balances`, `credit_ledger`, `entitlements`, `graph_memory_usage_events`, `subscriptions`, `tenant_usage`, `usage_limits`, `usage_meters` |
-| Connectors & providers | 36 | 7 | `ads_provider_preflight_contract_registry`, `ads_provider_preflight_surface_blueprint_registry`, `api_credentials`, `app_integration_action_bindings`, `app_integration_tool_bindings`, `app_integrations`, `browser_runtime_artifacts`, `browser_runtime_bindings`, `browser_runtime_capabilities`, `browser_runtime_events`, ... |
+| Connectors & providers | 35 | 7 | `ads_provider_preflight_contract_registry`, `ads_provider_preflight_surface_blueprint_registry`, `api_credentials`, `app_integration_action_bindings`, `app_integration_tool_bindings`, `app_integrations`, `browser_runtime_artifacts`, `browser_runtime_bindings`, `browser_runtime_events`, `browser_runtime_policy`, ... |
 | Delivery & support | 18 | 9 | `auth_email_outbox`, `external_delivery_provider_adapter_contract_registry`, `external_delivery_provider_adapter_future_pr_scopes`, `external_delivery_provider_adapter_readiness_checklists`, `external_delivery_provider_family_registry`, `external_delivery_provider_send_mode_policy_registry`, `external_delivery_recipient_allowlist_registry`, `output_artifacts`, `reporting_views`, `sink_dispatch_log`, ... |
 | Developer & API | 6 | 1 | `admin_platform_endpoint_tools`, `developer_apps`, `endpoints`, `governed_tool_response_chunks`, `offsite_drive_upload_records`, `uploads`, `v_gpt_schema_db_coverage_issues` |
 | Governance & authority | 15 | 5 | `admin_scope_grants`, `auth_password_reset_tokens`, `budget_quota_authority_registry`, `compliance_profiles`, `database_collation_policy_exception_registry`, `database_collation_policy_registry`, `google_ads_budget_execution_gate_audit`, `google_ads_budget_preflight_ledger`, `permission_grants`, `platform_secrets`, ... |
 | Migration & lifecycle | 13 | 13 | `checkpoint_auto_rollups`, `data_migration_inventory`, `database_lifecycle_report_snapshot_scheduler_bindings`, `database_lifecycle_report_snapshot_schedules`, `database_lifecycle_report_snapshots`, `database_lifecycle_scheduler_approval_events`, `database_table_lifecycle_registry`, `governed_migration_authorization_registry`, `governed_migration_ledger`, `local_connector_recovery_events`, ... |
 | Observability & release | 25 | 23 | `audit_log`, `audit_payload_evidence`, `connected_execution_evidence_reports`, `db_change_audit_events`, `execution_log`, `incidents`, `local_app_releases`, `platform_audit_event_bus`, `platform_backup_artifact_manifests`, `platform_backup_policies`, ... |
-| Other / uncategorized | 0 | 1 | `v_platform_capabilities_current` |
-| Platform resources & graph | 36 | 27 | `adaptation_records`, `ads_provider_capability_profile_registry`, `capability_apply_authorization_policy_registry`, `capability_resolution_envelope_ledger`, `decision_runs`, `external_delivery_provider_adapter_readiness_decisions`, `intent_resolutions`, `local_connector_capability_grants`, `platform_capability_source_resolutions`, `platform_contract_surfaces`, ... |
+| Platform resources & graph | 37 | 28 | `adaptation_records`, `ads_provider_capability_profile_registry`, `browser_runtime_capabilities`, `capability_apply_authorization_policy_registry`, `capability_resolution_envelope_ledger`, `decision_runs`, `external_delivery_provider_adapter_readiness_decisions`, `intent_resolutions`, `local_connector_capability_grants`, `platform_capability_source_resolutions`, ... |
 | Repository & development | 22 | 6 | `dev_agent_proposals`, `external_delivery_provider_adapter_enablement_proposals`, `platform_private_repo_mirrors`, `proposal_discussions`, `repo_capability_candidates`, `repo_certification_runs`, `repo_file_audit_findings`, `repo_file_audit_runs`, `repo_ingestion_jobs`, `repo_install_diff_items`, ... |
 | Sessions & memory | 25 | 34 | `connected_execution_sessions`, `gpt_session_conversation_refs`, `gpt_session_turns`, `memory_scope_links`, `memory_scope_type_registry`, `offsite_drive_upload_sessions`, `request_envelopes`, `session_assimilation_queue`, `session_drive_artifacts`, `session_events`, ... |
 | Tenancy & identity | 28 | 7 | `actor_profiles`, `assistance_roles`, `execution_plan_events`, `execution_plan_steps`, `execution_plans`, `governed_research_plan_registry`, `invitations`, `local_connector_user_configs`, `memberships`, `plans`, ... |
@@ -118,7 +116,7 @@ flowchart LR
 | `browser_data_extraction_jobs` | table | Workflow & tasks | 1 | 13 | `tenants`, `users` |
 | `browser_runtime_artifacts` | table | Connectors & providers | 1 | 9 | - |
 | `browser_runtime_bindings` | table | Connectors & providers | 1 | 12 | `browser_runtime_registry`, `tenants`, `users` |
-| `browser_runtime_capabilities` | table | Connectors & providers | 1 | 9 | `browser_runtime_registry` |
+| `browser_runtime_capabilities` | table | Platform resources & graph | 1 | 9 | `browser_runtime_registry` |
 | `browser_runtime_events` | table | Connectors & providers | 1 | 12 | `tenants`, `users` |
 | `browser_runtime_policy` | table | Connectors & providers | 1 | 10 | `tenants` |
 | `browser_runtime_registry` | table | Connectors & providers | 1 | 13 | - |
@@ -479,7 +477,7 @@ flowchart LR
 | `v_memory_scope_link_registry_issues` | view | Sessions & memory | 1 | - | - |
 | `v_migration_status_compact` | view | Migration & lifecycle | 1 | - | - |
 | `v_platform_bindings_current` | view | Platform resources & graph | 1 | - | - |
-| `v_platform_capabilities_current` | view | Other / uncategorized | 1 | - | - |
+| `v_platform_capabilities_current` | view | Platform resources & graph | 1 | - | - |
 | `v_platform_capability_gaps` | view | Platform resources & graph | 1 | - | - |
 | `v_platform_capability_maturity` | view | Platform resources & graph | 1 | - | - |
 | `v_platform_engine_validator_latest_failures` | view | Agents & intelligence | 1 | - | - |
