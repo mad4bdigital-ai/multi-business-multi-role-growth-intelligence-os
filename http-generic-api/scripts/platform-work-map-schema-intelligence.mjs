@@ -13,11 +13,11 @@ const DOMAIN_RULES = [
   ["Tenancy & identity", /tenant|membership|user|role|workspace|actor|invitation|plan|assistance/i],
   ["Brand & business", /brand|business_activity|business_type|customer|contact|campaign|audience|persona|segment|market/i],
   ["Agents & intelligence", /agent|skill|plugin|logic|engine|model|prompt|knowledge|intelligence/i],
-  ["Workflow & tasks", /workflow|task|route|step|approval|job|orchestrat|execution_plan|execution_enablement/i],
+  ["Workflow & tasks", /workflow|task|route|step|approval|job|orchestrat|execution_plan|execution_enablement|(^|_)actions?$|app_action|resume_action/i],
   ["Connectors & providers", /connector|connected_system|installation|credential|provider|app_integration|user_app_connection|webhook|oauth|cloudflare|hostinger|wordpress|n8n|local_gateway|device|browser_runtime|remote_runtime|local_project_path|cms_|site_inspection/i],
   ["Governance & authority", /policy|permission|grant|authority|quota|budget|compliance|access|rate_limit|auth_|secret_reference|platform_secrets|preflight/i],
   ["Sessions & memory", /session|conversation|turn|memory|scope_link|archive|insight|graph_memory|request_envelope/i],
-  ["Observability & release", /execution_log|audit|telemetry|incident|readiness|monitor|release|backup|restore|snapshot|health|certification|diagnostic|evidence|dr_/i],
+  ["Observability & release", /execution_log|audit|telemetry|incident|readiness|monitor|release|backup|restore|snapshot|health|certification|diagnostic|evidence|dr_|runtime_gap|runtime_verification|runtime_production_parity|runtime_context_dimension|summary_comparison/i],
   ["Developer & API", /developer|api_|endpoint|tool|schema|upload|openapi/i],
 ];
 
