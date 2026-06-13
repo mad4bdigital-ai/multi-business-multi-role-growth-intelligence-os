@@ -20,6 +20,23 @@ import {
 } from "./agentGovernanceRuntime.js";
 import { compileSequentialPlanSteps, verifySequentialStepResult } from "./sequentialPlanOrchestrator.js";
 
+const agentGovernanceMigration = readFileSync(new URL("./migrations/245_sprint68_agent_governance_runtime.sql", import.meta.url), "utf8");
+assert.match(
+  agentGovernanceMigration,
+  /m\.skill_key COLLATE utf8mb4_unicode_ci = s\.skill_key COLLATE utf8mb4_unicode_ci/,
+  "skill runtime coverage view must align skill_key collations explicitly"
+);
+assert.match(
+  agentGovernanceMigration,
+  /p\.skill_key COLLATE utf8mb4_unicode_ci = s\.skill_key COLLATE utf8mb4_unicode_ci/,
+  "skill prompt coverage join must align skill_key collations explicitly"
+);
+assert.doesNotMatch(
+  agentGovernanceMigration,
+  /INSERT INTO memory_scope_type_registry\s*\(scope_type,\s*priority,\s*cross_scope_default/i,
+  "agent governance migration must not reseed the legacy memory scope registry schema"
+);
+
 const profile = mergeResponseProfiles([
   { profile_key: "global", scope_type: "global", tone: "direct", verbosity: "concise", format_policy_json: { structured: true } },
   { profile_key: "tenant", scope_type: "tenant", language: "ar", verbosity: "detailed", citation_policy_json: { required: true } },
