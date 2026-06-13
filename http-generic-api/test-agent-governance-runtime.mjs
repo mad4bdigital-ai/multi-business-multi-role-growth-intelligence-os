@@ -577,11 +577,11 @@ assert(governanceRuntime.includes('evidence_ledger: "research_source_execution_l
 assert(governanceRuntime.includes('transition_ledger: "execution_plan_events"'));
 assert(governanceRuntime.includes("governed_research_execution_log_readback_failed"));
 
+const openapi = readFileSync("openapi.yaml", "utf8");
 const agentOpenApiSection = openapi.slice(openapi.indexOf("  /platform/agent-governance/response-profile/resolve:"));
 assert.equal((agentOpenApiSection.match(/tags: \[platform-agent-governance\]/g) || []).length, 13);
 assert.equal((agentOpenApiSection.match(/security: \[backendBearerAuth: \[\], backendApiKeyAuth: \[\]\]/g) || []).length, 13);
 assert.equal(agentOpenApiSection.includes("actor_id:"), false, "Agent Governance OpenAPI must not expose caller-controlled audit actor fields");
-const openapi = readFileSync("openapi.yaml", "utf8");
 for (const path of [
   "/platform/agent-governance/response-profile/resolve",
   "/platform/agent-governance/research-policy/resolve",
