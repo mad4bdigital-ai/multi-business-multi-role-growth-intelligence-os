@@ -26,6 +26,10 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Guard merge and runtime interruption readiness
+        working-directory: http-generic-api
+        run: node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
+
       - name: Validate canonical source structure
         run: node validate-canonical-sources.mjs
 
@@ -56,6 +60,8 @@ jobs:
     needs: syntax
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v6
         with:
@@ -66,6 +72,10 @@ jobs:
       - name: Install dependencies
         working-directory: http-generic-api
         run: npm ci
+
+      - name: Guard dependency and runtime interruption readiness
+        working-directory: http-generic-api
+        run: node scripts/interruption-readiness.mjs --ci --skip-merge --skip-worktree --report-file "$RUNNER_TEMP/interruption-readiness-baseline.json"
 
       - name: Run tests
         working-directory: http-generic-api
@@ -78,6 +88,10 @@ jobs:
           node test-openapi-split-governance.mjs
           node test-openapi-split-regeneration-parity.mjs
           node test-local-connector-capability-installer-grants.mjs
+
+      - name: Reject stale readiness evidence
+        working-directory: http-generic-api
+        run: node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-merge --skip-worktree --verify-evidence "$RUNNER_TEMP/interruption-readiness-baseline.json"
 
   execution-resolver-gate:
     name: Execution Resolver Gate

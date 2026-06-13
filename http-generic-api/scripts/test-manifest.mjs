@@ -1,4 +1,6 @@
 export const testCommands = [
+  "node test-interruption-readiness.mjs",
+  "node test-interruption-verification-recovery.mjs",
   "node test-hostinger-startup-imports.mjs",
   "node test-docs-impact-classifier.mjs",
   "node test-openrouter-docs-agent-provider-contract.mjs",
