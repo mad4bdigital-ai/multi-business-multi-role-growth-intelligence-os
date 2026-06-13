@@ -395,7 +395,7 @@ export function buildGuidancePresentation({ profile, activationBrief, counts, pe
       permission_dimension_count: readinessDimensions.length,
       permission_semantics: permissionSemantics,
       counts,
-      best_next_action: activationBrief?.best_next_action || null,
+      best_next_action: bestAction,
     },
   };
 }
