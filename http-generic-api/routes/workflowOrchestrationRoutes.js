@@ -2,6 +2,7 @@ import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
 import { resolveAccess } from "../accessDecisionEngine.js";
+import { decideSequentialPlanApproval } from "../sequentialPlanOrchestrator.js";
 
 export function buildWorkflowOrchestrationRoutes(deps) {
   const { requireBackendApiKey } = deps;
