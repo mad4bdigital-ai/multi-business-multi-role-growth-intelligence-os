@@ -124,15 +124,8 @@ INSERT INTO research_source_policy_registry
 VALUES ('internal_first_default', 'global', JSON_ARRAY('internal_registry','workspace_knowledge','external_search'), 0, 1, 0, 5, 0, 'active')
 ON DUPLICATE KEY UPDATE source_order_json = VALUES(source_order_json), status = VALUES(status), updated_at = CURRENT_TIMESTAMP;
 
-INSERT INTO memory_scope_type_registry (scope_type, priority, cross_scope_default, status, notes)
-VALUES
-  ('global',0,'deny','active','Platform-wide context; explicit promotion required.'),
-  ('tenant',10,'deny','active','Tenant-bound context.'),
-  ('brand',20,'deny','active','Brand-bound context.'),
-  ('role',30,'deny','active','Role-bound context.'),
-  ('agent',40,'deny','active','Agent-bound context.'),
-  ('workflow',50,'deny','active','Workflow-bound context.')
-ON DUPLICATE KEY UPDATE priority = VALUES(priority), cross_scope_default = VALUES(cross_scope_default), status = VALUES(status), notes = VALUES(notes);
+-- memory_scope_type_registry is governed by the dynamic scope registry migration.
+-- Do not reseed legacy priority/cross_scope_default columns here.
 
 INSERT INTO platform_engine_policy_registry
   (policy_key, engine_key, scope_type, mode, risk_default, approval_required_min_risk,
