@@ -1185,3 +1185,39 @@ If a template state change can affect governed additions:
 - affected dependency traceability must remain explicit
 - unknown dependent scope must not be silently ignored
 - impact and lineage review must remain available before dependent green classification is allowed
+## Growth Intelligence Dry-Run Authority
+
+The `tenant_brand_growth_intelligence_pilot_v1` workflow is authorized only for
+read-only intelligence generation and dry-run planning. Direct instructions must
+not reinterpret a generated opportunity, backlog item, or approval queue entry as
+provider-write or external-send authority.
+
+Every generated action must preserve:
+- tenant and brand scope
+- evidence or explicit assumption state
+- impact/effort/confidence-derived priority score
+- risk and execution class
+- approval hold for non-advisory work
+- readback requirements
+- `provider_write = false`
+- `external_send = false`
+- `secrets_included = false`
+
+When internal registry persistence is explicitly requested, write report,
+insight, action, workflow, and approval-hold records transactionally. Approval
+decisions update lifecycle state only and must return
+`execution_dispatched = false`.
+
+Persisted insight lifecycle decisions are limited to `accepted`, `rejected`, or
+`stale`. Deterministic fingerprints must supersede prior matching active
+insights. A readiness assessment may classify a report as `review_ready` only
+after explicit insight acceptance and all quality/safety controls pass, but it
+must still return `execution_allowed = false`.
+
+## Sequential Plan Execution Instructions
+
+An accepted multi-step plan must be compiled before execution. Execute at most
+one atomically claimed ready step per tick, enforce dependencies and success
+criteria, checkpoint every transition, and stop at approval, blocked, paused,
+failed, cancelled, or completed states. Approval changes readiness only and must
+not silently execute the next step.
