@@ -5,6 +5,7 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
+    "prestart": "node scripts/generate-deployment-manifest.mjs",
     "start": "node server.js",
     "test": "node scripts/run-test-manifest.mjs",
     "test:list": "node scripts/run-test-manifest.mjs --list",

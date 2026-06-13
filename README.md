@@ -66,6 +66,15 @@ CI runs the merge guard before tests, the dependency guard after `npm ci`, and a
 post-test stale-evidence rejection gate. See
 `docs/interruption-readiness-automation.md`.
 
+## Runtime startup and deployment provenance
+
+The API start lifecycle generates a deployment manifest before loading `server.js`.
+CI also spawns the real server and requires `/health` to respond, preventing
+top-level route import failures from reaching auto-deploy. Hostinger environments
+must set `DEPLOYMENT_BRANCH` explicitly because detached checkouts and hostname
+fallback are not authoritative branch evidence. See `docs/hostinger-node-deploy.md`
+and `docs/execution-log-hostinger-503-recovery-2026-06-14.md`.
+
 ## First value-producing workflow
 
 The first promoted Growth Intelligence path is `tenant_brand_growth_intelligence_pilot_v1`.

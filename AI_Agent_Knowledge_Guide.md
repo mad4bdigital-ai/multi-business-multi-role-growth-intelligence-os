@@ -52,6 +52,13 @@ Tenant GPTs must not use admin repo tools. Tenant knowledge must come from OAuth
 
 ### Runtime and model chain
 
+Deployment claims require runtime evidence. The API `prestart` lifecycle generates
+`http-generic-api/deployment-manifest.json`; CI must spawn the real server and read
+`/health`; Hostinger environments must provide explicit `DEPLOYMENT_BRANCH`.
+Treat missing manifests, detached `HEAD`, and hostname-derived branch labels as
+incomplete provenance, not proof of a successful deployment. Incident evidence is
+recorded in `docs/execution-log-hostinger-503-recovery-2026-06-14.md`.
+
 All meaningful execution should conceptually follow:
 - `prompt_router`
 - `module_loader`

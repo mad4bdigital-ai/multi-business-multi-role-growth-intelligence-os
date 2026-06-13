@@ -297,6 +297,7 @@ export const testCommands = [
   "node test-github-tooling-schema-contracts.mjs",
   "node test-routes.mjs",
   "node test-deployment-manifest.mjs",
+  "node test-deployment-manifest-generator.mjs",
   "node test-verify-runtime-profile.mjs",
   "node test-activation-bootstrap-cache.mjs",
   "node test-activation-bootstrap-config.mjs",

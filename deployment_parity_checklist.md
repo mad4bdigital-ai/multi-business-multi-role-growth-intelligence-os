@@ -144,6 +144,8 @@ Verify the live Google Sheets registry reflects intended architecture:
 Verify the deployed container/process matches the committed code:
 
 - [ ] For dev, `https://dev.mad4b.com/deployment-info` reports the expected GitHub branch and commit before production promotion
+- [ ] `DEPLOYMENT_BRANCH` is explicitly configured per Hostinger app; hostname fallback and detached `HEAD` are not accepted as branch authority
+- [ ] `GET /version` reports a present generated deployment manifest and the expected deployed commit
 - [ ] For production, deployed image was built from the current `main` commit (`git rev-parse HEAD`)
 - [ ] `GET /health` returns `200 OK` with `{ ok: true }`
 - [ ] `SERVICE_VERSION` in health response matches `package.json` version

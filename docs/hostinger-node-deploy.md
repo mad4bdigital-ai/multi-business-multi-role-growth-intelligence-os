@@ -71,6 +71,15 @@ npm start
 
 Keep the existing production variables configured in hPanel for `auth.mad4b.com`. The repo must not contain secrets.
 
+Set explicit deployment provenance for every app:
+
+```text
+auth.mad4b.com -> DEPLOYMENT_BRANCH=main
+dev.mad4b.com  -> DEPLOYMENT_BRANCH=dev
+```
+
+Hostinger may use a detached Git checkout, so hostname fallback or Git `HEAD` is not authoritative branch evidence. `npm start` runs the API `prestart` hook, which writes `http-generic-api/deployment-manifest.json` from available environment/Git evidence. Missing provenance must not crash startup; it leaves `/version` in `deployment_validation_incomplete` and blocks promotion until explicit branch and commit evidence are configured.
+
 At minimum, the runtime needs the existing DB/auth/provider variables already used by the deployed app. For connector-agent distribution, no extra secret is required, but the deployed repository must include:
 
 ```text
@@ -84,16 +93,18 @@ After Hostinger completes a dev deployment, verify:
 
 ```text
 https://dev.mad4b.com/health
+https://dev.mad4b.com/version
 https://dev.mad4b.com/deployment-info
 https://dev.mad4b.com/dev/db/status   # backend auth required
 ```
 
-The deployment info must match the expected branch and commit before production promotion.
+The deployment info and version manifest must match the expected branch and commit before production promotion. `branch_source=dev_hostname_fallback` is incomplete evidence and blocks promotion.
 
 After Hostinger completes a production deployment, verify:
 
 ```text
 https://auth.mad4b.com/health
+https://auth.mad4b.com/version
 https://auth.mad4b.com/connector-agent/version
 ```
 
