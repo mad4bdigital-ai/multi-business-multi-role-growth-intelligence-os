@@ -473,6 +473,9 @@ export function buildSchemaIntelligenceMaps({ repoRoot }) {
       specialized_map_count: SPECIALIZED_MAPS.length,
       uncategorized_objects: allObjects.filter((object) => object.domain === "Other / uncategorized").length,
       classified_objects: allObjects.filter((object) => object.domain !== "Other / uncategorized").length,
+      classification_coverage_percent: allObjects.length
+        ? Number(((allObjects.filter((object) => object.domain !== "Other / uncategorized").length / allObjects.length) * 100).toFixed(2))
+        : 100,
     },
   };
 }
