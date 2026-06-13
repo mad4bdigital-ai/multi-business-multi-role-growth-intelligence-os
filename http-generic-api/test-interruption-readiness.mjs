@@ -260,6 +260,21 @@ const temporaryDirectory = mkdtempSync(path.join(tmpdir(), "interruption-readine
 try {
   const unauthorizedEvidence = path.join(temporaryDirectory, "unauthorized-evidence.json");
   writeFileSync(unauthorizedEvidence, JSON.stringify({
+    schema_version: "interruption_readiness.v1",
+    mode: "local",
+    coverage: { engine: true, dependencies: true, merge: true, worktree: true },
+    status: "ready",
+    summary: { blocker: 0, warning: 0, info: 0 },
+    checks: [],
+    continuity_snapshot: {
+      generated_at: new Date().toISOString(),
+      head_sha: "head-1",
+      target_sha: "target-1",
+      merge_base: "base-1",
+      package_lock_sha256: "lock-1",
+      direct_dependencies_sha256: "dependencies-1",
+      worktree_sha256: "worktree-1",
+    },
     verification_plan: { commands: ["node unauthorized-command.mjs"] },
   }));
   const unauthorizedRun = spawnSync(
