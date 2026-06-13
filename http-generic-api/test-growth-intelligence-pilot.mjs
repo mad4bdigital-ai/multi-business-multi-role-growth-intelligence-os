@@ -65,6 +65,8 @@ assert.match(routes, /growth-intelligence\/pilot/);
 assert.doesNotMatch(routes, /\bfetch\s*\(|http-execute|connectorExecutor|provider_operation/);
 assert.match(routes, /provider_writes:\s*0/);
 assert.match(routes, /external_sends:\s*0/);
+assert.match(routes, /approval_hold_count = result\.registry\.approval_holds\.length/);
+assert.match(routes, /approvalStage\.status = "pass"/);
 
 const tenantGptSchema = readFileSync("openapi.tenant-gpt.auth.yaml", "utf8");
 assert.doesNotMatch(tenantGptSchema, /growth-intelligence\/pilot/);
