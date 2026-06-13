@@ -133,7 +133,6 @@ assert.deepEqual(
     "platform_contract_governance_engine",
     "resource_authority_engine",
     "workflow_runtime_engine",
-    "workflow_runtime_engine",
     "schema_cleanup_engine",
     "platform_private_capability_vault_engine",
     "developer_platform_lifecycle_engine",
