@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const desktopRoutes = readFileSync(new URL('./routes/localManagerDesktopCommandRoutes.js', import.meta.url), 'utf8');
 const program = readFileSync(new URL('../apps/local-manager-windows/Program.cs', import.meta.url), 'utf8');
-const migration = readFileSync(new URL('./migrations/235_sprint68_local_manager_chatgpt_url_capture_action.sql', import.meta.url), 'utf8');
+const migration = readFileSync(new URL('./migrations/235_sprint68_local_manager_chatgpt_url_capture_action.sql', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const runner = readFileSync(new URL('./scripts/governed-migration-runner.mjs', import.meta.url), 'utf8');
 
 assert.ok(desktopRoutes.includes('capture_chatgpt_current_url'));
