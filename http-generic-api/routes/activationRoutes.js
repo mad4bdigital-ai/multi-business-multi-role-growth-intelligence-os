@@ -13,6 +13,18 @@ import {
 import { buildActivationDynamicTabsEvidence } from "../activationDynamicTabsEvidence.js";
 import { buildActivationOperationalIntelligenceEvidence } from "../activationOperationalIntelligenceEvidence.js";
 import {
+  resolveActivationSessionLifecycle,
+  acknowledgeActivationRun,
+  markActivationRunDelivered,
+} from "../activationSessionLifecycleService.js";
+import {
+  buildProfiledHardActivationResponse,
+  recordPreparedActivationResponse,
+  normalizeActivationResponseProfile,
+} from "../activationHardResponseService.js";
+import { readActivationDynamicTabDetail } from "../activationAwarenessService.js";
+import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
+import {
   REGISTRY_SPREADSHEET_ID,
   ACTIVITY_SPREADSHEET_ID,
   ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
