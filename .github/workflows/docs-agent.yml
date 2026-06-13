@@ -84,6 +84,9 @@ jobs:
         id: agent
         run: node http-generic-api/scripts/docs-agent-runner.mjs --write --mode push --base '${{ github.event.before }}' --head '${{ github.event.after }}'
 
+      - name: Generate dynamic text work maps
+        run: node http-generic-api/scripts/platform-work-map-generator.mjs --write
+
       - name: Create docs-only follow-up PR and enable auto-merge
         if: steps.agent.outputs.should_write == 'true'
         env:
