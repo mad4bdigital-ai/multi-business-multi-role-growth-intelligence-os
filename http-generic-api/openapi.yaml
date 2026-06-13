@@ -5066,7 +5066,7 @@ paths:
         - backendApiKeyAuth: []
       operationId: runHardActivation
       x-openai-isConsequential: false
-      summary: Run hard activation with mandatory session-context evidence
+      summary: Run evidence-first hard activation with complete awareness
       description: >
         Orchestrates hard activation by collecting session-context evidence first and provider-bootstrap
         evidence second. Activation is not complete unless both evidence surfaces are present and valid.
