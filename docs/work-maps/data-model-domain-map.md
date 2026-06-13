@@ -13,18 +13,18 @@ flowchart LR
   n_Assets___packages["Assets & packages<br/>17 tables / 0 views"]
   n_Brand___business["Brand & business<br/>4 tables / 0 views"]
   n_Commercial___usage["Commercial & usage<br/>9 tables / 0 views"]
-  n_Connectors___providers["Connectors & providers<br/>36 tables / 8 views"]
+  n_Connectors___providers["Connectors & providers<br/>36 tables / 7 views"]
   n_Delivery___support["Delivery & support<br/>18 tables / 9 views"]
   n_Developer___API["Developer & API<br/>6 tables / 1 views"]
-  n_Governance___authority["Governance & authority<br/>15 tables / 5 views"]
-  n_Migration___lifecycle["Migration & lifecycle<br/>9 tables / 3 views"]
-  n_Observability___release["Observability & release<br/>23 tables / 23 views"]
-  n_Other___uncategorized["Other / uncategorized<br/>8 tables / 16 views"]
-  n_Platform_resources___graph["Platform resources & graph<br/>35 tables / 21 views"]
+  n_Governance___authority["Governance & authority<br/>14 tables / 5 views"]
+  n_Migration___lifecycle["Migration & lifecycle<br/>13 tables / 13 views"]
+  n_Observability___release["Observability & release<br/>24 tables / 23 views"]
+  n_Other___uncategorized["Other / uncategorized<br/>0 tables / 1 views"]
+  n_Platform_resources___graph["Platform resources & graph<br/>36 tables / 27 views"]
   n_Repository___development["Repository & development<br/>22 tables / 6 views"]
   n_Sessions___memory["Sessions & memory<br/>25 tables / 34 views"]
   n_Tenancy___identity["Tenancy & identity<br/>25 tables / 7 views"]
-  n_Workflow___tasks["Workflow & tasks<br/>21 tables / 3 views"]
+  n_Workflow___tasks["Workflow & tasks<br/>24 tables / 3 views"]
   n_Activation___onboarding -->|1| n_Delivery___support
   n_Activation___onboarding -->|3| n_Tenancy___identity
   n_Agents___intelligence -->|11| n_Tenancy___identity
@@ -40,17 +40,13 @@ flowchart LR
   n_Delivery___support -->|2| n_Workflow___tasks
   n_Developer___API -->|1| n_Sessions___memory
   n_Developer___API -->|2| n_Tenancy___identity
-  n_Governance___authority -->|1| n_Agents___intelligence
   n_Governance___authority -->|1| n_Connectors___providers
   n_Governance___authority -->|8| n_Tenancy___identity
   n_Migration___lifecycle -->|1| n_Connectors___providers
   n_Migration___lifecycle -->|4| n_Tenancy___identity
   n_Observability___release -->|1| n_Assets___packages
-  n_Observability___release -->|1| n_Other___uncategorized
-  n_Observability___release -->|8| n_Tenancy___identity
+  n_Observability___release -->|10| n_Tenancy___identity
   n_Observability___release -->|1| n_Workflow___tasks
-  n_Other___uncategorized -->|1| n_Agents___intelligence
-  n_Other___uncategorized -->|4| n_Tenancy___identity
   n_Platform_resources___graph -->|2| n_Delivery___support
   n_Platform_resources___graph -->|1| n_Repository___development
   n_Platform_resources___graph -->|1| n_Sessions___memory
@@ -61,10 +57,10 @@ flowchart LR
   n_Sessions___memory -->|1| n_Agents___intelligence
   n_Sessions___memory -->|2| n_Platform_resources___graph
   n_Sessions___memory -->|17| n_Tenancy___identity
-  n_Workflow___tasks -->|1| n_Observability___release
-  n_Workflow___tasks -->|1| n_Other___uncategorized
+  n_Workflow___tasks -->|2| n_Agents___intelligence
+  n_Workflow___tasks -->|2| n_Observability___release
   n_Workflow___tasks -->|2| n_Platform_resources___graph
-  n_Workflow___tasks -->|12| n_Tenancy___identity
+  n_Workflow___tasks -->|14| n_Tenancy___identity
 ```
 
 ## Domain summary
@@ -76,24 +72,24 @@ flowchart LR
 | Assets & packages | 17 | 0 | `asset_audit_events`, `asset_equivalence_groups`, `asset_equivalence_members`, `json_asset_subject_links`, `pack_attachments`, `platform_copy_locations`, `platform_package_variant_assets`, `platform_package_variant_patches`, `platform_package_variants`, `platform_package_versions`, `platform_private_package_assets`, `platform_private_packages`, ... |
 | Brand & business | 4 | 0 | `brand_site_bindings`, `contacts`, `customer_sessions`, `customers` |
 | Commercial & usage | 9 | 0 | `commercial_profiles`, `credit_balances`, `credit_ledger`, `entitlements`, `graph_memory_usage_events`, `subscriptions`, `tenant_usage`, `usage_limits`, `usage_meters` |
-| Connectors & providers | 36 | 8 | `ads_provider_preflight_contract_registry`, `ads_provider_preflight_surface_blueprint_registry`, `api_credentials`, `app_integration_action_bindings`, `app_integration_tool_bindings`, `app_integrations`, `browser_runtime_artifacts`, `browser_runtime_bindings`, `browser_runtime_capabilities`, `browser_runtime_events`, `browser_runtime_policy`, `browser_runtime_registry`, ... |
+| Connectors & providers | 36 | 7 | `ads_provider_preflight_contract_registry`, `ads_provider_preflight_surface_blueprint_registry`, `api_credentials`, `app_integration_action_bindings`, `app_integration_tool_bindings`, `app_integrations`, `browser_runtime_artifacts`, `browser_runtime_bindings`, `browser_runtime_capabilities`, `browser_runtime_events`, `browser_runtime_policy`, `browser_runtime_registry`, ... |
 | Delivery & support | 18 | 9 | `auth_email_outbox`, `external_delivery_provider_adapter_contract_registry`, `external_delivery_provider_adapter_future_pr_scopes`, `external_delivery_provider_adapter_readiness_checklists`, `external_delivery_provider_family_registry`, `external_delivery_provider_send_mode_policy_registry`, `external_delivery_recipient_allowlist_registry`, `output_artifacts`, `reporting_views`, `sink_dispatch_log`, `threads`, `ticket_lifecycle_events`, ... |
 | Developer & API | 6 | 1 | `admin_platform_endpoint_tools`, `developer_apps`, `endpoints`, `governed_tool_response_chunks`, `offsite_drive_upload_records`, `uploads`, `v_gpt_schema_db_coverage_issues` |
-| Governance & authority | 15 | 5 | `admin_scope_grants`, `app_action_grants`, `auth_password_reset_tokens`, `budget_quota_authority_registry`, `compliance_profiles`, `database_collation_policy_exception_registry`, `database_collation_policy_registry`, `google_ads_budget_execution_gate_audit`, `google_ads_budget_preflight_ledger`, `permission_grants`, `platform_secrets`, `preflight_ledger_validator_registry`, ... |
-| Migration & lifecycle | 9 | 3 | `checkpoint_auto_rollups`, `data_migration_inventory`, `database_table_lifecycle_registry`, `governed_migration_authorization_registry`, `governed_migration_ledger`, `local_connector_recovery_events`, `local_project_path_repair_runs`, `platform_recovery_failure_taxonomy`, `validation_repair`, `connected_execution_latest_checkpoint`, `v_hostinger_recovery_option_readiness`, `v_migration_status_compact` |
-| Observability & release | 23 | 23 | `audit_log`, `audit_payload_evidence`, `connected_execution_evidence_reports`, `database_lifecycle_report_snapshot_scheduler_bindings`, `database_lifecycle_report_snapshot_schedules`, `database_lifecycle_report_snapshots`, `db_change_audit_events`, `execution_log`, `incidents`, `local_app_releases`, `platform_audit_event_bus`, `platform_backup_artifact_manifests`, ... |
-| Other / uncategorized | 8 | 16 | `actions`, `app_action_requests`, `connected_execution_resume_actions`, `platform_runtime_config`, `runtime_gap_remediation_registry`, `runtime_verification_gaps`, `runtime_verification_runs`, `summary_comparison_runs`, `v_core_runtime_context_dimension_coverage`, `v_database_lifecycle_growth_hotspots`, `v_database_lifecycle_high_risk_review`, `v_database_lifecycle_owner_coverage`, ... |
-| Platform resources & graph | 35 | 21 | `adaptation_records`, `ads_provider_capability_profile_registry`, `capability_apply_authorization_policy_registry`, `capability_resolution_envelope_ledger`, `decision_runs`, `external_delivery_provider_adapter_readiness_decisions`, `intent_resolutions`, `local_connector_capability_grants`, `platform_capability_source_resolutions`, `platform_contract_surfaces`, `platform_graph_edge_evidence`, `platform_graph_edges`, ... |
+| Governance & authority | 14 | 5 | `admin_scope_grants`, `auth_password_reset_tokens`, `budget_quota_authority_registry`, `compliance_profiles`, `database_collation_policy_exception_registry`, `database_collation_policy_registry`, `google_ads_budget_execution_gate_audit`, `google_ads_budget_preflight_ledger`, `permission_grants`, `platform_secrets`, `preflight_ledger_validator_registry`, `quota_rules`, ... |
+| Migration & lifecycle | 13 | 13 | `checkpoint_auto_rollups`, `data_migration_inventory`, `database_lifecycle_report_snapshot_scheduler_bindings`, `database_lifecycle_report_snapshot_schedules`, `database_lifecycle_report_snapshots`, `database_lifecycle_scheduler_approval_events`, `database_table_lifecycle_registry`, `governed_migration_authorization_registry`, `governed_migration_ledger`, `local_connector_recovery_events`, `local_project_path_repair_runs`, `platform_recovery_failure_taxonomy`, ... |
+| Observability & release | 24 | 23 | `audit_log`, `audit_payload_evidence`, `connected_execution_evidence_reports`, `db_change_audit_events`, `execution_log`, `incidents`, `local_app_releases`, `platform_audit_event_bus`, `platform_backup_artifact_manifests`, `platform_backup_policies`, `platform_backup_runs`, `platform_health_scorecard_component_registry`, ... |
+| Other / uncategorized | 0 | 1 | `v_platform_capabilities_current` |
+| Platform resources & graph | 36 | 27 | `adaptation_records`, `ads_provider_capability_profile_registry`, `capability_apply_authorization_policy_registry`, `capability_resolution_envelope_ledger`, `decision_runs`, `external_delivery_provider_adapter_readiness_decisions`, `intent_resolutions`, `local_connector_capability_grants`, `platform_capability_source_resolutions`, `platform_contract_surfaces`, `platform_graph_edge_evidence`, `platform_graph_edges`, ... |
 | Repository & development | 22 | 6 | `dev_agent_proposals`, `external_delivery_provider_adapter_enablement_proposals`, `platform_private_repo_mirrors`, `proposal_discussions`, `repo_capability_candidates`, `repo_certification_runs`, `repo_file_audit_findings`, `repo_file_audit_runs`, `repo_ingestion_jobs`, `repo_install_diff_items`, `repo_install_diff_runs`, `repo_install_requests`, ... |
 | Sessions & memory | 25 | 34 | `connected_execution_sessions`, `gpt_session_conversation_refs`, `gpt_session_turns`, `memory_scope_links`, `memory_scope_type_registry`, `offsite_drive_upload_sessions`, `request_envelopes`, `session_assimilation_queue`, `session_drive_artifacts`, `session_events`, `session_insight_backlog_target_items`, `session_insight_backlog_target_writes`, ... |
 | Tenancy & identity | 25 | 7 | `actor_profiles`, `assistance_roles`, `execution_plans`, `invitations`, `local_connector_user_configs`, `memberships`, `plans`, `repository_advisory_comment_plans`, `role_assignments`, `tenant_backend_connections`, `tenant_integration_policies`, `tenant_platform_endpoint_tools`, ... |
-| Workflow & tasks | 21 | 3 | `approval_holds`, `browser_data_extraction_jobs`, `database_lifecycle_scheduler_approval_events`, `execution_enablement_registry`, `execution_enablement_requests`, `local_connector_app_routes`, `local_connector_device_routes`, `platform_backup_approvals`, `platform_orchestration_edges`, `platform_orchestration_recommendations`, `platform_orchestration_stages`, `platform_orchestration_state_snapshots`, ... |
+| Workflow & tasks | 24 | 3 | `actions`, `app_action_grants`, `app_action_requests`, `approval_holds`, `browser_data_extraction_jobs`, `connected_execution_resume_actions`, `execution_enablement_registry`, `execution_enablement_requests`, `local_connector_app_routes`, `local_connector_device_routes`, `platform_backup_approvals`, `platform_orchestration_edges`, ... |
 
 ## Full schema inventory
 
 | Object | Type | Domain | Source migrations | Columns discovered | References |
 |---|---|---|---:|---:|---|
-| `actions` | table | Other / uncategorized | 1 | - | - |
+| `actions` | table | Workflow & tasks | 1 | - | - |
 | `activation_attention_rule_registry` | table | Activation & onboarding | 1 | - | - |
 | `activation_auth_source_router` | table | Activation & onboarding | 1 | - | - |
 | `activation_authorized_surface_registry` | table | Activation & onboarding | 1 | 20 | - |
@@ -137,8 +133,8 @@ flowchart LR
 | `ai_model_providers` | table | Agents & intelligence | 1 | - | - |
 | `ai_model_registry` | table | Agents & intelligence | 1 | - | - |
 | `api_credentials` | table | Connectors & providers | 1 | 12 | `tenants` |
-| `app_action_grants` | table | Governance & authority | 2 | 12 | `agents` |
-| `app_action_requests` | table | Other / uncategorized | 2 | 15 | `agents` |
+| `app_action_grants` | table | Workflow & tasks | 2 | 12 | `agents` |
+| `app_action_requests` | table | Workflow & tasks | 2 | 15 | `agents` |
 | `app_integration_action_bindings` | table | Connectors & providers | 1 | 11 | - |
 | `app_integration_tool_bindings` | table | Connectors & providers | 1 | 12 | - |
 | `app_integrations` | table | Connectors & providers | 4 | 16 | - |
@@ -171,7 +167,7 @@ flowchart LR
 | `commercial_profiles` | table | Commercial & usage | 1 | 16 | `tenants` |
 | `compliance_profiles` | table | Governance & authority | 1 | 8 | `tenants` |
 | `connected_execution_evidence_reports` | table | Observability & release | 1 | 20 | `plans`, `step_runs`, `tenants`, `users` |
-| `connected_execution_resume_actions` | table | Other / uncategorized | 1 | 19 | `tenants`, `users` |
+| `connected_execution_resume_actions` | table | Workflow & tasks | 1 | 19 | `tenants`, `users` |
 | `connected_execution_sessions` | table | Sessions & memory | 1 | 24 | `tenants`, `users` |
 | `connected_systems` | table | Connectors & providers | 1 | 17 | `tenants` |
 | `connector_family_registry` | table | Connectors & providers | 1 | 14 | - |
@@ -185,10 +181,10 @@ flowchart LR
 | `data_migration_inventory` | table | Migration & lifecycle | 1 | 11 | - |
 | `database_collation_policy_exception_registry` | table | Governance & authority | 1 | - | - |
 | `database_collation_policy_registry` | table | Governance & authority | 1 | - | - |
-| `database_lifecycle_report_snapshot_scheduler_bindings` | table | Observability & release | 1 | - | - |
-| `database_lifecycle_report_snapshot_schedules` | table | Observability & release | 1 | - | - |
-| `database_lifecycle_report_snapshots` | table | Observability & release | 1 | - | - |
-| `database_lifecycle_scheduler_approval_events` | table | Workflow & tasks | 1 | - | - |
+| `database_lifecycle_report_snapshot_scheduler_bindings` | table | Migration & lifecycle | 1 | - | - |
+| `database_lifecycle_report_snapshot_schedules` | table | Migration & lifecycle | 1 | - | - |
+| `database_lifecycle_report_snapshots` | table | Migration & lifecycle | 1 | - | - |
+| `database_lifecycle_scheduler_approval_events` | table | Migration & lifecycle | 1 | - | - |
 | `database_table_lifecycle_registry` | table | Migration & lifecycle | 1 | - | - |
 | `db_change_audit_events` | table | Observability & release | 1 | 9 | - |
 | `decision_runs` | table | Platform resources & graph | 1 | - | - |
@@ -308,7 +304,7 @@ flowchart LR
 | `platform_resource_recipes` | table | Platform resources & graph | 1 | 21 | - |
 | `platform_resource_types` | table | Platform resources & graph | 1 | 18 | - |
 | `platform_restore_tests` | table | Observability & release | 1 | 14 | `platform_backup_runs` |
-| `platform_runtime_config` | table | Other / uncategorized | 1 | 6 | - |
+| `platform_runtime_config` | table | Platform resources & graph | 1 | 6 | - |
 | `platform_secrets` | table | Governance & authority | 1 | - | - |
 | `platform_variant_edit_sessions` | table | Assets & packages | 1 | - | - |
 | `platform_variant_merge_runs` | table | Assets & packages | 1 | - | - |
@@ -344,10 +340,10 @@ flowchart LR
 | `runtime_ci_check_classification_registry` | table | Repository & development | 1 | - | - |
 | `runtime_deployment_parity_status` | table | Repository & development | 1 | - | - |
 | `runtime_dispatch_certification_registry` | table | Observability & release | 1 | 19 | - |
-| `runtime_gap_remediation_registry` | table | Other / uncategorized | 1 | - | - |
+| `runtime_gap_remediation_registry` | table | Observability & release | 1 | - | - |
 | `runtime_verification_evidence_chunks` | table | Observability & release | 1 | - | `runtime_verification_runs` |
-| `runtime_verification_gaps` | table | Other / uncategorized | 1 | - | `runtime_verification_runs` |
-| `runtime_verification_runs` | table | Other / uncategorized | 1 | - | - |
+| `runtime_verification_gaps` | table | Observability & release | 1 | - | `runtime_verification_runs` |
+| `runtime_verification_runs` | table | Observability & release | 1 | - | - |
 | `runtime_verification_steps` | table | Workflow & tasks | 1 | - | `runtime_verification_runs` |
 | `runtime_verification_workflow_registry` | table | Workflow & tasks | 1 | - | - |
 | `schema_import_jobs` | table | Workflow & tasks | 2 | 16 | - |
@@ -384,7 +380,7 @@ flowchart LR
 | `skill_manifests` | table | Agents & intelligence | 1 | - | - |
 | `step_runs` | table | Workflow & tasks | 2 | 15 | `tenants` |
 | `subscriptions` | table | Commercial & usage | 1 | 9 | `plans`, `tenants` |
-| `summary_comparison_runs` | table | Other / uncategorized | 2 | 24 | `tenants`, `users` |
+| `summary_comparison_runs` | table | Observability & release | 2 | 24 | `tenants`, `users` |
 | `summary_development_agent_approvals` | table | Repository & development | 1 | - | - |
 | `summary_development_automation_runs` | table | Repository & development | 1 | - | - |
 | `summary_development_signals` | table | Repository & development | 1 | - | - |
@@ -463,19 +459,19 @@ flowchart LR
 | `v_cms_publish_grants_missing_resource_grants` | view | Connectors & providers | 1 | - | - |
 | `v_connections_without_workspace_membership` | view | Tenancy & identity | 1 | - | - |
 | `v_connector_family_coverage` | view | Connectors & providers | 2 | - | - |
-| `v_core_runtime_context_dimension_coverage` | view | Other / uncategorized | 1 | - | - |
+| `v_core_runtime_context_dimension_coverage` | view | Observability & release | 1 | - | - |
 | `v_database_collation_policy_status` | view | Governance & authority | 1 | - | - |
 | `v_database_collation_policy_violations` | view | Governance & authority | 1 | - | - |
-| `v_database_lifecycle_backup_snapshot_review` | view | Observability & release | 1 | - | - |
-| `v_database_lifecycle_credential_review` | view | Connectors & providers | 1 | - | - |
-| `v_database_lifecycle_growth_hotspots` | view | Other / uncategorized | 1 | - | - |
-| `v_database_lifecycle_high_risk_review` | view | Other / uncategorized | 1 | - | - |
-| `v_database_lifecycle_owner_coverage` | view | Other / uncategorized | 1 | - | - |
-| `v_database_lifecycle_placeholder_review` | view | Other / uncategorized | 1 | - | - |
-| `v_database_lifecycle_report_snapshot_schedule_readiness` | view | Observability & release | 1 | - | - |
-| `v_database_lifecycle_report_snapshot_summary` | view | Observability & release | 1 | - | - |
-| `v_database_lifecycle_scheduler_binding_readiness` | view | Observability & release | 1 | - | - |
-| `v_database_lifecycle_status_summary` | view | Other / uncategorized | 1 | - | - |
+| `v_database_lifecycle_backup_snapshot_review` | view | Migration & lifecycle | 1 | - | - |
+| `v_database_lifecycle_credential_review` | view | Migration & lifecycle | 1 | - | - |
+| `v_database_lifecycle_growth_hotspots` | view | Migration & lifecycle | 1 | - | - |
+| `v_database_lifecycle_high_risk_review` | view | Migration & lifecycle | 1 | - | - |
+| `v_database_lifecycle_owner_coverage` | view | Migration & lifecycle | 1 | - | - |
+| `v_database_lifecycle_placeholder_review` | view | Migration & lifecycle | 1 | - | - |
+| `v_database_lifecycle_report_snapshot_schedule_readiness` | view | Migration & lifecycle | 1 | - | - |
+| `v_database_lifecycle_report_snapshot_summary` | view | Migration & lifecycle | 1 | - | - |
+| `v_database_lifecycle_scheduler_binding_readiness` | view | Migration & lifecycle | 1 | - | - |
+| `v_database_lifecycle_status_summary` | view | Migration & lifecycle | 1 | - | - |
 | `v_dynamic_audit_pipeline_counts` | view | Observability & release | 1 | - | - |
 | `v_dynamic_audit_pipeline_quality` | view | Observability & release | 1 | - | - |
 | `v_dynamic_audit_pipeline_readiness` | view | Observability & release | 1 | - | - |
@@ -505,14 +501,14 @@ flowchart LR
 | `v_hostinger_recovery_option_readiness` | view | Migration & lifecycle | 1 | - | - |
 | `v_memory_scope_link_registry_issues` | view | Sessions & memory | 1 | - | - |
 | `v_migration_status_compact` | view | Migration & lifecycle | 1 | - | - |
-| `v_platform_bindings_current` | view | Other / uncategorized | 1 | - | - |
+| `v_platform_bindings_current` | view | Platform resources & graph | 1 | - | - |
 | `v_platform_capabilities_current` | view | Other / uncategorized | 1 | - | - |
 | `v_platform_capability_gaps` | view | Platform resources & graph | 1 | - | - |
 | `v_platform_capability_maturity` | view | Platform resources & graph | 1 | - | - |
 | `v_platform_engine_validator_latest_failures` | view | Agents & intelligence | 1 | - | - |
 | `v_platform_engine_validator_result_summary` | view | Agents & intelligence | 1 | - | - |
-| `v_platform_exports_current` | view | Other / uncategorized | 2 | - | - |
-| `v_platform_exports_current_v2` | view | Other / uncategorized | 1 | - | - |
+| `v_platform_exports_current` | view | Platform resources & graph | 2 | - | - |
+| `v_platform_exports_current_v2` | view | Platform resources & graph | 1 | - | - |
 | `v_platform_health_scorecard` | view | Observability & release | 1 | - | - |
 | `v_platform_health_scorecard_component_registry_readback` | view | Observability & release | 1 | - | - |
 | `v_platform_health_scorecard_components` | view | Observability & release | 2 | - | - |
@@ -525,9 +521,9 @@ flowchart LR
 | `v_platform_orchestration_graph_readiness` | view | Workflow & tasks | 3 | - | - |
 | `v_platform_orchestration_support_ticket_lifecycle_readiness` | view | Delivery & support | 1 | - | - |
 | `v_platform_plugin_collation_issues` | view | Agents & intelligence | 2 | - | - |
-| `v_platform_relationship_integrity_issues` | view | Other / uncategorized | 2 | - | - |
-| `v_platform_relationship_integrity_score` | view | Other / uncategorized | 2 | - | - |
-| `v_platform_relationship_integrity_summary` | view | Other / uncategorized | 2 | - | - |
+| `v_platform_relationship_integrity_issues` | view | Platform resources & graph | 2 | - | - |
+| `v_platform_relationship_integrity_score` | view | Platform resources & graph | 2 | - | - |
+| `v_platform_relationship_integrity_summary` | view | Platform resources & graph | 2 | - | - |
 | `v_platform_resource_capability_baseline` | view | Platform resources & graph | 1 | - | - |
 | `v_platform_secret_promotion_monitoring` | view | Observability & release | 1 | - | - |
 | `v_platform_secret_promotion_monitoring_issues` | view | Observability & release | 1 | - | - |
@@ -541,11 +537,11 @@ flowchart LR
 | `v_resource_recipe_certification_compact` | view | Platform resources & graph | 1 | - | - |
 | `v_resource_recipe_registry_compact` | view | Platform resources & graph | 1 | - | - |
 | `v_runtime_ci_check_gate` | view | Repository & development | 1 | - | - |
-| `v_runtime_context_dimension_enrichment_fillable` | view | Other / uncategorized | 1 | - | - |
+| `v_runtime_context_dimension_enrichment_fillable` | view | Observability & release | 1 | - | - |
 | `v_runtime_policy_resolver_rule_coverage` | view | Governance & authority | 1 | - | - |
-| `v_runtime_production_parity` | view | Other / uncategorized | 1 | - | - |
+| `v_runtime_production_parity` | view | Observability & release | 1 | - | - |
 | `v_runtime_verification_evidence_manifest` | view | Observability & release | 1 | - | - |
-| `v_runtime_verification_latest` | view | Other / uncategorized | 1 | - | - |
+| `v_runtime_verification_latest` | view | Observability & release | 1 | - | - |
 | `v_session_insight_actual_preflight_issues` | view | Governance & authority | 1 | - | - |
 | `v_session_insight_actual_preflight_readiness` | view | Governance & authority | 1 | - | - |
 | `v_session_insight_actual_request_readiness` | view | Sessions & memory | 1 | - | - |
@@ -601,4 +597,4 @@ flowchart LR
 - Tables discovered: **333**
 - Views discovered: **168**
 - Policy keys discovered: **160**
-- Uncategorized objects: **24**
+- Uncategorized objects: **1**

@@ -149,7 +149,7 @@ flowchart TD
 | `v_app_integration_capability_map` | view | Platform resources & graph | 2 | - | - |
 | `v_app_integration_tool_map` | view | Connectors & providers | 1 | - | - |
 | `v_connector_family_coverage` | view | Connectors & providers | 2 | - | - |
-| `v_database_lifecycle_credential_review` | view | Connectors & providers | 1 | - | - |
+| `v_database_lifecycle_credential_review` | view | Migration & lifecycle | 1 | - | - |
 | `v_external_delivery_provider_adapter_future_pr_scope_summary` | view | Delivery & support | 1 | - | - |
 | `v_external_delivery_provider_adapter_readiness_checklist_summary` | view | Delivery & support | 1 | - | - |
 | `v_external_delivery_provider_adapter_readiness_decision_summary` | view | Platform resources & graph | 1 | - | - |

@@ -88,7 +88,7 @@ flowchart TD
 | `admin_scope_grants` | table | Governance & authority | 1 | 17 | `tenants`, `users` |
 | `agent_skill_grants` | table | Agents & intelligence | 1 | 10 | `agents`, `tenants` |
 | `agent_supervision_policy` | table | Agents & intelligence | 1 | 6 | `agents`, `tenants` |
-| `app_action_grants` | table | Governance & authority | 2 | 12 | `agents` |
+| `app_action_grants` | table | Workflow & tasks | 2 | 12 | `agents` |
 | `browser_runtime_policy` | table | Connectors & providers | 1 | 10 | `tenants` |
 | `budget_quota_authority_registry` | table | Governance & authority | 1 | - | - |
 | `capability_apply_authorization_policy_registry` | table | Platform resources & graph | 1 | 21 | - |

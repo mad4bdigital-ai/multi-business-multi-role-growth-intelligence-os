@@ -15,18 +15,18 @@
 | Assets & packages | 17 | 0 | `asset-package-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `repository-development-map.md` | covered |
 | Brand & business | 4 | 0 | `data-model-domain-map.md` | covered |
 | Commercial & usage | 9 | 0 | `commercial-usage-map.md`, `data-model-domain-map.md`, `policy-authority-map.md` | covered |
-| Connectors & providers | 36 | 8 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md` | covered |
+| Connectors & providers | 36 | 7 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md` | covered |
 | Delivery & support | 18 | 9 | `connector-provider-map.md`, `data-model-domain-map.md`, `delivery-support-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
 | Developer & API | 6 | 1 | `data-model-domain-map.md` | covered |
-| Governance & authority | 15 | 5 | `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md` | covered |
-| Migration & lifecycle | 9 | 3 | `connector-provider-map.md`, `data-model-domain-map.md`, `migration-lifecycle-map.md`, `observability-release-map.md` | covered |
-| Observability & release | 23 | 23 | `data-model-domain-map.md`, `observability-release-map.md`, `workflow-task-orchestration-map.md` | covered |
-| Other / uncategorized | 8 | 16 | `data-model-domain-map.md` | covered |
-| Platform resources & graph | 35 | 21 | `connector-provider-map.md`, `data-model-domain-map.md`, `delivery-support-map.md`, `observability-release-map.md`, `platform-resource-graph-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
+| Governance & authority | 14 | 5 | `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md` | covered |
+| Migration & lifecycle | 13 | 13 | `connector-provider-map.md`, `data-model-domain-map.md`, `migration-lifecycle-map.md`, `observability-release-map.md`, `workflow-task-orchestration-map.md` | covered |
+| Observability & release | 24 | 23 | `data-model-domain-map.md`, `observability-release-map.md`, `workflow-task-orchestration-map.md` | covered |
+| Other / uncategorized | 0 | 1 | `data-model-domain-map.md` | taxonomy gap |
+| Platform resources & graph | 36 | 27 | `connector-provider-map.md`, `data-model-domain-map.md`, `delivery-support-map.md`, `observability-release-map.md`, `platform-resource-graph-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
 | Repository & development | 22 | 6 | `agent-skill-plugin-map.md`, `connector-provider-map.md`, `data-model-domain-map.md`, `delivery-support-map.md`, `observability-release-map.md`, `platform-resource-graph-map.md`, `repository-development-map.md`, `workflow-task-orchestration-map.md` | covered |
 | Sessions & memory | 25 | 34 | `data-model-domain-map.md`, `observability-release-map.md`, `session-memory-map.md` | covered |
 | Tenancy & identity | 25 | 7 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
-| Workflow & tasks | 21 | 3 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
+| Workflow & tasks | 24 | 3 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
 
 ## Generated map inventory
 
@@ -47,30 +47,7 @@
 
 ## Uncategorized schema objects
 
-- `actions` (table)
-- `app_action_requests` (table)
-- `connected_execution_resume_actions` (table)
-- `platform_runtime_config` (table)
-- `runtime_gap_remediation_registry` (table)
-- `runtime_verification_gaps` (table)
-- `runtime_verification_runs` (table)
-- `summary_comparison_runs` (table)
-- `v_core_runtime_context_dimension_coverage` (view)
-- `v_database_lifecycle_growth_hotspots` (view)
-- `v_database_lifecycle_high_risk_review` (view)
-- `v_database_lifecycle_owner_coverage` (view)
-- `v_database_lifecycle_placeholder_review` (view)
-- `v_database_lifecycle_status_summary` (view)
-- `v_platform_bindings_current` (view)
 - `v_platform_capabilities_current` (view)
-- `v_platform_exports_current` (view)
-- `v_platform_exports_current_v2` (view)
-- `v_platform_relationship_integrity_issues` (view)
-- `v_platform_relationship_integrity_score` (view)
-- `v_platform_relationship_integrity_summary` (view)
-- `v_runtime_context_dimension_enrichment_fillable` (view)
-- `v_runtime_production_parity` (view)
-- `v_runtime_verification_latest` (view)
 
 ## Coverage policy
 
