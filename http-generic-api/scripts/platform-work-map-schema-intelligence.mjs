@@ -133,7 +133,7 @@ const SPECIALIZED_MAPS = [
   {
     file: "platform-resource-graph-map.md",
     title: "Platform Resource, Capability, and Graph Map",
-    pattern: /platform_graph|platform_resource|resource_recipe|resource_type|resource_adapter|contract_surface|registry_surfaces|capability|decision|intent|adaptation/i,
+    pattern: /platform_graph|platform_resource|resource_recipe|resource_type|resource_adapter|contract_surface|registry_surfaces|capability|decision|intent|adaptation|platform_binding|platform_export|relationship_integrity|platform_runtime_config/i,
     flow: ["Intent / decision", "Capability source resolution", "Contract surface", "Resource type", "Adapter / recipe", "Graph projection", "Validation / runtime evidence"],
     invariants: [
       "Capabilities resolve through registered sources and contract surfaces.",
