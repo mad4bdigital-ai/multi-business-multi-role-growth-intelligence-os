@@ -10,20 +10,20 @@
 
 | Domain | Tables | Views | Generated maps | Status |
 |---|---:|---:|---|---|
-| Activation & onboarding | 23 | 24 | `agent-skill-plugin-map.md`, `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
+| Activation & onboarding | 23 | 24 | `activation-onboarding-map.md`, `agent-skill-plugin-map.md`, `asset-package-map.md`, `commercial-usage-map.md`, `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
 | Agents & intelligence | 37 | 8 | `agent-skill-plugin-map.md`, `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
-| Assets & packages | 17 | 0 | `data-model-domain-map.md`, `observability-release-map.md` | covered |
+| Assets & packages | 17 | 0 | `asset-package-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `repository-development-map.md` | covered |
 | Brand & business | 4 | 0 | `data-model-domain-map.md` | covered |
-| Commercial & usage | 9 | 0 | `data-model-domain-map.md`, `policy-authority-map.md` | covered |
+| Commercial & usage | 9 | 0 | `commercial-usage-map.md`, `data-model-domain-map.md`, `policy-authority-map.md` | covered |
 | Connectors & providers | 36 | 8 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md` | covered |
-| Delivery & support | 18 | 9 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
+| Delivery & support | 18 | 9 | `connector-provider-map.md`, `data-model-domain-map.md`, `delivery-support-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
 | Developer & API | 6 | 1 | `data-model-domain-map.md` | covered |
 | Governance & authority | 15 | 5 | `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md` | covered |
-| Migration & lifecycle | 9 | 3 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md` | covered |
+| Migration & lifecycle | 9 | 3 | `connector-provider-map.md`, `data-model-domain-map.md`, `migration-lifecycle-map.md`, `observability-release-map.md` | covered |
 | Observability & release | 23 | 23 | `data-model-domain-map.md`, `observability-release-map.md`, `workflow-task-orchestration-map.md` | covered |
 | Other / uncategorized | 8 | 16 | `data-model-domain-map.md` | covered |
-| Platform resources & graph | 35 | 21 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
-| Repository & development | 22 | 6 | `agent-skill-plugin-map.md`, `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `workflow-task-orchestration-map.md` | covered |
+| Platform resources & graph | 35 | 21 | `connector-provider-map.md`, `data-model-domain-map.md`, `delivery-support-map.md`, `observability-release-map.md`, `platform-resource-graph-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
+| Repository & development | 22 | 6 | `agent-skill-plugin-map.md`, `connector-provider-map.md`, `data-model-domain-map.md`, `delivery-support-map.md`, `observability-release-map.md`, `platform-resource-graph-map.md`, `repository-development-map.md`, `workflow-task-orchestration-map.md` | covered |
 | Sessions & memory | 25 | 34 | `data-model-domain-map.md`, `observability-release-map.md`, `session-memory-map.md` | covered |
 | Tenancy & identity | 25 | 7 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
 | Workflow & tasks | 21 | 3 | `connector-provider-map.md`, `data-model-domain-map.md`, `observability-release-map.md`, `policy-authority-map.md`, `workflow-task-orchestration-map.md` | covered |
