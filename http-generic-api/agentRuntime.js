@@ -11,6 +11,7 @@ import { buildCallModel } from "./modelAdapterRouter.js";
 import { runLogicWithModel } from "./modelAdapter.js";
 import { buildEngineExecutorRegistry } from "./engineExecutorRegistry.js";
 import { buildGovernedAgentExecutionContext } from "./governedAgentExecutionContext.js";
+import { authorizeAgentToolCall, filterAuthorizedAgentTools } from "./agentToolAuthorizationGate.js";
 import {
   DEFAULT_AGENT_MODEL_RUNTIME_CONFIG,
   loadAgentModelRuntimeSettings,
