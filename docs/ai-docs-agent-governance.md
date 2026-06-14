@@ -1,5 +1,7 @@
 # AI Docs Agent Governance
 
+> Surface-contract note for `1004_sprint68_hostinger_ssh_executor_db_gate.sql`, `1004_sprint69_agent_governance_admin_tools.sql`, and `1005_sprint69_agent_skill_coverage_prompt_enrichment.sql`: documentation automation must preserve the disabled-by-default target/expiry gate, admin-only tool exposure, read-only skill coverage semantics, canonical deployment-manifest parity, and regression/readback evidence. Static migration text must continue to state no provider calls, no credential payload reads, no raw secrets, no external sends, no deployment execution, and `secrets_included=false`.
+
 <!-- surface-contract-auto-remediation:start -->
 ## Automated Surface Contract Attestations
 
