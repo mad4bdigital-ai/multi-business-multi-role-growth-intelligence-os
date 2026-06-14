@@ -80,6 +80,8 @@ For non-`rule_based` runs, `agentPromptContextResolver` loads the active `agents
 
 `agent_skills` and `platform_engine_skill_prompt_registry` are separate authorities. `v_skill_runtime_coverage` evaluates active, unexpired skill grants by skill type. Manifest and manifest-prompt checks apply only when `agent_skills.capability_json` explicitly declares a packaged skill through `skill_manifest_key` or `package_key`; Platform Engine prompt rows are informational and do not create Agent Skill coverage. Per-call approval requirements remain authorization gates, not static coverage failures.
 
+Output-bearing workflow completion is sink-gated. `connectorExecutor` must await `routeOutput` before finalizing `workflow_runs` or `execution_plans`. `output_artifact` is always required; rule-based, reporting, authority, and linked-workflow contracts add `adaptation_record`, `reporting_view`, `audit_log`, and `chain_event` respectively. Every required sink must pass canonical row readback. A successful connector or model response without required sink readback is a failed workflow with `required_output_sink_failed`; only complete readback may set `side_effect_confirmed_by_readback=true`.
+
 When `workflow.review_required = 1`, run post-execution review on `standard`. Major failures trigger an automatic fix pass. Write the result to `step_runs.verify_pass`.
 
 ### Drive knowledge layer
