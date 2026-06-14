@@ -1,5 +1,7 @@
 -- Sprint 69: type-aware Agent Skill runtime coverage and governed prompt enrichment metadata.
--- Additive/backward-compatible view replacement. No provider calls, no secret reads, no external writes.
+-- Additive/backward-compatible view replacement. No provider calls.
+-- No credential payload reads. No raw secrets. No external sends.
+-- No external writes. secrets_included=false
 
 CREATE OR REPLACE VIEW v_skill_runtime_coverage AS
 SELECT coverage.*,
