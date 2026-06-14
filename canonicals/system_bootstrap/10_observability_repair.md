@@ -930,3 +930,8 @@ Starter signals must include:
 Growth loop may:
 - recommend better starter
 - adjust starter_priority
+Superseded Branch Cleanup Verification Rule
+
+When a closed pull-request branch has been replaced by later commits on the default branch, system_bootstrap may expose `github_superseded_branch_cleanup` as a separate evidence-bound cleanup recipe. The general unmerged-branch deletion guard must remain active.
+
+Before apply, the recipe must verify closed-PR state, the `superseded` label, absence of an open PR, default-branch ancestry for every replacement commit, complete non-generated changed-file coverage, policy limits, fresh base/branch SHAs, a matching evidence fingerprint, capability-envelope approval, typed confirmation, and an explicit reason. Before deleting the named Git ref, it must write a synchronous no-secret intent audit. After the provider result it must write completion or failure audit evidence; successful completion also requires same-cycle missing-ref readback and returns `secrets_included=false`. Any stale, incomplete, protected, force, or fallback condition must remain blocked.
