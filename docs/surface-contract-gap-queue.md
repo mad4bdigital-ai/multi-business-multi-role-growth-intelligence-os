@@ -4,9 +4,9 @@
 
 ## Summary
 
-- Total queue items: 5
+- Total queue items: 4
 - Critical review: 2
-- High review: 3
+- High review: 2
 - Medium review: 0
 - Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
@@ -67,19 +67,4 @@
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `governed_migration_record_only`, `migration_preflight_pass`, `migration_reconcile_305_record_only`, `post_apply_schema_readback`, `schema_evidence_readback`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-
-### 5. `965_sprint68_hostinger_apply_policy_safe_field_names.sql`
-
-- Queue class: high_review
-- Score: 613
-- Gap severity: medium
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- Missing OpenAPI routes: none
-- Safety marker gaps: `no_credential_payload_read`, `no_external_write`
-- Surface counts: plugins=0, tools=0, views=1, policies=2, routes=0
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- `verify_policy_seed_readiness` → runtime-policy-review; targets: `hostinger_deploy_release_apply_policy_v1`, `hostinger_restart_app_apply_policy_v1`
-- `verify_readback_view` → db-readback-review; targets: `v_hostinger_apply_policy_safe_field_readiness`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_external_write`
 
