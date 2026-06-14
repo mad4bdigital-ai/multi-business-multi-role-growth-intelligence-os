@@ -155,7 +155,11 @@ export function buildDeploymentInfoRoutes() {
   const router = Router();
 
   router.get("/deployment-info", async (req, res) => {
-    const deployment = await readDeploymentCommit();
+    const legacyDeployment = await readDeploymentCommit();
+    const manifestResult = readDeploymentManifest();
+    const canonicalDeployment = manifestResult.ok ? manifestResult.manifest : null;
+    const deployment = canonicalDeployment || legacyDeployment;
+    const deploymentSource = canonicalDeployment?.source || (legacyDeployment ? "DEPLOYMENT_COMMIT.json" : "unavailable");
     const git = await readGitCheckoutInfo();
     const host = String(req.headers.host || "").toLowerCase();
     const isDevHostname = host.startsWith("dev.mad4b.com");
