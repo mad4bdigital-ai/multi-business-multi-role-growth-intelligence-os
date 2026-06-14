@@ -4,8 +4,8 @@
 
 ## Summary
 
-- Total queue items: 0
-- Critical review: 0
+- Total queue items: 1
+- Critical review: 1
 - High review: 0
 - Medium review: 0
 - Low review: 0
@@ -13,4 +13,18 @@
 
 ## Top Queue Items
 
-No actionable surface contract gaps detected.
+### 1. `311_sprint69_platform_tool_dispatch_binding_integrity.sql`
+
+- Queue class: critical_review
+- Score: 869
+- Gap severity: medium
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_credential_payload_read`, `no_external_write`
+- Surface counts: plugins=0, tools=19, views=1, policies=0, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `archive_superseded_bindings_only_after_readback`, `base_head_readback`, `bounded_by_endpoint_and_tool_catalog`, `freshness_gate`, `github_get_pull_request`, `github_list_pull_requests`, `github_merge_pull_request`, `github_pr_ci_gate`, `github_pr_ci_readback`, `github_pr_state_readback_v1`, `github_pr_update_branch_readback_v1`, `github_update_pull_request`, ...and 7 more
+- `verify_readback_view` → db-readback-review; targets: `v_platform_tool_dispatch_integrity`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_external_write`
+
