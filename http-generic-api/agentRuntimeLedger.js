@@ -137,13 +137,13 @@ export async function recordAgentToolCallStarted({ context = {}, modelRunId = nu
       `INSERT INTO \`agent_tool_calls\`
          (tool_call_id, decision_run_id, model_run_id, tool_key, authorization_status,
           pre_tool_gate_json, input_summary_json, secrets_returned_to_model, side_effect_confirmed_by_readback, trace_id, created_at)
-       VALUES (?, ?, ?, ?, 'authorized', ?, ?, 0, 0, ?, UTC_TIMESTAMP())`,
+       VALUES (?, ?, ?, ?, 'pending', ?, ?, 0, 0, ?, UTC_TIMESTAMP())`,
       [
         toolCallId,
         context.decision_run_id || context.run_id || context.plan_id || null,
         modelRunId || null,
         String(toolKey || "unknown").slice(0, 191),
-        safeJson({ gate: "agent_loop_dispatch", authorization_status: "authorized", secrets_included: false }),
+        safeJson({ gate: "agent_loop_dispatch", authorization_status: "pending", secrets_included: false }),
         safeJson(summarizeToolInput(args)),
         context.execution_trace_id || context.trace_id || null,
       ]
@@ -152,18 +152,52 @@ export async function recordAgentToolCallStarted({ context = {}, modelRunId = nu
   return toolCallId;
 }
 
-export async function recordAgentToolCallCompleted({ toolCallId, result = {}, status = "authorized" } = {}) {
+export async function recordAgentToolCallAuthorization({ toolCallId, decision = {} } = {}) {
   if (!toolCallId) return;
-  const authStatus = ["authorized", "failed", "denied", "pending"].includes(status) ? status : "authorized";
+  const authorizationStatus = decision?.allowed === true ? "authorized" : "denied";
   try {
     await (await pool()).query(
       `UPDATE \`agent_tool_calls\`
-          SET authorization_status = ?, post_tool_readback_json = ?, output_summary_json = ?, completed_at = UTC_TIMESTAMP()
+          SET authorization_status = ?, pre_tool_gate_json = ?
+        WHERE tool_call_id = ?`,
+      [
+        authorizationStatus,
+        safeJson({
+          gate: "agent_tool_authorization_gate",
+          authorization_status: authorizationStatus,
+          code: decision?.code || null,
+          phase: decision?.phase || "dispatch",
+          consequence_class: decision?.classification?.consequence_class || null,
+          action_key: decision?.action?.action_key || null,
+          required_skill_alternatives: decision?.skill?.alternatives || [],
+          matched_skill_key: decision?.skill?.matched_skill_key || null,
+          blocker_codes: Array.isArray(decision?.blockers) ? decision.blockers : [],
+          advisory_unregistered_read_only: decision?.advisory_unregistered_read_only === true,
+          secrets_included: false,
+        }),
+        toolCallId,
+      ]
+    );
+  } catch { /* non-blocking ledger */ }
+}
+
+export async function recordAgentToolCallCompleted({ toolCallId, result = {}, status = "authorized" } = {}) {
+  if (!toolCallId) return;
+  const authStatus = ["authorized", "failed", "denied", "pending"].includes(status) ? status : "authorized";
+  const readbackConfirmed = result?.side_effect_confirmed_by_readback === true ||
+    result?.readback?.confirmed === true || result?.readback_status === "confirmed";
+  const readbackStatus = result?.ok === false ? "failed" : readbackConfirmed ? "confirmed" : "result_returned_unverified";
+  try {
+    await (await pool()).query(
+      `UPDATE \`agent_tool_calls\`
+          SET authorization_status = ?, post_tool_readback_json = ?, output_summary_json = ?,
+              side_effect_confirmed_by_readback = ?, completed_at = UTC_TIMESTAMP()
         WHERE tool_call_id = ?`,
       [
         authStatus,
-        safeJson({ readback_status: result?.ok === false ? "failed" : "completed", side_effect_confirmed_by_readback: false, secrets_included: false }),
+        safeJson({ readback_status: readbackStatus, side_effect_confirmed_by_readback: readbackConfirmed, secrets_included: false }),
         safeJson(summarizeToolOutput(result)),
+        readbackConfirmed ? 1 : 0,
         toolCallId,
       ]
     );
