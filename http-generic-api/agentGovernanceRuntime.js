@@ -705,7 +705,7 @@ export async function resolveMemoryScope(input = {}, deps = {}) {
     .sort((a, b) => Number(typeMap.get(b.scope_type)?.priority || 0) - Number(typeMap.get(a.scope_type)?.priority || 0));
   const [links] = await pool.query(
     `SELECT * FROM memory_scope_links
-      WHERE tenant_id = ? AND status = 'active' AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)`,
+      WHERE tenant_id = ? AND lifecycle_status = 'active' AND authority_status IN ('approved', 'authoritative')`,
     [tenantId]
   );
   const requestedKeys = new Set(activeScopes.map((scope) => `${scope.scope_type}:${scope.scope_ref}`));
