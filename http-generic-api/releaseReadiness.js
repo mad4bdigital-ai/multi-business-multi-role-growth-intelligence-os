@@ -1635,6 +1635,33 @@ async function checkLegacyTables() {
   return results;
 }
 
+async function checkSystemLayerDescriptorCallability() {
+  try {
+    const { runSystemLayerDescriptorCallabilityAudit } = await import("./routes/systemLayerRoutes.js");
+    const audit = await runSystemLayerDescriptorCallabilityAudit();
+    const pass = audit?.ok === true && audit?.status === "pass";
+    return {
+      status: pass ? "pass" : "fail",
+      detail: pass
+        ? `System-layer descriptor callability passed for ${audit.descriptor_tool_count || 0} tool(s) across ${audit.descriptor_source_count || 0} source(s).`
+        : `System-layer descriptor callability failed for ${audit?.failed_source_count || 0} source(s) with ${audit?.missing_handler_count || 0} missing handler(s).`,
+      audit,
+      executes_tools: true,
+      mutations_executed: false,
+      secrets_included: false,
+    };
+  } catch (err) {
+    return {
+      status: "fail",
+      detail: `System-layer descriptor callability audit could not complete: ${err?.message || err}`,
+      reason_code: err?.code || "system_layer_descriptor_callability_exception",
+      executes_tools: true,
+      mutations_executed: false,
+      secrets_included: false,
+    };
+  }
+}
+
 async function checkRepositoryIntelligenceV2Readiness() {
   const requiredToolNames = [
     "platform_resource_authority_binding_create",
@@ -1763,6 +1790,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     admin_tool_registry_smoke: null,
     migration_drift: null,
     runtime_policy_seed_readiness: null,
+    system_layer_descriptor_callability: null,
     repository_intelligence_v2_readiness: null,
     platform_secret_promotion_monitoring: null,
     graph_memory_diagnostics: null,
@@ -1829,6 +1857,9 @@ export async function runReleaseReadiness({ persist = false } = {}) {
   report.runtime_policy_seed_readiness = await checkRuntimePolicySeedReadinessSafe();
   if (report.runtime_policy_seed_readiness.status === "warn" && report.overall === "pass") report.overall = "warn";
   if (report.runtime_policy_seed_readiness.status === "fail") report.overall = "fail";
+
+  report.system_layer_descriptor_callability = await checkSystemLayerDescriptorCallability();
+  if (report.system_layer_descriptor_callability.status === "fail") report.overall = "fail";
 
   report.repository_intelligence_v2_readiness = await checkRepositoryIntelligenceV2Readiness();
   if (report.repository_intelligence_v2_readiness.status === "warn" && report.overall === "pass") report.overall = "warn";
@@ -1897,7 +1928,12 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     runtime_policy_seed_covered_count: report.runtime_policy_seed_readiness?.covered_count ?? null,
     runtime_policy_seed_missing_count: report.runtime_policy_seed_readiness?.missing_required_policies?.length ?? null,
     runtime_policy_seed_invalid_count: report.runtime_policy_seed_readiness?.invalid_required_policies?.length ?? null,
-    repository_intelligence_v2_status: report.repository_intelligence_v2_readiness?.status || null,
+    system_layer_descriptor_callability_status: report.system_layer_descriptor_callability?.status || null,
+      system_layer_descriptor_source_count: report.system_layer_descriptor_callability?.audit?.descriptor_source_count ?? null,
+      system_layer_descriptor_tool_count: report.system_layer_descriptor_callability?.audit?.descriptor_tool_count ?? null,
+      system_layer_descriptor_failed_source_count: report.system_layer_descriptor_callability?.audit?.failed_source_count ?? null,
+      system_layer_descriptor_missing_handler_count: report.system_layer_descriptor_callability?.audit?.missing_handler_count ?? null,
+      repository_intelligence_v2_status: report.repository_intelligence_v2_readiness?.status || null,
     repository_intelligence_v2_active_real_bindings: report.repository_intelligence_v2_readiness?.active_real_bindings ?? null,
     repository_intelligence_v2_evidence_rows: report.repository_intelligence_v2_readiness?.v2_evidence_rows ?? null,
     repository_intelligence_v2_openapi_documented: report.repository_intelligence_v2_readiness?.openapi_documented ?? null,
