@@ -14,6 +14,8 @@ tags:
     description: Personal administrator control surface for CLI, database, and runtime environment operations.
   - name: system-layer
     description: MCP-style governed system layer backed by connector registries, principal context, and runtime validation.
+  - name: runtime-verification
+    description: Runtime verification control plane, production parity ledger, and paginated evidence surfaces.
 components:
   securitySchemes:
     backendBearerAuth:
@@ -92,8 +94,10 @@ components:
         - ok
         - activation_layer
         - activation_complete
+        - response_profile
         - runtime_classification
         - evidence_matrix
+        - completeness
         - report_policy
         - secrets_included
       properties:
@@ -105,6 +109,108 @@ components:
             - hard_activation_orchestrator
         activation_complete:
           type: boolean
+        run_id:
+          type: string
+          nullable: true
+        session_id:
+          type: string
+          nullable: true
+        response_profile:
+          type: string
+          enum:
+            - evidence
+            - summary
+            - dashboard
+            - diagnostic
+            - full
+        snapshot:
+          type: object
+          additionalProperties: true
+          properties:
+            snapshot_id:
+              type: string
+            generated_at:
+              type: string
+              format: date-time
+            registry_version:
+              type: string
+              nullable: true
+            data_watermark:
+              type: string
+              format: date-time
+            profile:
+              type: string
+            subject_scope:
+              type: string
+              enum:
+                - platform_admin
+                - tenant_user
+        state_model:
+          type: object
+          additionalProperties: false
+          properties:
+            validation_state:
+              type: string
+            evidence_state:
+              type: string
+            session_state:
+              type: string
+            dashboard_state:
+              type: string
+            delivery_state:
+              type: string
+            consumer_ack_state:
+              type: string
+        dynamic_tabs_manifest:
+          type: object
+          additionalProperties: true
+          properties: {}
+        operational_summary:
+          type: object
+          additionalProperties: true
+          properties: {}
+        operational_dashboard_manifest:
+          type: object
+          additionalProperties: true
+          properties: {}
+        completeness:
+          type: object
+          additionalProperties: true
+          properties:
+            known_surfaces:
+              type: integer
+            visible_surfaces:
+              type: integer
+            summarized_surfaces:
+              type: integer
+            fully_hydrated_surfaces:
+              type: integer
+            deferred_surfaces:
+              type: integer
+            blocked_surfaces:
+              type: integer
+            stale_surfaces:
+              type: integer
+            coverage_status:
+              type: string
+            details_omitted_silently:
+              type: boolean
+              enum:
+                - false
+        awareness_index:
+          type: object
+          additionalProperties: true
+          properties: {}
+        surface_refs:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties: {}
+        response_projection:
+          type: object
+          additionalProperties: true
+          properties: {}
         runtime_classification:
           type: object
           additionalProperties: true
@@ -133,6 +239,239 @@ components:
               type: boolean
             session_context_claim_requires:
               type: string
+        secrets_included:
+          type: boolean
+          enum:
+            - false
+    ActivationAwarenessResponse:
+      type: object
+      additionalProperties: true
+      required:
+        - ok
+        - activation_layer
+        - response_profile
+        - snapshot
+        - dynamic_tabs
+        - operational_summary
+        - dashboard
+        - completeness
+        - awareness_index
+        - auth_context
+        - secrets_included
+      properties:
+        ok:
+          type: boolean
+        activation_layer:
+          type: string
+          enum:
+            - activation_awareness_readback
+        response_profile:
+          type: string
+          enum:
+            - evidence
+            - summary
+            - dashboard
+            - diagnostic
+            - full
+        snapshot:
+          type: object
+          additionalProperties: true
+          properties: {}
+        dynamic_tabs:
+          type: object
+          additionalProperties: true
+          properties: {}
+        operational_summary:
+          type: object
+          additionalProperties: true
+          properties: {}
+        dashboard:
+          type: object
+          additionalProperties: true
+          properties: {}
+        completeness:
+          type: object
+          additionalProperties: true
+          required:
+            - known_surfaces
+            - visible_surfaces
+            - summarized_surfaces
+            - fully_hydrated_surfaces
+            - deferred_surfaces
+            - blocked_surfaces
+            - stale_surfaces
+            - coverage_status
+            - details_omitted_silently
+          properties:
+            known_surfaces:
+              type: integer
+            visible_surfaces:
+              type: integer
+            summarized_surfaces:
+              type: integer
+            fully_hydrated_surfaces:
+              type: integer
+            deferred_surfaces:
+              type: integer
+            blocked_surfaces:
+              type: integer
+            stale_surfaces:
+              type: integer
+            degraded_surfaces:
+              type: integer
+            coverage_status:
+              type: string
+            details_omitted_silently:
+              type: boolean
+              enum:
+                - false
+            deferred_details_have_refs:
+              type: boolean
+        awareness_index:
+          type: object
+          additionalProperties: false
+          properties:
+            score:
+              type: integer
+              minimum: 0
+              maximum: 100
+            coverage:
+              type: integer
+              minimum: 0
+              maximum: 100
+            freshness:
+              type: integer
+              minimum: 0
+              maximum: 100
+            authorization_visibility:
+              type: integer
+              minimum: 0
+              maximum: 100
+            attention_detection:
+              type: integer
+              minimum: 0
+              maximum: 100
+            detail_availability:
+              type: integer
+              minimum: 0
+              maximum: 100
+        auth_context:
+          type: object
+          additionalProperties: true
+          properties: {}
+        secrets_included:
+          type: boolean
+          enum:
+            - false
+    ActivationDynamicTabDetailResponse:
+      type: object
+      additionalProperties: true
+      required:
+        - ok
+        - activation_layer
+        - snapshot
+        - subject
+        - container
+        - tab
+        - sections
+        - page
+        - policy
+        - secrets_included
+      properties:
+        ok:
+          type: boolean
+        activation_layer:
+          type: string
+          enum:
+            - activation_dynamic_tab_detail
+        snapshot:
+          type: object
+          additionalProperties: true
+          properties: {}
+        subject:
+          type: object
+          additionalProperties: true
+          properties: {}
+        container:
+          type: object
+          additionalProperties: true
+          properties: {}
+        tab:
+          type: object
+          additionalProperties: true
+          properties: {}
+        sections:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              section_key:
+                type: string
+              row_count:
+                type: integer
+              rows:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+                  properties: {}
+              page:
+                type: object
+                additionalProperties: false
+                properties:
+                  cursor:
+                    type: integer
+                  limit:
+                    type: integer
+                  has_more:
+                    type: boolean
+                  next_cursor:
+                    type: integer
+                    nullable: true
+        page:
+          type: object
+          additionalProperties: false
+          properties:
+            cursor:
+              type: integer
+            limit:
+              type: integer
+            returned_rows:
+              type: integer
+            has_more:
+              type: boolean
+            next_cursor:
+              type: integer
+              nullable: true
+        policy:
+          type: object
+          additionalProperties: true
+          properties: {}
+        secrets_included:
+          type: boolean
+          enum:
+            - false
+    ActivationRunAckResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - run_id
+        - affected_rows
+        - secrets_included
+      properties:
+        ok:
+          type: boolean
+        run_id:
+          type: string
+        affected_rows:
+          type: integer
+        error:
+          type: object
+          nullable: true
+          additionalProperties: true
+          properties: {}
         secrets_included:
           type: boolean
           enum:
@@ -187,6 +526,402 @@ components:
 security:
   - backendBearerAuth: []
 paths:
+  /activation/hard-run/summary:
+    get:
+      tags:
+        - activation
+        - runtime-verification
+      operationId: getActivationHardRunSummary
+      summary: Read compact hard activation summary
+      description: |
+        Returns a summary-first activation status and registry counts without loading the full hard activation evidence graph. Use this endpoint when tool/client response budgets cannot safely receive full activation evidence.
+      security:
+        - backendBearerAuth: []
+      responses:
+        "200":
+          description: Compact hard activation summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "424":
+          description: Activation summary reports degraded surfaces.
+  /activation/awareness:
+    get:
+      tags:
+        - activation
+      security:
+        - backendBearerAuth: []
+      operationId: readActivationAwareness
+      x-openai-isConsequential: false
+      summary: Read complete activation awareness manifests
+      description: Returns Dynamic Tabs and Dashboard manifests, attention summaries, completeness, freshness, awareness index, snapshot metadata, and governed detail references without silently omitting surfaces.
+      parameters:
+        - in: query
+          name: profile
+          schema:
+            type: string
+            enum:
+              - evidence
+              - summary
+              - dashboard
+              - diagnostic
+              - full
+            default: evidence
+        - in: query
+          name: attention_limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+      responses:
+        "200":
+          description: Activation awareness readback.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivationAwarenessResponse"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Awareness read failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /activation/dynamic-tabs/detail:
+    get:
+      tags:
+        - activation
+      security:
+        - backendBearerAuth: []
+      operationId: readActivationDynamicTabDetail
+      x-openai-isConsequential: false
+      summary: Read one authorized Dynamic Tab detail page
+      parameters:
+        - in: query
+          name: container_key
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: tab_key
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: section_key
+          schema:
+            type: string
+        - in: query
+          name: cursor
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - in: query
+          name: snapshot_id
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Cursor-paginated Dynamic Tab detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivationDynamicTabDetailResponse"
+        "400":
+          description: Missing or invalid detail scope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Container, tab, or section not found within caller scope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /activation/runs/{runId}/ack:
+    post:
+      tags:
+        - activation
+      security:
+        - backendBearerAuth: []
+      operationId: acknowledgeActivationRun
+      x-openai-isConsequential: false
+      summary: Record consumer acknowledgement for an activation run
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                acknowledged_by:
+                  type: string
+                  maxLength: 180
+                consumer_state:
+                  type: string
+                  enum:
+                    - acknowledged
+                    - rejected
+                  default: acknowledged
+      responses:
+        "200":
+          description: Acknowledgement recorded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivationRunAckResponse"
+        "404":
+          description: Activation run not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /tenant/activation/awareness:
+    get:
+      tags:
+        - activation
+      security:
+        - backendBearerAuth: []
+      operationId: readTenantActivationAwareness
+      x-openai-isConsequential: false
+      summary: Read signed-in tenant activation awareness
+      description: Tenant scope is resolved from the signed user JWT and active membership. Client-supplied tenant identity is not trusted.
+      parameters:
+        - in: query
+          name: profile
+          schema:
+            type: string
+            enum:
+              - evidence
+              - summary
+              - dashboard
+            default: evidence
+        - in: query
+          name: attention_limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+      responses:
+        "200":
+          description: Tenant-scoped activation awareness.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivationAwarenessResponse"
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Active tenant membership required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /tenant/activation/dynamic-tabs/detail:
+    get:
+      tags:
+        - activation
+      security:
+        - backendBearerAuth: []
+      operationId: readTenantActivationDynamicTabDetail
+      x-openai-isConsequential: false
+      summary: Read one tenant-authorized Dynamic Tab detail page
+      parameters:
+        - in: query
+          name: container_key
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: tab_key
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: section_key
+          schema:
+            type: string
+        - in: query
+          name: cursor
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - in: query
+          name: snapshot_id
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Tenant-scoped cursor-paginated Dynamic Tab detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivationDynamicTabDetailResponse"
+        "400":
+          description: Missing or invalid detail scope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Caller lacks active tenant membership or requested object scope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Container, tab, or section not found within caller scope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /activation/hard-run/legacy-full:
+    post:
+      deprecated: true
+      tags:
+        - activation
+      security:
+        - backendBearerAuth: []
+      operationId: runLegacyFullHardActivation
+      x-openai-isConsequential: false
+      summary: Run legacy full hard activation response
+      description: Compatibility route for callers that require the previous fully hydrated Dynamic Tabs, Operational Intelligence, and Dashboard payload. New callers should use /activation/hard-run with response_profile=full only when necessary.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                tenant_id:
+                  type: string
+                user_id:
+                  type: string
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 10
+                include_raw:
+                  type: boolean
+                  default: false
+                include_turns:
+                  type: boolean
+                  default: false
+                close_previous_sessions:
+                  type: boolean
+                  default: false
+                response_profile:
+                  type: string
+                  enum:
+                    - evidence
+                    - summary
+                    - dashboard
+                    - diagnostic
+                    - full
+                  default: evidence
+                session_policy:
+                  type: string
+                  enum:
+                    - reuse_or_create
+                    - create_new
+                    - reuse_only
+                    - read_only
+                  default: reuse_or_create
+                idempotency_key:
+                  type: string
+                  maxLength: 180
+                conversation_ref:
+                  type: string
+                  maxLength: 500
+                reuse_window_hours:
+                  type: integer
+                  minimum: 1
+                  maximum: 168
+                  default: 24
+                container_key:
+                  type: string
+                tab_key:
+                  type: string
+                section_key:
+                  type: string
+                cursor:
+                  type: integer
+                  minimum: 0
+                  default: 0
+                detail_limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 25
+                max_response_chars:
+                  type: integer
+                  minimum: 5000
+                  maximum: 500000
+                authorized_access_limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                authorized_surface_limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                provider_arguments:
+                  type: object
+                  additionalProperties: true
+                  properties: {}
+      responses:
+        "200":
+          description: Legacy full activation completed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HardActivationRunResponse"
+        "424":
+          description: Required activation evidence incomplete.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HardActivationRunResponse"
   /activation/hard-run:
     post:
       tags:
@@ -195,7 +930,7 @@ paths:
         - backendBearerAuth: []
       operationId: runHardActivation
       x-openai-isConsequential: false
-      summary: Run hard activation with mandatory session-context evidence
+      summary: Run evidence-first hard activation with complete awareness
       description: Orchestrates hard activation by collecting session-context evidence first and provider-bootstrap evidence second. Activation is not complete unless both evidence surfaces are present and valid. This prevents final activation reports from claiming session context was opened or loaded without getActi.
       requestBody:
         required: false
@@ -217,9 +952,67 @@ paths:
                 include_raw:
                   type: boolean
                   default: false
+                include_turns:
+                  type: boolean
+                  default: false
                 close_previous_sessions:
                   type: boolean
                   default: false
+                response_profile:
+                  type: string
+                  enum:
+                    - evidence
+                    - summary
+                    - dashboard
+                    - diagnostic
+                    - full
+                  default: evidence
+                session_policy:
+                  type: string
+                  enum:
+                    - reuse_or_create
+                    - create_new
+                    - reuse_only
+                    - read_only
+                  default: reuse_or_create
+                idempotency_key:
+                  type: string
+                  maxLength: 180
+                conversation_ref:
+                  type: string
+                  maxLength: 500
+                reuse_window_hours:
+                  type: integer
+                  minimum: 1
+                  maximum: 168
+                  default: 24
+                container_key:
+                  type: string
+                tab_key:
+                  type: string
+                section_key:
+                  type: string
+                cursor:
+                  type: integer
+                  minimum: 0
+                  default: 0
+                detail_limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 25
+                max_response_chars:
+                  type: integer
+                  minimum: 5000
+                  maximum: 500000
+                authorized_access_limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                authorized_surface_limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
                 provider_arguments:
                   type: object
                   additionalProperties: true
@@ -618,7 +1411,7 @@ paths:
       operationId: listSystemTools
       x-tenant-gpt-operationId: listTools
       summary: List MCP-style system tools visible to the current principal
-      description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context.
+      description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read befo.
       responses:
         "200":
           description: System layer tools
@@ -654,7 +1447,7 @@ paths:
       x-tenant-gpt-operationId: callTool
       x-openai-isConsequential: false
       summary: Call a governed MCP-style system tool
-      description: Calls a fixed system-layer tool through principal-aware runtime validation. Tenant principals are scoped to their tenant; admin principals can inspect all connector registry records and run provider-bootstrap probes.
+      description: Calls a fixed system-layer tool through principal-aware runtime validation. Tenant principals are scoped to their tenant; admin principals can inspect all connector registry records and run provider-bootstrap probes. Oversized results return a chunk continuation envelope with response_chunked=true,.
       requestBody:
         required: true
         content:
@@ -667,8 +1460,8 @@ paths:
               properties:
                 name:
                   type: string
-                  pattern: "^[a-z][a-z0-9_:-]{1,128}$"
-                  description: Runtime tool key returned by listTools. The server validates registration, scope, policy, capability envelope, and input schema at execution time.
+                  pattern: ^[a-z][a-z0-9_:-]{1,128}$
+                  description: Tool key returned by listTools; runtime validates registration, tenant scope, and arguments before dispatch.
                 arguments:
                   type: object
                   additionalProperties: true
@@ -825,7 +1618,7 @@ paths:
         - backendBearerAuth: []
       operationId: listAdminSystemTools
       summary: List MCP-style system layer tools
-      description: Lists fixed OpenAPI-compatible tools available through the admin system layer. This behaves like a small MCP tools/list facade over governed platform registries.
+      description: Lists fixed OpenAPI-compatible tools available through the admin system layer. This behaves like a small MCP tools/list facade over governed platform registries. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and.
       responses:
         "200":
           description: System layer tools
@@ -856,7 +1649,7 @@ paths:
       operationId: callAdminSystemTool
       x-openai-isConsequential: false
       summary: Call an MCP-style system layer tool
-      description: Calls a fixed, governed system-layer tool. Tools expose the connected_systems registry and admin-only provider-bootstrap probes for Drive, Sheets, and GitHub activation evidence.
+      description: Calls a fixed, governed system-layer tool. Tools expose the connected_systems registry and admin-only provider-bootstrap probes for Drive, Sheets, and GitHub activation evidence. Oversized results return a chunk continuation envelope with response_chunked=true, chunk_id, page.next_cursor, cache TTL.
       requestBody:
         required: true
         content:
@@ -1035,7 +1828,53 @@ paths:
         - backendBearerAuth: []
       operationId: listAdminTools
       summary: List admin platform tools from the governed registry
-      description: Returns paginated admin platform tools from the registry plus virtual admin tools. Use limit/cursor/q/tag for bounded discovery. If response_chunked=true, call response_chunk_read with chunk_id and next_cursor.
+      description: Returns paginated DB-backed and virtual Admin tools. Use limit/cursor/q/tag for bounded discovery; clients unable to send query parameters should call admin_tool_catalog_search through callAdminTool. Read all response chunks before fallback. Repository lifecycle mutations remain capability-gated an.
+      x-runtime-governance:
+        admin_branch_reconcile_continuation:
+          policy: admin_branch_reconcile_continuation_contract
+          virtual_tool: admin_branch_reconcile
+          adapter: runAdminBranchReconcile
+          adapter_version: admin-branch-reconciliation-v1
+          apply_supported: false
+          github_ref_update_force: false
+          requires_confirmation_for_future_apply: RECONCILE_BRANCH_<BRANCH_SLUG>
+          shared_reconciliation_checkpoint: true
+          secrets_included: false
+        github_branch_fast_forward_to_base:
+          policy: capability_envelope_gated_ref_update
+          virtual_tool: github_branch_fast_forward_to_base
+          adapter: runGithubBranchFastForwardToBase
+          recipe_key: github.branch.fast_forward_to_base
+          requires_prior_dry_run_tool: admin_branch_reconcile
+          requires_expected_base_sha: true
+          requires_expected_branch_sha: true
+          applies_only_when_classification: behind_only
+          requires_capability_envelope: true
+          requires_confirmation: RECONCILE_BRANCH_<BRANCH_SLUG>
+          github_ref_update_force: false
+          requires_same_cycle_readback: true
+          secrets_included: false
+        github_branch_fast_forward_smoke:
+          policy: disposable_branch_smoke_with_cleanup
+          virtual_tool: github_branch_fast_forward_smoke
+          adapter: runGithubBranchFastForwardSmoke
+          recipe_key: github.branch.fast_forward_smoke
+          creates_branch_prefix: gpt/fast-forward-smoke-
+          creates_branch_at: default_branch_parent_commit
+          requires_capability_envelope: true
+          requires_dry_run_classification: behind_only
+          delegates_apply_to: github_branch_fast_forward_to_base
+          github_ref_update_force: false
+          requires_same_cycle_readback: true
+          cleanup_required: true
+          cleanup_in_finally: true
+          secrets_included: false
+        chunked_tool_response_continuation:
+          policy: chunk_read_before_alternative_surface
+          required_tool: response_chunk_read
+          required_before_fallback: true
+          applies_to: any_governed_tool_response
+          secrets_included: false
       parameters:
         - name: limit
           in: query
@@ -1125,7 +1964,7 @@ paths:
       operationId: callAdminTool
       x-openai-isConsequential: false
       summary: Execute any admin platform tool by name
-      description: Executes a tool from admin_platform_endpoint_tools. Use listAdminTools to get tool names and inputSchema. Pass tool arguments in tool_args. Path params are substituted automatically. Returns the raw upstream response.
+      description: Executes a governed DB-backed or virtual Admin tool returned by listAdminTools. Pass tool arguments in tool_args according to the returned inputSchema. Use admin_tool_catalog_search when the client cannot send list pagination/search parameters. DB-backed path parameters are substituted automaticall.
       requestBody:
         required: true
         content:
@@ -1138,7 +1977,7 @@ paths:
               properties:
                 name:
                   type: string
-                  description: Tool key from listAdminTools, e.g. repo_inspect, admin_control, admin_cloudflare, local_connector_self_repair.
+                  description: Governed DB-backed or virtual tool key returned by listAdminTools; runtime validates registration and inputSchema before dispatch.
                 tool_args:
                   type: object
                   additionalProperties: true
@@ -1404,6 +2243,14 @@ paths:
       operationId: repairLocalConnector
       x-openai-isConsequential: false
       summary: Self-repair the admin local connector
+      x-runtime-governance:
+        local_connector_tunnel_provisioning_continuation:
+          policy: local_connector_tunnel_provisioning_continuation_contract
+          interruption_signal: connector_tunnel_provisioning_required
+          required_next_action: provision_tunnel_token
+          status_code: 409
+          shared_reconciliation_checkpoint: true
+          secrets_included: false
       description: CALL IMMEDIATELY when connector.mad4b.com returns error 1033 or HTTP 530 — do NOT just report the error. Reads device config (cf_token, connector_secret) from local_connector_user_configs in DB, checks Cloudflare tunnel health via API, generates a pre-filled Windows .bat installer (cloudflared + NS.
       requestBody:
         required: false
