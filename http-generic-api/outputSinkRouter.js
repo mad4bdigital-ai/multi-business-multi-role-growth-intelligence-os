@@ -186,14 +186,7 @@ async function sinkReportingView({ run_id, agent_id, tenant_id, workflow_key, ou
 }
 
 async function sinkChainEvents({ source_run_id, source_agent_id, source_workflow_key, linked_workflows, tenant_id, output, passed }) {
-  let links = [];
-  try {
-    links = typeof linked_workflows === "string"
-      ? (linked_workflows.startsWith("[") ? JSON.parse(linked_workflows) : linked_workflows.split("|").map(s => s.trim()))
-      : Array.isArray(linked_workflows) ? linked_workflows : [];
-  } catch { links = []; }
-
-  links = links.filter(Boolean);
+  const links = parseLinkedWorkflowKeys(linked_workflows);
   if (!links.length) return [];
 
   const condition = passed === false ? "on_fail" : (passed === true ? "on_pass" : "always");
