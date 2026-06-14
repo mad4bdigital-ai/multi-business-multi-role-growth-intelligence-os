@@ -359,12 +359,38 @@ export function smokeSafeTenantId(value = "") {
   return `smoke_${sha256Hex(raw).slice(0, 24)}`;
 }
 
-export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { auth, runGovernedResource } = {}) {
-  const tenantId = smokeSafeTenantId(args.tenant_id);
+export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { auth, runGovernedResource, dispatchSystemTool, descriptorReadiness } = {}) {
+  const tenantId = smokeSafeTenantId(`repository_intelligence_v2_${randomUUID()}`);
   const repoRef = normalizeGithubRepoRef(args) || normalizeGithubRepoRef({
     owner: "mad4bdigital-ai",
     repo: "multi-business-multi-role-growth-intelligence-os",
   });
+  const requiredDescriptorTools = [
+    "platform_resource_authority_binding_create",
+    "platform_resource_authority_binding_list",
+    "platform_resource_authority_binding_revoke",
+    "tenant_repo_pr_reconciliation_sweep",
+  ];
+  const descriptorRows = typeof descriptorReadiness === "function" ? descriptorReadiness() : [];
+  const descriptorHandlersPresent = requiredDescriptorTools.every((toolName) =>
+    descriptorRows.some((row) => row.tool_name === toolName && row.handler_present === true)
+  );
+  if (typeof dispatchSystemTool !== "function") {
+    return {
+      ok: false,
+      tool: "tenant_repository_intelligence_v2_readiness_smoke",
+      status: "fail",
+      classification: "tenant_repository_intelligence_v2_dispatcher_missing",
+      checks: [
+        { name: "descriptor_handler_present", pass: descriptorHandlersPresent },
+        { name: "direct_public_tool_call_succeeds", pass: false },
+      ],
+      reason_code: "system_layer_descriptor_dispatcher_missing",
+      apply_allowed: false,
+      mutations_executed: false,
+      secrets_included: false,
+    };
+  }
   const negativeTenantId = smokeSafeTenantId(`${tenantId}_missing`);
   const negative = await tenantRepositoryPrReconciliationSweep({
     tenant_id: negativeTenantId,
