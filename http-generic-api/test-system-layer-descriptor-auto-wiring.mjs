@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import * as v2Runtime from "./repositoryTenantIntelligenceV2.js";
+import { TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS } from "./repositoryTenantIntelligenceV2.js";
 
 const routes = readFileSync("routes/systemLayerRoutes.js", "utf8");
 const v2 = readFileSync("repositoryTenantIntelligenceV2.js", "utf8");
+const releaseReadiness = readFileSync("releaseReadiness.js", "utf8");
 const v5 = readFileSync("repositoryTenantAdvisoryCommentsV5.js", "utf8");
 const migration = readFileSync("migrations/293_sprint68_system_layer_descriptor_auto_wiring.sql", "utf8");
 
