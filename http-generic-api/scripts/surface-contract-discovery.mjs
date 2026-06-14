@@ -533,4 +533,9 @@ function main() {
   }, null, 2));
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main();
+export function isDirectExecution(importMetaUrl, argvPath) {
+  if (!argvPath) return false;
+  return path.resolve(fileURLToPath(importMetaUrl)) === path.resolve(argvPath);
+}
+
+if (isDirectExecution(import.meta.url, process.argv[1])) main();
