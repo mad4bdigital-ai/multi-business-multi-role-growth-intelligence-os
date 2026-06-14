@@ -180,7 +180,11 @@ async function sinkReportingView({ run_id, agent_id, tenant_id, workflow_key, ou
      primary_output || workflow_key || "Agent Report",
      run_id, agent_id || null, snapshot]
   );
-  return view_id;
+  const [rows] = await getPool().query(
+    "SELECT view_id FROM `reporting_views` WHERE tenant_id = ? AND view_key = ? LIMIT 1",
+    [tenant_id, view_key]
+  );
+  return rows[0]?.view_id || view_id;
 }
 
 export function normalizeLinkedWorkflowKeys(linked_workflows) {
