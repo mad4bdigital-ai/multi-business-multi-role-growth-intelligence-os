@@ -70,3 +70,18 @@ When brand resolution fails, repair Brand Registry or Brand Core authority. When
 ## Success Evidence
 
 Retain the JSON report, Markdown report, approval queue view, readback object, audit evidence, and fresh test output.
+
+## Supervisor Monitoring
+
+For supervisor-agent execution, run `npm run supervisor:readiness:live` before widening authority. Treat `execution_ready=true` as prerequisite evidence, not as proof of a completed dispatch.
+
+Monitor:
+
+- active routed agents missing `logic.evaluate_pack` grants;
+- unavailable or unhealthy configured fallback agents;
+- old or growing `pending` chain events;
+- unexpected `failed` or `skipped` chain events;
+- observed versus configured chain depth;
+- workflow-run creation after a controlled supervisor dispatch.
+
+Do not automatically process historical pending chain events. Confirm tenant, workflow, intent, and replay authority first. The current production checkpoint is recorded in `execution-log-supervisor-production-activation-2026-06-15.md`.

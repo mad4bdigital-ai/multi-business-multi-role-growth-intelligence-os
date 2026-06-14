@@ -68,6 +68,16 @@ async function main() {
   assert.equal(paged.page.total_count, 2);
   assert.equal(paged.page.has_more, false);
 
+  const multiTerm = paginateItems([
+    { name: "activation_platform_access", description: "Activation counts and scope", tags: ["activation"] },
+    { name: "activation_dynamic_tab_detail_read_api", description: "Operational task, connector, and skill tab details", tags: ["activation", "operational"] },
+    { name: "unrelated_tool", description: "Unrelated capability", tags: ["other"] },
+  ], { q: "activation operational tasks connectors skills", limit: 10 });
+
+  assert.equal(multiTerm.page.total_count, 2);
+  assert.ok(multiTerm.items.some((item) => item.name === "activation_dynamic_tab_detail_read_api"));
+  assert.ok(multiTerm.items.every((item) => item.name !== "unrelated_tool"));
+
   const status = await inspectRepoReadOnly({ action: "git_status", max_chars: 10000 });
   assert.equal(status.action, "git_status");
   assert.ok(status.head_sha.length >= 7);

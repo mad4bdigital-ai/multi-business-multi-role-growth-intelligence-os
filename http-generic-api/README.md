@@ -21,6 +21,15 @@ bounded `tick` or `run` calls. Each step has dependencies, idempotency, retry an
 approval policies. `execution_plan_events` preserves the append-only timeline;
 approval decisions resume readiness without directly executing downstream work.
 
+Supervisor-agent authority and chain prerequisites can be checked without provider execution:
+
+```bash
+npm run supervisor:readiness
+npm run supervisor:readiness:live
+```
+
+The live command verifies required schema, active route-derived `logic.evaluate_pack` grant coverage, and configured fallback-agent health. It does not process pending chain events or certify behavioral dispatch. See `../docs/supervisor-agent-runtime-readiness.md`.
+
 ## Key behavior
 - Resolves `parent_action_key`, `endpoint_key`, and brand target from registry sheets
 - Resolves `action_key.openai_schema_file_id` and validates request against the schema before transport execution
