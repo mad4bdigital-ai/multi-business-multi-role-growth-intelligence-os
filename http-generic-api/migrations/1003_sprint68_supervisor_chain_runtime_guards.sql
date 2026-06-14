@@ -1,4 +1,6 @@
 -- Sprint 68: durable supervisor chain lineage, bounded depth, and fallback evidence.
+-- No provider calls. No credential payload reads. No raw secrets.
+-- No external sends. No external writes. secrets_included=false
 
 ALTER TABLE `agent_chain_events`
   ADD COLUMN IF NOT EXISTS `root_event_id` VARCHAR(36) NULL AFTER `event_id`,
