@@ -34,13 +34,13 @@ async function readDeploymentCommit() {
   return null;
 }
 
-function sanitizeDeploymentManifest(deployment) {
+function sanitizeDeploymentManifest(deployment, fallbackSource = "DEPLOYMENT_COMMIT.json") {
   if (!deployment) return { present: false };
   const safe = { ...deployment };
   delete safe._source_file;
   safe.present = true;
-  safe.source = "DEPLOYMENT_COMMIT.json";
-  safe.source_file_detected = Boolean(deployment._source_file);
+  safe.source = String(deployment.source || fallbackSource);
+  safe.source_file_detected = Boolean(deployment._source_file || deployment.source);
   safe.source_mtime = deployment._source_mtime || null;
   return safe;
 }
