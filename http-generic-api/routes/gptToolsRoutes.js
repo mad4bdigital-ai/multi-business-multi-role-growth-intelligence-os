@@ -1083,8 +1083,16 @@ export function paginateItems(items = [], query = {}) {
   const q = String(query.q || query.query || "").trim().toLowerCase();
   const tag = String(query.tag || "").trim().toLowerCase();
   const filtered = items.filter((item) => {
-    const matchesText = !q || [item.name, item.displayName, item.description, item.path]
-      .some((value) => String(value || "").toLowerCase().includes(q));
+    const queryTokens = q.split(/\s+/).filter(Boolean);
+    const searchableValues = [
+      item.name,
+      item.displayName,
+      item.description,
+      item.path,
+      ...(Array.isArray(item.tags) ? item.tags : []),
+    ].map((value) => String(value || "").toLowerCase());
+    const matchesText = queryTokens.length === 0
+      || queryTokens.some((token) => searchableValues.some((value) => value.includes(token)));
     const itemTags = Array.isArray(item.tags) ? item.tags.map((t) => String(t || "").toLowerCase()) : [];
     const matchesTag = !tag || itemTags.includes(tag);
     return matchesText && matchesTag;
