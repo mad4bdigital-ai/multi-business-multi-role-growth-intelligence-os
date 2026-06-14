@@ -107,6 +107,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "900_sprint68_governed_repository_intelligence_engine.sql",
   "950_sprint68_platform_resource_authority_bindings.sql",
   "233_sprint68_general_mode_choice_governance.sql",
+  "311_sprint69_superseded_closed_pr_branch_cleanup.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
