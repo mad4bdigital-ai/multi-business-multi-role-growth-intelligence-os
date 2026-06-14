@@ -135,12 +135,12 @@ async function safeQuery(pool, sql, params = []) {
   }
 }
 
-async function loadHostingerSshProbeGate(pool, targetId, env = process.env) {
-  if (env[PROBE_FLAG] === "true") return { enabled: true, source: "env", key: PROBE_FLAG };
+async function loadHostingerSshGate(pool, { targetId, env = process.env, envFlag, dbKey }) {
+  if (env[envFlag] === "true") return { enabled: true, source: "env", key: envFlag };
   const rows = await safeQuery(
     pool,
     "SELECT config_json, status FROM platform_runtime_config WHERE config_key = ? LIMIT 1",
-    [PROBE_DB_FLAG_KEY]
+    [dbKey]
   );
   const row = rows[0];
   const config = parseJson(row?.config_json, {});
@@ -150,12 +150,20 @@ async function loadHostingerSshProbeGate(pool, targetId, env = process.env) {
   return {
     enabled: row?.status === "active" && config.enabled === true && targetAllowed && notExpired,
     source: "platform_runtime_config",
-    key: PROBE_DB_FLAG_KEY,
+    key: dbKey,
     target_allowed: targetAllowed,
     expires_at: expiresAt || null,
     expired: expiresAt ? !notExpired : false,
     reason: !row ? "db_gate_missing" : row.status !== "active" ? "db_gate_disabled" : config.enabled !== true ? "db_gate_not_enabled" : !targetAllowed ? "db_gate_target_mismatch" : !notExpired ? "db_gate_expired" : "enabled",
   };
+}
+
+async function loadHostingerSshProbeGate(pool, targetId, env = process.env) {
+  return await loadHostingerSshGate(pool, { targetId, env, envFlag: PROBE_FLAG, dbKey: PROBE_DB_FLAG_KEY });
+}
+
+async function loadHostingerSshExecutorGate(pool, targetId, env = process.env) {
+  return await loadHostingerSshGate(pool, { targetId, env, envFlag: EXECUTOR_FLAG, dbKey: EXECUTOR_DB_FLAG_KEY });
 }
 
 async function loadTarget(pool, targetId) {
