@@ -436,7 +436,7 @@ export async function runAgentLoop(plan, deps = {}) {
 
   const modelResult = await deps.runLogicWithModel(
     { logic_key, logic_body: logicBody, user_input: plan.intent_key || "", context, tools },
-    { callModel, dispatchTool }
+    { callModel, dispatchTool, authorizeToolCall: deps.authorizeToolCall }
   );
 
   await writeRunResult(run_id, modelResult, plan.tenant_id);
