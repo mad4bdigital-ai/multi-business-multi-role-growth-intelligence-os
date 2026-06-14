@@ -46,11 +46,29 @@ function runnerConfirmation(migration, action) {
 }
 
 function parseJsonLine(value = "") {
-  try {
-    return JSON.parse(String(value || "").trim());
-  } catch {
-    return null;
+  const lines = String(value || "")
+    .trim()
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .reverse();
+
+  for (const line of lines) {
+    try {
+      const parsed = JSON.parse(line);
+      if (parsed && typeof parsed.message === "string") {
+        try {
+          const nested = JSON.parse(parsed.message);
+          if (nested && typeof nested === "object") return nested;
+        } catch {
+          // The structured log message is not JSON; fall back to the outer envelope.
+        }
+      }
+      if (parsed && typeof parsed === "object") return parsed;
+    } catch {
+      // Continue scanning earlier output lines for the last valid JSON object.
+    }
   }
+  return null;
 }
 
 async function tableExists(tableName) {
