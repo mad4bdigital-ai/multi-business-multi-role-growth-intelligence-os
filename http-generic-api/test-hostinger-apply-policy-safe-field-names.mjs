@@ -7,12 +7,12 @@ const manifest = readFileSync("scripts/test-manifest.mjs", "utf8");
 
 for (const expected of [
   "965_sprint68_hostinger_apply_policy_safe_field_names.sql",
-  "no_provider_call=true",
-  "no_credential_payload_read=true",
-  "no_raw_secrets=true",
-  "no_external_send=true",
-  "no_external_write=true",
-  "no deploy execution",
+  "No provider calls",
+  "No credential payload read",
+  "No raw secrets",
+  "No external send",
+  "No external write",
+  "No deploy execution",
   "secrets_included=false",
   "JSON_REMOVE",
   "$.inline_secret_allowed",
