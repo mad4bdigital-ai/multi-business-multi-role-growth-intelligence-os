@@ -333,6 +333,12 @@ import {
 
 const { isOAuthConfigured, inferAuthMode, normalizeAuthContract, findHostingAccountByKey, resolveAccountKeyFromBrand, resolveAccountKey, resolveSecretFromReference, isGoogleApiHost, getAdditionalStaticAuthHeaders, enforceSupportedAuthMode, pathTemplateToRegex, ensureMethodAndPathMatchEndpoint, fetchSchemaContract, resolveSchemaOperation, validateByJsonSchema, validateParameters, validateRequestBody, classifySchemaDrift, buildResolvedAuthHeaders, injectAuthIntoQuery, injectAuthIntoHeaders, injectAuthForSchemaValidation, ensureWritePermissions } = authService;
 
+try {
+  generateDeploymentManifest();
+} catch (err) {
+  console.warn(`[startup] deployment manifest generation failed: ${err.message}`);
+}
+
 // --- Runtime Guards Initialization ---
 const debugLog = createDebugLog(process.env);
 const debugEnabled = isDebugEnabled(process.env);
