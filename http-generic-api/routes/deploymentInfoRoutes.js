@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
+import { readDeploymentManifest } from "../deploymentManifest.js";
 
 async function fileMtimeIso(file) {
   try {
