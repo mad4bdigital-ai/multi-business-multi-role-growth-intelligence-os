@@ -7,6 +7,8 @@ import { getGitHubAppInstallationToken } from "../githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
 import { evaluateRepositoryMutationPreflight, evaluateRepositoryPublishPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import { createContinuationCheckpoint, planContinuationResume } from "../sharedReconciliationEngine.js";
+import { closeGithubPullRequest, deleteGithubBranchRef, githubBranchDeleteConfirmation } from "../githubRepositoryLifecycle.js";
+import { classifyLocalConnectorCompositeHealth, probeLocalConnectorPublicHealth } from "../localConnectorCompositeHealth.js";
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 120000;
 const MAX_COMMAND_TIMEOUT_MS = 600000;
@@ -1437,30 +1439,20 @@ async function executeGitHubRestFallbackCore(args = []) {
   }
 
   if (resource === "pr" && command === "close" && maybeId) {
-    const comment = parseCliFlag(args, "--comment");
-    const prNumber = encodeURIComponent(String(maybeId));
-    if (comment) {
-      await githubRestJson({
-        owner,
-        repo,
-        apiPath: `/issues/${prNumber}/comments`,
-        token,
-        method: "POST",
-        body: { body: comment },
-      });
-    }
-    const payload = await githubRestJson({
+    const result = await closeGithubPullRequest({
       owner,
       repo,
-      apiPath: `/pulls/${prNumber}`,
       token,
-      method: "PATCH",
-      body: { state: "closed" },
+      pull_number: maybeId,
+      comment: parseCliFlag(args, "--comment"),
+      delete_branch: hasCliFlag(args, "--delete-branch"),
+      expected_head_sha: parseCliFlag(args, "--expected-head-sha") || undefined,
+      confirm: parseCliFlag(args, "--confirm") || undefined,
     });
     return {
-      stdout: JSON.stringify({ number: payload.number, state: payload.state, html_url: payload.html_url }, null, 2),
+      stdout: JSON.stringify(result, null, 2),
       stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n",
-      exit_code: 0,
+      exit_code: result.ok ? 0 : 2,
       fallback: "github_rest",
     };
   }
@@ -1589,10 +1581,54 @@ async function executeGitHubRestFallbackCore(args = []) {
         commit_message: parseCliFlag(args, ["--body", "-b"]) || undefined,
       },
     });
-    if (hasCliFlag(args, "--delete-branch") && pr?.head?.ref && pr?.head?.repo?.full_name === `${owner}/${repo}`) {
-      await githubRestJson({ owner, repo, apiPath: `/git/refs/heads/${encodeGithubRefPath(pr.head.ref)}`, token, method: "DELETE" });
+    let branchCleanup = { requested: hasCliFlag(args, "--delete-branch"), deleted: false, verified_absent: false };
+    if (branchCleanup.requested) {
+      if (!pr?.head?.ref || !pr?.head?.sha || pr?.head?.repo?.full_name !== `${owner}/${repo}`) {
+        branchCleanup = {
+          requested: true,
+          deleted: false,
+          verified_absent: false,
+          error: { code: "github_branch_cleanup_unavailable", message: "Pull request merged, but the head branch is external or missing ref metadata." },
+        };
+      } else {
+        try {
+          branchCleanup = await deleteGithubBranchRef({
+            owner,
+            repo,
+            token,
+            branch: pr.head.ref,
+            expected_head_sha: pr.head.sha,
+            confirm: githubBranchDeleteConfirmation(pr.head.ref),
+          });
+        } catch (error) {
+          branchCleanup = {
+            requested: true,
+            branch: pr.head.ref,
+            expected_head_sha: pr.head.sha,
+            deleted: false,
+            verified_absent: false,
+            error: { code: error.code || "github_branch_cleanup_failed", message: error.message, details: error.details || null },
+          };
+        }
+      }
     }
-    return { stdout: JSON.stringify({ number: Number(prNumber), merged: true, merge_method: mergeMethod, sha: mergeResult.sha || null, message: mergeResult.message || "Pull Request successfully merged" }, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+    const completed = !branchCleanup.requested || branchCleanup.verified_absent === true;
+    return {
+      stdout: JSON.stringify({
+        ok: completed,
+        status: completed ? "completed" : "partial_success",
+        number: Number(prNumber),
+        merged: true,
+        merge_method: mergeMethod,
+        sha: mergeResult.sha || null,
+        message: mergeResult.message || "Pull Request successfully merged",
+        branch_cleanup: branchCleanup,
+        secrets_included: false,
+      }, null, 2),
+      stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n",
+      exit_code: completed ? 0 : 2,
+      fallback: "github_rest",
+    };
   }
 
   throw buildGithubFallbackUnsupportedError(args);
@@ -2697,6 +2733,63 @@ export function buildAdminCliRoutes(deps) {
         }
       }
 
+      const publicHealthProbe = await probeLocalConnectorPublicHealth({
+        tunnelUrl: tunnelUrl || "https://connector.mad4b.com",
+        timeoutMs: 8000,
+      });
+      const compositeHealth = classifyLocalConnectorCompositeHealth({
+        tunnelStatus,
+        publicProbe: publicHealthProbe,
+      });
+      if (["active", "authorization_gated"].includes(compositeHealth.status)) {
+        writeAuditLogAsync({
+          action: "admin_cli.local_connector_self_repair.not_required",
+          resource_type: "local_connector_health",
+          resource_id: resolvedDeviceId,
+          payload: {
+            user_id: userId,
+            device_id: deviceId,
+            resolved_user_id: resolvedUserId,
+            resolved_device_id: resolvedDeviceId,
+            tunnel_status: tunnelStatus,
+            public_probe_status: publicHealthProbe.status,
+            composite_status: compositeHealth.status,
+            repair_required: false,
+            config_source: configSource,
+            alias_resolution_applied: configSource === "db_alias",
+            secrets_included: false,
+          },
+        });
+        return res.status(200).json({
+          ok: true,
+          diagnosis: {
+            device_id: resolvedDeviceId,
+            requested_device_id: deviceId,
+            requested_user_id: userId,
+            resolved_user_id: resolvedUserId,
+            resolved_device_id: resolvedDeviceId,
+            device_identity_resolution: deviceIdentityResolution,
+            tunnel_url: tunnelUrl || "https://connector.mad4b.com",
+            cf_tunnel_id: cfTunnelId,
+            cf_tunnel_name: cfTunnelName,
+            cf_tunnel_status: tunnelStatus,
+            public_health_probe: publicHealthProbe,
+            composite_health: compositeHealth,
+            config_source: configSource,
+            likely_cause: compositeHealth.likely_cause,
+            repair_required: false,
+            secrets_included: false,
+          },
+          repair: {
+            required: false,
+            action: compositeHealth.status === "authorization_gated"
+              ? "Connector transport is reachable. Validate the connector authorization binding before reinstalling services."
+              : "No repair action is required; same-cycle public connector health passed.",
+            installer_generated: false,
+            secrets_included: false,
+          },
+        });
+      }
       // 3. Generate install bundle, or return a resumable provisioning handoff.
       if (!tunnelToken) {
         const continuation = buildLocalConnectorTunnelProvisioningContinuationEvidence({
@@ -2791,7 +2884,11 @@ export function buildAdminCliRoutes(deps) {
           resolved_device_id: resolvedDeviceId,
           device_identity_resolution: deviceIdentityResolution,
           tunnel_status: tunnelStatus,
+          public_probe_status: publicHealthProbe.status,
+          composite_status: compositeHealth.status,
+          repair_required: compositeHealth.repair_required,
           config_source: configSource,
+          alias_resolution_applied: configSource === "db_alias",
           drive_uploaded: !!driveResult,
           drive_upload_status: driveUploadStatus,
           secrets_included: false
@@ -2812,10 +2909,16 @@ export function buildAdminCliRoutes(deps) {
           cf_tunnel_name: cfTunnelName,
           cf_tunnel_status: tunnelStatus,
           config_source: configSource,
-          likely_cause: configSource === "db_alias" ? "requested device id was resolved to an existing active connector config; rerun health before reinstalling" : "cloudflared or node connector service not running on the local device",
+          alias_resolution_applied: configSource === "db_alias",
+          public_health_probe: publicHealthProbe,
+          composite_health: compositeHealth,
+          repair_required: compositeHealth.repair_required,
+          likely_cause: compositeHealth.likely_cause,
           secrets_included: false,
         },
         repair: {
+          required: true,
+          installer_generated: true,
           action: "Run the installer as Administrator on the Windows device. It installs cloudflared and the Node.js connector as auto-restart Windows services (via NSSM).",
           filename,
           drive: driveResult,

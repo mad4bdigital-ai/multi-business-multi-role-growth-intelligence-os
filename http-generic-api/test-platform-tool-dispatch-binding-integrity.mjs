@@ -4,6 +4,8 @@ import { assessMigrationSqlPreflight } from "./releaseReadiness.js";
 
 const migrationName = "311_sprint69_platform_tool_dispatch_binding_integrity.sql";
 const migration = readFileSync(`migrations/${migrationName}`, "utf8");
+const scopeFixMigrationName = "312_sprint69_platform_tool_dispatch_integrity_scope_fix.sql";
+const scopeFixMigration = readFileSync(`migrations/${scopeFixMigrationName}`, "utf8");
 const toolsRoute = readFileSync("routes/gptToolsRoutes.js", "utf8");
 const adminCliRoute = readFileSync("routes/adminCliRoutes.js", "utf8");
 const lifecycle = readFileSync("githubRepositoryLifecycle.js", "utf8");
@@ -27,6 +29,16 @@ assert.doesNotMatch(migration, /private_key|refresh_token|client_secret|access_t
 
 const preflight = assessMigrationSqlPreflight(migrationName, migration);
 assert.equal(preflight.status, "pass", JSON.stringify(preflight, null, 2));
+const scopeFixPreflight = assessMigrationSqlPreflight(scopeFixMigrationName, scopeFixMigration);
+assert.equal(scopeFixPreflight.status, "pass", JSON.stringify(scopeFixPreflight, null, 2));
+assert.match(scopeFixMigration, /CREATE OR REPLACE VIEW v_platform_tool_dispatch_integrity/);
+assert.match(scopeFixMigration, /FROM platform_tool_dispatch_bindings b/);
+assert.match(scopeFixMigration, /LEFT JOIN endpoints e\s+ON e\.id = b\.source_endpoint_id/);
+assert.match(scopeFixMigration, /LEFT JOIN platform_endpoint_tool_exports x\s+ON x\.export_key = b\.export_key/);
+assert.doesNotMatch(scopeFixMigration, /FROM endpoints e/);
+assert.doesNotMatch(scopeFixMigration, /x\.source_endpoint_id = e\.id\s+OR/);
+assert.match(scopeFixMigration, /db_callable_surface_missing/);
+assert.doesNotMatch(scopeFixMigration, /\b(?:DROP|TRUNCATE|DELETE\s+FROM)\b/i);
 
 for (const toolName of [
   "admin_tool_catalog_search",
@@ -45,6 +57,10 @@ assert.match(toolsRoute, /requireGithubBranchDeleteEnvelope/);
 assert.match(toolsRoute, /github_repo_cleanup/);
 assert.match(toolsRoute, /github_repo_patch/);
 assert.match(toolsRoute, /auditPlatformToolBindings/);
+assert.match(toolsRoute, /FROM platform_tool_dispatch_bindings b/);
+assert.match(toolsRoute, /LEFT JOIN endpoints e ON e\.id = b\.source_endpoint_id/);
+assert.doesNotMatch(toolsRoute, /FROM endpoints e[\s\S]*?LEFT JOIN platform_tool_dispatch_bindings b/);
+assert.match(toolsRoute, /authority: "platform_tool_dispatch_bindings"/);
 assert.match(toolsRoute, /paginateItems\(tools, args \|\| \{\}\)/);
 
 assert.match(adminCliRoute, /closeGithubPullRequest/);
@@ -65,6 +81,10 @@ assert.match(lifecycle, /github_change_set_readback_failed/);
 assert.match(health, /degraded_local_service/);
 assert.match(health, /degraded_tunnel/);
 assert.match(health, /authorization_gated/);
+assert.match(adminCliRoute, /probeLocalConnectorPublicHealth/);
+assert.match(adminCliRoute, /classifyLocalConnectorCompositeHealth/);
+assert.match(adminCliRoute, /alias_resolution_applied: configSource === "db_alias"/);
+assert.match(adminCliRoute, /installer_generated: false/);
 assert.match(openapi, /operationId: sessionInsightTargetWriteReadbackCreate[\s\S]*?x-custom-gpt-exclude: true/);
 assert.match(openapi, /operationId: sessionInsightTargetWriteReadbackList[\s\S]*?x-custom-gpt-exclude: true/);
 assert.match(openapi, /Governed DB-backed or virtual tool key returned by listAdminTools/);
