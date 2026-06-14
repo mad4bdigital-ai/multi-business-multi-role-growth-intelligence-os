@@ -37,6 +37,7 @@ const ALLOWED_AUDIENCES = new Set(["admin", "customer", "both"]);
 const VALID_EXTERNAL_SECRET_VALIDATION_STATUSES = new Set(["valid", "validated", "ready", "passed"]);
 const VALID_EXTERNAL_SECRET_CONSENT_STATUSES = new Set(["not_required", "granted"]);
 const DEFAULT_ADMIN_GPT_REPAIR_LINK_BASE_URL = "https://chatgpt.com/g/g-69c82c73bd6081918c52e38525b2d154-growth-intelligence-platform-admin-assistant/";
+const DEFAULT_ADMIN_GPT_AGENT_NAME = "admin_gpt_assistant";
 
 async function resolveAdminGptRepairLinkBaseUrl(connection) {
   const envValue = String(process.env.ADMIN_GPT_REPAIR_LINK_BASE_URL || process.env.ADMIN_GPT_URL || "").trim();
