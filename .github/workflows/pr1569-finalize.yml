@@ -45,6 +45,7 @@ jobs:
             > /tmp/pr1569-final.patch
           sed -i 's/\r$//' /tmp/pr1569-final.patch
           git apply --index --3way \
+            --exclude='.github/workflows/ci.yml' \
             --exclude='GPT_Tenant_Connector_Instructions.md' \
             --exclude='GPT_Tenant_Connector_Knowledge.md' \
             --exclude='http-generic-api/routes/localConnectorInstallRoutes.js' \
