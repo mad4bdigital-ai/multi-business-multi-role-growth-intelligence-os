@@ -17,6 +17,7 @@ Open the source file listed below for the relevant domain instead of loading thi
 | Governed context resolution | `canonicals/prompt_router/06_governed_context_resolution.md` | Governed context resolution routing constraints and handoff behavior. |
 | Business type and brand path routing | `canonicals/prompt_router/07_business_type_brand_path_resolution.md` | Routes for new business type addition, new brand under business type, and path validation. |
 | Context resolver layer routing | `canonicals/prompt_router/08_context_resolver_layer.md` | Pre-route resolution rules, intent routing table, degraded routing states, and successful route conditions. |
+| Semantic capability routing | `canonicals/prompt_router/09_semantic_capability_resolution.md` | Route semantic intents through tenant-effective capability resolution before provider-specific tool dispatch. |
 
 ---
 

@@ -54,6 +54,11 @@ import {
   tenantRepositoryAdvisoryCommentV5ReadinessSmoke,
 } from "../repositoryTenantAdvisoryCommentsV5.js";
 import * as RepositoryTenantAdvisoryCommentV5Runtime from "../repositoryTenantAdvisoryCommentsV5.js";
+import {
+  TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
+  tenantEffectiveCapabilityPreview,
+  tenantCapabilityShadowCompare,
+} from "../tenantEffectiveCapabilityResolver.js";
 import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
 
 const SYSTEM_LAYER_TOOLS = [
@@ -168,6 +173,7 @@ const SYSTEM_LAYER_TOOLS = [
   // be added to SYSTEM_LAYER_DESCRIPTOR_SOURCES below; list + dispatch wiring remains automatic.
   ...TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
   ...TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
+  ...TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
   {
     name: "system_layer_descriptor_readiness",
     description: "Admin-only read-only diagnostic for descriptor-backed system-layer tool sources. Verifies every descriptor has a runtime handler and no secrets are included.",
@@ -392,6 +398,14 @@ const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
     source_key: "repository_tenant_advisory_comment_v5",
     tools: TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
     handlers: RepositoryTenantAdvisoryCommentV5Runtime,
+  },
+  {
+    source_key: "tenant_effective_capability_resolver_v1",
+    tools: TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
+    handlers: {
+      tenantEffectiveCapabilityPreview,
+      tenantCapabilityShadowCompare,
+    },
   },
 ];
 
