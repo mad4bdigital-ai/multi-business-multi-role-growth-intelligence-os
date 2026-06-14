@@ -6,6 +6,7 @@ import {
   handleEnvControl,
   handleWindowsAppControl,
   parseArgs,
+  parseGithubPrAddLabelArgs,
   requireAdminPrincipal,
 } from "./routes/adminCliRoutes.js";
 import { inspectRepoReadOnly } from "./routes/gptToolsRoutes.js";
@@ -132,6 +133,45 @@ try {
     adminCliSource.includes("update_branch_requested") &&
     adminCliSource.includes("expected_head_sha"),
     "PR update-branch fallback should support conflict recovery attempts without gh CLI");
+  assert("github REST fallback exposes governed PR label mutation",
+    adminCliSource.includes('resource === "pr" && command === "edit"') &&
+    adminCliSource.includes('/issues/${encodeURIComponent(parsed.pr_number)}/labels') &&
+    adminCliSource.includes("github_pr_label_requires_closed_pr") &&
+    adminCliSource.includes("github_pr_label_readback_failed") &&
+    adminCliSource.includes("readback_verified: true") &&
+    adminCliSource.includes('GITHUB_REST_FALLBACK_PR_LABEL_ALLOWLIST = new Set(["superseded"])'),
+    "PR label fallback must remain closed-PR only, allowlisted, and same-cycle readback verified");
+
+  const parsedSupersededLabel = parseGithubPrAddLabelArgs([
+    "pr", "edit", "1579", "--repo", "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", "--add-label", "superseded",
+  ]);
+  assert("github PR label parser accepts one governed superseded label",
+    parsedSupersededLabel?.pr_number === "1579" && parsedSupersededLabel?.label === "superseded" && parsedSupersededLabel?.secrets_included === false,
+    JSON.stringify(parsedSupersededLabel));
+  const parsedEqualsLabel = parseGithubPrAddLabelArgs([
+    "pr", "edit", "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/pull/1579",
+    "--repo=mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", "--add-label=superseded",
+  ]);
+  assert("github PR label parser accepts exact equals-form arguments",
+    parsedEqualsLabel?.pr_number === "1579" && parsedEqualsLabel?.label === "superseded",
+    JSON.stringify(parsedEqualsLabel));
+  assert("github PR label parser ignores unrelated gh operations",
+    parseGithubPrAddLabelArgs(["pr", "view", "1579"]) === null);
+
+  for (const [label, args, expectedCode] of [
+    ["rejects non-allowlisted labels", ["pr", "edit", "1579", "--add-label", "migration"], "github_pr_label_not_allowlisted"],
+    ["rejects extra flags", ["pr", "edit", "1579", "--add-label", "superseded", "--body", "unexpected"], "github_pr_label_unsupported_arg"],
+    ["rejects duplicate labels", ["pr", "edit", "1579", "--add-label", "superseded", "--add-label", "superseded"], "github_pr_label_value_invalid"],
+    ["requires a label", ["pr", "edit", "1579", "--repo", "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os"], "github_pr_label_required"],
+  ]) {
+    try {
+      parseGithubPrAddLabelArgs(args);
+      assert(`github PR label parser ${label}`, false, "expected parser rejection");
+    } catch (error) {
+      assert(`github PR label parser ${label}`, error?.code === expectedCode, String(error?.code || error?.message));
+    }
+  }
+
   assert("github dirty PR diagnostics include compare file evidence",
     adminCliSource.includes("compare_status") &&
     adminCliSource.includes("ahead_by") &&
