@@ -1668,6 +1668,23 @@ async function checkRepositoryIntelligenceV2Readiness() {
     const missingTools = requiredToolNames.filter((toolName) => !routesSource.includes(toolName) || !moduleSource.includes(toolName));
     const missingRuntimeTokens = requiredRuntimeTokens.filter((token) => !moduleSource.includes(token));
     const openapi_documented = requiredToolNames.every((toolName) => openapiSource.includes(toolName));
+    let dispatcher_smoke = null;
+    try {
+      const { runRepositoryIntelligenceV2DescriptorReadinessSmoke } = await import("./routes/systemLayerRoutes.js");
+      dispatcher_smoke = await runRepositoryIntelligenceV2DescriptorReadinessSmoke({ limit: 1 });
+    } catch (err) {
+      dispatcher_smoke = {
+        ok: false,
+        status: "fail",
+        classification: "repository_intelligence_v2_dispatcher_smoke_failed",
+        reason_code: err?.code || "repository_intelligence_v2_dispatcher_smoke_error",
+        message: err?.message || "Repository Intelligence V2 dispatcher smoke failed.",
+        checks: [],
+        apply_allowed: false,
+        mutations_executed: false,
+        secrets_included: false,
+      };
+    }
     const [bindingRows] = await getPool().query(
       `SELECT COUNT(*) AS active_real_bindings
          FROM platform_resource_authority_bindings
@@ -1691,24 +1708,40 @@ async function checkRepositoryIntelligenceV2Readiness() {
     if (!openapi_documented) issues.push("OpenAPI description does not document all V2 system tools");
     if (active_real_bindings < 1) issues.push("No active read_only GitHub repo authority binding found");
     if (v2_evidence_rows < 1) issues.push("No tenant_repository_pr_reconciliation_summary_v2 evidence rows found");
+    if (dispatcher_smoke?.status !== "pass" || dispatcher_smoke?.ok !== true) {
+      issues.push(`Public descriptor dispatcher smoke failed: ${dispatcher_smoke?.reason_code || dispatcher_smoke?.classification || "unknown"}`);
+    }
+    const failed_dispatcher_checks = (dispatcher_smoke?.checks || [])
+      .filter((check) => check?.pass !== true)
+      .map((check) => check?.name)
+      .filter(Boolean);
+    if (failed_dispatcher_checks.length) {
+      issues.push(`Failed public dispatcher checks: ${failed_dispatcher_checks.join(", ")}`);
+    }
     return {
-      status: issues.length ? "warn" : "pass",
-      detail: issues.length ? `Repository Intelligence V2 readiness has ${issues.length} issue(s).` : "Repository Intelligence V2 tools, binding, evidence, and documentation are ready.",
+      status: issues.length ? "fail" : "pass",
+      detail: issues.length ? `Repository Intelligence V2 readiness has ${issues.length} blocking issue(s).` : "Repository Intelligence V2 public descriptors, binding, evidence, and documentation are ready.",
       required_tools: requiredToolNames,
       missing_tools: missingTools,
       missing_runtime_tokens: missingRuntimeTokens,
       openapi_documented,
       active_real_bindings,
       v2_evidence_rows,
+      dispatcher_smoke,
       issues,
-      executes_tools: false,
+      executes_tools: true,
+      provider_calls_made: Number(dispatcher_smoke?.positive?.summary?.provider_calls_made || 0),
+      temporary_authority_binding_lifecycle_executed: true,
+      repository_mutations_executed: false,
       secrets_included: false,
     };
   } catch (err) {
     return {
-      status: "warn",
-      detail: `Repository Intelligence V2 readiness check could not complete: ${err?.message || err}`,
-      executes_tools: false,
+      status: "fail",
+      detail: `Repository Intelligence V2 public dispatcher readiness check could not complete: ${err?.message || err}`,
+      reason_code: err?.code || "repository_intelligence_v2_readiness_exception",
+      executes_tools: true,
+      repository_mutations_executed: false,
       secrets_included: false,
     };
   }
