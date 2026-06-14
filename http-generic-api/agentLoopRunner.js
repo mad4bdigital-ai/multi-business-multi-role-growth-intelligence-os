@@ -255,7 +255,7 @@ export async function runAgentLoop(plan, deps = {}) {
   context.workspace_key = plan.workspace_key || context.workspace_key || null;
   context.brand_key = plan.brand_key || plan.target_key || context.brand_key || null;
   context.actor_role = plan.actor_role || plan.role_key || context.actor_role || null;
-  context.governance_level = plan.governance_level || execution_class || context.governance_level || null;
+  context.governance_level = plan.governance_level || workflow.execution_class || context.governance_level || null;
   if (context.authority_bridge?.blocker_count > 0) {
     context.authority_bridge.drift_evidence = await writeAuthorityBridgeDriftEvidence(
       { ...plan, run_id },
