@@ -43,6 +43,7 @@ jobs:
             | base64 --decode \
             | gzip --decompress \
             > /tmp/pr1569-final.patch
+          sed -i 's/\r$//' /tmp/pr1569-final.patch
           git apply --index --3way /tmp/pr1569-final.patch
 
       - name: Regenerate governed artifacts
