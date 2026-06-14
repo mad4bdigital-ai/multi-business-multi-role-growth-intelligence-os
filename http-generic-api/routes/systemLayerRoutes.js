@@ -504,6 +504,86 @@ export async function runRepositoryIntelligenceV2DescriptorReadinessSmoke(args =
   return dispatched.result;
 }
 
+export async function runSystemLayerDescriptorCallabilityAudit() {
+  const auth = {
+    is_admin: true,
+    user_id: "system:descriptor_callability_audit",
+    tenant_id: null,
+  };
+  const readiness = systemLayerDescriptorReadiness();
+  const missingHandlers = readiness.filter((row) => row.handler_present !== true);
+  const sourceResults = [];
+
+  for (const source of SYSTEM_LAYER_DESCRIPTOR_SOURCES) {
+    const sourceRows = readiness.filter((row) => row.source_key === source.source_key);
+    const missingSourceHandlers = sourceRows.filter((row) => row.handler_present !== true);
+    let smoke = null;
+    let error = null;
+    if (!source.readiness_tool) {
+      error = {
+        code: "descriptor_source_readiness_tool_missing",
+        message: `Descriptor source ${source.source_key} does not declare a readiness tool.`,
+      };
+    } else if (!missingSourceHandlers.length) {
+      try {
+        const dispatched = await callDescriptorSystemToolIfAvailable(
+          source.readiness_tool,
+          source.readiness_args || {},
+          auth,
+          {}
+        );
+        smoke = dispatched.handled ? dispatched.result : null;
+        if (!dispatched.handled) {
+          error = {
+            code: "descriptor_source_readiness_tool_not_registered",
+            message: `Readiness tool ${source.readiness_tool} is not registered.`,
+          };
+        }
+      } catch (err) {
+        error = {
+          code: err?.code || "descriptor_source_readiness_smoke_failed",
+          message: err?.message || "Descriptor source readiness smoke failed.",
+        };
+      }
+    }
+
+    const smokePass = smoke?.ok === true && smoke?.status === "pass";
+    sourceResults.push({
+      source_key: source.source_key,
+      descriptor_tool_count: sourceRows.length,
+      missing_handler_count: missingSourceHandlers.length,
+      readiness_tool: source.readiness_tool || null,
+      readiness_status: error ? "fail" : (smokePass ? "pass" : "fail"),
+      readiness_classification: smoke?.classification || null,
+      checks: Array.isArray(smoke?.checks) ? smoke.checks : [],
+      error,
+      apply_allowed: false,
+      mutations_executed: false,
+      secrets_included: false,
+    });
+  }
+
+  const failedSources = sourceResults.filter((row) => row.readiness_status !== "pass");
+  const pass = missingHandlers.length === 0 && failedSources.length === 0;
+  return {
+    ok: pass,
+    tool: "system_layer_descriptor_callability_audit",
+    status: pass ? "pass" : "fail",
+    classification: pass
+      ? "system_layer_descriptor_callability_ready"
+      : "system_layer_descriptor_callability_blocked",
+    descriptor_source_count: SYSTEM_LAYER_DESCRIPTOR_SOURCES.length,
+    descriptor_tool_count: readiness.length,
+    missing_handler_count: missingHandlers.length,
+    failed_source_count: failedSources.length,
+    sources: sourceResults,
+    handlers: readiness,
+    apply_allowed: false,
+    mutations_executed: false,
+    secrets_included: false,
+  };
+}
+
 function safeParseJsonObject(value, fallback = {}) {
   if (!value) return fallback;
   if (typeof value === "object") return value;
