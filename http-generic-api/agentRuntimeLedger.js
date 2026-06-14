@@ -152,6 +152,35 @@ export async function recordAgentToolCallStarted({ context = {}, modelRunId = nu
   return toolCallId;
 }
 
+export async function recordAgentToolCallAuthorization({ toolCallId, decision = {} } = {}) {
+  if (!toolCallId) return;
+  const authorizationStatus = decision?.allowed === true ? "authorized" : "denied";
+  try {
+    await (await pool()).query(
+      `UPDATE \`agent_tool_calls\`
+          SET authorization_status = ?, pre_tool_gate_json = ?
+        WHERE tool_call_id = ?`,
+      [
+        authorizationStatus,
+        safeJson({
+          gate: "agent_tool_authorization_gate",
+          authorization_status: authorizationStatus,
+          code: decision?.code || null,
+          phase: decision?.phase || "dispatch",
+          consequence_class: decision?.classification?.consequence_class || null,
+          action_key: decision?.action?.action_key || null,
+          required_skill_alternatives: decision?.skill?.alternatives || [],
+          matched_skill_key: decision?.skill?.matched_skill_key || null,
+          blocker_codes: Array.isArray(decision?.blockers) ? decision.blockers : [],
+          advisory_unregistered_read_only: decision?.advisory_unregistered_read_only === true,
+          secrets_included: false,
+        }),
+        toolCallId,
+      ]
+    );
+  } catch { /* non-blocking ledger */ }
+}
+
 export async function recordAgentToolCallCompleted({ toolCallId, result = {}, status = "authorized" } = {}) {
   if (!toolCallId) return;
   const authStatus = ["authorized", "failed", "denied", "pending"].includes(status) ? status : "authorized";
