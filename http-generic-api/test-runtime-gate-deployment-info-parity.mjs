@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import express from "express";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { loadHostingerSshGate } from "./hostingerSshDeployExecutor.js";
