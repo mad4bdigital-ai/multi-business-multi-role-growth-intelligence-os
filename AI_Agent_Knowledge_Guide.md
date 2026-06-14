@@ -76,6 +76,10 @@ connectorExecutor -> runAgentLoop -> runLogicWithModel -> engineExecutorRegistry
 
 `workflows.execution_class` selects tier: `standard`, `complex`, or `authority`. `modelAdapterRouter` maps tiers to models across `openrouter`, `openai`, `anthropic`, and `gemini`. `platform_runtime_config.agent_model_runtime` is the governed model-routing setting for provider order, free-first behavior, env-var references, and class-to-model mappings. `AGENT_MODEL` and `AGENT_MODEL_PROVIDER` remain emergency/runtime overrides.
 
+For non-`rule_based` runs, `agentPromptContextResolver` loads the active `agents.system_prompt` and selects active Platform Engine skill prompts only from `workflows.mapped_engines` and the resolved task class. `agentPromptAssembler` applies the fixed order: platform runtime policy → agent system prompt → governed execution envelope → selected engine skill contracts → logic system prompt. User input remains a separate user message. Prompt text is length-bounded and credential-like secret material blocks model invocation. Full prompt text is not copied into the governed execution context; only selected keys/counts and no-secret resolution metadata are retained.
+
+`agent_skills` and `platform_engine_skill_prompt_registry` are separate authorities. `v_skill_runtime_coverage` evaluates active, unexpired skill grants by skill type. Manifest and manifest-prompt checks apply only when `agent_skills.capability_json` explicitly declares a packaged skill through `skill_manifest_key` or `package_key`; Platform Engine prompt rows are informational and do not create Agent Skill coverage. Per-call approval requirements remain authorization gates, not static coverage failures.
+
 When `workflow.review_required = 1`, run post-execution review on `standard`. Major failures trigger an automatic fix pass. Write the result to `step_runs.verify_pass`.
 
 ### Drive knowledge layer

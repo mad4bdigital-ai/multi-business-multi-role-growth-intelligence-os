@@ -430,12 +430,39 @@ export async function runAgentLoop(plan, deps = {}) {
     };
   }
 
+  const promptContext = typeof deps.resolveAgentPromptContext === "function"
+    ? await deps.resolveAgentPromptContext({
+        agent_id: plan.agent_id || context.agent_id || null,
+        mapped_engines: workflow.mapped_engines || "",
+        task_class: plan.task_class || logicBody.action_class || workflow.target_module || plan.intent_key || "",
+      }, { pool: deps.pool })
+    : {
+        agent_system_prompt: "",
+        engine_skill_prompts: [],
+        resolution: {
+          agent_id: plan.agent_id || context.agent_id || null,
+          resolver_status: "unavailable",
+          selected_skill_prompt_count: 0,
+          secrets_included: false,
+        },
+        secrets_included: false,
+      };
+  context.prompt_resolution = promptContext.resolution;
+
   const callModel = deps.getCallModelForClass
     ? deps.getCallModelForClass(execution_class)
     : deps.callModel;
 
   const modelResult = await deps.runLogicWithModel(
-    { logic_key, logic_body: logicBody, user_input: plan.intent_key || "", context, tools },
+    {
+      logic_key,
+      logic_body: logicBody,
+      user_input: plan.intent_key || "",
+      context,
+      agent_system_prompt: promptContext.agent_system_prompt,
+      engine_skill_prompts: promptContext.engine_skill_prompts,
+      tools,
+    },
     { callModel, dispatchTool, authorizeToolCall: deps.authorizeToolCall }
   );
 
