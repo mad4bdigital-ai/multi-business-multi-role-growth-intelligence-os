@@ -258,7 +258,7 @@ export async function authorizeCapabilityResolutionEnvelopeApply(args = parseArg
     apply_authorization: applyAuthorization,
     secrets_included: false,
   };
-  assertNoSecretKeys(updatedEnvelope);
+  assertNoSecretBearingFields(updatedEnvelope);
   const updatedHash = sha256Json(updatedEnvelope);
   await pool.query(
     `INSERT INTO approval_holds
