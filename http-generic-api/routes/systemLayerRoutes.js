@@ -441,11 +441,23 @@ async function callDescriptorSystemToolIfAvailable(name, args = {}, auth = null,
     err.details = { tool_name: name, source_key: entry.source_key, handler_name: entry.handler_name };
     throw err;
   }
+  const dispatchSystemTool = async (toolName, toolArgs = {}, toolAuth = auth) => {
+    const child = await callDescriptorSystemToolIfAvailable(toolName, toolArgs, toolAuth, deps);
+    if (!child.handled) {
+      const err = new Error(`System-layer descriptor tool ${toolName} is not registered.`);
+      err.status = 404;
+      err.code = "system_layer_descriptor_tool_not_registered";
+      throw err;
+    }
+    return child.result;
+  };
   const result = await entry.handler(args, {
     auth,
     runGovernedResource,
     req: deps.req,
     executionFacade: deps.executionFacade,
+    dispatchSystemTool,
+    descriptorReadiness: systemLayerDescriptorReadiness,
   });
   return { handled: true, result };
 }
@@ -459,6 +471,27 @@ function systemLayerDescriptorReadiness() {
     requires_admin: entry.tool?.requires_admin === true,
     secrets_included: false,
   }));
+}
+
+export async function runRepositoryIntelligenceV2DescriptorReadinessSmoke(args = {}) {
+  const auth = {
+    is_admin: true,
+    user_id: "system:release_readiness",
+    tenant_id: null,
+  };
+  const dispatched = await callDescriptorSystemToolIfAvailable(
+    "tenant_repository_intelligence_v2_readiness_smoke",
+    { limit: 1, ...args },
+    auth,
+    {}
+  );
+  if (!dispatched.handled) {
+    const err = new Error("Repository Intelligence V2 readiness descriptor is not registered.");
+    err.status = 500;
+    err.code = "repository_intelligence_v2_readiness_descriptor_missing";
+    throw err;
+  }
+  return dispatched.result;
 }
 
 function safeParseJsonObject(value, fallback = {}) {

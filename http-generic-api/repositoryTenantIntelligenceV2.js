@@ -359,15 +359,45 @@ export function smokeSafeTenantId(value = "") {
   return `smoke_${sha256Hex(raw).slice(0, 24)}`;
 }
 
-export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { auth, runGovernedResource } = {}) {
-  const tenantId = smokeSafeTenantId(args.tenant_id);
+export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { auth, runGovernedResource, dispatchSystemTool, descriptorReadiness } = {}) {
+  const tenantId = smokeSafeTenantId(`repository_intelligence_v2_${randomUUID()}`);
   const repoRef = normalizeGithubRepoRef(args) || normalizeGithubRepoRef({
     owner: "mad4bdigital-ai",
     repo: "multi-business-multi-role-growth-intelligence-os",
   });
+  const requiredDescriptorTools = [
+    "platform_resource_authority_binding_create",
+    "platform_resource_authority_binding_list",
+    "platform_resource_authority_binding_revoke",
+    "tenant_repo_pr_reconciliation_sweep",
+  ];
+  const descriptorRows = typeof descriptorReadiness === "function" ? descriptorReadiness() : [];
+  const descriptorHandlersPresent = requiredDescriptorTools.every((toolName) =>
+    descriptorRows.some((row) => row.tool_name === toolName && row.handler_present === true)
+  );
+  if (typeof dispatchSystemTool !== "function") {
+    return {
+      ok: false,
+      tool: "tenant_repository_intelligence_v2_readiness_smoke",
+      status: "fail",
+      classification: "tenant_repository_intelligence_v2_dispatcher_missing",
+      checks: [
+        { name: "descriptor_handler_present", pass: descriptorHandlersPresent },
+        { name: "direct_public_tool_call_succeeds", pass: false },
+      ],
+      reason_code: "system_layer_descriptor_dispatcher_missing",
+      apply_allowed: false,
+      mutations_executed: false,
+      secrets_included: false,
+    };
+  }
   const negativeTenantId = smokeSafeTenantId(`${tenantId}_missing`);
-  const negative = await tenantRepositoryPrReconciliationSweep({
-    tenant_id: negativeTenantId,
+  const negativeAuth = { ...(auth || {}), is_admin: false, tenant_id: negativeTenantId };
+  const tenantAuth = { ...(auth || {}), is_admin: false, tenant_id: tenantId };
+  const adminAuth = { ...(auth || {}), is_admin: true };
+  const conflictingTenantId = smokeSafeTenantId(`${tenantId}_conflict`);
+  const negative = await dispatchSystemTool("tenant_repo_pr_reconciliation_sweep", {
+    tenant_id: conflictingTenantId,
     owner: repoRef.owner,
     repo: repoRef.repo,
     state: "open",
@@ -375,8 +405,8 @@ export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { 
     include_changed_files: false,
     include_check_runs: false,
     record_evidence: false,
-  }, { auth, runGovernedResource });
-  const create = await createRepositoryAuthorityBinding({
+  }, negativeAuth);
+  const create = await dispatchSystemTool("platform_resource_authority_binding_create", {
     tenant_id: tenantId,
     owner: repoRef.owner,
     repo: repoRef.repo,
@@ -385,9 +415,9 @@ export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { 
     allowed_modes: ["read_only"],
     notes: "temporary repository intelligence v2 readiness smoke binding",
     created_by: "system:tenant_repository_intelligence_v2_readiness_smoke",
-  }, { auth: { ...(auth || {}), is_admin: true } });
-  const positive = await tenantRepositoryPrReconciliationSweep({
-    tenant_id: tenantId,
+  }, adminAuth);
+  const positive = await dispatchSystemTool("tenant_repo_pr_reconciliation_sweep", {
+    tenant_id: conflictingTenantId,
     owner: repoRef.owner,
     repo: repoRef.repo,
     state: "open",
@@ -395,13 +425,21 @@ export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { 
     include_changed_files: false,
     include_check_runs: false,
     record_evidence: true,
-  }, { auth, runGovernedResource });
+  }, tenantAuth);
+  const listed = await dispatchSystemTool("platform_resource_authority_binding_list", {
+    tenant_id: tenantId,
+    owner: repoRef.owner,
+    repo: repoRef.repo,
+    recipe_key: REPOSITORY_PR_RECONCILE_RECIPE_KEY,
+    status: "active",
+    limit: 10,
+  }, adminAuth);
   const bindingId = create?.binding?.binding_id;
-  const revoke = bindingId
-    ? await revokeRepositoryAuthorityBinding({
+  const revoke = bindingId && create?.created !== false
+    ? await dispatchSystemTool("platform_resource_authority_binding_revoke", {
       binding_id: bindingId,
       revoked_by: "system:tenant_repository_intelligence_v2_readiness_smoke_cleanup",
-    }, { auth: { ...(auth || {}), is_admin: true } })
+    }, adminAuth)
     : null;
   const [cleanupRows] = await getPool().query(
     `SELECT SUM(status = 'active') AS active_smoke_bindings, COUNT(*) AS total_smoke_bindings
@@ -410,9 +448,14 @@ export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { 
     [tenantId, negativeTenantId]
   );
   const checks = [
-    { name: "negative_blocks_before_provider", pass: negative?.ok === false && Number(negative?.provider_calls_made || 0) === 0 && negative?.reason_code === "blocked_missing_platform_resource_authority_binding" },
-    { name: "binding_created_read_only", pass: create?.ok === true && create?.binding?.permission_level === "read_only" && (create?.binding?.allowed_modes || []).includes("read_only") },
-    { name: "positive_executes_read_only", pass: positive?.ok === true && positive?.apply_allowed === false && positive?.mutations_executed === false && Number(positive?.summary?.provider_calls_made || 0) > 0 },
+    { name: "descriptor_handler_present", pass: descriptorHandlersPresent },
+    { name: "direct_public_tool_call_succeeds", pass: create?.ok === true && listed?.ok === true && positive?.ok === true && revoke?.ok === true },
+    { name: "tenant_scope_forced", pass: negative?.tenant_scope?.tenant_id === negativeTenantId && positive?.tenant_scope?.tenant_id === tenantId && positive?.tenant_scope?.tenant_id !== conflictingTenantId },
+    { name: "missing_binding_blocks_before_provider", pass: negative?.ok === false && Number(negative?.provider_calls_made || 0) === 0 && negative?.reason_code === "blocked_missing_platform_resource_authority_binding" },
+    { name: "active_binding_allows_read_only", pass: positive?.ok === true && positive?.apply_allowed === false && positive?.mutations_executed === false && Number(positive?.summary?.provider_calls_made || 0) > 0 },
+    { name: "binding_lifecycle_direct", pass: create?.binding?.permission_level === "read_only" && (create?.binding?.allowed_modes || []).includes("read_only") && listed?.bindings?.some((binding) => binding.binding_id === bindingId) && revoke?.binding?.status === "revoked" },
+    { name: "no_mutation", pass: positive?.apply_allowed === false && positive?.mutations_executed === false },
+    { name: "no_secrets", pass: [negative, create, listed, positive, revoke].every((result) => result?.secrets_included === false) },
     { name: "v2_evidence_written", pass: Boolean(positive?.evidence?.evidence_id) && positive?.evidence?.metadata?.schema_version === "tenant_repository_pr_reconciliation_evidence.v2" },
     { name: "cleanup_revoked_binding", pass: revoke?.ok === true && String(cleanupRows?.[0]?.active_smoke_bindings || "0") === "0" },
   ];
@@ -462,6 +505,15 @@ export async function tenantRepositoryIntelligenceV3V4ReadinessSmoke(args = {}, 
   return { ok: pass, tool: "tenant_repository_intelligence_v3_v4_readiness_smoke", status: pass ? "pass" : "fail", classification: pass ? "tenant_repository_intelligence_v3_v4_ready" : "tenant_repository_intelligence_v3_v4_not_ready", checks, negative: { ok: negative?.ok, classification: negative?.classification, reason_code: negative?.reason_code, provider_calls_made: negative?.provider_calls_made, secrets_included: false }, positive_report: { ok: positiveReport?.ok, classification: positiveReport?.classification, pr_count: positiveReport?.report?.summary?.pr_count || null, evidence_id: positiveReport?.evidence?.evidence_id || null, apply_allowed: positiveReport?.apply_allowed, mutations_executed: positiveReport?.mutations_executed, secrets_included: false }, planner: { ok: planner?.ok, classification: planner?.classification, planned_action_counts: planner?.plan?.summary?.planned_action_counts || null, evidence_id: planner?.evidence?.evidence_id || null, apply_allowed: planner?.apply_allowed, mutations_executed: planner?.mutations_executed, secrets_included: false }, cleanup: cleanupRows?.[0] || null, binding_id: bindingId || null, apply_allowed: false, mutations_executed: false, secrets_included: false };
 }
 
+// Explicit compatibility aliases for descriptor names whose public tool names do not
+// map one-to-one to the original implementation function names. Keep these exports
+// stable so descriptor dispatch, readiness checks, and future registry loaders resolve
+// the same runtime entrypoints without bypassing tenant/read-only enforcement.
+export const tenantRepoPrReconciliationSweep = tenantRepositoryPrReconciliationSweep;
+export const platformResourceAuthorityBindingCreate = createRepositoryAuthorityBinding;
+export const platformResourceAuthorityBindingList = listRepositoryAuthorityBindings;
+export const platformResourceAuthorityBindingRevoke = revokeRepositoryAuthorityBinding;
+
 // Release-readiness token evidence for Repository Advisory Comment V5 spread-loaded system tools:
 // tenant_repository_advisory_comment_preview, tenant_repository_advisory_comment_apply,
 // tenant_repository_advisory_comment_readback, tenant_repository_advisory_comment_v5_readiness_smoke.
@@ -470,10 +522,10 @@ export async function tenantRepositoryIntelligenceV3V4ReadinessSmoke(args = {}, 
 // tenantRepositoryAdvisoryCommentReadback, repository_advisory_comment_preview_v5,
 // repository_advisory_comment_apply_v5, repository_advisory_comment_readback_v5.
 export const TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS = [
-  { name: "platform_resource_authority_binding_create", description: "Admin-only create/idempotent grant for V2 read-only GitHub repository authority bindings used by tenant repository intelligence.", requires_admin: true, inputSchema: { type: "object", properties: { tenant_id: { type: "string" }, workspace_id: { type: "string" }, user_id: { type: "string" }, owner: { type: "string" }, repo: { type: "string" }, resource_uri: { type: "string" }, recipe_key: { type: "string", default: REPOSITORY_PR_RECONCILE_RECIPE_KEY }, permission_level: { type: "string", enum: ["read_only"], default: "read_only" }, allowed_modes: { type: "array", items: { type: "string", enum: ["read_only"] }, default: ["read_only"] }, expires_at: { type: "string" }, notes: { type: "string" } }, required: [] } },
-  { name: "platform_resource_authority_binding_list", description: "Admin-only list of platform_resource_authority_bindings, with filters for repository intelligence V2 read-only bindings.", requires_admin: true, inputSchema: { type: "object", properties: { tenant_id: { type: "string" }, workspace_id: { type: "string" }, user_id: { type: "string" }, owner: { type: "string" }, repo: { type: "string" }, resource_uri: { type: "string" }, recipe_key: { type: "string" }, status: { type: "string", enum: ["active", "suspended", "revoked", "expired"] }, limit: { type: "integer", minimum: 1, maximum: 200, default: 50 } }, required: [] } },
-  { name: "platform_resource_authority_binding_revoke", description: "Admin-only revoke a platform_resource_authority_bindings row by binding_id with readback.", requires_admin: true, inputSchema: { type: "object", properties: { binding_id: { type: "string" }, revoked_by: { type: "string" } }, required: ["binding_id"] } },
-  { name: "tenant_repo_pr_reconciliation_sweep", description: "Tenant-scoped read-only GitHub PR reconciliation sweep. Requires an active platform_resource_authority_bindings row and never comments, labels, closes, merges, patches, force-pushes, or applies migrations.", requires_admin: false, inputSchema: { type: "object", properties: { owner: { type: "string" }, repo: { type: "string" }, resource_uri: { type: "string" }, tenant_id: { type: "string", description: "Admin smoke only; tenant callers are forced to their principal tenant." }, workspace_id: { type: "string" }, user_id: { type: "string" }, state: { type: "string", default: "open" }, limit: { type: "integer", minimum: 1, maximum: 50, default: 20 }, include_changed_files: { type: "boolean", default: true }, include_check_runs: { type: "boolean", default: true }, record_evidence: { type: "boolean", default: false } }, required: [] } },
+  { name: "platform_resource_authority_binding_create", handler_name: "createRepositoryAuthorityBinding", description: "Admin-only create/idempotent grant for V2 read-only GitHub repository authority bindings used by tenant repository intelligence.", requires_admin: true, inputSchema: { type: "object", properties: { tenant_id: { type: "string" }, workspace_id: { type: "string" }, user_id: { type: "string" }, owner: { type: "string" }, repo: { type: "string" }, resource_uri: { type: "string" }, recipe_key: { type: "string", default: REPOSITORY_PR_RECONCILE_RECIPE_KEY }, permission_level: { type: "string", enum: ["read_only"], default: "read_only" }, allowed_modes: { type: "array", items: { type: "string", enum: ["read_only"] }, default: ["read_only"] }, expires_at: { type: "string" }, notes: { type: "string" } }, required: [] } },
+  { name: "platform_resource_authority_binding_list", handler_name: "listRepositoryAuthorityBindings", description: "Admin-only list of platform_resource_authority_bindings, with filters for repository intelligence V2 read-only bindings.", requires_admin: true, inputSchema: { type: "object", properties: { tenant_id: { type: "string" }, workspace_id: { type: "string" }, user_id: { type: "string" }, owner: { type: "string" }, repo: { type: "string" }, resource_uri: { type: "string" }, recipe_key: { type: "string" }, status: { type: "string", enum: ["active", "suspended", "revoked", "expired"] }, limit: { type: "integer", minimum: 1, maximum: 200, default: 50 } }, required: [] } },
+  { name: "platform_resource_authority_binding_revoke", handler_name: "revokeRepositoryAuthorityBinding", description: "Admin-only revoke a platform_resource_authority_bindings row by binding_id with readback.", requires_admin: true, inputSchema: { type: "object", properties: { binding_id: { type: "string" }, revoked_by: { type: "string" } }, required: ["binding_id"] } },
+  { name: "tenant_repo_pr_reconciliation_sweep", handler_name: "tenantRepositoryPrReconciliationSweep", description: "Tenant-scoped read-only GitHub PR reconciliation sweep. Requires an active platform_resource_authority_bindings row and never comments, labels, closes, merges, patches, force-pushes, or applies migrations.", requires_admin: false, inputSchema: { type: "object", properties: { owner: { type: "string" }, repo: { type: "string" }, resource_uri: { type: "string" }, tenant_id: { type: "string", description: "Admin smoke only; tenant callers are forced to their principal tenant." }, workspace_id: { type: "string" }, user_id: { type: "string" }, state: { type: "string", default: "open" }, limit: { type: "integer", minimum: 1, maximum: 50, default: 20 }, include_changed_files: { type: "boolean", default: true }, include_check_runs: { type: "boolean", default: true }, record_evidence: { type: "boolean", default: false } }, required: [] } },
   { name: "tenant_repository_intelligence_report", description: "Admin-only read-only Repository Intelligence V3 decision report. Produces classification summaries and bounded evidence without repository mutations, provider writes, credentials, or secrets.", requires_admin: true, inputSchema: { type: "object", properties: { tenant_id: { type: "string" }, workspace_id: { type: "string" }, user_id: { type: "string" }, owner: { type: "string" }, repo: { type: "string" }, resource_uri: { type: "string" }, state: { type: "string", default: "open" }, limit: { type: "integer", minimum: 1, maximum: 50, default: 20 }, include_changed_files: { type: "boolean", default: true }, include_check_runs: { type: "boolean", default: true }, include_markdown: { type: "boolean", default: true }, record_evidence: { type: "boolean", default: false } }, required: [] } },
   { name: "tenant_repository_action_planner_dry_run", description: "Admin-only Repository Intelligence V4 dry-run action planner. Builds non-executed action plans from V3 report evidence; no repository mutation or external write is allowed.", requires_admin: true, inputSchema: { type: "object", properties: { tenant_id: { type: "string" }, workspace_id: { type: "string" }, user_id: { type: "string" }, owner: { type: "string" }, repo: { type: "string" }, resource_uri: { type: "string" }, report: { type: "object", additionalProperties: true }, state: { type: "string", default: "open" }, limit: { type: "integer", minimum: 1, maximum: 50, default: 20 }, record_evidence: { type: "boolean", default: false } }, required: [] } },
   { name: "tenant_repository_intelligence_v3_v4_readiness_smoke", description: "Admin-only no-secret Repository Intelligence V3/V4 readiness smoke. Validates V3 report and V4 dry-run planner wiring without repository mutation, provider writes, credentials, or secrets.", requires_admin: true, inputSchema: { type: "object", properties: { tenant_id: { type: "string" }, owner: { type: "string" }, repo: { type: "string" }, resource_uri: { type: "string" }, state: { type: "string", default: "open" }, limit: { type: "integer", minimum: 1, maximum: 5, default: 1 } }, required: [] } },
