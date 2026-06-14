@@ -8,6 +8,8 @@ The Docs Agent keeps repository documentation aligned with runtime, schema, tena
 
 The agent is designed to keep documentation updates auto-mergeable end-to-end without giving the agent permission to mutate secrets, live databases, or protected branches directly.
 
+For `.github/workflows/surface-contract-auto-remediation.yml`, changed repository paths must be parsed through `git status --porcelain=v1 -z` and evaluated exactly against the documentation/generated-evidence allowlist. This preserves filenames containing spaces, prevents false rejects, and does not expand write scope beyond the approved paths.
+
 ## Operating modes
 
 ### Pull request mode
