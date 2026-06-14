@@ -15,6 +15,15 @@ function fakePool(row) {
   };
 }
 
+const migration = readFileSync(new URL("./migrations/1004_sprint68_hostinger_ssh_executor_db_gate.sql", import.meta.url), "utf8");
+assert.match(migration, /remote_runtime_hostinger_ssh_executor_enabled/);
+assert.match(migration, /'enabled', false/);
+assert.match(migration, /'target_id', 'b49fe2ae-5974-11f1-9baf-8e76a7e1749f'/);
+assert.match(migration, /'expires_at', NULL/);
+assert.match(migration, /same-cycle dry-run/i);
+assert.match(migration, /post-deploy readback/i);
+assert.match(migration, /secrets_included=false/);
+
 const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 const past = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 const targetId = "target-runtime-gate-test";
