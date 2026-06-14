@@ -54,6 +54,10 @@ jobs:
             node --check "$f" || { echo "SYNTAX ERROR: $f"; exit 1; }
           done
 
+      - name: Run automation intelligence guard
+        working-directory: http-generic-api
+        run: node scripts/automation-intelligence-guard.mjs
+
   test:
     name: Unit & Integration Tests
     runs-on: ubuntu-latest
