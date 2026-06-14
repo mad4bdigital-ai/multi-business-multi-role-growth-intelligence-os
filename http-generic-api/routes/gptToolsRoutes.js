@@ -23,6 +23,7 @@ import {
 } from "../capabilityResolutionEnvelopeGuard.js";
 import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBranchFastForwardToBase } from "../adminBranchReconciliationAdapter.js";
 import { runGithubSupersededBranchCleanup } from "../githubSupersededBranchCleanup.js";
+import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveReport } from "../platformCapabilityReports.js";
 
 const execFileAsync = promisify(execFile);
 
