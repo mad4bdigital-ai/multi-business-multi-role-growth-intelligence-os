@@ -217,9 +217,9 @@ export function buildDeploymentInfoRoutes() {
       ]),
       deployed_at: deployedAt,
       deployed_at_source: sourceFor(deployedAt, [
-        ["DEPLOYMENT_COMMIT.json.deployed_at", deployment?.deployed_at],
-        ["DEPLOYMENT_COMMIT.json.generated_at", deployment?.generated_at],
-        ["DEPLOYMENT_COMMIT.json.mtime", deployment?._source_mtime],
+        [`${deploymentSource}.deployed_at`, deployment?.deployed_at],
+        [`${deploymentSource}.generated_at`, deployment?.generated_at],
+        [`${deploymentSource}.mtime`, deployment?._source_mtime],
         ["DEPLOYED_AT", process.env.DEPLOYED_AT],
         ["BUILD_TIMESTAMP", process.env.BUILD_TIMESTAMP],
         ["RELEASE_CREATED_AT", process.env.RELEASE_CREATED_AT],
