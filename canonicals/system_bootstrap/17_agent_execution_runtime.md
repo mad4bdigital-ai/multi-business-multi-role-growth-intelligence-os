@@ -134,6 +134,22 @@ Modes:
 Requires `http://localhost:3000/oauth2callback` in the OAuth client's Authorised Redirect URIs.
 Run this when user-owned refresh-token Google APIs return `invalid_grant` (refresh token revoked or expired). Do not use refresh-token repair for platform-owned managed service account ADC activation.
 
+## Required output sink completion
+
+Output-bearing connector and agent runs must complete typed sink routing before final workflow or execution-plan status is written.
+
+Required sinks are inferred from the resolved workflow contract:
+
+- `output_artifact` is always required for an output-bearing run.
+- `adaptation_record` is additionally required for `rule_based` execution.
+- `reporting_view` is additionally required for report, analysis, scorecard, dataset, research, or map artifacts.
+- `audit_log` is additionally required for `authority` execution.
+- `chain_event` is additionally required when the workflow declares linked workflows.
+
+Each sink write must be followed by readback against its fixed canonical table and identifier. A returned insert result without readback is not sufficient. `routeOutput` returns `side_effect_confirmed_by_readback=true` only when all required sinks exist and were verified. Missing, failed, or unverified required sinks return `required_output_sink_failed` and cause both `workflow_runs.status` and `execution_plans.plan_status` to become `failed`.
+
+Dispatch success alone must never finalize an output-bearing workflow. The required order is: connector/agent dispatch → required sink routing → sink readback → workflow/plan finalization → audit response.
+
 ## Governance Rules
 
 - All AI-driven workflow execution must use `runAgentLoop` via `getAgentDeps()` — no direct model calls from routes.
