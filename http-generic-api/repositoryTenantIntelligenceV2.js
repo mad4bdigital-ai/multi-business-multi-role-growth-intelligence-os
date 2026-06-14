@@ -392,8 +392,12 @@ export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { 
     };
   }
   const negativeTenantId = smokeSafeTenantId(`${tenantId}_missing`);
-  const negative = await tenantRepositoryPrReconciliationSweep({
-    tenant_id: negativeTenantId,
+  const negativeAuth = { ...(auth || {}), is_admin: false, tenant_id: negativeTenantId };
+  const tenantAuth = { ...(auth || {}), is_admin: false, tenant_id: tenantId };
+  const adminAuth = { ...(auth || {}), is_admin: true };
+  const conflictingTenantId = smokeSafeTenantId(`${tenantId}_conflict`);
+  const negative = await dispatchSystemTool("tenant_repo_pr_reconciliation_sweep", {
+    tenant_id: conflictingTenantId,
     owner: repoRef.owner,
     repo: repoRef.repo,
     state: "open",
@@ -401,7 +405,7 @@ export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { 
     include_changed_files: false,
     include_check_runs: false,
     record_evidence: false,
-  }, { auth, runGovernedResource });
+  }, negativeAuth);
   const create = await createRepositoryAuthorityBinding({
     tenant_id: tenantId,
     owner: repoRef.owner,
