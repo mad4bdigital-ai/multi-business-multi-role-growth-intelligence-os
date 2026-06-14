@@ -523,21 +523,28 @@ assert.equal(readiness.status, "pass");
 assert.equal(readiness.execution_ready, true);
 
 let memoryQueryCount = 0;
+let memoryLinkSql = "";
 const memoryScope = await resolveMemoryScope(
   { tenant_id: "t1", scopes: { tenant: "t1", brand: "brand-1", workflow: "wf-1" } },
-  { pool: { query: async () => {
+  { pool: { query: async (sql) => {
     memoryQueryCount += 1;
     if (memoryQueryCount === 1) return [[
       { scope_type: "tenant", priority: 10 }, { scope_type: "brand", priority: 20 }, { scope_type: "workflow", priority: 50 },
     ]];
+    memoryLinkSql = String(sql).replace(/\s+/g, " ").trim();
     return [[
-      { tenant_id: "t1", source_scope_type: "brand", source_scope_ref: "brand-1", target_scope_type: "workflow", target_scope_ref: "wf-1", access_mode: "read" },
-      { tenant_id: "t1", source_scope_type: "brand", source_scope_ref: "other-brand", target_scope_type: "workflow", target_scope_ref: "wf-1", access_mode: "read_write" },
+      { tenant_id: "t1", scope_type: "brand", scope_ref: "brand-1", lifecycle_status: "active", authority_status: "approved", access_mode: "read" },
+      { tenant_id: "t1", scope_type: "brand", scope_ref: "other-brand", lifecycle_status: "active", authority_status: "approved", access_mode: "read_write" },
+      { tenant_id: "t1", scope_type: "workflow", scope_ref: "wf-1", lifecycle_status: "active", authority_status: "authoritative", access_mode: "read" },
     ]];
   } } }
 );
 assert.equal(memoryScope.primary_scope.scope_type, "workflow");
-assert.equal(memoryScope.allowed_cross_scope_links.length, 1);
+assert.equal(memoryScope.allowed_memory_links.length, 2);
+assert.equal(memoryScope.memory_link_count, 2);
+assert.equal(memoryScope.allowed_memory_links.some((link) => link.scope_ref === "other-brand"), false);
+assert(memoryLinkSql.includes("lifecycle_status = 'active'"));
+assert(memoryLinkSql.includes("authority_status IN ('approved', 'authoritative')"));
 assert.equal(memoryScope.cross_scope_default, "deny");
 assert.equal(memoryScope.execution_authority, false);
 
