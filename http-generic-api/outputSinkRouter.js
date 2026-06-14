@@ -59,6 +59,15 @@ function sinkFailure(sink, error) {
   };
 }
 
+export function inferRequiredOutputSinks({ execution_class = "standard", artifact_type = "Operational", linked_workflows = null } = {}) {
+  const required = new Set(["output_artifact"]);
+  if (execution_class === "rule_based") required.add("adaptation_record");
+  if (REPORT_TYPES.has(artifact_type)) required.add("reporting_view");
+  if (execution_class === "authority") required.add("audit_log");
+  if (parseLinkedWorkflowKeys(linked_workflows).length) required.add("chain_event");
+  return [...required];
+}
+
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
 async function loadAgentMeta(agent_id) {
