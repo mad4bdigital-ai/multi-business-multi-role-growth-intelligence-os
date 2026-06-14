@@ -677,9 +677,14 @@ export async function dispatchPlan(plan_id, {
     plan_status: succeeded ? "completed" : "failed",
     apply,
     duration_ms,
-    result: succeeded ? result : undefined,
+    result: dispatchSucceeded ? result : undefined,
+    sink_dispatch: sinkResult,
+    side_effect_confirmed_by_readback: sinkResult?.side_effect_confirmed_by_readback === true,
     error: dispatchError
       ? { code: "dispatch_failed", message: dispatchError.message }
-      : undefined,
+      : sinkResult?.ok === false
+        ? sinkResult.error || { code: "required_output_sink_failed", message: "Required output sink routing failed." }
+        : undefined,
+    secrets_included: false,
   };
 }
