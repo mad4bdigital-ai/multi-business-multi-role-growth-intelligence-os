@@ -632,7 +632,7 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
   if (!isAdmin && !userId) authGaps.push("missing_user_id");
   if (!isAdmin && rowsOrEmpty(memberships).length === 0) authGaps.push("no_active_membership_for_subject");
   if (rowsOrEmpty(systems).length === 0) authGaps.push("no_visible_connected_systems");
-  if (rowsOrEmpty(grants).length === 0) authGaps.push("no_active_permission_grants");
+  if (!isAdmin && rowsOrEmpty(grants).length === 0) authGaps.push("no_active_permission_grants");
 
   return {
     source: "activation_dynamic_authorization_envelope",
