@@ -57,7 +57,7 @@ export const CANONICALS = [
   {
     output: 'module_loader.md',
     sourceDir: 'canonicals/module_loader',
-    expectedFileCount: 8,
+    expectedFileCount: 9,
     index: [
       ['Header and purpose', '00_header_purpose.md', 'Canonical identity, status, purpose, and initial loader readiness.'],
       ['Dependency resolution', '01_dependency_resolution.md', 'Credential chains, variable contracts, async dependencies, and Google Workspace dependency resolution.'],
