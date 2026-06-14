@@ -63,6 +63,13 @@ assert(routes.includes("dispatchSystemTool"), "descriptor runtime must inject a 
 assert(routes.includes("runRepositoryIntelligenceV2DescriptorReadinessSmoke"), "system-layer routes must expose dispatcher-level V2 readiness");
 assert(releaseReadiness.includes("runRepositoryIntelligenceV2DescriptorReadinessSmoke"), "release readiness must execute the public descriptor smoke");
 assert(releaseReadiness.includes('status: issues.length ? "fail" : "pass"'), "public descriptor failures must block release readiness");
+assert(routes.includes("system_layer_descriptor_callability_audit"), "system-layer routes must expose the universal descriptor callability audit");
+assert(routes.includes("runSystemLayerDescriptorCallabilityAudit"), "system-layer routes must implement the universal descriptor audit");
+assert(routes.includes('readiness_tool: "tenant_repository_intelligence_v2_readiness_smoke"'), "V2 descriptor source must declare its safe readiness smoke");
+assert(routes.includes('readiness_tool: "tenant_repository_advisory_comment_v5_readiness_smoke"'), "V5 descriptor source must declare its safe readiness smoke");
+assert(routes.includes("failed_source_count"), "descriptor audit must fail closed on source-level failures");
+assert(releaseReadiness.includes("checkSystemLayerDescriptorCallability"), "release readiness must execute the universal descriptor callability audit");
+assert(releaseReadiness.includes("system_layer_descriptor_callability.status === \"fail\""), "descriptor audit failures must block release readiness");
 
 for (const tool of [
   "tenant_repository_intelligence_report",
