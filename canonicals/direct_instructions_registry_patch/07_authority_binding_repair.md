@@ -1239,3 +1239,6 @@ Direct instructions must not reinterpret a closed or stale pull request as branc
 - an approved GitHub capability envelope, exact typed confirmation, and explicit reason are present
 
 The recipe must never target a protected/default branch, force-update a ref, use a generic deletion fallback, return secrets, or delete before a synchronous no-secret intent audit succeeds. It must write completion or failure audit evidence after the provider result and must not report success before same-cycle missing-ref readback and completion audit succeed.
+## Capability Report Selection Boundary
+
+Capability contract verification and live operational verification are separate authority surfaces. `platform_capability_contract_report` may inspect declared schema/tool contracts and classify proposed versus implemented surfaces, but it must not return live counts or claim historical CI/deployment truth. `platform_capability_live_report` may query current MySQL-primary maturity, gap, envelope, certification, and source-resolution state with bounded freshness, but it must not infer contractual completeness or restate historical report numbers. A combined conclusion requires an explicit later comparison step; neither tool may silently call or merge the other.
