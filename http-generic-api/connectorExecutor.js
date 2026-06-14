@@ -584,46 +584,69 @@ export async function dispatchPlan(plan_id, {
     result = { ok: false };
   }
 
-  const duration_ms  = Date.now() - t0;
-  const succeeded    = !dispatchError && result?.ok !== false;
-  const final_status = succeeded
-    ? (connector_type === "content_workflow" ? "running" : "completed")
-    : "failed";
-  // content_workflow is async (stays "running"); wordpress and mcp_connector are sync (→ "completed")
+  const duration_ms = Date.now() - t0;
+  const dispatchSucceeded = !dispatchError && result?.ok !== false;
+  let sinkResult = null;
+  if (dispatchSucceeded && result?.output !== undefined) {
+    try {
+      sinkResult = await routeOutput({
+        run_id,
+        agent_id: plan.agent_id || null,
+        tenant_id: plan.tenant_id,
+        brand_key: plan.brand_key || null,
+        workflow_key: plan.workflow_key || null,
+        workflow_id: plan.workflow_id || workflowDef?.workflow_id || null,
+        output: result.output,
+      });
+    } catch (error) {
+      sinkResult = {
+        ok: false,
+        error: {
+          code: error?.code || "required_output_sink_failed",
+          message: String(error?.message || "Required output sink routing failed.").slice(0, 500),
+        },
+        side_effect_confirmed_by_readback: false,
+        secrets_included: false,
+      };
+    }
+  }
+
+  const sinkSucceeded = !sinkResult || sinkResult.ok !== false;
+  const succeeded = dispatchSucceeded && sinkSucceeded;
+  const final_status = succeeded ? "completed" : "failed";
+  const finalErrorMessage = dispatchError?.message ||
+    (sinkResult?.ok === false ? sinkResult.error?.message || "Required output sink routing failed." : null);
+  const executionOutput = dispatchSucceeded
+    ? { dispatch_result: result, sink_dispatch: sinkResult, secrets_included: false }
+    : null;
 
   await Promise.all([
-    finaliseWorkflowRun(run_id, final_status, succeeded ? result : null, dispatchError?.message),
+    finaliseWorkflowRun(run_id, final_status, succeeded ? executionOutput : null, finalErrorMessage),
     createStepRun(
       run_id, trace_id, plan,
       `connector_dispatch.${connector_type}`,
       succeeded ? "completed" : "failed",
       { plan_id, connector_type, apply },
-      succeeded ? result : null,
-      dispatchError?.message
+      executionOutput,
+      finalErrorMessage
     ),
     getPool().query(
       "UPDATE `execution_plans` SET plan_status = ? WHERE plan_id = ?",
       [succeeded ? "completed" : "failed", plan_id]
     ),
     createSpan(trace_id, run_id, `connector.${connector_type}`, succeeded ? "ok" : "error", duration_ms, plan, {
-      plan_id, run_id, connector_type, apply, brand_key: plan.brand_key,
+      plan_id,
+      run_id,
+      connector_type,
+      apply,
+      brand_key: plan.brand_key,
       workflow_id: plan.workflow_id || workflowDef?.workflow_id || null,
       workflow_key: plan.workflow_key,
+      sink_required: Boolean(sinkResult),
+      sink_ok: sinkResult?.ok ?? null,
+      sink_readback_confirmed: sinkResult?.side_effect_confirmed_by_readback === true,
     }),
   ]);
-
-  // Route output to typed sinks (non-blocking — never fail the main response)
-  if (succeeded && result?.output !== undefined) {
-    routeOutput({
-      run_id,
-      agent_id:     plan.agent_id || null,
-      tenant_id:    plan.tenant_id,
-      brand_key:    plan.brand_key || null,
-      workflow_key: plan.workflow_key || null,
-      workflow_id: plan.workflow_id || workflowDef?.workflow_id || null,
-      output:       result.output,
-    }).catch(err => console.warn("[outputSinkRouter] non-fatal:", err?.message));
-  }
 
   writeAuditLogAsync({
     actor_id: actor_id || plan.user_id || "system",
