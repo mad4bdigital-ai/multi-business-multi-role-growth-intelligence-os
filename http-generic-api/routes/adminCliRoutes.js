@@ -17,6 +17,7 @@ const ADMIN_SHELL_ALLOWLIST_ENV = "ADMIN_SHELL_ALLOWLIST";
 const ADMIN_SHELL_ENABLED_ENV   = "ADMIN_SHELL_ENABLED";
 const EXTRA_ARG_UNSAFE_PATTERN  = /[;&|`$<>\\!{}()\n\r]/;
 const GITHUB_CONTENTS_WRITE_DENY_SEGMENTS = new Set([".git", ".omx", ".codex", "node_modules", "secrets", "tmp", "dist", "build", "coverage"]);
+const GITHUB_REST_FALLBACK_PR_LABEL_ALLOWLIST = new Set(["superseded"]);
 const GITHUB_CONTENTS_WRITE_DENY_FILE_PATTERNS = [
   /^\.env(?:\.|$)/i,
   /^credentials(?:\..*)?\.json$/i,
@@ -820,6 +821,7 @@ function buildGithubFallbackUnsupportedError(args = []) {
       "api graphql read-only queries",
       "pr list",
       "pr diff <number> --name-only",
+      "pr edit <number> --add-label superseded",
       "workflow run <workflow> --ref <ref>",
       "api <workflow-dispatch-path> -X POST -f ref=<ref>",
       "run list",
@@ -841,6 +843,83 @@ function parseGithubPrNumber(value) {
   err.status = 400;
   err.code = "github_pr_number_required";
   throw err;
+}
+
+function assertGithubGovernedPrLabel(value = "") {
+  const label = String(value || "").trim().toLowerCase();
+  if (!GITHUB_REST_FALLBACK_PR_LABEL_ALLOWLIST.has(label)) {
+    const err = new Error("GitHub PR label fallback only permits the governed superseded label.");
+    err.status = 403;
+    err.code = "github_pr_label_not_allowlisted";
+    err.details = { label: label || null, allowed_labels: [...GITHUB_REST_FALLBACK_PR_LABEL_ALLOWLIST], secrets_included: false };
+    throw err;
+  }
+  return label;
+}
+
+export function parseGithubPrAddLabelArgs(args = []) {
+  const normalized = (Array.isArray(args) ? args : []).map((arg) => String(arg || ""));
+  if (normalized[0] !== "pr" || normalized[1] !== "edit") return null;
+  const prNumber = parseGithubPrNumber(normalized[2]);
+  let label = "";
+  let repoSeen = false;
+  for (let i = 3; i < normalized.length; i += 1) {
+    const arg = normalized[i];
+    if (arg === "--repo" || arg === "-R") {
+      if (repoSeen || !normalized[i + 1] || normalized[i + 1].startsWith("-")) {
+        const err = new Error("GitHub PR label fallback requires exactly one valid --repo value when supplied.");
+        err.status = 400;
+        err.code = "github_pr_label_repo_invalid";
+        throw err;
+      }
+      repoSeen = true;
+      i += 1;
+      continue;
+    }
+    if (arg.startsWith("--repo=") || arg.startsWith("-R=")) {
+      if (repoSeen || !arg.slice(arg.indexOf("=") + 1).includes("/")) {
+        const err = new Error("GitHub PR label fallback requires exactly one valid --repo value when supplied.");
+        err.status = 400;
+        err.code = "github_pr_label_repo_invalid";
+        throw err;
+      }
+      repoSeen = true;
+      continue;
+    }
+    if (arg === "--add-label") {
+      if (label || !normalized[i + 1] || normalized[i + 1].startsWith("-")) {
+        const err = new Error("GitHub PR label fallback requires exactly one --add-label value.");
+        err.status = 400;
+        err.code = "github_pr_label_value_invalid";
+        throw err;
+      }
+      label = normalized[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg.startsWith("--add-label=")) {
+      if (label) {
+        const err = new Error("GitHub PR label fallback accepts exactly one label.");
+        err.status = 400;
+        err.code = "github_pr_label_multiple_values";
+        throw err;
+      }
+      label = arg.slice("--add-label=".length);
+      continue;
+    }
+    const err = new Error(`Unsupported gh pr edit argument: ${arg || "<empty>"}.`);
+    err.status = 400;
+    err.code = "github_pr_label_unsupported_arg";
+    err.details = { argument: arg || null, secrets_included: false };
+    throw err;
+  }
+  if (!label) {
+    const err = new Error("gh pr edit fallback requires --add-label superseded.");
+    err.status = 400;
+    err.code = "github_pr_label_required";
+    throw err;
+  }
+  return { pr_number: prNumber, label: assertGithubGovernedPrLabel(label), secrets_included: false };
 }
 
 function firstGithubPositional(args = [], startIndex = 0) {
@@ -1078,8 +1157,9 @@ async function preflightGithubMutationArgs(args = []) {
   if (resource !== "pr" && resource !== "api") return null;
   const isPrCreate = resource === "pr" && command === "create";
   const isPrMerge = resource === "pr" && command === "merge";
+  const isPrEditLabel = resource === "pr" && command === "edit";
   const isBranchDelete = resource === "api" && hasCliFlag(args, ["-X", "--method"]) && parseCliFlag(args, ["-X", "--method"]).toUpperCase() === "DELETE";
-  if (!isPrCreate && !isPrMerge && !isBranchDelete) return null;
+  if (!isPrCreate && !isPrMerge && !isPrEditLabel && !isBranchDelete) return null;
 
   const { owner, repo } = await resolveGithubRepoFromArgs(args);
   const token = await getGitHubAppInstallationToken({});
@@ -1104,6 +1184,19 @@ async function preflightGithubMutationArgs(args = []) {
       existingPulls: Array.isArray(existingPulls) ? existingPulls : [],
     });
     return assertPreflightAllowed(preflight);
+  }
+
+  if (isPrEditLabel) {
+    const parsed = parseGithubPrAddLabelArgs(args);
+    const pr = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(parsed.pr_number)}`, token });
+    if (String(pr?.state || "").toLowerCase() !== "closed") {
+      const err = new Error("The governed superseded label may only be added to a closed pull request.");
+      err.status = 409;
+      err.code = "github_pr_label_requires_closed_pr";
+      err.details = { pr_number: Number(parsed.pr_number), state: pr?.state || null, label: parsed.label, secrets_included: false };
+      throw err;
+    }
+    return { allowed: true, operation: "github_pr_add_superseded_label", pr_number: Number(parsed.pr_number), label: parsed.label, secrets_included: false };
   }
 
   if (isPrMerge) {
@@ -1261,6 +1354,38 @@ async function executeGitHubRestFallbackCore(args = []) {
           }
         : payload;
     return { stdout: JSON.stringify(output, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+  }
+
+  if (resource === "pr" && command === "edit" && maybeId) {
+    const parsed = parseGithubPrAddLabelArgs(args);
+    await githubRestJson({
+      owner,
+      repo,
+      apiPath: `/issues/${encodeURIComponent(parsed.pr_number)}/labels`,
+      token,
+      method: "POST",
+      body: { labels: [parsed.label] },
+    });
+    const readback = await githubRestJson({
+      owner,
+      repo,
+      apiPath: `/issues/${encodeURIComponent(parsed.pr_number)}/labels?per_page=100`,
+      token,
+    });
+    const labels = (Array.isArray(readback) ? readback : []).map((entry) => String(entry?.name || "").trim().toLowerCase()).filter(Boolean);
+    if (!labels.includes(parsed.label)) {
+      const err = new Error("GitHub PR label mutation completed without same-cycle label readback.");
+      err.status = 502;
+      err.code = "github_pr_label_readback_failed";
+      err.details = { pr_number: Number(parsed.pr_number), label: parsed.label, labels, secrets_included: false };
+      throw err;
+    }
+    return {
+      stdout: JSON.stringify({ number: Number(parsed.pr_number), label_added: parsed.label, labels, readback_verified: true, secrets_included: false }, null, 2),
+      stderr: "gh CLI is not installed on host; used governed GitHub REST fallback for PR label mutation.\n",
+      exit_code: 0,
+      fallback: "github_rest",
+    };
   }
 
   if (resource === "pr" && command === "list") {
