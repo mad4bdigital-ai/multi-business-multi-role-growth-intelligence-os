@@ -4,6 +4,21 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { discoverSurfaces, isDirectExecution, renderGapQueueMarkdown, renderSurfaceContractMarkdown } from "./scripts/surface-contract-discovery.mjs";
 
+const scriptPath = path.resolve("scripts/surface-contract-discovery.mjs");
+assert.equal(
+  isDirectExecution(pathToFileURL(scriptPath).href, scriptPath),
+  true,
+  "surface discovery CLI entrypoint detection must be path-safe"
+);
+assert.equal(
+  isDirectExecution(pathToFileURL(scriptPath).href, path.resolve("scripts/not-surface-contract-discovery.mjs")),
+  false,
+  "surface discovery must not execute when imported from another entrypoint"
+);
+const discoverySource = fs.readFileSync(scriptPath, "utf8");
+assert(discoverySource.includes("fileURLToPath(importMetaUrl)"), "CLI entrypoint detection must use fileURLToPath for cross-platform paths");
+assert(!discoverySource.includes("file://${process.argv[1]}"), "CLI entrypoint detection must not concatenate file URLs manually");
+
 const report = discoverSurfaces({ limit: 200 });
 assert.equal(report.ok, true, "surface discovery report must be ok");
 assert.equal(report.schema_version, "surface-contract-discovery-v3", "surface discovery must expose v3 actionable queue contract");
