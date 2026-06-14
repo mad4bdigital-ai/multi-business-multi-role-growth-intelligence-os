@@ -433,14 +433,34 @@ export function discoverSurfaces({ limit = 80 } = {}) {
   const docsByPath = Object.fromEntries(DOC_TARGETS.map((rel) => [rel, readFileIfExists(path.join(REPO_ROOT, rel))]));
   const openapi = collectOpenapiPaths();
   const openapiPathSet = new Set(openapi.paths.map(normalizePathForCoverage));
+  const safetyAttestations = collectSafetyAttestations();
   const allMigrations = listMigrationFiles()
     .map((name) => {
       const source = readFileIfExists(path.join(MIGRATIONS_DIR, name));
       const legacyBacklogClosed = isLegacyBacklogClosed(name);
       const surfaces = extractSurfaces(source, name);
+      const safetyAttestation = resolveSafetyAttestation(name, source, safetyAttestations);
+      if (safetyAttestation) {
+        surfaces.safety = Object.fromEntries(SAFETY_MARKERS.map((marker) => [
+          marker,
+          surfaces.safety[marker] || safetyAttestation.safety_markers[marker] === true,
+        ]));
+      }
       const docs = docsCoverageFor(name, docsByPath);
       const missingDocs = Object.entries(docs).filter(([, covered]) => !covered).map(([target]) => target);
-      return enrichEntry({ migration_file: name, legacy_backlog_closed: legacyBacklogClosed, surfaces, docs, missing_docs: missingDocs, documentation_complete: missingDocs.length === 0 }, openapiPathSet);
+      return enrichEntry({
+        migration_file: name,
+        legacy_backlog_closed: legacyBacklogClosed,
+        safety_attestation: safetyAttestation ? {
+          attestation_status: safetyAttestation.attestation_status,
+          evidence_mode: safetyAttestation.evidence_mode,
+          migration_sha256: safetyAttestation.migration_sha256,
+        } : null,
+        surfaces,
+        docs,
+        missing_docs: missingDocs,
+        documentation_complete: missingDocs.length === 0,
+      }, openapiPathSet);
     })
     .filter((entry) => hasAnySurface(entry.surfaces));
 
