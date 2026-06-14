@@ -1858,6 +1858,9 @@ export async function runReleaseReadiness({ persist = false } = {}) {
   if (report.runtime_policy_seed_readiness.status === "warn" && report.overall === "pass") report.overall = "warn";
   if (report.runtime_policy_seed_readiness.status === "fail") report.overall = "fail";
 
+  report.system_layer_descriptor_callability = await checkSystemLayerDescriptorCallability();
+  if (report.system_layer_descriptor_callability.status === "fail") report.overall = "fail";
+
   report.repository_intelligence_v2_readiness = await checkRepositoryIntelligenceV2Readiness();
   if (report.repository_intelligence_v2_readiness.status === "warn" && report.overall === "pass") report.overall = "warn";
   if (report.repository_intelligence_v2_readiness.status === "fail") report.overall = "fail";
