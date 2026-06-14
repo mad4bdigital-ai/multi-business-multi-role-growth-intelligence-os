@@ -3345,6 +3345,8 @@ paths:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: sessionInsightTargetWriteReadbackCreate
+      x-custom-gpt-exclude: true
+      x-gpt-action-exclude: true
       summary: Create a read-only Session Insight target write readback
       description: >
         Validates an already executed internal SQL backlog target write against its target item,
@@ -3404,6 +3406,8 @@ paths:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: sessionInsightTargetWriteReadbackList
+      x-custom-gpt-exclude: true
+      x-gpt-action-exclude: true
       summary: List Session Insight target write readbacks
       description: >
         Lists read-only target write readback evidence and diagnostics. It does not create target writes,
@@ -7550,6 +7554,7 @@ paths:
                 name:
                   type: string
                   pattern: "^[a-z][a-z0-9_:-]{1,128}$"
+                  description: Tool key returned by listTools; runtime validates registration, tenant scope, and arguments before dispatch.
                 arguments:
                   type: object
                   additionalProperties: true
@@ -7877,7 +7882,7 @@ paths:
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: listAdminTools
       summary: List admin platform tools from the governed registry
-      description: "Returns paginated admin platform tools from the registry plus virtual admin tools. Use limit/cursor/q/tag for bounded discovery. If response_chunked=true or page.has_more=true on any governed tool response, call response_chunk_read with chunk_id and next_cursor until exhausted before using search/slice/local/external fallback surfaces. Virtual admin tools include admin_branch_reconcile for no-secret branch drift diagnosis and plan-only reconciliation checkpoints, github_branch_fast_forward_to_base for capability-envelope-gated behind_only no-force ref updates, and github_branch_fast_forward_smoke for disposable-branch end-to-end validation with cleanup."
+      description: "Returns paginated DB-backed and virtual Admin tools. Use limit/cursor/q/tag for bounded discovery; clients unable to send query parameters should call admin_tool_catalog_search through callAdminTool. Read all response chunks before fallback. Repository lifecycle mutations remain capability-gated and require same-cycle readback."
       x-runtime-governance:
         admin_branch_reconcile_continuation:
           policy: admin_branch_reconcile_continuation_contract
@@ -7993,7 +7998,7 @@ paths:
       operationId: callAdminTool
       x-openai-isConsequential: false
       summary: Execute any admin platform tool by name
-      description: "Executes a tool from admin_platform_endpoint_tools. Use listAdminTools to get tool names and inputSchema. Pass tool arguments in tool_args. Path params are substituted automatically. Returns the raw upstream response."
+      description: "Executes a governed DB-backed or virtual Admin tool returned by listAdminTools. Pass tool arguments in tool_args according to the returned inputSchema. Use admin_tool_catalog_search when the client cannot send list pagination/search parameters. DB-backed path parameters are substituted automatically."
       requestBody:
         required: true
         content:
@@ -8005,7 +8010,7 @@ paths:
               properties:
                 name:
                   type: string
-                  description: Tool key from listAdminTools, e.g. repo_inspect, admin_control, admin_cloudflare, local_connector_self_repair.
+                  description: Governed DB-backed or virtual tool key returned by listAdminTools; runtime validates registration and inputSchema before dispatch.
                 tool_args:
                   type: object
                   additionalProperties: true
