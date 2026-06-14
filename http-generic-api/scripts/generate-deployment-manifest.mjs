@@ -78,7 +78,12 @@ export function generateDeploymentManifest({
   return { ok: true, output_path: outputPath, manifest, secrets_included: false };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+export function isDirectExecution(importMetaUrl, argvPath) {
+  if (!argvPath) return false;
+  return resolve(fileURLToPath(importMetaUrl)) === resolve(argvPath);
+}
+
+if (isDirectExecution(import.meta.url, process.argv[1])) {
   const result = generateDeploymentManifest();
   console.log(`deployment manifest written: ${result.output_path}`);
   console.log(`commit_sha: ${result.manifest.commit_sha || "unavailable"}`);
