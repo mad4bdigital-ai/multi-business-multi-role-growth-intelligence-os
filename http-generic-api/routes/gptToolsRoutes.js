@@ -22,6 +22,7 @@ import {
   resolveCapabilityExecutionEnvelope,
 } from "../capabilityResolutionEnvelopeGuard.js";
 import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBranchFastForwardToBase } from "../adminBranchReconciliationAdapter.js";
+import { runGithubSupersededBranchCleanup } from "../githubSupersededBranchCleanup.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -317,6 +318,32 @@ const VIRTUAL_ADMIN_TOOLS = [
         repo: { type: "string", description: "Optional GitHub repo override; defaults to activation bootstrap." },
         mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
         confirm: { type: "string", description: "Reserved for future apply mode confirmation." },
+      },
+    },
+  },
+  {
+    name: "github_superseded_branch_cleanup",
+    displayName: "GitHub Superseded Branch Cleanup",
+    description: "Dry-run or delete a closed-PR work branch only when explicit replacement commits are ancestors of the default branch and cover every non-generated changed file. Apply requires fresh SHA/fingerprint evidence, typed confirmation, a capability envelope, a reason, and same-cycle missing-ref readback.",
+    method: "VIRTUAL",
+    path: "internal://github-superseded-branch-cleanup",
+    tags: ["repo", "reconciliation", "mutation", "capability_envelope", "closed_pr", "same_cycle_readback"],
+    inputSchema: {
+      type: "object",
+      required: ["branch", "superseding_commits"],
+      properties: {
+        branch: { type: "string", description: "Governed non-production work branch associated with a closed PR." },
+        default_branch: { type: "string", default: "main" },
+        owner: { type: "string", description: "Optional GitHub owner override; defaults to activation bootstrap." },
+        repo: { type: "string", description: "Optional GitHub repo override; defaults to activation bootstrap." },
+        superseding_commits: { type: "array", minItems: 1, maxItems: 20, items: { type: "string", pattern: "^[0-9a-fA-F]{40}$" } },
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
+        expected_base_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        expected_branch_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        expected_evidence_fingerprint: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+        confirm: { type: "string" },
+        reason: { type: "string", minLength: 20, maxLength: 500 },
+        capability_envelope_id: { type: "string" },
       },
     },
   },
@@ -618,6 +645,26 @@ async function requireGithubBranchFastForwardEnvelope({ args = {}, ctx = {} } = 
   return { ...resolved, secrets_included: false };
 }
 
+async function requireGithubSupersededBranchCleanupEnvelope({ args = {}, ctx = {} } = {}) {
+  const resolved = await resolveCapabilityExecutionEnvelope({
+    pool: getPool(),
+    source: args,
+    acceptedAppKeys: ["github"],
+    acceptedIntents: ["github_superseded_branch_cleanup", "github_branch_delete", "branch_cleanup", "repo_mutation"],
+    expectedTenantId: ctx?.auth?.tenant_id || PLATFORM_TENANT_ID,
+    expectedUserId: ctx?.auth?.user_id || "",
+  });
+  if (!resolved.ok) {
+    throw capabilityEnvelopeError(resolved, "GitHub superseded branch cleanup requires a valid capability resolution envelope before ref deletion.");
+  }
+  await markCapabilityEnvelopeReferenced({
+    pool: getPool(),
+    envelopeId: resolved.envelope_id,
+    executionRef: `github_superseded_branch_cleanup:${args?.branch || "unknown"}`,
+  });
+  return { ...resolved, secrets_included: false };
+}
+
 function resolveCallerType(req) {
   if (req.auth?.mode === "backend_api_key" || req.auth?.is_admin === true) return "admin";
   return "tenant";
@@ -902,6 +949,21 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       return {
         status: err?.status || 500,
         body: { ok: false, error: { code: err?.code || "admin_branch_reconcile_failed", message: err?.message || "Branch reconciliation failed.", details: err?.details } },
+      };
+    }
+  }
+
+  if (callerType === "admin" && toolKey === "github_superseded_branch_cleanup") {
+    try {
+      if (String(args?.mode || "dry_run").toLowerCase() === "apply") {
+        await requireGithubSupersededBranchCleanupEnvelope({ args, ctx: { auth: req?.auth } });
+      }
+      const result = await runGithubSupersededBranchCleanup(args, { auth: req?.auth });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "github_superseded_branch_cleanup_failed", message: err?.message || "GitHub superseded branch cleanup failed.", details: err?.details } },
       };
     }
   }

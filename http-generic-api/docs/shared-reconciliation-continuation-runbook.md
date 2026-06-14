@@ -125,3 +125,15 @@ Every continuation/resume audit payload should include:
 - apply result when applicable
 - next step or resumed operation
 - `secrets_included: false`
+### Superseded closed-PR branch cleanup
+
+Do not use generic branch deletion for an unmerged branch. Use `github_superseded_branch_cleanup` only after `admin_branch_reconcile` has shown that the work branch is no longer the active delivery path and a maintainer has closed and labeled its PR `superseded`.
+
+1. Run `github_superseded_branch_cleanup` with `mode=dry_run`, the branch name, default branch, and full replacement commit SHAs.
+2. Confirm there is no open PR, the matching PR is closed and labeled `superseded`, every replacement commit is already in the default-branch history, and every non-generated changed file is covered.
+3. Preserve the returned `base_ref_sha`, `branch_ref_sha`, `evidence_fingerprint`, and `required_confirmation`.
+4. Approve a GitHub capability envelope specifically for `github_superseded_branch_cleanup` or governed branch cleanup.
+5. Re-run in `mode=apply` with the preserved evidence, exact typed confirmation, capability envelope, and a reason of at least 20 characters.
+6. Require a synchronous no-secret intent audit before DELETE, same-cycle readback showing the ref is absent, and a completion or failure audit with `secrets_included=false`.
+
+Stop without deletion when evidence is stale, any matching PR is open, the `superseded` label is missing, replacement commits are not on the default branch, file coverage is incomplete, policy limits are exceeded, the branch is protected, or any force/generic fallback would be required.

@@ -1224,3 +1224,18 @@ not silently execute the next step.
 # Agent Governance Binding Repair
 
 Bind research source order, response presentation, handoff continuation, and external prompt trust to their SQL registries. No prompt text, response profile, or handoff payload may self-assert execution authority.
+## Superseded Closed-PR Branch Cleanup Authority
+
+Direct instructions must not reinterpret a closed or stale pull request as branch-deletion authority. Generic deletion of unmerged branches remains blocked.
+
+`github_superseded_branch_cleanup` may delete one governed work branch only when all of the following are true:
+- the matching pull request is closed and labeled `superseded`
+- no matching pull request remains open
+- explicit replacement commit SHAs are supplied and each is an ancestor of the current default branch
+- the replacement commits cover every non-generated file changed by the branch
+- generated-file exclusions come only from the active policy allowlist
+- changed-file and ahead-commit limits remain within the policy thresholds
+- the default-branch SHA, branch SHA, and evidence fingerprint still match the dry-run evidence
+- an approved GitHub capability envelope, exact typed confirmation, and explicit reason are present
+
+The recipe must never target a protected/default branch, force-update a ref, use a generic deletion fallback, return secrets, or delete before a synchronous no-secret intent audit succeeds. It must write completion or failure audit evidence after the provider result and must not report success before same-cycle missing-ref readback and completion audit succeed.
