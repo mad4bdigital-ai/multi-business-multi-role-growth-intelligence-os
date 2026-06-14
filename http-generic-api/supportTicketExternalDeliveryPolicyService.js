@@ -60,18 +60,6 @@ async function resolveAdminGptRepairLinkBaseUrl(connection) {
   return DEFAULT_ADMIN_GPT_REPAIR_LINK_BASE_URL;
 }
 
-async function resolveAdminGptTargetAgentId(connection) {
-  const [rows] = await connection.query(
-    `SELECT agent_id
-       FROM agents
-      WHERE name = ? AND status = 'active'
-      ORDER BY updated_at DESC
-      LIMIT 1`,
-    [DEFAULT_ADMIN_GPT_AGENT_NAME]
-  );
-  return rows?.[0]?.agent_id || null;
-}
-
 function buildAdminGptRepairPromptState({ tenant_id, ticket_id, approval_hold_id, channel, audience, credential_ref, action = "review_external_delivery" } = {}) {
   return {
     action,
