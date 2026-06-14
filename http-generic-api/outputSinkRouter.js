@@ -283,11 +283,11 @@ export async function routeOutput({ run_id, agent_id, tenant_id, brand_key, work
   const linkedWorkflowKeys = parseLinkedWorkflowKeys(linked_workflows);
   const target_module = wfMeta?.target_module || null;
 
-  const requiredSinks = new Set(["output_artifact"]);
-  if (execution_class === "rule_based") requiredSinks.add("adaptation_record");
-  if (REPORT_TYPES.has(artifact_type)) requiredSinks.add("reporting_view");
-  if (execution_class === "authority") requiredSinks.add("audit_log");
-  if (linkedWorkflowKeys.length) requiredSinks.add("chain_event");
+  const requiredSinks = new Set(inferRequiredOutputSinks({
+    execution_class,
+    artifact_type,
+    linked_workflows: linkedWorkflowKeys,
+  }));
 
   const sinkContext = { brand_key: brand_key || null, correlation_id: run_id };
   const dispatched = [];
