@@ -30,6 +30,7 @@ const SSH_SERVER_ALIVE_INTERVAL_SECONDS = 5;
 const SSH_SERVER_ALIVE_COUNT_MAX = 1;
 const SSH_PROCESS_KILL_GRACE_MS = 5000;
 const EXECUTOR_FLAG = "REMOTE_RUNTIME_HOSTINGER_SSH_EXECUTOR_ENABLED";
+const EXECUTOR_DB_FLAG_KEY = "remote_runtime_hostinger_ssh_executor_enabled";
 const PROBE_FLAG = "REMOTE_RUNTIME_HOSTINGER_SSH_PROBE_ENABLED";
 const PROBE_DB_FLAG_KEY = "remote_runtime_hostinger_ssh_probe_enabled";
 const ALLOWED_BRANCHES = new Set(["main"]);
