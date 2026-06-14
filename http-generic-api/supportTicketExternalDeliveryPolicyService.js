@@ -283,7 +283,36 @@ export async function requestSupportTicketExternalDeliveryApproval({ tenant_id, 
       credential_ref: resolvedCredentialRef,
       action: "review_external_delivery",
     });
-    const adminGptRepairLink = await buildAdminGptRepairLink(connection, repairPromptState);
+    const handoff = await createAgentHandoffState({
+      tenant_id,
+      user_id: readiness.ticket?.user_id || null,
+      source_agent_id: actor_type === "agent" ? actor_id : null,
+      target_agent_id: null,
+      resource_ref: `support_ticket:${ticket_id}`,
+      intent: "support_ticket_external_delivery_repair",
+      current_state: {
+        action: "review_external_delivery",
+        target_surface: DEFAULT_ADMIN_GPT_AGENT_NAME,
+        tenant_id,
+        ticket_id,
+        approval_hold_id: holdId,
+        channel: externalChannel,
+        audience,
+        ticket_status: readiness.ticket?.status || null,
+        lifecycle_state: readiness.ticket?.lifecycle_state || null,
+        external_send_performed: false,
+        secrets_included: false,
+      },
+      required_checks: repairPromptState.required_checks,
+      allowed_actions: ["review_external_delivery", "diagnose", "request_approval", "apply_safe_fix"],
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      one_time_use: false,
+    }, { pool: connection });
+    const adminGptRepairLink = await buildAdminGptRepairLink(
+      connection,
+      handoff.resume_state_id,
+      "review_external_delivery"
+    );
     const payload = {
       approval_type: "external_notification_delivery",
       channel: externalChannel,
