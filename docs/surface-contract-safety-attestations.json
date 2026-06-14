@@ -2,8 +2,51 @@
   "ok": true,
   "schema_version": "surface-contract-safety-attestations-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
-  "item_count": 5,
+  "item_count": 7,
   "items": [
+    {
+      "migration_file": "1003_sprint68_supervisor_chain_runtime_guards.sql",
+      "migration_sha256": "28c43240dc2fd79c97a01839be797e25a1edba0acd1343d5e9ae2263bd766a38",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "high_review",
+      "gap_severity_at_attestation": "medium",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 4,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 1,
+        "views": 0,
+        "policies": 0,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "idx_chain_dispatched_run"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
     {
       "migration_file": "308_sprint69_activation_guidance_intelligence.sql",
       "migration_sha256": "1d0470a31953553094d220c08e5944af7af7b74d379757885d1cd0be108b92d0",
@@ -159,6 +202,73 @@
             "v_activation_agent_skill_grants",
             "v_activation_awareness_latest_runs",
             "v_activation_pending_tasks"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "311_sprint69_platform_tool_dispatch_binding_integrity.sql",
+      "migration_sha256": "7bb6d1a934d3504682303894b8bf1b95ed2d2e383c629a2838ecf1f4f7911216",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "critical_review",
+      "gap_severity_at_attestation": "medium",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 5,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 19,
+        "views": 1,
+        "policies": 0,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_readback_view",
+          "targets": [
+            "v_platform_tool_dispatch_integrity"
+          ]
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "archive_superseded_bindings_only_after_readback",
+            "base_head_readback",
+            "bounded_by_endpoint_and_tool_catalog",
+            "freshness_gate",
+            "github_get_pull_request",
+            "github_list_pull_requests",
+            "github_merge_pull_request",
+            "github_pr_ci_gate",
+            "github_pr_ci_readback",
+            "github_pr_state_readback_v1",
+            "github_pr_update_branch_readback_v1",
+            "github_update_pull_request",
+            "github_update_pull_request_branch",
+            "merge_ancestry_readback",
+            "platform_tool_dispatch_bindings",
+            "platform_tool_dispatch_integrity",
+            "ptdb_github_pr_ci_gate_get_pr",
+            "sprint69_platform_tool_dispatch_binding_integrity",
+            "virtual_admin_tool"
           ]
         }
       ],
