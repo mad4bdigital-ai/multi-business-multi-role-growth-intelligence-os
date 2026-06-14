@@ -435,11 +435,11 @@ export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { 
     limit: 10,
   }, adminAuth);
   const bindingId = create?.binding?.binding_id;
-  const revoke = bindingId
-    ? await revokeRepositoryAuthorityBinding({
+  const revoke = bindingId && create?.created !== false
+    ? await dispatchSystemTool("platform_resource_authority_binding_revoke", {
       binding_id: bindingId,
       revoked_by: "system:tenant_repository_intelligence_v2_readiness_smoke_cleanup",
-    }, { auth: { ...(auth || {}), is_admin: true } })
+    }, adminAuth)
     : null;
   const [cleanupRows] = await getPool().query(
     `SELECT SUM(status = 'active') AS active_smoke_bindings, COUNT(*) AS total_smoke_bindings
