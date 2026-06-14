@@ -41,6 +41,8 @@ for (const column of [
 ]) {
   assert.match(migration, new RegExp(column));
 }
+assert.match(migration, /CREATE INDEX IF NOT EXISTS `idx_chain_root_depth`/);
+assert.match(migration, /CREATE INDEX IF NOT EXISTS `idx_chain_dispatched_run`/);
 assert.match(runner, /governed_migration_authorization_registry/);
 assert.doesNotMatch(runner, /1003_sprint68_supervisor_chain_runtime_guards\.sql/);
 

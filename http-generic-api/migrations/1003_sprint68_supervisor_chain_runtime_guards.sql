@@ -15,6 +15,8 @@ SET `root_event_id` = `event_id`,
     `workflow_path_json` = JSON_ARRAY(`target_workflow_key`)
 WHERE `root_event_id` IS NULL;
 
-ALTER TABLE `agent_chain_events`
-  ADD INDEX IF NOT EXISTS `idx_chain_root_depth` (`root_event_id`, `chain_depth`),
-  ADD INDEX IF NOT EXISTS `idx_chain_dispatched_run` (`dispatched_run_id`);
+CREATE INDEX IF NOT EXISTS `idx_chain_root_depth`
+  ON `agent_chain_events` (`root_event_id`, `chain_depth`);
+
+CREATE INDEX IF NOT EXISTS `idx_chain_dispatched_run`
+  ON `agent_chain_events` (`dispatched_run_id`);
