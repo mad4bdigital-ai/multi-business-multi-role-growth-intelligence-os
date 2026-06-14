@@ -399,6 +399,14 @@ const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
     tools: TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
     handlers: RepositoryTenantAdvisoryCommentV5Runtime,
   },
+  {
+    source_key: "tenant_effective_capability_resolver_v1",
+    tools: TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
+    handlers: {
+      tenantEffectiveCapabilityPreview,
+      tenantCapabilityShadowCompare,
+    },
+  },
 ];
 
 function snakeToolNameToCamelHandlerName(name = "") {
