@@ -17,6 +17,7 @@ import {
   buildAwarenessIndex,
   readActivationDynamicTabDetail,
 } from "./activationAwarenessService.js";
+import { buildStrictActivationSummaryEnvelope } from "./activationResponseBudgetService.js";
 
 const PROFILE_CONFIG = Object.freeze({
   evidence: {
