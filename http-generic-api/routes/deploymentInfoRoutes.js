@@ -198,7 +198,7 @@ export function buildDeploymentInfoRoutes() {
       hostname: req.headers.host || null,
       branch,
       branch_source: sourceFor(branch, [
-        ["DEPLOYMENT_COMMIT.json", deployment?.branch],
+        [deploymentSource, deployment?.branch],
         ["GITHUB_REF_NAME", process.env.GITHUB_REF_NAME],
         ["DEPLOY_BRANCH", process.env.DEPLOY_BRANCH],
         ["BRANCH_NAME", process.env.BRANCH_NAME],
