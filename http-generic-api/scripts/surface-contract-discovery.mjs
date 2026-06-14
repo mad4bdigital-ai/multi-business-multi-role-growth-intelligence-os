@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 
 const API_ROOT = process.cwd();
@@ -532,4 +533,9 @@ function main() {
   }, null, 2));
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main();
+export function isDirectExecution(importMetaUrl, argvPath) {
+  if (!argvPath) return false;
+  return path.resolve(fileURLToPath(importMetaUrl)) === path.resolve(argvPath);
+}
+
+if (isDirectExecution(import.meta.url, process.argv[1])) main();

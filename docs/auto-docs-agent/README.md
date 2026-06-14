@@ -6,6 +6,7 @@ Generated notes are reviewable evidence. They do not replace targeted human docu
 
 Rules:
 
+- `965_sprint68_hostinger_apply_policy_safe_field_names.sql` is resolved by explicit patch-index, deployment-parity, Docs Agent, and change-governance documentation. It is policy/readback-only, performs no provider call, credential payload read, external send/write, deploy, or secret return, and is verified by `v_hostinger_apply_policy_safe_field_readiness` plus `test-hostinger-apply-policy-safe-field-names.mjs`.
 - No secrets or credential values.
 - No generated canonical root edits without canonical source edits.
 - High-risk notes must name required docs and validation evidence.

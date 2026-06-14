@@ -20,6 +20,8 @@ This policy applies to:
 
 ## Required documentation outputs
 
+`965_sprint68_hostinger_apply_policy_safe_field_names.sql` is the reference pattern for a policy/readback-only credential-governance repair: document the patch index and deployment parity, retain explicit no-provider-call/no-credential-payload-read/no-external-write/no-secret markers, provide a readback view, and add focused regression coverage before merge.
+
 For each change, update at least one of the following, depending on scope:
 
 | Change type | Required docs |

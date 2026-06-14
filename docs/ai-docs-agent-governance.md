@@ -1,5 +1,7 @@
 # AI Docs Agent Governance
 
+> Surface contract note: `965_sprint68_hostinger_apply_policy_safe_field_names.sql` is a database policy/readback migration only. Documentation automation must preserve evidence that it performs no provider call, credential payload read, external send/write, deploy, or secret return, and must retain the `v_hostinger_apply_policy_safe_field_readiness` readback plus targeted regression coverage.
+
 ## Purpose
 
 The Docs Agent keeps repository documentation aligned with runtime, schema, tenant, deployment, and governance changes. It runs in GitHub Actions and produces reviewable Markdown evidence instead of silently changing production behavior.

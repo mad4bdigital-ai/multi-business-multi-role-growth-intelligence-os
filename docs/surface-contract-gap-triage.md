@@ -4,16 +4,15 @@
 
 ## Summary
 
-- Triaged items: 5
-- Gate candidates: 1
-- New-gap gate: fail
-- Blocking new items: 1
+- Triaged items: 4
+- Gate candidates: 0
+- New-gap gate: pass
+- Blocking new items: 0
 
 ## Class counts
 
 - safety_marker_review: 4
-- new_surface_immediate_review: 1
 
 ## Immediate review candidates
 
-- `965_sprint68_hostinger_apply_policy_safe_field_names.sql` — high_review, score 613; next: add targeted patch-index, parity, and governance documentation
+- none
