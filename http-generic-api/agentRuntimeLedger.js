@@ -184,15 +184,20 @@ export async function recordAgentToolCallAuthorization({ toolCallId, decision = 
 export async function recordAgentToolCallCompleted({ toolCallId, result = {}, status = "authorized" } = {}) {
   if (!toolCallId) return;
   const authStatus = ["authorized", "failed", "denied", "pending"].includes(status) ? status : "authorized";
+  const readbackConfirmed = result?.side_effect_confirmed_by_readback === true ||
+    result?.readback?.confirmed === true || result?.readback_status === "confirmed";
+  const readbackStatus = result?.ok === false ? "failed" : readbackConfirmed ? "confirmed" : "result_returned_unverified";
   try {
     await (await pool()).query(
       `UPDATE \`agent_tool_calls\`
-          SET authorization_status = ?, post_tool_readback_json = ?, output_summary_json = ?, completed_at = UTC_TIMESTAMP()
+          SET authorization_status = ?, post_tool_readback_json = ?, output_summary_json = ?,
+              side_effect_confirmed_by_readback = ?, completed_at = UTC_TIMESTAMP()
         WHERE tool_call_id = ?`,
       [
         authStatus,
-        safeJson({ readback_status: result?.ok === false ? "failed" : "completed", side_effect_confirmed_by_readback: false, secrets_included: false }),
+        safeJson({ readback_status: readbackStatus, side_effect_confirmed_by_readback: readbackConfirmed, secrets_included: false }),
         safeJson(summarizeToolOutput(result)),
+        readbackConfirmed ? 1 : 0,
         toolCallId,
       ]
     );
