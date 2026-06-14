@@ -264,6 +264,34 @@ function applyResponseBudget(body, config) {
     projectionSteps.push("defer_selected_detail");
   }
 
+  if (
+    byteLength(output) > config.hard_bytes
+    && ["evidence", "summary"].includes(String(output.response_profile || ""))
+  ) {
+    const strict = buildStrictActivationSummaryEnvelope(output, { includeMembership: true });
+    for (const key of Object.keys(output)) delete output[key];
+    Object.assign(output, strict);
+    deferred.push(
+      "provider_bootstrap.full_payload",
+      "dynamic_tabs_manifest.container_tab_manifests",
+      "operational_summary.extended_attention_rows",
+      "operational_dashboard_manifest.tile_details",
+      "duplicate_profile_alias_payloads"
+    );
+    projectionSteps.push("strict_semantic_summary_envelope");
+  }
+
+  if (
+    byteLength(output) > config.hard_bytes
+    && ["evidence", "summary"].includes(String(output.response_profile || ""))
+  ) {
+    const strictWithoutMembership = buildStrictActivationSummaryEnvelope(output, { includeMembership: false });
+    for (const key of Object.keys(output)) delete output[key];
+    Object.assign(output, strictWithoutMembership);
+    deferred.push("dynamic_tabs_manifest.container_tab_membership");
+    projectionSteps.push("strict_catalog_counts_only");
+  }
+
   const returnedBytes = byteLength(output);
   output.response_projection = {
     profile_requested: body.response_profile,
