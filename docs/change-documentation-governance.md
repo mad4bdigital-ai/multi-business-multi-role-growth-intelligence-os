@@ -1,5 +1,7 @@
 # Repo and SQL Change Documentation Governance
 
+> Reference contract: `1004_sprint68_hostinger_ssh_executor_db_gate.sql`, `1004_sprint69_agent_governance_admin_tools.sql`, and `1005_sprint69_agent_skill_coverage_prompt_enrichment.sql` require explicit safety markers, focused regression tests, registry/tool binding review, canonical deployment-manifest parity, and database/readback evidence. Hostinger execution gates must default disabled and remain target- and expiry-bound; Agent Governance tools remain admin-only; skill coverage remains read-only. No deployment may be declared complete before same-cycle dry-run, approved capability envelope, exact SHA, bounded execution, health/readback, and gate reset or expiry.
+
 > Reference contract: changes represented by `1004_sprint68_hostinger_ssh_executor_db_gate.sql`, `1004_sprint69_agent_governance_admin_tools.sql`, and `1005_sprint69_agent_skill_coverage_prompt_enrichment.sql` require explicit safety markers, focused regression tests, registry/tool binding review, canonical deployment-manifest parity, and database/readback evidence. Hostinger execution gates must default disabled and remain target- and expiry-bound; Agent Governance tools remain admin-only; skill coverage remains read-only. No deployment may be declared complete before same-cycle dry-run, approved capability envelope, exact SHA, bounded execution, health/readback, and gate reset or expiry.
 
 <!-- surface-contract-auto-remediation:start -->
