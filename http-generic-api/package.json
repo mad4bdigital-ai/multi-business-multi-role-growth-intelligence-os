@@ -13,6 +13,8 @@
     "readiness:interruptions:ci": "node scripts/interruption-readiness.mjs --ci",
     "readiness:verify-plan": "node scripts/run-interruption-verification-plan.mjs",
     "manifest:deployment": "node scripts/generate-deployment-manifest.mjs",
+    "supervisor:readiness": "node scripts/supervisor-runtime-readiness.mjs",
+    "supervisor:readiness:live": "node --env-file=.env scripts/supervisor-runtime-readiness.mjs --live",
     "smoke:dev-autopilot": "node scripts/dev-autopilot-smoke.mjs",
     "smoke:route-selector": "node scripts/route-selector-runtime-smoke.mjs",
     "smoke:installer-reprovision": "node scripts/installer-reprovision-smoke.mjs",

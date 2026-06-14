@@ -125,3 +125,13 @@ Run this when user-owned refresh-token Google APIs return `invalid_grant` (refre
 - Engine dispatch to HTTP actions requires `callHttpAction` to be configured in the `deps` object — otherwise returns `http_action_not_configured`.
 - Engine dispatch to MCP tools requires `dispatchMcpTool` to be configured — otherwise returns `mcp_not_configured`.
 - `sync-drive-to-db.mjs --apply` must be re-run after any Drive engine spec file update to keep `body_json.system_prompt` in sync.
+
+## Supervisor runtime readiness boundary
+
+Admin GPT and Tenant GPT may coordinate governed sub-agent work, but unrestricted master-agent execution is not active merely because agent registry, delegation, or chain-event tables exist.
+
+Before claiming supervisor execution readiness, run `npm run supervisor:readiness` from `http-generic-api/`. Use `npm run supervisor:readiness:live` when configured live-schema evidence is required. The command is read-only, emits no secrets, and must return `execution_ready=true`.
+
+The runtime enforces atomic execution-plan claiming, applicable capability-envelope validation before claim, fail-closed skill grants, deterministic healthy-agent selection, one bounded healthy fallback attempt, and durable chain lineage with depth/cycle rejection.
+
+Static `execution_ready=true` is necessary but not sufficient for production activation. Sequential governed orchestration remains the supported default until live schema and controlled-tenant behavioral evidence are current.
