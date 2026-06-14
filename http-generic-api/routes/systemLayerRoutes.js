@@ -54,6 +54,11 @@ import {
   tenantRepositoryAdvisoryCommentV5ReadinessSmoke,
 } from "../repositoryTenantAdvisoryCommentsV5.js";
 import * as RepositoryTenantAdvisoryCommentV5Runtime from "../repositoryTenantAdvisoryCommentsV5.js";
+import {
+  TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
+  tenantEffectiveCapabilityPreview,
+  tenantCapabilityShadowCompare,
+} from "../tenantEffectiveCapabilityResolver.js";
 import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
 
 const SYSTEM_LAYER_TOOLS = [
