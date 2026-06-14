@@ -21,6 +21,41 @@ const REPORT_TYPES = new Set([
 ]);
 
 const PASS_KEYS = ["passed", "ok", "valid", "pass", "true", "1"];
+const SINK_READBACK_TARGETS = Object.freeze({
+  output_artifact: { table: "output_artifacts", key: "artifact_id" },
+  adaptation_record: { table: "adaptation_records", key: "adaptation_id" },
+  reporting_view: { table: "reporting_views", key: "view_id" },
+  audit_log: { table: "audit_log", key: "audit_id" },
+  chain_event: { table: "agent_chain_events", key: "event_id" },
+});
+
+async function confirmSinkReadback(sinkType, sinkRefId) {
+  const target = SINK_READBACK_TARGETS[sinkType];
+  if (!target || !sinkRefId) return false;
+  const [rows] = await getPool().query(
+    `SELECT \`${target.key}\` AS sink_ref_id FROM \`${target.table}\` WHERE \`${target.key}\` = ? LIMIT 1`,
+    [sinkRefId]
+  );
+  return Boolean(rows[0]?.sink_ref_id);
+}
+
+function sinkFailure(sink, error) {
+  return {
+    sink,
+    code: error?.code || "required_sink_dispatch_failed",
+    message: String(error?.message || error || "required sink dispatch failed").slice(0, 500),
+    secrets_included: false,
+  };
+}
+
+export function inferRequiredOutputSinks({ execution_class = "standard", artifact_type = "Operational", linked_workflows = null } = {}) {
+  const required = new Set(["output_artifact"]);
+  if (execution_class === "rule_based") required.add("adaptation_record");
+  if (REPORT_TYPES.has(artifact_type)) required.add("reporting_view");
+  if (execution_class === "authority") required.add("audit_log");
+  if (normalizeLinkedWorkflowKeys(linked_workflows).length) required.add("chain_event");
+  return [...required];
+}
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
