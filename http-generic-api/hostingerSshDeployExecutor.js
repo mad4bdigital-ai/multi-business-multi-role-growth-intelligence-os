@@ -30,6 +30,7 @@ const SSH_SERVER_ALIVE_INTERVAL_SECONDS = 5;
 const SSH_SERVER_ALIVE_COUNT_MAX = 1;
 const SSH_PROCESS_KILL_GRACE_MS = 5000;
 const EXECUTOR_FLAG = "REMOTE_RUNTIME_HOSTINGER_SSH_EXECUTOR_ENABLED";
+const EXECUTOR_DB_FLAG_KEY = "remote_runtime_hostinger_ssh_executor_enabled";
 const PROBE_FLAG = "REMOTE_RUNTIME_HOSTINGER_SSH_PROBE_ENABLED";
 const PROBE_DB_FLAG_KEY = "remote_runtime_hostinger_ssh_probe_enabled";
 const ALLOWED_BRANCHES = new Set(["main"]);
@@ -134,12 +135,12 @@ async function safeQuery(pool, sql, params = []) {
   }
 }
 
-async function loadHostingerSshProbeGate(pool, targetId, env = process.env) {
-  if (env[PROBE_FLAG] === "true") return { enabled: true, source: "env", key: PROBE_FLAG };
+export async function loadHostingerSshGate(pool, { targetId, env = process.env, envFlag, dbKey }) {
+  if (env[envFlag] === "true") return { enabled: true, source: "env", key: envFlag };
   const rows = await safeQuery(
     pool,
     "SELECT config_json, status FROM platform_runtime_config WHERE config_key = ? LIMIT 1",
-    [PROBE_DB_FLAG_KEY]
+    [dbKey]
   );
   const row = rows[0];
   const config = parseJson(row?.config_json, {});
@@ -149,12 +150,20 @@ async function loadHostingerSshProbeGate(pool, targetId, env = process.env) {
   return {
     enabled: row?.status === "active" && config.enabled === true && targetAllowed && notExpired,
     source: "platform_runtime_config",
-    key: PROBE_DB_FLAG_KEY,
+    key: dbKey,
     target_allowed: targetAllowed,
     expires_at: expiresAt || null,
     expired: expiresAt ? !notExpired : false,
     reason: !row ? "db_gate_missing" : row.status !== "active" ? "db_gate_disabled" : config.enabled !== true ? "db_gate_not_enabled" : !targetAllowed ? "db_gate_target_mismatch" : !notExpired ? "db_gate_expired" : "enabled",
   };
+}
+
+async function loadHostingerSshProbeGate(pool, targetId, env = process.env) {
+  return await loadHostingerSshGate(pool, { targetId, env, envFlag: PROBE_FLAG, dbKey: PROBE_DB_FLAG_KEY });
+}
+
+async function loadHostingerSshExecutorGate(pool, targetId, env = process.env) {
+  return await loadHostingerSshGate(pool, { targetId, env, envFlag: EXECUTOR_FLAG, dbKey: EXECUTOR_DB_FLAG_KEY });
 }
 
 async function loadTarget(pool, targetId) {
@@ -918,11 +927,12 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     };
   }
 
-  if (env[EXECUTOR_FLAG] !== "true") {
-    const err = new Error(`Hostinger SSH executor is disabled. Set ${EXECUTOR_FLAG}=true only after approval and deployment readiness.`);
+  const executorGate = await loadHostingerSshExecutorGate(pool, targetId, env);
+  if (!executorGate.enabled) {
+    const err = new Error(`Hostinger SSH executor is disabled. Set ${EXECUTOR_FLAG}=true or enable ${EXECUTOR_DB_FLAG_KEY} only after approval and deployment readiness.`);
     err.status = 403;
     err.code = "remote_runtime_hostinger_ssh_executor_disabled";
-    err.details = { flag: EXECUTOR_FLAG, secrets_included: false };
+    err.details = { flag: EXECUTOR_FLAG, db_gate: executorGate, secrets_included: false };
     throw err;
   }
   if (!plan.dispatch_ready) {
