@@ -682,9 +682,51 @@ export async function persistExternalPromptArtifact(input = {}, deps = {}) {
   return result;
 }
 
-export async function getSkillRuntimeCoverage(_input = {}, deps = {}) {
-  const [rows] = await (await poolFrom(deps)).query("SELECT * FROM v_skill_runtime_coverage ORDER BY skill_key");
-  return { rows, total: rows.length, secrets_included: false };
+export async function getSkillRuntimeCoverage(input = {}, deps = {}) {
+  const pool = await poolFrom(deps);
+  const where = [];
+  const params = [];
+  const skillKey = String(input.skill_key || "").trim();
+  const skillType = String(input.skill_type || "").trim();
+  const coverageStatus = String(input.coverage_status || "").trim();
+  const allowedSkillTypes = new Set(["logic_execution", "api_access", "data_read", "data_write", "system_control"]);
+  if (skillType && !allowedSkillTypes.has(skillType)) {
+    const error = new Error("Unsupported skill_type filter.");
+    error.status = 400;
+    error.code = "agent_skill_coverage_skill_type_invalid";
+    throw error;
+  }
+  if (coverageStatus && !["covered", "gap"].includes(coverageStatus)) {
+    const error = new Error("coverage_status must be covered or gap.");
+    error.status = 400;
+    error.code = "agent_skill_coverage_status_invalid";
+    throw error;
+  }
+  if (skillKey) { where.push("skill_key = ?"); params.push(skillKey); }
+  if (skillType) { where.push("skill_type = ?"); params.push(skillType); }
+  if (coverageStatus) { where.push("coverage_status = ?"); params.push(coverageStatus); }
+  const limit = Math.max(1, Math.min(Number(input.limit) || 100, 250));
+  params.push(limit);
+  const [rows] = await pool.query(
+    `SELECT * FROM v_skill_runtime_coverage
+     ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+     ORDER BY skill_type, skill_key
+     LIMIT ?`,
+    params
+  );
+  return {
+    rows,
+    total: rows.length,
+    covered_count: rows.filter((row) => row.coverage_status === "covered").length,
+    gap_count: rows.filter((row) => row.coverage_status === "gap").length,
+    filters: {
+      skill_key: skillKey || null,
+      skill_type: skillType || null,
+      coverage_status: coverageStatus || null,
+      limit,
+    },
+    secrets_included: false,
+  };
 }
 
 export async function resolveMemoryScope(input = {}, deps = {}) {

@@ -86,13 +86,20 @@ export async function runLogicWithModel(input = {}, deps = {}) {
     logic_body = {},
     user_input = "",
     context = {},
+    agent_system_prompt = "",
+    engine_skill_prompts = [],
     tools = [],
     conversation = [],
     max_iterations = 5,
   } = input;
 
   const execution_trace_id = randomUUID();
-  const systemPrompt = assembleAgentSystemPrompt({ logicBody: logic_body, context });
+  const systemPrompt = assembleAgentSystemPrompt({
+    logicBody: logic_body,
+    context,
+    agentSystemPrompt: agent_system_prompt,
+    engineSkillPrompts: engine_skill_prompts,
+  });
 
   let messages = [
     { role: "system", content: systemPrompt },
