@@ -202,7 +202,7 @@ assert.doesNotMatch(migration, /\b(?:DROP|TRUNCATE|DELETE)\b/i);
 assert.equal((migration.match(/CREATE TABLE IF NOT EXISTS/g) || []).length, 4);
 assert.match(migration, /ON DUPLICATE KEY UPDATE/);
 assert.match(migration, /database_table_lifecycle_registry/);
-assert.match(runner, /243_sprint68_growth_intelligence_product_registry\.sql/);
+assert.doesNotMatch(runner, /"243_sprint68_growth_intelligence_product_registry\.sql"/);
 const growthOpenApiSection = openapi.slice(
   openapi.indexOf("  /tenants/{tenant_id}/brands/{brand_key}/growth-intelligence/pilot:"),
   openapi.indexOf("  /planner/")
