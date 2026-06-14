@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   compileSequentialPlanSteps,
+  decideSequentialPlanApproval,
   persistCompiledSequentialPlan,
   runSequentialPlan,
   tickSequentialPlan,
@@ -21,6 +22,10 @@ assert.throws(
   () => compileSequentialPlanSteps([{ step_key: "bad", depends_on: ["future"] }], { planId: "plan-1", tenantId: "tenant-1" }),
   /unknown or later step/
 );
+assert.throws(
+  () => compileSequentialPlanSteps([{ step_key: "secret", input: { api_key: "not-allowed" } }], { planId: "plan-1", tenantId: "tenant-1" }),
+  /Secret-like field/
+);
 assert.equal(verifySequentialStepResult({ success_criteria: { result_ok: true, required_output_fields: ["output.id"] } }, { ok: true, output: { id: "x" } }).passed, true);
 assert.deepEqual(
   verifySequentialStepResult({ success_criteria: { result_ok: true, required_output_fields: ["output.id"] } }, { ok: true, output: {} }).failures,
@@ -32,6 +37,7 @@ const state = {
   steps: [],
   events: [],
   holds: [],
+  workflowRuns: [],
 };
 
 const connection = {
@@ -44,6 +50,12 @@ const connection = {
     if (text.startsWith("SELECT plan_id, tenant_id, plan_status, runtime_status FROM execution_plans")) return [[state.plans[0]]];
     if (text.startsWith("SELECT * FROM execution_plans WHERE plan_id")) return [[state.plans[0]]];
     if (text.startsWith("SELECT * FROM execution_plan_steps WHERE plan_id")) return [[...state.steps].sort((a, b) => a.step_order - b.step_order)];
+    if (text.startsWith("SELECT * FROM approval_holds WHERE hold_id")) {
+      return [[state.holds.find((hold) => hold.hold_id === params[0])].filter(Boolean)];
+    }
+    if (text.startsWith("SELECT * FROM execution_plan_steps WHERE plan_step_id") && text.includes("LIMIT 1 FOR UPDATE")) {
+      return [[state.steps.find((step) => step.plan_step_id === params[0])].filter(Boolean)];
+    }
     if (text.startsWith("SELECT * FROM execution_plan_steps WHERE plan_step_id")) {
       return [[state.steps.find((step) => step.plan_step_id === params[0] && step.claim_token === params[1])].filter(Boolean)];
     }
@@ -59,7 +71,16 @@ const connection = {
       return [{ affectedRows: 1 }];
     }
     if (text.startsWith("INSERT INTO execution_plan_events")) { state.events.push({ params }); return [{ affectedRows: 1 }]; }
-    if (text.startsWith("INSERT INTO approval_holds")) { state.holds.push({ hold_id: params[0], plan_step_id: params[2] }); return [{ affectedRows: 1 }]; }
+    if (text.startsWith("INSERT INTO workflow_runs")) {
+      const existing = state.workflowRuns.find((run) => run.run_id === params[0]);
+      const row = { run_id: params[0], tenant_id: params[1], status: "awaiting_approval", current_step: params[5] };
+      if (existing) Object.assign(existing, row); else state.workflowRuns.push(row);
+      return [{ affectedRows: 1 }];
+    }
+    if (text.startsWith("INSERT INTO approval_holds")) {
+      state.holds.push({ hold_id: params[0], run_id: params[1], tenant_id: params[2], status: "open", execution_context_json: params[5] });
+      return [{ affectedRows: 1 }];
+    }
     if (text.startsWith("UPDATE execution_plans SET plan_status = 'validated', runtime_status = 'validated'")) {
       state.plans[0].plan_status = "validated";
       state.plans[0].runtime_status = "validated";
@@ -69,6 +90,26 @@ const connection = {
       state.plans[0].plan_status = params[0];
       state.plans[0].runtime_status = params[1];
       return [{ affectedRows: 1 }];
+    }
+    if (text.startsWith("UPDATE approval_holds SET status = ?")) {
+      const hold = state.holds.find((item) => item.hold_id === params[3]);
+      if (hold) hold.status = params[0];
+      return [{ affectedRows: hold ? 1 : 0 }];
+    }
+    if (text.startsWith("UPDATE workflow_runs SET status = ?")) {
+      const run = state.workflowRuns.find((item) => item.run_id === params[3]);
+      if (run) { run.status = params[0]; run.current_step = params[1]; }
+      return [{ affectedRows: run ? 1 : 0 }];
+    }
+    if (text.startsWith("UPDATE execution_plan_steps SET status = ?, approval_policy_json")) {
+      const step = state.steps.find((item) => item.plan_step_id === params[3]);
+      if (step) {
+        step.status = params[0];
+        const policy = JSON.parse(step.approval_policy_json || "{}");
+        policy.approved = params[1];
+        step.approval_policy_json = JSON.stringify(policy);
+      }
+      return [{ affectedRows: step ? 1 : 0 }];
     }
     if (text.startsWith("UPDATE execution_plan_steps SET status = 'ready'")) {
       const step = state.steps.find((item) => item.plan_step_id === params[0]);
@@ -118,6 +159,13 @@ assert.equal(state.plans[0].plan_status, "validated");
 assert.equal(state.plans[0].runtime_status, "awaiting_approval");
 assert.equal(state.holds.length, 1);
 assert.equal(state.steps[2].status, "awaiting_approval");
+assert.equal(state.workflowRuns[0].run_id, "plan-1");
+assert.equal(state.workflowRuns[0].status, "awaiting_approval");
+const claimedEvent = state.events.find(({ params }) => params[4] === "step_claimed");
+assert(claimedEvent, "step_claimed event must be recorded");
+const claimEvidence = JSON.parse(claimedEvent.params[8]);
+assert.match(claimEvidence.claim_token_sha256, /^[0-9a-f]{64}$/);
+assert.equal("claim_token" in claimEvidence, false);
 
 const duplicateTick = await tickSequentialPlan({
   pool,
@@ -128,6 +176,23 @@ assert.equal(duplicateTick.reason, "awaiting_approval");
 assert.equal(duplicateTick.plan_status, "awaiting_approval");
 assert.equal(state.plans[0].plan_status, "validated");
 assert.equal(state.plans[0].runtime_status, "awaiting_approval");
+
+const approval = await decideSequentialPlanApproval({
+  pool, holdId: state.holds[0].hold_id, decision: "approved", decisionBy: "reviewer-1",
+});
+assert.equal(approval.plan_status, "validated");
+assert.equal(approval.step_status, "ready");
+assert.equal(state.holds[0].status, "approved");
+assert.equal(state.steps[2].status, "ready");
+assert.equal(state.workflowRuns[0].status, "pending");
+assert.equal(state.plans[0].runtime_status, "validated");
+
+const resumed = await runSequentialPlan({
+  pool, planId: "plan-1",
+  executeStep: async (step) => ({ ok: true, step_key: step.step_key }),
+});
+assert.equal(resumed.last_tick.plan_status, "completed");
+assert.equal(state.steps[2].status, "completed");
 
 const migration = readFileSync("migrations/244_sprint68_sequential_plan_orchestrator.sql", "utf8");
 const plannerRoutes = readFileSync("routes/plannerRoutes.js", "utf8");
@@ -151,9 +216,9 @@ assert.match(plannerRoutes, /function principalActor\(req\)/);
 assert.equal(plannerRoutes.includes("req.body?.actor_id"), false, "planner routes must derive audit actor from authenticated principal");
 assert.match(approvalRoutes, /LIMIT 1 FOR UPDATE/);
 assert.match(approvalRoutes, /hold_decision_race/);
-assert.match(approvalRoutes, /step_status: nextStepStatus/);
+assert.match(approvalRoutes, /decideSequentialPlanApproval/);
 assert.equal(approvalRoutes.includes("const { decision, decision_by"), false, "approval actor must not come from request body");
-assert.match(sequentialRuntime, /claim_token_hash: sha256\(claimToken\)/);
+assert.match(sequentialRuntime, /claim_token_sha256: sha256\(claimToken\)/);
 assert.equal(sequentialRuntime.includes("evidence: { claim_token: claimToken }"), false, "raw claim token must never enter audit evidence");
 assert.match(jobRunner, /runSequentialPlan/);
 const sequentialOpenApiSection = openapi.slice(
@@ -161,7 +226,7 @@ const sequentialOpenApiSection = openapi.slice(
   openapi.indexOf("  /planner/plans/{plan_id}/timeline:") + 1200
 );
 assert.equal(sequentialOpenApiSection.includes("actor_id:"), false, "Sequential Plan OpenAPI must derive audit actor from authentication");
-assert.match(governedMigrationRunner, /244_sprint68_sequential_plan_orchestrator\.sql/);
+assert.doesNotMatch(governedMigrationRunner, /"244_sprint68_sequential_plan_orchestrator\.sql"/);
 for (const operationId of ["compileSequentialPlan", "tickSequentialPlan", "runSequentialPlan", "enqueueSequentialPlan", "resumeSequentialPlan", "getSequentialPlanTimeline"]) {
   assert.match(openapi, new RegExp(`operationId: ${operationId}`));
 }
