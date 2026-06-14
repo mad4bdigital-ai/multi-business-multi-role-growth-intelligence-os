@@ -448,9 +448,14 @@ export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { 
     [tenantId, negativeTenantId]
   );
   const checks = [
-    { name: "negative_blocks_before_provider", pass: negative?.ok === false && Number(negative?.provider_calls_made || 0) === 0 && negative?.reason_code === "blocked_missing_platform_resource_authority_binding" },
-    { name: "binding_created_read_only", pass: create?.ok === true && create?.binding?.permission_level === "read_only" && (create?.binding?.allowed_modes || []).includes("read_only") },
-    { name: "positive_executes_read_only", pass: positive?.ok === true && positive?.apply_allowed === false && positive?.mutations_executed === false && Number(positive?.summary?.provider_calls_made || 0) > 0 },
+    { name: "descriptor_handler_present", pass: descriptorHandlersPresent },
+    { name: "direct_public_tool_call_succeeds", pass: create?.ok === true && listed?.ok === true && positive?.ok === true && revoke?.ok === true },
+    { name: "tenant_scope_forced", pass: negative?.tenant_scope?.tenant_id === negativeTenantId && positive?.tenant_scope?.tenant_id === tenantId && positive?.tenant_scope?.tenant_id !== conflictingTenantId },
+    { name: "missing_binding_blocks_before_provider", pass: negative?.ok === false && Number(negative?.provider_calls_made || 0) === 0 && negative?.reason_code === "blocked_missing_platform_resource_authority_binding" },
+    { name: "active_binding_allows_read_only", pass: positive?.ok === true && positive?.apply_allowed === false && positive?.mutations_executed === false && Number(positive?.summary?.provider_calls_made || 0) > 0 },
+    { name: "binding_lifecycle_direct", pass: create?.binding?.permission_level === "read_only" && (create?.binding?.allowed_modes || []).includes("read_only") && listed?.bindings?.some((binding) => binding.binding_id === bindingId) && revoke?.binding?.status === "revoked" },
+    { name: "no_mutation", pass: positive?.apply_allowed === false && positive?.mutations_executed === false },
+    { name: "no_secrets", pass: [negative, create, listed, positive, revoke].every((result) => result?.secrets_included === false) },
     { name: "v2_evidence_written", pass: Boolean(positive?.evidence?.evidence_id) && positive?.evidence?.metadata?.schema_version === "tenant_repository_pr_reconciliation_evidence.v2" },
     { name: "cleanup_revoked_binding", pass: revoke?.ok === true && String(cleanupRows?.[0]?.active_smoke_bindings || "0") === "0" },
   ];
