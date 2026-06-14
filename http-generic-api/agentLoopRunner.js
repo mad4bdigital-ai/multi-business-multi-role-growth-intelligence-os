@@ -305,7 +305,41 @@ export async function runAgentLoop(plan, deps = {}) {
     context.workspace_app_connection_count = appCtx.connected_apps.length;
   }
 
-  const tools = buildToolsFromEngines(workflow.mapped_engines || "");
+  const candidateTools = buildToolsFromEngines(workflow.mapped_engines || "");
+  const toolExposure = typeof deps.filterAuthorizedTools === "function"
+    ? await deps.filterAuthorizedTools(candidateTools, context)
+    : {
+        tools: [],
+        decisions: candidateTools.map((tool) => ({
+          allowed: false,
+          status: "denied",
+          code: "agent_tool_authorization_filter_unavailable",
+          tool_key: tool?.function?.name || null,
+          blockers: ["agent_tool_authorization_filter_unavailable"],
+          secrets_included: false,
+        })),
+        candidate_count: candidateTools.length,
+        authorized_count: 0,
+        denied_count: candidateTools.length,
+        secrets_included: false,
+      };
+  const tools = toolExposure.tools;
+  context.authorized_tool_manifest = {
+    candidate_count: toolExposure.candidate_count,
+    authorized_count: toolExposure.authorized_count,
+    denied_count: toolExposure.denied_count,
+    decisions: toolExposure.decisions.map((decision) => ({
+      tool_key: decision.tool_key || null,
+      allowed: decision.allowed === true,
+      code: decision.code || null,
+      consequence_class: decision.classification?.consequence_class || null,
+      action_key: decision.action?.action_key || null,
+      matched_skill_key: decision.skill?.matched_skill_key || null,
+      blocker_codes: decision.blockers || [],
+      secrets_included: false,
+    })),
+    secrets_included: false,
+  };
 
   const execution_class = workflow.execution_class || "standard";
   assertPreflightAllowed(await evaluateAgentLoopPreflight({
