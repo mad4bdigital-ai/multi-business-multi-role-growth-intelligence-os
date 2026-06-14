@@ -94,3 +94,5 @@ Monitor:
 - workflow-run creation after a controlled supervisor dispatch.
 
 Do not automatically process historical pending chain events. Confirm tenant, workflow, intent, and replay authority first. Events with unresolved workflow identity must be classified, not replayed. The current production checkpoint is recorded in `execution-log-supervisor-production-activation-2026-06-15.md`.
+
+At the 2026-06-15 checkpoint, migration `1007_sprint69_archive_invalid_historical_chain_events.sql` classified 4 unresolved historical events as `skipped`; total pending chain events read back as 0, and the idempotency apply affected 0 rows.

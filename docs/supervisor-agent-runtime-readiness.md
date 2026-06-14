@@ -67,5 +67,10 @@ The live schema check proves presence, not behavioral correctness. `npm run supe
 - Controlled live behavioral certification passed with atomic claim, workflow-run creation, fallback dispatch, cycle rejection, depth rejection, terminal-plan protection, and one-time handoff controls.
 - Behavioral certification used transaction rollback, left no fixture plans/events/runs, and made 0 external provider calls.
 - Authoritative behavioral evidence: `execution_log.id=15015`, trace `supervisor_behavioral_certification:2026-06-14:15b5dfb2-b3bf-4b15-839e-f23467942404`, status `success`.
+- Migration `1007_sprint69_archive_invalid_historical_chain_events.sql` classified the 4 unresolved historical events as `skipped`; total pending chain events are now 0.
+- Migration `1007` ledger evidence:
+  - initial apply run: `10b0c95a-5835-4a65-9b09-8d80bef630b3`;
+  - idempotency/readback run: `4c562c5a-2699-4cae-ab79-1e10f9c6e735`;
+  - checksum: `fef025a08080c79caa4f83107b04e6c45f5f842e011469fe9c3b77d02cf0608f`.
 
-The original activation warning remains historically accurate: no real supervisor workflow dispatch was observed in the preceding 48 hours. Four historical pending events were found to contain an unresolved semicolon-delimited composite workflow identity and have no replay authority. Migration `1007_sprint69_archive_invalid_historical_chain_events.sql` classifies only those invalid historical events as `skipped`; they must never be automatically replayed. This checkpoint claims controlled, provider-free behavioral certification, not real provider execution. See `execution-log-supervisor-production-activation-2026-06-15.md`.
+The original activation warning remains historically accurate: no real supervisor workflow dispatch was observed in the preceding 48 hours. The four historical events contained an unresolved semicolon-delimited composite workflow identity and had no replay authority. They were classified, never replayed. This checkpoint claims controlled, provider-free behavioral certification, not real provider execution. See `execution-log-supervisor-production-activation-2026-06-15.md`.
