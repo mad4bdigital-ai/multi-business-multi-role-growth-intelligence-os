@@ -710,8 +710,7 @@ export async function resolveMemoryScope(input = {}, deps = {}) {
   );
   const requestedKeys = new Set(activeScopes.map((scope) => `${scope.scope_type}:${scope.scope_ref}`));
   const allowedLinks = links.filter((link) =>
-    requestedKeys.has(`${link.source_scope_type}:${link.source_scope_ref}`) &&
-    requestedKeys.has(`${link.target_scope_type}:${link.target_scope_ref}`)
+    requestedKeys.has(`${link.scope_type}:${link.scope_ref}`)
   );
   return {
     tenant_id: tenantId,
