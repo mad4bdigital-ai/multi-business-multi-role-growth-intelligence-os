@@ -393,11 +393,15 @@ const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
     source_key: "repository_tenant_intelligence_v2",
     tools: TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
     handlers: RepositoryTenantIntelligenceV2Runtime,
+    readiness_tool: "tenant_repository_intelligence_v2_readiness_smoke",
+    readiness_args: { limit: 1 },
   },
   {
     source_key: "repository_tenant_advisory_comment_v5",
     tools: TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
     handlers: RepositoryTenantAdvisoryCommentV5Runtime,
+    readiness_tool: "tenant_repository_advisory_comment_v5_readiness_smoke",
+    readiness_args: { limit: 1 },
   },
 ];
 
