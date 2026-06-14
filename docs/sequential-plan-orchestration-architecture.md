@@ -56,3 +56,14 @@ node http-generic-api/test-execution-plan-dispatch-route.mjs
 node http-generic-api/test-platform-recomposition-docs.mjs
 node build-canonicals.mjs --check
 ```
+
+## Supervisor Runtime Boundary
+
+Supervisor-agent orchestration may select only healthy active agents with active route-derived `logic.evaluate_pack` authority. Migrations `1003_sprint68_supervisor_chain_runtime_guards.sql` and `1006_sprint69_supervisor_route_logic_skill_grants.sql` establish the chain-lineage and route-derived grant prerequisites.
+
+`npm run supervisor:readiness:live` proves schema, grant coverage, and configured fallback health. It does not prove behavioral dispatch. A production claim must distinguish:
+
+- `execution_ready=true`: static and live authority prerequisites pass;
+- behavioral certification: controlled dispatch, fallback, cycle, and depth evidence has been observed.
+
+The 2026-06-15 production checkpoint has the first state but not the second. See `supervisor-agent-runtime-readiness.md` and `execution-log-supervisor-production-activation-2026-06-15.md`.
