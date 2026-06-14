@@ -6,6 +6,7 @@ const sink = readFileSync(new URL("./outputSinkRouter.js", import.meta.url), "ut
 const connector = readFileSync(new URL("./connectorExecutor.js", import.meta.url), "utf8");
 const migration = readFileSync(new URL("./migrations/1003_sprint68_supervisor_chain_runtime_guards.sql", import.meta.url), "utf8");
 const grantMigration = readFileSync(new URL("./migrations/1006_sprint69_supervisor_route_logic_skill_grants.sql", import.meta.url), "utf8");
+const historicalChainMigration = readFileSync(new URL("./migrations/1007_sprint69_archive_invalid_historical_chain_events.sql", import.meta.url), "utf8");
 const runner = readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
 
 assert.match(connector, /required_agent_skill_grant_missing/);
@@ -29,6 +30,7 @@ assert.match(chain, /chain_depth_exceeded/);
 assert.match(sink, /chain_cycle_detected/);
 assert.match(sink, /workflow_path_json/);
 assert.match(sink, /dispatched_run_id/);
+assert.match(sink, /split\(\/\[\|;,\]\//);
 
 for (const column of [
   "root_event_id",
@@ -48,6 +50,9 @@ assert.match(grantMigration, /INSERT IGNORE INTO `agent_skill_grants`/);
 assert.match(grantMigration, /logic\.evaluate_pack/);
 assert.match(grantMigration, /TRIM\(tr\.active\)/);
 assert.match(grantMigration, /NOT EXISTS/);
+assert.match(historicalChainMigration, /workflow_identity_missing_historical/);
+assert.match(historicalChainMigration, /e\.status = 'pending'/);
+assert.match(historicalChainMigration, /w\.workflow_id IS NULL/);
 assert.match(runner, /governed_migration_authorization_registry/);
 assert.doesNotMatch(runner, /1003_sprint68_supervisor_chain_runtime_guards\.sql/);
 

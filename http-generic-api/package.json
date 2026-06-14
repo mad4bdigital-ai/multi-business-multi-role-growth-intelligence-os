@@ -15,6 +15,8 @@
     "manifest:deployment": "node scripts/generate-deployment-manifest.mjs",
     "supervisor:readiness": "node scripts/supervisor-runtime-readiness.mjs",
     "supervisor:readiness:live": "node --env-file=.env scripts/supervisor-runtime-readiness.mjs --live",
+    "supervisor:certify": "node scripts/supervisor-behavioral-certification.mjs",
+    "supervisor:certify:live": "node --env-file=.env scripts/supervisor-behavioral-certification.mjs --apply --confirm=APPLY_SUPERVISOR_BEHAVIORAL_CERTIFICATION",
     "smoke:dev-autopilot": "node scripts/dev-autopilot-smoke.mjs",
     "smoke:route-selector": "node scripts/route-selector-runtime-smoke.mjs",
     "smoke:installer-reprovision": "node scripts/installer-reprovision-smoke.mjs",

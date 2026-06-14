@@ -11,19 +11,29 @@ import { getPool } from "./db.js";
 import { dispatchPlan } from "./connectorExecutor.js"; // Assuming this is the correct dispatcher
 import { resolveRuntimeWorkflow } from "./runtimeWorkflowResolver.js";
 
+function runtimeDeps(deps = {}) {
+  return {
+    pool: deps.pool || getPool(),
+    dispatchPlan: deps.dispatchPlan || dispatchPlan,
+    resolveRuntimeWorkflow: deps.resolveRuntimeWorkflow || resolveRuntimeWorkflow,
+    randomUUID: deps.randomUUID || randomUUID,
+  };
+}
+
 // ─── Loaders ───────────────────────────────────────────────────────────────────
 
-async function loadEvent(event_id) {
-  const [rows] = await getPool().query(
+async function loadEvent(event_id, deps = {}) {
+  const [rows] = await runtimeDeps(deps).pool.query(
     "SELECT * FROM `agent_chain_events` WHERE event_id = ? LIMIT 1",
     [event_id]
   );
   return rows[0] || null;
 }
 
-async function resolveAgentForWorkflow(workflow_key, hintAgentId) {
+async function resolveAgentForWorkflow(workflow_key, hintAgentId, deps = {}) {
+  const { pool } = runtimeDeps(deps);
   if (hintAgentId) {
-    const [hintRows] = await getPool().query(
+    const [hintRows] = await pool.query(
       `SELECT agent_id FROM \`agents\`
        WHERE agent_id = ? AND status = 'active' AND health_status = 'active'
        LIMIT 1`,
@@ -31,7 +41,7 @@ async function resolveAgentForWorkflow(workflow_key, hintAgentId) {
     ).catch(() => [[]]);
     if (hintRows[0]?.agent_id) return hintRows[0].agent_id;
   }
-  const [rows] = await getPool().query(
+  const [rows] = await pool.query(
     `SELECT a.agent_id FROM \`task_routes\` tr
      JOIN \`agents\` a ON a.execution_layer = tr.execution_layer
      WHERE tr.workflow_key = ? AND a.status = 'active' AND a.health_status = 'active'
@@ -41,9 +51,9 @@ async function resolveAgentForWorkflow(workflow_key, hintAgentId) {
   return rows[0]?.agent_id || null;
 }
 
-async function resolveFallbackAgent(agent_id) {
+async function resolveFallbackAgent(agent_id, deps = {}) {
   if (!agent_id) return null;
-  const [rows] = await getPool().query(
+  const [rows] = await runtimeDeps(deps).pool.query(
     `SELECT fallback.agent_id
      FROM \`agents\` source
      JOIN \`agents\` fallback ON fallback.agent_id = source.fallback_agent_id
@@ -57,11 +67,13 @@ async function resolveFallbackAgent(agent_id) {
 
 // ─── Plan factory ──────────────────────────────────────────────────────────────
 
-async function createChainPlan(event, workflowDef, overrideAgentId = null) {
-  const plan_id = randomUUID();
+async function createChainPlan(event, workflowDef, overrideAgentId = null, deps = {}) {
+  const { pool, randomUUID: nextId } = runtimeDeps(deps);
+  const plan_id = nextId();
   const agent_id = overrideAgentId || await resolveAgentForWorkflow(
     event.target_workflow_key,
-    event.target_agent_id
+    event.target_agent_id,
+    deps
   );
   if (!agent_id) {
     const error = new Error(`No healthy agent is available for workflow '${event.target_workflow_key}'.`);
@@ -72,7 +84,7 @@ async function createChainPlan(event, workflowDef, overrideAgentId = null) {
   let sourcePayload = {};
   try { sourcePayload = JSON.parse(event.payload_json || "{}"); } catch {}
 
-  await getPool().query(
+  await pool.query(
     `INSERT INTO \`execution_plans\`
        (plan_id, tenant_id, user_id, agent_id, workflow_key, workflow_id, intent_key,
         plan_status, access_decision, service_mode, steps_json, created_at)
@@ -93,9 +105,10 @@ async function createChainPlan(event, workflowDef, overrideAgentId = null) {
 
 // ─── Core dispatcher ───────────────────────────────────────────────────────────
 
-export async function dispatchChainEvent(event_id) {
-  const pool = getPool();
-  const pendingEvent = await loadEvent(event_id);
+export async function dispatchChainEvent(event_id, deps = {}) {
+  const runtime = runtimeDeps(deps);
+  const { pool } = runtime;
+  const pendingEvent = await loadEvent(event_id, deps);
   if (!pendingEvent) return { ok: false, error: "event_not_found", event_id };
   let workflowPath = [];
   try {
@@ -124,16 +137,16 @@ export async function dispatchChainEvent(event_id) {
   );
 
   if (claim.affectedRows === 0) {
-    const evt = await loadEvent(event_id);
+    const evt = await loadEvent(event_id, deps);
     return { ok: false, skipped: true, reason: `event already in status '${evt?.status || 'unknown'}'`, event_id };
   }
 
-  const event = await loadEvent(event_id);
+  const event = await loadEvent(event_id, deps);
   if (!event) return { ok: false, error: "event_not_found", event_id };
 
   let plan_id, agent_id, fallback_agent_id, workflowDef, dispatchResult, dispatchError;
   try {
-    const workflowResolution = await resolveRuntimeWorkflow({
+    const workflowResolution = await runtime.resolveRuntimeWorkflow({
       workflow_key: event.target_workflow_key,
     });
     if (!workflowResolution.ok) {
@@ -143,8 +156,8 @@ export async function dispatchChainEvent(event_id) {
     }
     workflowDef = workflowResolution.workflow;
 
-    ({ plan_id, agent_id } = await createChainPlan(event, workflowDef));
-    dispatchResult = await dispatchPlan(plan_id, { apply: false, actor_id: `chain:${event.source_agent_id || "system"}` });
+    ({ plan_id, agent_id } = await createChainPlan(event, workflowDef, null, deps));
+    dispatchResult = await runtime.dispatchPlan(plan_id, { apply: false, actor_id: `chain:${event.source_agent_id || "system"}` });
     if (!dispatchResult.ok) {
       const error = new Error(dispatchResult.error?.message || "dispatchPlan returned ok=false");
       error.code = dispatchResult.error?.code || "chain_primary_dispatch_failed";
@@ -157,11 +170,11 @@ export async function dispatchChainEvent(event_id) {
 
   } catch (err) {
     dispatchError = err;
-    fallback_agent_id = await resolveFallbackAgent(agent_id || event.target_agent_id);
+    fallback_agent_id = await resolveFallbackAgent(agent_id || event.target_agent_id, deps);
     if (workflowDef && fallback_agent_id && fallback_agent_id !== agent_id) {
       try {
-        ({ plan_id, agent_id } = await createChainPlan(event, workflowDef, fallback_agent_id));
-        dispatchResult = await dispatchPlan(plan_id, { apply: false, actor_id: `chain-fallback:${event.source_agent_id || "system"}` });
+        ({ plan_id, agent_id } = await createChainPlan(event, workflowDef, fallback_agent_id, deps));
+        dispatchResult = await runtime.dispatchPlan(plan_id, { apply: false, actor_id: `chain-fallback:${event.source_agent_id || "system"}` });
         if (!dispatchResult.ok) throw new Error(dispatchResult.error?.message || "Fallback dispatch returned ok=false");
         dispatchError = null;
         await pool.query(
@@ -185,20 +198,21 @@ export async function dispatchChainEvent(event_id) {
 
 // ─── Batch sweep ───────────────────────────────────────────────────────────────
 
-export async function dispatchPendingChainEvents({ tenant_id, limit = 20 } = {}) {
+export async function dispatchPendingChainEvents({ tenant_id, limit = 20 } = {}, deps = {}) {
+  const { pool } = runtimeDeps(deps);
   let sql = "SELECT event_id FROM `agent_chain_events` WHERE status = 'pending'";
   const params = [];
   if (tenant_id) { sql += " AND tenant_id = ?"; params.push(tenant_id); }
   sql += " ORDER BY created_at ASC LIMIT ?";
   params.push(Number(limit));
 
-  const [rows] = await getPool().query(sql, params);
+  const [rows] = await pool.query(sql, params);
   if (!rows.length) return { ok: true, dispatched: 0, failed: 0, skipped: 0, results: [] };
 
   // Sequential — avoids lock contention on execution_plan creation for the same tenant.
   const results = [];
   for (const { event_id } of rows) {
-    results.push(await dispatchChainEvent(event_id));
+    results.push(await dispatchChainEvent(event_id, deps));
   }
   const succeeded = results.filter(r => r.ok).length;
   const failed = results.filter(r => !r.ok && !r.skipped).length;

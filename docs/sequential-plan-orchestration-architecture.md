@@ -64,6 +64,7 @@ Supervisor-agent orchestration may select only healthy active agents with active
 `npm run supervisor:readiness:live` proves schema, grant coverage, and configured fallback health. It does not prove behavioral dispatch. A production claim must distinguish:
 
 - `execution_ready=true`: static and live authority prerequisites pass;
-- behavioral certification: controlled dispatch, fallback, cycle, and depth evidence has been observed.
+- `behaviorally_certified`: controlled transaction-rollback dispatch, fallback, duplicate prevention, cancellation, handoff, cycle, and depth evidence has been observed;
+- provider execution certified: an independently authorized real provider execution has been observed.
 
-The 2026-06-15 production checkpoint has the first state but not the second. See `supervisor-agent-runtime-readiness.md` and `execution-log-supervisor-production-activation-2026-06-15.md`.
+The 2026-06-15 production checkpoint has the first two states. The behavioral certification left no fixture records and made no provider calls. Real provider execution remains outside this checkpoint. See `supervisor-agent-runtime-readiness.md` and `execution-log-supervisor-production-activation-2026-06-15.md`.

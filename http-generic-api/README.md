@@ -26,9 +26,11 @@ Supervisor-agent authority and chain prerequisites can be checked without provid
 ```bash
 npm run supervisor:readiness
 npm run supervisor:readiness:live
+npm run supervisor:certify
+npm run supervisor:certify:live
 ```
 
-The live command verifies required schema, active route-derived `logic.evaluate_pack` grant coverage, and configured fallback-agent health. It does not process pending chain events or certify behavioral dispatch. See `../docs/supervisor-agent-runtime-readiness.md`.
+The readiness live command verifies required schema, active route-derived `logic.evaluate_pack` grant coverage, and configured fallback-agent health. The certification live command verifies controlled dispatcher behavior inside a database transaction, rolls all fixtures back, and makes no provider calls. Neither command processes historical pending chain events. See `../docs/supervisor-agent-runtime-readiness.md`.
 
 ## Key behavior
 - Resolves `parent_action_key`, `endpoint_key`, and brand target from registry sheets

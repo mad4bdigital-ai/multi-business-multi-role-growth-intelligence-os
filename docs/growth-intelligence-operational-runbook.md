@@ -75,6 +75,15 @@ Retain the JSON report, Markdown report, approval queue view, readback object, a
 
 For supervisor-agent execution, run `npm run supervisor:readiness:live` before widening authority. Treat `execution_ready=true` as prerequisite evidence, not as proof of a completed dispatch.
 
+Run provider-free behavioral certification with:
+
+```bash
+npm run supervisor:certify
+npm run supervisor:certify:live
+```
+
+The live certification uses controlled database fixtures inside a transaction and rolls them back. Confirm persistent fixture plans/events/runs are all zero and provider calls are zero before accepting `behaviorally_certified`.
+
 Monitor:
 
 - active routed agents missing `logic.evaluate_pack` grants;
@@ -84,4 +93,6 @@ Monitor:
 - observed versus configured chain depth;
 - workflow-run creation after a controlled supervisor dispatch.
 
-Do not automatically process historical pending chain events. Confirm tenant, workflow, intent, and replay authority first. The current production checkpoint is recorded in `execution-log-supervisor-production-activation-2026-06-15.md`.
+Do not automatically process historical pending chain events. Confirm tenant, workflow, intent, and replay authority first. Events with unresolved workflow identity must be classified, not replayed. The current production checkpoint is recorded in `execution-log-supervisor-production-activation-2026-06-15.md`.
+
+At the 2026-06-15 checkpoint, migration `1007_sprint69_archive_invalid_historical_chain_events.sql` classified 4 unresolved historical events as `skipped`; total pending chain events read back as 0, and the idempotency apply affected 0 rows.
