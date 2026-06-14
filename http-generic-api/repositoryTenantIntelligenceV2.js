@@ -462,6 +462,15 @@ export async function tenantRepositoryIntelligenceV3V4ReadinessSmoke(args = {}, 
   return { ok: pass, tool: "tenant_repository_intelligence_v3_v4_readiness_smoke", status: pass ? "pass" : "fail", classification: pass ? "tenant_repository_intelligence_v3_v4_ready" : "tenant_repository_intelligence_v3_v4_not_ready", checks, negative: { ok: negative?.ok, classification: negative?.classification, reason_code: negative?.reason_code, provider_calls_made: negative?.provider_calls_made, secrets_included: false }, positive_report: { ok: positiveReport?.ok, classification: positiveReport?.classification, pr_count: positiveReport?.report?.summary?.pr_count || null, evidence_id: positiveReport?.evidence?.evidence_id || null, apply_allowed: positiveReport?.apply_allowed, mutations_executed: positiveReport?.mutations_executed, secrets_included: false }, planner: { ok: planner?.ok, classification: planner?.classification, planned_action_counts: planner?.plan?.summary?.planned_action_counts || null, evidence_id: planner?.evidence?.evidence_id || null, apply_allowed: planner?.apply_allowed, mutations_executed: planner?.mutations_executed, secrets_included: false }, cleanup: cleanupRows?.[0] || null, binding_id: bindingId || null, apply_allowed: false, mutations_executed: false, secrets_included: false };
 }
 
+// Explicit compatibility aliases for descriptor names whose public tool names do not
+// map one-to-one to the original implementation function names. Keep these exports
+// stable so descriptor dispatch, readiness checks, and future registry loaders resolve
+// the same runtime entrypoints without bypassing tenant/read-only enforcement.
+export const tenantRepoPrReconciliationSweep = tenantRepositoryPrReconciliationSweep;
+export const platformResourceAuthorityBindingCreate = createRepositoryAuthorityBinding;
+export const platformResourceAuthorityBindingList = listRepositoryAuthorityBindings;
+export const platformResourceAuthorityBindingRevoke = revokeRepositoryAuthorityBinding;
+
 // Release-readiness token evidence for Repository Advisory Comment V5 spread-loaded system tools:
 // tenant_repository_advisory_comment_preview, tenant_repository_advisory_comment_apply,
 // tenant_repository_advisory_comment_readback, tenant_repository_advisory_comment_v5_readiness_smoke.
