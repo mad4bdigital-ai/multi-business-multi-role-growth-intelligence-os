@@ -1737,9 +1737,11 @@ async function checkRepositoryIntelligenceV2Readiness() {
     };
   } catch (err) {
     return {
-      status: "warn",
-      detail: `Repository Intelligence V2 readiness check could not complete: ${err?.message || err}`,
-      executes_tools: false,
+      status: "fail",
+      detail: `Repository Intelligence V2 public dispatcher readiness check could not complete: ${err?.message || err}`,
+      reason_code: err?.code || "repository_intelligence_v2_readiness_exception",
+      executes_tools: true,
+      repository_mutations_executed: false,
       secrets_included: false,
     };
   }
