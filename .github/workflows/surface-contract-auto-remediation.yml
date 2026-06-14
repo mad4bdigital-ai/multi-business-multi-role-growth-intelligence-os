@@ -1,0 +1,125 @@
+name: Surface Contract Auto Remediation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "http-generic-api/migrations/**"
+      - "http-generic-api/scripts/surface-contract-*.mjs"
+      - "docs/surface-contract-*.json"
+      - "docs/surface-contract-*.md"
+      - "Updating Registry Patch Index.md"
+      - "deployment_parity_checklist.md"
+      - "docs/ai-docs-agent-governance.md"
+      - "docs/auto-docs-agent/README.md"
+      - "docs/change-documentation-governance.md"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: surface-contract-auto-remediation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  remediate:
+    name: Generate reviewable remediation PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Install runtime dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Generate checksum-bound remediation
+        id: remediation
+        working-directory: http-generic-api
+        run: node scripts/surface-contract-auto-remediator.mjs --write
+
+      - name: Verify generated state and focused regression coverage
+        working-directory: http-generic-api
+        run: |
+          node scripts/surface-contract-auto-remediator.mjs --check
+          node scripts/surface-contract-discovery.mjs --check
+          node scripts/surface-contract-gap-triage.mjs --check --enforce-new-gaps
+          node test-surface-contract-auto-remediation.mjs
+          node test-surface-contract-discovery.mjs
+          node test-surface-contract-governance-loop.mjs
+
+      - name: Enforce documentation-only mutation boundary
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git status --porcelain | sed -E 's/^.. //')
+          if [ "${#changed[@]}" -eq 0 ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          for file in "${changed[@]}"; do
+            case "$file" in
+              "Updating Registry Patch Index.md"|\
+              "deployment_parity_checklist.md"|\
+              "docs/ai-docs-agent-governance.md"|\
+              "docs/auto-docs-agent/README.md"|\
+              "docs/change-documentation-governance.md"|\
+              docs/surface-contract-*.json|\
+              docs/surface-contract-*.md)
+                ;;
+              *)
+                echo "Unexpected auto-remediation mutation: $file" >&2
+                exit 1
+                ;;
+            esac
+          done
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+
+      - name: Create remediation pull request
+        if: steps.changes.outputs.has_changes == 'true'
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: surface-contract-auto/${{ github.run_id }}-${{ github.run_attempt }}
+          AUTO_MERGE_ELIGIBLE: ${{ steps.remediation.outputs.auto_merge_eligible }}
+          MANUAL_REVIEW_COUNT: ${{ steps.remediation.outputs.manual_review_count }}
+          REMAINING_QUEUE_ITEMS: ${{ steps.remediation.outputs.remaining_queue_items }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "surface-contract-agent[bot]"
+          git config user.email "surface-contract-agent[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add \
+            "Updating Registry Patch Index.md" \
+            "deployment_parity_checklist.md" \
+            "docs/ai-docs-agent-governance.md" \
+            "docs/auto-docs-agent/README.md" \
+            "docs/change-documentation-governance.md" \
+            docs/surface-contract-*.json \
+            docs/surface-contract-*.md
+          git commit -m "Surface contract agent: remediate documentation and safety evidence"
+          git push origin "$BRANCH"
+          PR_URL=$(gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "Surface contract agent: automated remediation" \
+            --body "Automated, checksum-bound surface-contract remediation. Scope is documentation and generated evidence only. No migration SQL, runtime code, database state, credentials, provider calls, external sends, or deployment actions are changed. Auto-merge eligible: ${AUTO_MERGE_ELIGIBLE}. Manual-review items: ${MANUAL_REVIEW_COUNT}. Remaining queue items: ${REMAINING_QUEUE_ITEMS}.")
+          echo "url=$PR_URL" >> "$GITHUB_OUTPUT"
+          gh workflow run ci.yml --ref "$BRANCH" || true
+          if [ "$AUTO_MERGE_ELIGIBLE" = "true" ]; then
+            gh pr merge "$PR_URL" --auto --squash
+          else
+            echo "PR remains open because manual review is required."
+          fi

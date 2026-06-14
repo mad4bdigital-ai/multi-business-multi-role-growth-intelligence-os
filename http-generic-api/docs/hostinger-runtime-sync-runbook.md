@@ -1,5 +1,7 @@
 # Hostinger Runtime Sync Guard
 
+> Surface-contract auto-remediation boundary: `.github/workflows/surface-contract-auto-remediation.yml` is not a runtime-sync or deployment mechanism. Its successful PR/CI result proves only repository documentation and checksum-bound evidence consistency. It must not be used as proof that `auth.mad4b.com` loaded a commit; Hostinger deployment, `/health`, `/version`, and deployed-commit parity checks remain mandatory.
+
 ## Purpose
 
 This runbook prevents credential-intake or deployment flows from being treated as live-ready when the SQL registry and GitHub `main` are newer than the running Hostinger Node.js runtime.
