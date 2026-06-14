@@ -32,6 +32,9 @@ for (const [toolKey, method, path] of tools) {
 
 assert.equal((migration.match(/'agent_governance_/g) || []).length, 13, "migration must register exactly 13 Agent Governance tools");
 assert(migration.includes("ON DUPLICATE KEY UPDATE"));
+assert(migration.includes("support_ticket.admin_gpt_repair_link"));
+assert(migration.includes("opaque_handoff_id"));
+assert(migration.includes("agent_handoff_state_registry"));
 assert(migration.includes("additionalProperties',false"));
 assert(!migration.includes("'actor_id',JSON_OBJECT"), "client schemas must not expose caller-controlled actor_id");
 assert(!migration.includes("'principal_actor_id',JSON_OBJECT"), "client schemas must not expose principal_actor_id");
