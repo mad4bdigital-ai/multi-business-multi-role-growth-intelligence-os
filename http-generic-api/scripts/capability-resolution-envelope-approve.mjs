@@ -129,7 +129,7 @@ export async function approveCapabilityResolutionEnvelope(args = parseArgs()) {
     approval,
     secrets_included: false,
   };
-  assertNoSecretKeys(updatedEnvelope);
+  assertNoSecretBearingFields(updatedEnvelope);
   const updatedHash = sha256Json(updatedEnvelope);
   await pool.query(
     `INSERT INTO approval_holds
