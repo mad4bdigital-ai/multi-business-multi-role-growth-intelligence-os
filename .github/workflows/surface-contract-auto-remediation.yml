@@ -63,7 +63,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t changed < <(git status --porcelain | sed -E 's/^.. //')
+          changed=()
+          while IFS= read -r -d '' entry; do
+            changed+=("${entry:3}")
+          done < <(git status --porcelain=v1 -z)
           if [ "${#changed[@]}" -eq 0 ]; then
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
             exit 0

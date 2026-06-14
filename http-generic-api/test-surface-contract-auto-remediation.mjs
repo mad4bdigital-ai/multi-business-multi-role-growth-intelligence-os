@@ -74,6 +74,9 @@ assert(discovery.includes("verified_static_no_external_side_effects"));
 const workflow = readFileSync("../.github/workflows/surface-contract-auto-remediation.yml", "utf8");
 assert(workflow.includes("schedule:"), "automation must run on a schedule");
 assert(workflow.includes("Enforce documentation-only mutation boundary"));
+assert(workflow.includes("git status --porcelain=v1 -z"), "workflow must parse changed paths with NUL delimiters");
+assert(workflow.includes('changed+=("${entry:3}")'), "workflow must preserve spaces in repository paths");
+assert(!workflow.includes("git status --porcelain | sed"), "quoted porcelain paths must not be parsed with sed");
 assert(workflow.includes("auto_merge_eligible"));
 assert(!workflow.includes("http-generic-api/migrations/*.sql\n          git add"), "workflow must not stage migration SQL");
 

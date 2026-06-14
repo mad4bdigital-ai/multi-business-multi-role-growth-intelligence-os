@@ -1,6 +1,6 @@
 # Hostinger Runtime Sync Guard
 
-> Surface-contract auto-remediation boundary: `.github/workflows/surface-contract-auto-remediation.yml` is not a runtime-sync or deployment mechanism. Its successful PR/CI result proves only repository documentation and checksum-bound evidence consistency. It must not be used as proof that `auth.mad4b.com` loaded a commit; Hostinger deployment, `/health`, `/version`, and deployed-commit parity checks remain mandatory.
+> Surface-contract auto-remediation boundary: `.github/workflows/surface-contract-auto-remediation.yml` is not a runtime-sync or deployment mechanism. Its successful PR/CI result proves only repository documentation and checksum-bound evidence consistency. The workflow parses changed paths with `git status --porcelain=v1 -z`, preserving spaces before applying the documentation-only allowlist. It must not be used as proof that `auth.mad4b.com` loaded a commit; Hostinger deployment, `/health`, `/version`, and deployed-commit parity checks remain mandatory.
 
 ## Purpose
 
