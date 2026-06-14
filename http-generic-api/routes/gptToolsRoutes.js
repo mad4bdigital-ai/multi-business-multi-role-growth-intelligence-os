@@ -961,6 +961,14 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     return { status: 200, body: { ok: true, name: toolKey, result: await inspectRepoReadOnly(args) } };
   }
 
+  if (callerType === "admin" && toolKey === "platform_capability_contract_report") {
+    return { status: 200, body: { ok: true, name: toolKey, result: await buildPlatformCapabilityContractReport(args) } };
+  }
+
+  if (callerType === "admin" && toolKey === "platform_capability_live_report") {
+    return { status: 200, body: { ok: true, name: toolKey, result: await buildPlatformCapabilityLiveReport(args) } };
+  }
+
   if (callerType === "admin" && toolKey === "response_chunk_read") {
     return { status: 200, body: readCachedToolResponseChunk(args) };
   }
