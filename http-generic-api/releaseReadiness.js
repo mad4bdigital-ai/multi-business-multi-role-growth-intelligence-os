@@ -1635,6 +1635,33 @@ async function checkLegacyTables() {
   return results;
 }
 
+async function checkSystemLayerDescriptorCallability() {
+  try {
+    const { runSystemLayerDescriptorCallabilityAudit } = await import("./routes/systemLayerRoutes.js");
+    const audit = await runSystemLayerDescriptorCallabilityAudit();
+    const pass = audit?.ok === true && audit?.status === "pass";
+    return {
+      status: pass ? "pass" : "fail",
+      detail: pass
+        ? `System-layer descriptor callability passed for ${audit.descriptor_tool_count || 0} tool(s) across ${audit.descriptor_source_count || 0} source(s).`
+        : `System-layer descriptor callability failed for ${audit?.failed_source_count || 0} source(s) with ${audit?.missing_handler_count || 0} missing handler(s).`,
+      audit,
+      executes_tools: true,
+      mutations_executed: false,
+      secrets_included: false,
+    };
+  } catch (err) {
+    return {
+      status: "fail",
+      detail: `System-layer descriptor callability audit could not complete: ${err?.message || err}`,
+      reason_code: err?.code || "system_layer_descriptor_callability_exception",
+      executes_tools: true,
+      mutations_executed: false,
+      secrets_included: false,
+    };
+  }
+}
+
 async function checkRepositoryIntelligenceV2Readiness() {
   const requiredToolNames = [
     "platform_resource_authority_binding_create",
