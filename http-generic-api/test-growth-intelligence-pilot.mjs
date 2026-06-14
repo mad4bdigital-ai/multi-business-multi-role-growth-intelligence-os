@@ -32,9 +32,11 @@ const result = runGrowthIntelligencePilot({
 });
 
 assert.equal(result.ok, true);
-assert.equal(result.workflow.status, "pass");
+assert.equal(result.workflow.status, "analysis_complete_no_execution");
 assert.equal(result.workflow.stages.length, 10);
-assert(result.workflow.stages.every((stage) => stage.status === "pass"));
+assert.equal(result.workflow.stages.find((stage) => stage.stage === "brand_core_resolution").status, "pass");
+assert.equal(result.workflow.stages.find((stage) => stage.stage === "prompt_router").status, "planned");
+assert.equal(result.workflow.stages.find((stage) => stage.stage === "governed_tool_dispatch").status, "not_executed");
 assert.equal(result.report.schema_version, "1.0.0");
 assert.equal(result.report.brand_context.brandCoreStatus, "ready");
 assert.equal(result.report.activity_intelligence.businessActivityTypeKey, "hvac_services");
@@ -44,6 +46,12 @@ assert(result.report.approval_queue_view.every((action) => action.approval_state
 assert.equal(result.readback.provider_writes, 0);
 assert.equal(result.readback.external_sends, 0);
 assert.equal(result.readback.secrets_included, false);
+assert.equal(result.readback.all_stages_passed, false);
+assert.equal(result.readback.executed_stage_count, 4);
+assert.equal(result.readback.planned_stage_count, 4);
+assert.equal(result.readback.not_executed_stage_count, 2);
+assert.equal(result.readback.approval_hold_count, 0);
+assert.equal(result.readback.approval_queue_item_count, result.report.approval_queue_view.length);
 assert.match(result.markdown_report, /No provider writes, external sends, or secrets were used/);
 
 assert.throws(
@@ -57,6 +65,8 @@ assert.match(routes, /growth-intelligence\/pilot/);
 assert.doesNotMatch(routes, /\bfetch\s*\(|http-execute|connectorExecutor|provider_operation/);
 assert.match(routes, /provider_writes:\s*0/);
 assert.match(routes, /external_sends:\s*0/);
+assert.match(routes, /approval_hold_count = result\.registry\.approval_holds\.length/);
+assert.match(routes, /approvalStage\.status = "pass"/);
 
 const tenantGptSchema = readFileSync("openapi.tenant-gpt.auth.yaml", "utf8");
 assert.doesNotMatch(tenantGptSchema, /growth-intelligence\/pilot/);
