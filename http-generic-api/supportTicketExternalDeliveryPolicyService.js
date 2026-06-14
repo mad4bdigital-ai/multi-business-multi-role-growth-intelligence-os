@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { getPool } from "./db.js";
+import { createAgentHandoffState } from "./agentGovernanceRuntime.js";
 
 function parseJsonObject(value, fallback = {}) {
   if (!value) return fallback;
@@ -36,6 +37,7 @@ const ALLOWED_AUDIENCES = new Set(["admin", "customer", "both"]);
 const VALID_EXTERNAL_SECRET_VALIDATION_STATUSES = new Set(["valid", "validated", "ready", "passed"]);
 const VALID_EXTERNAL_SECRET_CONSENT_STATUSES = new Set(["not_required", "granted"]);
 const DEFAULT_ADMIN_GPT_REPAIR_LINK_BASE_URL = "https://chatgpt.com/g/g-69c82c73bd6081918c52e38525b2d154-growth-intelligence-platform-admin-assistant/";
+const DEFAULT_ADMIN_GPT_AGENT_NAME = "admin_gpt_assistant";
 
 async function resolveAdminGptRepairLinkBaseUrl(connection) {
   const envValue = String(process.env.ADMIN_GPT_REPAIR_LINK_BASE_URL || process.env.ADMIN_GPT_URL || "").trim();
@@ -74,12 +76,13 @@ function buildAdminGptRepairPromptState({ tenant_id, ticket_id, approval_hold_id
   };
 }
 
-async function buildAdminGptRepairLink(connection, state) {
+async function buildAdminGptRepairLink(connection, resumeStateId, requestedAction = "review_external_delivery") {
   const baseUrl = await resolveAdminGptRepairLinkBaseUrl(connection);
   const prompt = [
-    "ابدأ إصلاح Support Ticket من prompt parameter.",
-    "استخدم state_json التالي كمصدر الحالة ولا تطلب من المستخدم إعادة شرح السياق.",
-    `state_json=${JSON.stringify(state)}`,
+    "ابدأ إصلاح Support Ticket من governed handoff state.",
+    "اقرأ resume_state_id من المنصة ولا تطلب من المستخدم إعادة شرح السياق.",
+    `resume_state_id=${resumeStateId}`,
+    `requested_action=${requestedAction}`,
   ].join("\n");
   const separator = baseUrl.includes("?") ? "&" : "?";
   return `${baseUrl}${separator}prompt=${encodeURIComponent(prompt)}`;
@@ -268,7 +271,36 @@ export async function requestSupportTicketExternalDeliveryApproval({ tenant_id, 
       credential_ref: resolvedCredentialRef,
       action: "review_external_delivery",
     });
-    const adminGptRepairLink = await buildAdminGptRepairLink(connection, repairPromptState);
+    const handoff = await createAgentHandoffState({
+      tenant_id,
+      user_id: readiness.ticket?.user_id || null,
+      source_agent_id: actor_type === "agent" ? actor_id : null,
+      target_agent_id: null,
+      resource_ref: `support_ticket:${ticket_id}`,
+      intent: "support_ticket_external_delivery_repair",
+      current_state: {
+        action: "review_external_delivery",
+        target_surface: DEFAULT_ADMIN_GPT_AGENT_NAME,
+        tenant_id,
+        ticket_id,
+        approval_hold_id: holdId,
+        channel: externalChannel,
+        audience,
+        ticket_status: readiness.ticket?.status || null,
+        lifecycle_state: readiness.ticket?.lifecycle_state || null,
+        external_send_performed: false,
+        secrets_included: false,
+      },
+      required_checks: repairPromptState.required_checks,
+      allowed_actions: ["review_external_delivery", "diagnose", "request_approval", "apply_safe_fix"],
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      one_time_use: false,
+    }, { pool: connection });
+    const adminGptRepairLink = await buildAdminGptRepairLink(
+      connection,
+      handoff.resume_state_id,
+      "review_external_delivery"
+    );
     const payload = {
       approval_type: "external_notification_delivery",
       channel: externalChannel,
@@ -280,6 +312,7 @@ export async function requestSupportTicketExternalDeliveryApproval({ tenant_id, 
       reason,
       evidence_json,
       admin_gpt_repair_link: adminGptRepairLink,
+      admin_gpt_resume_state_id: handoff.resume_state_id,
       admin_gpt_repair_prompt_state: repairPromptState,
       external_send_performed: false,
       secrets_included: false,
