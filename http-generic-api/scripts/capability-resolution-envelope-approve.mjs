@@ -38,30 +38,6 @@ function sha256Json(value) {
   return crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
-const SAFE_BOOLEAN_SECRET_METADATA_KEYS = new Set([
-  "secrets_included",
-  "secrets_returned_to_agent",
-  "secret_value_included",
-  "raw_secret_values_included",
-]);
-
-function assertNoSecretKeys(value, path = "root") {
-  if (Array.isArray(value)) {
-    value.forEach((item, index) => assertNoSecretKeys(item, `${path}[${index}]`));
-    return;
-  }
-  if (!value || typeof value !== "object") return;
-  for (const [key, nested] of Object.entries(value)) {
-    const safeBooleanMetadata = SAFE_BOOLEAN_SECRET_METADATA_KEYS.has(key) && typeof nested === "boolean";
-    if (/secret|token|api[_-]?key|private[_-]?key|ciphertext|password/i.test(key) && !safeBooleanMetadata) {
-      const err = new Error(`Envelope approval refuses to store sensitive field at ${path}.${key}`);
-      err.code = "capability_envelope_sensitive_field_rejected";
-      throw err;
-    }
-    assertNoSecretKeys(nested, `${path}.${key}`);
-  }
-}
-
 async function loadEnvelope(pool, envelopeId) {
   const [[row]] = await pool.query(
     `SELECT envelope_id, tenant_id, user_id, workspace_id, workspace_key, app_key, capability_key, operation_intent,
