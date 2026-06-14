@@ -521,9 +521,9 @@
   },
   "coverage_summary": {
     "migrations_with_surfaces": 413,
-    "docs_complete_count": 408,
-    "docs_gap_count": 5,
-    "docs_completion_percent": 98.79,
+    "docs_complete_count": 409,
+    "docs_gap_count": 4,
+    "docs_completion_percent": 99.03,
     "surface_totals": {
       "plugins": 12,
       "tools": 1919,
@@ -539,17 +539,17 @@
       "routes": 229
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 5,
-      "deployment_parity_checklist.md": 5,
-      "docs/ai-docs-agent-governance.md": 5,
-      "docs/auto-docs-agent/README.md": 5,
-      "docs/change-documentation-governance.md": 5
+      "Updating Registry Patch Index.md": 4,
+      "deployment_parity_checklist.md": 4,
+      "docs/ai-docs-agent-governance.md": 4,
+      "docs/auto-docs-agent/README.md": 4,
+      "docs/change-documentation-governance.md": 4
     },
     "gap_severity_counts": {
       "high": 2,
-      "medium": 3,
+      "medium": 2,
       "low": 0,
-      "none": 408
+      "none": 409
     },
     "high_risk_missing_docs": [
       "308_sprint69_activation_guidance_intelligence.sql",
@@ -557,15 +557,14 @@
     ],
     "medium_risk_missing_docs": [
       "308_sprint69_dynamic_governed_migration_reconciliation.sql",
-      "309_sprint69_activation_guidance_invocation_registry.sql",
-      "965_sprint68_hostinger_apply_policy_safe_field_names.sql"
+      "309_sprint69_activation_guidance_invocation_registry.sql"
     ],
     "safety_marker_counts": {
       "no_provider_call": 412,
-      "no_credential_payload_read": 409,
+      "no_credential_payload_read": 410,
       "no_raw_secrets": 410,
       "no_external_send": 410,
-      "no_external_write": 408,
+      "no_external_write": 409,
       "secrets_included_false": 412
     },
     "safety_marker_gap_migrations": 1,
@@ -591,10 +590,10 @@
   "gap_queue": {
     "ok": true,
     "schema_version": "surface-contract-gap-queue-v1",
-    "total_items": 5,
+    "total_items": 4,
     "class_counts": {
       "critical_review": 2,
-      "high_review": 3,
+      "high_review": 2,
       "medium_review": 0,
       "low_review": 0
     },
@@ -879,81 +878,6 @@
           "deploys": false,
           "secrets_included": false
         }
-      },
-      {
-        "migration_file": "965_sprint68_hostinger_apply_policy_safe_field_names.sql",
-        "score": 613,
-        "queue_class": "high_review",
-        "gap_severity": "medium",
-        "documentation_complete": false,
-        "missing_docs": [
-          "Updating Registry Patch Index.md",
-          "deployment_parity_checklist.md",
-          "docs/ai-docs-agent-governance.md",
-          "docs/auto-docs-agent/README.md",
-          "docs/change-documentation-governance.md"
-        ],
-        "missing_openapi_routes": [],
-        "safety_marker_gaps": [
-          "no_credential_payload_read",
-          "no_external_write"
-        ],
-        "surface_counts": {
-          "plugins": 0,
-          "tools": 0,
-          "views": 1,
-          "policies": 2,
-          "routes": 0
-        },
-        "remediation": [
-          {
-            "action_key": "document_surface_contract",
-            "owner_hint": "docs-agent/human-review",
-            "targets": [
-              "Updating Registry Patch Index.md",
-              "deployment_parity_checklist.md",
-              "docs/ai-docs-agent-governance.md",
-              "docs/auto-docs-agent/README.md",
-              "docs/change-documentation-governance.md"
-            ],
-            "reason": "Migration surfaces are not mentioned in all required documentation targets."
-          },
-          {
-            "action_key": "verify_policy_seed_readiness",
-            "owner_hint": "runtime-policy-review",
-            "targets": [
-              "hostinger_deploy_release_apply_policy_v1",
-              "hostinger_restart_app_apply_policy_v1"
-            ],
-            "reason": "Policy surfaces need active/blocking/valid-JSON readiness evidence."
-          },
-          {
-            "action_key": "verify_readback_view",
-            "owner_hint": "db-readback-review",
-            "targets": [
-              "v_hostinger_apply_policy_safe_field_readiness"
-            ],
-            "reason": "Readback views should have parity/readiness documentation and smoke evidence."
-          },
-          {
-            "action_key": "add_explicit_safety_markers",
-            "owner_hint": "safety-contract-review",
-            "targets": [
-              "no_credential_payload_read",
-              "no_external_write"
-            ],
-            "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
-          }
-        ],
-        "safety": {
-          "executes_provider_calls": false,
-          "reads_credentials": false,
-          "mutates_runtime": false,
-          "writes_database": false,
-          "external_sends": false,
-          "deploys": false,
-          "secrets_included": false
-        }
       }
     ],
     "safety": {
@@ -1191,31 +1115,25 @@
         "tools": [],
         "safety": {
           "no_provider_call": true,
-          "no_credential_payload_read": false,
+          "no_credential_payload_read": true,
           "no_raw_secrets": true,
           "no_external_send": true,
-          "no_external_write": false,
+          "no_external_write": true,
           "secrets_included_false": true
         }
       },
       "docs": {
-        "Updating Registry Patch Index.md": false,
-        "deployment_parity_checklist.md": false,
-        "docs/ai-docs-agent-governance.md": false,
-        "docs/auto-docs-agent/README.md": false,
-        "docs/change-documentation-governance.md": false
+        "Updating Registry Patch Index.md": true,
+        "deployment_parity_checklist.md": true,
+        "docs/ai-docs-agent-governance.md": true,
+        "docs/auto-docs-agent/README.md": true,
+        "docs/change-documentation-governance.md": true
       },
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "documentation_complete": false,
+      "missing_docs": [],
+      "documentation_complete": true,
       "coverage": {
-        "gap_severity": "medium",
-        "requires_docs_review": true,
+        "gap_severity": "none",
+        "requires_docs_review": false,
         "route_coverage": {
           "route_count": 0,
           "total_route_count": 0,
@@ -1238,7 +1156,7 @@
           "route_classifications": []
         },
         "surface_count": 3,
-        "safety_marker_count": 4
+        "safety_marker_count": 6
       }
     },
     {
@@ -45613,31 +45531,25 @@
         "tools": [],
         "safety": {
           "no_provider_call": true,
-          "no_credential_payload_read": false,
+          "no_credential_payload_read": true,
           "no_raw_secrets": true,
           "no_external_send": true,
-          "no_external_write": false,
+          "no_external_write": true,
           "secrets_included_false": true
         }
       },
       "docs": {
-        "Updating Registry Patch Index.md": false,
-        "deployment_parity_checklist.md": false,
-        "docs/ai-docs-agent-governance.md": false,
-        "docs/auto-docs-agent/README.md": false,
-        "docs/change-documentation-governance.md": false
+        "Updating Registry Patch Index.md": true,
+        "deployment_parity_checklist.md": true,
+        "docs/ai-docs-agent-governance.md": true,
+        "docs/auto-docs-agent/README.md": true,
+        "docs/change-documentation-governance.md": true
       },
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "documentation_complete": false,
+      "missing_docs": [],
+      "documentation_complete": true,
       "coverage": {
-        "gap_severity": "medium",
-        "requires_docs_review": true,
+        "gap_severity": "none",
+        "requires_docs_review": false,
         "route_coverage": {
           "route_count": 0,
           "total_route_count": 0,
@@ -45660,7 +45572,7 @@
           "route_classifications": []
         },
         "surface_count": 3,
-        "safety_marker_count": 4
+        "safety_marker_count": 6
       }
     },
     {
