@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 418
+- Migrations with detected surfaces: 419
 - Migrations reported here: 80
 - OpenAPI operations detected: 464
 - OpenAPI paths detected: 411
@@ -32,9 +32,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 416/418 (99.52%)
-- Documentation gap migrations: 2
-- Gap severity: high=1, medium=0, low=1
+- Documentation complete migrations: 416/419 (99.28%)
+- Documentation gap migrations: 3
+- Gap severity: high=1, medium=1, low=1
 - SQL route coverage in OpenAPI: 0/0 (100.00%)
 - SQL route-like literals exempted from OpenAPI scoring: 553/553
 - SQL routes missing OpenAPI path coverage: 0
@@ -45,8 +45,8 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 12 | 9 |
-| tools | 1941 | 354 |
-| views | 362 | 149 |
+| tools | 1942 | 355 |
+| views | 363 | 150 |
 | policies | 154 | 97 |
 | routes | 553 | 230 |
 
@@ -54,22 +54,22 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 2 |
-| `deployment_parity_checklist.md` | 2 |
-| `docs/ai-docs-agent-governance.md` | 2 |
-| `docs/auto-docs-agent/README.md` | 2 |
-| `docs/change-documentation-governance.md` | 2 |
+| `Updating Registry Patch Index.md` | 3 |
+| `deployment_parity_checklist.md` | 3 |
+| `docs/ai-docs-agent-governance.md` | 3 |
+| `docs/auto-docs-agent/README.md` | 3 |
+| `docs/change-documentation-governance.md` | 3 |
 
 ### Safety Marker Coverage
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 418 |
+| no_provider_call | 419 |
 | no_credential_payload_read | 416 |
 | no_raw_secrets | 416 |
 | no_external_send | 416 |
 | no_external_write | 417 |
-| secrets_included_false | 417 |
+| secrets_included_false | 418 |
 
 ### Route Classification Coverage
 
@@ -88,15 +88,16 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 2
+- Total queue items: 3
 - Critical review: 1
-- High review: 0
+- High review: 1
 - Medium review: 1
 - Low review: 0
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `1004_sprint69_agent_governance_admin_tools.sql` | critical_review | 700 | high | 5 | 0 | 4 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
+| `312_sprint69_platform_tool_dispatch_integrity_scope_fix.sql` | high_review | 569 | medium | 5 | 0 | 4 | document_surface_contract, verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
 | `1005_sprint69_agent_skill_coverage_prompt_enrichment.sql` | medium_review | 324 | low | 5 | 0 | 4 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
 
 
@@ -131,6 +132,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `902_sprint68_dynamic_capability_apply_authorization_policy.sql` | complete | none | 0 | 6 | 0 | 0 | 0 | 0 |
 | `901_sprint68_resource_manifest_create_gate_authority.sql` | complete | none | 0 | 4 | 0 | 0 | 0 | 0 |
 | `900_sprint68_governed_repository_intelligence_engine.sql` | complete | none | 0 | 7 | 0 | 1 | 0 | 0 |
+| `312_sprint69_platform_tool_dispatch_integrity_scope_fix.sql` | needs docs | medium | 0 | 1 | 1 | 0 | 0 | 0 |
 | `311_sprint69_superseded_closed_pr_branch_cleanup.sql` | complete | none | 0 | 0 | 1 | 0 | 0 | 0 |
 | `311_sprint69_platform_tool_dispatch_binding_integrity.sql` | complete | none | 0 | 19 | 1 | 0 | 0 | 0 |
 | `310_sprint69_activation_awareness_completeness_control_plane.sql` | complete | none | 0 | 0 | 4 | 0 | 5 | 0 |
@@ -183,7 +185,6 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `267_sprint68_ticket_external_adapter_readiness_checklist.sql` | complete | none | 0 | 9 | 1 | 1 | 2 | 0 |
 | `267_sprint68_session_insight_target_adapter_registry.sql` | complete | none | 0 | 17 | 2 | 1 | 1 | 0 |
 | `266_sprint68_ticket_external_provider_enablement_proposal.sql` | complete | none | 0 | 10 | 1 | 1 | 2 | 0 |
-| `266_sprint68_session_insight_promotion_apply_request_skeleton.sql` | complete | none | 0 | 20 | 1 | 1 | 1 | 0 |
 
 ## High-Risk Documentation Gaps
 
@@ -599,6 +600,21 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `312_sprint69_platform_tool_dispatch_integrity_scope_fix.sql`
+
+- Documentation complete: no
+- Gap severity: medium
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Surface count: 2
+- Plugins: none
+- Tools: `virtual_admin_tool`
+- Views: `v_platform_tool_dispatch_integrity`
+- Policies: none
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
 ### `311_sprint69_superseded_closed_pr_branch_cleanup.sql`
 
@@ -1377,21 +1393,6 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Policies: `external_provider_adapter_enablement_proposal_policy_v1`
 - Routes: `/admin/support/tickets/external-send/provider-adapter-enablement/candidates`, `/admin/support/tickets/external-send/provider-adapter-enablement/propose`
 - Route classifications: `/admin/support/tickets/external-send/provider-adapter-enablement/candidates`=legacy_closure_route_reviewed:exempt, `/admin/support/tickets/external-send/provider-adapter-enablement/propose`=legacy_closure_route_reviewed:exempt
-- OpenAPI route gaps: none
-- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
-
-### `266_sprint68_session_insight_promotion_apply_request_skeleton.sql`
-
-- Documentation complete: yes
-- Gap severity: none
-- Missing docs: none
-- Surface count: 23
-- Plugins: none
-- Tools: `admin_platform_endpoint_tools`, `apply_request_claims_runtime_effect`, `apply_request_id`, `apply_request_secret_flagged`, `apply_request_without_adapter_gate`, `apply_request_without_capability_gate`, `chk_session_insight_promotion_apply_request_no_execution`, `chk_session_insight_promotion_apply_request_no_secrets`, `execution_allowed_on_apply_request_skeleton`, `fk_session_insight_promotion_apply_request_preview`, `idx_session_insight_promotion_apply_request_preview`, `idx_session_insight_promotion_apply_request_promotion`, `idx_session_insight_promotion_apply_request_surface`, `not_executed`, `session_insight_promotion_apply_request_create`, `session_insight_promotion_apply_request_skeleton_only`, `session_insight_promotion_apply_request_skeleton_policy_v1`, `session_insight_promotion_apply_requests`, `uq_session_insight_promotion_apply_request`, `v_session_insight_promotion_apply_request_issues`
-- Views: `v_session_insight_promotion_apply_request_issues`
-- Policies: `session_insight_promotion_apply_request_skeleton_policy_v1`
-- Routes: `/platform/session-insight-promotions/apply/request`
-- Route classifications: `/platform/session-insight-promotions/apply/request`=legacy_closure_route_reviewed:exempt
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
