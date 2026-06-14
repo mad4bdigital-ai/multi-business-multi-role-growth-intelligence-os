@@ -22,6 +22,7 @@ import {
   resolveCapabilityExecutionEnvelope,
 } from "../capabilityResolutionEnvelopeGuard.js";
 import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBranchFastForwardToBase } from "../adminBranchReconciliationAdapter.js";
+import { applyGithubRepositoryChangeSet, deleteGithubBranchRef, finalizeGithubPullRequest, getGithubPullRequestCiGate } from "../githubRepositoryLifecycle.js";
 import { runGithubSupersededBranchCleanup } from "../githubSupersededBranchCleanup.js";
 import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveReport } from "../platformCapabilityReports.js";
 
@@ -323,6 +324,143 @@ const VIRTUAL_ADMIN_TOOLS = [
         cursor: { type: "integer", minimum: 0, default: 0 },
         max_chars: { type: "integer", minimum: 5000, maximum: 150000, default: 45000 },
       },
+    },
+  },
+  {
+    name: "admin_tool_catalog_search",
+    displayName: "Search Admin Tool Catalog",
+    description: "Search and paginate the full governed admin tool catalog through callAdminTool when the direct list surface cannot pass cursor/query parameters.",
+    method: "VIRTUAL",
+    path: "internal://admin-tool-catalog-search",
+    tags: ["tooling", "catalog", "pagination", "read_only"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        q: { type: "string" },
+        tag: { type: "string" },
+        cursor: { type: "integer", minimum: 0, default: 0 },
+        limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "github_pr_ci_gate",
+    displayName: "GitHub Pull Request CI Gate",
+    description: "Read one PR, compare its head with the current base, and aggregate required check-runs into one merge-readiness decision. No mutation or secret return.",
+    method: "VIRTUAL",
+    path: "internal://github-pr-ci-gate",
+    tags: ["repo", "github", "pull_request", "ci", "read_only", "readback"],
+    inputSchema: {
+      type: "object",
+      required: ["pull_number"],
+      properties: {
+        pull_number: { type: "integer", minimum: 1 },
+        required_checks: { type: "array", items: { type: "string" }, maxItems: 20 },
+        owner: { type: "string" },
+        repo: { type: "string" },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "github_pr_finalize",
+    displayName: "GitHub Pull Request Finalize",
+    description: "Finalize one PR through a single governed flow: required-check gate, expected head/base SHA validation, typed confirmation, merge, ancestry readback, and optional disposable-branch cleanup.",
+    method: "VIRTUAL",
+    path: "internal://github-pr-finalize",
+    tags: ["repo", "github", "pull_request", "mutation", "ci_gate", "capability_envelope", "readback", "cleanup_required"],
+    inputSchema: {
+      type: "object",
+      required: ["pull_number", "expected_head_sha", "expected_base_sha", "confirm", "capability_envelope_id"],
+      properties: {
+        pull_number: { type: "integer", minimum: 1 },
+        expected_head_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        expected_base_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        confirm: { type: "string" },
+        capability_envelope_id: { type: "string" },
+        merge_method: { type: "string", enum: ["merge", "squash", "rebase"], default: "merge" },
+        delete_branch: { type: "boolean", default: true },
+        required_checks: { type: "array", items: { type: "string" }, maxItems: 20 },
+        commit_title: { type: "string", maxLength: 256 },
+        commit_message: { type: "string", maxLength: 10000 },
+        owner: { type: "string" },
+        repo: { type: "string" },
+        default_branch: { type: "string", default: "main" },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "github_branch_delete",
+    displayName: "GitHub Branch Delete",
+    description: "Delete a governed disposable GitHub branch only after capability approval, expected-head SHA match, typed confirmation, open-PR guard, and same-cycle absence readback.",
+    method: "VIRTUAL",
+    path: "internal://github-branch-delete",
+    tags: ["repo", "github", "branch", "mutation", "capability_envelope", "readback"],
+    inputSchema: {
+      type: "object",
+      required: ["branch", "expected_head_sha", "confirm", "capability_envelope_id"],
+      properties: {
+        branch: { type: "string" },
+        expected_head_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        confirm: { type: "string" },
+        capability_envelope_id: { type: "string" },
+        owner: { type: "string" },
+        repo: { type: "string" },
+        default_branch: { type: "string", default: "main" },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "repo_patch_batch_apply",
+    displayName: "Repository Batch Patch Apply",
+    description: "Create one atomic multi-file Git commit against an expected base SHA using Git trees, then update one non-protected work branch once and verify branch-head readback.",
+    method: "VIRTUAL",
+    path: "internal://repo-patch-batch-apply",
+    tags: ["repo", "mutation", "batch", "atomic", "capability_envelope", "readback"],
+    inputSchema: {
+      type: "object",
+      required: ["branch", "expected_base_sha", "commit_message", "changes", "capability_envelope_id"],
+      properties: {
+        branch: { type: "string" },
+        expected_base_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        commit_message: { type: "string", minLength: 5, maxLength: 200 },
+        capability_envelope_id: { type: "string" },
+        changes: {
+          type: "array",
+          minItems: 1,
+          maxItems: 50,
+          items: {
+            type: "object",
+            required: ["path", "action"],
+            properties: {
+              path: { type: "string" },
+              action: { type: "string", enum: ["write_file", "delete_file"] },
+              content: { type: "string" },
+            },
+            additionalProperties: false,
+          },
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "platform_tool_binding_integrity_audit",
+    displayName: "Platform Tool Binding Integrity Audit",
+    description: "Audit active ready endpoints, endpoint exports, dispatch bindings, and callable admin tools. Returns bounded relation gaps without mutation or secrets.",
+    method: "VIRTUAL",
+    path: "internal://platform-tool-binding-integrity-audit",
+    tags: ["registry", "tooling", "integrity", "read_only", "diagnostics"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        parent_action_key: { type: "string" },
+        limit: { type: "integer", minimum: 1, maximum: 500, default: 200 },
+      },
+      additionalProperties: false,
     },
   },
   {
@@ -689,6 +827,118 @@ async function requireGithubSupersededBranchCleanupEnvelope({ args = {}, ctx = {
   return { ...resolved, secrets_included: false };
 }
 
+async function requireGithubBranchDeleteEnvelope({ args = {}, ctx = {} } = {}) {
+  const resolved = await resolveCapabilityExecutionEnvelope({
+    pool: getPool(),
+    source: args,
+    acceptedAppKeys: ["github"],
+    acceptedIntents: ["github_branch_delete", "github_repo_cleanup", "repository_ref_delete", "repo_mutation", "delete"],
+    expectedTenantId: ctx?.auth?.tenant_id || PLATFORM_TENANT_ID,
+    expectedUserId: ctx?.auth?.user_id || "",
+  });
+  if (!resolved.ok) {
+    throw capabilityEnvelopeError(resolved, "GitHub branch deletion requires a valid capability resolution envelope before ref mutation.");
+  }
+  await markCapabilityEnvelopeReferenced({
+    pool: getPool(),
+    envelopeId: resolved.envelope_id,
+    executionRef: `github_branch_delete:${args?.branch || "unknown"}`,
+  });
+  return { ...resolved, secrets_included: false };
+}
+
+async function requireGithubPrFinalizeEnvelope({ args = {}, ctx = {} } = {}) {
+  const resolved = await resolveCapabilityExecutionEnvelope({
+    pool: getPool(),
+    source: args,
+    acceptedAppKeys: ["github"],
+    acceptedIntents: ["github_pr_finalize", "github_pr_merge", "github_repo_merge", "repo_mutation", "merge"],
+    expectedTenantId: ctx?.auth?.tenant_id || PLATFORM_TENANT_ID,
+    expectedUserId: ctx?.auth?.user_id || "",
+  });
+  if (!resolved.ok) {
+    throw capabilityEnvelopeError(resolved, "GitHub PR finalization requires a valid capability resolution envelope before merge mutation.");
+  }
+  await markCapabilityEnvelopeReferenced({
+    pool: getPool(),
+    envelopeId: resolved.envelope_id,
+    executionRef: `github_pr_finalize:${args?.pull_number || "unknown"}`,
+  });
+  return { ...resolved, secrets_included: false };
+}
+
+async function auditPlatformToolBindings(args = {}) {
+  const parentActionKey = String(args.parent_action_key || "github_api_mcp").trim();
+  const limit = clampNumber(args.limit, 200, 1, 500);
+  const virtualNames = new Set(VIRTUAL_ADMIN_TOOLS.map((tool) => tool.name));
+  const [rows] = await getPool().query(
+    `SELECT b.binding_id, b.parent_action_key, b.endpoint_key, b.source_endpoint_id,
+            b.export_key, b.tool_key AS binding_tool_key, b.surface_class,
+            b.capability_key, b.operation_intent, b.runtime_surface,
+            b.readback_policy_key, b.partial_success_policy_key,
+            b.atomicity_mode, b.status AS binding_status,
+            e.id AS endpoint_id, e.method, e.endpoint_path_or_function,
+            e.status AS endpoint_status, e.execution_readiness,
+            x.tool_name AS exported_tool_name, x.status AS export_status,
+            apt.tool_key AS admin_tool_key, apt.is_enabled AS admin_tool_enabled
+       FROM platform_tool_dispatch_bindings b
+       LEFT JOIN endpoints e ON e.id = b.source_endpoint_id
+       LEFT JOIN platform_endpoint_tool_exports x ON x.export_key = b.export_key
+       LEFT JOIN admin_platform_endpoint_tools apt ON apt.tool_key = b.tool_key
+      WHERE b.parent_action_key = ?
+        AND b.status = 'active'
+      ORDER BY b.tool_key, b.endpoint_key, b.binding_id
+      LIMIT ${limit}`,
+    [parentActionKey]
+  );
+  const relations = (rows || []).map((row) => {
+    const virtualTool = virtualNames.has(row.binding_tool_key);
+    const dbTool = Boolean(row.admin_tool_key && Number(row.admin_tool_enabled) === 1);
+    const callable = virtualTool || dbTool;
+    const method = String(row.method || "").toUpperCase();
+    const gaps = [];
+    if (!row.endpoint_id || row.endpoint_status !== "active" || !["", "ready"].includes(String(row.execution_readiness || "").toLowerCase())) {
+      gaps.push("endpoint_not_ready");
+    }
+    if (!row.export_key || row.export_status !== "active") gaps.push("missing_active_export");
+    if (!callable) gaps.push("missing_callable_surface");
+    if (["POST", "PUT", "PATCH", "DELETE"].includes(method) && !row.capability_key) gaps.push("mutation_missing_capability_key");
+    if (!row.readback_policy_key) gaps.push("binding_missing_readback_policy");
+    return {
+      binding_id: row.binding_id,
+      parent_action_key: row.parent_action_key,
+      endpoint_id: row.endpoint_id || null,
+      endpoint_key: row.endpoint_key,
+      method: row.method || null,
+      endpoint_path: row.endpoint_path_or_function || null,
+      export_key: row.export_key || null,
+      tool_key: row.binding_tool_key,
+      surface_class: row.surface_class,
+      virtual_tool: virtualTool,
+      db_tool_enabled: dbTool,
+      callable,
+      capability_key: row.capability_key || null,
+      readback_policy_key: row.readback_policy_key || null,
+      partial_success_policy_key: row.partial_success_policy_key || null,
+      atomicity_mode: row.atomicity_mode || null,
+      gaps,
+    };
+  });
+  const gaps = relations.filter((row) => row.gaps.length);
+  return {
+    ok: true,
+    parent_action_key: parentActionKey,
+    authority: "platform_tool_dispatch_bindings",
+    binding_count: relations.length,
+    gap_count: gaps.length,
+    healthy_count: relations.length - gaps.length,
+    status: gaps.length ? "degraded" : "pass",
+    relations,
+    gaps,
+    secrets_included: false,
+  };
+}
+
 function resolveCallerType(req) {
   if (req.auth?.mode === "backend_api_key" || req.auth?.is_admin === true) return "admin";
   return "tenant";
@@ -973,6 +1223,94 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     return { status: 200, body: readCachedToolResponseChunk(args) };
   }
 
+  if (callerType === "admin" && toolKey === "admin_tool_catalog_search") {
+    const tools = await fetchTools("admin");
+    const { items, page } = paginateItems(tools, args || {});
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        name: toolKey,
+        result: { items, page, total_catalog_count: tools.length, secrets_included: false },
+      },
+    };
+  }
+
+  if (callerType === "admin" && toolKey === "github_pr_ci_gate") {
+    try {
+      const result = await getGithubPullRequestCiGate(args || {});
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "github_pr_ci_gate_failed", message: err?.message || "GitHub PR CI gate failed.", details: err?.details } },
+      };
+    }
+  }
+
+  if (callerType === "admin" && toolKey === "github_pr_finalize") {
+    try {
+      await requireGithubPrFinalizeEnvelope({ args, ctx: { auth: req?.auth } });
+      const result = await finalizeGithubPullRequest(args || {});
+      return {
+        status: result.ok ? 200 : 207,
+        body: { ok: result.ok, name: toolKey, result },
+      };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "github_pr_finalize_failed", message: err?.message || "GitHub PR finalization failed.", details: err?.details } },
+      };
+    }
+  }
+
+  if (callerType === "admin" && toolKey === "github_branch_delete") {
+    try {
+      await requireGithubBranchDeleteEnvelope({ args, ctx: { auth: req?.auth } });
+      const result = await deleteGithubBranchRef(args || {});
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "github_branch_delete_failed", message: err?.message || "GitHub branch deletion failed.", details: err?.details } },
+      };
+    }
+  }
+
+  if (callerType === "admin" && toolKey === "repo_patch_batch_apply") {
+    try {
+      const firstPath = Array.isArray(args?.changes) && args.changes[0]?.path ? args.changes[0].path : "batch";
+      await requireRepoPatchCapabilityEnvelope({
+        args,
+        ctx: { auth: req?.auth },
+        owner: args?.owner || "",
+        repo: args?.repo || "",
+        branch: args?.branch || "",
+        defaultBranch: args?.default_branch || "main",
+        filePath: firstPath,
+        action: "repo_patch_batch_apply",
+      });
+      const result = await applyGithubRepositoryChangeSet(args || {});
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "repo_patch_batch_apply_failed", message: err?.message || "Repository batch patch failed.", details: err?.details } },
+      };
+    }
+  }
+
+  if (callerType === "admin" && toolKey === "platform_tool_binding_integrity_audit") {
+    try {
+      const result = await auditPlatformToolBindings(args || {});
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "platform_tool_binding_integrity_audit_failed", message: err?.message || "Platform tool binding integrity audit failed.", details: err?.details } },
+      };
+    }
+  }
   if (callerType === "admin" && toolKey === "admin_branch_reconcile") {
     try {
       const result = await runAdminBranchReconcile(args, { auth: req?.auth });
