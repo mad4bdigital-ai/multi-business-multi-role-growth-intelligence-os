@@ -2,6 +2,31 @@
 -- Additive only. Routes remain backend-api-key + admin-principal protected.
 -- No provider calls, no credential payloads, no raw prompt content, no secret values.
 
+INSERT INTO platform_runtime_config
+  (config_key, config_json, status, note, created_at, updated_at)
+VALUES
+  ('support_ticket.admin_gpt_repair_link',
+   JSON_OBJECT(
+     'base_url', 'https://chatgpt.com/g/g-69c82c73bd6081918c52e38525b2d154-growth-intelligence-platform-admin-assistant/',
+     'prompt_parameter', 'prompt',
+     'state_mode', 'opaque_handoff_id',
+     'resume_key', 'resume_state_id',
+     'requested_action_key', 'requested_action',
+     'target_surface', 'admin_gpt_assistant',
+     'handoff_registry', 'agent_handoff_state_registry',
+     'support_additive_only', true,
+     'secrets_included', false
+   ),
+   'active',
+   'Canonical Admin GPT repair link using an opaque governed handoff identifier. Raw ticket state is not embedded in the URL.',
+   CURRENT_TIMESTAMP,
+   CURRENT_TIMESTAMP)
+ON DUPLICATE KEY UPDATE
+  config_json = VALUES(config_json),
+  status = VALUES(status),
+  note = VALUES(note),
+  updated_at = CURRENT_TIMESTAMP;
+
 INSERT INTO admin_platform_endpoint_tools
   (tool_key, display_name, description, http_method, http_path, path_param_keys, input_schema, fixed_body, tags, is_enabled, sort_order, created_at, updated_at)
 VALUES
