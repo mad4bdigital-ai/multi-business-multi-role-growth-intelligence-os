@@ -927,11 +927,12 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     };
   }
 
-  if (env[EXECUTOR_FLAG] !== "true") {
-    const err = new Error(`Hostinger SSH executor is disabled. Set ${EXECUTOR_FLAG}=true only after approval and deployment readiness.`);
+  const executorGate = await loadHostingerSshExecutorGate(pool, targetId, env);
+  if (!executorGate.enabled) {
+    const err = new Error(`Hostinger SSH executor is disabled. Set ${EXECUTOR_FLAG}=true or enable ${EXECUTOR_DB_FLAG_KEY} only after approval and deployment readiness.`);
     err.status = 403;
     err.code = "remote_runtime_hostinger_ssh_executor_disabled";
-    err.details = { flag: EXECUTOR_FLAG, secrets_included: false };
+    err.details = { flag: EXECUTOR_FLAG, db_gate: executorGate, secrets_included: false };
     throw err;
   }
   if (!plan.dispatch_ready) {
