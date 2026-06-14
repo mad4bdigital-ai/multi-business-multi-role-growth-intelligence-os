@@ -285,6 +285,30 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "platform_capability_contract_report",
+    displayName: "Platform Capability Contract Report",
+    description: "Read-only contract report. Classifies declared capability inventory, envelope, authority, evidence, certification, and debt surfaces as implemented, partial, or proposed-not-implemented. It deliberately excludes live capability/gap counts and does not verify historical numeric snapshots.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-contract-report",
+    tags: ["capability", "contract", "read_only", "no_live_metrics"],
+    inputSchema: { type: "object", additionalProperties: false },
+  },
+  {
+    name: "platform_capability_live_report",
+    displayName: "Platform Capability Live Report",
+    description: "Read-only live MySQL-primary snapshot for capability maturity, gaps, envelopes, certifications, and source resolutions. Includes observed/expires timestamps and deliberately excludes contractual or historical conclusions.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-live-report",
+    tags: ["capability", "live", "read_only", "freshness_bounded"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: { type: "integer", minimum: 1, maximum: 100, default: 25, description: "Maximum highest-priority gap rows." },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "response_chunk_read",
     displayName: "Read Tool Response Chunk",
     description: "Read the next chunk of a cached oversized tool response. Use when any governed tool returns response_chunked=true.",
