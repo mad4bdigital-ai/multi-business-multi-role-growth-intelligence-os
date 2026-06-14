@@ -13,6 +13,7 @@ const OUTPUT_PATH = path.join(REPO_ROOT, "docs", "surface-contract-discovery-sta
 const JSON_OUTPUT_PATH = path.join(REPO_ROOT, "docs", "surface-contract-discovery-status.json");
 const GAP_QUEUE_PATH = path.join(REPO_ROOT, "docs", "surface-contract-gap-queue.md");
 const GAP_QUEUE_JSON_PATH = path.join(REPO_ROOT, "docs", "surface-contract-gap-queue.json");
+const SAFETY_ATTESTATION_PATH = path.join(REPO_ROOT, "docs", "surface-contract-safety-attestations.json");
 const DOC_TARGETS = [
   "Updating Registry Patch Index.md",
   "deployment_parity_checklist.md",
