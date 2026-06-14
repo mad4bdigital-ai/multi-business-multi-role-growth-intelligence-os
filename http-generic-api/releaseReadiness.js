@@ -1727,8 +1727,12 @@ async function checkRepositoryIntelligenceV2Readiness() {
       openapi_documented,
       active_real_bindings,
       v2_evidence_rows,
+      dispatcher_smoke,
       issues,
-      executes_tools: false,
+      executes_tools: true,
+      provider_calls_made: Number(dispatcher_smoke?.positive?.summary?.provider_calls_made || 0),
+      temporary_authority_binding_lifecycle_executed: true,
+      repository_mutations_executed: false,
       secrets_included: false,
     };
   } catch (err) {
