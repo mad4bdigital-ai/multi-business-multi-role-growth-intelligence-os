@@ -49,6 +49,13 @@ for (const expected of [
 
 assert(!policy.includes("password"), "repair link state must not include password fields");
 assert(!policy.includes("access_token"), "repair link state must not include access token fields");
+assert(!policy.includes("state_json=${JSON.stringify(state)}"), "Admin GPT URL must not embed raw handoff state");
+const handoffCurrentState = policy.slice(
+  policy.indexOf("current_state: {"),
+  policy.indexOf("required_checks: repairPromptState.required_checks")
+);
+assert(!handoffCurrentState.includes("credential_ref"), "governed handoff current_state must not include credential references");
+assert(policy.includes("admin_gpt_repair_prompt_state: repairPromptState"), "legacy internal approval payload support must remain additive");
 assert(!migration.includes("client_secret"), "migration must not include client secrets");
 
 console.log("tenant ticket Admin GPT link support contract tests passed");
