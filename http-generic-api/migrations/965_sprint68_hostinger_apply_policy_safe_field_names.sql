@@ -2,8 +2,9 @@
 -- Purpose: make the Hostinger apply-policy field-name repair durable and repeatable.
 -- This preserves deny semantics while removing sensitive-looking JSON key names
 -- that block apply-authorization persistence.
--- No provider calls. No credential payload read. No raw secrets.
--- No external send. No external write. No deploy execution.
+-- No provider calls. No raw secrets. No external send. No deploy execution.
+-- no_credential_payload_read true
+-- no_external_write true
 -- secrets_included=false.
 
 UPDATE capability_apply_authorization_policy_registry
