@@ -29,6 +29,9 @@ assert(script.includes("use_record_only_rule_instead_of_reapplying"), "reconcile
 assert(script.includes("risk_requires_approval_but_rule_not_preapproved"), "high-risk automation must remain approval governed");
 assert(script.includes("APPLY_GOVERNED_MIGRATION_RECONCILIATION"), "apply mode must require an outer typed confirmation");
 assert(script.includes("governed-migration-runner.mjs"), "reconciler must delegate mutations to the governed runner");
+assert(script.includes('typeof parsed.message === "string"'), "reconciler must unwrap structured logger message payloads");
+assert(script.includes("JSON.parse(parsed.message)"), "reconciler must parse nested governed runner JSON results");
+assert(script.includes(".reverse()"), "reconciler must scan output from the latest JSON line first");
 assert(!script.includes("eval("), "reconciler must not execute DB-stored code");
 
 assert(migration.includes("'diagnose_only'"), "default policy must remain diagnose-only");
