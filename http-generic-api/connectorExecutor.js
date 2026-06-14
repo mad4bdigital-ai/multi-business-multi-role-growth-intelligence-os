@@ -461,12 +461,6 @@ export async function dispatchPlan(plan_id, {
         [plan.agent_id, requiredSkill, plan.tenant_id]
       );
       if (!skillRows.length) {
-        const error = new Error(`Agent '${plan.agent_id}' is not granted required skill '${requiredSkill}'.`);
-        error.code = "connector_required_agent_skill_grant_missing";
-        error.status = 403;
-        error.required_skill = requiredSkill;
-        error.agent_id = plan.agent_id;
-        throw error;
         const message = `Agent '${plan.agent_id}' lacks required connector skill '${requiredSkill}'.`;
         await finaliseWorkflowRun(run_id, "failed", null, message);
         await getPool().query(
