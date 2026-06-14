@@ -51,6 +51,7 @@ export const CANONICALS = [
       ['Dispatch and local connector governance', '14_dispatch_local_connector_governance.md', 'task_routes mutation rules, MODULE_EXECUTORS registration, agent skills/grants/bindings, supervision policy, and DNS enforcement.'],
       ['Schema repair governance', '15_schema_repair_governance.md', 'Safe additive schema repair, collation guard, and capability-vault draft runtime safety.'],
       ['Activation guidance intelligence', '16_activation_guidance_intelligence.md', 'Proactive Tenant/Admin activation guidance, account counts, readiness semantics, and next-best actions.'],
+      ['Semantic capability resolution', '17_semantic_capability_resolution.md', 'Direct instruction enforcement for semantic capability resolution, shadow comparison, and derived tool exports.'],
     ],
   },
   {
