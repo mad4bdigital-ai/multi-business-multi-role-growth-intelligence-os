@@ -353,9 +353,42 @@ export async function runAgentLoop(plan, deps = {}) {
 
   const engineRegistry = deps.engineExecutorRegistry;
 
-  async function dispatchTool(toolName, args, ctx) {
-    if (engineRegistry?.dispatch) return engineRegistry.dispatch(toolName, args, ctx);
-    return { ok: false, error: "no_engine_registry" };
+  async function dispatchTool(toolName, args, ctx = {}) {
+    const existingAuthorization = ctx?.tool_authorization;
+    const authorization = existingAuthorization?.allowed === true && existingAuthorization?.tool_key === toolName
+      ? existingAuthorization
+      : typeof deps.authorizeToolCall === "function"
+        ? await deps.authorizeToolCall({ tool_name: toolName, args, context: ctx, phase: "dispatch" })
+        : {
+            allowed: false,
+            status: "denied",
+            code: "agent_tool_authorization_gate_unavailable",
+            tool_key: toolName,
+            blockers: ["agent_tool_authorization_gate_unavailable"],
+            secrets_included: false,
+          };
+    if (!authorization.allowed) {
+      return {
+        ok: false,
+        error: {
+          code: authorization.code || "agent_tool_authorization_denied",
+          message: "The governed agent tool authorization gate denied this call.",
+        },
+        authorization: {
+          status: "denied",
+          blocker_codes: authorization.blockers || [],
+          consequence_class: authorization.classification?.consequence_class || null,
+          action_key: authorization.action?.action_key || null,
+          secrets_included: false,
+        },
+        external_send_performed: false,
+        secrets_included: false,
+      };
+    }
+    if (engineRegistry?.dispatch) {
+      return engineRegistry.dispatch(toolName, args, { ...ctx, tool_authorization: authorization });
+    }
+    return { ok: false, error: { code: "no_engine_registry", message: "No engine registry is available." }, secrets_included: false };
   }
 
   // Use class-aware callModel when available; fall back to deps.callModel.
