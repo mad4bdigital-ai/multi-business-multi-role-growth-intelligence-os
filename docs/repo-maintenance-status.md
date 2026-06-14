@@ -62,6 +62,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/platform-completion-cleanup-readback.yml`
 - `.github/workflows/platform-remaining-scope-scorecard.yml`
 - `.github/workflows/pr-risk-labeler.yml`
+- `.github/workflows/surface-contract-auto-remediation.yml`
 - `.github/workflows/verify-runtime.yml`
 
 ## Maintenance Scripts
@@ -72,6 +73,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/scripts/repo-maintenance-sync.mjs`
 - `http-generic-api/scripts/schema-docs-change-guard.mjs`
 - `http-generic-api/scripts/split-openapi.mjs`
+- `http-generic-api/scripts/surface-contract-auto-remediator.mjs`
 - `http-generic-api/scripts/surface-contract-discovery.mjs`
 - `http-generic-api/scripts/surface-contract-gap-triage.mjs`
 
