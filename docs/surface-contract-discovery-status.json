@@ -958,6 +958,7 @@
     {
       "migration_file": "999_sprint68_repository_intelligence_v3_v4_tenant_tool_wiring.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/system/tools/call"
@@ -1043,6 +1044,7 @@
     {
       "migration_file": "998_sprint68_openrouter_provider_smoke_app_map_binding.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -1107,6 +1109,7 @@
     {
       "migration_file": "997_sprint68_openrouter_provider_smoke_capability_binding.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -1165,6 +1168,7 @@
     {
       "migration_file": "965_sprint68_hostinger_apply_policy_safe_field_names.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -1226,6 +1230,7 @@
     {
       "migration_file": "964_sprint68_hostinger_stored_credential_apply_policy.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -1287,6 +1292,7 @@
     {
       "migration_file": "963_sprint68_hostinger_deploy_restart_tool_exports.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -1352,6 +1358,7 @@
     {
       "migration_file": "962_sprint68_smoke_branch_cleanup_gate.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -1410,6 +1417,7 @@
     {
       "migration_file": "961_sprint68_f5_f6_positive_smoke_certification.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -1471,6 +1479,7 @@
     {
       "migration_file": "960_sprint68_remaining_resource_capability_completion_gates.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -1554,6 +1563,7 @@
     {
       "migration_file": "959_sprint68_github_file_patch_plan_diff_only_runtime.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -1612,6 +1622,7 @@
     {
       "migration_file": "958_sprint68_github_file_content_gate_and_patch_plan_registry.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -1682,6 +1693,7 @@
     {
       "migration_file": "957_sprint68_capability_baseline_branch_hygiene_github_file_inspect.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -1743,6 +1755,7 @@
     {
       "migration_file": "956_sprint68_external_delivery_allowlist_readiness_view_updated_at.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -1803,6 +1816,7 @@
     {
       "migration_file": "955_sprint68_external_delivery_admin_control_surface.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/external-delivery/control/adapter/dispatch",
@@ -1970,6 +1984,7 @@
     {
       "migration_file": "954_sprint68_compact_operational_views_and_github_resource_coverage.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -2034,6 +2049,7 @@
     {
       "migration_file": "952_sprint68_resource_graph_projection_apply_gate.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -2097,6 +2113,7 @@
     {
       "migration_file": "950_sprint68_platform_resource_authority_bindings.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -2157,6 +2174,7 @@
     {
       "migration_file": "910_sprint68_session_insight_capability_binding_hardening.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -2225,6 +2243,7 @@
     {
       "migration_file": "909_sprint68_ticket_external_dynamic_recipient_allowlist.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -2288,6 +2307,7 @@
     {
       "migration_file": "908_sprint68_ticket_external_hostinger_gmail_provider_options.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -2356,6 +2376,7 @@
     {
       "migration_file": "907_sprint68_ticket_external_live_smtp_registry_alignment.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -2421,6 +2442,7 @@
     {
       "migration_file": "906_sprint68_ticket_external_delivery_completion_certification.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/external-delivery/completion-certification"
@@ -2520,6 +2542,7 @@
     {
       "migration_file": "905_sprint68_support_ticket_lifecycle_snapshot_apply_policy_readback_alignment.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -2588,6 +2611,7 @@
     {
       "migration_file": "904_sprint68_support_ticket_lifecycle_snapshot_apply_binding.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -2664,6 +2688,7 @@
     {
       "migration_file": "902_sprint68_dynamic_capability_apply_authorization_policy.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -2727,6 +2752,7 @@
     {
       "migration_file": "901_sprint68_resource_manifest_create_gate_authority.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -2788,6 +2814,7 @@
     {
       "migration_file": "900_sprint68_governed_repository_intelligence_engine.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -2854,6 +2881,7 @@
     {
       "migration_file": "311_sprint69_superseded_closed_pr_branch_cleanup.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -2918,6 +2946,7 @@
     {
       "migration_file": "310_sprint69_activation_awareness_completeness_control_plane.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/activation/awareness",
@@ -3084,6 +3113,7 @@
     {
       "migration_file": "309_sprint69_activation_guidance_invocation_registry.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -3152,6 +3182,7 @@
     {
       "migration_file": "308_sprint69_dynamic_governed_migration_reconciliation.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -3220,6 +3251,7 @@
     {
       "migration_file": "308_sprint69_activation_guidance_intelligence.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/activation/guidance",
@@ -3324,6 +3356,7 @@
     {
       "migration_file": "307_sprint69_hostinger_deploy_restart_option_support.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -3401,6 +3434,7 @@
     {
       "migration_file": "306_sprint69_session_insight_target_write_readback.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/target-write-readbacks/create",
@@ -3533,6 +3567,7 @@
     {
       "migration_file": "306_sprint69_operational_console_api.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/operational/console",
@@ -3631,6 +3666,7 @@
     {
       "migration_file": "305_sprint69_runtime_verification_control_plane_hardening.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/activation/hard-run/summary",
@@ -3813,6 +3849,7 @@
     {
       "migration_file": "293_sprint68_system_layer_descriptor_auto_wiring.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/system/tools/call"
@@ -3903,6 +3940,7 @@
     {
       "migration_file": "292_sprint68_platform_health_scorecard_operationalization.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/health/scorecard",
@@ -4098,6 +4136,7 @@
     {
       "migration_file": "291_sprint68_platform_health_scorecard_readback_alignment.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/gpt/tools/call",
@@ -4211,6 +4250,7 @@
     {
       "migration_file": "290_sprint68_platform_health_scorecard.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/gpt/tools/call",
@@ -4343,6 +4383,7 @@
     {
       "migration_file": "289_sprint68_external_delivery_policy_scope_alignment.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -4405,6 +4446,7 @@
     {
       "migration_file": "287_sprint68_external_delivery_orchestration_graph_plugin.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -4513,6 +4555,7 @@
     {
       "migration_file": "286_sprint68_platform_schema_contract_completion_registry.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/wordpress/blog-publish-recovery"
@@ -4594,6 +4637,7 @@
     {
       "migration_file": "284_sprint68_wordpress_schema_import_completion_registry.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -4652,6 +4696,7 @@
     {
       "migration_file": "284_sprint68_session_insight_backlog_target_write_executor.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/backlog-target-writes/execute",
@@ -4789,6 +4834,7 @@
     {
       "migration_file": "284_sprint68_execution_log_full_context_evidence.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -4852,6 +4898,7 @@
     {
       "migration_file": "283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/remaining-scope-completions/create",
@@ -4992,6 +5039,7 @@
     {
       "migration_file": "282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/capability-envelope-adapter-execution-gates/create",
@@ -5143,6 +5191,7 @@
     {
       "migration_file": "281_sprint68_session_insight_capability_envelope_dispatch_readback.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create",
@@ -5290,6 +5339,7 @@
     {
       "migration_file": "280_sprint68_session_insight_capability_envelope_approval_gate.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/capability-envelope-approvals/decision",
@@ -5429,6 +5479,7 @@
     {
       "migration_file": "279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/capability-envelope-actual-requests/create",
@@ -5585,6 +5636,7 @@
     {
       "migration_file": "278_sprint68_session_insight_capability_envelope_actual_request_preflight.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/capability-envelope-actual-requests/preflights/create",
@@ -5729,6 +5781,7 @@
     {
       "migration_file": "277_sprint68_session_insight_capability_envelope_dispatch_dry_run_review.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/review/decision"
@@ -5852,6 +5905,7 @@
     {
       "migration_file": "277_sprint68_execution_log_runtime_evidence.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -5915,6 +5969,7 @@
     {
       "migration_file": "276_sprint68_activation_positive_surface_fixtures.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -5975,6 +6030,7 @@
     {
       "migration_file": "275_sprint68_session_insight_capability_envelope_dispatch_dry_run.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create",
@@ -6110,6 +6166,7 @@
     {
       "migration_file": "274_sprint68_session_insight_capability_envelope_request_review.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/capability-envelope-request-gates/review/decision"
@@ -6226,6 +6283,7 @@
     {
       "migration_file": "274_sprint68_schema_split_importer_v2_reference_preservation.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/schema-import/action-ref"
@@ -6305,6 +6363,7 @@
     {
       "migration_file": "274_sprint68_execution_policy_enforcement_closure.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -6379,6 +6438,7 @@
     {
       "migration_file": "273_sprint68_support_ticket_lifecycle_snapshot_record_gate.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/orchestration/support-ticket/snapshot-record"
@@ -6467,6 +6527,7 @@
     {
       "migration_file": "273_sprint68_session_insight_capability_envelope_request_gate.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/capability-envelope-request-gates/create",
@@ -6611,6 +6672,7 @@
     {
       "migration_file": "273_sprint68_activation_catalog_authorized_surfaces.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -6692,6 +6754,7 @@
     {
       "migration_file": "272_sprint68_ticket_external_provider_gate_registry_resolver.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -6757,6 +6820,7 @@
     {
       "migration_file": "272_sprint68_support_ticket_lifecycle_snapshot_proposal.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/orchestration/support-ticket/snapshot-propose"
@@ -6843,6 +6907,7 @@
     {
       "migration_file": "272_sprint68_session_insight_capability_envelope_planner.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/capability-envelope-plans/create",
@@ -6960,6 +7025,7 @@
     {
       "migration_file": "271_sprint68_session_insight_adapter_apply_readiness_gate.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/adapter-apply-readiness/list"
@@ -7069,6 +7135,7 @@
     {
       "migration_file": "271_sprint68_activation_expanded_authorized_surfaces.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -7139,6 +7206,7 @@
     {
       "migration_file": "270_sprint68_support_ticket_lifecycle_orchestration_readback.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -7225,6 +7293,7 @@
     {
       "migration_file": "270_sprint68_session_insight_payload_preview_review.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/payload-preview/review/decision",
@@ -7339,6 +7408,7 @@
     {
       "migration_file": "270_sprint68_dynamic_capability_tool_bus_kernel.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/gpt/tools/call",
@@ -7449,6 +7519,7 @@
     {
       "migration_file": "269_sprint68_ticket_external_adapter_future_pr_scope.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/external-send/provider-adapter-future-pr-scope/plan",
@@ -7564,6 +7635,7 @@
     {
       "migration_file": "269_sprint68_session_insight_contract_payload_preview.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/payload-preview/generate"
@@ -7661,6 +7733,7 @@
     {
       "migration_file": "269_sprint68_activation_authorized_surface_registry.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -7721,6 +7794,7 @@
     {
       "migration_file": "268_sprint68_ticket_external_adapter_readiness_decision.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/external-send/provider-adapter-readiness/decision"
@@ -7825,6 +7899,7 @@
     {
       "migration_file": "268_sprint68_session_insight_adapter_dry_run_contracts.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/adapter-contracts/list"
@@ -7923,6 +7998,7 @@
     {
       "migration_file": "267_sprint68_ticket_external_adapter_readiness_checklist.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/external-send/provider-adapter-readiness/plan",
@@ -8035,6 +8111,7 @@
     {
       "migration_file": "267_sprint68_session_insight_target_adapter_registry.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/target-adapters/list"
@@ -8137,6 +8214,7 @@
     {
       "migration_file": "266_sprint68_ticket_external_provider_enablement_proposal.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/external-send/provider-adapter-enablement/candidates",
@@ -8250,6 +8328,7 @@
     {
       "migration_file": "266_sprint68_session_insight_promotion_apply_request_skeleton.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/apply/request"
@@ -8354,6 +8433,7 @@
     {
       "migration_file": "265_sprint68_ticket_external_provider_adapter_contracts.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/external-send/provider-contracts"
@@ -8452,6 +8532,7 @@
     {
       "migration_file": "003_sprint06_access.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -8511,6 +8592,7 @@
     {
       "migration_file": "004_sprint04_customer_ops.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -8569,6 +8651,7 @@
     {
       "migration_file": "006_sprint08_planner.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -8627,6 +8710,7 @@
     {
       "migration_file": "009_sprint05_logic_graph.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -8685,6 +8769,7 @@
     {
       "migration_file": "012_sprint16_security.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -8743,6 +8828,7 @@
     {
       "migration_file": "013_sprint17_developer_api.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -8801,6 +8887,7 @@
     {
       "migration_file": "014_sprint18_data_hardening.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -8859,6 +8946,7 @@
     {
       "migration_file": "016_sprint20_agent_registry.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -8920,6 +9008,7 @@
     {
       "migration_file": "017_sprint21_output_sink_router.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -8978,6 +9067,7 @@
     {
       "migration_file": "018_sprint22_customer_session_registry.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -9036,6 +9126,7 @@
     {
       "migration_file": "019_sprint24_workflow_seeds_and_skills.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -9095,6 +9186,7 @@
     {
       "migration_file": "020_sprint25_user_app_integrations.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -9156,6 +9248,7 @@
     {
       "migration_file": "021_sprint26_dev_agent_growth_loop.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -9218,6 +9311,7 @@
     {
       "migration_file": "029_sprint32_tenant_commercials.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -9276,6 +9370,7 @@
     {
       "migration_file": "031_sprint34_admin_gpt_agent_seed.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -9335,6 +9430,7 @@
     {
       "migration_file": "034_sprint37_local_connector_workflow_routes.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -9393,6 +9489,7 @@
     {
       "migration_file": "035_sprint39_customer_local_integration_credentials.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -9451,6 +9548,7 @@
     {
       "migration_file": "039_sprint43_data_integrity_and_missing_tables.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -9511,6 +9609,7 @@
     {
       "migration_file": "040_sprint44_expand_surfaces_and_repair_schema.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -9571,6 +9670,7 @@
     {
       "migration_file": "044_sprint46_google_app_integrations_catalog.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -9629,6 +9729,7 @@
     {
       "migration_file": "047_sprint47b_gpt_tool_registry.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/activation/bootstrap-config",
@@ -10405,6 +10506,7 @@
     {
       "migration_file": "048_sprint47c_tool_fixed_body.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/system/tools/call"
@@ -10493,6 +10595,7 @@
     {
       "migration_file": "049_sprint47d_tool_registry_recovery.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/activation/bootstrap-config",
@@ -11275,6 +11378,7 @@
     {
       "migration_file": "050_sprint47e_fix_schema_drift.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/activation/bootstrap-config",
@@ -12057,6 +12161,7 @@
     {
       "migration_file": "051_sprint48_cloudflare_and_self_repair_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/activation/bootstrap-config",
@@ -12176,6 +12281,7 @@
     {
       "migration_file": "052_sprint49_local_connector_install_bundle.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/cli/local-connector/install-bundle"
@@ -12257,6 +12363,7 @@
     {
       "migration_file": "053_sprint50_install_bundle_db_source.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/cli/local-connector/install-bundle"
@@ -12338,6 +12445,7 @@
     {
       "migration_file": "054_sprint50_admin_device_seed_and_self_repair_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/cli/local-connector/self-repair"
@@ -12419,6 +12527,7 @@
     {
       "migration_file": "055_sprint51_sql_primary_data_source.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/cli/data-source/census",
@@ -12519,6 +12628,7 @@
     {
       "migration_file": "057_sprint53_admin_session_turn_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/gpt/sessions/{id}/end",
@@ -12619,6 +12729,7 @@
     {
       "migration_file": "057_sprint53_credential_binding_bridge.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -12679,6 +12790,7 @@
     {
       "migration_file": "058_create_cms_account_claims.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -12737,6 +12849,7 @@
     {
       "migration_file": "058_sprint53b_non_env_secret_storage.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -12796,6 +12909,7 @@
     {
       "migration_file": "059_sprint54_local_connector_capability_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/connector/{device_id}/apps",
@@ -13015,6 +13129,7 @@
     {
       "migration_file": "060_sprint55_admin_scope_grants.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/scope-grants",
@@ -13140,6 +13255,7 @@
     {
       "migration_file": "061_sprint56_connector_registry_taxonomy.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -13198,6 +13314,7 @@
     {
       "migration_file": "062_sprint56b_connector_registry_diagnostic_views.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -13259,6 +13376,7 @@
     {
       "migration_file": "063_sprint56c_connector_taxonomy_coverage_closure.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -13317,6 +13435,7 @@
     {
       "migration_file": "064_sprint56d_normalize_connector_family_rows.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -13375,6 +13494,7 @@
     {
       "migration_file": "065_sprint56e_connector_taxonomy_admin_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/connector-taxonomy/app-map",
@@ -13495,6 +13615,7 @@
     {
       "migration_file": "066_sprint57_app_tool_bindings.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -13582,6 +13703,7 @@
     {
       "migration_file": "067_sprint57b_connector_taxonomy_tool_map_admin_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/connector-taxonomy/tool-map"
@@ -13669,6 +13791,7 @@
     {
       "migration_file": "068_sprint58_cloudflare_readonly_runtime.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/accounts/{account_id}/cfd_tunnel",
@@ -13798,6 +13921,7 @@
     {
       "migration_file": "069_sprint58b_cloudflare_route_target_fix.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -13858,6 +13982,7 @@
     {
       "migration_file": "070_sprint58c_cloudflare_endpoint_execution_flags.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -13918,6 +14043,7 @@
     {
       "migration_file": "073_sprint59b_register_credential_intake_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/credential-intake/sessions"
@@ -13999,6 +14125,7 @@
     {
       "migration_file": "074_sprint60_n8n_device_tool_lifecycle.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -14057,6 +14184,7 @@
     {
       "migration_file": "075_sprint60b_tenant_n8n_device_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/connector/{device_id}/n8n"
@@ -14138,6 +14266,7 @@
     {
       "migration_file": "078_sprint61_local_project_path_registry.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -14196,6 +14325,7 @@
     {
       "migration_file": "079_sprint61_local_project_path_access_policy.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -14254,6 +14384,7 @@
     {
       "migration_file": "080_sprint61_backup_copy_governance.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -14316,6 +14447,7 @@
     {
       "migration_file": "082_sprint61_backup_policy_templates.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -14374,6 +14506,7 @@
     {
       "migration_file": "083_sprint61_backup_approval_restore_gates.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -14432,6 +14565,7 @@
     {
       "migration_file": "084_sprint61_local_backup_destination.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -14490,6 +14624,7 @@
     {
       "migration_file": "086_sprint61_backup_approval_workflow_contract.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -14551,6 +14686,7 @@
     {
       "migration_file": "090_sprint62_local_gateway_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/connector/{device_id}/apps",
@@ -14778,6 +14914,7 @@
     {
       "migration_file": "091_sprint62b_local_gateway_credential_policy.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/connector/{device_id}/cf",
@@ -14975,6 +15112,7 @@
     {
       "migration_file": "092_sprint62c_register_local_gateway_dispatcher_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/local/tools",
@@ -15078,6 +15216,7 @@
     {
       "migration_file": "093_sprint62d_local_gateway_sensitive_tool_enforcement.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -15139,6 +15278,7 @@
     {
       "migration_file": "096_sprint62g_register_connector_installer_download_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/local-connector/install/download-link"
@@ -15220,6 +15360,7 @@
     {
       "migration_file": "097_sprint62h_separate_local_connector_urls.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -15278,6 +15419,7 @@
     {
       "migration_file": "1000_sprint68_dr_certification_and_tool_bus_gated_read_only.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -15341,6 +15483,7 @@
     {
       "migration_file": "1001_sprint68_repository_advisory_comment_v5_tenant_tool_wiring.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/system/tools/call"
@@ -15427,6 +15570,7 @@
     {
       "migration_file": "1001_sprint68_tenant_ticket_admin_gpt_link_support.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/tenant-user/create-simulation"
@@ -15506,6 +15650,7 @@
     {
       "migration_file": "100_sprint62k_local_app_releases.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -15564,6 +15709,7 @@
     {
       "migration_file": "100_sprint63_onboarding_recovery_control_plane.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/onboarding/escalations",
@@ -15838,6 +15984,7 @@
     {
       "migration_file": "102_sprint62m_local_manager_windows_0_1_2_release.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -15896,6 +16043,7 @@
     {
       "migration_file": "104_sprint64_activation_mode_governance.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -15954,6 +16102,7 @@
     {
       "migration_file": "105_sprint64_dedicated_integration_flow.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/connect/api/app-integrations",
@@ -16094,6 +16243,7 @@
     {
       "migration_file": "106_sprint62q_platform_graph_admin_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/graph/neighborhood",
@@ -16271,6 +16421,7 @@
     {
       "migration_file": "106_sprint64_hybrid_integration_policy.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/connect/api/integration-policy"
@@ -16352,6 +16503,7 @@
     {
       "migration_file": "107_sprint62r_platform_graph_memory_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/graph/memory"
@@ -16433,6 +16585,7 @@
     {
       "migration_file": "108_hostinger_ssh_governed_connectors.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/hostinger/ssh/restart-app",
@@ -16558,6 +16711,7 @@
     {
       "migration_file": "109_sprint62t_activation_graph_docs_telemetry.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -16616,6 +16770,7 @@
     {
       "migration_file": "112_sprint62w_register_session_summary_autosweep_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/dev-agent/session-summaries/autosweep"
@@ -16700,6 +16855,7 @@
     {
       "migration_file": "113_sprint62x_session_summary_graph_collation_guard.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -16758,6 +16914,7 @@
     {
       "migration_file": "114_sprint62y_register_model_readiness_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/dev-agent/model-readiness"
@@ -16843,6 +17000,7 @@
     {
       "migration_file": "115_sprint62z_agent_model_runtime_settings.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/dev-agent/model-settings"
@@ -16930,6 +17088,7 @@
     {
       "migration_file": "116_sprint63a_agent_model_task_profiles.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -16989,6 +17148,7 @@
     {
       "migration_file": "117_sprint63b_n8n_workflow_runtime_bindings.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/workflow-runtime/bindings",
@@ -17092,6 +17252,7 @@
     {
       "migration_file": "118_sprint63c_register_session_summary_health_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/dev-agent/session-summaries/health"
@@ -17176,6 +17337,7 @@
     {
       "migration_file": "119_sprint64_platform_plugin_catalog_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/plugins/catalog"
@@ -17257,6 +17419,7 @@
     {
       "migration_file": "120_sprint64_platform_plugin_resolver_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/plugins/resolve"
@@ -17338,6 +17501,7 @@
     {
       "migration_file": "121_sprint64_platform_plugin_policy_upsert_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/plugins/install-policy"
@@ -17419,6 +17583,7 @@
     {
       "migration_file": "123_sprint64_summary_comparison_runs.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/dev-agent/summary-comparison/run"
@@ -17503,6 +17668,7 @@
     {
       "migration_file": "124_sprint64_app_action_policy_preflight.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -17561,6 +17727,7 @@
     {
       "migration_file": "124_sprint64_summary_comparison_report_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/dev-agent/summary-comparison/report"
@@ -17645,6 +17812,7 @@
     {
       "migration_file": "125_sprint64_platform_plugin_contributions.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/plugins/contributions",
@@ -17746,6 +17914,7 @@
     {
       "migration_file": "125_sprint64_summary_comparison_quality_scoring.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/dev-agent/summary-comparison/score"
@@ -17830,6 +17999,7 @@
     {
       "migration_file": "126_sprint64_connector_dispatch_preflight.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -17888,6 +18058,7 @@
     {
       "migration_file": "126_sprint64_platform_plugin_private_runtime.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/plugins/contributions/activate-private",
@@ -17988,6 +18159,7 @@
     {
       "migration_file": "126_sprint64_summary_experiment_policy_gate.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -18046,6 +18218,7 @@
     {
       "migration_file": "127_sprint64_agent_loop_preflight.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -18104,6 +18277,7 @@
     {
       "migration_file": "127_sprint64_platform_plugin_private_rest_dispatch.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/plugins/contributions/dispatch-rest"
@@ -18186,6 +18360,7 @@
     {
       "migration_file": "128_sprint64_platform_plugin_promotion.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/plugins/contributions/certify",
@@ -18287,6 +18462,7 @@
     {
       "migration_file": "129_sprint64_platform_plugin_tenant_install.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/plugins/install"
@@ -18368,6 +18544,7 @@
     {
       "migration_file": "129_sprint64_summary_experiment_v2_binding.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/webhook/platform-summary-experiment-v2"
@@ -18449,6 +18626,7 @@
     {
       "migration_file": "130_sprint64_summary_development_automation.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -18513,6 +18691,7 @@
     {
       "migration_file": "130_sprint65_browser_runtime_governance.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/browser-runtime/bindings",
@@ -18710,6 +18889,7 @@
     {
       "migration_file": "131_sprint64_summary_development_automation_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/dev-agent/summary-development/extract",
@@ -18834,6 +19014,7 @@
     {
       "migration_file": "131_sprint65_browser4_local_adapter.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/browser-runtime/inspect-site/run",
@@ -18934,6 +19115,7 @@
     {
       "migration_file": "132_sprint64_summary_development_agent_dry_run_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/dev-agent/summary-development/agent-dry-run"
@@ -19018,6 +19200,7 @@
     {
       "migration_file": "132_sprint65_browser4_adapter_metadata_repair.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/browser-runtime/inspect-site/run"
@@ -19097,6 +19280,7 @@
     {
       "migration_file": "133_sprint64_summary_development_repo_analysis_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/dev-agent/summary-development/repo-analysis-dry-run"
@@ -19181,6 +19365,7 @@
     {
       "migration_file": "133_sprint65_json_asset_registry_required_execution.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -19239,6 +19424,7 @@
     {
       "migration_file": "134_sprint64_summary_development_agent_approvals.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -19299,6 +19485,7 @@
     {
       "migration_file": "135_sprint64_summary_development_agent_approval_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/dev-agent/summary-development/repo-analysis-approve"
@@ -19384,6 +19571,7 @@
     {
       "migration_file": "136_sprint64_summary_development_execution_envelope_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/dev-agent/summary-development/repo-analysis-execution-envelope"
@@ -19468,6 +19656,7 @@
     {
       "migration_file": "137_sprint64_openclaude_provider_registry.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -19538,6 +19727,7 @@
     {
       "migration_file": "137_sprint65_platform_plugin_shared_tool_bindings.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -19605,6 +19795,7 @@
     {
       "migration_file": "138_sprint64_openclaude_provider_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/dev-agent/summary-development/providers"
@@ -19689,6 +19880,7 @@
     {
       "migration_file": "139_sprint64_provider_bridge_dry_run_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/dev-agent/summary-development/provider-bridge-dry-run"
@@ -19773,6 +19965,7 @@
     {
       "migration_file": "140_sprint64_codex_runtime_and_provider_profiles.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -19838,6 +20031,7 @@
     {
       "migration_file": "141_sprint64_codex_interactive_execution_envelope_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/dev-agent/summary-development/codex-interactive-execution-envelope"
@@ -19922,6 +20116,7 @@
     {
       "migration_file": "141_sprint65_gpt_schema_db_coverage_guard.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -19994,6 +20189,7 @@
     {
       "migration_file": "141_sprint65_gpt_schema_db_registry_coverage.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -20065,6 +20261,7 @@
     {
       "migration_file": "142_sprint64_codex_interactive_execution_request_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/dev-agent/summary-development/codex-interactive-execution-request",
@@ -20170,6 +20367,7 @@
     {
       "migration_file": "142_sprint65_platform_plugin_collation_normalization.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -20231,6 +20429,7 @@
     {
       "migration_file": "143_sprint64_local_manager_desktop_device_aliases.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -20289,6 +20488,7 @@
     {
       "migration_file": "143_sprint65_platform_plugin_collation_hardening.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -20350,6 +20550,7 @@
     {
       "migration_file": "144_sprint65_cloak_browser_candidate.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -20408,6 +20609,7 @@
     {
       "migration_file": "144_sprint65_platform_plugin_action_grant_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/plugins/action-grants"
@@ -20490,6 +20692,7 @@
     {
       "migration_file": "145_sprint65_browser_runtime_activation_matrix.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/browser-runtime/inspect-site/run"
@@ -20573,6 +20776,7 @@
     {
       "migration_file": "145_sprint65_platform_plugin_public_rest_dispatch_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/plugins/dispatch-rest"
@@ -20655,6 +20859,7 @@
     {
       "migration_file": "145_sprint65_platform_tool_manifest_surface.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -20715,6 +20920,7 @@
     {
       "migration_file": "146_sprint65_browser_runtime_adapter_request_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/browser-runtime/cloud-extract/run",
@@ -20854,6 +21060,7 @@
     {
       "migration_file": "146_sprint65_platform_plugin_action_template_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/plugins/action-templates"
@@ -20935,6 +21142,7 @@
     {
       "migration_file": "147_sprint65_action_manifest_diagnostic_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/action-manifest/resolve"
@@ -21016,6 +21224,7 @@
     {
       "migration_file": "147_sprint65_auto_browser_local_tool_candidate.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/connector/{device_id}/auto-browser"
@@ -21100,6 +21309,7 @@
     {
       "migration_file": "148_sprint65_execution_authority_graph_taxonomy.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -21159,6 +21369,7 @@
     {
       "migration_file": "149_sprint65_execution_readiness_dry_run_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/execution-readiness/dry-run"
@@ -21241,6 +21452,7 @@
     {
       "migration_file": "150_sprint65_provider_smoke_guarded_dispatch_schema.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -21301,6 +21513,7 @@
     {
       "migration_file": "150_sprint65_remote_ssh_runtime_foundation.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -21371,6 +21584,7 @@
     {
       "migration_file": "151_sprint65_remote_runtime_catalog_probe_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/remote-runtime/probe",
@@ -21469,6 +21683,7 @@
     {
       "migration_file": "152_sprint65_platform_plugin_smoke_certification_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/plugins/smoke-certifications/certify",
@@ -21570,6 +21785,7 @@
     {
       "migration_file": "152_sprint65_remote_runtime_target_management_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/remote-runtime/targets/upsert",
@@ -21670,6 +21886,7 @@
     {
       "migration_file": "153_sprint65_remote_runtime_dispatch_dry_run_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/remote-runtime/dispatch-dry-run"
@@ -21751,6 +21968,7 @@
     {
       "migration_file": "154_sprint65_remote_runtime_local_readonly_execute_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/remote-runtime/local-path/execute-readonly"
@@ -21832,6 +22050,7 @@
     {
       "migration_file": "154_sprint65_smoke_certification_lifecycle_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -21891,6 +22110,7 @@
     {
       "migration_file": "155_sprint65_platform_evolution_checkpoint_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/evolution/activation-card",
@@ -22030,6 +22250,7 @@
     {
       "migration_file": "155_sprint65_smoke_recertification_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/plugins/smoke-certifications/recertification-batch",
@@ -22130,6 +22351,7 @@
     {
       "migration_file": "156_sprint65_remote_runtime_diff_name_status.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -22188,6 +22410,7 @@
     {
       "migration_file": "156_sprint65_tenant_evolution_checkpoint_read_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/tenant/evolution/activation-card",
@@ -22309,6 +22532,7 @@
     {
       "migration_file": "157_sprint65_evolution_user_switch_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/evolution/switch-options",
@@ -22410,6 +22634,7 @@
     {
       "migration_file": "157_sprint65_smoke_recertification_policy_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/plugins/smoke-certifications/policies/list",
@@ -22530,6 +22755,7 @@
     {
       "migration_file": "157_sprint65_wordpress_blog_publish_orchestrator.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -22594,6 +22820,7 @@
     {
       "migration_file": "158_sprint65_evolution_tenant_jwt_smoke_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/evolution/tenant-smoke"
@@ -22675,6 +22902,7 @@
     {
       "migration_file": "158_sprint65_execution_plan_dispatch_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/execution-plans/{plan_id}/dispatch"
@@ -22756,6 +22984,7 @@
     {
       "migration_file": "158_sprint65_smoke_recertification_policy_audit_tool_schema.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -22814,6 +23043,7 @@
     {
       "migration_file": "159_sprint65_smoke_recertification_policy_history_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/plugins/smoke-certifications/policies/history",
@@ -22936,6 +23166,7 @@
     {
       "migration_file": "159_sprint65_tenant_evolution_checkpoint_write_policy.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/tenant/evolution/checkpoints"
@@ -23019,6 +23250,7 @@
     {
       "migration_file": "159_sprint65_wordpress_auth_context_diagnostic_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/wordpress/auth-context/diagnose"
@@ -23098,6 +23330,7 @@
     {
       "migration_file": "160_sprint65_credential_resolution_plan_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/credentials/effective/plan"
@@ -23179,6 +23412,7 @@
     {
       "migration_file": "161_sprint65_credential_tenant_promotion_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/credentials/bindings/promote"
@@ -23261,6 +23495,7 @@
     {
       "migration_file": "162_sprint65_cms_claim_smoke_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/evolution/cms-claim-smoke"
@@ -23342,6 +23577,7 @@
     {
       "migration_file": "163_sprint65_session_archive_smoke_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/release/session-archive-smoke"
@@ -23424,6 +23660,7 @@
     {
       "migration_file": "164_sprint65_audit_payload_evidence.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/audit/evidence/smoke"
@@ -23505,6 +23742,7 @@
     {
       "migration_file": "165_sprint65_hard_activation_and_tenant_surface.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/activation/hard-run"
@@ -23587,6 +23825,7 @@
     {
       "migration_file": "166_sprint65_ai_intelligence_runtime_governance.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -23674,6 +23913,7 @@
     {
       "migration_file": "167_sprint65_ai_intelligence_runtime_governance_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/ai/model-runs",
@@ -23988,6 +24228,7 @@
     {
       "migration_file": "168_sprint65_database_table_lifecycle_governance.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -24057,6 +24298,7 @@
     {
       "migration_file": "169_sprint65_local_github_cli_policy.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -24117,6 +24359,7 @@
     {
       "migration_file": "171_sprint65_local_connector_key_promotion_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/credentials/intake/promote-local-connector-key"
@@ -24196,6 +24439,7 @@
     {
       "migration_file": "172_sprint65_database_lifecycle_reporting_views.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -24262,6 +24506,7 @@
     {
       "migration_file": "173_sprint65_auto_browser_managed_runtime_start.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -24326,6 +24571,7 @@
     {
       "migration_file": "174_sprint65_recovery_capability_taxonomy_foundation.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/engines/decision-brief",
@@ -24429,6 +24675,7 @@
     {
       "migration_file": "175_sprint65_resource_authority_registry_foundation.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/engines/decision-brief",
@@ -24547,6 +24794,7 @@
     {
       "migration_file": "176_sprint65_recovery_resource_runtime_alignment.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -24615,6 +24863,7 @@
     {
       "migration_file": "177_sprint65_validator_result_log_foundation.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/engines/validator-results"
@@ -24699,6 +24948,7 @@
     {
       "migration_file": "178_sprint66_runtime_authority_certification_registries.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -24766,6 +25016,7 @@
     {
       "migration_file": "179_sprint66_dynamic_capability_audit_foundation.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -24841,6 +25092,7 @@
     {
       "migration_file": "180_sprint66_tenant_activation_install_guidance.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -24899,6 +25151,7 @@
     {
       "migration_file": "180_sprint66_wordpress_publish_authority_diagnostic_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/wordpress/publish-authority/diagnose"
@@ -24978,6 +25231,7 @@
     {
       "migration_file": "181_sprint66_connected_execution_continuity_foundation.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -25038,6 +25292,7 @@
     {
       "migration_file": "181_sprint66_tenant_local_connector_health_scope.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -25096,6 +25351,7 @@
     {
       "migration_file": "182_sprint66_database_lifecycle_report_snapshots.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/engines/database-lifecycle/report-snapshots"
@@ -25177,6 +25433,7 @@
     {
       "migration_file": "182_sprint66_platform_hostinger_ssh_db_credentials.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -25235,6 +25492,7 @@
     {
       "migration_file": "183_sprint66_database_lifecycle_snapshot_schedule_readiness.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/engines/database-lifecycle/report-snapshot-schedule-readiness",
@@ -25339,6 +25597,7 @@
     {
       "migration_file": "184_sprint66_database_lifecycle_scheduler_binding_readiness.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/engines/database-lifecycle/scheduler-binding-readiness",
@@ -25443,6 +25702,7 @@
     {
       "migration_file": "185_sprint66_database_lifecycle_scheduler_approval_metadata.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/engines/database-lifecycle/scheduler-approval-metadata"
@@ -25522,6 +25782,7 @@
     {
       "migration_file": "186_sprint66_database_lifecycle_scheduler_approval_readback.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/engines/database-lifecycle/scheduler-approval-readback"
@@ -25603,6 +25864,7 @@
     {
       "migration_file": "187_sprint66_connected_execution_continuity_api_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/connected-execution/sessions",
@@ -25742,6 +26004,7 @@
     {
       "migration_file": "187_sprint66_platform_secret_intake_promotion_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/credentials/intake/promote-platform-secrets"
@@ -25824,6 +26087,7 @@
     {
       "migration_file": "188_sprint66_database_lifecycle_scheduler_snapshot_queue_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/engines/database-lifecycle/scheduler-snapshot-jobs",
@@ -25924,6 +26188,7 @@
     {
       "migration_file": "188_sprint66_remote_database_intake_autopromotion.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -25983,6 +26248,7 @@
     {
       "migration_file": "189_sprint66_platform_private_capability_vault.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/capability-vault/google-file-read/resolve",
@@ -26275,6 +26541,7 @@
     {
       "migration_file": "189_sprint66_tenant_gpt_operating_guide_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/tenant/docs",
@@ -26373,6 +26640,7 @@
     {
       "migration_file": "190_sprint66_workspace_lifecycle_foundation.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/me/invitations/accept",
@@ -26554,6 +26822,7 @@
     {
       "migration_file": "191_sprint66_connected_execution_worker_bridge.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/connected-execution/sessions/{connected_session_id}/resume-actions/{resume_action_id}/enqueue"
@@ -26633,6 +26902,7 @@
     {
       "migration_file": "191_sprint66_tenant_credential_intake_connection_status.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/me/connections/{connection_id}/credential-intake-status"
@@ -26712,6 +26982,7 @@
     {
       "migration_file": "192_sprint66_execution_job_tick_admin_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/jobs/{job_id}/tick"
@@ -26791,6 +27062,7 @@
     {
       "migration_file": "193_sprint66_connected_execution_read_only_tool_call_preflight.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -26853,6 +27125,7 @@
     {
       "migration_file": "193_sprint67_workspace_resource_authority_foundation.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/me/workspaces/{tenant_id}/assets",
@@ -26977,6 +27250,7 @@
     {
       "migration_file": "194_sprint66_runtime_policy_reconciliation.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -27050,6 +27324,7 @@
     {
       "migration_file": "194_sprint66_tenant_infrastructure_readiness_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/me/infrastructure/connections/{connection_id}/preflight",
@@ -27151,6 +27426,7 @@
     {
       "migration_file": "194_sprint67_workspace_resource_grant_assignment_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/me/workspaces/{tenant_id}/resource-grants",
@@ -27249,6 +27525,7 @@
     {
       "migration_file": "195_sprint66_connected_execution_read_only_tool_execution.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -27311,6 +27588,7 @@
     {
       "migration_file": "195_sprint66_tenant_infrastructure_specific_paths.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/me/infrastructure/database/connections/{connection_id}/preflight",
@@ -27450,6 +27728,7 @@
     {
       "migration_file": "196_sprint66_tenant_database_schema_read_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/me/infrastructure/database/connections/{connection_id}/schema"
@@ -27529,6 +27808,7 @@
     {
       "migration_file": "196_sprint67_safe_additive_repair_policy.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -27588,6 +27868,7 @@
     {
       "migration_file": "197_sprint66_tenant_database_query_readonly_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/me/infrastructure/database/connections/{connection_id}/query-readonly"
@@ -27667,6 +27948,7 @@
     {
       "migration_file": "197_sprint67_workspace_authority_reconciliation_views.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -27730,6 +28012,7 @@
     {
       "migration_file": "198_sprint66_tenant_ssh_probe_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/me/infrastructure/ssh/connections/{connection_id}/probe"
@@ -27809,6 +28092,7 @@
     {
       "migration_file": "198_sprint67_database_collation_policy_guard.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -27868,6 +28152,7 @@
     {
       "migration_file": "199_sprint66_tenant_ssh_cli_dry_run_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/me/infrastructure/ssh/connections/{connection_id}/cli/dry-run"
@@ -27947,6 +28232,7 @@
     {
       "migration_file": "199_sprint67_runtime_policy_resolver_monitoring_and_mirror_classification.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -28008,6 +28294,7 @@
     {
       "migration_file": "199_sprint67_skillpack_draft_catalog_and_advisory_routes.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -28070,6 +28357,7 @@
     {
       "migration_file": "199_sprint68_workspace_ownership_member_control_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/me/workspaces/{tenant_id}/members/{user_id}",
@@ -28187,6 +28475,7 @@
     {
       "migration_file": "200_sprint66_tenant_ssh_cli_approval_request_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/me/infrastructure/ssh/connections/{connection_id}/cli/approval-request"
@@ -28270,6 +28559,7 @@
     {
       "migration_file": "200_sprint67_runtime_policy_target_rule_backfill.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -28330,6 +28620,7 @@
     {
       "migration_file": "200_sprint68_workspace_invitation_control_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/me/workspaces/{tenant_id}/invitations/expire-stale",
@@ -28447,6 +28738,7 @@
     {
       "migration_file": "201_sprint66_tenant_ssh_cli_approval_decision_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/me/infrastructure/ssh/cli/approval-requests/{request_id}",
@@ -28548,6 +28840,7 @@
     {
       "migration_file": "201_sprint68_workspace_access_request_control_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/me/access-requests",
@@ -28649,6 +28942,7 @@
     {
       "migration_file": "20260611_activation_dynamic_tabs.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -28713,6 +29007,7 @@
     {
       "migration_file": "20260611_activation_dynamic_tabs_autodiscovery.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -28772,6 +29067,7 @@
     {
       "migration_file": "20260611_activation_operational_dashboard.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -28832,6 +29128,7 @@
     {
       "migration_file": "202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/me/infrastructure/ssh/connections/{connection_id}/cli/execute"
@@ -28914,6 +29211,7 @@
     {
       "migration_file": "202_sprint68_admin_workspace_authority_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/workspace-authority/reconciliation",
@@ -29012,6 +29310,7 @@
     {
       "migration_file": "203_sprint66_tenant_ssh_execute_runtime_config.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -29070,6 +29369,7 @@
     {
       "migration_file": "204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/me/infrastructure/ssh/connections/{connection_id}/cli/execute-jobs/{job_id}/result"
@@ -29151,6 +29451,7 @@
     {
       "migration_file": "204_sprint67_core_runtime_context_dimensions.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -29214,6 +29515,7 @@
     {
       "migration_file": "205_sprint66_tenant_ssh_password_and_intake_wait.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/connect/api/credential-intake/sessions/{session_id}/wait"
@@ -29293,6 +29595,7 @@
     {
       "migration_file": "205_sprint67_openclaude_provider_bridge_routes.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/dev-agent/openclaude/bridge/v1/chat/completions",
@@ -29406,6 +29709,7 @@
     {
       "migration_file": "205_sprint67_runtime_context_dimension_enrichment.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -29464,6 +29768,7 @@
     {
       "migration_file": "206_sprint66_credential_intake_webhook_outbox.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/control"
@@ -29545,6 +29850,7 @@
     {
       "migration_file": "206_sprint67_hostinger_ssh_deploy_executor.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/remote-runtime/hosting/deploy-release"
@@ -29626,6 +29932,7 @@
     {
       "migration_file": "207_sprint67_hostinger_ssh_target_probe.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/remote-runtime/hosting/ssh-probe"
@@ -29705,6 +30012,7 @@
     {
       "migration_file": "207_sprint67_platform_relationship_integrity_views.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -29767,6 +30075,7 @@
     {
       "migration_file": "210_sprint67_approval_hold_tenant_ssh_relationship_alignment.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -29832,6 +30141,7 @@
     {
       "migration_file": "210_sprint67_openrouter_docs_agent_provider_contract.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/api/v1/chat/completions"
@@ -29918,6 +30228,7 @@
     {
       "migration_file": "215_sprint67_dynamic_platform_secret_promotion.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/credentials/intake/promote-platform-secrets"
@@ -29999,6 +30310,7 @@
     {
       "migration_file": "215_sprint67_hostinger_ssh_probe_db_gate.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -30062,6 +30374,7 @@
     {
       "migration_file": "216_sprint67_openrouter_provider_smoke_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/control"
@@ -30141,6 +30454,7 @@
     {
       "migration_file": "216_sprint67_platform_secret_promotion_monitoring.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -30202,6 +30516,7 @@
     {
       "migration_file": "216_sprint68_connection_capability_repair_before_fallback_policy.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -30262,6 +30577,7 @@
     {
       "migration_file": "217_sprint67_openrouter_model_policy_control.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/control"
@@ -30343,6 +30659,7 @@
     {
       "migration_file": "218_sprint67_activate_openclaude_openrouter_provider.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/dev-agent/openclaude/bridge/v1/chat/completions"
@@ -30435,6 +30752,7 @@
     {
       "migration_file": "219_sprint67_gpt_session_turn_batch_write_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/gpt/sessions/{id}/turns"
@@ -30516,6 +30834,7 @@
     {
       "migration_file": "219_sprint67_openclaude_live_dispatch_certification.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -30585,6 +30904,7 @@
     {
       "migration_file": "220_sprint67_codex_dual_mode_policy.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/dev-agent/openclaude/bridge/v1/chat/completions"
@@ -30670,6 +30990,7 @@
     {
       "migration_file": "221_sprint67_dynamic_capability_resolution_graph.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/control"
@@ -30760,6 +31081,7 @@
     {
       "migration_file": "222_sprint67_async_job_timeout_recovery.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -30820,6 +31142,7 @@
     {
       "migration_file": "222_sprint67_dynamic_capability_resolution_risk_refinement.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -30878,6 +31201,7 @@
     {
       "migration_file": "223_sprint67_dynamic_capability_simulation_suite.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/control"
@@ -30966,6 +31290,7 @@
     {
       "migration_file": "223_sprint67_gpt_session_conversation_refs.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/gpt/sessions/{id}/conversation-ref"
@@ -31048,6 +31373,7 @@
     {
       "migration_file": "224_sprint67_capability_simulation_findings_refinement.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -31108,6 +31434,7 @@
     {
       "migration_file": "225_sprint67_capability_resolution_envelope_ledger.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/control"
@@ -31197,6 +31524,7 @@
     {
       "migration_file": "225_sprint67_gpt_session_conversation_ref_primary.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/gpt/sessions/{id}/conversation-ref/mark-primary"
@@ -31279,6 +31607,7 @@
     {
       "migration_file": "226_sprint67_wordpress_capability_envelope_requirement.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -31338,6 +31667,7 @@
     {
       "migration_file": "227_sprint67_hostinger_deploy_capability_envelope_requirement.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -31397,6 +31727,7 @@
     {
       "migration_file": "228_sprint67_n8n_capability_envelope_requirement.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/connector/{device_id}/n8n"
@@ -31480,6 +31811,7 @@
     {
       "migration_file": "229_sprint67_gpt_session_archive_monitoring.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -31540,6 +31872,7 @@
     {
       "migration_file": "229_sprint67_workspace_brands_list_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/me/workspaces/{tenant_id}/brands"
@@ -31621,6 +31954,7 @@
     {
       "migration_file": "230_sprint67_gpt_session_conversation_ref_capture_current.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/gpt/sessions/{id}/conversation-ref/capture-current"
@@ -31703,6 +32037,7 @@
     {
       "migration_file": "231_sprint67_hostinger_runner_durable_submit.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -31761,6 +32096,7 @@
     {
       "migration_file": "231_sprint68_shared_reconciliation_continuation_policy.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -31819,6 +32155,7 @@
     {
       "migration_file": "232_sprint68_chunked_tool_response_continuation_policy.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -31886,6 +32223,7 @@
     {
       "migration_file": "233_sprint68_general_mode_choice_governance.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -31944,6 +32282,7 @@
     {
       "migration_file": "233_sprint68_ticket_lifecycle_authority_foundation.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets",
@@ -32164,6 +32503,7 @@
     {
       "migration_file": "234_sprint67_repo_patch_capability_envelope_requirement.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -32224,6 +32564,7 @@
     {
       "migration_file": "234_sprint68_ticket_lifecycle_reconciliation_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/reconcile"
@@ -32305,6 +32646,7 @@
     {
       "migration_file": "235_sprint67_capability_envelope_approval_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/control"
@@ -32392,6 +32734,7 @@
     {
       "migration_file": "235_sprint68_local_manager_chatgpt_url_capture_action.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -32450,6 +32793,7 @@
     {
       "migration_file": "235_sprint68_ticket_lifecycle_runtime_links.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/sla/reconcile",
@@ -32569,6 +32913,7 @@
     {
       "migration_file": "236_sprint67_budget_quota_authority_registry.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/control"
@@ -32654,6 +32999,7 @@
     {
       "migration_file": "236_sprint68_admin_branch_reconciliation_policy.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -32712,6 +33058,7 @@
     {
       "migration_file": "236_sprint68_ticket_lifecycle_execution_plans.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/execution-plan"
@@ -32794,6 +33141,7 @@
     {
       "migration_file": "237_sprint68_ticket_lifecycle_workflow_runs.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/runtime-sync",
@@ -32894,6 +33242,7 @@
     {
       "migration_file": "238_sprint67_google_ads_budget_change_preflight.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/control"
@@ -32982,6 +33331,7 @@
     {
       "migration_file": "238_sprint68_ticket_lifecycle_step_runs.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/step-run",
@@ -33082,6 +33432,7 @@
     {
       "migration_file": "239_sprint67_google_ads_budget_preflight_binding.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -33148,6 +33499,7 @@
     {
       "migration_file": "239_sprint68_ticket_lifecycle_diagnostic_steps.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/step-run/execute"
@@ -33230,6 +33582,7 @@
     {
       "migration_file": "240_sprint68_live_checkout_cleanup_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/control"
@@ -33311,6 +33664,7 @@
     {
       "migration_file": "240_sprint68_ticket_lifecycle_diagnostic_chain.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/diagnostic-chain"
@@ -33392,6 +33746,7 @@
     {
       "migration_file": "241_sprint67_google_ads_budget_preflight_ledger.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -33461,6 +33816,7 @@
     {
       "migration_file": "241_sprint68_ticket_lifecycle_brand_mapping_remediation.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/brand-mapping-remediation"
@@ -33544,6 +33900,7 @@
     {
       "migration_file": "242_sprint67_preflight_ledger_validator.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/control"
@@ -33633,6 +33990,7 @@
     {
       "migration_file": "242_sprint68_ticket_lifecycle_approval_remediation.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/approval-hold/decision",
@@ -33733,6 +34091,7 @@
     {
       "migration_file": "243_sprint67_preflight_execution_gate_helper.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -33801,6 +34160,7 @@
     {
       "migration_file": "243_sprint68_growth_intelligence_product_registry.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -33863,6 +34223,7 @@
     {
       "migration_file": "243_sprint68_ticket_lifecycle_brand_ref_resolution.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/brand-ref-resolution"
@@ -33944,6 +34305,7 @@
     {
       "migration_file": "244_sprint67_preflight_execution_gate_policy_readback_fix.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -34007,6 +34369,7 @@
     {
       "migration_file": "244_sprint68_cms_grant_dedupe_and_null_guard.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -34065,6 +34428,7 @@
     {
       "migration_file": "244_sprint68_sequential_plan_orchestrator.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -34123,6 +34487,7 @@
     {
       "migration_file": "244_sprint68_session_archive_rollover_smoke_schema.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -34182,6 +34547,7 @@
     {
       "migration_file": "244_sprint68_ticket_lifecycle_brand_ref_selection.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/brand-ref-selection/approve",
@@ -34284,6 +34650,7 @@
     {
       "migration_file": "245_sprint67_google_ads_execution_adapter_skeleton.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/control"
@@ -34369,6 +34736,7 @@
     {
       "migration_file": "245_sprint68_agent_governance_runtime.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -34431,6 +34799,7 @@
     {
       "migration_file": "245_sprint68_gpt_tool_archive_pinning_monitoring.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -34490,6 +34859,7 @@
     {
       "migration_file": "245_sprint68_ticket_lifecycle_brand_ref_selection_completion.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/brand-ref-selection/approve-and-complete"
@@ -34572,6 +34942,7 @@
     {
       "migration_file": "246_sprint67_google_ads_credential_readiness_gate.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/control"
@@ -34661,6 +35032,7 @@
     {
       "migration_file": "246_sprint68_gpt_session_archive_backfill_tool.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/release/session-archive-backfill"
@@ -34746,6 +35118,7 @@
     {
       "migration_file": "246_sprint68_platform_resource_recipe_capability.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -34814,6 +35187,7 @@
     {
       "migration_file": "246_sprint68_ticket_lifecycle_new_brand_ref_approval.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/new-brand-ref-approval/approve",
@@ -34916,6 +35290,7 @@
     {
       "migration_file": "247_sprint67_google_ads_credential_readiness_policy_fix.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -34980,6 +35355,7 @@
     {
       "migration_file": "248_sprint67_execution_enablement_registry.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/control"
@@ -35073,6 +35449,7 @@
     {
       "migration_file": "248_sprint68_github_branch_fast_forward_policy.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -35133,6 +35510,7 @@
     {
       "migration_file": "249_sprint67_execution_enablement_approval_flow.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/control"
@@ -35222,6 +35600,7 @@
     {
       "migration_file": "249_sprint68_gpt_archive_backfill_conversation_ref_monitoring.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -35281,6 +35660,7 @@
     {
       "migration_file": "249_sprint68_ticket_lifecycle_verified_apply_rollback.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/brand-mapping-remediation/verified-apply"
@@ -35364,6 +35744,7 @@
     {
       "migration_file": "250_sprint67_google_ads_credential_readiness_ledger.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -35437,6 +35818,7 @@
     {
       "migration_file": "250_sprint68_gpt_conversation_capture_contract_monitoring.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -35496,6 +35878,7 @@
     {
       "migration_file": "250_sprint68_ticket_lifecycle_finalize_brand_mapping_remediation.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/brand-mapping-remediation/finalize"
@@ -35577,6 +35960,7 @@
     {
       "migration_file": "251_sprint67_ads_provider_capability_profile_registry.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/control"
@@ -35674,6 +36058,7 @@
     {
       "migration_file": "251_sprint68_github_branch_fast_forward_smoke_policy.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -35733,6 +36118,7 @@
     {
       "migration_file": "252_sprint67_ads_provider_profile_onboarding_flow.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/control"
@@ -35822,6 +36208,7 @@
     {
       "migration_file": "252_sprint68_memory_scope_links_foundation.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -35882,6 +36269,7 @@
     {
       "migration_file": "252_sprint68_ticket_activation_inbox_feedback.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/activation/ticket-inbox",
@@ -35982,6 +36370,7 @@
     {
       "migration_file": "253_sprint67_ads_provider_preflight_contract.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/control"
@@ -36079,6 +36468,7 @@
     {
       "migration_file": "253_sprint68_session_insight_candidates_foundation.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -36137,6 +36527,7 @@
     {
       "migration_file": "253_sprint68_ticket_auto_resolve_policy_engine.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/auto-resolve/candidates",
@@ -36238,6 +36629,7 @@
     {
       "migration_file": "254_sprint67_ads_provider_preflight_surface_blueprint.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/control"
@@ -36343,6 +36735,7 @@
     {
       "migration_file": "254_sprint68_session_insight_scope_link_monitoring.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -36401,6 +36794,7 @@
     {
       "migration_file": "254_sprint68_ticket_notification_delivery_cycle.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/notifications/queue",
@@ -36521,6 +36915,7 @@
     {
       "migration_file": "255_sprint68_live_checkout_cleanup_capability_gate.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -36579,6 +36974,7 @@
     {
       "migration_file": "255_sprint68_ticket_notification_delivery_adapters.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/notifications/adapters",
@@ -36699,6 +37095,7 @@
     {
       "migration_file": "256_sprint68_dynamic_audit_pipeline_readiness.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -36761,6 +37158,7 @@
     {
       "migration_file": "256_sprint68_session_insight_promotion_foundation.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -36819,6 +37217,7 @@
     {
       "migration_file": "256_sprint68_ticket_external_delivery_approval_policy.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/external-delivery/approval/decision",
@@ -36941,6 +37340,7 @@
     {
       "migration_file": "257_sprint68_agent_runtime_ledger_readiness.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -37007,6 +37407,7 @@
     {
       "migration_file": "257_sprint68_ticket_external_send_execution_adapter.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/external-send/execution-plan",
@@ -37108,6 +37509,7 @@
     {
       "migration_file": "258_sprint68_ticket_external_delivery_credential_binding.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/external-delivery/credential-candidates",
@@ -37229,6 +37631,7 @@
     {
       "migration_file": "259_sprint68_ticket_external_secret_intake_surface.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/external-secret/intake-plan",
@@ -37350,6 +37753,7 @@
     {
       "migration_file": "260_sprint68_platform_development_constitution_policies.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -37454,6 +37858,7 @@
     {
       "migration_file": "260_sprint68_ticket_external_credential_activation_binding.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/external-credential/activate-and-bind",
@@ -37554,6 +37959,7 @@
     {
       "migration_file": "261_sprint68_orchestration_intelligence_foundation.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -37666,6 +38072,7 @@
     {
       "migration_file": "261_sprint68_ticket_external_credential_orchestration.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/external-credential/approve-activate-bind-verify",
@@ -37767,6 +38174,7 @@
     {
       "migration_file": "262_sprint68_orchestration_readback_surface.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/orchestration/readback"
@@ -37865,6 +38273,7 @@
     {
       "migration_file": "262_sprint68_ticket_external_send_provider_gate.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/external-send/provider-gate-attempt",
@@ -37967,6 +38376,7 @@
     {
       "migration_file": "263_sprint68_ads_governance_snapshot_proposal.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/orchestration/ads-provider/snapshot-propose"
@@ -38051,6 +38461,7 @@
     {
       "migration_file": "263_sprint68_session_insight_promotion_review_tools.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/review/decision",
@@ -38158,6 +38569,7 @@
     {
       "migration_file": "264_sprint68_ads_governance_snapshot_record_gate.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/orchestration/ads-provider/snapshot-record"
@@ -38244,6 +38656,7 @@
     {
       "migration_file": "265_sprint68_platform_orchestration_capability_binding.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -38313,6 +38726,7 @@
     {
       "migration_file": "265_sprint68_session_insight_promotion_dry_run_executor.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/executor/dry-run"
@@ -38399,6 +38813,7 @@
     {
       "migration_file": "265_sprint68_ticket_external_provider_adapter_contracts.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/external-send/provider-contracts"
@@ -38495,6 +38910,7 @@
     {
       "migration_file": "266_sprint68_session_insight_promotion_apply_request_skeleton.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/apply/request"
@@ -38599,6 +39015,7 @@
     {
       "migration_file": "266_sprint68_ticket_external_provider_enablement_proposal.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/external-send/provider-adapter-enablement/candidates",
@@ -38712,6 +39129,7 @@
     {
       "migration_file": "267_sprint68_session_insight_target_adapter_registry.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/target-adapters/list"
@@ -38814,6 +39232,7 @@
     {
       "migration_file": "267_sprint68_ticket_external_adapter_readiness_checklist.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/external-send/provider-adapter-readiness/plan",
@@ -38926,6 +39345,7 @@
     {
       "migration_file": "268_sprint68_session_insight_adapter_dry_run_contracts.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/adapter-contracts/list"
@@ -39024,6 +39444,7 @@
     {
       "migration_file": "268_sprint68_ticket_external_adapter_readiness_decision.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/external-send/provider-adapter-readiness/decision"
@@ -39128,6 +39549,7 @@
     {
       "migration_file": "269_sprint68_activation_authorized_surface_registry.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -39188,6 +39610,7 @@
     {
       "migration_file": "269_sprint68_session_insight_contract_payload_preview.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/payload-preview/generate"
@@ -39285,6 +39708,7 @@
     {
       "migration_file": "269_sprint68_ticket_external_adapter_future_pr_scope.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/external-send/provider-adapter-future-pr-scope/plan",
@@ -39400,6 +39824,7 @@
     {
       "migration_file": "270_sprint68_dynamic_capability_tool_bus_kernel.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/gpt/tools/call",
@@ -39510,6 +39935,7 @@
     {
       "migration_file": "270_sprint68_session_insight_payload_preview_review.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/payload-preview/review/decision",
@@ -39624,6 +40050,7 @@
     {
       "migration_file": "270_sprint68_support_ticket_lifecycle_orchestration_readback.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -39710,6 +40137,7 @@
     {
       "migration_file": "271_sprint68_activation_expanded_authorized_surfaces.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -39780,6 +40208,7 @@
     {
       "migration_file": "271_sprint68_session_insight_adapter_apply_readiness_gate.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/adapter-apply-readiness/list"
@@ -39889,6 +40318,7 @@
     {
       "migration_file": "272_sprint68_session_insight_capability_envelope_planner.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/capability-envelope-plans/create",
@@ -40006,6 +40436,7 @@
     {
       "migration_file": "272_sprint68_support_ticket_lifecycle_snapshot_proposal.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/orchestration/support-ticket/snapshot-propose"
@@ -40092,6 +40523,7 @@
     {
       "migration_file": "272_sprint68_ticket_external_provider_gate_registry_resolver.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -40157,6 +40589,7 @@
     {
       "migration_file": "273_sprint68_activation_catalog_authorized_surfaces.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -40238,6 +40671,7 @@
     {
       "migration_file": "273_sprint68_session_insight_capability_envelope_request_gate.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/capability-envelope-request-gates/create",
@@ -40382,6 +40816,7 @@
     {
       "migration_file": "273_sprint68_support_ticket_lifecycle_snapshot_record_gate.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/orchestration/support-ticket/snapshot-record"
@@ -40470,6 +40905,7 @@
     {
       "migration_file": "274_sprint68_execution_policy_enforcement_closure.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -40544,6 +40980,7 @@
     {
       "migration_file": "274_sprint68_schema_split_importer_v2_reference_preservation.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/schema-import/action-ref"
@@ -40623,6 +41060,7 @@
     {
       "migration_file": "274_sprint68_session_insight_capability_envelope_request_review.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/capability-envelope-request-gates/review/decision"
@@ -40739,6 +41177,7 @@
     {
       "migration_file": "275_sprint68_session_insight_capability_envelope_dispatch_dry_run.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create",
@@ -40874,6 +41313,7 @@
     {
       "migration_file": "276_sprint68_activation_positive_surface_fixtures.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -40934,6 +41374,7 @@
     {
       "migration_file": "277_sprint68_execution_log_runtime_evidence.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -40997,6 +41438,7 @@
     {
       "migration_file": "277_sprint68_session_insight_capability_envelope_dispatch_dry_run_review.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/review/decision"
@@ -41120,6 +41562,7 @@
     {
       "migration_file": "278_sprint68_session_insight_capability_envelope_actual_request_preflight.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/capability-envelope-actual-requests/preflights/create",
@@ -41264,6 +41707,7 @@
     {
       "migration_file": "279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/capability-envelope-actual-requests/create",
@@ -41420,6 +41864,7 @@
     {
       "migration_file": "280_sprint68_session_insight_capability_envelope_approval_gate.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/capability-envelope-approvals/decision",
@@ -41559,6 +42004,7 @@
     {
       "migration_file": "281_sprint68_session_insight_capability_envelope_dispatch_readback.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create",
@@ -41706,6 +42152,7 @@
     {
       "migration_file": "282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/capability-envelope-adapter-execution-gates/create",
@@ -41857,6 +42304,7 @@
     {
       "migration_file": "283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/remaining-scope-completions/create",
@@ -41997,6 +42445,7 @@
     {
       "migration_file": "284_sprint68_execution_log_full_context_evidence.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -42060,6 +42509,7 @@
     {
       "migration_file": "284_sprint68_session_insight_backlog_target_write_executor.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/backlog-target-writes/execute",
@@ -42197,6 +42647,7 @@
     {
       "migration_file": "284_sprint68_wordpress_schema_import_completion_registry.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -42255,6 +42706,7 @@
     {
       "migration_file": "286_sprint68_platform_schema_contract_completion_registry.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/wordpress/blog-publish-recovery"
@@ -42336,6 +42788,7 @@
     {
       "migration_file": "287_sprint68_external_delivery_orchestration_graph_plugin.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -42444,6 +42897,7 @@
     {
       "migration_file": "289_sprint68_external_delivery_policy_scope_alignment.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -42506,6 +42960,7 @@
     {
       "migration_file": "290_sprint68_platform_health_scorecard.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/gpt/tools/call",
@@ -42638,6 +43093,7 @@
     {
       "migration_file": "291_sprint68_platform_health_scorecard_readback_alignment.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/gpt/tools/call",
@@ -42751,6 +43207,7 @@
     {
       "migration_file": "292_sprint68_platform_health_scorecard_operationalization.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/health/scorecard",
@@ -42946,6 +43403,7 @@
     {
       "migration_file": "293_sprint68_system_layer_descriptor_auto_wiring.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/system/tools/call"
@@ -43036,6 +43494,7 @@
     {
       "migration_file": "305_sprint69_runtime_verification_control_plane_hardening.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/activation/hard-run/summary",
@@ -43218,6 +43677,7 @@
     {
       "migration_file": "306_sprint69_operational_console_api.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/operational/console",
@@ -43316,6 +43776,7 @@
     {
       "migration_file": "306_sprint69_session_insight_target_write_readback.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/platform/session-insight-promotions/target-write-readbacks/create",
@@ -43448,6 +43909,7 @@
     {
       "migration_file": "307_sprint69_hostinger_deploy_restart_option_support.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -43525,6 +43987,7 @@
     {
       "migration_file": "308_sprint69_activation_guidance_intelligence.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/activation/guidance",
@@ -43629,6 +44092,7 @@
     {
       "migration_file": "308_sprint69_dynamic_governed_migration_reconciliation.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -43697,6 +44161,7 @@
     {
       "migration_file": "309_sprint69_activation_guidance_invocation_registry.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -43765,6 +44230,7 @@
     {
       "migration_file": "310_sprint69_activation_awareness_completeness_control_plane.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/activation/awareness",
@@ -43931,6 +44397,7 @@
     {
       "migration_file": "311_sprint69_superseded_closed_pr_branch_cleanup.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -43995,6 +44462,7 @@
     {
       "migration_file": "900_sprint68_governed_repository_intelligence_engine.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -44061,6 +44529,7 @@
     {
       "migration_file": "901_sprint68_resource_manifest_create_gate_authority.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -44122,6 +44591,7 @@
     {
       "migration_file": "902_sprint68_dynamic_capability_apply_authorization_policy.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -44185,6 +44655,7 @@
     {
       "migration_file": "904_sprint68_support_ticket_lifecycle_snapshot_apply_binding.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -44261,6 +44732,7 @@
     {
       "migration_file": "905_sprint68_support_ticket_lifecycle_snapshot_apply_policy_readback_alignment.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -44329,6 +44801,7 @@
     {
       "migration_file": "906_sprint68_ticket_external_delivery_completion_certification.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/{ticket_id}/external-delivery/completion-certification"
@@ -44428,6 +44901,7 @@
     {
       "migration_file": "907_sprint68_ticket_external_live_smtp_registry_alignment.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -44493,6 +44967,7 @@
     {
       "migration_file": "908_sprint68_ticket_external_hostinger_gmail_provider_options.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -44561,6 +45036,7 @@
     {
       "migration_file": "909_sprint68_ticket_external_dynamic_recipient_allowlist.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -44624,6 +45100,7 @@
     {
       "migration_file": "910_sprint68_session_insight_capability_binding_hardening.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -44692,6 +45169,7 @@
     {
       "migration_file": "950_sprint68_platform_resource_authority_bindings.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -44752,6 +45230,7 @@
     {
       "migration_file": "952_sprint68_resource_graph_projection_apply_gate.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -44815,6 +45294,7 @@
     {
       "migration_file": "954_sprint68_compact_operational_views_and_github_resource_coverage.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -44879,6 +45359,7 @@
     {
       "migration_file": "955_sprint68_external_delivery_admin_control_surface.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/admin/support/tickets/external-delivery/control/adapter/dispatch",
@@ -45046,6 +45527,7 @@
     {
       "migration_file": "956_sprint68_external_delivery_allowlist_readiness_view_updated_at.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -45106,6 +45588,7 @@
     {
       "migration_file": "957_sprint68_capability_baseline_branch_hygiene_github_file_inspect.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -45167,6 +45650,7 @@
     {
       "migration_file": "958_sprint68_github_file_content_gate_and_patch_plan_registry.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -45237,6 +45721,7 @@
     {
       "migration_file": "959_sprint68_github_file_patch_plan_diff_only_runtime.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -45295,6 +45780,7 @@
     {
       "migration_file": "960_sprint68_remaining_resource_capability_completion_gates.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -45378,6 +45864,7 @@
     {
       "migration_file": "961_sprint68_f5_f6_positive_smoke_certification.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -45439,6 +45926,7 @@
     {
       "migration_file": "962_sprint68_smoke_branch_cleanup_gate.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -45497,6 +45985,7 @@
     {
       "migration_file": "963_sprint68_hostinger_deploy_restart_tool_exports.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -45562,6 +46051,7 @@
     {
       "migration_file": "964_sprint68_hostinger_stored_credential_apply_policy.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -45623,6 +46113,7 @@
     {
       "migration_file": "965_sprint68_hostinger_apply_policy_safe_field_names.sql",
       "legacy_backlog_closed": false,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -45684,6 +46175,7 @@
     {
       "migration_file": "997_sprint68_openrouter_provider_smoke_capability_binding.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -45742,6 +46234,7 @@
     {
       "migration_file": "998_sprint68_openrouter_provider_smoke_app_map_binding.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -45806,6 +46299,7 @@
     {
       "migration_file": "999_sprint68_repository_intelligence_v3_v4_tenant_tool_wiring.sql",
       "legacy_backlog_closed": true,
+      "safety_attestation": null,
       "surfaces": {
         "routes": [
           "/system/tools/call"

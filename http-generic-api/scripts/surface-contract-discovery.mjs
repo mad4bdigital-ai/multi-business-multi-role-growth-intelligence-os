@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +13,7 @@ const OUTPUT_PATH = path.join(REPO_ROOT, "docs", "surface-contract-discovery-sta
 const JSON_OUTPUT_PATH = path.join(REPO_ROOT, "docs", "surface-contract-discovery-status.json");
 const GAP_QUEUE_PATH = path.join(REPO_ROOT, "docs", "surface-contract-gap-queue.md");
 const GAP_QUEUE_JSON_PATH = path.join(REPO_ROOT, "docs", "surface-contract-gap-queue.json");
+const SAFETY_ATTESTATION_PATH = path.join(REPO_ROOT, "docs", "surface-contract-safety-attestations.json");
 const DOC_TARGETS = [
   "Updating Registry Patch Index.md",
   "deployment_parity_checklist.md",
@@ -54,6 +56,30 @@ function unique(values = []) {
 
 function readFileIfExists(filePath) {
   return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
+}
+
+function sha256(value = "") {
+  return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
+}
+
+function collectSafetyAttestations() {
+  if (!fs.existsSync(SAFETY_ATTESTATION_PATH)) return new Map();
+  try {
+    const payload = JSON.parse(fs.readFileSync(SAFETY_ATTESTATION_PATH, "utf8"));
+    if (payload.schema_version !== "surface-contract-safety-attestations-v1") return new Map();
+    return new Map((payload.items || []).map((item) => [item.migration_file, item]));
+  } catch {
+    return new Map();
+  }
+}
+
+function resolveSafetyAttestation(fileName, source, attestations) {
+  const item = attestations.get(fileName);
+  if (!item) return null;
+  if (item.attestation_status !== "verified_static_no_external_side_effects") return null;
+  if (item.migration_sha256 !== sha256(source)) return null;
+  if (!SAFETY_MARKERS.every((marker) => item.safety_markers?.[marker] === true)) return null;
+  return item;
 }
 
 function listMigrationFiles() {
@@ -407,14 +433,34 @@ export function discoverSurfaces({ limit = 80 } = {}) {
   const docsByPath = Object.fromEntries(DOC_TARGETS.map((rel) => [rel, readFileIfExists(path.join(REPO_ROOT, rel))]));
   const openapi = collectOpenapiPaths();
   const openapiPathSet = new Set(openapi.paths.map(normalizePathForCoverage));
+  const safetyAttestations = collectSafetyAttestations();
   const allMigrations = listMigrationFiles()
     .map((name) => {
       const source = readFileIfExists(path.join(MIGRATIONS_DIR, name));
       const legacyBacklogClosed = isLegacyBacklogClosed(name);
       const surfaces = extractSurfaces(source, name);
+      const safetyAttestation = resolveSafetyAttestation(name, source, safetyAttestations);
+      if (safetyAttestation) {
+        surfaces.safety = Object.fromEntries(SAFETY_MARKERS.map((marker) => [
+          marker,
+          surfaces.safety[marker] || safetyAttestation.safety_markers[marker] === true,
+        ]));
+      }
       const docs = docsCoverageFor(name, docsByPath);
       const missingDocs = Object.entries(docs).filter(([, covered]) => !covered).map(([target]) => target);
-      return enrichEntry({ migration_file: name, legacy_backlog_closed: legacyBacklogClosed, surfaces, docs, missing_docs: missingDocs, documentation_complete: missingDocs.length === 0 }, openapiPathSet);
+      return enrichEntry({
+        migration_file: name,
+        legacy_backlog_closed: legacyBacklogClosed,
+        safety_attestation: safetyAttestation ? {
+          attestation_status: safetyAttestation.attestation_status,
+          evidence_mode: safetyAttestation.evidence_mode,
+          migration_sha256: safetyAttestation.migration_sha256,
+        } : null,
+        surfaces,
+        docs,
+        missing_docs: missingDocs,
+        documentation_complete: missingDocs.length === 0,
+      }, openapiPathSet);
     })
     .filter((entry) => hasAnySurface(entry.surfaces));
 
