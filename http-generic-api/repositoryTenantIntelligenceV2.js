@@ -416,8 +416,8 @@ export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { 
     notes: "temporary repository intelligence v2 readiness smoke binding",
     created_by: "system:tenant_repository_intelligence_v2_readiness_smoke",
   }, adminAuth);
-  const positive = await tenantRepositoryPrReconciliationSweep({
-    tenant_id: tenantId,
+  const positive = await dispatchSystemTool("tenant_repo_pr_reconciliation_sweep", {
+    tenant_id: conflictingTenantId,
     owner: repoRef.owner,
     repo: repoRef.repo,
     state: "open",
@@ -425,7 +425,15 @@ export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { 
     include_changed_files: false,
     include_check_runs: false,
     record_evidence: true,
-  }, { auth, runGovernedResource });
+  }, tenantAuth);
+  const listed = await dispatchSystemTool("platform_resource_authority_binding_list", {
+    tenant_id: tenantId,
+    owner: repoRef.owner,
+    repo: repoRef.repo,
+    recipe_key: REPOSITORY_PR_RECONCILE_RECIPE_KEY,
+    status: "active",
+    limit: 10,
+  }, adminAuth);
   const bindingId = create?.binding?.binding_id;
   const revoke = bindingId
     ? await revokeRepositoryAuthorityBinding({
