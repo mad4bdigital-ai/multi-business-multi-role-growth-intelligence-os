@@ -8,10 +8,10 @@
 - Triaged items: 2
 - Gate candidates: 1
 - New-gap gate: fail
-- Blocking new items: 1
+- Blocking new items: 2
 - Docs completion: 99.52%
 - SQL route OpenAPI coverage: 100%
 
 ## Top immediate items
 
-- `1003_sprint68_supervisor_chain_runtime_guards.sql` — high_review, add targeted patch-index, parity, and governance documentation
+- `1004_sprint69_agent_governance_admin_tools.sql` — critical_review, add targeted patch-index, parity, and governance documentation

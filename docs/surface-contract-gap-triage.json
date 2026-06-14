@@ -5,21 +5,21 @@
   "source_discovery_schema": "surface-contract-discovery-v3",
   "total_triaged_items": 2,
   "class_counts": {
-    "safety_marker_review": 1,
-    "new_surface_immediate_review": 1
+    "new_surface_immediate_review": 1,
+    "safety_marker_review": 1
   },
   "gate_candidate_count": 1,
   "gate_candidate_files": [
-    "1003_sprint68_supervisor_chain_runtime_guards.sql"
+    "1004_sprint69_agent_governance_admin_tools.sql"
   ],
   "items": [
     {
-      "migration_file": "311_sprint69_platform_tool_dispatch_binding_integrity.sql",
-      "score": 869,
+      "migration_file": "1004_sprint69_agent_governance_admin_tools.sql",
+      "score": 700,
       "queue_class": "critical_review",
-      "triage_class": "safety_marker_review",
-      "gate_scope": "legacy_baseline_candidate",
-      "gap_severity": "medium",
+      "triage_class": "new_surface_immediate_review",
+      "gate_scope": "new_gap_gate_candidate",
+      "gap_severity": "high",
       "missing_docs": [
         "Updating Registry Patch Index.md",
         "deployment_parity_checklist.md",
@@ -30,18 +30,18 @@
       "missing_openapi_routes": [],
       "safety_marker_gaps": [
         "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send",
         "no_external_write"
       ],
       "remediation_action_keys": [
         "document_surface_contract",
         "verify_tool_registry_binding",
-        "verify_readback_view",
         "add_explicit_safety_markers"
       ],
       "owner_hints": [
         "docs-agent/human-review",
         "runtime-registry-review",
-        "db-readback-review",
         "safety-contract-review"
       ],
       "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
@@ -56,12 +56,12 @@
       }
     },
     {
-      "migration_file": "1003_sprint68_supervisor_chain_runtime_guards.sql",
-      "score": 505,
-      "queue_class": "high_review",
-      "triage_class": "new_surface_immediate_review",
+      "migration_file": "1005_sprint69_agent_skill_coverage_prompt_enrichment.sql",
+      "score": 324,
+      "queue_class": "medium_review",
+      "triage_class": "safety_marker_review",
       "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "medium",
+      "gap_severity": "low",
       "missing_docs": [
         "Updating Registry Patch Index.md",
         "deployment_parity_checklist.md",
@@ -71,21 +71,19 @@
       ],
       "missing_openapi_routes": [],
       "safety_marker_gaps": [
-        "no_provider_call",
         "no_credential_payload_read",
         "no_raw_secrets",
         "no_external_send",
-        "no_external_write",
         "secrets_included_false"
       ],
       "remediation_action_keys": [
         "document_surface_contract",
-        "verify_tool_registry_binding",
+        "verify_readback_view",
         "add_explicit_safety_markers"
       ],
       "owner_hints": [
         "docs-agent/human-review",
-        "runtime-registry-review",
+        "db-readback-review",
         "safety-contract-review"
       ],
       "recommended_next_step": "add targeted patch-index, parity, and governance documentation",

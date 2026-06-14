@@ -7,13 +7,13 @@
 - Triaged items: 2
 - Gate candidates: 1
 - New-gap gate: fail
-- Blocking new items: 1
+- Blocking new items: 2
 
 ## Class counts
 
-- safety_marker_review: 1
 - new_surface_immediate_review: 1
+- safety_marker_review: 1
 
 ## Immediate review candidates
 
-- `1003_sprint68_supervisor_chain_runtime_guards.sql` — high_review, score 505; next: add targeted patch-index, parity, and governance documentation
+- `1004_sprint69_agent_governance_admin_tools.sql` — critical_review, score 700; next: add targeted patch-index, parity, and governance documentation

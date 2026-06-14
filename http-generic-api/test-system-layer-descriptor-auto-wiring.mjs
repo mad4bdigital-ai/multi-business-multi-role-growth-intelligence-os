@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import * as v2Runtime from "./repositoryTenantIntelligenceV2.js";
+import { TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS } from "./repositoryTenantIntelligenceV2.js";
 
 const routes = readFileSync("routes/systemLayerRoutes.js", "utf8");
 const v2 = readFileSync("repositoryTenantIntelligenceV2.js", "utf8");
+const releaseReadiness = readFileSync("releaseReadiness.js", "utf8");
 const v5 = readFileSync("repositoryTenantAdvisoryCommentsV5.js", "utf8");
 const migration = readFileSync("migrations/293_sprint68_system_layer_descriptor_auto_wiring.sql", "utf8");
 
@@ -24,6 +27,42 @@ for (const token of [
 ]) {
   assert(routes.includes(token), `systemLayerRoutes must load descriptor source ${token}`);
 }
+
+const expectedV2Handlers = new Map([
+  ["platform_resource_authority_binding_create", "createRepositoryAuthorityBinding"],
+  ["platform_resource_authority_binding_list", "listRepositoryAuthorityBindings"],
+  ["platform_resource_authority_binding_revoke", "revokeRepositoryAuthorityBinding"],
+  ["tenant_repo_pr_reconciliation_sweep", "tenantRepositoryPrReconciliationSweep"],
+]);
+for (const [toolName, handlerName] of expectedV2Handlers) {
+  const descriptor = TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS.find((tool) => tool.name === toolName);
+  assert(descriptor, `V2 descriptor ${toolName} must exist`);
+  assert.equal(descriptor.handler_name, handlerName, `${toolName} must declare explicit handler_name`);
+  assert.equal(typeof v2Runtime[handlerName], "function", `${handlerName} must be a callable runtime export`);
+}
+for (const alias of [
+  "tenantRepoPrReconciliationSweep",
+  "platformResourceAuthorityBindingCreate",
+  "platformResourceAuthorityBindingList",
+  "platformResourceAuthorityBindingRevoke",
+]) {
+  assert.equal(typeof v2Runtime[alias], "function", `compatibility alias ${alias} must remain callable`);
+}
+for (const checkName of [
+  "descriptor_handler_present",
+  "direct_public_tool_call_succeeds",
+  "tenant_scope_forced",
+  "missing_binding_blocks_before_provider",
+  "active_binding_allows_read_only",
+  "no_mutation",
+  "no_secrets",
+]) {
+  assert(v2.includes(`name: "${checkName}"`), `V2 readiness smoke must include ${checkName}`);
+}
+assert(routes.includes("dispatchSystemTool"), "descriptor runtime must inject a governed child dispatcher");
+assert(routes.includes("runRepositoryIntelligenceV2DescriptorReadinessSmoke"), "system-layer routes must expose dispatcher-level V2 readiness");
+assert(releaseReadiness.includes("runRepositoryIntelligenceV2DescriptorReadinessSmoke"), "release readiness must execute the public descriptor smoke");
+assert(releaseReadiness.includes('status: issues.length ? "fail" : "pass"'), "public descriptor failures must block release readiness");
 
 for (const tool of [
   "tenant_repository_intelligence_report",

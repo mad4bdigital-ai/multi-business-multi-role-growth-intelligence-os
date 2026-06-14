@@ -6,23 +6,23 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 416,
-    "docs_complete_count": 414,
+    "migrations_with_surfaces": 418,
+    "docs_complete_count": 416,
     "docs_gap_count": 2,
     "docs_completion_percent": 99.52,
     "surface_totals": {
       "plugins": 12,
-      "tools": 1939,
-      "views": 361,
+      "tools": 1941,
+      "views": 362,
       "policies": 154,
-      "routes": 540
+      "routes": 553
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 353,
-      "views": 148,
+      "tools": 354,
+      "views": 149,
       "policies": 97,
-      "routes": 229
+      "routes": 230
     },
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 2,
@@ -32,32 +32,31 @@
       "docs/change-documentation-governance.md": 2
     },
     "gap_severity_counts": {
-      "high": 0,
-      "medium": 2,
-      "low": 0,
-      "none": 414
+      "high": 1,
+      "medium": 0,
+      "low": 1,
+      "none": 416
     },
-    "high_risk_missing_docs": [],
-    "medium_risk_missing_docs": [
-      "1003_sprint68_supervisor_chain_runtime_guards.sql",
-      "311_sprint69_platform_tool_dispatch_binding_integrity.sql"
+    "high_risk_missing_docs": [
+      "1004_sprint69_agent_governance_admin_tools.sql"
     ],
+    "medium_risk_missing_docs": [],
     "safety_marker_counts": {
-      "no_provider_call": 415,
-      "no_credential_payload_read": 414,
-      "no_raw_secrets": 415,
-      "no_external_send": 415,
-      "no_external_write": 414,
-      "secrets_included_false": 415
+      "no_provider_call": 418,
+      "no_credential_payload_read": 416,
+      "no_raw_secrets": 416,
+      "no_external_send": 416,
+      "no_external_write": 417,
+      "secrets_included_false": 417
     },
     "safety_marker_gap_migrations": 1,
     "route_coverage": {
       "sql_route_count": 0,
-      "total_sql_route_like_count": 540,
-      "openapi_exempt_sql_route_count": 540,
+      "total_sql_route_like_count": 553,
+      "openapi_exempt_sql_route_count": 553,
       "route_class_counts": {
         "http_route": 0,
-        "admin_tool_registry_route": 98,
+        "admin_tool_registry_route": 111,
         "tenant_tool_registry_route": 35,
         "system_tool_dispatch_route": 12,
         "registry_only_surface": 1,
@@ -74,33 +73,33 @@
     "total_items": 2,
     "class_counts": {
       "critical_review": 1,
-      "high_review": 1,
-      "medium_review": 0,
+      "high_review": 0,
+      "medium_review": 1,
       "low_review": 0
     }
   },
   "triage": {
     "total_items": 2,
     "class_counts": {
-      "safety_marker_review": 1,
-      "new_surface_immediate_review": 1
+      "new_surface_immediate_review": 1,
+      "safety_marker_review": 1
     },
     "gate_candidate_count": 1
   },
   "gate": {
     "ok": false,
     "mode": "future_only_all_new_gaps",
-    "new_item_count": 1,
-    "blocking_new_item_count": 1
+    "new_item_count": 2,
+    "blocking_new_item_count": 2
   },
   "top_immediate_items": [
     {
-      "migration_file": "1003_sprint68_supervisor_chain_runtime_guards.sql",
-      "score": 505,
-      "queue_class": "high_review",
+      "migration_file": "1004_sprint69_agent_governance_admin_tools.sql",
+      "score": 700,
+      "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "medium",
+      "gap_severity": "high",
       "missing_docs": [
         "Updating Registry Patch Index.md",
         "deployment_parity_checklist.md",
@@ -110,12 +109,10 @@
       ],
       "missing_openapi_routes": [],
       "safety_marker_gaps": [
-        "no_provider_call",
         "no_credential_payload_read",
         "no_raw_secrets",
         "no_external_send",
-        "no_external_write",
-        "secrets_included_false"
+        "no_external_write"
       ],
       "remediation_action_keys": [
         "document_surface_contract",

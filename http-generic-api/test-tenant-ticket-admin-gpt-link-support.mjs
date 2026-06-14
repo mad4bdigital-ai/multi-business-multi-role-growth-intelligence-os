@@ -9,8 +9,15 @@ for (const expected of [
   "DEFAULT_ADMIN_GPT_REPAIR_LINK_BASE_URL",
   "g-69c82c73bd6081918c52e38525b2d154-growth-intelligence-platform-admin-assistant",
   "buildAdminGptRepairPromptState",
+  "createAgentHandoffState",
   "admin_gpt_repair_link",
+  "admin_gpt_resume_state_id",
   "admin_gpt_repair_prompt_state",
+  "resume_state_id=",
+  "requested_action=",
+  "support_ticket_external_delivery_repair",
+  "target_surface: DEFAULT_ADMIN_GPT_AGENT_NAME",
+  "one_time_use: false",
   "review_external_delivery",
   "prompt=",
   "external_send_performed: false",
@@ -42,6 +49,13 @@ for (const expected of [
 
 assert(!policy.includes("password"), "repair link state must not include password fields");
 assert(!policy.includes("access_token"), "repair link state must not include access token fields");
+assert(!policy.includes("state_json=${JSON.stringify(state)}"), "Admin GPT URL must not embed raw handoff state");
+const handoffCurrentState = policy.slice(
+  policy.indexOf("current_state: {"),
+  policy.indexOf("required_checks: repairPromptState.required_checks")
+);
+assert(!handoffCurrentState.includes("credential_ref"), "governed handoff current_state must not include credential references");
+assert(policy.includes("admin_gpt_repair_prompt_state: repairPromptState"), "legacy internal approval payload support must remain additive");
 assert(!migration.includes("client_secret"), "migration must not include client secrets");
 
 console.log("tenant ticket Admin GPT link support contract tests passed");

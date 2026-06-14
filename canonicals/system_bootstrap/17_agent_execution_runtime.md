@@ -66,6 +66,23 @@ Review outcome is written to `step_runs` as step_key `verify_pass` with step_typ
 
 The verify pass is non-blocking — a parse error in the review response is treated as `passed: true` to prevent false negatives.
 
+## Governed prompt enrichment
+
+Non-`rule_based` model execution resolves prompt context through `agentPromptContextResolver.js` before calling `runLogicWithModel`.
+
+Prompt order is deterministic:
+
+1. Platform runtime authority policy.
+2. Active `agents.system_prompt` for the selected agent.
+3. Governed execution envelope.
+4. Active Platform Engine skill prompts selected by `workflows.mapped_engines` and task class.
+5. Logic metadata and `logic_definitions.body_json.system_prompt`.
+6. User input remains a separate user message and is never copied into the system prompt.
+
+Agent and Engine Skill prompt text is length-bounded. Prompt rows containing credential-like secret material are rejected before model invocation. Full prompt text is passed directly to the assembler; execution context stores only resolution metadata such as selected skill keys and counts.
+
+`agent_skills` and `platform_engine_skill_prompt_registry` are separate authorities. Agent Skill runtime coverage must not require a matching Platform Engine prompt row. `v_skill_runtime_coverage` evaluates active, unexpired grants for every Agent Skill and requires an active manifest plus manifest prompt only when the skill capability explicitly declares a packaged skill through `skill_manifest_key` or `package_key`. Runtime approval remains a per-call authorization gate, not a static coverage gap.
+
 ## Engine Dispatch
 
 `engineExecutorRegistry.dispatch(engineName, input, context)` resolves dispatch by name:
