@@ -30,7 +30,38 @@ async function runToolCalls(toolCalls = [], context, deps, modelRunId = null) {
       : (tc.arguments || {});
     const ledgerToolCallId = await recordAgentToolCallStarted({ context, modelRunId, toolKey: name, args });
     try {
-      const result = await deps.dispatchTool(name, args, context);
+      const authorization = typeof deps.authorizeToolCall === "function"
+        ? await deps.authorizeToolCall({ tool_name: name, args, context, phase: "dispatch" })
+        : {
+            allowed: false,
+            status: "denied",
+            code: "agent_tool_authorization_gate_unavailable",
+            blockers: ["agent_tool_authorization_gate_unavailable"],
+            secrets_included: false,
+          };
+      await recordAgentToolCallAuthorization({ toolCallId: ledgerToolCallId, decision: authorization });
+      if (!authorization.allowed) {
+        const deniedResult = {
+          ok: false,
+          error: {
+            code: authorization.code || "agent_tool_authorization_denied",
+            message: "The governed agent tool authorization gate denied this call.",
+          },
+          authorization: {
+            status: "denied",
+            blocker_codes: authorization.blockers || [],
+            consequence_class: authorization.classification?.consequence_class || null,
+            action_key: authorization.action?.action_key || null,
+            secrets_included: false,
+          },
+          external_send_performed: false,
+          secrets_included: false,
+        };
+        await recordAgentToolCallCompleted({ toolCallId: ledgerToolCallId, result: deniedResult, status: "denied" });
+        results.push({ tool_call_id: tc.id, ledger_tool_call_id: ledgerToolCallId, tool_name: name, args, result: deniedResult });
+        continue;
+      }
+      const result = await deps.dispatchTool(name, args, { ...context, tool_authorization: authorization });
       await recordAgentToolCallCompleted({ toolCallId: ledgerToolCallId, result, status: result?.ok === false ? "failed" : "authorized" });
       results.push({ tool_call_id: tc.id, ledger_tool_call_id: ledgerToolCallId, tool_name: name, args, result });
     } catch (error) {
