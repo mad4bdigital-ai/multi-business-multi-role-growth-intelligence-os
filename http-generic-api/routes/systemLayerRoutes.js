@@ -175,6 +175,12 @@ const SYSTEM_LAYER_TOOLS = [
     inputSchema: { type: "object", properties: {}, required: [] },
   },
   {
+    name: "system_layer_descriptor_callability_audit",
+    description: "Admin-only fail-closed callability audit for all descriptor-backed system-layer sources. Verifies handlers and executes each source's governed no-secret readiness smoke through the public descriptor dispatcher without unauthorized mutations.",
+    requires_admin: true,
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
     name: "connector_registry_list",
     description: "List connector systems from the connected_systems registry.",
     inputSchema: {
