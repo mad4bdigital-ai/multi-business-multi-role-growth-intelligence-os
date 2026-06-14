@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { discoverSurfaces, renderGapQueueMarkdown, renderSurfaceContractMarkdown } from "./scripts/surface-contract-discovery.mjs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { discoverSurfaces, isDirectExecution, renderGapQueueMarkdown, renderSurfaceContractMarkdown } from "./scripts/surface-contract-discovery.mjs";
 
 const report = discoverSurfaces({ limit: 200 });
 assert.equal(report.ok, true, "surface discovery report must be ok");
