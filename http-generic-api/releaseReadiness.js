@@ -1719,8 +1719,8 @@ async function checkRepositoryIntelligenceV2Readiness() {
       issues.push(`Failed public dispatcher checks: ${failed_dispatcher_checks.join(", ")}`);
     }
     return {
-      status: issues.length ? "warn" : "pass",
-      detail: issues.length ? `Repository Intelligence V2 readiness has ${issues.length} issue(s).` : "Repository Intelligence V2 tools, binding, evidence, and documentation are ready.",
+      status: issues.length ? "fail" : "pass",
+      detail: issues.length ? `Repository Intelligence V2 readiness has ${issues.length} blocking issue(s).` : "Repository Intelligence V2 public descriptors, binding, evidence, and documentation are ready.",
       required_tools: requiredToolNames,
       missing_tools: missingTools,
       missing_runtime_tokens: missingRuntimeTokens,
