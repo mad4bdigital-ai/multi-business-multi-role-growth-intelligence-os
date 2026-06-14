@@ -406,7 +406,7 @@ export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { 
     include_check_runs: false,
     record_evidence: false,
   }, negativeAuth);
-  const create = await createRepositoryAuthorityBinding({
+  const create = await dispatchSystemTool("platform_resource_authority_binding_create", {
     tenant_id: tenantId,
     owner: repoRef.owner,
     repo: repoRef.repo,
@@ -415,7 +415,7 @@ export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { 
     allowed_modes: ["read_only"],
     notes: "temporary repository intelligence v2 readiness smoke binding",
     created_by: "system:tenant_repository_intelligence_v2_readiness_smoke",
-  }, { auth: { ...(auth || {}), is_admin: true } });
+  }, adminAuth);
   const positive = await tenantRepositoryPrReconciliationSweep({
     tenant_id: tenantId,
     owner: repoRef.owner,
