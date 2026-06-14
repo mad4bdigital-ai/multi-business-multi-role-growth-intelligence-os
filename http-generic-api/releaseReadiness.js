@@ -1708,6 +1708,16 @@ async function checkRepositoryIntelligenceV2Readiness() {
     if (!openapi_documented) issues.push("OpenAPI description does not document all V2 system tools");
     if (active_real_bindings < 1) issues.push("No active read_only GitHub repo authority binding found");
     if (v2_evidence_rows < 1) issues.push("No tenant_repository_pr_reconciliation_summary_v2 evidence rows found");
+    if (dispatcher_smoke?.status !== "pass" || dispatcher_smoke?.ok !== true) {
+      issues.push(`Public descriptor dispatcher smoke failed: ${dispatcher_smoke?.reason_code || dispatcher_smoke?.classification || "unknown"}`);
+    }
+    const failed_dispatcher_checks = (dispatcher_smoke?.checks || [])
+      .filter((check) => check?.pass !== true)
+      .map((check) => check?.name)
+      .filter(Boolean);
+    if (failed_dispatcher_checks.length) {
+      issues.push(`Failed public dispatcher checks: ${failed_dispatcher_checks.join(", ")}`);
+    }
     return {
       status: issues.length ? "warn" : "pass",
       detail: issues.length ? `Repository Intelligence V2 readiness has ${issues.length} issue(s).` : "Repository Intelligence V2 tools, binding, evidence, and documentation are ready.",
