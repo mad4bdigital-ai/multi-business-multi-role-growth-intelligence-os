@@ -226,7 +226,7 @@ export function buildDeploymentInfoRoutes() {
         ["git_ref_mtime", git?.ref_mtime],
         ["git_head_mtime", git?.head_mtime],
       ]),
-      deployment: sanitizeDeploymentManifest(deployment),
+      deployment: sanitizeDeploymentManifest(deployment, deploymentSource),
       git: git ? {
         branch: git.branch || null,
         ref: git.git_ref || null,
