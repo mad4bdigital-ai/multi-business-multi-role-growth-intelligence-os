@@ -143,7 +143,7 @@ export async function recordAgentToolCallStarted({ context = {}, modelRunId = nu
         context.decision_run_id || context.run_id || context.plan_id || null,
         modelRunId || null,
         String(toolKey || "unknown").slice(0, 191),
-        safeJson({ gate: "agent_loop_dispatch", authorization_status: "authorized", secrets_included: false }),
+        safeJson({ gate: "agent_loop_dispatch", authorization_status: "pending", secrets_included: false }),
         safeJson(summarizeToolInput(args)),
         context.execution_trace_id || context.trace_id || null,
       ]
