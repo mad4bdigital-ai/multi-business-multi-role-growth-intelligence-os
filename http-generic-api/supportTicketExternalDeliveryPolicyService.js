@@ -88,12 +88,13 @@ function buildAdminGptRepairPromptState({ tenant_id, ticket_id, approval_hold_id
   };
 }
 
-async function buildAdminGptRepairLink(connection, state) {
+async function buildAdminGptRepairLink(connection, resumeStateId, requestedAction = "review_external_delivery") {
   const baseUrl = await resolveAdminGptRepairLinkBaseUrl(connection);
   const prompt = [
-    "ابدأ إصلاح Support Ticket من prompt parameter.",
-    "استخدم state_json التالي كمصدر الحالة ولا تطلب من المستخدم إعادة شرح السياق.",
-    `state_json=${JSON.stringify(state)}`,
+    "ابدأ إصلاح Support Ticket من governed handoff state.",
+    "اقرأ resume_state_id من المنصة ولا تطلب من المستخدم إعادة شرح السياق.",
+    `resume_state_id=${resumeStateId}`,
+    `requested_action=${requestedAction}`,
   ].join("\n");
   const separator = baseUrl.includes("?") ? "&" : "?";
   return `${baseUrl}${separator}prompt=${encodeURIComponent(prompt)}`;
