@@ -16,6 +16,7 @@
     "activation_state",
     "auto_bootstrap_state",
     "hard_activation_wrapper_state",
+    "activation_awareness_state",
     "execution_logging_state",
     "governance_rules",
     "governance_drift_state",
@@ -159,6 +160,53 @@
     "activation_state": { "$ref": "schemas/execution.schema.json#/$defs/activation_state" },
     "auto_bootstrap_state": { "$ref": "schemas/execution.schema.json#/$defs/auto_bootstrap_state" },
     "hard_activation_wrapper_state": { "$ref": "schemas/execution.schema.json#/$defs/hard_activation_wrapper_state" },
+    "activation_awareness_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_table",
+        "snapshot_table",
+        "response_profile_authority",
+        "delivery_policy_authority",
+        "default_response_profile",
+        "session_policy",
+        "lifecycle_states",
+        "completeness_required",
+        "dynamic_tabs_preserved",
+        "dashboard_preserved",
+        "secret_policy"
+      ],
+      "properties": {
+        "run_table": { "const": "activation_runs" },
+        "snapshot_table": { "const": "activation_snapshot_ledger" },
+        "response_profile_authority": { "const": "activation_response_profile_registry" },
+        "delivery_policy_authority": { "const": "activation_delivery_policy_registry" },
+        "default_response_profile": { "const": "evidence" },
+        "supported_response_profiles": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["evidence", "summary", "dashboard", "diagnostic", "full"] },
+          "default": ["evidence", "summary", "dashboard", "diagnostic", "full"]
+        },
+        "session_policy": {
+          "type": "string",
+          "enum": ["reuse_or_create", "create_new", "reuse_only", "read_only"],
+          "default": "reuse_or_create"
+        },
+        "lifecycle_states": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["validation_state", "evidence_state", "delivery_state", "consumer_ack_state"] },
+          "default": ["validation_state", "evidence_state", "delivery_state", "consumer_ack_state"]
+        },
+        "completeness_required": { "const": true },
+        "details_omitted_silently": { "const": false },
+        "deferred_details_require_governed_refs": { "const": true },
+        "dynamic_tabs_preserved": { "const": true },
+        "dashboard_preserved": { "const": true },
+        "tenant_scope_authority": { "const": "signed_jwt_membership" },
+        "admin_scope_authority": { "const": "platform_admin_authorization" },
+        "secret_policy": { "const": "never_return_raw_secret_values" }
+      }
+    },
     "execution_logging_state": { "$ref": "schemas/operations.schema.json#/$defs/execution_logging_state" },
     "governance_rules": { "$ref": "schemas/governance.schema.json#/$defs/governance_rules" },
     "governance_drift_state": { "$ref": "schemas/governance.schema.json#/$defs/governance_drift_state" },

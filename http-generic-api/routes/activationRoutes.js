@@ -13,6 +13,18 @@ import {
 import { buildActivationDynamicTabsEvidence } from "../activationDynamicTabsEvidence.js";
 import { buildActivationOperationalIntelligenceEvidence } from "../activationOperationalIntelligenceEvidence.js";
 import {
+  resolveActivationSessionLifecycle,
+  acknowledgeActivationRun,
+  markActivationRunDelivered,
+} from "../activationSessionLifecycleService.js";
+import {
+  buildProfiledHardActivationResponse,
+  recordPreparedActivationResponse,
+  normalizeActivationResponseProfile,
+} from "../activationHardResponseService.js";
+import { readActivationDynamicTabDetail } from "../activationAwarenessService.js";
+import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
+import {
   REGISTRY_SPREADSHEET_ID,
   ACTIVITY_SPREADSHEET_ID,
   ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
@@ -1320,12 +1332,24 @@ export async function buildActivationSessionContext(req) {
 
   // Parallel conversations are the default; explicit close_previous_sessions preserves the old single-session behavior when needed.
   // Read-only callers can inspect context without minting a fresh session id, which prevents accidental ChatGPT URL ref relinking during diagnostics.
-  const sessionOpen = shouldOpenActivationSession(req.query)
-    ? await autoOpenGptSession(pool, subject, {
-        close_previous_sessions: asBoolean(req.query.close_previous_sessions) || asBoolean(req.query.close_previous),
-      })
-    : await readOnlyGptSessionContext(pool, subject);
-  const { session_id: newSessionId, closed_sessions } = sessionOpen;
+  const lifecycleOptions = {
+    read_only: !shouldOpenActivationSession(req.query),
+    session_policy: queryStringValue(req.query.session_policy) || (shouldOpenActivationSession(req.query) ? "reuse_or_create" : "read_only"),
+    idempotency_key: queryStringValue(req.query.idempotency_key) || null,
+    conversation_ref: queryStringValue(req.query.conversation_ref) || null,
+    response_profile: normalizeActivationResponseProfile(req.query.response_profile),
+    close_previous_sessions: asBoolean(req.query.close_previous_sessions) || asBoolean(req.query.close_previous),
+    reuse_window_hours: req.query.reuse_window_hours,
+  };
+  const sessionOpen = await resolveActivationSessionLifecycle({
+    pool,
+    subject,
+    options: lifecycleOptions,
+    openSession: () => autoOpenGptSession(pool, subject, {
+      close_previous_sessions: lifecycleOptions.close_previous_sessions,
+    }),
+  });
+  const { session_id: newSessionId, run_id: activationRunId, closed_sessions } = sessionOpen;
 
   const limit = capLimit(req.query.limit, SESSION_CONTEXT_DEFAULT_LIMIT, SESSION_CONTEXT_MAX_LIMIT);
   const offset = normalizeOffset(req.query.offset);
@@ -1494,6 +1518,10 @@ export async function buildActivationSessionContext(req) {
 
   return {
     session_id: newSessionId,
+    run_id: activationRunId || sessionOpen.run_id || null,
+    idempotency_key: sessionOpen.idempotency_key || null,
+    session_policy: sessionOpen.session_policy || lifecycleOptions.session_policy,
+    session_reused: sessionOpen.reused === true,
     closed_sessions,
     session_management: sessionOpen.session_management,
     subject,
@@ -1733,7 +1761,7 @@ export function buildActivationRoutes(deps) {
     }
   });
 
-  router.post("/activation/hard-run", requireBackendApiKey, async (req, res) => {
+  router.post("/activation/hard-run/legacy-full", requireBackendApiKey, async (req, res) => {
     let sessionContext = null;
     let providerBootstrap = null;
     try {
