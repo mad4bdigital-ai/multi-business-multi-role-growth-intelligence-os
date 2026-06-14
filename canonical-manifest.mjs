@@ -73,7 +73,7 @@ export const CANONICALS = [
   {
     output: 'prompt_router.md',
     sourceDir: 'canonicals/prompt_router',
-    expectedFileCount: 9,
+    expectedFileCount: 10,
     index: [
       ['Header and purpose', '00_header_purpose.md', 'Canonical identity, status, purpose, and initial routing posture.'],
       ['Core routing', '01_core_routing.md', 'HTTP variable-aware routing, async routing, and Native Google routing clarification.'],
