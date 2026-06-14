@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import crypto, { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
+import { sanitizeCapabilityEnvelopeForLedger } from "../capabilityEnvelopeSecretPolicy.js";
 import { runCapabilityResolutionDryRun } from "./capability-resolution-dry-run.mjs";
 
 function parseArgs(argv = process.argv.slice(2)) {
