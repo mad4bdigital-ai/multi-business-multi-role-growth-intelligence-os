@@ -665,7 +665,17 @@ export async function dispatchPlan(plan_id, {
     resource_type: "execution_plan",
     resource_id: plan_id,
     outcome: succeeded ? "success" : "failure",
-    metadata: { run_id, trace_id, connector_type, apply, duration_ms, secrets_included: false },
+    metadata: {
+      run_id,
+      trace_id,
+      connector_type,
+      apply,
+      duration_ms,
+      sink_required: Boolean(sinkResult),
+      sink_ok: sinkResult?.ok ?? null,
+      sink_readback_confirmed: sinkResult?.side_effect_confirmed_by_readback === true,
+      secrets_included: false,
+    },
   });
 
   return {
