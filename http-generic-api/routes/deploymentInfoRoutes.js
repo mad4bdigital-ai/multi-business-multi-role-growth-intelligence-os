@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
+import { readDeploymentManifest } from "../deploymentManifest.js";
 
 async function fileMtimeIso(file) {
   try {
@@ -33,13 +34,13 @@ async function readDeploymentCommit() {
   return null;
 }
 
-function sanitizeDeploymentManifest(deployment) {
+function sanitizeDeploymentManifest(deployment, fallbackSource = "DEPLOYMENT_COMMIT.json") {
   if (!deployment) return { present: false };
   const safe = { ...deployment };
   delete safe._source_file;
   safe.present = true;
-  safe.source = "DEPLOYMENT_COMMIT.json";
-  safe.source_file_detected = Boolean(deployment._source_file);
+  safe.source = String(deployment.source || fallbackSource);
+  safe.source_file_detected = Boolean(deployment._source_file || deployment.source);
   safe.source_mtime = deployment._source_mtime || null;
   return safe;
 }
@@ -153,7 +154,11 @@ export function buildDeploymentInfoRoutes() {
   const router = Router();
 
   router.get("/deployment-info", async (req, res) => {
-    const deployment = await readDeploymentCommit();
+    const legacyDeployment = await readDeploymentCommit();
+    const manifestResult = readDeploymentManifest();
+    const canonicalDeployment = manifestResult.ok ? manifestResult.manifest : null;
+    const deployment = canonicalDeployment || legacyDeployment;
+    const deploymentSource = canonicalDeployment?.source || (legacyDeployment ? "DEPLOYMENT_COMMIT.json" : "unavailable");
     const git = await readGitCheckoutInfo();
     const host = String(req.headers.host || "").toLowerCase();
     const isDevHostname = host.startsWith("dev.mad4b.com");
@@ -193,7 +198,7 @@ export function buildDeploymentInfoRoutes() {
       hostname: req.headers.host || null,
       branch,
       branch_source: sourceFor(branch, [
-        ["DEPLOYMENT_COMMIT.json", deployment?.branch],
+        [deploymentSource, deployment?.branch],
         ["GITHUB_REF_NAME", process.env.GITHUB_REF_NAME],
         ["DEPLOY_BRANCH", process.env.DEPLOY_BRANCH],
         ["BRANCH_NAME", process.env.BRANCH_NAME],
@@ -203,7 +208,7 @@ export function buildDeploymentInfoRoutes() {
       commit: commitSha,
       commit_sha: commitSha,
       commit_source: sourceFor(commitSha, [
-        ["DEPLOYMENT_COMMIT.json", deployment?.commit_sha || deployment?.commit],
+        [deploymentSource, deployment?.commit_sha || deployment?.commit],
         ["GITHUB_SHA", process.env.GITHUB_SHA],
         ["DEPLOY_COMMIT", process.env.DEPLOY_COMMIT],
         ["COMMIT_SHA", process.env.COMMIT_SHA],
@@ -212,16 +217,16 @@ export function buildDeploymentInfoRoutes() {
       ]),
       deployed_at: deployedAt,
       deployed_at_source: sourceFor(deployedAt, [
-        ["DEPLOYMENT_COMMIT.json.deployed_at", deployment?.deployed_at],
-        ["DEPLOYMENT_COMMIT.json.generated_at", deployment?.generated_at],
-        ["DEPLOYMENT_COMMIT.json.mtime", deployment?._source_mtime],
+        [`${deploymentSource}.deployed_at`, deployment?.deployed_at],
+        [`${deploymentSource}.generated_at`, deployment?.generated_at],
+        [`${deploymentSource}.mtime`, deployment?._source_mtime],
         ["DEPLOYED_AT", process.env.DEPLOYED_AT],
         ["BUILD_TIMESTAMP", process.env.BUILD_TIMESTAMP],
         ["RELEASE_CREATED_AT", process.env.RELEASE_CREATED_AT],
         ["git_ref_mtime", git?.ref_mtime],
         ["git_head_mtime", git?.head_mtime],
       ]),
-      deployment: sanitizeDeploymentManifest(deployment),
+      deployment: sanitizeDeploymentManifest(deployment, deploymentSource),
       git: git ? {
         branch: git.branch || null,
         ref: git.git_ref || null,
@@ -236,6 +241,9 @@ export function buildDeploymentInfoRoutes() {
         deployed_at_available: Boolean(deployedAt),
         git_detected: Boolean(git?.git_dir_detected),
         manifest_detected: Boolean(deployment),
+        canonical_manifest_detected: Boolean(canonicalDeployment),
+        legacy_deployment_commit_detected: Boolean(legacyDeployment),
+        manifest_error: manifestResult.ok ? null : manifestResult.error,
         secrets_included: false,
       },
       app_env: process.env.APP_ENV || process.env.NODE_ENV || null,

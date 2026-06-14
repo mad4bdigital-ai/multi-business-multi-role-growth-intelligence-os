@@ -1,5 +1,7 @@
 # Deployment Parity Checklist
 
+> Runtime parity additions for `1004_sprint68_hostinger_ssh_executor_db_gate.sql`, `1004_sprint69_agent_governance_admin_tools.sql`, and `1005_sprint69_agent_skill_coverage_prompt_enrichment.sql`: verify the Hostinger DB gate exists disabled by default, is target-bound, and has no unbounded expiry; verify `/version` and `/deployment-info` report the same canonical manifest commit; verify Agent Governance tools remain admin-only; verify skill coverage remains read-only. A deploy is not current until same-cycle dry-run, approved capability envelope, exact SHA, path allowlist, bounded output, and post-deploy health/readback succeed. No secrets may be returned.
+
 <!-- surface-contract-auto-remediation:start -->
 ## Automated Surface Contract Attestations
 

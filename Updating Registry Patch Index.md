@@ -1,5 +1,7 @@
 # Updating Registry Patch Index
 
+> 2026-06-14 governed surface contract: `1004_sprint68_hostinger_ssh_executor_db_gate.sql`, `1004_sprint69_agent_governance_admin_tools.sql`, and `1005_sprint69_agent_skill_coverage_prompt_enrichment.sql` are additive registry/view migrations. The Hostinger executor gate defaults disabled and is target- and expiry-bound; actual SSH execution still requires same-cycle dry-run, approved capability envelope, exact commit SHA, path allowlist, bounded output, and post-deploy readback. The Agent Governance tools remain admin-authenticated and the skill-coverage change is read-only metadata/view enrichment. No migration performs provider calls, credential payload reads, raw-secret returns, external sends, or deployment execution; `secrets_included=false`.
+
 <!-- surface-contract-auto-remediation:start -->
 ## Automated Surface Contract Attestations
 

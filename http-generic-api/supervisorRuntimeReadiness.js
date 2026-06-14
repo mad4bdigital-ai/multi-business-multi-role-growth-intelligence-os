@@ -140,19 +140,20 @@ export async function inspectLiveSupervisorSchema({ pool = null } = {}) {
   const [routeSkillGapRows] = await resolvedPool.query(
     `SELECT DISTINCT a.agent_id, tr.workflow_key
      FROM task_routes tr
-     JOIN agents a ON a.execution_layer = tr.execution_layer
+     JOIN agents a ON BINARY a.execution_layer = BINARY tr.execution_layer
        AND a.status = 'active' AND a.health_status = 'active'
      LEFT JOIN agent_skills sk ON sk.skill_key = 'logic.evaluate_pack' AND sk.status = 'active'
-     LEFT JOIN agent_skill_grants sg ON sg.agent_id = a.agent_id AND sg.skill_id = sk.skill_id
+     LEFT JOIN agent_skill_grants sg ON BINARY sg.agent_id = BINARY a.agent_id
+       AND BINARY sg.skill_id = BINARY sk.skill_id
        AND sg.status = 'active' AND sg.tenant_id IS NULL
        AND (sg.expires_at IS NULL OR sg.expires_at > NOW())
      WHERE sg.grant_id IS NULL
      LIMIT 25`
   );
   const [invalidFallbackRows] = await resolvedPool.query(
-    `SELECT source.agent_id, source.fallback_agent_id
+     `SELECT source.agent_id, source.fallback_agent_id
      FROM agents source
-     LEFT JOIN agents fallback ON fallback.agent_id = source.fallback_agent_id
+     LEFT JOIN agents fallback ON BINARY fallback.agent_id = BINARY source.fallback_agent_id
        AND fallback.status = 'active' AND fallback.health_status = 'active'
      WHERE source.status = 'active' AND source.fallback_agent_id IS NOT NULL
        AND fallback.agent_id IS NULL
