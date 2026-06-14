@@ -16677,9 +16677,15 @@ paths:
       tags: [platform-agent-governance]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: getAgentGovernanceSkillCoverage
-      summary: Read skill runtime coverage gaps
+      summary: Read type-aware Agent Skill runtime coverage
+      parameters:
+        - { name: skill_key, in: query, required: false, schema: { type: string } }
+        - { name: skill_type, in: query, required: false, schema: { type: string, enum: [logic_execution, api_access, data_read, data_write, system_control] } }
+        - { name: coverage_status, in: query, required: false, schema: { type: string, enum: [covered, gap] } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 250, default: 100 } }
       responses:
-        "200": { description: Skill runtime coverage rows and total count }
+        "200": { description: Type-aware skill coverage rows, summary counts, and applied filters }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { description: Admin principal required }
 
