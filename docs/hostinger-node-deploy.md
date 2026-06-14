@@ -1,5 +1,7 @@
 # Hostinger Node.js Auto Deploy
 
+> Repository-only governance note: `.github/workflows/surface-contract-auto-remediation.yml` does not deploy, restart, or synchronize any Hostinger app. It only opens reviewable documentation/generated-evidence PRs within an explicit path allowlist. A merged remediation PR does not satisfy deployment verification; production still requires Hostinger Git deployment followed by `/health`, `/version`, and commit-parity readback.
+
 ## Purpose
 
 Hostinger hPanel supports Auto Deploy from a Git repository. This is the preferred deployment mode for the platform Node.js apps. Manual ZIP uploads such as `connector-api.zip` should be treated as legacy fallback only.
