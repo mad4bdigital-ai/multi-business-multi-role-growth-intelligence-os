@@ -32,7 +32,7 @@ assert.ok(migration.includes('capture_chatgpt_current_url'));
 assert.ok(migration.includes('local_manager_desktop_command_enqueue'));
 assert.ok(migration.includes('chatgpt_url_capture'));
 assert.ok(migration.includes('no raw transcript/page content capture'));
-assert.ok(migration.includes('JSON_SET(\n  `input_schema`,'));
+assert.match(migration, /JSON_SET\(\r?\n  `input_schema`,/);
 assert.doesNotMatch(migration, /CAST\(`input_schema` AS JSON\)/i);
 assert.doesNotMatch(migration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
 

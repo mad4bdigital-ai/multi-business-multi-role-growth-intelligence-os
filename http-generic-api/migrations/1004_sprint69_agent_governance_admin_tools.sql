@@ -1,4 +1,8 @@
 -- Sprint 69: expose existing Agent Governance admin routes through the governed GPT tool dispatcher.
+-- safety-contract: no_credential_payload_read true
+-- safety-contract: no_raw_secrets true
+-- safety-contract: no_external_send true
+-- safety-contract: no_external_write true
 -- Additive only. Routes remain backend-api-key + admin-principal protected.
 -- No provider calls, no credential payloads, no raw prompt content, no secret values.
 

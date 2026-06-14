@@ -84,24 +84,9 @@ CREATE TABLE IF NOT EXISTS external_prompt_artifact_registry (
   CONSTRAINT chk_external_prompt_no_secrets CHECK (secrets_included = 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS memory_scope_type_registry (
-  scope_type VARCHAR(64) NOT NULL PRIMARY KEY, priority INT NOT NULL,
-  cross_scope_default ENUM('deny','allow_read') NOT NULL DEFAULT 'deny',
-  status ENUM('active','disabled') NOT NULL DEFAULT 'active', notes TEXT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS memory_scope_links (
-  link_id VARCHAR(36) NOT NULL PRIMARY KEY, tenant_id VARCHAR(64) NOT NULL,
-  source_scope_type VARCHAR(64) NOT NULL, source_scope_ref VARCHAR(191) NOT NULL,
-  target_scope_type VARCHAR(64) NOT NULL, target_scope_ref VARCHAR(191) NOT NULL,
-  relationship_type VARCHAR(128) NOT NULL DEFAULT 'explicit_context_link',
-  access_mode ENUM('read','read_write') NOT NULL DEFAULT 'read',
-  status ENUM('active','revoked','expired') NOT NULL DEFAULT 'active', expires_at DATETIME NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  KEY idx_memory_scope_links_source (tenant_id, source_scope_type, source_scope_ref, status),
-  KEY idx_memory_scope_links_target (tenant_id, target_scope_type, target_scope_ref, status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- memory_scope_type_registry and memory_scope_links are owned by migrations
+-- 251_sprint68_dynamic_memory_scope_types.sql and 252_sprint68_memory_scope_links_foundation.sql.
+-- This migration must not create legacy versions of those canonical tables.
 
 CREATE OR REPLACE VIEW v_skill_runtime_coverage AS
 SELECT s.skill_key, s.display_name, s.skill_type, s.scope, s.status AS agent_skill_status,
@@ -110,8 +95,10 @@ SELECT s.skill_key, s.display_name, s.skill_type, s.scope, s.status AS agent_ski
        CASE WHEN m.skill_key IS NOT NULL AND p.skill_key IS NOT NULL THEN 'covered' ELSE 'gap' END AS coverage_status
 FROM agent_skills s
 LEFT JOIN agent_skill_grants g ON g.skill_id = s.skill_id
-LEFT JOIN skill_manifests m ON m.skill_key COLLATE utf8mb4_unicode_ci = s.skill_key COLLATE utf8mb4_unicode_ci
-LEFT JOIN platform_engine_skill_prompt_registry p ON p.skill_key COLLATE utf8mb4_unicode_ci = s.skill_key COLLATE utf8mb4_unicode_ci
+LEFT JOIN skill_manifests m
+  ON m.skill_key COLLATE utf8mb4_unicode_ci = s.skill_key COLLATE utf8mb4_unicode_ci
+LEFT JOIN platform_engine_skill_prompt_registry p
+  ON p.skill_key COLLATE utf8mb4_unicode_ci = s.skill_key COLLATE utf8mb4_unicode_ci
 GROUP BY s.skill_key, s.display_name, s.skill_type, s.scope, s.status, m.status, p.status, m.skill_key, p.skill_key;
 
 INSERT INTO agent_response_profile_registry
@@ -124,9 +111,34 @@ INSERT INTO research_source_policy_registry
 VALUES ('internal_first_default', 'global', JSON_ARRAY('internal_registry','workspace_knowledge','external_search'), 0, 1, 0, 5, 0, 'active')
 ON DUPLICATE KEY UPDATE source_order_json = VALUES(source_order_json), status = VALUES(status), updated_at = CURRENT_TIMESTAMP;
 
--- memory_scope_type_registry is governed by the dynamic scope registry migration.
--- Do not reseed legacy priority/cross_scope_default columns here.
-
+INSERT INTO memory_scope_type_registry
+  (scope_type, display_name, description, scope_layer, identity_table, identity_key_column,
+   parent_scope_type, supports_tenant_id, supports_user_id, supports_workspace_key,
+   supports_brand_key, supports_activity_type_key, supports_role_key,
+   default_visibility_scope, approval_required, status, metadata_json)
+VALUES
+  ('agent', 'Agent', 'Platform agent runtime identity and governance scope.', 'runtime',
+   'agents', 'agent_id', 'platform', 0, 0, 1, 1, 1, 1,
+   'platform_admin', 1, 'active',
+   JSON_OBJECT('dynamic_scope', TRUE, 'source_migration', '245_sprint68_agent_governance_runtime.sql'))
+ON DUPLICATE KEY UPDATE
+  display_name = VALUES(display_name),
+  description = VALUES(description),
+  scope_layer = VALUES(scope_layer),
+  identity_table = VALUES(identity_table),
+  identity_key_column = VALUES(identity_key_column),
+  parent_scope_type = VALUES(parent_scope_type),
+  supports_tenant_id = VALUES(supports_tenant_id),
+  supports_user_id = VALUES(supports_user_id),
+  supports_workspace_key = VALUES(supports_workspace_key),
+  supports_brand_key = VALUES(supports_brand_key),
+  supports_activity_type_key = VALUES(supports_activity_type_key),
+  supports_role_key = VALUES(supports_role_key),
+  default_visibility_scope = VALUES(default_visibility_scope),
+  approval_required = VALUES(approval_required),
+  status = VALUES(status),
+  metadata_json = VALUES(metadata_json),
+  updated_at = CURRENT_TIMESTAMP;
 INSERT INTO platform_engine_policy_registry
   (policy_key, engine_key, scope_type, mode, risk_default, approval_required_min_risk,
    require_scope_guard, require_audit, require_validators, blocked_terms_json, status, notes)

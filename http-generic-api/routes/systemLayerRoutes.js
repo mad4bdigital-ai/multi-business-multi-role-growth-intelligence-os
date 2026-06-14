@@ -80,6 +80,7 @@ const SYSTEM_LAYER_TOOLS = [
   },
   {
     name: "runtime_endpoint_call",
+    requires_admin: true,
     description: "Kernel dispatcher for governed runtime endpoint execution. Resolves parent_action_key/endpoint_key through registry authority, preserves brand target fields, applies principal context, and delegates provider execution to the runtime facade.",
     inputSchema: {
       type: "object",
@@ -381,6 +382,87 @@ const ADMIN_ONLY_SYSTEM_TOOLS = new Set(
   SYSTEM_LAYER_TOOLS.filter((tool) => tool.requires_admin === true).map((tool) => tool.name)
 );
 const LOCAL_SYSTEM_TOOL_NAMES = new Set(SYSTEM_LAYER_TOOLS.map((tool) => tool.name));
+const TENANT_MUTATION_ENDPOINT_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const TENANT_PLATFORM_ENDPOINT_DANGEROUS_POLICY_TOKENS = [
+  "unrestricted_write",
+  "direct_provider_write",
+  "raw_secret_return",
+  "raw_secrets",
+  "force_push",
+  "freeform_command",
+];
+
+function isTenantMutationEndpointMethod(method = "") {
+  return TENANT_MUTATION_ENDPOINT_METHODS.has(String(method || "").trim().toUpperCase());
+}
+
+function policyFlag(value) {
+  if (value === true || value === 1) return true;
+  return ["true", "1", "yes", "required", "enabled"].includes(String(value || "").trim().toLowerCase());
+}
+
+function policyList(value) {
+  if (Array.isArray(value)) return value.map((entry) => String(entry || "").trim().toLowerCase()).filter(Boolean);
+  return String(value || "").split(/[\s,|]+/).map((entry) => entry.trim().toLowerCase()).filter(Boolean);
+}
+
+export function evaluateTenantPlatformEndpointExport(row = {}, auth = null) {
+  const method = String(row.method || "GET").trim().toUpperCase();
+  const scopeClass = String(row.scope_class || "").trim().toLowerCase();
+  const authPolicy = safeParseJsonObject(row.auth_policy_json, {});
+  const executionPolicy = safeParseJsonObject(row.execution_policy_json, {});
+  const importPolicy = safeParseJsonObject(row.import_policy_json, {});
+  const policyText = JSON.stringify({ authPolicy, executionPolicy, importPolicy }).toLowerCase();
+
+  if (isAdminPrincipal(auth)) return { allowed: true, reason: "admin_principal", method };
+  if (!["tenant", "both"].includes(scopeClass)) {
+    return { allowed: false, reason: "scope_class_not_tenant", method };
+  }
+  if (policyFlag(row.admin_only) || policyFlag(authPolicy.requires_admin)) {
+    return { allowed: false, reason: "admin_policy_required", method };
+  }
+  const dangerousToken = TENANT_PLATFORM_ENDPOINT_DANGEROUS_POLICY_TOKENS.find((token) => policyText.includes(token));
+  if (dangerousToken) {
+    return { allowed: false, reason: `dangerous_policy:${dangerousToken}`, method };
+  }
+  if (!isTenantMutationEndpointMethod(method)) {
+    return { allowed: true, reason: "read_only_method", method };
+  }
+
+  const allowedActors = new Set([
+    ...policyList(row.allowed_actor_roles),
+    ...policyList(authPolicy.allowed_actor_roles),
+    ...policyList(authPolicy.allowed_principals),
+  ]);
+  const explicitTenantAllow =
+    policyFlag(authPolicy.tenant_allowed)
+    || policyFlag(authPolicy.user_allowed)
+    || policyFlag(executionPolicy.tenant_allowed)
+    || policyFlag(executionPolicy.tenant_mutation_allowed)
+    || policyFlag(executionPolicy.tenant_safe)
+    || ["tenant", "member", "user", "workspace_owner", "workspace_admin"].some((role) => allowedActors.has(role));
+
+  const executionMode = String(executionPolicy.execution_mode || row.execution_mode || "").trim().toLowerCase();
+  const governanceGate =
+    policyFlag(row.request_envelope_required)
+    || policyFlag(executionPolicy.request_envelope_required)
+    || policyFlag(executionPolicy.capability_envelope_required)
+    || policyFlag(executionPolicy.approval_required)
+    || policyFlag(executionPolicy.preflight_required)
+    || ["dry_run", "preview", "approval_gated", "capability_gated", "governed"].includes(executionMode);
+
+  if (!explicitTenantAllow) {
+    return { allowed: false, reason: "tenant_mutation_not_explicitly_allowed", method };
+  }
+  if (!governanceGate) {
+    return { allowed: false, reason: "tenant_mutation_governance_gate_missing", method };
+  }
+  return { allowed: true, reason: "governed_tenant_mutation", method };
+}
+
+function isTenantPlatformEndpointExportAllowed(row = {}, auth = null) {
+  return evaluateTenantPlatformEndpointExport(row, auth).allowed;
+}
 
 const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
   {
@@ -571,7 +653,15 @@ async function listPlatformEndpointToolsForPrincipal(auth, existingNames = new S
               x.endpoint_key,
               x.scope_class,
               x.input_schema_json,
-              e.method
+              x.auth_policy_json,
+              x.execution_policy_json,
+              x.import_policy_json,
+              e.method,
+              e.execution_mode,
+              e.admin_only,
+              e.request_envelope_required,
+              e.allowed_actor_roles,
+              e.allowed_governance_levels
          FROM platform_endpoint_tool_exports x
          LEFT JOIN endpoints e
            ON e.parent_action_key = x.parent_action_key
@@ -586,6 +676,7 @@ async function listPlatformEndpointToolsForPrincipal(auth, existingNames = new S
 
     return rows
       .filter((row) => row?.tool_name && !existingNames.has(row.tool_name))
+      .filter((row) => isTenantPlatformEndpointExportAllowed(row, auth))
       .map((row) => ({
         name: row.tool_name,
         description: `Registry endpoint tool ${row.parent_action_key}/${row.endpoint_key}.`,
@@ -869,7 +960,15 @@ async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null,
             x.parent_action_key,
             x.endpoint_key,
             x.scope_class,
-            e.method
+            x.auth_policy_json,
+            x.execution_policy_json,
+            x.import_policy_json,
+            e.method,
+            e.execution_mode,
+            e.admin_only,
+            e.request_envelope_required,
+            e.allowed_actor_roles,
+            e.allowed_governance_levels
        FROM platform_endpoint_tool_exports x
        LEFT JOIN endpoints e
          ON e.parent_action_key = x.parent_action_key
@@ -893,6 +992,22 @@ async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null,
     const err = new Error("This platform endpoint tool requires admin access.");
     err.status = 403;
     err.code = "platform_endpoint_tool_admin_required";
+    throw err;
+  }
+
+  const endpointPolicy = evaluateTenantPlatformEndpointExport(row, auth);
+  if (!endpointPolicy.allowed) {
+    const err = new Error("Tenant principals cannot dispatch platform endpoint exports unless registry authority explicitly allows the tenant mutation and requires a governance gate.");
+    err.status = 403;
+    err.code = "tenant_platform_endpoint_mutation_not_allowed";
+    err.details = {
+      tool_name: row.tool_name,
+      method: row.method,
+      parent_action_key: row.parent_action_key,
+      endpoint_key: row.endpoint_key,
+      policy_reason: endpointPolicy.reason,
+      secrets_included: false,
+    };
     throw err;
   }
 

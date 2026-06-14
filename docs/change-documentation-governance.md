@@ -1,5 +1,11 @@
 # Repo and SQL Change Documentation Governance
 
+Changes touching `1005_sprint69_agent_skill_coverage_prompt_enrichment.sql` must document `v_skill_runtime_coverage`, type-aware active grants, manifests, prompt enrichment, approval requirements, coverage basis, runtime binding status, and the guarantees of no provider calls, credential payload reads, raw-secret returns, external sends, or external writes (`secrets_included=false`).
+
+Changes touching `1004_sprint69_agent_governance_admin_tools.sql` must document the exact Agent Governance routes and tool keys, admin-principal authorization, bounded input schemas, secret-like input rejection, execution-log readback, and the guarantees of no credential payload reads, no raw-secret returns, no external sends, and no ungoverned external writes.
+
+Automation Intelligence changes must explicitly document both `1003_sprint69_tenant_device_install_intent_contract.sql` and `1004_sprint69_growth_agent_migration_reconciliation_policy.sql`. The durable trail must include strict install intent and typed confirmation, existing-device no-provider reuse, signed installer-only responses, exact-file migration authorization, mandatory preflight and typed confirmation, post-apply schema/ledger readback, rollback/blocked-state evidence, and the boundaries that forbid provider calls, credential reads, external writes, destructive SQL, deploys, automatic production migration apply, and secret returns (`secrets_included=false`).
+
 <!-- surface-contract-auto-remediation:start -->
 ## Automated Surface Contract Attestations
 
@@ -17,6 +23,8 @@
 ## Purpose
 
 Every meaningful repo or SQL change must leave a durable written trail. Runtime behavior, registry mutations, repair actions, and operational guardrails must not live only in chat history or transient execution logs.
+
+For tenant automation intelligence or mutation-safety changes, the durable trail must include: the registry authority used by discovery and dispatch, stable rejection codes, no-secret response boundaries, transaction/rollback evidence, OpenAPI request and error contracts, the governed migration entry, focused regression tests, full CI evidence, branch reconciliation status, and an operator runbook. The current reference is `docs/automation-intelligence-guard-runbook.md`.
 
 ## Applies to
 

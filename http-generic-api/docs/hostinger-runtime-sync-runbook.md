@@ -6,6 +6,8 @@
 
 This runbook prevents credential-intake or deployment flows from being treated as live-ready when the SQL registry and GitHub `main` are newer than the running Hostinger Node.js runtime.
 
+For an Automation Intelligence Guard release, live runtime sync is incomplete until readback proves: `runtime_endpoint_call` is admin-only; tenant discovery and dispatch use the same registry-driven evaluator; device-install errors preserve their `400/404/409` status and details; existing-device reuse avoids provider calls; JSON responses omit raw installer and connector secret material; and integration-policy failure paths roll back without a commit. Migration `1003_sprint69_tenant_device_install_intent_contract.sql` must be verified separately through the governed migration ledger after explicit release approval.
+
 ## Trigger condition
 
 Use this runbook when any of the following are true:

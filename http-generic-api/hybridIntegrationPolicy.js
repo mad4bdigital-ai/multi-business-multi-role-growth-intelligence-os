@@ -76,22 +76,57 @@ function safeConnection(row = {}) {
   };
 }
 
-function normalizeIntegrationModesObject(value = {}) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+const MANAGED_MODE_ALIASES = new Set(["managed", "platform", "platform_managed", "hosted", "shared", "managed_main_server"]);
+const DEDICATED_MODE_ALIASES = new Set(["dedicated", "tenant", "tenant_owned", "customer", "customer_owned", "self_hosted", "self_hosted_local", "local"]);
+
+function invalidIntegrationPolicy(message, details = {}) {
+  const err = new Error(message);
+  err.status = 400;
+  err.code = "invalid_integration_policy";
+  err.details = { ...details, secrets_included: false };
+  return err;
+}
+
+function strictModeFromValue(value, appKey) {
+  const normalized = normalizeKey(value);
+  if (DEDICATED_MODE_ALIASES.has(normalized)) return "dedicated";
+  if (MANAGED_MODE_ALIASES.has(normalized)) return "managed";
+  throw invalidIntegrationPolicy(`Invalid source mode for ${appKey}. Expected managed or dedicated.`, {
+    app_key: appKey,
+    received_mode: normalized || null,
+    allowed_modes: CANONICAL_INTEGRATION_SOURCE_MODES,
+  });
+}
+
+export function validateIntegrationModesObject(value = {}) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw invalidIntegrationPolicy("integration_modes must be a non-empty object.");
+  }
+  const entries = Object.entries(value);
+  if (!entries.length) throw invalidIntegrationPolicy("integration_modes must contain at least one app policy.");
+
   const normalized = {};
-  for (const [rawKey, rawValue] of Object.entries(value)) {
+  for (const [rawKey, rawValue] of entries) {
     const appKey = normalizeKey(rawKey);
-    if (!appKey) continue;
+    if (!appKey) throw invalidIntegrationPolicy("Integration policy app key is invalid.", { raw_key: rawKey });
+    if (Object.prototype.hasOwnProperty.call(normalized, appKey)) {
+      throw invalidIntegrationPolicy(`Duplicate integration policy key after normalization: ${appKey}.`, { app_key: appKey });
+    }
+
     if (rawValue && typeof rawValue === "object" && !Array.isArray(rawValue)) {
+      const modeValue = rawValue.source_mode ?? rawValue.mode ?? rawValue.credential_source;
+      if (modeValue === undefined || modeValue === null || String(modeValue).trim() === "") {
+        throw invalidIntegrationPolicy(`Integration policy ${appKey} must declare source_mode or mode.`, { app_key: appKey });
+      }
       normalized[appKey] = {
-        source_mode: modeFromValue(rawValue.source_mode ?? rawValue.mode ?? rawValue.credential_source, "managed"),
+        source_mode: strictModeFromValue(modeValue, appKey),
         fallback_allowed: boolValue(rawValue.fallback_allowed, false),
         required_for_device_install: boolValue(rawValue.required_for_device_install, LOCAL_CONNECTOR_APPS.has(appKey)),
-        notes: normalize(rawValue.notes || ""),
+        notes: normalize(rawValue.notes || "").slice(0, 1000),
       };
     } else {
       normalized[appKey] = {
-        source_mode: modeFromValue(rawValue, "managed"),
+        source_mode: strictModeFromValue(rawValue, appKey),
         fallback_allowed: false,
         required_for_device_install: LOCAL_CONNECTOR_APPS.has(appKey),
         notes: "",
@@ -99,6 +134,11 @@ function normalizeIntegrationModesObject(value = {}) {
     }
   }
   return normalized;
+}
+
+function normalizeIntegrationModesObject(value = {}) {
+  if (!value || typeof value !== "object" || Array.isArray(value) || !Object.keys(value).length) return {};
+  return validateIntegrationModesObject(value);
 }
 
 async function readPolicyRows(tenantId) {
@@ -118,13 +158,24 @@ async function readPolicyRows(tenantId) {
   }
 }
 
-export async function upsertTenantIntegrationPolicies({ tenantId, userId, integrationModes = {}, source = "connect" } = {}) {
+export async function upsertTenantIntegrationPolicies({ tenantId, userId, integrationModes = {}, source = "connect", pool = null } = {}) {
   const modes = normalizeIntegrationModesObject(integrationModes);
-  if (!tenantId || !Object.keys(modes).length) return { updated: 0, skipped: true };
+  if (!tenantId || !Object.keys(modes).length) return { updated: 0, skipped: true, committed: false, secrets_included: false };
+
+  const db = pool || getPool();
+  const connection = typeof db.getConnection === "function" ? await db.getConnection() : db;
+  const ownsConnection = connection !== db;
+  let transactionStarted = false;
   let updated = 0;
-  for (const [appKey, policy] of Object.entries(modes)) {
-    try {
-      await getPool().query(
+
+  try {
+    if (typeof connection.beginTransaction === "function") {
+      await connection.beginTransaction();
+      transactionStarted = true;
+    }
+
+    for (const [appKey, policy] of Object.entries(modes)) {
+      await connection.query(
         `INSERT INTO \`tenant_integration_policies\`
            (tenant_id, app_key, source_mode, fallback_allowed, required_for_device_install, notes, status, created_by, updated_by, source)
          VALUES (?,?,?,?,?,?,'active',?,?,?)
@@ -150,12 +201,36 @@ export async function upsertTenantIntegrationPolicies({ tenantId, userId, integr
         ]
       );
       updated += 1;
-    } catch (err) {
-      if (["ER_NO_SUCH_TABLE", "ER_BAD_FIELD_ERROR"].includes(err?.code)) return { updated, skipped: true, reason: err.code };
-      throw err;
     }
+
+    if (transactionStarted && typeof connection.commit === "function") await connection.commit();
+    return {
+      updated,
+      skipped: false,
+      committed: true,
+      transaction_applied: transactionStarted,
+      secrets_included: false,
+    };
+  } catch (err) {
+    const originalCode = err?.code || null;
+    if (transactionStarted && typeof connection.rollback === "function") {
+      try { await connection.rollback(); } catch {}
+    }
+    err.status = Number(err?.status || 500);
+    err.code = originalCode === "invalid_integration_policy" ? originalCode : "integration_policy_transaction_failed";
+    err.details = {
+      ...(err.details || {}),
+      original_code: originalCode,
+      attempted_rows: Object.keys(modes).length,
+      rows_written_before_failure: updated,
+      rollback_applied: transactionStarted,
+      committed: false,
+      secrets_included: false,
+    };
+    throw err;
+  } finally {
+    if (ownsConnection && typeof connection.release === "function") connection.release();
   }
-  return { updated, skipped: false };
 }
 
 export async function resolveHybridIntegrationPolicy({ tenantId, connection = null, requestedApps = [] } = {}) {

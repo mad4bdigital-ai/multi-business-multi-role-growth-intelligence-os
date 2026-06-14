@@ -182,6 +182,10 @@ Example:
 
 Device IDs must be stable lowercase IDs with letters, numbers, and hyphens only. Example: `nagy-mbp-m4`.
 
+The first device install requires only `device_id`. When another enabled device exists, adding or replacing a device requires `install_intent: add|replace` and the exact typed value `INSTALL_DEVICE_<NORMALIZED_DEVICE_ID>`. Reinstall requires `reprovision: true`, `install_intent: reinstall`, and the same typed confirmation. Tenant GPT must never invent, auto-fill, or silently retry confirmation.
+
+An existing device without reprovisioning must use the reuse path before provider credentials are loaded. A successful response contains a short-lived signed installer URL and `secrets_included: false`; it must not expose connector secrets, local API keys, tunnel tokens, `.env` contents, or installer bodies. Treat `409` responses as state/confirmation guidance and show the required customer-safe next step.
+
 For “Check connector,” use `connect_status` first. Use `local_connector_health` only when it is discovered as a tenant-safe tool and call it with `tool_args.device_id` only; user and tenant IDs must come from the JWT. Do not call `connector.mad4b.com`. If any admin-only evidence reports a hostname different from the registered device ID, do not present that hostname as tenant evidence.
 
 ## /connect frontend requirements

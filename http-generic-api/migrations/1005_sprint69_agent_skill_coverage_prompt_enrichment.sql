@@ -1,4 +1,8 @@
 -- Sprint 69: type-aware Agent Skill runtime coverage and governed prompt enrichment metadata.
+-- safety-contract: no_credential_payload_read true
+-- safety-contract: no_raw_secrets true
+-- safety-contract: no_external_send true
+-- safety-contract: secrets_included=false
 -- Additive/backward-compatible view replacement. No provider calls, no secret reads, no external writes.
 
 CREATE OR REPLACE VIEW v_skill_runtime_coverage AS

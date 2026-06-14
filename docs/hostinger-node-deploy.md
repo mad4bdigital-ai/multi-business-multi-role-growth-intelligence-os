@@ -6,6 +6,8 @@
 
 Hostinger hPanel supports Auto Deploy from a Git repository. This is the preferred deployment mode for the platform Node.js apps. Manual ZIP uploads such as `connector-api.zip` should be treated as legacy fallback only.
 
+For releases containing the Automation Intelligence Guard, do not deploy from a branch until the dedicated CI step and the complete Node 22 manifest pass. After merge and Hostinger sync, verify the live runtime contains the registry-driven tenant mutation evaluators, structured device-install error mapping, signed installer response contract, and transactional integration-policy writes. A successful branch CI run does not authorize a production migration apply or deployment by itself.
+
 Target state:
 
 ```text

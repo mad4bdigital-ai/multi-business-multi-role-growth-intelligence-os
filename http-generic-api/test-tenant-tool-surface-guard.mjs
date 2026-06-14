@@ -12,10 +12,17 @@ assert(routes.includes('"/connector/"'), 'tenant guard must block connector work
 assert(routes.includes('"/system/tools/call"'), 'tenant guard must block recursive system tool dispatcher routes');
 assert(routes.includes('"/gpt/tools/call"'), 'tenant guard must block recursive GPT tool dispatcher routes');
 assert(routes.includes('isTenantBlockedToolPath'), 'tenant blocked path helper must exist');
-assert(routes.includes('rows.filter((r) => !isTenantBlockedToolPath(r.http_path))'), 'tenant discovery must filter blocked paths');
-assert(routes.includes('callerType === "tenant" && isTenantBlockedToolPath(pathTemplate)'), 'tenant dispatch must enforce blocked path guard');
+assert(routes.includes('TENANT_MUTATION_TOOL_METHODS'), 'tenant mutating HTTP method classifier must be declared');
+assert(routes.includes('TENANT_HIGH_RISK_TOOL_NAME_PATTERNS'), 'tenant high-risk tool name guard must be declared');
+assert(routes.includes('TENANT_MUTATION_GOVERNANCE_TAGS'), 'tenant mutation governance allow tags must be declared');
+assert(routes.includes('TENANT_MUTATION_DENY_TAGS'), 'tenant mutation deny tags must be declared');
+assert(routes.includes('evaluateTenantToolVisibility'), 'tenant visibility evaluator must combine path, method, tags, and tool-name guards');
+assert(routes.includes('rows.filter((r) => isTenantToolVisible(r))'), 'tenant discovery must use the unified registry policy evaluator');
+assert(routes.includes('SELECT http_method, http_path, path_param_keys, fixed_body, tags'), 'tenant dispatch must load registry tags');
+assert(routes.includes('evaluateTenantToolVisibility({ tool_key: toolKey, http_method: method, http_path: pathTemplate, tags })'), 'tenant dispatch must evaluate the same registry policy as discovery');
+assert(routes.includes('missing_mutation_governance_tag'), 'untagged tenant mutations must fail closed');
 assert(routes.includes('tenant_tool_route_not_allowed'), 'tenant blocked dispatch must return stable error code');
-assert(routes.includes('Tenant GPT tools cannot dispatch to admin-only connector workaround routes'), 'tenant blocked dispatch must return actionable message');
+assert(routes.includes('lack an explicit tenant governance policy'), 'tenant blocked dispatch must return actionable message');
 
 assert(migration.includes('tenant_platform_endpoint_tools'), 'migration must update tenant tool registry');
 assert(migration.includes("`http_path` LIKE '/connector/%'"), 'migration must disable tenant connector workaround paths');

@@ -11478,11 +11478,18 @@ paths:
 
   /connect/device-install:
     post:
+      x-openai-isConsequential: true
       tags: [tenant-connect]
       security: [userBearerAuth: []]
       operationId: postConnectDeviceInstall
-      summary: Provision a local connector device for the tenant
-      description: "Provisions a Cloudflare tunnel and connector config for the named device. Uses managed or dedicated provisioning depending on the tenant connection's cloudflare_mode. Returns install bundle pointers and updates device_count."
+      summary: Provision or reuse a governed local connector device
+      description: >-
+        Provisions, reinstalls, or reuses a tenant local connector device. The first
+        device may be installed without confirmation. Adding or replacing a device,
+        and every reinstall, requires an explicit install_intent and the typed value
+        INSTALL_DEVICE_<NORMALIZED_DEVICE_ID>. Existing devices are reused without
+        provider mutation. Responses return only a short-lived signed installer URL;
+        raw tunnel tokens, connector secrets, scripts, and environment files are never returned.
       requestBody:
         required: true
         content:
@@ -11494,24 +11501,150 @@ paths:
               properties:
                 device_id:
                   type: string
-                  description: 2-64 alphanumeric, dash, or underscore characters.
+                  pattern: "^[a-z0-9-]{2,32}$"
+                  description: Lowercase device identifier containing letters, numbers, or hyphens.
                 hostname:
                   type: string
+                  description: Optional governed runtime hostname override.
                 cloudflare_connection_id:
                   type: string
+                  description: Optional dedicated Cloudflare connection binding.
                 hostinger_connection_id:
                   type: string
+                  description: Optional dedicated Hostinger connection binding.
                 local_apps:
                   type: array
                   items:
                     type: object
                     additionalProperties: true
+                install_intent:
+                  type: string
+                  enum: [add, replace, reinstall]
+                  description: Required when adding or replacing an existing device, or when reprovision is true.
+                typed_confirmation:
+                  type: string
+                  pattern: "^INSTALL_DEVICE_[A-Z0-9_]+$"
+                  description: Exact confirmation generated from the normalized device_id.
+                reprovision:
+                  type: boolean
+                  default: false
+                  description: Reinstall an already registered device; requires install_intent=reinstall and typed_confirmation.
+            examples:
+              first_install:
+                value:
+                  device_id: office-laptop
+              add_device:
+                value:
+                  device_id: studio-pc
+                  install_intent: add
+                  typed_confirmation: INSTALL_DEVICE_STUDIO_PC
+              reinstall_device:
+                value:
+                  device_id: office-laptop
+                  install_intent: reinstall
+                  typed_confirmation: INSTALL_DEVICE_OFFICE_LAPTOP
+                  reprovision: true
       responses:
-        "200": { description: Device install result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
-        "400": { description: Invalid device_id, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "200":
+          description: Device was reused, provisioned, or reprovisioned with a short-lived installer link.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, status, device_id, install_intent, provider_calls_made, provisioning_performed, installer, secrets_included]
+                properties:
+                  ok: { type: boolean, const: true }
+                  status:
+                    type: string
+                    enum: [existing_device_reused, device_provisioned, device_reprovisioned]
+                  config_id: { type: string }
+                  device_id: { type: string }
+                  tunnel_url: { type: [string, "null"] }
+                  public_gateway_url: { type: [string, "null"] }
+                  device_runtime_url: { type: [string, "null"] }
+                  admin_recovery_url: { type: [string, "null"] }
+                  cf_tunnel_id: { type: [string, "null"] }
+                  credential_source: { type: string }
+                  install_intent:
+                    type: object
+                    additionalProperties: false
+                    required: [same_device_registered, other_registered_device_count, install_intent, confirmation_required, expected_confirmation, secrets_included]
+                    properties:
+                      same_device_registered: { type: boolean }
+                      other_registered_device_count: { type: integer, minimum: 0 }
+                      install_intent: { type: string }
+                      confirmation_required: { type: boolean }
+                      expected_confirmation: { type: [string, "null"] }
+                      secrets_included: { type: boolean, const: false }
+                  provider_calls_made: { type: boolean }
+                  provisioning_performed: { type: boolean }
+                  installer:
+                    type: object
+                    additionalProperties: false
+                    required: [format, ttl_minutes, download_url, raw_material_returned]
+                    properties:
+                      format: { type: string, enum: [bat] }
+                      ttl_minutes: { type: integer, minimum: 1 }
+                      download_url: { type: string, format: uri }
+                      raw_material_returned: { type: boolean, const: false }
+                  app_routes:
+                    type: array
+                    items: { type: object, additionalProperties: true }
+                  secrets_included: { type: boolean, const: false }
+              examples:
+                existing_device_reused:
+                  value:
+                    ok: true
+                    status: existing_device_reused
+                    config_id: cfg_123
+                    device_id: office-laptop
+                    install_intent:
+                      same_device_registered: true
+                      other_registered_device_count: 0
+                      install_intent: reuse
+                      confirmation_required: false
+                      expected_confirmation: null
+                      secrets_included: false
+                    provider_calls_made: false
+                    provisioning_performed: false
+                    installer:
+                      format: bat
+                      ttl_minutes: 30
+                      download_url: https://auth.mad4b.com/local-connector/install/download?token=redacted
+                      raw_material_returned: false
+                    app_routes: []
+                    secrets_included: false
+        "400":
+          description: Invalid device identifier or malformed request.
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { description: No active tenant for this user, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
-        "500": { description: Provisioning failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "403":
+          description: The caller has no active tenant membership or lacks access to the requested tenant.
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+        "404":
+          description: Tenant or requested reinstall device was not found.
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+        "409":
+          description: Existing-device state requires an explicit intent or typed confirmation.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              examples:
+                confirmation_required:
+                  value:
+                    ok: false
+                    error:
+                      code: device_install_confirmation_required
+                      message: Type INSTALL_DEVICE_STUDIO_PC to confirm this device installation.
+                      details:
+                        expected_confirmation: INSTALL_DEVICE_STUDIO_PC
+                        install_intent: add
+                        registered_device_ids: [office-laptop]
+                        secrets_included: false
+        "500":
+          description: Provisioning or persistence failure.
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
 
   /local-connector/health:
     get:

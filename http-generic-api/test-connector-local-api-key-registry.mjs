@@ -55,12 +55,22 @@ assert(
     agentSource.includes('params.push(...authPredicate.params)'),
 );
 
+const activeProvisioner = installSource.slice(
+  installSource.indexOf('export async function provisionLocalConnectorInstall'),
+  installSource.indexOf('export function buildLocalConnectorInstallRoutes')
+);
+
 assert(
-  'legacy install route persists and emits connector_local_api_key',
+  'legacy install route persists connector_local_api_key and withholds raw key material from JSON responses',
   installSource.includes('connector_local_api_key') &&
     installSource.includes('let connectorLocalApiKey = existing?.connector_local_api_key || null;') &&
     installSource.includes('CONNECTOR_LOCAL_API_KEY=${String(connectorLocalApiKey).trim()}') &&
     installSource.includes('connectorLocalApiKey = connectorLocalApiKey || randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");') &&
-    installSource.includes('connectorLocalApiKey, tunnelUrl: runtimeUrl') &&
-    installSource.includes('connectorLocalApiKey, aliases: allAliases'),
+    activeProvisioner.includes('short_lived_signed_download_link') &&
+    activeProvisioner.includes('raw_material_returned: false') &&
+    activeProvisioner.includes('secrets_included: false') &&
+    !activeProvisioner.includes('connector_secret: connectorSecret') &&
+    !activeProvisioner.includes('install_bat: installScript') &&
+    !activeProvisioner.includes('install_ps1: installPowerShell') &&
+    !activeProvisioner.includes('".env": connectorEnv'),
 );

@@ -1,5 +1,13 @@
 # Updating Registry Patch Index
 
+> 2026-06-14 Agent Skill coverage prompt enrichment: `1005_sprint69_agent_skill_coverage_prompt_enrichment.sql` additively replaces `v_skill_runtime_coverage` with type-aware active-grant, active-manifest, manifest-prompt, and runtime-approval evidence. It is readback-only metadata logic: no provider calls, no credential payload reads, no raw secrets, no external sends, no external writes, and `secrets_included=false`.
+
+> 2026-06-14 Agent Governance admin-tool exposure: `1004_sprint69_agent_governance_admin_tools.sql` additively registers existing backend-api-key and admin-principal protected Agent Governance routes in the governed GPT dispatcher. It preserves route authorization, rejects secret-like inputs, performs no credential payload reads, returns no raw secrets, performs no external sends, and introduces no external writes or provider calls beyond the already governed runtime adapters.
+
+> 2026-06-14 Governed migration reconciliation policy: `1004_sprint69_growth_agent_migration_reconciliation_policy.sql` is metadata/policy-only. It authorizes only exact migrations `243`, `244`, `245`, and itself through the governed runner, while preserving mandatory preflight, typed confirmation, post-apply readback, and migration-ledger evidence. It performs no provider calls, credential reads, external writes, destructive SQL, deploys, or secret returns; `secrets_included=false` remains mandatory.
+
+> 2026-06-13 Automation Intelligence Guard: migration `1003_sprint69_tenant_device_install_intent_contract.sql` additively updates the `connect_device_install` tenant tool contract with `install_intent`, `typed_confirmation`, and `reprovision`; it does not alter table structure or expose secret values. Runtime discovery and dispatch now evaluate tenant mutations from registry tags and endpoint policy metadata instead of blocking all mutating HTTP methods. Local connector install responses return short-lived signed download links only, existing devices reuse a no-provider path, and integration-policy writes validate first then commit or roll back as one transaction. CI runs the offline `automation-intelligence-guard.mjs` plus focused evaluator, rollback, provisioning, and tenant-surface regressions. Provider credentials, tunnel tokens, connector secrets, `.env` contents, installer bodies, direct-main writes, deploys, and production migration apply remain outside this patch.
+
 <!-- surface-contract-auto-remediation:start -->
 ## Automated Surface Contract Attestations
 

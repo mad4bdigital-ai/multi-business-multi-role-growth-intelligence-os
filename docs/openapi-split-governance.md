@@ -4,6 +4,8 @@
 
 `http-generic-api/openapi.yaml` is the source of truth for split Custom GPT schemas.
 
+The governed `POST /connect/device-install` contract is consequential and must remain additive: `device_id` stays the only universally required field, while `install_intent`, `typed_confirmation`, and `reprovision` are state-dependent inputs enforced at runtime. The canonical response documents signed installer delivery and `secrets_included=false`; split schemas must not reintroduce raw installer bodies, connector secrets, tunnel tokens, or omit the structured `404/409` error classes.
+
 Split schemas such as:
 
 - `http-generic-api/openapi.tenant-gpt.auth.yaml`

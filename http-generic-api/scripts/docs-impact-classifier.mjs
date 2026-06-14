@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-export const DOCS_AGENT_VERSION = "docs-impact-classifier-v1";
+export const DOCS_AGENT_VERSION = "docs-impact-classifier-v2";
 
 const FAMILY_RULES = [
   {
@@ -115,7 +115,8 @@ export function classifyChangedFiles(files = []) {
   const familyRisks = FAMILY_RULES.filter((rule) => matchedFamilies.includes(rule.key)).map((rule) => rule.risk);
   const risk = docsOnly ? "low" : maxRisk(familyRisks.length ? familyRisks : [docsOrTestsOnly ? "low" : "medium"]);
   const required = uniqueSorted(requiredDocs);
-  const docsMissing = required.filter((doc) => !docsFilesChanged.includes(doc));
+  const requiredTargetsChanged = required.filter((target) => normalizedFiles.includes(target));
+  const docsMissing = required.filter((target) => !normalizedFiles.includes(target));
 
   const shouldGenerate = normalizedFiles.length > 0 && !docsOnly;
   const autoMergeCandidate = docsOnly || (matchedFamilies.length === 1 && matchedFamilies[0] === "docs_agent");
@@ -126,6 +127,7 @@ export function classifyChangedFiles(files = []) {
     families: uniqueSorted(matchedFamilies),
     risk,
     required_docs: required,
+    required_targets_changed: requiredTargetsChanged,
     docs_files_changed: docsFilesChanged,
     test_files_changed: testFilesChanged,
     docs_missing: docsMissing,

@@ -6,6 +6,8 @@ External API authentication is governed at the **Parent Action** level. Endpoint
 
 This prevents auth behavior from being duplicated across hundreds of endpoint rows while still letting users choose the credential source that fits their work.
 
+Tenant-facing mutation authorization is evaluated from the same registry metadata in discovery and dispatch. A mutating `tenant_platform_endpoint_tools` row must carry an explicit tenant governance tag; a mutating `platform_endpoint_tool_exports` row must explicitly allow tenant actors and require a governance gate such as a capability envelope, approval, preflight, dry run, or governed execution mode. Admin-only, raw-secret, unrestricted-write, direct-provider-write, force-push, and freeform-command policies fail closed. A validated `admin_scope_grant` remains an audited exception for the exact granted tool only. Authorization failures return stable machine-readable reasons and must never include credentials or secret material.
+
 ## Authority model
 
 ```text

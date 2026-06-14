@@ -554,6 +554,53 @@ function buildUserDeviceRoute({ userId, deviceId, requestedHostname }) {
   };
 }
 
+function expectedDeviceInstallConfirmation(deviceId = "") {
+  const suffix = String(deviceId || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return `INSTALL_DEVICE_${suffix || "DEVICE"}`;
+}
+
+function assertExplicitDeviceInstallIntent({ registeredDevices = [], deviceId = "", reprovision = false, installIntent = "", typedConfirmation = "" } = {}) {
+  const activeDevices = registeredDevices.filter((row) => Number(row?.is_enabled ?? 1) === 1);
+  const sameDevice = activeDevices.find((row) => String(row.device_id || "") === String(deviceId || ""));
+  const otherDevices = activeDevices.filter((row) => String(row.device_id || "") !== String(deviceId || ""));
+  const intent = String(installIntent || "").trim().toLowerCase();
+  const expectedConfirmation = expectedDeviceInstallConfirmation(deviceId);
+  const requiresExplicitConfirmation = otherDevices.length > 0 || reprovision === true;
+
+  if (otherDevices.length > 0 && !["add", "replace"].includes(intent)) {
+    throw httpError(409, "existing_device_registered", "A registered device already exists. Set install_intent to add or replace and provide typed_confirmation before provisioning another device.");
+  }
+  if (reprovision === true && intent !== "reinstall") {
+    throw httpError(409, "reinstall_intent_required", "Reprovisioning requires install_intent=reinstall and explicit typed confirmation.");
+  }
+  if (reprovision === true && !sameDevice) {
+    throw httpError(404, "reinstall_device_not_found", "The requested device is not registered and cannot be reinstalled.");
+  }
+  if (requiresExplicitConfirmation && String(typedConfirmation || "").trim() !== expectedConfirmation) {
+    const err = httpError(409, "device_install_confirmation_required", `Type ${expectedConfirmation} to confirm this device installation.`);
+    err.details = {
+      expected_confirmation: expectedConfirmation,
+      install_intent: intent || null,
+      registered_device_ids: activeDevices.map((row) => row.device_id),
+      secrets_included: false,
+    };
+    throw err;
+  }
+
+  return {
+    same_device_registered: Boolean(sameDevice),
+    other_registered_device_count: otherDevices.length,
+    install_intent: intent || (sameDevice ? "reuse" : "first_install"),
+    confirmation_required: requiresExplicitConfirmation,
+    expected_confirmation: requiresExplicitConfirmation ? expectedConfirmation : null,
+    secrets_included: false,
+  };
+}
+
 function buildDefaultLocalAppRoutes({ hostname, includeN8n = true, includeBrowser = true, localApps = [] }) {
   const routes = [
     {
@@ -920,9 +967,21 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
   const principal = await resolveRequestedLocalPrincipal(req, { user_id, tenant_id });
   const resolvedUserId = principal.userId;
   const resolvedTenantId = principal.tenantId;
-  const provisioningCredentials = await resolveProvisioningCredentials(req, principal, body || {});
-  const accountId = provisioningCredentials.cloudflareAccountId;
-  if (!accountId) throw httpError(500, "missing_config", "Cloudflare account id not configured.");
+
+  const [registeredDevices] = await pool.query(
+    `SELECT config_id, device_id, is_enabled, created_at, updated_at
+       FROM \`local_connector_user_configs\`
+      WHERE user_id = ? AND tenant_id = ? AND is_enabled = 1
+      ORDER BY COALESCE(updated_at, created_at) DESC`,
+    [resolvedUserId, resolvedTenantId]
+  );
+  const installIntent = assertExplicitDeviceInstallIntent({
+    registeredDevices,
+    deviceId: device_id,
+    reprovision,
+    installIntent: body.install_intent,
+    typedConfirmation: body.typed_confirmation,
+  });
 
   const [[tenant]] = await pool.query("SELECT tenant_id FROM `tenants` WHERE tenant_id = ? LIMIT 1", [resolvedTenantId]);
   if (!tenant) throw httpError(404, "tenant_not_found", "Tenant not found.");
@@ -931,6 +990,44 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     `SELECT config_id, cf_tunnel_id, cf_token, connector_secret, ${connectorLocalApiKeySelect}, tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url FROM \`local_connector_user_configs\` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1`,
     [resolvedUserId, resolvedTenantId, device_id]
   );
+
+  if (existing && !reprovision) {
+    const ttlMinutes = 30;
+    const downloadToken = signInstallerDownloadToken({
+      user_id: resolvedUserId,
+      tenant_id: resolvedTenantId,
+      device_id,
+      format: "bat",
+      capabilities: requestedCapabilities,
+      permission_grants: requestedPermissionGrants,
+      exp: Math.floor(Date.now() / 1000) + ttlMinutes * 60,
+    });
+    return {
+      ok: true,
+      status: "existing_device_reused",
+      config_id: existing.config_id,
+      device_id,
+      tunnel_url: existing.tunnel_url || null,
+      public_gateway_url: existing.public_gateway_url || LOCAL_GATEWAY_URL,
+      device_runtime_url: existing.device_runtime_url || existing.tunnel_url || null,
+      admin_recovery_url: existing.admin_recovery_url || ADMIN_RECOVERY_URL,
+      install_intent: installIntent,
+      provider_calls_made: false,
+      provisioning_performed: false,
+      installer: {
+        format: "bat",
+        ttl_minutes: ttlMinutes,
+        download_url: `${publicBaseUrl(req)}/local-connector/install/download?token=${encodeURIComponent(downloadToken)}`,
+        raw_material_returned: false,
+      },
+      app_routes: await loadLocalAppRoutes(pool, existing.config_id),
+      secrets_included: false,
+    };
+  }
+
+  const provisioningCredentials = await resolveProvisioningCredentials(req, principal, body || {});
+  const accountId = provisioningCredentials.cloudflareAccountId;
+  if (!accountId) throw httpError(500, "missing_config", "Cloudflare account id not configured.");
 
   let configId = existing?.config_id || randomUUID();
   let tunnelId = existing?.cf_tunnel_id || null;
@@ -1066,23 +1163,39 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     );
   }
 
-  const installPowerShell = buildInstallPowerShell({ cfToken: tunnelToken, connectorSecret, connectorLocalApiKey, tunnelUrl: runtimeUrl, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
-  const connectorEnv = buildConnectorEnv({ connectorSecret, connectorLocalApiKey, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
-  const startConnectorBat = buildStartConnectorBat();
-  const installScript = buildInstallScript({ cfToken: tunnelToken, connectorSecret, connectorLocalApiKey, tunnelUrl: runtimeUrl, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
+  const ttlMinutes = 30;
+  const downloadToken = signInstallerDownloadToken({
+    user_id: resolvedUserId,
+    tenant_id: resolvedTenantId,
+    device_id,
+    format: "bat",
+    capabilities: requestedCapabilities,
+    permission_grants: requestedPermissionGrants,
+    exp: Math.floor(Date.now() / 1000) + ttlMinutes * 60,
+  });
 
   return {
     ok: true,
+    status: reprovision ? "device_reprovisioned" : "device_provisioned",
     config_id: finalConfigId,
     device_id,
     tunnel_url: tunnelUrl,
     public_gateway_url: LOCAL_GATEWAY_URL,
     device_runtime_url: runtimeUrl,
     admin_recovery_url: ADMIN_RECOVERY_URL,
-    connector_secret: connectorSecret,
     cf_tunnel_id: tunnelId,
     credential_source: provisioningCredentials.source,
+    install_intent: installIntent,
+    provider_calls_made: true,
+    provisioning_performed: true,
     app_routes: await loadLocalAppRoutes(pool, finalConfigId),
+    installer: {
+      format: "bat",
+      ttl_minutes: ttlMinutes,
+      download_url: `${publicBaseUrl(req)}/local-connector/install/download?token=${encodeURIComponent(downloadToken)}`,
+      raw_material_returned: false,
+      run_as_admin_required: true,
+    },
     installation: {
       aliases: allAliases.map((a) => a.alias),
       capabilities: requestedCapabilities,
@@ -1091,27 +1204,10 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
         app_aliases: Object.keys(requestedPermissionGrants.apps),
         shell_aliases: requestedPermissionGrants.shell_aliases.map((entry) => entry.alias),
       },
-      install_bat: installScript,
-      install_ps1: installPowerShell,
-      files: {
-        ".env": connectorEnv,
-        "start-connector.bat": startConnectorBat,
-        "install-local-connector.ps1": installPowerShell,
-        "install.bat": installScript,
-      },
-      local_runtime: {
-        port: CONNECTOR_PORT,
-        env_file: ".env",
-        start_command: "start-connector.bat",
-        tunnel_command: `cloudflared service install ${tunnelToken}`,
-      },
-      steps: [
-        "1. Put server.mjs and install-local-connector.ps1 in the local-connector folder.",
-        "2. Run install-local-connector.ps1 as Administrator — writes .env, installs cloudflared, starts server.mjs.",
-        "3. On later boots run start-connector.bat or configure it as a Windows startup task.",
-        `4. Test: GET /local-connector/health?user_id=${resolvedUserId}&tenant_id=${resolvedTenantId}&device_id=${device_id}`,
-      ],
+      raw_material_returned: false,
+      installer_delivery: "short_lived_signed_download_link",
     },
+    secrets_included: false,
   };
 }
 

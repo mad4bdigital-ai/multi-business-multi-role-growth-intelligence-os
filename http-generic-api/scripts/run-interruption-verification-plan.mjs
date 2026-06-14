@@ -54,8 +54,7 @@ function splitCommand(command) {
   return parts.map((part) => part.replace(/^(["'])(.*)\1$/, "$2"));
 }
 
-function run(command, { inherit = true } = {}) {
-  const [program, ...args] = splitCommand(command);
+function runProgram(program, args, { inherit = true } = {}) {
   const executable = program === "node" ? process.execPath : program;
   const result = spawnSync(executable, args, {
     cwd: API_ROOT,
@@ -68,9 +67,29 @@ function run(command, { inherit = true } = {}) {
   return { status: result.status ?? 1, stdout: result.stdout || "", stderr: result.stderr || "" };
 }
 
-function assertFresh(evidenceFile, maxAgeMinutes) {
-  const command = `node scripts/interruption-readiness.mjs --skip-dependencies --skip-merge --skip-worktree --verify-evidence "${evidenceFile}" --max-age-minutes ${maxAgeMinutes}`;
-  const result = run(command, { inherit: false });
+function run(command, { inherit = true } = {}) {
+  const [program, ...args] = splitCommand(command);
+  return runProgram(program, args, { inherit });
+}
+
+function assertFresh(evidenceFile, maxAgeMinutes, evidence) {
+  const targetRef = String(
+    evidence?.continuity_snapshot?.target_ref
+      || evidence?.continuity_snapshot?.target_sha
+      || "",
+  ).trim();
+  const args = [
+    "scripts/interruption-readiness.mjs",
+    "--skip-dependencies",
+    "--skip-merge",
+    "--skip-worktree",
+    "--verify-evidence",
+    evidenceFile,
+    "--max-age-minutes",
+    String(maxAgeMinutes),
+  ];
+  if (targetRef) args.push("--target", targetRef);
+  const result = runProgram("node", args, { inherit: false });
   if (result.status !== 0) {
     throw new Error(`Readiness evidence is stale or blocked.\n${result.stdout}${result.stderr}`.trim());
   }
@@ -249,13 +268,13 @@ function main() {
       writeResult(options.resultFile, result);
       throw new Error(`Verification plan contains unauthorized command(s): ${unauthorized.join(", ")}`);
     }
-    assertFresh(evidenceFile, options.maxAgeMinutes);
+    assertFresh(evidenceFile, options.maxAgeMinutes, evidence);
     writeResult(options.resultFile, result);
     for (const step of result.steps) {
       if (step.status === "passed") continue;
       const command = step.command;
       heartbeatLease(leaseState);
-      assertFresh(evidenceFile, options.maxAgeMinutes);
+      assertFresh(evidenceFile, options.maxAgeMinutes, evidence);
       if (options.dryRun) continue;
       step.status = "running";
       appendEvent(result, "step_started", { command });
@@ -274,7 +293,7 @@ function main() {
         throw stepError;
       }
     }
-    assertFresh(evidenceFile, options.maxAgeMinutes);
+    assertFresh(evidenceFile, options.maxAgeMinutes, evidence);
     result.status = options.dryRun ? "planned" : "passed";
     result.completed_at = new Date().toISOString();
     appendEvent(result, options.dryRun ? "execution_planned" : "execution_passed", { step_count: commands.length });

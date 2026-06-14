@@ -1,4 +1,10 @@
 -- Sprint 68: durable supervisor chain lineage, bounded depth, and fallback evidence.
+-- safety-contract: no_provider_call true
+-- safety-contract: no_credential_payload_read true
+-- safety-contract: no_raw_secrets true
+-- safety-contract: no_external_send true
+-- safety-contract: no_external_write true
+-- safety-contract: secrets_included=false
 
 ALTER TABLE `agent_chain_events`
   ADD COLUMN IF NOT EXISTS `root_event_id` VARCHAR(36) NULL AFTER `event_id`,

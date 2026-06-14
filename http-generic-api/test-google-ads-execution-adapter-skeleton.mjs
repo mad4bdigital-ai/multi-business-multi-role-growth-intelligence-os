@@ -31,7 +31,7 @@ assert.match(migration, /no_provider_call',true/);
 assert.match(migration, /no_credential_read',true/);
 assert.match(migration, /no_spend_change',true/);
 assert.match(migration, /secrets_included',false/);
-assert.match(migration, /is_enabled, sort_order\n\) VALUES \([\s\S]*\n  0,\n  236\n\)/);
+assert.match(migration, /is_enabled, sort_order\r?\n\) VALUES \([\s\S]*\r?\n  0,\r?\n  236\r?\n\)/);
 assert.doesNotMatch(migration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
 assert.doesNotMatch(migration, /GOOGLE_APPLICATION_CREDENTIALS|GOOGLE_ADS_TOKEN|GOOGLE_ADS_DEVELOPER_TOKEN|OPENAI_API_KEY\s*[:=]|OPENROUTER_API_KEY\s*[:=]|sk-[A-Za-z0-9_\-]{12,}/i);
 

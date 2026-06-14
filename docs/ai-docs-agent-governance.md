@@ -1,5 +1,11 @@
 # AI Docs Agent Governance
 
+> Agent Skill coverage prompt-enrichment contract: `1005_sprint69_agent_skill_coverage_prompt_enrichment.sql` keeps skill coverage type-aware and readback-only. Documentation automation must preserve active-grant, manifest, prompt, approval, coverage-basis, and runtime-binding evidence with no provider calls, credential payload reads, raw-secret returns, external sends, or external writes; `secrets_included=false`.
+
+> Agent Governance admin-tool contract: `1004_sprint69_agent_governance_admin_tools.sql` exposes existing Agent Governance routes through the governed admin dispatcher only. Documentation and automation must preserve admin-principal authorization, secret-like input rejection, bounded schemas, execution-log readback, no credential payload reads, no raw-secret returns, no external sends, and no ungoverned external writes.
+
+> Automation Intelligence migration documentation contract: `1003_sprint69_tenant_device_install_intent_contract.sql` documents strict install intent, typed confirmation, existing-device no-provider reuse, signed installer URLs, and no raw connector/tunnel/`.env`/installer secrets. `1004_sprint69_growth_agent_migration_reconciliation_policy.sql` documents exact-file governed authorization for migrations `243`, `244`, `245`, and itself, with mandatory preflight, typed confirmation, ledger/schema readback, no automatic production apply, no provider calls, no credential reads, no external writes, no destructive SQL, no deploys, and `secrets_included=false`. Docs automation may record evidence only and must not execute these migrations.
+
 <!-- surface-contract-auto-remediation:start -->
 ## Automated Surface Contract Attestations
 
@@ -100,7 +106,9 @@ The classifier is deterministic and dependency-free. It maps changed files into 
 - `openapi_schema`
 - `docs_agent`
 
-Each family maps to required documentation targets and risk level. The generated note records changed files, required docs, docs missing from the diff, and a short recommendation.
+Each family maps to required documentation targets and risk level. The generated note records changed files, required targets, targets changed in the diff, targets still missing, and a short recommendation.
+
+Classifier v2 evaluates coverage against the complete normalized changed-file set, not only Markdown-like files. A required target such as `http-generic-api/openapi.yaml` is therefore covered when that exact artifact is present in the diff. `docs_files_changed` remains a separate review aid and must never be used as the authority for `docs_missing`. Regression tests must cover non-Markdown required targets so schema artifacts cannot be reported as missing after they were updated.
 
 ## Optional AI layer
 

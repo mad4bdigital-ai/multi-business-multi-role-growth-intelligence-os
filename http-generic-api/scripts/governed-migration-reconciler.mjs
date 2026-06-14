@@ -45,27 +45,27 @@ function runnerConfirmation(migration, action) {
   return `${prefix}_${migration.replace(/\.sql$/i, "").replace(/[^A-Za-z0-9]+/g, "_").toUpperCase()}`;
 }
 
-function parseJsonLine(value = "") {
-  const lines = String(value || "")
-    .trim()
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .reverse();
-
-  for (const line of lines) {
+export function parseJsonLine(value = "", depth = 0) {
+  if (depth > 3) return null;
+  const text = String(value || "").trim();
+  if (!text) return null;
+  const candidates = [text, ...text.split(/\r?\n/).reverse().filter(Boolean)];
+  for (const candidate of candidates) {
     try {
-      const parsed = JSON.parse(line);
+      const parsed = JSON.parse(candidate);
       if (parsed && typeof parsed.message === "string") {
         try {
-          const nested = JSON.parse(parsed.message);
-          if (nested && typeof nested === "object") return nested;
+          const nestedParsed = JSON.parse(parsed.message);
+          const nested = parseJsonLine(JSON.stringify(nestedParsed), depth + 1);
+          if (nested) return nested;
         } catch {
-          // The structured log message is not JSON; fall back to the outer envelope.
+          const nested = parseJsonLine(parsed.message, depth + 1);
+          if (nested) return nested;
         }
       }
       if (parsed && typeof parsed === "object") return parsed;
     } catch {
-      // Continue scanning earlier output lines for the last valid JSON object.
+      // Continue scanning logger output until a JSON payload is found.
     }
   }
   return null;
@@ -377,10 +377,17 @@ async function closePoolQuietly() {
   }
 }
 
-main()
-  .then(closePoolQuietly)
-  .catch(async (error) => {
-    console.error(JSON.stringify({ ok: false, error: error?.message || String(error), secrets_included: false }, null, 2));
-    await closePoolQuietly();
-    process.exit(1);
-  });
+const isDirectExecution = Boolean(
+  process.argv[1]
+    && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url)),
+);
+
+if (isDirectExecution) {
+  main()
+    .then(closePoolQuietly)
+    .catch(async (error) => {
+      console.error(JSON.stringify({ ok: false, error: error?.message || String(error), secrets_included: false }, null, 2));
+      await closePoolQuietly();
+      process.exit(1);
+    });
+}

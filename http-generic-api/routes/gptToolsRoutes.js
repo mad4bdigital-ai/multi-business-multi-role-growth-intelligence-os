@@ -233,6 +233,96 @@ function isTenantBlockedToolPath(httpPath = "") {
   return TENANT_BLOCKED_TOOL_PATH_PREFIXES.some((prefix) => path === prefix.slice(0, -1) || path.startsWith(prefix));
 }
 
+const TENANT_MUTATION_TOOL_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const TENANT_HIGH_RISK_TOOL_NAME_PATTERNS = [
+  /^runtime_endpoint_call$/i,
+  /github.*(?:put|delete|create|update|contents|file)/i,
+  /^repo_patch_apply$/i,
+  /^local\.connector\.(?:shell|files)$/i,
+];
+const TENANT_MUTATION_GOVERNANCE_TAGS = new Set([
+  "tenant",
+  "tenant_optional",
+  "tenant_safe",
+  "tenant_custom_gpt",
+  "customer_safe",
+  "state_changing",
+  "mode_governed",
+  "auth_scoped",
+  "role_gated",
+  "scope_gated",
+  "owner_required",
+  "workspace_owner_required",
+  "approval_required",
+  "state_gated",
+  "audited",
+  "read_only",
+  "dry_run",
+  "preview",
+  "readback",
+  "preflight",
+  "no_mutation",
+  "no_external_write",
+  "no_provider_write",
+  "no_secrets",
+]);
+const TENANT_MUTATION_DENY_TAGS = new Set([
+  "admin",
+  "admin_only",
+  "platform_admin",
+  "repo_mutation",
+  "force_push",
+  "unrestricted_write",
+  "direct_provider_write",
+  "raw_secret_return",
+  "raw_secrets",
+  "freeform_command",
+]);
+
+function normalizeTenantToolTags(value = "") {
+  const values = Array.isArray(value) ? value : String(value || "").split(",");
+  return [...new Set(values.map((tag) => String(tag || "").trim().toLowerCase()).filter(Boolean))];
+}
+
+function isTenantMutatingToolMethod(method = "") {
+  return TENANT_MUTATION_TOOL_METHODS.has(String(method || "").trim().toUpperCase());
+}
+
+function isTenantHighRiskToolName(toolKey = "") {
+  const name = String(toolKey || "").trim();
+  return TENANT_HIGH_RISK_TOOL_NAME_PATTERNS.some((pattern) => pattern.test(name));
+}
+
+export function evaluateTenantToolVisibility(row = {}) {
+  const toolKey = String(row.tool_key || row.name || "").trim();
+  const method = String(row.http_method || row.method || "GET").trim().toUpperCase();
+  const pathValue = String(row.http_path || row.path || "").trim();
+  const tags = normalizeTenantToolTags(row.tags);
+
+  if (isTenantBlockedToolPath(pathValue)) {
+    return { allowed: false, reason: "blocked_path", method, tags };
+  }
+  if (isTenantHighRiskToolName(toolKey)) {
+    return { allowed: false, reason: "high_risk_tool_name", method, tags };
+  }
+  const deniedTag = tags.find((tag) => TENANT_MUTATION_DENY_TAGS.has(tag));
+  if (deniedTag) {
+    return { allowed: false, reason: `blocked_tag:${deniedTag}`, method, tags };
+  }
+  if (!isTenantMutatingToolMethod(method)) {
+    return { allowed: true, reason: "read_only_method", method, tags };
+  }
+  const governanceTag = tags.find((tag) => TENANT_MUTATION_GOVERNANCE_TAGS.has(tag));
+  if (!governanceTag) {
+    return { allowed: false, reason: "missing_mutation_governance_tag", method, tags };
+  }
+  return { allowed: true, reason: `governed_mutation:${governanceTag}`, method, tags };
+}
+
+function isTenantToolVisible(row = {}) {
+  return evaluateTenantToolVisibility(row).allowed;
+}
+
 const REPO_INSPECT_DENY_SEGMENTS = new Set([
   ".git",
   ".omx",
@@ -882,7 +972,7 @@ async function fetchTools(callerType) {
     }
   );
   const visibleRows = callerType === "tenant"
-    ? rows.filter((r) => !isTenantBlockedToolPath(r.http_path))
+    ? rows.filter((r) => isTenantToolVisible(r))
     : rows;
   const dbTools = visibleRows.map((r) => ({
     name: r.tool_key,
@@ -1074,7 +1164,7 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
 
   const table = TOOLS_TABLE[effectiveCallerType] || TOOLS_TABLE.tenant;
   const [rows] = await getPool().query(
-    `SELECT http_method, http_path, path_param_keys, fixed_body
+    `SELECT http_method, http_path, path_param_keys, fixed_body, tags
      FROM \`${table}\`
      WHERE tool_key = ? AND is_enabled = 1
      LIMIT 1`,
@@ -1085,16 +1175,31 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     return { status: 404, body: { ok: false, error: { code: "tool_not_found", message: `Tool '${toolKey}' not found.` } } };
   }
 
-  const { http_method: method, http_path: pathTemplate } = rows[0];
-  if (callerType === "tenant" && isTenantBlockedToolPath(pathTemplate)) {
+  const { http_method: method, http_path: pathTemplate, tags } = rows[0];
+  const tenantVisibility = callerType === "tenant" && !grantContext
+    ? evaluateTenantToolVisibility({ tool_key: toolKey, http_method: method, http_path: pathTemplate, tags })
+    : {
+        allowed: true,
+        reason: grantContext ? "validated_admin_scope_grant" : "admin_principal",
+        method,
+        tags: normalizeTenantToolTags(tags),
+      };
+  if (!tenantVisibility.allowed) {
     return {
       status: 403,
       body: {
         ok: false,
         error: {
           code: "tenant_tool_route_not_allowed",
-          message: "Tenant GPT tools cannot dispatch to admin-only connector workaround routes. Use tenant-safe local gateway/connect status tools instead.",
-          details: { tool_key: toolKey, http_path: pathTemplate },
+          message: "Tenant GPT tools cannot dispatch routes that lack an explicit tenant governance policy or match a high-risk direct mutation rule.",
+          details: {
+            tool_key: toolKey,
+            method,
+            path: pathTemplate,
+            policy_reason: tenantVisibility.reason,
+            evaluated_tags: tenantVisibility.tags,
+            secrets_included: false,
+          },
         },
       },
     };

@@ -851,7 +851,15 @@ export function buildConnectRoutes(deps) {
   router.post("/connect/device-install", requireUserJwt, async (req, res) => {
     try {
       const { user_id, tenant_id } = req.auth;
-      const { hostname = null, cloudflare_connection_id = null, hostinger_connection_id = null, local_apps = [] } = req.body || {};
+      const {
+        hostname = null,
+        cloudflare_connection_id = null,
+        hostinger_connection_id = null,
+        local_apps = [],
+        install_intent = "",
+        typed_confirmation = "",
+        reprovision = false,
+      } = req.body || {};
       const device_id = String(req.body?.device_id || "").trim().toLowerCase();
 
       if (!device_id || !/^[a-z0-9-]{2,32}$/.test(device_id)) {
@@ -888,6 +896,9 @@ export function buildConnectRoutes(deps) {
         cloudflare_connection_id,
         hostinger_connection_id,
         local_apps,
+        install_intent,
+        typed_confirmation,
+        reprovision: reprovision === true,
         provisioning_credential_mode: useManagedProvisioning ? "managed" : "dedicated",
       });
       await getPool().query(
@@ -896,7 +907,15 @@ export function buildConnectRoutes(deps) {
       );
       return res.json(result);
     } catch (err) {
-      return res.status(500).json({ ok: false, error: { code: "device_install_failed", message: err.message } });
+      const status = Number(err?.status || 500);
+      return res.status(status).json({
+        ok: false,
+        error: {
+          code: err?.code || "device_install_failed",
+          message: err?.message || "Device installation failed.",
+          ...(err?.details ? { details: err.details } : {}),
+        },
+      });
     }
   });
 

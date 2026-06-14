@@ -128,6 +128,20 @@ Do not start GitHub until the DB bootstrap row resolves. If Session Context is u
 
 Every execution must validate surface bindings, route/workflow authority, dependency readiness, and credential resolution. Recovered classification is forbidden without same-cycle validation.
 
+### Automation Intelligence Guard
+
+Tenant automation mutations must be evaluated from registry authority in both discovery and dispatch. Method-only blocking is forbidden because tenant-safe orchestrated operations may legitimately use `POST`, `PUT`, `PATCH`, or `DELETE`.
+
+For `tenant_platform_endpoint_tools`, use the shared tenant tool policy evaluator. Mutating tools fail closed unless the registry row contains an explicit tenant governance tag. High-risk direct repository/GitHub writes, unrestricted local shell/file access, admin-only paths, raw-secret returns, and dangerous mutation tags remain blocked. A validated `admin_scope_grant` preserves the existing audited grant path only for the granted tool.
+
+For `platform_endpoint_tool_exports`, tenant mutation requires both explicit tenant authorization in registry policy metadata and an execution gate such as a capability envelope, approval, preflight, dry run, or governed execution mode. Discovery and dispatch must load and evaluate the same `scope_class`, `auth_policy_json`, `execution_policy_json`, `import_policy_json`, endpoint method, execution mode, request-envelope requirement, and actor-role evidence.
+
+Local connector device installation must not provision another device implicitly. The first device may be installed directly; add/replace/reinstall operations require explicit intent and typed confirmation. Existing devices must reuse the no-provider path before provider credentials are loaded. API responses must never include connector secrets, tunnel tokens, `.env` files, or installer bodies; use a short-lived signed installer URL.
+
+Integration-policy writes must validate all modes before writing and use one transaction with rollback on any row failure. A failed response must not leave a committed partial mutation. Post-commit readiness readback failures must be reported separately rather than converting a successful commit into a mutation failure.
+
+The offline CI contract is `http-generic-api/scripts/automation-intelligence-guard.mjs`. It must remain provider-free, mutation-free, and secret-free. Operator details, stable rejection codes, tests, and rollback procedure are in `docs/automation-intelligence-guard-runbook.md`.
+
 ### Docs Agent automation
 
 Repository documentation alignment is now automated through the Docs Agent workflow. On pull requests, it generates `docs/auto-docs-agent/pr-<number>.md` on the PR branch when non-doc files change. On pushes to `main`, it opens a docs-only follow-up PR from `docs-agent/<sha>` and requests GitHub auto-merge after CI.

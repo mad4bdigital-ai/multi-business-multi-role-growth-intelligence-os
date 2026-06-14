@@ -270,6 +270,20 @@ assert.equal(tagsWideningPreflight.status, "pass", "admin tool registry tags wid
 assert.equal(tagsWideningPreflight.counts.alter_table, 1, "must count tags widening ALTER TABLE");
 assert.equal(tagsWideningPreflight.counts.alter_table_idempotent, 1, "must count approved tags widening as idempotent/safe ALTER");
 
+const sequentialPlanMigration = readFileSync(
+  new URL("migrations/244_sprint68_sequential_plan_orchestrator.sql", import.meta.url),
+  "utf8"
+);
+const sequentialPlanPreflight = assessMigrationSqlPreflight(
+  "244_sprint68_sequential_plan_orchestrator.sql",
+  sequentialPlanMigration
+);
+assert.equal(sequentialPlanPreflight.status, "pass", "the governed sequential-plan migration must pass preflight");
+assert.equal(sequentialPlanPreflight.counts.alter_table_idempotent, 1, "runtime_status must use ADD COLUMN IF NOT EXISTS");
+assert.match(sequentialPlanMigration, /ADD COLUMN IF NOT EXISTS runtime_status VARCHAR\(64\)/);
+assert.doesNotMatch(sequentialPlanMigration, /MODIFY COLUMN plan_status/i);
+assert.doesNotMatch(sequentialPlanMigration, /@idempotent-enum-widening/i);
+
 const warnPreflight = assessMigrationSqlPreflight(
   "warn.sql",
   "CREATE TABLE cms_sites (site_id varchar(36) PRIMARY KEY); INSERT INTO admin_platform_endpoint_tools (tool_key) VALUES ('unsafe_tool');"

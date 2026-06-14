@@ -40,6 +40,21 @@ assert(deploymentImpact.required_docs.includes("deployment_parity_checklist.md")
 assert(deploymentImpact.required_docs.includes("docs/hostinger-node-deploy.md"));
 assert.equal(deploymentImpact.risk, "high");
 
+const openApiCoverageImpact = classifyChangedFiles([
+  "http-generic-api/openapi.yaml",
+  "docs/openapi-split-governance.md",
+  "docs/repo-maintenance-status.md",
+]);
+assert.equal(openApiCoverageImpact.version, "docs-impact-classifier-v2");
+assert(openApiCoverageImpact.required_docs.includes("http-generic-api/openapi.yaml"));
+assert(openApiCoverageImpact.required_targets_changed.includes("http-generic-api/openapi.yaml"));
+assert(!openApiCoverageImpact.docs_missing.includes("http-generic-api/openapi.yaml"));
+assert.deepEqual(
+  openApiCoverageImpact.docs_missing,
+  [],
+  "required documentation targets changed in the diff must not be reported as missing",
+);
+
 const markdown = renderImpactMarkdown(migrationImpact, { title: "Test Impact" });
 assert(markdown.includes("# Test Impact"));
 assert(markdown.includes("Updating Registry Patch Index.md"));

@@ -564,6 +564,13 @@ for (const contract of [
   "agent_handoff_state_registry", "agent_handoff_state_access_log", "external_prompt_artifact_registry",
   "v_skill_runtime_coverage", "memory_scope_type_registry", "memory_scope_links",
 ]) assert(migration.includes(contract), `missing migration contract: ${contract}`);
+assert.doesNotMatch(migration, /CREATE TABLE IF NOT EXISTS memory_scope_type_registry/);
+assert.doesNotMatch(migration, /CREATE TABLE IF NOT EXISTS memory_scope_links/);
+assert.doesNotMatch(migration, /cross_scope_default|scope_type, priority/);
+assert.match(migration, /251_sprint68_dynamic_memory_scope_types\.sql/);
+assert.match(migration, /252_sprint68_memory_scope_links_foundation\.sql/);
+assert.match(migration, /'agent', 'Agent'.*'agents', 'agent_id', 'platform'/s);
+assert.match(migration, /COLLATE utf8mb4_unicode_ci/);
 assert.equal(/\bDROP\s+(TABLE|VIEW)\b/i.test(migration), false);
 assert.equal(/\bDELETE\s+FROM\b/i.test(migration), false);
 assert(migration.includes("canonical_agent_runtime_engine"));

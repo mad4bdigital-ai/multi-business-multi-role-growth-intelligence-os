@@ -23,6 +23,8 @@ try {
     "--skip-dependencies",
     "--skip-merge",
     "--skip-worktree",
+    "--target",
+    "HEAD",
     "--report-file",
     evidenceFile,
   ]);

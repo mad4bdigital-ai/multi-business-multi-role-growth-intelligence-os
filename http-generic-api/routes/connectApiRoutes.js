@@ -213,20 +213,34 @@ export function buildConnectApiRoutes(deps = {}) {
         integrationModes,
         source: "connect_api_policy_update",
       });
-      const [connectionRows] = await pool.query(
-        `SELECT * FROM \`tenant_connections\` WHERE tenant_id = ? ORDER BY updated_at DESC LIMIT 1`,
-        [req.auth.tenant_id]
-      );
-      const readiness = await assessHybridIntegrationReadiness({
-        tenantId: req.auth.tenant_id,
-        userId: req.auth.user_id,
-        connection: connectionRows?.[0] || null,
-      });
+      let readiness = null;
+      let readinessWarning = null;
+      try {
+        const [connectionRows] = await pool.query(
+          `SELECT * FROM \`tenant_backend_connections\` WHERE tenant_id = ? ORDER BY updated_at DESC LIMIT 1`,
+          [req.auth.tenant_id]
+        );
+        readiness = await assessHybridIntegrationReadiness({
+          tenantId: req.auth.tenant_id,
+          userId: req.auth.user_id,
+          connection: connectionRows?.[0] || null,
+        });
+      } catch (readinessErr) {
+        readinessWarning = {
+          code: "integration_policy_readiness_unavailable",
+          message: "Policy update committed, but readiness readback is temporarily unavailable.",
+          cause_code: readinessErr?.code || null,
+          retryable: true,
+          secrets_included: false,
+        };
+      }
       return res.json({
         ok: true,
         update: result,
         hybrid_integration_catalog: hybridIntegrationCatalog(),
         hybrid_integration_readiness: readiness,
+        readiness_warning: readinessWarning,
+        secrets_included: false,
       });
     } catch (err) {
       next(err);

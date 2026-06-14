@@ -3,6 +3,8 @@
 
 This document defines the explicit public API surface for each provider connector module in `http-generic-api/`. Internal helpers are not exported unless required by callers outside the module.
 
+Local connector provisioning persists connector authentication material only in the governed device registry and renders it only inside a short-lived signed installer download. `POST /connect/device-install` responses must not expose `connector_secret`, `connector_local_api_key`, Cloudflare tunnel tokens, `.env` content, or installer bodies. Existing devices use the reuse path before provider credentials are loaded and return `provider_calls_made=false`. Add/replace/reinstall requests require the explicit intent and confirmation contract documented in `docs/automation-intelligence-guard-runbook.md` and `http-generic-api/openapi.yaml`.
+
 ---
 
 ## github.js

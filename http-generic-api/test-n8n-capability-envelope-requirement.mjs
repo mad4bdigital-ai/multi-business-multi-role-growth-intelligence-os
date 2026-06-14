@@ -31,7 +31,7 @@ assert.match(migration, /api_key_bridge_occurs_after_envelope_gate/);
 assert.match(migration, /capability_envelope_required_for_state_change/);
 assert.match(migration, /JSON_SET\(input_schema/);
 assert.doesNotMatch(migration, /request_schema_json|approval_policy_json/);
-const tenantUpdateBlock = migration.match(/UPDATE tenant_platform_endpoint_tools[\s\S]*?;\n/)?.[0] || "";
+const tenantUpdateBlock = migration.match(/UPDATE tenant_platform_endpoint_tools[\s\S]*?;\r?\n/)?.[0] || "";
 assert.match(tenantUpdateBlock, /UPDATE tenant_platform_endpoint_tools/);
 assert.doesNotMatch(tenantUpdateBlock, /updated_at = CURRENT_TIMESTAMP/);
 assert.match(migration, /secrets_included',false/);

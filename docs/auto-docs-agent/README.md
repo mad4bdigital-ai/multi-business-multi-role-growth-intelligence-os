@@ -20,10 +20,17 @@ Generated notes are reviewable evidence. They do not replace targeted human docu
 
 Rules:
 
+- `1005_sprint69_agent_skill_coverage_prompt_enrichment.sql` is documented only when the generated/manual trail covers type-aware Agent Skill grant/manifest/prompt/approval readback and states no provider calls, credential payload reads, raw-secret returns, external sends, or external writes; `secrets_included=false`.
+
+- `1004_sprint69_agent_governance_admin_tools.sql` is considered documented only when the generated/manual trail states that its tools wrap existing admin-protected Agent Governance routes, preserve bounded schemas and execution-log readback, reject secret-like input, and perform no credential payload reads, raw-secret returns, external sends, or ungoverned external writes.
+
+- Automation Intelligence Guard migration notes are resolved only when they explicitly name `1003_sprint69_tenant_device_install_intent_contract.sql` and `1004_sprint69_growth_agent_migration_reconciliation_policy.sql`, preserve strict install-intent/typed-confirmation and existing-device no-provider reuse, require signed installer URLs with no raw secrets, and require exact-file governed migration preflight, typed confirmation, schema/ledger readback, and explicit release approval. These notes authorize no provider call, credential read, external write, destructive SQL, deploy, production migration apply, or secret return; `secrets_included=false` is mandatory.
+
 - `965_sprint68_hostinger_apply_policy_safe_field_names.sql` is resolved by explicit patch-index, deployment-parity, Docs Agent, and change-governance documentation. It is policy/readback-only, performs no provider call, credential payload read, external send/write, deploy, or secret return, and is verified by `v_hostinger_apply_policy_safe_field_readiness` plus `test-hostinger-apply-policy-safe-field-names.mjs`.
 - No secrets or credential values.
 - No generated canonical root edits without canonical source edits.
 - High-risk notes must name required docs and validation evidence.
+- Coverage is exact-path based across the full changed-file set. Non-Markdown targets such as `http-generic-api/openapi.yaml` count as covered when present in the diff; `docs_files_changed` is review metadata only.
 - Docs-only agent PRs may be auto-merged only after CI passes.
 - Surface-contract remediation must parse `git status --porcelain=v1 -z` with NUL delimiters before applying its documentation/generated-evidence path allowlist, so filenames containing spaces are preserved exactly and write scope is not widened.
 - Session Insight capability-envelope impact notes for migrations `277` through `283` are resolved by `docs/session-insight-capability-envelope-release-readiness.md` plus the patch index, deployment parity checklist, agent guide, and OpenAPI route coverage. This remains no-execution/no-target-write evidence only.

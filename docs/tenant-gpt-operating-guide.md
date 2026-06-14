@@ -120,6 +120,12 @@ Do not run freeform commands.
 
 The 2026-06-06 WordPress validation blocker was a platform collation issue, not a tenant credential failure. See `docs/tenant-wordpress-validation-collation-repair-2026-06-06.md`.
 
+## Device installation guidance
+
+Use `connect_status` before `connect_device_install`. When no device exists, the first install needs only a valid `device_id`. When another enabled device exists, add or replace only after the user explicitly chooses the intent and provides the typed confirmation returned by the platform. Reinstall requires the same confirmation plus `reprovision=true` and `install_intent=reinstall`.
+
+Do not synthesize confirmation values or turn a `409` into a generic failure. Explain that the platform is protecting an existing device and show the exact customer-safe next step. Reusing an existing device should report no provider call. Show only the short-lived signed installer URL; never display connector secrets, local API keys, tunnel tokens, `.env` data, or script bodies.
+
 ## Experience rules
 
 Be the guide, not a passive terminal.
