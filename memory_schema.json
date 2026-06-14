@@ -289,6 +289,24 @@
         "response_profile_authority": { "const": "presentation_only" }
       }
     },
+    "tool_dispatch_binding_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority", "binding_table", "integrity_view", "resolution_chain", "mutation_policy", "compound_operation_policy", "runtime_status"],
+      "properties": {
+        "authority": { "const": "platform_tool_dispatch_binding_registry" },
+        "binding_table": { "const": "platform_tool_dispatch_bindings" },
+        "integrity_view": { "const": "v_platform_tool_dispatch_integrity" },
+        "resolution_chain": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["action", "endpoint", "endpoint_export", "dispatch_binding", "callable_tool", "capability_policy", "readback_policy"]
+        },
+        "mutation_policy": { "const": "capability_and_same_cycle_readback_required" },
+        "compound_operation_policy": { "const": "partial_success_must_be_explicit" },
+        "runtime_status": { "type": "string", "enum": ["active", "validating", "degraded", "blocked"], "default": "validating" }
+      }
+    },
     "local_connector_governance_state": {
       "type": "object",
       "additionalProperties": false,
