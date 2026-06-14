@@ -178,8 +178,10 @@ export async function authorizeAgentToolCall({
       if (!actor.governance_level) blockers.push("action_governance_level_required");
       else if (!allowedGovernance.includes(actor.governance_level)) blockers.push("action_governance_level_denied");
     }
-  } else if (classification.consequential) {
-    blockers.push("consequential_tool_registry_authority_missing");
+  } else if (classification.consequential || phase === "exposure") {
+    blockers.push(phase === "exposure"
+      ? "tool_registry_authority_required_for_model_exposure"
+      : "consequential_tool_registry_authority_missing");
   }
 
   const requiredSkills = inferRequiredSkillAlternatives(toolName, action);
