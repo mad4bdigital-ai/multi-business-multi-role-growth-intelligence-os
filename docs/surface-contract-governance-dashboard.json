@@ -6,48 +6,46 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 415,
-    "docs_complete_count": 414,
-    "docs_gap_count": 1,
-    "docs_completion_percent": 99.76,
+    "migrations_with_surfaces": 416,
+    "docs_complete_count": 416,
+    "docs_gap_count": 0,
+    "docs_completion_percent": 100,
     "surface_totals": {
       "plugins": 12,
-      "tools": 1938,
+      "tools": 1939,
       "views": 361,
       "policies": 154,
       "routes": 540
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 352,
+      "tools": 353,
       "views": 148,
       "policies": 97,
       "routes": 229
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 1,
-      "deployment_parity_checklist.md": 1,
-      "docs/ai-docs-agent-governance.md": 1,
-      "docs/auto-docs-agent/README.md": 1,
-      "docs/change-documentation-governance.md": 1
+      "Updating Registry Patch Index.md": 0,
+      "deployment_parity_checklist.md": 0,
+      "docs/ai-docs-agent-governance.md": 0,
+      "docs/auto-docs-agent/README.md": 0,
+      "docs/change-documentation-governance.md": 0
     },
     "gap_severity_counts": {
       "high": 0,
-      "medium": 1,
+      "medium": 0,
       "low": 0,
-      "none": 414
+      "none": 416
     },
     "high_risk_missing_docs": [],
-    "medium_risk_missing_docs": [
-      "311_sprint69_platform_tool_dispatch_binding_integrity.sql"
-    ],
+    "medium_risk_missing_docs": [],
     "safety_marker_counts": {
-      "no_provider_call": 415,
-      "no_credential_payload_read": 414,
-      "no_raw_secrets": 415,
-      "no_external_send": 415,
-      "no_external_write": 414,
-      "secrets_included_false": 415
+      "no_provider_call": 416,
+      "no_credential_payload_read": 416,
+      "no_raw_secrets": 416,
+      "no_external_send": 416,
+      "no_external_write": 416,
+      "secrets_included_false": 416
     },
     "safety_marker_gap_migrations": 0,
     "route_coverage": {
@@ -70,19 +68,17 @@
     }
   },
   "queue": {
-    "total_items": 1,
+    "total_items": 0,
     "class_counts": {
-      "critical_review": 1,
+      "critical_review": 0,
       "high_review": 0,
       "medium_review": 0,
       "low_review": 0
     }
   },
   "triage": {
-    "total_items": 1,
-    "class_counts": {
-      "safety_marker_review": 1
-    },
+    "total_items": 0,
+    "class_counts": {},
     "gate_candidate_count": 0
   },
   "gate": {

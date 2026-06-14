@@ -591,5 +591,18 @@ The next highest-value decomposition opportunities are:
 - Do not move canonical authority into runtime helper files.
 - Prefer shared normalization contracts over route-local literal handling.
 
+## Supervisor agent execution boundary
+
+Admin GPT and Tenant GPT can coordinate governed plans, but the runtime boundary is not an unrestricted parallel master-agent contract.
+
+- `connectorExecutor.dispatchPlan` atomically claims each executable plan before workflow-run creation.
+- failed workflow-run creation transitions the claimed plan to `failed` instead of leaving it stuck in `executing`.
+- planner and chain routing select only healthy agents with deterministic ordering.
+- connector skill grants fail closed before execution-plan claim.
+- chain dispatch permits one configured healthy fallback attempt and persists lineage, depth, and cycle-rejection evidence.
+- shared dispatch requires capability envelopes before claim for MCP execution and WordPress `apply=true`; specialized mutation paths retain narrower guards.
+
+Use `http-generic-api/scripts/supervisor-runtime-readiness.mjs` as the repeatable static boundary check. Add `--live` for a read-only configured-schema check. Canonical status and remaining blockers are documented in `docs/supervisor-agent-runtime-readiness.md`.
+
 ---
 **Documentation Integrity:** This architectural map must remain aligned with the [Canonical Sources](canonicals/) and the [Agent Knowledge Guide](AI_Agent_Knowledge_Guide.md). Any structural changes must be propagated across all three layers as defined in the [README Documentation Architecture](README.md#documentation-integrity-architecture).

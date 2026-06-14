@@ -333,7 +333,16 @@ Operational rule: a Platform Plugin action must not become `dispatch_ready` or p
 
 ## Upgrade direction
 
-All 9 upgrade phases are complete. The project is in a production-ready, fully governed state.
+All 9 upgrade phases are complete. Supervisor-agent source contracts are readiness-gated and must not be treated as production-active unrestricted parallel execution without current live-schema and controlled-tenant behavioral evidence.
+
+Run the repeatable readiness checks from `http-generic-api/`:
+
+```powershell
+npm run supervisor:readiness
+npm run supervisor:readiness:live
+```
+
+The live command is read-only: it checks schema metadata plus active route/grant and fallback-agent relationships. See [`docs/supervisor-agent-runtime-readiness.md`](docs/supervisor-agent-runtime-readiness.md) for enforced guarantees and activation boundaries.
 
 Ongoing priorities:
 - maintain canonical/runtime alignment on every change

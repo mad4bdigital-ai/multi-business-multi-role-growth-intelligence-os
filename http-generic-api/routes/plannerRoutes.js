@@ -79,7 +79,7 @@ export function buildPlannerRoutes(deps) {
         );
         if (routeMeta[0]?.execution_layer) {
           const [agentRow] = await getPool().query(
-            "SELECT agent_id FROM `agents` WHERE execution_layer = ? AND status = 'active' AND health_status = 'active' LIMIT 1",
+            "SELECT agent_id FROM `agents` WHERE execution_layer = ? AND status = 'active' AND health_status = 'active' ORDER BY agent_id ASC LIMIT 1",
             [routeMeta[0].execution_layer]
           );
           resolved_agent_id = agentRow[0]?.agent_id || null;
@@ -145,7 +145,7 @@ export function buildPlannerRoutes(deps) {
         );
         if (routeMeta[0]?.execution_layer) {
           const [agentRow] = await getPool().query(
-            "SELECT agent_id FROM `agents` WHERE execution_layer = ? AND status = 'active' AND health_status = 'active' LIMIT 1",
+            "SELECT agent_id FROM `agents` WHERE execution_layer = ? AND status = 'active' AND health_status = 'active' ORDER BY agent_id ASC LIMIT 1",
             [routeMeta[0].execution_layer]
           );
           plan_agent_id = agentRow[0]?.agent_id || null;

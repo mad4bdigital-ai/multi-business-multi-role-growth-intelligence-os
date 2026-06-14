@@ -20,6 +20,7 @@ import { getAgentDeps } from "./agentRuntime.js";
 import { routeOutput }  from "./outputSinkRouter.js";
 import { evaluateConnectorDispatchPreflight, assertPreflightAllowed } from "./governedExecutionPreflight.js";
 import { resolveRuntimeWorkflow } from "./runtimeWorkflowResolver.js";
+import { resolveCapabilityExecutionEnvelope } from "./capabilityResolutionEnvelopeGuard.js";
 import {
   dispatchWordpressBlogPublish,
   isWordpressBlogPublishWorkflow,
@@ -31,6 +32,11 @@ const EXECUTABLE_DECISIONS = new Set([
 ]);
 
 const EXECUTABLE_PLAN_STATUSES = new Set(["validated", "approved"]);
+const CONNECTOR_SKILL_MAP = {
+  wordpress: "api.wordpress_write",
+  mcp_connector: "api.make_mcp",
+  content_workflow: "logic.evaluate_pack",
+};
 
 // ── Loaders ───────────────────────────────────────────────────────────────────
 
@@ -67,6 +73,85 @@ async function loadConnectedSystem(tenant_id, brand_key) {
     [tenant_id, brand_key, `%${brand_key}%`]
   );
   return rows[0] || null;
+}
+
+async function validateAgentSkillGrant(plan, connectorType) {
+  const requiredSkill = CONNECTOR_SKILL_MAP[connectorType];
+  if (!requiredSkill) return { ok: true };
+  if (!plan.agent_id) {
+    return {
+      ok: false,
+      error: {
+        code: "agent_skill_context_required",
+        message: `Connector '${connectorType}' requires an assigned agent before execution.`,
+      },
+    };
+  }
+
+  try {
+    const [skillRows] = await getPool().query(
+      `SELECT sg.grant_id FROM \`agent_skill_grants\` sg
+       JOIN \`agent_skills\` sk ON sk.skill_id = sg.skill_id
+       WHERE sg.agent_id = ? AND sk.skill_key = ?
+         AND sg.status = 'active' AND sk.status = 'active'
+         AND (sg.tenant_id IS NULL OR sg.tenant_id = ?)
+         AND (sg.expires_at IS NULL OR sg.expires_at > NOW())
+       LIMIT 1`,
+      [plan.agent_id, requiredSkill, plan.tenant_id]
+    );
+    if (skillRows.length) return { ok: true };
+    return {
+      ok: false,
+      error: {
+        code: "required_agent_skill_grant_missing",
+        message: `Agent '${plan.agent_id}' lacks active skill grant '${requiredSkill}'.`,
+        required_skill: requiredSkill,
+      },
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: {
+        code: "agent_skill_grant_resolution_failed",
+        message: error?.message || "Agent skill grant validation failed.",
+        required_skill: requiredSkill,
+      },
+    };
+  }
+}
+
+async function validateDispatchCapabilityEnvelope(plan, connectorType, apply) {
+  const acceptedAppKeys = connectorType === "wordpress"
+    ? ["wordpress_rest"]
+    : connectorType === "mcp_connector"
+      ? ["make_mcp", "make", "makecom"]
+      : [];
+  const required = connectorType === "mcp_connector" || (connectorType === "wordpress" && apply === true);
+  if (!required) return { ok: true, required: false };
+
+  const steps = Array.isArray(plan.steps_json) ? plan.steps_json : [];
+  const fallbackSources = steps.flatMap((step) => [
+    step,
+    step?.body,
+    step?.arguments,
+    step?.params,
+  ].filter(Boolean));
+  const resolved = await resolveCapabilityExecutionEnvelope({
+    source: plan,
+    fallbackSources,
+    acceptedAppKeys,
+    expectedTenantId: plan.tenant_id || "",
+  });
+  if (resolved.ok) return { ok: true, required: true, envelope_id: resolved.envelope_id };
+  return {
+    ok: false,
+    required: true,
+    error: {
+      code: resolved.status || "capability_resolution_envelope_rejected",
+      message: resolved.message || `Connector '${connectorType}' requires a valid capability resolution envelope.`,
+      envelope_required: true,
+    },
+  };
 }
 
 async function loadAction(action_key) {
@@ -433,73 +518,46 @@ export async function dispatchPlan(plan_id, {
     apply,
   }));
 
-  await createWorkflowRun(run_id, trace_id, plan, service_mode);
-  await getPool().query(
-    "UPDATE `execution_plans` SET plan_status = 'executing' WHERE plan_id = ?",
+  const capabilityEnvelope = await validateDispatchCapabilityEnvelope(plan, connector_type, apply);
+  if (!capabilityEnvelope.ok) return { ok: false, plan_id, error: capabilityEnvelope.error };
+
+  const skillGrant = await validateAgentSkillGrant(plan, connector_type);
+  if (!skillGrant.ok) return { ok: false, plan_id, error: skillGrant.error };
+
+  const [claim] = await getPool().query(
+    `UPDATE \`execution_plans\`
+     SET plan_status = 'executing'
+     WHERE plan_id = ? AND plan_status IN ('validated', 'approved')`,
     [plan_id]
   );
+  if (claim.affectedRows !== 1) {
+    return {
+      ok: false,
+      plan_id,
+      error: {
+        code: "plan_already_claimed",
+        message: "Plan dispatch was already claimed or its status changed before execution.",
+      },
+    };
+  }
 
-  // Skill gate: verify the agent is granted the skill required for this connector type.
-  // Fails open (warns but proceeds) when the agent_skill_grants table is absent or empty,
-  // so existing plans remain executable while skills are still being seeded.
-  const CONNECTOR_SKILL_MAP = {
-    wordpress:        "api.wordpress_write",
-    mcp_connector:    "api.make_mcp",
-    content_workflow: "logic.evaluate_pack",
-  };
-  const requiredSkill = CONNECTOR_SKILL_MAP[connector_type];
-  if (requiredSkill && plan.agent_id) {
-    try {
-      const [skillRows] = await getPool().query(
-        `SELECT sg.grant_id FROM \`agent_skill_grants\` sg
-         JOIN \`agent_skills\` sk ON sk.skill_id = sg.skill_id
-         WHERE sg.agent_id = ? AND sk.skill_key = ?
-           AND sg.status = 'active' AND sk.status = 'active'
-           AND (sg.tenant_id IS NULL OR sg.tenant_id = ?)
-           AND (sg.expires_at IS NULL OR sg.expires_at > NOW())
-         LIMIT 1`,
-        [plan.agent_id, requiredSkill, plan.tenant_id]
-      );
-      if (!skillRows.length) {
-        const message = `Agent '${plan.agent_id}' lacks required connector skill '${requiredSkill}'.`;
-        await finaliseWorkflowRun(run_id, "failed", null, message);
-        await getPool().query(
-          "UPDATE `execution_plans` SET plan_status = 'failed', validation_errors = ? WHERE plan_id = ?",
-          [JSON.stringify([{ code: "required_agent_skill_grant_missing", required_skill: requiredSkill }]), plan_id]
-        );
-        return {
-          ok: false,
-          run_id,
-          trace_id,
-          plan_id,
-          connector_type,
-          error: {
-            code: "required_agent_skill_grant_missing",
-            message,
-            required_skill: requiredSkill,
-          },
-          external_send_performed: false,
-          secrets_included: false,
-        };
-      }
-    } catch (error) {
-      const message = `Connector skill authorization could not be resolved: ${String(error?.code || error?.message || "skill_gate_failed").slice(0, 240)}`;
-      await finaliseWorkflowRun(run_id, "failed", null, message);
-      await getPool().query(
-        "UPDATE `execution_plans` SET plan_status = 'failed', validation_errors = ? WHERE plan_id = ?",
-        [JSON.stringify([{ code: "agent_skill_grant_resolution_failed" }]), plan_id]
-      );
-      return {
-        ok: false,
-        run_id,
-        trace_id,
-        plan_id,
-        connector_type,
-        error: { code: "agent_skill_grant_resolution_failed", message },
-        external_send_performed: false,
-        secrets_included: false,
-      };
-    }
+  try {
+    await createWorkflowRun(run_id, trace_id, plan, service_mode);
+  } catch (error) {
+    await getPool().query(
+      `UPDATE \`execution_plans\`
+       SET plan_status = 'failed'
+       WHERE plan_id = ? AND plan_status = 'executing'`,
+      [plan_id]
+    ).catch(() => {});
+    return {
+      ok: false,
+      plan_id,
+      error: {
+        code: "workflow_run_create_failed",
+        message: error?.message || "Failed to create workflow run after claiming the plan.",
+      },
+    };
   }
 
   let result, dispatchError;

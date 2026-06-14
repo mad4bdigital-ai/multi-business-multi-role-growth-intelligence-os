@@ -148,7 +148,7 @@ async function sinkReportingView({ run_id, agent_id, tenant_id, workflow_key, ou
   return view_id;
 }
 
-async function sinkChainEvents({ source_run_id, source_agent_id, linked_workflows, tenant_id, output, passed }) {
+async function sinkChainEvents({ source_run_id, source_agent_id, source_workflow_key, linked_workflows, tenant_id, output, passed }) {
   let links = [];
   try {
     links = typeof linked_workflows === "string"
@@ -161,19 +161,51 @@ async function sinkChainEvents({ source_run_id, source_agent_id, linked_workflow
 
   const condition = passed === false ? "on_fail" : (passed === true ? "on_pass" : "always");
   const events = [];
+  const [parentRows] = await getPool().query(
+    `SELECT event_id, root_event_id, chain_depth, max_chain_depth, workflow_path_json
+     FROM \`agent_chain_events\`
+     WHERE dispatched_run_id = ?
+     ORDER BY dispatched_at DESC LIMIT 1`,
+    [source_run_id]
+  ).catch(() => [[]]);
+  const parent = parentRows[0] || null;
 
   for (const target_workflow_key of links) {
     const event_id = randomUUID();
+    let parentPath = [];
+    try {
+      parentPath = Array.isArray(parent?.workflow_path_json)
+        ? parent.workflow_path_json
+        : JSON.parse(parent?.workflow_path_json || "[]");
+    } catch {}
+    if (!parentPath.length && source_workflow_key) parentPath.push(source_workflow_key);
+
+    const chain_depth = parent ? Number(parent.chain_depth || 0) + 1 : 0;
+    const max_chain_depth = Number(parent?.max_chain_depth || 8);
+    const cycleDetected = parentPath.includes(target_workflow_key);
+    const depthExceeded = chain_depth > max_chain_depth;
+    const status = cycleDetected || depthExceeded ? "skipped" : "pending";
+    const failure_reason = cycleDetected
+      ? "chain_cycle_detected"
+      : depthExceeded
+        ? "chain_depth_exceeded"
+        : null;
+    const workflowPath = [...parentPath, target_workflow_key];
+    const root_event_id = parent?.root_event_id || parent?.event_id || event_id;
+
     await getPool().query(
       `INSERT INTO \`agent_chain_events\`
-         (event_id, source_run_id, source_agent_id, target_workflow_key,
-          tenant_id, trigger_condition, payload_json, status)
-       VALUES (?,?,?,?,?,?,?,'pending')`,
-      [event_id, source_run_id, source_agent_id || null, target_workflow_key,
+         (event_id, root_event_id, parent_event_id, chain_depth, max_chain_depth,
+          workflow_path_json, source_run_id, source_agent_id, target_workflow_key,
+          tenant_id, trigger_condition, payload_json, status, failure_reason)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [event_id, root_event_id, parent?.event_id || null, chain_depth, max_chain_depth,
+       JSON.stringify(workflowPath), source_run_id, source_agent_id || null, target_workflow_key,
        tenant_id, condition,
-       JSON.stringify({ source_output: typeof output === "string" ? output.slice(0, 2000) : output })]
+       JSON.stringify({ source_output: typeof output === "string" ? output.slice(0, 2000) : output }),
+       status, failure_reason]
     );
-    events.push({ event_id, target_workflow_key, condition });
+    events.push({ event_id, target_workflow_key, condition, status, failure_reason });
   }
   return events;
 }
@@ -232,10 +264,10 @@ export async function routeOutput({ run_id, agent_id, tenant_id, brand_key, work
 
   if (linked_workflows) {
     try {
-      const events = await sinkChainEvents({ source_run_id: run_id, source_agent_id: agent_id, linked_workflows, tenant_id, output, passed: rulePassed });
+      const events = await sinkChainEvents({ source_run_id: run_id, source_agent_id: agent_id, source_workflow_key: workflow_key, linked_workflows, tenant_id, output, passed: rulePassed });
       for (const e of events) {
-        dispatched.push({ sink: "chain_event", id: e.event_id, target: e.target_workflow_key });
-        await logSink(run_id, agent_id, tenant_id, "chain_event", e.event_id, "ok", null, sinkContext);
+        dispatched.push({ sink: "chain_event", id: e.event_id, target: e.target_workflow_key, status: e.status, reason: e.failure_reason });
+        await logSink(run_id, agent_id, tenant_id, "chain_event", e.event_id, e.status === "skipped" ? "skipped" : "ok", e.failure_reason, sinkContext);
       }
     } catch (err) { await logSink(run_id, agent_id, tenant_id, "chain_event", null, "failed", err.message, sinkContext); }
   }

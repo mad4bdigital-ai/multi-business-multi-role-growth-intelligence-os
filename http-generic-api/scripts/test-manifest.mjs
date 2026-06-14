@@ -9,6 +9,8 @@ export const testCommands = [
   "node test-openclaude-openrouter-activation.mjs",
   "node test-openclaude-live-dispatch.mjs",
   "node test-codex-dual-mode-policy.mjs",
+  "node test-supervisor-runtime-readiness.mjs",
+  "node test-supervisor-chain-runtime-guards.mjs",
   "node test-dynamic-capability-resolution-graph.mjs",
   "node test-dynamic-capability-simulation-suite.mjs",
   "node test-tool-bus-collision-audit-and-preview.mjs",
