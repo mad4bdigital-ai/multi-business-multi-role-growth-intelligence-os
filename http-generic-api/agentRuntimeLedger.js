@@ -137,7 +137,7 @@ export async function recordAgentToolCallStarted({ context = {}, modelRunId = nu
       `INSERT INTO \`agent_tool_calls\`
          (tool_call_id, decision_run_id, model_run_id, tool_key, authorization_status,
           pre_tool_gate_json, input_summary_json, secrets_returned_to_model, side_effect_confirmed_by_readback, trace_id, created_at)
-       VALUES (?, ?, ?, ?, 'authorized', ?, ?, 0, 0, ?, UTC_TIMESTAMP())`,
+       VALUES (?, ?, ?, ?, 'pending', ?, ?, 0, 0, ?, UTC_TIMESTAMP())`,
       [
         toolCallId,
         context.decision_run_id || context.run_id || context.plan_id || null,
