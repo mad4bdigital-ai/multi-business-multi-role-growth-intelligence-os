@@ -923,6 +923,8 @@ If you are an AI agent working in this repo:
 - platform-owned bootstrap assets use managed service account auth
 - user-owned Drive/Sheets input sources use refresh-token auth
 - active activation requires Drive, DB-native bootstrap config, GitHub, and registry evidence
+- Admin GPT and Tenant GPT must not claim unrestricted master-agent readiness unless `npm run supervisor:readiness` and the required live evidence return `execution_ready=true`
+- current supervisor blockers are canonicalized in `docs/supervisor-agent-runtime-readiness.md`; sequential governed orchestration remains the default
 
 ---
 

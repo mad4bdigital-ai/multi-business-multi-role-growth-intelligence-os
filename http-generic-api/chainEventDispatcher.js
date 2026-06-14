@@ -22,24 +22,52 @@ async function loadEvent(event_id) {
 }
 
 async function resolveAgentForWorkflow(workflow_key, hintAgentId) {
-  if (hintAgentId) return hintAgentId;
+  if (hintAgentId) {
+    const [hintRows] = await getPool().query(
+      `SELECT agent_id FROM \`agents\`
+       WHERE agent_id = ? AND status = 'active' AND health_status = 'active'
+       LIMIT 1`,
+      [hintAgentId]
+    ).catch(() => [[]]);
+    if (hintRows[0]?.agent_id) return hintRows[0].agent_id;
+  }
   const [rows] = await getPool().query(
     `SELECT a.agent_id FROM \`task_routes\` tr
      JOIN \`agents\` a ON a.execution_layer = tr.execution_layer
-     WHERE tr.workflow_key = ? AND a.status = 'active' LIMIT 1`,
+     WHERE tr.workflow_key = ? AND a.status = 'active' AND a.health_status = 'active'
+     ORDER BY a.agent_id ASC LIMIT 1`,
     [workflow_key]
+  ).catch(() => [[]]);
+  return rows[0]?.agent_id || null;
+}
+
+async function resolveFallbackAgent(agent_id) {
+  if (!agent_id) return null;
+  const [rows] = await getPool().query(
+    `SELECT fallback.agent_id
+     FROM \`agents\` source
+     JOIN \`agents\` fallback ON fallback.agent_id = source.fallback_agent_id
+     WHERE source.agent_id = ?
+       AND fallback.status = 'active' AND fallback.health_status = 'active'
+     LIMIT 1`,
+    [agent_id]
   ).catch(() => [[]]);
   return rows[0]?.agent_id || null;
 }
 
 // ─── Plan factory ──────────────────────────────────────────────────────────────
 
-async function createChainPlan(event, workflowDef) {
+async function createChainPlan(event, workflowDef, overrideAgentId = null) {
   const plan_id = randomUUID();
-  const agent_id = await resolveAgentForWorkflow(
+  const agent_id = overrideAgentId || await resolveAgentForWorkflow(
     event.target_workflow_key,
     event.target_agent_id
   );
+  if (!agent_id) {
+    const error = new Error(`No healthy agent is available for workflow '${event.target_workflow_key}'.`);
+    error.code = "chain_agent_unavailable";
+    throw error;
+  }
 
   let sourcePayload = {};
   try { sourcePayload = JSON.parse(event.payload_json || "{}"); } catch {}
@@ -67,6 +95,29 @@ async function createChainPlan(event, workflowDef) {
 
 export async function dispatchChainEvent(event_id) {
   const pool = getPool();
+  const pendingEvent = await loadEvent(event_id);
+  if (!pendingEvent) return { ok: false, error: "event_not_found", event_id };
+  let workflowPath = [];
+  try {
+    workflowPath = Array.isArray(pendingEvent.workflow_path_json)
+      ? pendingEvent.workflow_path_json
+      : JSON.parse(pendingEvent.workflow_path_json || "[]");
+  } catch {}
+  if (workflowPath.length !== new Set(workflowPath).size) {
+    await pool.query(
+      "UPDATE `agent_chain_events` SET status = 'skipped', failure_reason = 'chain_cycle_detected' WHERE event_id = ? AND status = 'pending'",
+      [event_id]
+    );
+    return { ok: false, skipped: true, reason: "chain_cycle_detected", event_id };
+  }
+  if (Number(pendingEvent.chain_depth || 0) > Number(pendingEvent.max_chain_depth || 8)) {
+    await pool.query(
+      "UPDATE `agent_chain_events` SET status = 'skipped', failure_reason = 'chain_depth_exceeded' WHERE event_id = ? AND status = 'pending'",
+      [event_id]
+    );
+    return { ok: false, skipped: true, reason: "chain_depth_exceeded", event_id };
+  }
+
   const [claim] = await pool.query(
     "UPDATE `agent_chain_events` SET status = 'dispatched', dispatched_at = NOW() WHERE event_id = ? AND status = 'pending'",
     [event_id]
@@ -80,7 +131,7 @@ export async function dispatchChainEvent(event_id) {
   const event = await loadEvent(event_id);
   if (!event) return { ok: false, error: "event_not_found", event_id };
 
-  let plan_id, dispatchResult, dispatchError;
+  let plan_id, agent_id, fallback_agent_id, workflowDef, dispatchResult, dispatchError;
   try {
     const workflowResolution = await resolveRuntimeWorkflow({
       workflow_key: event.target_workflow_key,
@@ -90,18 +141,46 @@ export async function dispatchChainEvent(event_id) {
       error.code = workflowResolution.resolution.code;
       throw error;
     }
-    const workflowDef = workflowResolution.workflow;
+    workflowDef = workflowResolution.workflow;
 
-    ({ plan_id } = await createChainPlan(event, workflowDef));
+    ({ plan_id, agent_id } = await createChainPlan(event, workflowDef));
     dispatchResult = await dispatchPlan(plan_id, { apply: false, actor_id: `chain:${event.source_agent_id || "system"}` });
-    if (!dispatchResult.ok) throw new Error(dispatchResult.error?.message || "dispatchPlan returned ok=false");
+    if (!dispatchResult.ok) {
+      const error = new Error(dispatchResult.error?.message || "dispatchPlan returned ok=false");
+      error.code = dispatchResult.error?.code || "chain_primary_dispatch_failed";
+      throw error;
+    }
+    await pool.query(
+      "UPDATE `agent_chain_events` SET dispatched_run_id = ? WHERE event_id = ?",
+      [dispatchResult.run_id || null, event_id]
+    );
 
   } catch (err) {
     dispatchError = err;
-    await pool.query("UPDATE `agent_chain_events` SET status = 'failed' WHERE event_id = ?", [event_id]).catch(() => {});
+    fallback_agent_id = await resolveFallbackAgent(agent_id || event.target_agent_id);
+    if (workflowDef && fallback_agent_id && fallback_agent_id !== agent_id) {
+      try {
+        ({ plan_id, agent_id } = await createChainPlan(event, workflowDef, fallback_agent_id));
+        dispatchResult = await dispatchPlan(plan_id, { apply: false, actor_id: `chain-fallback:${event.source_agent_id || "system"}` });
+        if (!dispatchResult.ok) throw new Error(dispatchResult.error?.message || "Fallback dispatch returned ok=false");
+        dispatchError = null;
+        await pool.query(
+          "UPDATE `agent_chain_events` SET fallback_agent_id = ?, dispatched_run_id = ?, failure_reason = NULL WHERE event_id = ?",
+          [fallback_agent_id, dispatchResult.run_id || null, event_id]
+        );
+      } catch (fallbackError) {
+        dispatchError = fallbackError;
+      }
+    }
+    if (dispatchError) {
+      await pool.query(
+        "UPDATE `agent_chain_events` SET status = 'failed', fallback_agent_id = ?, failure_reason = ? WHERE event_id = ?",
+        [fallback_agent_id, dispatchError.message.slice(0, 255), event_id]
+      ).catch(() => {});
+    }
   }
 
-  return { ok: !dispatchError, event_id, plan_id: plan_id || null, target_workflow: event.target_workflow_key, run_id: dispatchResult?.run_id || null, error: dispatchError ? dispatchError.message : undefined };
+  return { ok: !dispatchError, event_id, plan_id: plan_id || null, agent_id: agent_id || null, fallback_agent_id: fallback_agent_id || null, target_workflow: event.target_workflow_key, run_id: dispatchResult?.run_id || null, error: dispatchError ? dispatchError.message : undefined };
 }
 
 // ─── Batch sweep ───────────────────────────────────────────────────────────────
