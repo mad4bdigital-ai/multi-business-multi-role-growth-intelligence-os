@@ -58,6 +58,30 @@ function readFileIfExists(filePath) {
   return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
 }
 
+function sha256(value = "") {
+  return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
+}
+
+function collectSafetyAttestations() {
+  if (!fs.existsSync(SAFETY_ATTESTATION_PATH)) return new Map();
+  try {
+    const payload = JSON.parse(fs.readFileSync(SAFETY_ATTESTATION_PATH, "utf8"));
+    if (payload.schema_version !== "surface-contract-safety-attestations-v1") return new Map();
+    return new Map((payload.items || []).map((item) => [item.migration_file, item]));
+  } catch {
+    return new Map();
+  }
+}
+
+function resolveSafetyAttestation(fileName, source, attestations) {
+  const item = attestations.get(fileName);
+  if (!item) return null;
+  if (item.attestation_status !== "verified_static_no_external_side_effects") return null;
+  if (item.migration_sha256 !== sha256(source)) return null;
+  if (!SAFETY_MARKERS.every((marker) => item.safety_markers?.[marker] === true)) return null;
+  return item;
+}
+
 function listMigrationFiles() {
   if (!fs.existsSync(MIGRATIONS_DIR)) return [];
   return fs.readdirSync(MIGRATIONS_DIR)
