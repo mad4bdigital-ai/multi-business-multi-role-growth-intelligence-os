@@ -117,6 +117,9 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -r --ignore-unmatch \
+            .github/pr1569-patches \
+            .github/workflows/pr1569-finalize.yml
           git add -A
           git diff --cached --check
           if git diff --cached --quiet; then
