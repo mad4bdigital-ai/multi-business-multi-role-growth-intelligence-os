@@ -135,7 +135,7 @@ async function safeQuery(pool, sql, params = []) {
   }
 }
 
-async function loadHostingerSshGate(pool, { targetId, env = process.env, envFlag, dbKey }) {
+export async function loadHostingerSshGate(pool, { targetId, env = process.env, envFlag, dbKey }) {
   if (env[envFlag] === "true") return { enabled: true, source: "env", key: envFlag };
   const rows = await safeQuery(
     pool,
