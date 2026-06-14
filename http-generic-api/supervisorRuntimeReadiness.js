@@ -138,7 +138,7 @@ export async function inspectLiveSupervisorSchema({ pool = null } = {}) {
   );
   const presentColumns = new Set(columnRows.map((row) => `${row.TABLE_NAME}.${row.COLUMN_NAME}`));
   const [routeSkillGapRows] = await resolvedPool.query(
-    `SELECT DISTINCT a.agent_id, tr.workflow_key
+    `SELECT DISTINCT a.agent_id
      FROM task_routes tr
      JOIN agents a ON BINARY a.execution_layer = BINARY tr.execution_layer
        AND a.status = 'active' AND a.health_status = 'active'
@@ -147,7 +147,9 @@ export async function inspectLiveSupervisorSchema({ pool = null } = {}) {
        AND BINARY sg.skill_id = BINARY sk.skill_id
        AND sg.status = 'active' AND sg.tenant_id IS NULL
        AND (sg.expires_at IS NULL OR sg.expires_at > NOW())
-     WHERE sg.grant_id IS NULL
+     WHERE LOWER(COALESCE(NULLIF(TRIM(tr.active), ''), NULLIF(TRIM(tr.enabled), ''), 'false'))
+             IN ('true', '1', 'yes', 'active', 'enabled')
+       AND sg.grant_id IS NULL
      LIMIT 25`
   );
   const [invalidFallbackRows] = await resolvedPool.query(
@@ -176,7 +178,7 @@ export async function inspectLiveSupervisorSchema({ pool = null } = {}) {
       "live_route_skill_grant_coverage",
       routeSkillGapRows.length === 0,
       "blocker",
-      `Active route/agent pairs missing logic.evaluate_pack grant: ${routeSkillGapRows.length}`
+      `Active routed agents missing logic.evaluate_pack grant: ${routeSkillGapRows.length}`
     ),
     check(
       "live_fallback_agent_health",

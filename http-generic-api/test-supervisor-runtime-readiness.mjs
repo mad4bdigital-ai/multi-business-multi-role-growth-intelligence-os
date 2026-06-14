@@ -11,6 +11,8 @@ const cliSource = readFileSync(new URL("./scripts/supervisor-runtime-readiness.m
 assert.match(readinessSource, /BINARY a\.execution_layer = BINARY tr\.execution_layer/);
 assert.match(readinessSource, /BINARY sg\.agent_id = BINARY a\.agent_id/);
 assert.match(readinessSource, /BINARY fallback\.agent_id = BINARY source\.fallback_agent_id/);
+assert.match(readinessSource, /SELECT DISTINCT a\.agent_id/);
+assert.match(readinessSource, /TRIM\(tr\.active\)/);
 assert.match(cliSource, /finally \{/);
 assert.match(cliSource, /await getPool\(\)\.end\(\)/);
 assert.equal(staticResult.mode, "static");

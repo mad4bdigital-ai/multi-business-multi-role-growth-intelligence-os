@@ -5,6 +5,7 @@ const chain = readFileSync(new URL("./chainEventDispatcher.js", import.meta.url)
 const sink = readFileSync(new URL("./outputSinkRouter.js", import.meta.url), "utf8");
 const connector = readFileSync(new URL("./connectorExecutor.js", import.meta.url), "utf8");
 const migration = readFileSync(new URL("./migrations/1003_sprint68_supervisor_chain_runtime_guards.sql", import.meta.url), "utf8");
+const grantMigration = readFileSync(new URL("./migrations/1006_sprint69_supervisor_route_logic_skill_grants.sql", import.meta.url), "utf8");
 const runner = readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
 
 assert.match(connector, /required_agent_skill_grant_missing/);
@@ -43,6 +44,10 @@ for (const column of [
 }
 assert.match(migration, /CREATE INDEX IF NOT EXISTS `idx_chain_root_depth`/);
 assert.match(migration, /CREATE INDEX IF NOT EXISTS `idx_chain_dispatched_run`/);
+assert.match(grantMigration, /INSERT IGNORE INTO `agent_skill_grants`/);
+assert.match(grantMigration, /logic\.evaluate_pack/);
+assert.match(grantMigration, /TRIM\(tr\.active\)/);
+assert.match(grantMigration, /NOT EXISTS/);
 assert.match(runner, /governed_migration_authorization_registry/);
 assert.doesNotMatch(runner, /1003_sprint68_supervisor_chain_runtime_guards\.sql/);
 
