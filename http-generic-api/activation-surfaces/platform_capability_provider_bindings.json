@@ -1,0 +1,31 @@
+{
+  "surface_key": "platform_capability_provider_bindings",
+  "display_name": "Semantic Capability Provider Bindings",
+  "description": "Admin activation visibility for active semantic capability provider bindings and rollout state.",
+  "source_table": "platform_capability_provider_bindings",
+  "result_key_column": "binding_id",
+  "result_label_column": "capability_key",
+  "status_column": "status",
+  "active_status_values": ["active"],
+  "result_columns": [
+    "binding_id",
+    "capability_key",
+    "app_key",
+    "parent_action_key",
+    "endpoint_key",
+    "adapter_key",
+    "policy_key",
+    "priority",
+    "rollout_mode",
+    "status",
+    "notes",
+    "created_at",
+    "updated_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 50,
+  "sort_order": 315,
+  "status": "active",
+  "notes": "Repo-managed admin-only activation surface. Excludes mapping payloads and connection policy JSON."
+}
