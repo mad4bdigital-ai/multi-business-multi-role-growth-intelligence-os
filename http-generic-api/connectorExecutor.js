@@ -461,11 +461,45 @@ export async function dispatchPlan(plan_id, {
         [plan.agent_id, requiredSkill, plan.tenant_id]
       );
       if (!skillRows.length) {
-        console.warn(
-          `[connectorExecutor] skill gate: agent '${plan.agent_id}' lacks '${requiredSkill}' — proceeding (fail-open until grants are fully seeded)`
+        const message = `Agent '${plan.agent_id}' lacks required connector skill '${requiredSkill}'.`;
+        await finaliseWorkflowRun(run_id, "failed", null, message);
+        await getPool().query(
+          "UPDATE `execution_plans` SET plan_status = 'failed', validation_errors = ? WHERE plan_id = ?",
+          [JSON.stringify([{ code: "required_agent_skill_grant_missing", required_skill: requiredSkill }]), plan_id]
         );
+        return {
+          ok: false,
+          run_id,
+          trace_id,
+          plan_id,
+          connector_type,
+          error: {
+            code: "required_agent_skill_grant_missing",
+            message,
+            required_skill: requiredSkill,
+          },
+          external_send_performed: false,
+          secrets_included: false,
+        };
       }
-    } catch { /* non-blocking — never let skill check break execution */ }
+    } catch (error) {
+      const message = `Connector skill authorization could not be resolved: ${String(error?.code || error?.message || "skill_gate_failed").slice(0, 240)}`;
+      await finaliseWorkflowRun(run_id, "failed", null, message);
+      await getPool().query(
+        "UPDATE `execution_plans` SET plan_status = 'failed', validation_errors = ? WHERE plan_id = ?",
+        [JSON.stringify([{ code: "agent_skill_grant_resolution_failed" }]), plan_id]
+      );
+      return {
+        ok: false,
+        run_id,
+        trace_id,
+        plan_id,
+        connector_type,
+        error: { code: "agent_skill_grant_resolution_failed", message },
+        external_send_performed: false,
+        secrets_included: false,
+      };
+    }
   }
 
   let result, dispatchError;

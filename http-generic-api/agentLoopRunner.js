@@ -247,6 +247,15 @@ export async function runAgentLoop(plan, deps = {}) {
     : { plan_id: plan.plan_id, brand_key: plan.brand_key, workflow_key: plan.workflow_key };
   context.run_id = run_id;
   context.decision_run_id = plan.decision_run_id || plan.plan_id || run_id;
+  context.plan_id = plan.plan_id || context.plan_id || null;
+  context.tenant_id = plan.tenant_id || context.tenant_id || null;
+  context.user_id = plan.user_id || context.user_id || null;
+  context.agent_id = plan.agent_id || context.agent_id || null;
+  context.workspace_id = plan.workspace_id || context.workspace_id || null;
+  context.workspace_key = plan.workspace_key || context.workspace_key || null;
+  context.brand_key = plan.brand_key || plan.target_key || context.brand_key || null;
+  context.actor_role = plan.actor_role || plan.role_key || context.actor_role || null;
+  context.governance_level = plan.governance_level || workflow.execution_class || context.governance_level || null;
   if (context.authority_bridge?.blocker_count > 0) {
     context.authority_bridge.drift_evidence = await writeAuthorityBridgeDriftEvidence(
       { ...plan, run_id },
@@ -296,7 +305,41 @@ export async function runAgentLoop(plan, deps = {}) {
     context.workspace_app_connection_count = appCtx.connected_apps.length;
   }
 
-  const tools = buildToolsFromEngines(workflow.mapped_engines || "");
+  const candidateTools = buildToolsFromEngines(workflow.mapped_engines || "");
+  const toolExposure = typeof deps.filterAuthorizedTools === "function"
+    ? await deps.filterAuthorizedTools(candidateTools, context)
+    : {
+        tools: [],
+        decisions: candidateTools.map((tool) => ({
+          allowed: false,
+          status: "denied",
+          code: "agent_tool_authorization_filter_unavailable",
+          tool_key: tool?.function?.name || null,
+          blockers: ["agent_tool_authorization_filter_unavailable"],
+          secrets_included: false,
+        })),
+        candidate_count: candidateTools.length,
+        authorized_count: 0,
+        denied_count: candidateTools.length,
+        secrets_included: false,
+      };
+  const tools = toolExposure.tools;
+  context.authorized_tool_manifest = {
+    candidate_count: toolExposure.candidate_count,
+    authorized_count: toolExposure.authorized_count,
+    denied_count: toolExposure.denied_count,
+    decisions: toolExposure.decisions.map((decision) => ({
+      tool_key: decision.tool_key || null,
+      allowed: decision.allowed === true,
+      code: decision.code || null,
+      consequence_class: decision.classification?.consequence_class || null,
+      action_key: decision.action?.action_key || null,
+      matched_skill_key: decision.skill?.matched_skill_key || null,
+      blocker_codes: decision.blockers || [],
+      secrets_included: false,
+    })),
+    secrets_included: false,
+  };
 
   const execution_class = workflow.execution_class || "standard";
   assertPreflightAllowed(await evaluateAgentLoopPreflight({
@@ -310,9 +353,42 @@ export async function runAgentLoop(plan, deps = {}) {
 
   const engineRegistry = deps.engineExecutorRegistry;
 
-  async function dispatchTool(toolName, args, ctx) {
-    if (engineRegistry?.dispatch) return engineRegistry.dispatch(toolName, args, ctx);
-    return { ok: false, error: "no_engine_registry" };
+  async function dispatchTool(toolName, args, ctx = {}) {
+    const existingAuthorization = ctx?.tool_authorization;
+    const authorization = existingAuthorization?.allowed === true && existingAuthorization?.tool_key === toolName
+      ? existingAuthorization
+      : typeof deps.authorizeToolCall === "function"
+        ? await deps.authorizeToolCall({ tool_name: toolName, args, context: ctx, phase: "dispatch" })
+        : {
+            allowed: false,
+            status: "denied",
+            code: "agent_tool_authorization_gate_unavailable",
+            tool_key: toolName,
+            blockers: ["agent_tool_authorization_gate_unavailable"],
+            secrets_included: false,
+          };
+    if (!authorization.allowed) {
+      return {
+        ok: false,
+        error: {
+          code: authorization.code || "agent_tool_authorization_denied",
+          message: "The governed agent tool authorization gate denied this call.",
+        },
+        authorization: {
+          status: "denied",
+          blocker_codes: authorization.blockers || [],
+          consequence_class: authorization.classification?.consequence_class || null,
+          action_key: authorization.action?.action_key || null,
+          secrets_included: false,
+        },
+        external_send_performed: false,
+        secrets_included: false,
+      };
+    }
+    if (engineRegistry?.dispatch) {
+      return engineRegistry.dispatch(toolName, args, { ...ctx, tool_authorization: authorization });
+    }
+    return { ok: false, error: { code: "no_engine_registry", message: "No engine registry is available." }, secrets_included: false };
   }
 
   // Use class-aware callModel when available; fall back to deps.callModel.
@@ -360,7 +436,7 @@ export async function runAgentLoop(plan, deps = {}) {
 
   const modelResult = await deps.runLogicWithModel(
     { logic_key, logic_body: logicBody, user_input: plan.intent_key || "", context, tools },
-    { callModel, dispatchTool }
+    { callModel, dispatchTool, authorizeToolCall: deps.authorizeToolCall }
   );
 
   await writeRunResult(run_id, modelResult, plan.tenant_id);
