@@ -565,7 +565,27 @@ components:
           maximum: 50
           default: 10
         include_raw: { type: boolean, default: false }
+        include_turns: { type: boolean, default: false }
         close_previous_sessions: { type: boolean, default: false }
+        response_profile:
+          type: string
+          enum: [evidence, summary, dashboard, diagnostic, full]
+          default: evidence
+        session_policy:
+          type: string
+          enum: [reuse_or_create, create_new, reuse_only, read_only]
+          default: reuse_or_create
+        idempotency_key: { type: string, maxLength: 180 }
+        conversation_ref: { type: string, maxLength: 500 }
+        reuse_window_hours: { type: integer, minimum: 1, maximum: 168, default: 24 }
+        container_key: { type: string }
+        tab_key: { type: string }
+        section_key: { type: string }
+        cursor: { type: integer, minimum: 0, default: 0 }
+        detail_limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        max_response_chars: { type: integer, minimum: 5000, maximum: 500000 }
+        authorized_access_limit: { type: integer, minimum: 1, maximum: 100 }
+        authorized_surface_limit: { type: integer, minimum: 1, maximum: 50 }
         provider_arguments:
           type: object
           additionalProperties: true
@@ -582,11 +602,55 @@ components:
     HardActivationRunResponse:
       type: object
       additionalProperties: true
-      required: [ok, activation_layer, activation_complete, runtime_classification, evidence_matrix, report_policy, secrets_included]
+      required: [ok, activation_layer, activation_complete, response_profile, runtime_classification, evidence_matrix, completeness, report_policy, secrets_included]
       properties:
         ok: { type: boolean }
         activation_layer: { type: string, enum: [hard_activation_orchestrator] }
         activation_complete: { type: boolean }
+        run_id: { type: string, nullable: true }
+        session_id: { type: string, nullable: true }
+        response_profile: { type: string, enum: [evidence, summary, dashboard, diagnostic, full] }
+        snapshot:
+          type: object
+          additionalProperties: true
+          properties:
+            snapshot_id: { type: string }
+            generated_at: { type: string, format: date-time }
+            registry_version: { type: string, nullable: true }
+            data_watermark: { type: string, format: date-time }
+            profile: { type: string }
+            subject_scope: { type: string, enum: [platform_admin, tenant_user] }
+        state_model:
+          type: object
+          additionalProperties: false
+          properties:
+            validation_state: { type: string }
+            evidence_state: { type: string }
+            session_state: { type: string }
+            dashboard_state: { type: string }
+            delivery_state: { type: string }
+            consumer_ack_state: { type: string }
+        dynamic_tabs_manifest: { type: object, additionalProperties: true }
+        operational_summary: { type: object, additionalProperties: true }
+        operational_dashboard_manifest: { type: object, additionalProperties: true }
+        completeness:
+          type: object
+          additionalProperties: true
+          properties:
+            known_surfaces: { type: integer }
+            visible_surfaces: { type: integer }
+            summarized_surfaces: { type: integer }
+            fully_hydrated_surfaces: { type: integer }
+            deferred_surfaces: { type: integer }
+            blocked_surfaces: { type: integer }
+            stale_surfaces: { type: integer }
+            coverage_status: { type: string }
+            details_omitted_silently: { type: boolean, enum: [false] }
+        awareness_index: { type: object, additionalProperties: true }
+        surface_refs:
+          type: array
+          items: { type: object, additionalProperties: true }
+        response_projection: { type: object, additionalProperties: true }
         runtime_classification:
           type: object
           additionalProperties: true
@@ -607,6 +671,107 @@ components:
             may_report_session_context_loaded: { type: boolean }
             may_report_activation_complete: { type: boolean }
             session_context_claim_requires: { type: string }
+        secrets_included: { type: boolean, enum: [false] }
+
+    ActivationAwarenessResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, activation_layer, response_profile, snapshot, dynamic_tabs, operational_summary, dashboard, completeness, awareness_index, auth_context, secrets_included]
+      properties:
+        ok: { type: boolean }
+        activation_layer: { type: string, enum: [activation_awareness_readback] }
+        response_profile: { type: string, enum: [evidence, summary, dashboard, diagnostic, full] }
+        snapshot: { type: object, additionalProperties: true }
+        dynamic_tabs: { type: object, additionalProperties: true }
+        operational_summary: { type: object, additionalProperties: true }
+        dashboard: { type: object, additionalProperties: true }
+        completeness:
+          type: object
+          additionalProperties: true
+          required: [known_surfaces, visible_surfaces, summarized_surfaces, fully_hydrated_surfaces, deferred_surfaces, blocked_surfaces, stale_surfaces, coverage_status, details_omitted_silently]
+          properties:
+            known_surfaces: { type: integer }
+            visible_surfaces: { type: integer }
+            summarized_surfaces: { type: integer }
+            fully_hydrated_surfaces: { type: integer }
+            deferred_surfaces: { type: integer }
+            blocked_surfaces: { type: integer }
+            stale_surfaces: { type: integer }
+            degraded_surfaces: { type: integer }
+            coverage_status: { type: string }
+            details_omitted_silently: { type: boolean, enum: [false] }
+            deferred_details_have_refs: { type: boolean }
+        awareness_index:
+          type: object
+          additionalProperties: false
+          properties:
+            score: { type: integer, minimum: 0, maximum: 100 }
+            coverage: { type: integer, minimum: 0, maximum: 100 }
+            freshness: { type: integer, minimum: 0, maximum: 100 }
+            authorization_visibility: { type: integer, minimum: 0, maximum: 100 }
+            attention_detection: { type: integer, minimum: 0, maximum: 100 }
+            detail_availability: { type: integer, minimum: 0, maximum: 100 }
+        auth_context: { type: object, additionalProperties: true }
+        secrets_included: { type: boolean, enum: [false] }
+
+    ActivationDynamicTabDetailResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, activation_layer, snapshot, subject, container, tab, sections, page, policy, secrets_included]
+      properties:
+        ok: { type: boolean }
+        activation_layer: { type: string, enum: [activation_dynamic_tab_detail] }
+        snapshot: { type: object, additionalProperties: true }
+        subject: { type: object, additionalProperties: true }
+        container: { type: object, additionalProperties: true }
+        tab: { type: object, additionalProperties: true }
+        sections:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              section_key: { type: string }
+              row_count: { type: integer }
+              rows:
+                type: array
+                items: { type: object, additionalProperties: true }
+              page:
+                type: object
+                additionalProperties: false
+                properties:
+                  cursor: { type: integer }
+                  limit: { type: integer }
+                  has_more: { type: boolean }
+                  next_cursor: { type: integer, nullable: true }
+        page:
+          type: object
+          additionalProperties: false
+          properties:
+            cursor: { type: integer }
+            limit: { type: integer }
+            returned_rows: { type: integer }
+            has_more: { type: boolean }
+            next_cursor: { type: integer, nullable: true }
+        policy: { type: object, additionalProperties: true }
+        secrets_included: { type: boolean, enum: [false] }
+
+    ActivationRunAckRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        acknowledged_by: { type: string, maxLength: 180 }
+        consumer_state: { type: string, enum: [acknowledged, rejected], default: acknowledged }
+
+    ActivationRunAckResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, run_id, affected_rows, secrets_included]
+      properties:
+        ok: { type: boolean }
+        run_id: { type: string }
+        affected_rows: { type: integer }
+        error: { type: object, nullable: true, additionalProperties: true }
         secrets_included: { type: boolean, enum: [false] }
 
     AuditPayloadEvidenceSmokeRequest:
@@ -4669,6 +4834,230 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /activation/awareness:
+    get:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: readActivationAwareness
+      x-openai-isConsequential: false
+      summary: Read complete activation awareness manifests
+      description: Returns Dynamic Tabs and Dashboard manifests, attention summaries, completeness, freshness, awareness index, snapshot metadata, and governed detail references without silently omitting surfaces.
+      parameters:
+        - in: query
+          name: profile
+          schema: { type: string, enum: [evidence, summary, dashboard, diagnostic, full], default: evidence }
+        - in: query
+          name: attention_limit
+          schema: { type: integer, minimum: 1, maximum: 20, default: 10 }
+      responses:
+        '200':
+          description: Activation awareness readback.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActivationAwarenessResponse' }
+        '401':
+          description: Authentication required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500':
+          description: Awareness read failed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /activation/dynamic-tabs/detail:
+    get:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: readActivationDynamicTabDetail
+      x-openai-isConsequential: false
+      summary: Read one authorized Dynamic Tab detail page
+      parameters:
+        - in: query
+          name: container_key
+          required: true
+          schema: { type: string }
+        - in: query
+          name: tab_key
+          required: true
+          schema: { type: string }
+        - in: query
+          name: section_key
+          schema: { type: string }
+        - in: query
+          name: cursor
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - in: query
+          name: snapshot_id
+          schema: { type: string }
+      responses:
+        '200':
+          description: Cursor-paginated Dynamic Tab detail.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActivationDynamicTabDetailResponse' }
+        '400':
+          description: Missing or invalid detail scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Container, tab, or section not found within caller scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /activation/runs/{runId}/ack:
+    post:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: acknowledgeActivationRun
+      x-openai-isConsequential: false
+      summary: Record consumer acknowledgement for an activation run
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ActivationRunAckRequest' }
+      responses:
+        '200':
+          description: Acknowledgement recorded.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActivationRunAckResponse' }
+        '404':
+          description: Activation run not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /tenant/activation/awareness:
+    get:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+      operationId: readTenantActivationAwareness
+      x-openai-isConsequential: false
+      summary: Read signed-in tenant activation awareness
+      description: Tenant scope is resolved from the signed user JWT and active membership. Client-supplied tenant identity is not trusted.
+      parameters:
+        - in: query
+          name: profile
+          schema: { type: string, enum: [evidence, summary, dashboard], default: evidence }
+        - in: query
+          name: attention_limit
+          schema: { type: integer, minimum: 1, maximum: 20, default: 10 }
+      responses:
+        '200':
+          description: Tenant-scoped activation awareness.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActivationAwarenessResponse' }
+        '401':
+          description: User JWT required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Active tenant membership required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /tenant/activation/dynamic-tabs/detail:
+    get:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+      operationId: readTenantActivationDynamicTabDetail
+      x-openai-isConsequential: false
+      summary: Read one tenant-authorized Dynamic Tab detail page
+      parameters:
+        - in: query
+          name: container_key
+          required: true
+          schema: { type: string }
+        - in: query
+          name: tab_key
+          required: true
+          schema: { type: string }
+        - in: query
+          name: section_key
+          schema: { type: string }
+        - in: query
+          name: cursor
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - in: query
+          name: snapshot_id
+          schema: { type: string }
+      responses:
+        '200':
+          description: Tenant-scoped cursor-paginated Dynamic Tab detail.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActivationDynamicTabDetailResponse' }
+        '400':
+          description: Missing or invalid detail scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Caller lacks active tenant membership or requested object scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Container, tab, or section not found within caller scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /activation/hard-run/legacy-full:
+    post:
+      deprecated: true
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: runLegacyFullHardActivation
+      x-openai-isConsequential: false
+      summary: Run legacy full hard activation response
+      description: Compatibility route for callers that require the previous fully hydrated Dynamic Tabs, Operational Intelligence, and Dashboard payload. New callers should use /activation/hard-run with response_profile=full only when necessary.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HardActivationRunRequest' }
+      responses:
+        '200':
+          description: Legacy full activation completed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HardActivationRunResponse' }
+        '424':
+          description: Required activation evidence incomplete.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HardActivationRunResponse' }
+
   /activation/hard-run:
     post:
       tags: [activation]
@@ -4677,7 +5066,7 @@ paths:
         - backendApiKeyAuth: []
       operationId: runHardActivation
       x-openai-isConsequential: false
-      summary: Run hard activation with mandatory session-context evidence
+      summary: Run evidence-first hard activation with complete awareness
       description: >
         Orchestrates hard activation by collecting session-context evidence first and provider-bootstrap
         evidence second. Activation is not complete unless both evidence surfaces are present and valid.
