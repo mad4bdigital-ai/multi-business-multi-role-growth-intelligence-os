@@ -47,6 +47,7 @@ function buildAgentDeps(config = {}) {
     runLogicWithModel: boundRunLogic,
     engineExecutorRegistry,
     buildGovernedContext: config.buildGovernedContext || buildGovernedAgentExecutionContext,
+    resolveAgentPromptContext: config.resolveAgentPromptContext || resolveAgentPromptContext,
     authorizeToolCall: config.authorizeToolCall || authorizeAgentToolCall,
     filterAuthorizedTools: config.filterAuthorizedTools || filterAuthorizedAgentTools,
   };
