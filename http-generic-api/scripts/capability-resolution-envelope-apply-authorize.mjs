@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import crypto, { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
+import { assertNoSecretBearingFields } from "../capabilityEnvelopeSecretPolicy.js";
 
 function parseArgs(argv = process.argv.slice(2)) {
   const args = { envelopeId: "", authorizedBy: "gpt_admin", decisionNote: "", ttlMinutes: 60 };
