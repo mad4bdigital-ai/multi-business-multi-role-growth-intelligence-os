@@ -3,6 +3,7 @@ import {
   recordAgentModelRunCompleted,
   recordAgentModelRunFailed,
   recordAgentModelRunStarted,
+  recordAgentToolCallAuthorization,
   recordAgentToolCallCompleted,
   recordAgentToolCallFailed,
   recordAgentToolCallStarted,
