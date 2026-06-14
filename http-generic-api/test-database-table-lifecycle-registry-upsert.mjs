@@ -127,23 +127,27 @@ const ownershipPlan = buildDatabaseTableLifecycleRegisterPlan([
   { table_name: "execution_plan_steps", approx_rows: 10, size_mb: 0.1 },
   { table_name: "execution_plan_events", approx_rows: 10, size_mb: 0.1 },
 ]);
-assert.deepEqual(
-  ownershipPlan.upsert_rows.map(({ owner_engine_key }) => owner_engine_key),
-  [
-    "platform_contract_governance_engine",
-    "resource_authority_engine",
-    "workflow_runtime_engine",
-    "schema_cleanup_engine",
-    "platform_private_capability_vault_engine",
-    "developer_platform_lifecycle_engine",
-    "database_table_lifecycle_engine",
-    "workflow_runtime_engine",
-    "workflow_runtime_engine",
-    "workflow_runtime_engine",
-    "workflow_runtime_engine",
-  ],
-);
-assert(ownershipPlan.upsert_rows.every(({ usage_status }) => usage_status !== "runtime_unclassified"));
+const expectedOwnerEngineByTable = new Map([
+  ["policy_logic_bindings", "platform_contract_governance_engine"],
+  ["workspace_resource_grants", "resource_authority_engine"],
+  ["connected_execution_sessions", "workflow_runtime_engine"],
+  ["database_collation_policy_registry", "schema_cleanup_engine"],
+  ["platform_private_packages", "platform_private_capability_vault_engine"],
+  ["repo_ingestion_jobs", "developer_platform_lifecycle_engine"],
+  ["database_lifecycle_report_snapshots", "database_table_lifecycle_engine"],
+  ["tenant_ssh_cli_approval_requests", "workflow_runtime_engine"],
+  ["growth_intelligence_actions", "workflow_runtime_engine"],
+  ["execution_plan_steps", "workflow_runtime_engine"],
+  ["execution_plan_events", "workflow_runtime_engine"],
+]);
+assert.equal(ownershipPlan.upsert_rows.length, expectedOwnerEngineByTable.size);
+for (const row of ownershipPlan.upsert_rows) {
+  assert.equal(
+    row.owner_engine_key,
+    expectedOwnerEngineByTable.get(row.table_name),
+    `unexpected lifecycle owner for ${row.table_name}`,
+  );
+}assert(ownershipPlan.upsert_rows.every(({ usage_status }) => usage_status !== "runtime_unclassified"));
 assert(
   !ownershipPlan.buckets.unlinked.includes("database_lifecycle_report_snapshots"),
   "explicit database lifecycle family ownership must not be reported as unlinked",

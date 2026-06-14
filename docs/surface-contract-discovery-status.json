@@ -1,10 +1,10 @@
 {
   "ok": true,
   "schema_version": "surface-contract-discovery-v3",
-  "migration_surface_count": 412,
+  "migration_surface_count": 413,
   "reported_count": 80,
-  "openapi_operation_count": 458,
-  "openapi_path_count": 405,
+  "openapi_operation_count": 464,
+  "openapi_path_count": 411,
   "openapi_operations": [
     "DELETE /admin/cli/dns",
     "DELETE /admin/scope-grants/{grant_id}",
@@ -27,7 +27,9 @@
     "DELETE /webhooks/{webhook_id}",
     "DELETE /workspaces/{id}/app-links/{link_id}",
     "GET /access/envelopes",
+    "GET /activation/awareness",
     "GET /activation/bootstrap-config",
+    "GET /activation/dynamic-tabs/detail",
     "GET /activation/hard-run/summary",
     "GET /activation/platform-access",
     "GET /activation/session-context",
@@ -170,6 +172,8 @@
     "GET /system/connectors/{system_id}",
     "GET /system/tools",
     "GET /telemetry/traces/{trace_id}",
+    "GET /tenant/activation/awareness",
+    "GET /tenant/activation/dynamic-tabs/detail",
     "GET /tenant/activation/guidance",
     "GET /tenant/docs",
     "GET /tenant/docs/read",
@@ -224,6 +228,8 @@
     "PATCH /workflow-runs/{run_id}",
     "POST /access/resolve",
     "POST /activation/hard-run",
+    "POST /activation/hard-run/legacy-full",
+    "POST /activation/runs/{runId}/ack",
     "POST /adaptation-records",
     "POST /admin/apis-services/credentials",
     "POST /admin/apis-services/google-auth-platform/{tab}",
@@ -514,39 +520,40 @@
     "closed_migration_count": 399
   },
   "coverage_summary": {
-    "migrations_with_surfaces": 412,
+    "migrations_with_surfaces": 413,
     "docs_complete_count": 408,
-    "docs_gap_count": 4,
-    "docs_completion_percent": 99.03,
+    "docs_gap_count": 5,
+    "docs_completion_percent": 98.79,
     "surface_totals": {
       "plugins": 12,
       "tools": 1919,
-      "views": 355,
+      "views": 359,
       "policies": 154,
-      "routes": 535
+      "routes": 540
     },
     "migrations_by_surface_type": {
       "plugins": 9,
       "tools": 351,
-      "views": 145,
+      "views": 146,
       "policies": 97,
-      "routes": 228
+      "routes": 229
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 4,
-      "deployment_parity_checklist.md": 4,
-      "docs/ai-docs-agent-governance.md": 4,
-      "docs/auto-docs-agent/README.md": 4,
-      "docs/change-documentation-governance.md": 4
+      "Updating Registry Patch Index.md": 5,
+      "deployment_parity_checklist.md": 5,
+      "docs/ai-docs-agent-governance.md": 5,
+      "docs/auto-docs-agent/README.md": 5,
+      "docs/change-documentation-governance.md": 5
     },
     "gap_severity_counts": {
-      "high": 1,
+      "high": 2,
       "medium": 3,
       "low": 0,
       "none": 408
     },
     "high_risk_missing_docs": [
-      "308_sprint69_activation_guidance_intelligence.sql"
+      "308_sprint69_activation_guidance_intelligence.sql",
+      "310_sprint69_activation_awareness_completeness_control_plane.sql"
     ],
     "medium_risk_missing_docs": [
       "308_sprint69_dynamic_governed_migration_reconciliation.sql",
@@ -554,21 +561,21 @@
       "965_sprint68_hostinger_apply_policy_safe_field_names.sql"
     ],
     "safety_marker_counts": {
-      "no_provider_call": 411,
-      "no_credential_payload_read": 408,
-      "no_raw_secrets": 409,
-      "no_external_send": 409,
+      "no_provider_call": 412,
+      "no_credential_payload_read": 409,
+      "no_raw_secrets": 410,
+      "no_external_send": 410,
       "no_external_write": 408,
-      "secrets_included_false": 411
+      "secrets_included_false": 412
     },
     "safety_marker_gap_migrations": 1,
     "route_coverage": {
       "sql_route_count": 0,
-      "total_sql_route_like_count": 535,
-      "openapi_exempt_sql_route_count": 535,
+      "total_sql_route_like_count": 540,
+      "openapi_exempt_sql_route_count": 540,
       "route_class_counts": {
         "http_route": 0,
-        "admin_tool_registry_route": 93,
+        "admin_tool_registry_route": 98,
         "tenant_tool_registry_route": 35,
         "system_tool_dispatch_route": 12,
         "registry_only_surface": 1,
@@ -584,17 +591,84 @@
   "gap_queue": {
     "ok": true,
     "schema_version": "surface-contract-gap-queue-v1",
-    "total_items": 4,
+    "total_items": 5,
     "class_counts": {
-      "critical_review": 1,
+      "critical_review": 2,
       "high_review": 3,
       "medium_review": 0,
       "low_review": 0
     },
     "top_items": [
       {
+        "migration_file": "310_sprint69_activation_awareness_completeness_control_plane.sql",
+        "score": 745,
+        "queue_class": "critical_review",
+        "gap_severity": "high",
+        "documentation_complete": false,
+        "missing_docs": [
+          "Updating Registry Patch Index.md",
+          "deployment_parity_checklist.md",
+          "docs/ai-docs-agent-governance.md",
+          "docs/auto-docs-agent/README.md",
+          "docs/change-documentation-governance.md"
+        ],
+        "missing_openapi_routes": [],
+        "safety_marker_gaps": [
+          "no_external_write"
+        ],
+        "surface_counts": {
+          "plugins": 0,
+          "tools": 0,
+          "views": 4,
+          "policies": 0,
+          "routes": 5
+        },
+        "remediation": [
+          {
+            "action_key": "document_surface_contract",
+            "owner_hint": "docs-agent/human-review",
+            "targets": [
+              "Updating Registry Patch Index.md",
+              "deployment_parity_checklist.md",
+              "docs/ai-docs-agent-governance.md",
+              "docs/auto-docs-agent/README.md",
+              "docs/change-documentation-governance.md"
+            ],
+            "reason": "Migration surfaces are not mentioned in all required documentation targets."
+          },
+          {
+            "action_key": "verify_readback_view",
+            "owner_hint": "db-readback-review",
+            "targets": [
+              "v_activation_agent_catalog",
+              "v_activation_agent_skill_grants",
+              "v_activation_awareness_latest_runs",
+              "v_activation_pending_tasks"
+            ],
+            "reason": "Readback views should have parity/readiness documentation and smoke evidence."
+          },
+          {
+            "action_key": "add_explicit_safety_markers",
+            "owner_hint": "safety-contract-review",
+            "targets": [
+              "no_external_write"
+            ],
+            "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
+          }
+        ],
+        "safety": {
+          "executes_provider_calls": false,
+          "reads_credentials": false,
+          "mutates_runtime": false,
+          "writes_database": false,
+          "external_sends": false,
+          "deploys": false,
+          "secrets_included": false
+        }
+      },
+      {
         "migration_file": "308_sprint69_activation_guidance_intelligence.sql",
-        "score": 741,
+        "score": 740,
         "queue_class": "critical_review",
         "gap_severity": "high",
         "documentation_complete": false,
@@ -2793,6 +2867,172 @@
         },
         "surface_count": 8,
         "safety_marker_count": 1
+      }
+    },
+    {
+      "migration_file": "310_sprint69_activation_awareness_completeness_control_plane.sql",
+      "legacy_backlog_closed": false,
+      "surfaces": {
+        "routes": [
+          "/activation/awareness",
+          "/activation/dynamic-tabs/detail",
+          "/activation/runs/{runId}/ack",
+          "/tenant/activation/awareness",
+          "/tenant/activation/dynamic-tabs/detail"
+        ],
+        "route_classifications": [
+          {
+            "route": "/activation/awareness",
+            "route_class": "admin_tool_registry_route",
+            "openapi_required": false,
+            "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+          },
+          {
+            "route": "/activation/dynamic-tabs/detail",
+            "route_class": "admin_tool_registry_route",
+            "openapi_required": false,
+            "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+          },
+          {
+            "route": "/activation/runs/{runId}/ack",
+            "route_class": "admin_tool_registry_route",
+            "openapi_required": false,
+            "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+          },
+          {
+            "route": "/tenant/activation/awareness",
+            "route_class": "admin_tool_registry_route",
+            "openapi_required": false,
+            "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+          },
+          {
+            "route": "/tenant/activation/dynamic-tabs/detail",
+            "route_class": "admin_tool_registry_route",
+            "openapi_required": false,
+            "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+          }
+        ],
+        "views": [
+          "v_activation_agent_catalog",
+          "v_activation_agent_skill_grants",
+          "v_activation_awareness_latest_runs",
+          "v_activation_pending_tasks"
+        ],
+        "policies": [],
+        "plugins": [],
+        "tools": [],
+        "safety": {
+          "no_provider_call": true,
+          "no_credential_payload_read": true,
+          "no_raw_secrets": true,
+          "no_external_send": true,
+          "no_external_write": false,
+          "secrets_included_false": true
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": false,
+        "deployment_parity_checklist.md": false,
+        "docs/ai-docs-agent-governance.md": false,
+        "docs/auto-docs-agent/README.md": false,
+        "docs/change-documentation-governance.md": false
+      },
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "documentation_complete": false,
+      "coverage": {
+        "gap_severity": "high",
+        "requires_docs_review": true,
+        "route_coverage": {
+          "route_count": 0,
+          "total_route_count": 5,
+          "openapi_required_route_count": 0,
+          "exempted_route_count": 5,
+          "route_class_counts": {
+            "http_route": 0,
+            "admin_tool_registry_route": 5,
+            "tenant_tool_registry_route": 0,
+            "system_tool_dispatch_route": 0,
+            "registry_only_surface": 0,
+            "false_positive_route_like_string": 0,
+            "legacy_closure_route_reviewed": 0
+          },
+          "documented_count": 0,
+          "missing_count": 0,
+          "documented_routes": [],
+          "missing_routes": [],
+          "exempted_routes": [
+            {
+              "route": "/activation/awareness",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            },
+            {
+              "route": "/activation/dynamic-tabs/detail",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            },
+            {
+              "route": "/activation/runs/{runId}/ack",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            },
+            {
+              "route": "/tenant/activation/awareness",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            },
+            {
+              "route": "/tenant/activation/dynamic-tabs/detail",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            }
+          ],
+          "route_classifications": [
+            {
+              "route": "/activation/awareness",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            },
+            {
+              "route": "/activation/dynamic-tabs/detail",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            },
+            {
+              "route": "/activation/runs/{runId}/ack",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            },
+            {
+              "route": "/tenant/activation/awareness",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            },
+            {
+              "route": "/tenant/activation/dynamic-tabs/detail",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            }
+          ]
+        },
+        "surface_count": 9,
+        "safety_marker_count": 5
       }
     },
     {
@@ -8245,75 +8485,6 @@
         },
         "surface_count": 5,
         "safety_marker_count": 2
-      }
-    },
-    {
-      "migration_file": "265_sprint68_platform_orchestration_capability_binding.sql",
-      "legacy_backlog_closed": true,
-      "surfaces": {
-        "routes": [],
-        "route_classifications": [],
-        "views": [],
-        "policies": [],
-        "plugins": [],
-        "tools": [
-          "admin_platform_tool",
-          "ads_provider_governance_snapshot_propose",
-          "ads_provider_governance_snapshot_record",
-          "app_integration_tool_bindings",
-          "bind_action_ads_governance_snapshot_propose",
-          "bind_action_ads_governance_snapshot_record",
-          "bind_action_platform_orchestration_readback",
-          "bind_tool_ads_governance_snapshot_propose",
-          "bind_tool_ads_governance_snapshot_record",
-          "bind_tool_platform_orchestration_readback",
-          "manual_tools",
-          "platform_orchestration_readback"
-        ],
-        "safety": {
-          "no_provider_call": true,
-          "no_credential_payload_read": true,
-          "no_raw_secrets": false,
-          "no_external_send": false,
-          "no_external_write": true,
-          "secrets_included_false": true
-        }
-      },
-      "docs": {
-        "Updating Registry Patch Index.md": true,
-        "deployment_parity_checklist.md": true,
-        "docs/ai-docs-agent-governance.md": true,
-        "docs/auto-docs-agent/README.md": true,
-        "docs/change-documentation-governance.md": true
-      },
-      "missing_docs": [],
-      "documentation_complete": true,
-      "coverage": {
-        "gap_severity": "none",
-        "requires_docs_review": false,
-        "route_coverage": {
-          "route_count": 0,
-          "total_route_count": 0,
-          "openapi_required_route_count": 0,
-          "exempted_route_count": 0,
-          "route_class_counts": {
-            "http_route": 0,
-            "admin_tool_registry_route": 0,
-            "tenant_tool_registry_route": 0,
-            "system_tool_dispatch_route": 0,
-            "registry_only_surface": 0,
-            "false_positive_route_like_string": 0,
-            "legacy_closure_route_reviewed": 0
-          },
-          "documented_count": 0,
-          "missing_count": 0,
-          "documented_routes": [],
-          "missing_routes": [],
-          "exempted_routes": [],
-          "route_classifications": []
-        },
-        "surface_count": 12,
-        "safety_marker_count": 4
       }
     }
   ],
@@ -43629,6 +43800,172 @@
         },
         "surface_count": 5,
         "safety_marker_count": 0
+      }
+    },
+    {
+      "migration_file": "310_sprint69_activation_awareness_completeness_control_plane.sql",
+      "legacy_backlog_closed": false,
+      "surfaces": {
+        "routes": [
+          "/activation/awareness",
+          "/activation/dynamic-tabs/detail",
+          "/activation/runs/{runId}/ack",
+          "/tenant/activation/awareness",
+          "/tenant/activation/dynamic-tabs/detail"
+        ],
+        "route_classifications": [
+          {
+            "route": "/activation/awareness",
+            "route_class": "admin_tool_registry_route",
+            "openapi_required": false,
+            "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+          },
+          {
+            "route": "/activation/dynamic-tabs/detail",
+            "route_class": "admin_tool_registry_route",
+            "openapi_required": false,
+            "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+          },
+          {
+            "route": "/activation/runs/{runId}/ack",
+            "route_class": "admin_tool_registry_route",
+            "openapi_required": false,
+            "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+          },
+          {
+            "route": "/tenant/activation/awareness",
+            "route_class": "admin_tool_registry_route",
+            "openapi_required": false,
+            "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+          },
+          {
+            "route": "/tenant/activation/dynamic-tabs/detail",
+            "route_class": "admin_tool_registry_route",
+            "openapi_required": false,
+            "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+          }
+        ],
+        "views": [
+          "v_activation_agent_catalog",
+          "v_activation_agent_skill_grants",
+          "v_activation_awareness_latest_runs",
+          "v_activation_pending_tasks"
+        ],
+        "policies": [],
+        "plugins": [],
+        "tools": [],
+        "safety": {
+          "no_provider_call": true,
+          "no_credential_payload_read": true,
+          "no_raw_secrets": true,
+          "no_external_send": true,
+          "no_external_write": false,
+          "secrets_included_false": true
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": false,
+        "deployment_parity_checklist.md": false,
+        "docs/ai-docs-agent-governance.md": false,
+        "docs/auto-docs-agent/README.md": false,
+        "docs/change-documentation-governance.md": false
+      },
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "documentation_complete": false,
+      "coverage": {
+        "gap_severity": "high",
+        "requires_docs_review": true,
+        "route_coverage": {
+          "route_count": 0,
+          "total_route_count": 5,
+          "openapi_required_route_count": 0,
+          "exempted_route_count": 5,
+          "route_class_counts": {
+            "http_route": 0,
+            "admin_tool_registry_route": 5,
+            "tenant_tool_registry_route": 0,
+            "system_tool_dispatch_route": 0,
+            "registry_only_surface": 0,
+            "false_positive_route_like_string": 0,
+            "legacy_closure_route_reviewed": 0
+          },
+          "documented_count": 0,
+          "missing_count": 0,
+          "documented_routes": [],
+          "missing_routes": [],
+          "exempted_routes": [
+            {
+              "route": "/activation/awareness",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            },
+            {
+              "route": "/activation/dynamic-tabs/detail",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            },
+            {
+              "route": "/activation/runs/{runId}/ack",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            },
+            {
+              "route": "/tenant/activation/awareness",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            },
+            {
+              "route": "/tenant/activation/dynamic-tabs/detail",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            }
+          ],
+          "route_classifications": [
+            {
+              "route": "/activation/awareness",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            },
+            {
+              "route": "/activation/dynamic-tabs/detail",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            },
+            {
+              "route": "/activation/runs/{runId}/ack",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            },
+            {
+              "route": "/tenant/activation/awareness",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            },
+            {
+              "route": "/tenant/activation/dynamic-tabs/detail",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            }
+          ]
+        },
+        "surface_count": 9,
+        "safety_marker_count": 5
       }
     },
     {

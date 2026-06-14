@@ -56,6 +56,15 @@ export function buildGrowthIntelligenceRoutes({ requireBackendApiKey, requireAdm
             pool: getPool(),
             requestedBy: principalActor(req),
           });
+          const approvalStage = result.workflow?.stages?.find((stage) => stage.stage === "approval_hold");
+          if (approvalStage) {
+            approvalStage.status = "pass";
+            delete approvalStage.reason;
+          }
+          result.readback.approval_hold_count = result.registry.approval_holds.length;
+          result.readback.executed_stage_count += 1;
+          result.readback.planned_stage_count = Math.max(0, result.readback.planned_stage_count - 1);
+          result.readback.all_stages_passed = result.workflow.stages.every((stage) => stage.status === "pass");
         } else {
           result.registry = {
             persistence_mode: "none",

@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
 
 import { resolveAccess } from "../accessDecisionEngine.js";
+import { decideSequentialPlanApproval } from "../sequentialPlanOrchestrator.js";
 function principalActor(req) {
   return String(
     req.auth?.user_id || req.auth?.admin_id || req.auth?.email ||
@@ -37,8 +38,6 @@ export function buildWorkflowOrchestrationRoutes(deps) {
   const { requireBackendApiKey } = deps;
   const router = Router();
 
-  // ── POST /workflow-runs ───────────────────────────────────────────────────
-  // Start a new workflow run. Access gate runs first.
   router.post("/workflow-runs", requireBackendApiKey, async (req, res) => {
     try {
       const {
@@ -59,7 +58,6 @@ export function buildWorkflowOrchestrationRoutes(deps) {
         return res.status(403).json({ ok: false, error: { code: "access_denied", message: `Access denied: ${access.reason}` } });
       }
 
-      // Runs requiring review/approval start in awaiting_approval
       const initialStatus =
         access.decision === "REQUIRE_REVIEW" ? "awaiting_review" :
         access.decision === "REQUIRE_SUPERVISOR_APPROVAL" ? "awaiting_approval" :
@@ -89,7 +87,6 @@ export function buildWorkflowOrchestrationRoutes(deps) {
          service_mode, initialStatus, input, initialStatus === "pending" ? new Date() : null]
       );
 
-      // If review/approval needed, auto-create an approval hold
       let hold_id = null;
       if (["awaiting_review", "awaiting_approval"].includes(initialStatus)) {
         hold_id = randomUUID();
@@ -124,7 +121,6 @@ export function buildWorkflowOrchestrationRoutes(deps) {
     }
   });
 
-  // ── GET /workflow-runs/:id ────────────────────────────────────────────────
   router.get("/workflow-runs/:id", requireBackendApiKey, async (req, res) => {
     try {
       const [runs] = await getPool().query("SELECT * FROM `workflow_runs` WHERE run_id = ? LIMIT 1", [req.params.id]);
@@ -146,7 +142,6 @@ export function buildWorkflowOrchestrationRoutes(deps) {
     }
   });
 
-  // ── GET /tenants/:id/workflow-runs ────────────────────────────────────────
   router.get("/tenants/:id/workflow-runs", requireBackendApiKey, async (req, res) => {
     try {
       const { status, workflow_key } = req.query;
@@ -165,7 +160,6 @@ export function buildWorkflowOrchestrationRoutes(deps) {
     }
   });
 
-  // ── PATCH /workflow-runs/:id/status ──────────────────────────────────────
   router.patch("/workflow-runs/:id/status", requireBackendApiKey, async (req, res) => {
     try {
       const { status, output_json, error_json } = req.body || {};
@@ -187,7 +181,6 @@ export function buildWorkflowOrchestrationRoutes(deps) {
     }
   });
 
-  // ── POST /workflow-runs/:id/steps ─────────────────────────────────────────
   router.post("/workflow-runs/:id/steps", requireBackendApiKey, async (req, res) => {
     try {
       const { step_key, step_type = "action", assigned_to, input_json } = req.body || {};
@@ -222,8 +215,6 @@ export function buildWorkflowOrchestrationRoutes(deps) {
     }
   });
 
-  // ── POST /approval-holds/:id/decide ──────────────────────────────────────
-  // Approve or reject an approval hold. On approval, resume the parent run.
   router.post("/approval-holds/:id/decide", requireBackendApiKey, async (req, res) => {
     try {
       const { decision, decision_note } = req.body || {};
@@ -248,46 +239,14 @@ export function buildWorkflowOrchestrationRoutes(deps) {
         }
 
         if (holdContext.source === "sequential_plan_orchestrator") {
-          const planId = String(holdContext.plan_id || "").trim();
-          const planStepId = String(holdContext.plan_step_id || "").trim();
-          if (!planId || !planStepId) throw routeError(409, "sequential_plan_hold_context_invalid", "Sequential plan approval context is incomplete.");
-
-          const [stepRows] = await connection.query(
-            `SELECT plan_step_id, plan_id, tenant_id, step_type, status
-               FROM execution_plan_steps
-              WHERE plan_step_id = ? AND plan_id = ? LIMIT 1 FOR UPDATE`,
-            [planStepId, planId]
-          );
-          const step = stepRows[0];
-          if (!step) throw routeError(409, "sequential_plan_step_not_found", "Sequential plan step was not found.");
-          if (step.status !== "awaiting_approval") throw routeError(409, "sequential_plan_step_not_awaiting_approval", `Step is already '${step.status}'.`);
-
-          const approvedStepStatus = step.step_type === "approval" ? "completed" : "ready";
-          const nextStepStatus = decision === "approved" ? approvedStepStatus : decision === "escalated" ? "awaiting_approval" : "failed";
-          const nextPlanStatus = decision === "approved" ? "validated" : decision === "escalated" ? "awaiting_approval" : "blocked";
-
-          const [holdUpdate] = await connection.query(
-            "UPDATE `approval_holds` SET status = ?, decision_by = ?, decision_note = ?, decided_at = NOW() WHERE hold_id = ? AND status = 'open'",
-            [decision, decisionBy, decision_note || null, req.params.id]
-          );
-          if (Number(holdUpdate?.affectedRows || 0) !== 1) throw routeError(409, "hold_decision_race", "Approval hold changed before the decision could be recorded.");
-
-          const [stepUpdate] = await connection.query(
-            `UPDATE execution_plan_steps
-                SET status = ?, approval_policy_json = JSON_SET(COALESCE(approval_policy_json, JSON_OBJECT()), '$.approved', ?)
-              WHERE plan_step_id = ? AND plan_id = ? AND status = 'awaiting_approval'`,
-            [nextStepStatus, decision === "approved", planStepId, planId]
-          );
-          if (Number(stepUpdate?.affectedRows || 0) !== 1) throw routeError(409, "sequential_plan_step_decision_race", "Sequential plan step changed before the decision could be recorded.");
-
-          await connection.query("UPDATE execution_plans SET plan_status = ?, runtime_status = ? WHERE plan_id = ? AND tenant_id = ?", [nextPlanStatus === "blocked" ? "failed" : nextPlanStatus === "awaiting_approval" ? "validated" : nextPlanStatus, nextPlanStatus, planId, step.tenant_id]);
-          await connection.query(
-            `INSERT INTO execution_plan_events
-              (plan_event_id, plan_id, plan_step_id, tenant_id, event_type, from_status, to_status, actor_id, evidence_json)
-             VALUES (?, ?, ?, ?, 'approval_decided', 'awaiting_approval', ?, ?, ?)`,
-            [randomUUID(), planId, planStepId, step.tenant_id, nextStepStatus, decisionBy, JSON.stringify({ hold_id: req.params.id, decision, secrets_included: false })]
-          );
-          return { ok: true, hold_id: req.params.id, decision, plan_id: planId, plan_step_id: planStepId, plan_status: nextPlanStatus, step_status: nextStepStatus, execution_dispatched: false, secrets_included: false };
+          return decideSequentialPlanApproval({
+            pool: getPool(),
+            connection,
+            holdId: req.params.id,
+            decision,
+            decisionBy,
+            decisionNote: decision_note || null,
+          });
         }
 
         const [holdUpdate] = await connection.query(
@@ -309,11 +268,14 @@ export function buildWorkflowOrchestrationRoutes(deps) {
 
       return res.status(200).json(response);
     } catch (err) {
-      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "hold_decide_failed", message: err.message } });
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: { code: err.code || "hold_decide_failed", message: err.message },
+        secrets_included: false,
+      });
     }
   });
 
-  // ── GET /approval-holds — open holds queue for reviewers ─────────────────
   router.get("/approval-holds", requireBackendApiKey, async (req, res) => {
     try {
       const { tenant_id, hold_type, required_role, assigned_to } = req.query;

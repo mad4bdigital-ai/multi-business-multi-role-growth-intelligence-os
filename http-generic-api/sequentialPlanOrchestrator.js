@@ -5,6 +5,51 @@ const TERMINAL_STEP_STATUSES = new Set(["completed", "failed", "skipped", "cance
 const TERMINAL_PLAN_STATUSES = new Set(["completed", "failed", "cancelled"]);
 export const SEQUENTIAL_PLAN_RUN_JOB_TYPE = "sequential_plan_run";
 
+const SECRET_KEY_PATTERN = /(secret|token|password|passwd|credential|private[_-]?key|client[_-]?secret|api[_-]?key|authorization|cookie|session)/i;
+const SECRET_VALUE_PATTERNS = [
+  /Bearer\s+[A-Za-z0-9._~+\-/]+=*/i,
+  /(api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret)=([^&\s]+)/i,
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----/i,
+];
+
+function assertSecretFreePayload(value, path = "payload", depth = 0) {
+  if (depth > 10 || value === null || value === undefined) return true;
+  if (typeof value === "string") {
+    if (SECRET_VALUE_PATTERNS.some((pattern) => pattern.test(value))) {
+      throw validationError(`Secret-like value is not allowed at ${path}.`, "sequential_plan_secret_payload_rejected");
+    }
+    return true;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => assertSecretFreePayload(item, `${path}[${index}]`, depth + 1));
+    return true;
+  }
+  if (typeof value === "object") {
+    for (const [key, nested] of Object.entries(value)) {
+      if (SECRET_KEY_PATTERN.test(key)) {
+        throw validationError(`Secret-like field is not allowed at ${path}.${key}.`, "sequential_plan_secret_payload_rejected");
+      }
+      assertSecretFreePayload(nested, `${path}.${key}`, depth + 1);
+    }
+  }
+  return true;
+}
+
+function sanitizeSecretPayload(value, depth = 0) {
+  if (depth > 10) return "[max-depth]";
+  if (value === null || value === undefined) return value;
+  if (typeof value === "string") {
+    return SECRET_VALUE_PATTERNS.some((pattern) => pattern.test(value)) ? "[redacted]" : value;
+  }
+  if (Array.isArray(value)) return value.map((item) => sanitizeSecretPayload(item, depth + 1));
+  if (typeof value !== "object") return value;
+  const sanitized = {};
+  for (const [key, nested] of Object.entries(value)) {
+    sanitized[key] = SECRET_KEY_PATTERN.test(key) ? "[redacted]" : sanitizeSecretPayload(nested, depth + 1);
+  }
+  return sanitized;
+}
+
 function json(value) {
   return JSON.stringify(value ?? null);
 }
@@ -42,7 +87,6 @@ async function updatePlanRuntimeStatus(connection, planId, runtimeStatus, tenant
     : [persistedStatus, runtimeStatus, planId];
   await connection.query(sql, params);
 }
-
 
 function validationError(message, code = "sequential_plan_validation_failed") {
   const error = new Error(message);
@@ -93,8 +137,15 @@ export function compileSequentialPlanSteps(steps = [], { planId, tenantId } = {}
     for (const dependency of dependsOn) {
       if (!keys.has(String(dependency))) throw validationError(`Step '${stepKey}' depends on unknown or later step '${dependency}'.`);
     }
+    const input = parseJson(source.input_json || source.input, {});
+    const successCriteria = parseJson(source.success_criteria_json || source.success_criteria, { result_ok: true });
+    const retryPolicy = parseJson(source.retry_policy_json || source.retry_policy, {});
     const approvalPolicy = parseJson(source.approval_policy_json || source.approval_policy, {});
-    const maxAttempts = Math.max(1, Math.min(Number(source.max_attempts || source.retry_policy?.max_attempts || 1), 10));
+    assertSecretFreePayload(input, `steps[${index}].input`);
+    assertSecretFreePayload(successCriteria, `steps[${index}].success_criteria`);
+    assertSecretFreePayload(retryPolicy, `steps[${index}].retry_policy`);
+    assertSecretFreePayload(approvalPolicy, `steps[${index}].approval_policy`);
+    const maxAttempts = Math.max(1, Math.min(Number(source.max_attempts || retryPolicy.max_attempts || 1), 10));
     return {
       plan_step_id: randomUUID(),
       plan_id: planId,
@@ -105,9 +156,9 @@ export function compileSequentialPlanSteps(steps = [], { planId, tenantId } = {}
       workflow_id: source.workflow_id || null,
       workflow_key: source.workflow_key || null,
       depends_on: dependsOn.map(String),
-      input: parseJson(source.input_json || source.input, {}),
-      success_criteria: parseJson(source.success_criteria_json || source.success_criteria, { result_ok: true }),
-      retry_policy: parseJson(source.retry_policy_json || source.retry_policy, { max_attempts: maxAttempts }),
+      input,
+      success_criteria: successCriteria,
+      retry_policy: { max_attempts: maxAttempts, ...retryPolicy },
       approval_policy: approvalPolicy,
       status: index === 0 && dependsOn.length === 0 ? "ready" : "pending",
       max_attempts: maxAttempts,
@@ -172,11 +223,24 @@ export function verifySequentialStepResult(step, result) {
 async function createApprovalHold(connection, plan, step, actorId) {
   const holdId = randomUUID();
   await connection.query(
+    `INSERT INTO workflow_runs
+      (run_id, tenant_id, user_id, workflow_key, plan_id, service_mode, status, current_step, input_json)
+     VALUES (?, ?, ?, 'sequential_plan_orchestrator', ?, ?, 'awaiting_approval', ?, ?)
+     ON DUPLICATE KEY UPDATE
+       status = 'awaiting_approval', current_step = VALUES(current_step),
+       input_json = VALUES(input_json), updated_at = NOW()`,
+    [
+      plan.plan_id, plan.tenant_id, plan.user_id || null, plan.plan_id,
+      plan.service_mode || "self_serve", step.step_key,
+      json({ source: "sequential_plan_orchestrator", plan_step_id: step.plan_step_id, secrets_included: false }),
+    ]
+  );
+  await connection.query(
     `INSERT INTO approval_holds
       (hold_id, run_id, step_run_id, tenant_id, hold_type, requested_by, required_role, status, execution_context_json)
-     VALUES (?, ?, ?, ?, 'supervisor_approval', ?, ?, 'open', ?)`,
+     VALUES (?, ?, NULL, ?, 'supervisor_approval', ?, ?, 'open', ?)`,
     [
-      holdId, plan.plan_id, step.plan_step_id, plan.tenant_id, actorId,
+      holdId, plan.plan_id, plan.tenant_id, actorId,
       parseJson(step.approval_policy_json, {}).required_role || "supervisor",
       json({ source: "sequential_plan_orchestrator", plan_id: plan.plan_id, plan_step_id: step.plan_step_id, secrets_included: false }),
     ]
@@ -225,12 +289,12 @@ async function claimNextStep(pool, planId, actorId) {
       [claimToken, next.plan_step_id]
     );
     await updatePlanRuntimeStatus(connection, planId, "executing", plan.tenant_id);
-    await appendEvent(connection, { planId, planStepId: next.plan_step_id, tenantId: plan.tenant_id, eventType: "step_claimed", fromStatus: "ready", toStatus: "claimed", actorId, evidence: { claim_token_hash: sha256(claimToken) } });
+    await appendEvent(connection, { planId, planStepId: next.plan_step_id, tenantId: plan.tenant_id, eventType: "step_claimed", fromStatus: "ready", toStatus: "claimed", actorId, evidence: { claim_token_sha256: sha256(claimToken) } });
     return { stop: false, plan, step: { ...next, claim_token: claimToken }, claim_token: claimToken };
   });
 }
 
-async function defaultStepExecutor(step, { pool }) {
+async function defaultStepExecutor(step, { pool, actorId = null }) {
   if (step.step_type === "stop") return { ok: true, stopped: true };
   if (step.step_type === "analysis" || step.step_type === "checkpoint") {
     return { ok: true, output: parseJson(step.input_json, {}), execution_mode: "internal" };
@@ -252,7 +316,7 @@ async function defaultStepExecutor(step, { pool }) {
     ]
   );
   const { dispatchPlan } = await import("./connectorExecutor.js");
-  return dispatchPlan(childPlanId, { deps: { parent_plan_id: step.plan_id, parent_plan_step_id: step.plan_step_id } });
+  return dispatchPlan(childPlanId, { actor_id: actorId, deps: { parent_plan_id: step.plan_id, parent_plan_step_id: step.plan_step_id } });
 }
 
 async function finalizeClaim(pool, claim, result, error, actorId) {
@@ -266,12 +330,14 @@ async function finalizeClaim(pool, claim, result, error, actorId) {
     const succeeded = !error && result?.ok !== false;
     const retryable = !succeeded && Number(step.attempt_count || 0) < Number(step.max_attempts || 1);
     const status = succeeded ? "completed" : retryable ? "retrying" : "failed";
+    const safeResult = succeeded ? sanitizeSecretPayload(result) : null;
+    const safeError = error ? sanitizeSecretPayload({ code: error.code || "step_execution_failed", message: error.message }) : null;
     await connection.query(
       `UPDATE execution_plan_steps
           SET status = ?, output_json = ?, error_json = ?, completed_at = CASE WHEN ? IN ('completed','failed') THEN NOW() ELSE completed_at END,
               claim_token = NULL
         WHERE plan_step_id = ? AND claim_token = ?`,
-      [status, succeeded ? json(result) : null, error ? json({ code: error.code || "step_execution_failed", message: error.message }) : null, status, step.plan_step_id, claim.claim_token]
+      [status, safeResult ? json(safeResult) : null, safeError ? json(safeError) : null, status, step.plan_step_id, claim.claim_token]
     );
     if (retryable) await connection.query("UPDATE execution_plan_steps SET status = 'ready' WHERE plan_step_id = ? AND status = 'retrying'", [step.plan_step_id]);
     const planStatus = succeeded ? "executing" : retryable ? "executing" : "blocked";
@@ -287,7 +353,7 @@ export async function tickSequentialPlan({ pool, planId, actorId = null, execute
   let result;
   let executionError = null;
   try {
-    result = await executeStep(claim.step, { pool, plan: claim.plan });
+    result = await executeStep(claim.step, { pool, plan: claim.plan, actorId });
     const verification = verifySequentialStepResult(claim.step, result);
     if (!verification.passed) {
       executionError = validationError(
@@ -331,6 +397,93 @@ export async function runSequentialPlan({ pool, planId, actorId = null, maxTicks
   };
 }
 
+export async function decideSequentialPlanApproval({
+  pool, connection: providedConnection = null, holdId, decision, decisionBy = null, decisionNote = null,
+}) {
+  if (!["approved", "rejected", "escalated"].includes(decision)) {
+    throw validationError("decision must be approved, rejected, or escalated.", "sequential_plan_approval_decision_invalid");
+  }
+  const operation = async (connection) => {
+    const [holdRows] = await connection.query(
+      "SELECT * FROM approval_holds WHERE hold_id = ? LIMIT 1 FOR UPDATE",
+      [holdId]
+    );
+    const hold = holdRows[0];
+    if (!hold) {
+      const error = validationError("Approval hold not found.", "sequential_plan_approval_hold_not_found");
+      error.status = 404;
+      throw error;
+    }
+    if (hold.status !== "open") {
+      const error = validationError(`Hold is already '${hold.status}'.`, "sequential_plan_approval_hold_closed");
+      error.status = 409;
+      throw error;
+    }
+    const context = parseJson(hold.execution_context_json, {});
+    if (context.source !== "sequential_plan_orchestrator" || !context.plan_id || !context.plan_step_id) {
+      const error = validationError("Approval hold is not owned by the sequential plan orchestrator.", "sequential_plan_approval_hold_mismatch");
+      error.status = 409;
+      throw error;
+    }
+    const [stepRows] = await connection.query(
+      `SELECT * FROM execution_plan_steps
+        WHERE plan_step_id = ? AND plan_id = ? LIMIT 1 FOR UPDATE`,
+      [context.plan_step_id, context.plan_id]
+    );
+    const step = stepRows[0];
+    if (!step || step.status !== "awaiting_approval") {
+      const error = validationError("Sequential plan step is not awaiting this approval.", "sequential_plan_approval_step_mismatch");
+      error.status = 409;
+      throw error;
+    }
+
+    const stepStatus = decision === "approved"
+      ? (step.step_type === "approval" ? "completed" : "ready")
+      : decision === "escalated" ? "blocked" : "failed";
+    const planStatus = decision === "approved" ? "validated" : decision === "escalated" ? "paused" : "blocked";
+    const workflowStatus = decision === "approved" ? "pending" : decision === "escalated" ? "paused" : "failed";
+
+    const [holdUpdate] = await connection.query(
+      "UPDATE approval_holds SET status = ?, decision_by = ?, decision_note = ?, decided_at = NOW() WHERE hold_id = ? AND status = 'open'",
+      [decision, decisionBy, decisionNote, holdId]
+    );
+    if (Number(holdUpdate?.affectedRows || 0) !== 1) {
+      const error = validationError("Approval hold changed before the decision could be recorded.", "sequential_plan_approval_hold_race");
+      error.status = 409;
+      throw error;
+    }
+    const [stepUpdate] = await connection.query(
+      `UPDATE execution_plan_steps
+          SET status = ?,
+              approval_policy_json = JSON_SET(COALESCE(approval_policy_json, JSON_OBJECT()), '$.approved', ?),
+              completed_at = CASE WHEN ? IN ('completed','failed') THEN NOW() ELSE completed_at END
+        WHERE plan_step_id = ? AND plan_id = ? AND status = 'awaiting_approval'`,
+      [stepStatus, decision === "approved", stepStatus, step.plan_step_id, step.plan_id]
+    );
+    if (Number(stepUpdate?.affectedRows || 0) !== 1) {
+      const error = validationError("Sequential plan step changed before the decision could be recorded.", "sequential_plan_approval_step_race");
+      error.status = 409;
+      throw error;
+    }
+    await updatePlanRuntimeStatus(connection, step.plan_id, planStatus, step.tenant_id);
+    await connection.query(
+      `UPDATE workflow_runs
+          SET status = ?, current_step = ?, completed_at = CASE WHEN ? = 'failed' THEN NOW() ELSE completed_at END
+        WHERE run_id = ? AND workflow_key = 'sequential_plan_orchestrator'`,
+      [workflowStatus, step.step_key, workflowStatus, step.plan_id]
+    );
+    await appendEvent(connection, {
+      planId: step.plan_id, planStepId: step.plan_step_id, tenantId: step.tenant_id,
+      eventType: "approval_decided", fromStatus: "awaiting_approval", toStatus: stepStatus,
+      actorId: decisionBy, evidence: { hold_id: holdId, decision },
+    });
+    return {
+      ok: true, hold_id: holdId, decision, plan_id: step.plan_id, plan_step_id: step.plan_step_id,
+      plan_status: planStatus, step_status: stepStatus, execution_dispatched: false, secrets_included: false,
+    };
+  };
+  return providedConnection ? operation(providedConnection) : withTransaction(pool, operation);
+}
 export async function resumeSequentialPlan({ pool, planId, actorId = null }) {
   return withTransaction(pool, async (connection) => {
     const [steps] = await connection.query("SELECT * FROM execution_plan_steps WHERE plan_id = ? ORDER BY step_order FOR UPDATE", [planId]);
@@ -348,5 +501,24 @@ export async function getSequentialPlanTimeline({ pool, planId }) {
   if (!planRows[0]) return null;
   const [steps] = await pool.query("SELECT * FROM execution_plan_steps WHERE plan_id = ? ORDER BY step_order", [planId]);
   const [events] = await pool.query("SELECT * FROM execution_plan_events WHERE plan_id = ? ORDER BY id", [planId]);
-  return { plan: planRows[0], steps, events };
+  const plan = {
+    ...planRows[0],
+    steps_json: sanitizeSecretPayload(parseJson(planRows[0].steps_json, [])),
+    validation_errors: sanitizeSecretPayload(parseJson(planRows[0].validation_errors, [])),
+  };
+  const safeSteps = steps.map(({ claim_token, ...step }) => ({
+    ...step,
+    depends_on_json: sanitizeSecretPayload(parseJson(step.depends_on_json, [])),
+    input_json: sanitizeSecretPayload(parseJson(step.input_json, {})),
+    success_criteria_json: sanitizeSecretPayload(parseJson(step.success_criteria_json, {})),
+    retry_policy_json: sanitizeSecretPayload(parseJson(step.retry_policy_json, {})),
+    approval_policy_json: sanitizeSecretPayload(parseJson(step.approval_policy_json, {})),
+    output_json: sanitizeSecretPayload(parseJson(step.output_json, null)),
+    error_json: sanitizeSecretPayload(parseJson(step.error_json, null)),
+  }));
+  const safeEvents = events.map((event) => ({
+    ...event,
+    evidence_json: sanitizeSecretPayload(parseJson(event.evidence_json, {})),
+  }));
+  return { plan, steps: safeSteps, events: safeEvents, secrets_included: false };
 }
