@@ -21,6 +21,43 @@ const REPORT_TYPES = new Set([
 ]);
 
 const PASS_KEYS = ["passed", "ok", "valid", "pass", "true", "1"];
+const SINK_READBACK_TARGETS = Object.freeze({
+  output_artifact: { table: "output_artifacts", key: "artifact_id" },
+  adaptation_record: { table: "adaptation_records", key: "adaptation_id" },
+  reporting_view: { table: "reporting_views", key: "view_id" },
+  audit_log: { table: "audit_log", key: "audit_id" },
+  chain_event: { table: "agent_chain_events", key: "event_id" },
+});
+
+function parseLinkedWorkflowKeys(value) {
+  try {
+    const links = typeof value === "string"
+      ? (value.trim().startsWith("[") ? JSON.parse(value) : value.split("|").map((item) => item.trim()))
+      : Array.isArray(value) ? value : [];
+    return links.map((item) => String(item || "").trim()).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+async function confirmSinkReadback(sinkType, sinkRefId) {
+  const target = SINK_READBACK_TARGETS[sinkType];
+  if (!target || !sinkRefId) return false;
+  const [rows] = await getPool().query(
+    `SELECT \`${target.key}\` AS sink_ref_id FROM \`${target.table}\` WHERE \`${target.key}\` = ? LIMIT 1`,
+    [sinkRefId]
+  );
+  return Boolean(rows[0]?.sink_ref_id);
+}
+
+function sinkFailure(sink, error) {
+  return {
+    sink,
+    code: error?.code || "required_sink_dispatch_failed",
+    message: String(error?.message || error || "required sink dispatch failed").slice(0, 500),
+    secrets_included: false,
+  };
+}
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
