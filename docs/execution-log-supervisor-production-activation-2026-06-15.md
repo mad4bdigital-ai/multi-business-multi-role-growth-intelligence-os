@@ -30,7 +30,32 @@ Close the production schema and authority prerequisites for governed supervisor-
 | External provider calls | `false` |
 | Secrets included | `false` |
 
-The `execution_log` checkpoint was written through the surface-authority-gated `writeExecutionEvidence` helper. Its execution status is `success_with_warnings` because behavioral dispatch evidence is not yet observed.
+The activation `execution_log` checkpoint was written through the surface-authority-gated `writeExecutionEvidence` helper. Its execution status is `success_with_warnings` because behavioral dispatch evidence had not yet been observed at that checkpoint.
+
+## Controlled Behavioral Certification
+
+`npm run supervisor:certify:live` subsequently certified the supervisor dispatcher against the live schema using controlled fixtures inside a database transaction:
+
+- atomic chain-event claim and duplicate-dispatch prevention passed;
+- one workflow run was created for the controlled dispatch;
+- configured fallback dispatch passed;
+- cycle and maximum-depth rejection passed;
+- cancelled-plan terminal protection passed;
+- one-time handoff consumption and revoked-handoff rejection passed;
+- fixture plans, events, and workflow runs were rolled back;
+- external provider calls remained `0`.
+
+Authoritative behavioral evidence:
+
+| Evidence | Value |
+|---|---|
+| SQL execution evidence | `execution_log.id=15015` |
+| Execution trace | `supervisor_behavioral_certification:2026-06-14:15b5dfb2-b3bf-4b15-839e-f23467942404` |
+| Execution status | `success` |
+| Execution ready status | `behaviorally_certified` |
+| Execution evidence status | `complete` |
+| Persistent fixture plans/events/runs | `0 / 0 / 0` |
+| External provider calls | `0` |
 
 ## Live Operational Readback
 
@@ -43,16 +68,15 @@ The read-only production inspection at `2026-06-14T21:44:22.757Z` found:
 - maximum observed depth `0`, configured maximum depth `8`;
 - 0 `workflow_runs` created during the preceding 48 hours.
 
-This is not evidence of a failed dispatch because no recent dispatch was observed. It is also not behavioral certification. The four historical pending events must not be processed automatically without confirming their tenant, workflow, and intent.
+This is not evidence of a failed dispatch because no recent real dispatch was observed. The four historical pending events all contain the same unresolved semicolon-delimited composite `target_workflow_key`; none resolves to a workflow. They have no replay authority and must not be dispatched. Migration `1007_sprint69_archive_invalid_historical_chain_events.sql` narrowly classifies those historical invalid events as `skipped` with `failure_reason='workflow_identity_missing_historical'`.
 
 ## Operational Follow-Up
 
-1. Run one controlled-tenant supervisor dispatch with a no-provider-write workflow.
-2. Confirm atomic plan claim, one workflow run, and terminal chain-event state.
-3. Run bounded fixtures for fallback, cycle rejection, and depth rejection.
-4. Decide whether the four historical pending events should be cancelled, archived, or deliberately replayed.
-5. Continue monitoring unexpected `pending`, `failed`, and `skipped` growth.
+1. Apply migration `1007_sprint69_archive_invalid_historical_chain_events.sql` through the governed migration runner and retain ledger/readback evidence.
+2. Confirm the four invalid historical events are `skipped`, none remain `pending`, and a second apply affects 0 rows.
+3. Continue monitoring unexpected `pending`, `failed`, and `skipped` growth.
+4. Treat real external-provider dispatch as a separate explicitly authorized certification boundary.
 
 ## Stop Condition
 
-Schema and authority activation are complete. Behavioral production certification remains open until a controlled dispatch and boundary fixtures produce readback evidence.
+Schema, authority activation, and controlled provider-free behavioral certification are complete. Historical invalid-event classification remains open until migration `1007` is applied and read back. Real external-provider execution was intentionally excluded.
