@@ -1882,6 +1882,8 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
         descriptors: systemLayerDescriptorReadiness(),
         secrets_included: false,
       };
+    case "system_layer_descriptor_callability_audit":
+      return runSystemLayerDescriptorCallabilityAudit();
     case "runtime_endpoint_call": {
       const guarded = derivePrincipalExecutionContext({ ...(args || {}) }, auth);
       return await callRuntimeEndpointViaFacade({
