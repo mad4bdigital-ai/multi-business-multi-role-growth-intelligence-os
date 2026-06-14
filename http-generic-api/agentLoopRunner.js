@@ -247,6 +247,15 @@ export async function runAgentLoop(plan, deps = {}) {
     : { plan_id: plan.plan_id, brand_key: plan.brand_key, workflow_key: plan.workflow_key };
   context.run_id = run_id;
   context.decision_run_id = plan.decision_run_id || plan.plan_id || run_id;
+  context.plan_id = plan.plan_id || context.plan_id || null;
+  context.tenant_id = plan.tenant_id || context.tenant_id || null;
+  context.user_id = plan.user_id || context.user_id || null;
+  context.agent_id = plan.agent_id || context.agent_id || null;
+  context.workspace_id = plan.workspace_id || context.workspace_id || null;
+  context.workspace_key = plan.workspace_key || context.workspace_key || null;
+  context.brand_key = plan.brand_key || plan.target_key || context.brand_key || null;
+  context.actor_role = plan.actor_role || plan.role_key || context.actor_role || null;
+  context.governance_level = plan.governance_level || execution_class || context.governance_level || null;
   if (context.authority_bridge?.blocker_count > 0) {
     context.authority_bridge.drift_evidence = await writeAuthorityBridgeDriftEvidence(
       { ...plan, run_id },
