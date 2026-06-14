@@ -4,16 +4,15 @@
 
 ## Summary
 
-- Triaged items: 2
-- Gate candidates: 1
-- New-gap gate: fail
-- Blocking new items: 2
+- Triaged items: 0
+- Gate candidates: 0
+- New-gap gate: pass
+- Blocking new items: 0
 
 ## Class counts
 
-- new_surface_immediate_review: 1
-- safety_marker_review: 1
+- none
 
 ## Immediate review candidates
 
-- `1004_sprint69_agent_governance_admin_tools.sql` — critical_review, score 700; next: add targeted patch-index, parity, and governance documentation
+- none
