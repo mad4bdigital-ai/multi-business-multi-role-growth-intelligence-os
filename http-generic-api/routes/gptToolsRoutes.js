@@ -23,6 +23,7 @@ import {
 } from "../capabilityResolutionEnvelopeGuard.js";
 import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBranchFastForwardToBase } from "../adminBranchReconciliationAdapter.js";
 import { runGithubSupersededBranchCleanup } from "../githubSupersededBranchCleanup.js";
+import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveReport } from "../platformCapabilityReports.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -281,6 +282,30 @@ const VIRTUAL_ADMIN_TOOLS = [
         max_entries: { type: "integer", minimum: 1, maximum: 500, default: 100 },
         max_chars: { type: "integer", minimum: 1000, maximum: 50000, default: 12000 },
       },
+    },
+  },
+  {
+    name: "platform_capability_contract_report",
+    displayName: "Platform Capability Contract Report",
+    description: "Read-only contract report. Classifies declared capability inventory, envelope, authority, evidence, certification, and debt surfaces as implemented, partial, or proposed-not-implemented. It deliberately excludes live capability/gap counts and does not verify historical numeric snapshots.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-contract-report",
+    tags: ["capability", "contract", "read_only", "no_live_metrics"],
+    inputSchema: { type: "object", additionalProperties: false },
+  },
+  {
+    name: "platform_capability_live_report",
+    displayName: "Platform Capability Live Report",
+    description: "Read-only live MySQL-primary snapshot for capability maturity, gaps, envelopes, certifications, and source resolutions. Includes observed/expires timestamps and deliberately excludes contractual or historical conclusions.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-live-report",
+    tags: ["capability", "live", "read_only", "freshness_bounded"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: { type: "integer", minimum: 1, maximum: 100, default: 25, description: "Maximum highest-priority gap rows." },
+      },
+      additionalProperties: false,
     },
   },
   {
@@ -934,6 +959,14 @@ export function buildInternalToolDispatchHeaders(req, env = process.env, options
 async function dispatchToolImpl(callerType, toolKey, args, req) {
   if (callerType === "admin" && toolKey === "repo_inspect") {
     return { status: 200, body: { ok: true, name: toolKey, result: await inspectRepoReadOnly(args) } };
+  }
+
+  if (callerType === "admin" && toolKey === "platform_capability_contract_report") {
+    return { status: 200, body: { ok: true, name: toolKey, result: await buildPlatformCapabilityContractReport(args) } };
+  }
+
+  if (callerType === "admin" && toolKey === "platform_capability_live_report") {
+    return { status: 200, body: { ok: true, name: toolKey, result: await buildPlatformCapabilityLiveReport(args) } };
   }
 
   if (callerType === "admin" && toolKey === "response_chunk_read") {
