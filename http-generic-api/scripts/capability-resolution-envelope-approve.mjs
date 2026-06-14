@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import crypto, { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
+import { assertNoSecretBearingFields } from "../capabilityEnvelopeSecretPolicy.js";
 
 function parseArgs(argv = process.argv.slice(2)) {
   const args = { envelopeId: "", approvedBy: "gpt_admin", decisionNote: "", ttlMinutes: 120 };
@@ -35,22 +36,6 @@ function safeJson(value, fallback = {}) {
 
 function sha256Json(value) {
   return crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex");
-}
-
-function assertNoSecretKeys(value, path = "root") {
-  if (Array.isArray(value)) {
-    value.forEach((item, index) => assertNoSecretKeys(item, `${path}[${index}]`));
-    return;
-  }
-  if (!value || typeof value !== "object") return;
-  for (const [key, nested] of Object.entries(value)) {
-    if (/secret|token|api[_-]?key|private[_-]?key|ciphertext|password/i.test(key) && key !== "secrets_included") {
-      const err = new Error(`Envelope approval refuses to store sensitive field at ${path}.${key}`);
-      err.code = "capability_envelope_sensitive_field_rejected";
-      throw err;
-    }
-    assertNoSecretKeys(nested, `${path}.${key}`);
-  }
 }
 
 async function loadEnvelope(pool, envelopeId) {
@@ -144,7 +129,7 @@ export async function approveCapabilityResolutionEnvelope(args = parseArgs()) {
     approval,
     secrets_included: false,
   };
-  assertNoSecretKeys(updatedEnvelope);
+  assertNoSecretBearingFields(updatedEnvelope);
   const updatedHash = sha256Json(updatedEnvelope);
   await pool.query(
     `INSERT INTO approval_holds
