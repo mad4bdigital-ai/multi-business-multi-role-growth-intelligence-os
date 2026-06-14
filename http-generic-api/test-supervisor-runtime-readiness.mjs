@@ -1,10 +1,18 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   inspectStaticSupervisorRuntimeReadiness,
   inspectLiveSupervisorSchema,
 } from "./supervisorRuntimeReadiness.js";
 
 const staticResult = inspectStaticSupervisorRuntimeReadiness();
+const readinessSource = readFileSync(new URL("./supervisorRuntimeReadiness.js", import.meta.url), "utf8");
+const cliSource = readFileSync(new URL("./scripts/supervisor-runtime-readiness.mjs", import.meta.url), "utf8");
+assert.match(readinessSource, /BINARY a\.execution_layer = BINARY tr\.execution_layer/);
+assert.match(readinessSource, /BINARY sg\.agent_id = BINARY a\.agent_id/);
+assert.match(readinessSource, /BINARY fallback\.agent_id = BINARY source\.fallback_agent_id/);
+assert.match(cliSource, /finally \{/);
+assert.match(cliSource, /await getPool\(\)\.end\(\)/);
 assert.equal(staticResult.mode, "static");
 assert.equal(staticResult.secrets_included, false);
 assert.equal(staticResult.checks.find((item) => item.id === "atomic_plan_dispatch_claim")?.ok, true);

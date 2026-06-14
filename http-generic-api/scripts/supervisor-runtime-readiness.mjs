@@ -15,4 +15,13 @@ try {
     secrets_included: false,
   }, null, 2)}\n`);
   process.exitCode = 1;
+} finally {
+  if (live) {
+    try {
+      const { getPool } = await import("../db.js");
+      await getPool().end();
+    } catch {
+      // Best-effort cleanup only; preserve the readiness result.
+    }
+  }
 }
