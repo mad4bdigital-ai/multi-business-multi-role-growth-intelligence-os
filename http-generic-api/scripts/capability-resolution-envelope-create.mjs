@@ -26,20 +26,6 @@ function safeText(value = "", max = 191) {
   return String(value || "").trim().slice(0, max);
 }
 
-function redactDangerousKeys(value) {
-  if (Array.isArray(value)) return value.map(redactDangerousKeys);
-  if (!value || typeof value !== "object") return value;
-  const out = {};
-  for (const [key, raw] of Object.entries(value)) {
-    if (/secret|token|api[_-]?key|private[_-]?key|ciphertext|credential_value|password/i.test(key) && key !== "secrets_included") {
-      out[key] = "[redacted_by_capability_envelope_ledger]";
-    } else {
-      out[key] = redactDangerousKeys(raw);
-    }
-  }
-  return out;
-}
-
 function envelopeStatus(decision = "") {
   if (decision === "ready_for_dispatch") return "ready_for_dispatch";
   if (decision === "ready_requires_approval") return "ready_requires_approval";
