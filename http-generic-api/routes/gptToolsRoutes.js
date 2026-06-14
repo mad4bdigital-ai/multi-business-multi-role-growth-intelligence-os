@@ -206,13 +206,12 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
   }
 }
 
-// Meta-operations that live in the GPT schema itself — never callable via tools/call
+// Dispatcher self-operations remain reserved to avoid recursion. Session archive
+// operations are registry-dispatchable so tool discovery and execution stay consistent.
 const RESERVED_TOOL_KEYS = new Set([
   "activation_session_context",
   "gpt_tools_list",
   "gpt_tools_call",
-  "gpt_session_turn",
-  "gpt_session_end",
 ]);
 
 const TOOLS_TABLE = {

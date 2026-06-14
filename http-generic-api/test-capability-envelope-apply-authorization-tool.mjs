@@ -30,6 +30,8 @@ for (const expected of [
   "no_credential_payload_read",
   "no_spend_change",
   "secrets_included: false",
+  "assertNoSecretBearingFields",
+  "capabilityEnvelopeSecretPolicy",
 ]) {
   assert(script.includes(expected), `apply authorization script must include ${expected}`);
 }

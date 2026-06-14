@@ -1,4 +1,5 @@
 import * as authService from './authService.js';
+import { generateDeploymentManifest } from "./scripts/generate-deployment-manifest.mjs";
 import { createLocalConnectorOrchestrator } from "./services/localConnectorOrchestrator.js";
 import { createStateManager } from "./stateManager.js";
 import { DATA_SOURCE_MODE } from "./dataSource.js";
@@ -331,6 +332,12 @@ import {
 } from "./services/intentMaturationResolver.js";
 
 const { isOAuthConfigured, inferAuthMode, normalizeAuthContract, findHostingAccountByKey, resolveAccountKeyFromBrand, resolveAccountKey, resolveSecretFromReference, isGoogleApiHost, getAdditionalStaticAuthHeaders, enforceSupportedAuthMode, pathTemplateToRegex, ensureMethodAndPathMatchEndpoint, fetchSchemaContract, resolveSchemaOperation, validateByJsonSchema, validateParameters, validateRequestBody, classifySchemaDrift, buildResolvedAuthHeaders, injectAuthIntoQuery, injectAuthIntoHeaders, injectAuthForSchemaValidation, ensureWritePermissions } = authService;
+
+try {
+  generateDeploymentManifest();
+} catch (err) {
+  console.warn(`[startup] deployment manifest generation failed: ${err.message}`);
+}
 
 // --- Runtime Guards Initialization ---
 const debugLog = createDebugLog(process.env);

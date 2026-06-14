@@ -300,6 +300,7 @@ export const testCommands = [
   "node test-routes.mjs",
   "node test-deployment-manifest.mjs",
   "node test-deployment-manifest-generator.mjs",
+  "node test-root-cause-activation-runtime-repair.mjs",
   "node test-verify-runtime-profile.mjs",
   "node test-activation-bootstrap-cache.mjs",
   "node test-activation-bootstrap-config.mjs",
