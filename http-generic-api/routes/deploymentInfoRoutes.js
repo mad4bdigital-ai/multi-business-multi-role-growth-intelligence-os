@@ -209,7 +209,7 @@ export function buildDeploymentInfoRoutes() {
       commit: commitSha,
       commit_sha: commitSha,
       commit_source: sourceFor(commitSha, [
-        ["DEPLOYMENT_COMMIT.json", deployment?.commit_sha || deployment?.commit],
+        [deploymentSource, deployment?.commit_sha || deployment?.commit],
         ["GITHUB_SHA", process.env.GITHUB_SHA],
         ["DEPLOY_COMMIT", process.env.DEPLOY_COMMIT],
         ["COMMIT_SHA", process.env.COMMIT_SHA],
