@@ -243,7 +243,14 @@ async function sinkChainEvents({ source_run_id, source_agent_id, source_workflow
 // ─── Public entry point ───────────────────────────────────────────────────────
 
 export async function routeOutput({ run_id, agent_id, tenant_id, brand_key, workflow_id, workflow_key, output }) {
-  if (!run_id || !tenant_id) return { ok: false, error: "run_id and tenant_id required" };
+  if (!run_id || !tenant_id) {
+    return {
+      ok: false,
+      error: { code: "output_sink_identity_required", message: "run_id and tenant_id are required." },
+      side_effect_confirmed_by_readback: false,
+      secrets_included: false,
+    };
+  }
 
   const [workflowResolution, agentMeta] = await Promise.all([
     resolveRuntimeWorkflow({ workflow_id, workflow_key }),
@@ -252,8 +259,10 @@ export async function routeOutput({ run_id, agent_id, tenant_id, brand_key, work
   if (!workflowResolution.ok && workflowResolution.resolution.code !== "workflow_identity_missing") {
     return {
       ok: false,
-      error: workflowResolution.resolution.code,
+      error: { code: workflowResolution.resolution.code, message: workflowResolution.resolution.message || "Workflow resolution failed." },
       resolution: workflowResolution.resolution,
+      side_effect_confirmed_by_readback: false,
+      secrets_included: false,
     };
   }
   const wfMeta = workflowResolution.ok ? workflowResolution.workflow : null;
@@ -262,51 +271,121 @@ export async function routeOutput({ run_id, agent_id, tenant_id, brand_key, work
   const artifact_type = wfMeta?.output_artifact_type || "Operational";
   const primary_output = wfMeta?.primary_output || null;
   const linked_workflows = wfMeta?.linked_workflows || null;
+  const linkedWorkflowKeys = parseLinkedWorkflowKeys(linked_workflows);
   const target_module = wfMeta?.target_module || null;
+
+  const requiredSinks = new Set(["output_artifact"]);
+  if (execution_class === "rule_based") requiredSinks.add("adaptation_record");
+  if (REPORT_TYPES.has(artifact_type)) requiredSinks.add("reporting_view");
+  if (execution_class === "authority") requiredSinks.add("audit_log");
+  if (linkedWorkflowKeys.length) requiredSinks.add("chain_event");
 
   const sinkContext = { brand_key: brand_key || null, correlation_id: run_id };
   const dispatched = [];
+  const failures = [];
+  const readbackEntries = [];
   let rulePassed = null;
+
+  async function confirmAndDispatch(sink, id, metadata = {}) {
+    const confirmed = await confirmSinkReadback(sink, id);
+    readbackEntries.push({ sink, id, confirmed, secrets_included: false });
+    if (!confirmed) {
+      const error = new Error(`Readback failed for required sink '${sink}'.`);
+      error.code = "required_sink_readback_failed";
+      throw error;
+    }
+    dispatched.push({ sink, id, ...metadata, side_effect_confirmed_by_readback: true });
+  }
 
   if (execution_class === "rule_based") {
     try {
       const { adaptation_id, passed } = await sinkAdaptationRecord({ run_id, agent_id, tenant_id, workflow_key, target_module, output, execution_class });
       rulePassed = passed;
-      dispatched.push({ sink: "adaptation_record", id: adaptation_id, passed });
+      await confirmAndDispatch("adaptation_record", adaptation_id, { passed });
       await logSink(run_id, agent_id, tenant_id, "adaptation_record", adaptation_id, "ok", null, sinkContext);
-    } catch (err) { await logSink(run_id, agent_id, tenant_id, "adaptation_record", null, "failed", err.message, sinkContext); }
+    } catch (err) {
+      failures.push(sinkFailure("adaptation_record", err));
+      await logSink(run_id, agent_id, tenant_id, "adaptation_record", null, "failed", err.message, sinkContext);
+    }
   }
 
   if (REPORT_TYPES.has(artifact_type)) {
     try {
       const view_id = await sinkReportingView({ run_id, agent_id, tenant_id, workflow_key, output, primary_output });
-      dispatched.push({ sink: "reporting_view", id: view_id });
+      await confirmAndDispatch("reporting_view", view_id);
       await logSink(run_id, agent_id, tenant_id, "reporting_view", view_id, "ok", null, sinkContext);
-    } catch (err) { await logSink(run_id, agent_id, tenant_id, "reporting_view", null, "failed", err.message, sinkContext); }
+    } catch (err) {
+      failures.push(sinkFailure("reporting_view", err));
+      await logSink(run_id, agent_id, tenant_id, "reporting_view", null, "failed", err.message, sinkContext);
+    }
   }
 
   if (execution_class === "authority") {
     try {
-      await writeAuditLog({ actor_id: agent_id || "system", actor_type: "agent", action: "agent.authority_output", resource_type: "workflow_run", resource_id: run_id, tenant_id, brand_key: brand_key || null, correlation_id: run_id, outcome: "success", metadata: { artifact_type, primary_output, requires_supervisor_review: true, agent_id, secrets_included: false } });
-      dispatched.push({ sink: "audit_log" });
-    } catch (err) { await logSink(run_id, agent_id, tenant_id, "audit_log", null, "failed", err.message, sinkContext); }
+      const audit_id = await writeAuditLog({ actor_id: agent_id || "system", actor_type: "agent", action: "agent.authority_output", resource_type: "workflow_run", resource_id: run_id, tenant_id, brand_key: brand_key || null, correlation_id: run_id, outcome: "success", metadata: { artifact_type, primary_output, requires_supervisor_review: true, agent_id, secrets_included: false } });
+      await confirmAndDispatch("audit_log", audit_id);
+      await logSink(run_id, agent_id, tenant_id, "audit_log", audit_id, "ok", null, sinkContext);
+    } catch (err) {
+      failures.push(sinkFailure("audit_log", err));
+      await logSink(run_id, agent_id, tenant_id, "audit_log", null, "failed", err.message, sinkContext);
+    }
   }
 
-  if (linked_workflows) {
+  if (linkedWorkflowKeys.length) {
     try {
-      const events = await sinkChainEvents({ source_run_id: run_id, source_agent_id: agent_id, source_workflow_key: workflow_key, linked_workflows, tenant_id, output, passed: rulePassed });
-      for (const e of events) {
-        dispatched.push({ sink: "chain_event", id: e.event_id, target: e.target_workflow_key, status: e.status, reason: e.failure_reason });
-        await logSink(run_id, agent_id, tenant_id, "chain_event", e.event_id, e.status === "skipped" ? "skipped" : "ok", e.failure_reason, sinkContext);
+      const events = await sinkChainEvents({ source_run_id: run_id, source_agent_id: agent_id, source_workflow_key: workflow_key, linked_workflows: linkedWorkflowKeys, tenant_id, output, passed: rulePassed });
+      if (!events.length) {
+        const error = new Error("Linked workflows were configured but no chain event was created.");
+        error.code = "required_chain_event_missing";
+        throw error;
       }
-    } catch (err) { await logSink(run_id, agent_id, tenant_id, "chain_event", null, "failed", err.message, sinkContext); }
+      for (const event of events) {
+        await confirmAndDispatch("chain_event", event.event_id, { target: event.target_workflow_key, status: event.status, reason: event.failure_reason });
+        await logSink(run_id, agent_id, tenant_id, "chain_event", event.event_id, event.status === "skipped" ? "skipped" : "ok", event.failure_reason, sinkContext);
+      }
+    } catch (err) {
+      failures.push(sinkFailure("chain_event", err));
+      await logSink(run_id, agent_id, tenant_id, "chain_event", null, "failed", err.message, sinkContext);
+    }
   }
 
   try {
-    const artifact_id = await sinkOutputArtifact({ run_id, agent_id, tenant_id, brand_key, workflow_key, artifact_type, primary_output, output, sink_targets: dispatched.map(d => d.sink) });
-    dispatched.unshift({ sink: "output_artifact", id: artifact_id });
+    const artifact_id = await sinkOutputArtifact({ run_id, agent_id, tenant_id, brand_key, workflow_key, artifact_type, primary_output, output, sink_targets: dispatched.map((entry) => entry.sink) });
+    const confirmed = await confirmSinkReadback("output_artifact", artifact_id);
+    readbackEntries.push({ sink: "output_artifact", id: artifact_id, confirmed, secrets_included: false });
+    if (!confirmed) {
+      const error = new Error("Readback failed for required sink 'output_artifact'.");
+      error.code = "required_sink_readback_failed";
+      throw error;
+    }
+    dispatched.unshift({ sink: "output_artifact", id: artifact_id, side_effect_confirmed_by_readback: true });
     await logSink(run_id, agent_id, tenant_id, "output_artifact", artifact_id, "ok", null, sinkContext);
-  } catch (err) { await logSink(run_id, agent_id, tenant_id, "output_artifact", null, "failed", err.message, sinkContext); }
+  } catch (err) {
+    failures.push(sinkFailure("output_artifact", err));
+    await logSink(run_id, agent_id, tenant_id, "output_artifact", null, "failed", err.message, sinkContext);
+  }
 
-  return { ok: true, run_id, execution_class, artifact_type, dispatched };
+  const missingRequiredSinks = [...requiredSinks].filter((sink) => !dispatched.some((entry) => entry.sink === sink));
+  const ok = failures.length === 0 && missingRequiredSinks.length === 0;
+  return {
+    ok,
+    run_id,
+    execution_class,
+    artifact_type,
+    required_sinks: [...requiredSinks],
+    dispatched,
+    failed_sinks: failures,
+    missing_required_sinks: missingRequiredSinks,
+    readback: {
+      confirmed: ok,
+      entries: readbackEntries,
+      secrets_included: false,
+    },
+    side_effect_confirmed_by_readback: ok,
+    error: ok ? undefined : {
+      code: "required_output_sink_failed",
+      message: "One or more required output sinks failed or could not be verified by readback.",
+    },
+    secrets_included: false,
+  };
 }
