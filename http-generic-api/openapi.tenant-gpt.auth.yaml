@@ -247,7 +247,7 @@ paths:
             - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: listTools
       summary: List MCP-style system tools visible to the current principal
-      description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context.
+      description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read befo.
       responses:
         "200":
           description: System layer tools
@@ -287,7 +287,7 @@ paths:
       operationId: callTool
       x-openai-isConsequential: false
       summary: Call a governed MCP-style system tool
-      description: Calls a fixed system-layer tool through principal-aware runtime validation. Tenant principals are scoped to their tenant; admin principals can inspect all connector registry records and run provider-bootstrap probes.
+      description: Calls a fixed system-layer tool through principal-aware runtime validation. Tenant principals are scoped to their tenant; admin principals can inspect all connector registry records and run provider-bootstrap probes. Oversized results return a chunk continuation envelope with response_chunked=true,.
       requestBody:
         required: true
         content:
@@ -300,8 +300,8 @@ paths:
               properties:
                 name:
                   type: string
-                  pattern: "^[a-z][a-z0-9_:-]{1,128}$"
-                  description: Runtime tool key returned by listTools. The server validates registration, scope, policy, capability envelope, and input schema at execution time.
+                  pattern: ^[a-z][a-z0-9_:-]{1,128}$
+                  description: Tool key returned by listTools; runtime validates registration, tenant scope, and arguments before dispatch.
                 tool_args:
                   type: object
                   additionalProperties: true
