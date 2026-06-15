@@ -90,6 +90,8 @@ npm run supervisor:certify:live
 
 The live certification uses controlled database fixtures inside a transaction and rolls them back. Confirm persistent fixture plans/events/runs are all zero and provider calls are zero before accepting `behaviorally_certified`.
 
+For a bounded causal provider-lane certification, use the admin-only governed `supervisor_causal_provider_certification` tool through `https://auth.mad4b.com` after list-before-call discovery. The tool requires the exact typed confirmation `CERTIFY_SUPERVISOR_CAUSAL_PROVIDER_LANE`, creates a synthetic certification plan and linked workflow run, permits one bounded provider dispatch, and permits zero tools, local execution, repository mutation, or secret return. Accept the result only after durable readback proves the same correlation identifier and completed terminal states across the plan, workflow run, and execution log.
+
 Monitor:
 
 - active routed agents missing `logic.evaluate_pack` grants;
@@ -102,3 +104,5 @@ Monitor:
 Do not automatically process historical pending chain events. Confirm tenant, workflow, intent, and replay authority first. Events with unresolved workflow identity must be classified, not replayed. The current production checkpoint is recorded in `execution-log-supervisor-production-activation-2026-06-15.md`.
 
 At the 2026-06-15 checkpoint, migration `1007_sprint69_archive_invalid_historical_chain_events.sql` classified 4 unresolved historical events as `skipped`; total pending chain events read back as 0, and the idempotency apply affected 0 rows.
+
+The 2026-06-15 causal provider-lane checkpoint completed with `execution_log.id=15056`. It proves the governed no-tool plan-to-workflow-run-to-provider path only; it does not authorize unrestricted parallel or tenant-mutating execution.

@@ -18,6 +18,8 @@ assert.match(script, /--timeout-ms/);
 assert.match(script, /openrouter_live_smoke_timeout/);
 assert.match(script, /getPool\(\)\.end\(\)\.catch/);
 assert.match(script, /secrets_included: false/);
+assert.match(script, /fileURLToPath\(import\.meta\.url\)/);
+assert.match(script, /path\.resolve\(process\.argv\[1\]\)/);
 assert.match(script, /secrets_returned_to_agent = 0/);
 assert.doesNotMatch(script, /console\.log\(apiKey|process\.stdout.*apiKey/s);
 assert.doesNotMatch(script, /OPENROUTER_API_KEY\s*[:=]\s*[A-Za-z0-9_\-]{8,}/i);

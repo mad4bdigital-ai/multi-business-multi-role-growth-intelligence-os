@@ -74,3 +74,13 @@ The live schema check proves presence, not behavioral correctness. `npm run supe
   - checksum: `fef025a08080c79caa4f83107b04e6c45f5f842e011469fe9c3b77d02cf0608f`.
 
 The original activation warning remains historically accurate: no real supervisor workflow dispatch was observed in the preceding 48 hours. The four historical events contained an unresolved semicolon-delimited composite workflow identity and had no replay authority. They were classified, never replayed. This checkpoint claims controlled, provider-free behavioral certification, not real provider execution. See `execution-log-supervisor-production-activation-2026-06-15.md`.
+
+## Provider-Lane Checkpoint - 2026-06-15
+
+The governed OpenRouter/OpenClaude provider lane was certified through `auth.mad4b.com` after list-before-call discovery. A bounded OpenRouter smoke returned `OK`, and a bounded OpenClaude bridge live dispatch returned `SUPERVISOR_PROVIDER_OK`.
+
+The provider-lane checkpoint made no tool calls, local execution, repository mutation, or secret return.
+
+A subsequent bounded causal certification created and completed one synthetic supervisor execution plan and its linked workflow run, then received the exact provider response `SUPERVISOR_CAUSAL_PROVIDER_OK`. Production readback confirmed the shared trace/correlation across plan, workflow run, and `execution_log.id=15056`, with `execution_ready_status=causal_provider_certified`.
+
+This proves the governed no-tool plan-to-workflow-run-to-provider path. It does not activate unrestricted parallel execution or remove per-action authority, approval, capability-envelope, budget, tenant-scope, or mutation controls. See `execution-log-supervisor-provider-certification-2026-06-15.md`.
