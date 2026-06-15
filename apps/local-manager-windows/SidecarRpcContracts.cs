@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Mad4B.LocalManager.Windows;
 
@@ -129,24 +130,24 @@ internal enum RiskClass
 }
 
 internal sealed record SidecarOperationPolicy(
-    RiskClass RiskClass,
-    string? RequiredApprovalField,
-    bool RequiresFreshApproval);
+    [property: JsonPropertyName("risk_class")] RiskClass RiskClass,
+    [property: JsonPropertyName("required_approval_field")] string? RequiredApprovalField,
+    [property: JsonPropertyName("requires_fresh_approval")] bool RequiresFreshApproval);
 
 internal sealed record SidecarRpcRequest(
-    int ProtocolVersion,
-    string RequestId,
-    string Operation,
-    JsonElement Arguments);
+    [property: JsonPropertyName("protocol_version")] int ProtocolVersion,
+    [property: JsonPropertyName("request_id")] string RequestId,
+    [property: JsonPropertyName("operation")] string Operation,
+    [property: JsonPropertyName("arguments")] JsonElement Arguments);
 
 internal sealed record SidecarRpcResponse(
-    int ProtocolVersion,
-    string RequestId,
-    bool Ok,
-    bool Accepted,
-    SidecarOperationPolicy? Policy,
-    SidecarRpcError? Error,
-    bool SecretsIncluded)
+    [property: JsonPropertyName("protocol_version")] int ProtocolVersion,
+    [property: JsonPropertyName("request_id")] string RequestId,
+    [property: JsonPropertyName("ok")] bool Ok,
+    [property: JsonPropertyName("accepted")] bool Accepted,
+    [property: JsonPropertyName("policy")] SidecarOperationPolicy? Policy,
+    [property: JsonPropertyName("error")] SidecarRpcError? Error,
+    [property: JsonPropertyName("secrets_included")] bool SecretsIncluded)
 {
     internal static SidecarRpcResponse Allow(string requestId, SidecarOperationPolicy policy) =>
         new(SidecarRpcContracts.ProtocolVersion, requestId, true, true, policy, null, false);
@@ -162,4 +163,6 @@ internal sealed record SidecarRpcResponse(
             false);
 }
 
-internal sealed record SidecarRpcError(string Code, string Message);
+internal sealed record SidecarRpcError(
+    [property: JsonPropertyName("code")] string Code,
+    [property: JsonPropertyName("message")] string Message);

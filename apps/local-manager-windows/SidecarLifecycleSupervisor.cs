@@ -6,16 +6,17 @@ internal sealed class SidecarLifecycleSupervisor : IAsyncDisposable
 {
     private static readonly TimeSpan RestartDelay = TimeSpan.FromSeconds(2);
 
-    private readonly SidecarRpcServer _server;
+    private readonly ISidecarRpcServer _server;
     private readonly Func<SidecarRpcRequest, CancellationToken, Task<JsonElement>> _dispatch;
     private readonly CancellationTokenSource _lifetime = new();
     private Task? _runTask;
     private DateTimeOffset? _startedAt;
     private DateTimeOffset? _lastFailureAt;
     private int _restartCount;
+    private bool _disposed;
 
     internal SidecarLifecycleSupervisor(
-        SidecarRpcServer server,
+        ISidecarRpcServer server,
         Func<SidecarRpcRequest, CancellationToken, Task<JsonElement>> dispatch)
     {
         _server = server;
@@ -24,6 +25,7 @@ internal sealed class SidecarLifecycleSupervisor : IAsyncDisposable
 
     internal void Start()
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (_runTask is not null)
         {
             throw new InvalidOperationException("The sidecar lifecycle supervisor is already started.");
@@ -43,6 +45,8 @@ internal sealed class SidecarLifecycleSupervisor : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (_disposed) return;
+        _disposed = true;
         _lifetime.Cancel();
         if (_runTask is not null)
         {

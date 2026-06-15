@@ -58,6 +58,18 @@ assert.match(contracts, /"connector_secret"/);
 assert.match(contracts, /"signed_installer_url"/);
 assert.match(contracts, /bool SecretsIncluded/);
 assert.match(contracts, /new\(SidecarRpcContracts\.ProtocolVersion[\s\S]*false\);/);
+for (const jsonField of [
+  "protocol_version",
+  "request_id",
+  "operation",
+  "arguments",
+  "risk_class",
+  "required_approval_field",
+  "requires_fresh_approval",
+  "secrets_included",
+]) {
+  assert.match(contracts, new RegExp(`JsonPropertyName\\("${jsonField}"\\)`));
+}
 
 for (const forbiddenOperation of [
   "shell.execute",

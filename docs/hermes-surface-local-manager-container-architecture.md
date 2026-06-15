@@ -230,9 +230,12 @@ endpoint.
 `apps/local-manager-windows/SidecarLifecycleSupervisor.cs` provides a bounded
 restart and shutdown lifecycle around the named-pipe server. The server drops
 stalled clients after 30 seconds and continues accepting after malformed or
-disconnected clients. The lifecycle supervisor is implemented but remains
-intentionally unattached to `Program.cs` until a live named-pipe exchange,
-shutdown, and restart certification exists.
+disconnected clients. The live named-pipe certification in
+`apps/local-manager-sidecar-certification` proves success, approval rejection,
+stalled-client timeout recovery, supervisor restart, and shutdown. After this
+certification, `Program.cs` starts the supervisor with the read-only dispatcher
+for the lifetime of the WinForms recovery shell and shuts it down when the shell
+exits. Mutation operations remain unattached and are rejected by the dispatcher.
 
 The MAD4B shell and embedded Hermes workspace call a narrow `mad4bDesktop`
 context bridge. The desktop main process validates input and forwards typed

@@ -5,24 +5,40 @@ using System.Text.Json.Serialization;
 
 namespace Mad4B.LocalManager.Windows;
 
-internal sealed class SidecarRpcServer
+internal interface ISidecarRpcServer
+{
+    Task RunAsync(
+        Func<SidecarRpcRequest, CancellationToken, Task<JsonElement>> dispatch,
+        CancellationToken cancellationToken);
+}
+
+internal sealed class SidecarRpcServer : ISidecarRpcServer
 {
     private const int MaxRequestBytes = 256 * 1024;
-    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
+    private readonly string _pipeName;
+    private readonly TimeSpan _requestTimeout;
 
     private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web)
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    internal async Task RunAsync(
+    internal SidecarRpcServer(
+        string? pipeName = null,
+        TimeSpan? requestTimeout = null)
+    {
+        _pipeName = string.IsNullOrWhiteSpace(pipeName) ? SidecarRpcContracts.PipeName : pipeName;
+        _requestTimeout = requestTimeout ?? TimeSpan.FromSeconds(30);
+    }
+
+    public async Task RunAsync(
         Func<SidecarRpcRequest, CancellationToken, Task<JsonElement>> dispatch,
         CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
             await using var pipe = new NamedPipeServerStream(
-                SidecarRpcContracts.PipeName,
+                _pipeName,
                 PipeDirection.InOut,
                 1,
                 PipeTransmissionMode.Byte,
@@ -30,7 +46,7 @@ internal sealed class SidecarRpcServer
 
             await pipe.WaitForConnectionAsync(cancellationToken);
             using var requestTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            requestTimeout.CancelAfter(RequestTimeout);
+            requestTimeout.CancelAfter(_requestTimeout);
             try
             {
                 await HandleConnectionAsync(pipe, dispatch, requestTimeout.Token);

@@ -158,6 +158,7 @@ export const testCommands = [
   "node test-local-manager-capability-verifier-and-sidecar-dispatcher.mjs",
   "node test-local-manager-runtime-readback-boundary.mjs",
   "node test-local-manager-sidecar-lifecycle-supervision.mjs",
+  "dotnet run --project ../apps/local-manager-sidecar-certification/Mad4B.LocalManager.SidecarCertification.csproj",
   "node test-platform-plugin-catalog.mjs",
   "node test-platform-plugin-resolver.mjs",
   "node test-platform-plugin-policy.mjs",

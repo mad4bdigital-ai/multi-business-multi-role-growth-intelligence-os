@@ -47,11 +47,31 @@ internal static class Program
                 return;
             }
 
-            Application.Run(new MainForm());
+            RunMainFormWithSidecar();
             return;
         }
 
-        Application.Run(new MainForm());
+        RunMainFormWithSidecar();
+    }
+
+    private static void RunMainFormWithSidecar()
+    {
+        var deviceIdentityStore = new DeviceIdentityStore();
+        var deviceControlClient = new DeviceControlClient(BaseUrl);
+        var capabilityVerifier = new ConnectorCapabilityVerifier(deviceControlClient);
+        var runtimeClient = new LocalRuntimeClient(BaseUrl);
+        var dispatcher = new SidecarReadOnlyDispatcher(deviceIdentityStore, capabilityVerifier, runtimeClient);
+        var supervisor = new SidecarLifecycleSupervisor(new SidecarRpcServer(), dispatcher.DispatchAsync);
+        supervisor.Start();
+
+        try
+        {
+            Application.Run(new MainForm());
+        }
+        finally
+        {
+            supervisor.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
     }
 
     private static string ProgramInstallRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mad4B", "LocalManager");
