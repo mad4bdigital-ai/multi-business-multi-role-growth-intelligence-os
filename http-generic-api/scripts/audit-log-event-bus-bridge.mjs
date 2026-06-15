@@ -149,7 +149,8 @@ export async function runAuditLogEventBusBridge(options = {}, dependencies = {})
     lockAcquired = Number(lockRows?.[0]?.acquired || 0) === 1;
     if (!lockAcquired) return { ok: true, mode: normalized.apply ? "apply" : "dry_run", skipped: true, reason: "bridge_lock_busy", inserted_count: 0, remaining_count: null, secrets_included: false };
 
-    const rows = await loadRows(connection, normalized);
+    const cursorId = await readCursor(connection, normalized.sinceId);
+    const rows = await loadRows(connection, { ...normalized, sinceId: cursorId });
     const base = {
       ok: true,
       mode: normalized.apply ? "apply" : "dry_run",
