@@ -394,3 +394,22 @@ The response budget must be applied in semantic layers: attention rows, freshnes
 Snapshot preparation must be persisted before delivery. Successful transport updates the snapshot to delivered. Consumer acknowledgement is a separate explicit transition. A response must not claim acknowledged merely because HTTP delivery completed.
 
 Tenant detail reads must derive tenant and user scope from signed JWT membership, enforce object-level scope, and ignore client-supplied identity overrides. Admin detail reads may span authorized workspaces and Brands, but must preserve explicit subject scope and secret-field stripping.
+
+Tenant Growth Dashboard Activation Rule
+
+When Session Context is requested by a non-admin Tenant GPT principal with a valid signed user JWT, activation must attach a bounded customer-facing growth product overlay when its runtime dependencies are available. The overlay must resolve, in order:
+
+1. active tenant, workspace, and linked Brand container
+2. `business_activity_type_registry` compatibility and business type
+3. Brand Core readiness when the resolved activity or requested output requires it
+4. growth stage, primary goal, and available connected-data coverage
+5. relevant customer-facing Dynamic Tabs, starting with `tenant_today`
+6. typed cards with freshness, provenance, confidence, and partial-data state
+7. no more than three next-best actions with impact, effort, confidence, readiness, and confirmation state
+8. customer-safe assistant instructions, quick commands, and governed drill-down references
+
+The default activation response must include navigation and guidance, not complete operational row hydration. The product overlay must remain within the activation response budget; larger card lists, historical rows, connector records, and section data must resolve through `/tenant/dashboard`, tab reads, or cursor-based Dynamic Tab detail surfaces. Missing data must be represented as unavailable, stale, partial, or not connected and must never be converted to a numeric zero unless zero is an observed value.
+
+Tenant product guidance is advisory by default. Read-only, advisory, and draft-only actions may return previews. Provider calls, publishing, budget changes, external sends, destructive changes, and other consequential writes remain blocked until route/workflow authority, capability readiness, credential resolution, Brand Core where required, object-level tenant scope, approval policy, and explicit confirmation all validate in the same execution cycle.
+
+The product activation overlay must preserve lifecycle separation. Building guidance may advance `evidence_state`; serializing the bounded response may advance `delivery_state=prepared`; successful transport may advance `delivery_state=delivered`; neither state implies `consumer_ack_state=acknowledged`. A degraded product overlay must not invalidate otherwise valid Session Context evidence, but its degraded surfaces and missing dependencies must remain explicit.
