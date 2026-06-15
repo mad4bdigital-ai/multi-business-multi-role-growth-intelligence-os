@@ -58,6 +58,7 @@ import {
 import {
   executeHostingerSshDeployRelease,
   executeHostingerSshTargetProbe,
+  readHostingerSshDeployRunStatus,
 } from "../hostingerSshDeployExecutor.js";
 import {
   certifyPlatformPluginContribution,
@@ -385,8 +386,15 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
         ...input,
         dry_run: input.dry_run === undefined ? true : input.dry_run,
       });
-      return res.status(result.ok ? 200 : 502).json(result);
+      return res.status(result.http_status || (result.ok ? 200 : 502)).json(result);
     } catch (err) { return errorResponse(res, err, "remote_runtime_hosting_deploy_release_failed"); }
+  });
+
+  router.get("/platform/remote-runtime/hosting/deploy-runs/:deploymentRunId", ...requireAdmin, async (req, res) => {
+    try {
+      const result = await readHostingerSshDeployRunStatus({ deployment_run_id: req.params.deploymentRunId });
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "remote_runtime_hosting_deploy_run_read_failed"); }
   });
 
   router.post("/platform/remote-runtime/local-path/execute-readonly", ...requireAdmin, async (req, res) => {
