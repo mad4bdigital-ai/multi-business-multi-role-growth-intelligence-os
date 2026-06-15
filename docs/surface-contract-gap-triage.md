@@ -4,17 +4,18 @@
 
 ## Summary
 
-- Triaged items: 3
-- Gate candidates: 2
+- Triaged items: 4
+- Gate candidates: 3
 - New-gap gate: fail
-- Blocking new items: 2
+- Blocking new items: 3
 
 ## Class counts
 
-- new_surface_immediate_review: 2
+- new_surface_immediate_review: 3
 - safety_marker_review: 1
 
 ## Immediate review candidates
 
 - `1009_sprint69_optional_manual_agent_delegation_tools.sql` — critical_review, score 712; next: add targeted patch-index, parity, and governance documentation
 - `1008_sprint69_supervisor_causal_provider_certification_tool.sql` — high_review, score 688; next: add targeted patch-index, parity, and governance documentation
+- `1010_sprint69_disable_legacy_agent_chain_dispatch_tool.sql` — high_review, score 507; next: add targeted patch-index, parity, and governance documentation
