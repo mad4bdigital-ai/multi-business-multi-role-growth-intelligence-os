@@ -314,6 +314,11 @@ function applyResponseBudget(body, config) {
     deferred.push("dynamic_tabs_manifest.inline_section_arrays");
     projectionSteps.push("move_sections_to_global_index");
   }
+  if (byteLength(output) > config.hard_bytes && output.dynamic_tabs_manifest) {
+    output.dynamic_tabs_manifest = navigationOnlyTabManifest(output.dynamic_tabs_manifest);
+    deferred.push("dynamic_tabs_manifest.non_active_container_tabs");
+    projectionSteps.push("project_active_container_navigation_and_container_index");
+  }
   if (byteLength(output) > config.hard_bytes && output.selected_detail) {
     output.selected_detail = {
       deferred: true,
