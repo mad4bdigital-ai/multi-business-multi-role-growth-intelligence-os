@@ -1,10 +1,10 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 99.05,
-  "docs_complete_count": 419,
+  "docs_completion_percent": 99.06,
+  "docs_complete_count": 420,
   "docs_gap_count": 4,
-  "queue_items": 4,
+  "queue_items": 5,
   "blocking_new_item_count": 3,
   "gate_ok": false,
   "top_actionable": [
