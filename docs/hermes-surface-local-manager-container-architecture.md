@@ -184,6 +184,12 @@ now uses that component for DPAPI CurrentUser token save, load, status, and
 deletion behavior. This keeps the existing recovery UI working while moving
 device identity authority behind a reusable sidecar-owned boundary.
 
+Device pairing start/poll and device-session transport are extracted into
+`apps/local-manager-windows/DeviceLinkClient.cs`. WinForms still owns browser
+launch, progress, recovery messages, and the explicit handoff of an approved
+device token to `DeviceIdentityStore`; the transport client neither persists
+credentials nor exposes a generic request surface.
+
 The MAD4B shell and embedded Hermes workspace call a narrow `mad4bDesktop`
 context bridge. The desktop main process validates input and forwards typed
 requests to the sidecar.

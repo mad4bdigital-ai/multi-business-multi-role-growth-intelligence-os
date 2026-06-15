@@ -23,9 +23,6 @@ internal static class Program
     private const string RoutesUrl = BaseUrl + "/app/local-manager/routes?source=windows-app";
     private const string BackupsUrl = BaseUrl + "/app/local-manager/backups?source=windows-app";
     private const string SettingsUrl = BaseUrl + "/app/local-manager/settings?source=windows-app";
-    private const string DeviceLinkStartUrl = BaseUrl + "/local-manager/device-link/start";
-    private const string DeviceLinkPollUrl = BaseUrl + "/local-manager/device-link/poll";
-    private const string DeviceSessionUrl = BaseUrl + "/local-manager/device/session";
     private const string DeviceControlsUrl = BaseUrl + "/local-manager/device/controls";
     private const string DeviceRepairInstallerUrl = BaseUrl + "/local-connector/install/device-download-link"; private const string DesktopCommandsUrl = BaseUrl + "/local-manager/device/desktop-commands";
     private const string N8nPublicUrl = "";
@@ -150,6 +147,7 @@ internal static class Program
         private readonly TextBox _output;
         private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
         private readonly DeviceIdentityStore _deviceIdentityStore = new();
+        private readonly DeviceLinkClient _deviceLinkClient = new(BaseUrl);
 
         public MainForm()
         {
@@ -342,22 +340,17 @@ internal static class Program
                 _status.Text = "Creating pairing code…";
                 _pairingCode.Text = "Pairing code: creating…";
                 _output.Text = "Waiting for pairing code…";
-                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                var payload = new
-                {
-                    device_id = Environment.MachineName,
-                    hostname = Environment.MachineName,
-                    platform = "windows",
-                    app_version = Application.ProductVersion
-                };
-                using var response = await client.PostAsync(DeviceLinkStartUrl, JsonContent(payload));
-                var text = await response.Content.ReadAsStringAsync();
-                var start = JsonSerializer.Deserialize<DeviceLinkStartResponse>(text, _json);
+                var response = await _deviceLinkClient.StartAsync(
+                    Environment.MachineName,
+                    Environment.MachineName,
+                    "windows",
+                    Application.ProductVersion);
+                var start = response.Payload;
                 if (!response.IsSuccessStatusCode || start?.Ok != true || string.IsNullOrWhiteSpace(start.UserCode) || string.IsNullOrWhiteSpace(start.PollToken))
                 {
                     _status.Text = "Could not create pairing code: " + (start?.Error?.Message ?? response.ReasonPhrase ?? "unknown error");
                     _pairingCode.Text = "Pairing code: failed";
-                    _output.Text = text;
+                    _output.Text = response.RawText;
                     return;
                 }
 
@@ -378,17 +371,14 @@ internal static class Program
 
         private async Task PollDeviceLinkAsync(string code, string pollToken, int intervalSeconds)
         {
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
             var started = DateTimeOffset.UtcNow;
             while (DateTimeOffset.UtcNow - started < TimeSpan.FromMinutes(10))
             {
                 await Task.Delay(TimeSpan.FromSeconds(intervalSeconds));
                 _status.Text = "Waiting for approval in browser…";
                 _progress.Value = Math.Min(90, _progress.Value + 5);
-                var payload = new { device_code = code, poll_token = pollToken };
-                using var response = await client.PostAsync(DeviceLinkPollUrl, JsonContent(payload));
-                var text = await response.Content.ReadAsStringAsync();
-                var poll = JsonSerializer.Deserialize<DeviceLinkPollResponse>(text, _json);
+                var response = await _deviceLinkClient.PollAsync(code, pollToken);
+                var poll = response.Payload;
                 if ((int)response.StatusCode == 202 || string.Equals(poll?.Status, "pending", StringComparison.OrdinalIgnoreCase)) continue;
                 if (response.IsSuccessStatusCode && poll?.Ok == true && !string.IsNullOrWhiteSpace(poll.DeviceAccessToken))
                 {
@@ -407,7 +397,7 @@ internal static class Program
                 }
 
                 _status.Text = "Pairing stopped: " + (poll?.Error?.Message ?? poll?.Status ?? response.ReasonPhrase ?? "unknown status");
-                _output.Text = text;
+                _output.Text = response.RawText;
                 return;
             }
             _status.Text = "Pairing timed out.\nStart a new code to try again.";
@@ -421,7 +411,17 @@ internal static class Program
                 _output.Text = "No linked device token.\r\nUse 'Link this device' first.";
                 return;
             }
-            await CallDeviceApiAsync(DeviceSessionUrl, token, "Device session");
+            try
+            {
+                _status.Text = "Loading Device session using DPAPI-protected device token…";
+                var response = await _deviceLinkClient.GetSessionAsync(token);
+                _status.Text = response.IsSuccessStatusCode ? "Device session loaded." : "Device session failed: " + response.StatusCode;
+                _output.Text = response.RawText;
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "Device session failed: " + ex.Message;
+            }
         }
 
         private async Task LoadDeviceControlsAsync(string section, string fallbackUrl)
@@ -1577,39 +1577,6 @@ internal static class Program
         [JsonPropertyName("current_version")] public string? CurrentVersion { get; set; }
         [JsonPropertyName("update_available")] public bool? UpdateAvailable { get; set; }
         [JsonPropertyName("release_notes")] public string[]? ReleaseNotes { get; set; }
-    }
-
-    private sealed class DeviceLinkError
-    {
-        [JsonPropertyName("code")] public string? Code { get; set; }
-        [JsonPropertyName("message")] public string? Message { get; set; }
-    }
-
-    private sealed class DeviceLinkStartResponse
-    {
-        [JsonPropertyName("ok")] public bool Ok { get; set; }
-        [JsonPropertyName("device_code")] public string? DeviceCode { get; set; }
-        [JsonPropertyName("user_code")] public string? UserCode { get; set; }
-        [JsonPropertyName("verification_uri")] public string? VerificationUri { get; set; }
-        [JsonPropertyName("verification_uri_complete")] public string? VerificationUriComplete { get; set; }
-        [JsonPropertyName("poll_token")] public string? PollToken { get; set; }
-        [JsonPropertyName("interval")] public int Interval { get; set; } = 3;
-        [JsonPropertyName("expires_in")] public int ExpiresIn { get; set; }
-        [JsonPropertyName("error")] public DeviceLinkError? Error { get; set; }
-    }
-
-    private sealed class DeviceLinkPollResponse
-    {
-        [JsonPropertyName("ok")] public bool Ok { get; set; }
-        [JsonPropertyName("status")] public string? Status { get; set; }
-        [JsonPropertyName("device_access_token")] public string? DeviceAccessToken { get; set; }
-        [JsonPropertyName("device")] public DeviceLinkDevice? Device { get; set; }
-        [JsonPropertyName("error")] public DeviceLinkError? Error { get; set; }
-    }
-
-    private sealed class DeviceLinkDevice
-    {
-        [JsonPropertyName("device_id")] public string? DeviceId { get; set; }
     }
 
     private sealed class DeviceInstallerLinkResponse
