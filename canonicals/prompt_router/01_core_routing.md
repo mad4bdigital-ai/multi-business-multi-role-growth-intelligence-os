@@ -111,6 +111,13 @@ The hardened activation routing wrapper is active:
   - `session_context_raw_dump_allowed = bounded_when_requested`
   - `platform_access_endpoint = /activation/platform-access`
   - `platform_access_counts = brands_plugins_logics_engines_actions`
+  - `tenant_product_guidance_required = true` for signed non-admin Tenant GPT principals when the product layer is available
+  - `tenant_product_guidance_default_profile = evidence`
+  - `tenant_product_dashboard_endpoint = /tenant/dashboard`
+  - `tenant_product_start_tab = tenant_today`
+  - `tenant_product_action_limit = 3`
+  - `tenant_product_missing_data_is_not_zero = true`
+  - `tenant_product_write_actions_require_governed_confirmation = true`
   - `provider_bootstrap_sequence_required = drive_then_sheets_bootstrap_then_github`
   - project-folder-scoped Google Drive discovery through folder `1gNYX47P4TNuMXEbWvLNCvV4XRocH41K2` when fallback discovery or canonical lookup is needed
 - `system_activation_check` must remain reserved for explicit readiness-check phrasing and must not be preferred for plain `Activate System` when one-request activation is intended
