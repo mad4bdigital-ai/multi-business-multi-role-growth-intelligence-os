@@ -495,8 +495,20 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
     ),
   ];
   const attentionResults = await Promise.all(attentionQueries);
-  for (const result of attentionResults) {
-    for (const row of result.rows) attentionItems.push(stripSensitive(row));
+  attentionItems.length = 0;
+  for (const item of unifiedAttention?.final_result || []) {
+    attentionItems.push({
+      source: item.source_type,
+      item_id: item.alert_id || item.alert_key,
+      alert_key: item.alert_key,
+      severity: item.severity,
+      title: item.title,
+      lifecycle_status: item.lifecycle_status,
+      verification_state: item.verification_state,
+      evidence_ref: item.evidence_ref,
+      updated_at: item.last_seen_at,
+      secrets_included: false,
+    });
   }
   const severityWeight = { critical: 4, high: 3, medium: 2, low: 1 };
   attentionItems.sort((a, b) => safeNumber(severityWeight[b.severity]) - safeNumber(severityWeight[a.severity]));
@@ -504,7 +516,10 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
   const degraded = [systems, tasks, agents, skills, freshness, signals, actionCount, packCount, subscriptionCount, ...attentionResults]
     .filter((result) => result?.ok === false)
     .map((result) => result.error);
-  const totalAttention = Object.values(attentionBySource).reduce((sum, value) => sum + safeNumber(value), 0);
+  for (const source of unifiedAttention?.source_health || []) {
+    if (!source.ok) degraded.push(source.error);
+  }
+  const totalAttention = safeNumber(unifiedAttention?.summary?.total_count);
   const freshTotal = Object.values(freshnessCounts).reduce((sum, value) => sum + safeNumber(value), 0);
   const freshnessStatus = safeNumber(freshnessCounts.failed) > 0
     ? "failed"
