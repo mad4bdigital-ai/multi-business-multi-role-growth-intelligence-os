@@ -3,6 +3,7 @@ import { buildStatusRoutes } from "./statusRoutes.js";
 import { buildActivationRoutes } from "./activationRoutes.js";
 import { buildActivationHardRunRoutes } from "./activationHardRunRoutes.js";
 import { buildActivationAwarenessRoutes } from "./activationAwarenessRoutes.js";
+import { buildTenantGrowthDashboardRoutes } from "./tenantGrowthDashboardRoutes.js";
 import { buildMcpRoutes } from "./mcpRoutes.js";
 import { buildGovernanceRoutes } from "./governanceRoutes.js";
 import { buildJobRoutes } from "./jobRoutes.js";
