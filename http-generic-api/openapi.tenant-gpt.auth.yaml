@@ -9,7 +9,9 @@ servers:
     description: Mad4B platform auth subdomain
 tags:
   - name: activation
-    description: Once-per-session activation probes, session history, and scope context.
+    description: Once-per-session activation probes, session history, scope context, and customer growth guidance.
+  - name: growth-dashboard
+    description: Tenant-facing mobile-friendly growth cockpit, typed cards, next-best actions, preferences, digests, and feedback.
   - name: system-layer
     description: MCP-style governed system layer backed by connector registries, principal context, and runtime validation.
   - name: platform-plugins
