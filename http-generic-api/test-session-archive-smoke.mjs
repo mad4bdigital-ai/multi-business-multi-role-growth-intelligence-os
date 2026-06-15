@@ -188,10 +188,11 @@ function makeDriveDeps() {
   const pool = makePool();
   const drive = makeDriveDeps();
   let activationReq = null;
+  const requestedUserId = "platform_admin_surface_recovery_smoke_debug";
   const result = await runSessionArchiveSmoke({
     pool,
     tenantId: "tenant-1",
-    userId: "smoke-user",
+    userId: requestedUserId,
     injectedArchiveDeps: drive.deps,
     fetchDriveContentFn: drive.fetchDriveContent,
     deleteDriveFileFn: drive.deleteDriveFile,
