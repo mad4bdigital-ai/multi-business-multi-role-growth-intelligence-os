@@ -178,7 +178,17 @@ export async function runAuditLogEventBusBridge(options = {}, dependencies = {})
     }
 
     const inserted = await insertRows(connection, rows);
-    return { ...base, inserted_count: inserted, remaining_count: await countRemaining(connection), reason: "audit_log_events_mirrored" };
+    const nextCursorId = rows.length
+      ? Math.max(...rows.map((row) => Number(row.id || cursorId)))
+      : cursorId;
+    if (nextCursorId > cursorId) await writeCursor(connection, nextCursorId);
+    return {
+      ...base,
+      inserted_count: inserted,
+      cursor_id: nextCursorId,
+      remaining_count: await countRemaining(connection, nextCursorId),
+      reason: "audit_log_events_mirrored",
+    };
   } finally {
     if (lockAcquired) await connection.query("SELECT RELEASE_LOCK(?) AS released", [LOCK_NAME]).catch(() => {});
     connection.release();
