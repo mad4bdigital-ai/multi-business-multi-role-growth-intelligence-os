@@ -27,6 +27,13 @@ function boundedInteger(value, fallback, min, max) {
   return Math.max(min, Math.min(max, Math.trunc(parsed)));
 }
 
+function registryList(value) {
+  return text(value)
+    .split(/[;|,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function fail(code, message, status = 400) {
   const error = new Error(message);
   error.code = code;
