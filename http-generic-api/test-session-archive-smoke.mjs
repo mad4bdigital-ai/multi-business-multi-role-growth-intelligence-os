@@ -28,7 +28,7 @@ function makePool() {
         state.session = {
           session_id: params[0],
           tenant_id: params[1],
-          user_id: params[2],
+          user_id: String(params[2] || "").slice(0, 36),
           originator: params[3] || "gpt_action_smoke",
           session_status: "open",
           started_at: new Date("2026-05-16T10:00:00.000Z"),
