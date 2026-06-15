@@ -178,6 +178,12 @@ successful result envelopes for forbidden secret-like fields, and redacts
 sensitive failure text. It is not started by the WinForms application yet and
 has no privileged operation dispatcher in this phase.
 
+The first shared-core extraction is implemented in
+`apps/local-manager-windows/DeviceIdentityStore.cs`. The legacy WinForms shell
+now uses that component for DPAPI CurrentUser token save, load, status, and
+deletion behavior. This keeps the existing recovery UI working while moving
+device identity authority behind a reusable sidecar-owned boundary.
+
 The MAD4B shell and embedded Hermes workspace call a narrow `mad4bDesktop`
 context bridge. The desktop main process validates input and forwards typed
 requests to the sidecar.

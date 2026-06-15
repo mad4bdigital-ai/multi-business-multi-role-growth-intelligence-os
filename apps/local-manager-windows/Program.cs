@@ -3,7 +3,6 @@ using System.Drawing;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Security.Cryptography;
 using Microsoft.Win32;
 using System.Text;
 using System.Text.Json;
@@ -150,6 +149,7 @@ internal static class Program
         private readonly ProgressBar _progress;
         private readonly TextBox _output;
         private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+        private readonly DeviceIdentityStore _deviceIdentityStore = new();
 
         public MainForm()
         {
@@ -255,10 +255,8 @@ internal static class Program
             return button;
         }
 
-        private static string InstallRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mad4B", "LocalManager");
+        private static string InstallRoot => DeviceIdentityStore.DefaultInstallRoot;
         private static string UpdatesRoot => Path.Combine(InstallRoot, "updates");
-        private static string LinkStatusPath => Path.Combine(InstallRoot, "device-link-status.json");
-        private static string ProtectedTokenPath => Path.Combine(InstallRoot, "device-token.dpapi");
 
         private static string CurrentSemVer()
         {
@@ -286,21 +284,7 @@ internal static class Program
         private void SaveDeviceToken(string token, string? deviceId, string? status)
         {
             EnsureLocalFiles(_status);
-            var plaintext = Encoding.UTF8.GetBytes(token);
-            var entropy = Encoding.UTF8.GetBytes("mad4b-local-manager-device-token-v1");
-            var protectedBytes = ProtectedData.Protect(plaintext, entropy, DataProtectionScope.CurrentUser);
-            File.WriteAllBytes(ProtectedTokenPath, protectedBytes);
-            File.WriteAllText(LinkStatusPath, JsonSerializer.Serialize(new
-            {
-                linked = true,
-                linked_at = DateTimeOffset.UtcNow,
-                device_id = deviceId,
-                status,
-                token_persisted = true,
-                token_storage = "Windows DPAPI CurrentUser",
-                token_file = ProtectedTokenPath,
-                secrets_included = false
-            }, _json));
+            _deviceIdentityStore.Save(token, deviceId, status);
             _status.Text = "Device token saved with Windows DPAPI CurrentUser.";
         }
 
@@ -308,11 +292,9 @@ internal static class Program
         {
             try
             {
-                if (!File.Exists(ProtectedTokenPath)) return null;
-                var protectedBytes = File.ReadAllBytes(ProtectedTokenPath);
-                var entropy = Encoding.UTF8.GetBytes("mad4b-local-manager-device-token-v1");
-                var plaintext = ProtectedData.Unprotect(protectedBytes, entropy, DataProtectionScope.CurrentUser);
-                return Encoding.UTF8.GetString(plaintext);
+                var token = _deviceIdentityStore.Load(out var error);
+                if (showErrors && error is not null) _status.Text = "Could not read DPAPI token: " + error;
+                return token;
             }
             catch (Exception ex)
             {
@@ -324,7 +306,7 @@ internal static class Program
         private void ShowTokenStatus()
         {
             EnsureLocalFiles(_status);
-            var hasFile = File.Exists(ProtectedTokenPath);
+            var hasFile = _deviceIdentityStore.TokenFileExists;
             var token = LoadDeviceToken(false);
             _status.Text = token is not null
                 ? "Linked.\nDevice token is available from DPAPI for this Windows user."
@@ -344,8 +326,7 @@ internal static class Program
 
         private void ForgetDeviceToken()
         {
-            if (File.Exists(ProtectedTokenPath)) File.Delete(ProtectedTokenPath);
-            if (File.Exists(LinkStatusPath)) File.Delete(LinkStatusPath);
+            _deviceIdentityStore.Delete();
             _pairingCode.Text = "Pairing code: not started";
             _progress.Value = 0;
             _status.Text = "Device token removed from this Windows profile.";
