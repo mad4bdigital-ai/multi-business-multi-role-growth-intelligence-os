@@ -525,6 +525,15 @@ export async function runDynamicAuditCycle(options = {}, dependencies = {}) {
   let result = null;
   try {
     const config = { ...(await loadRuntimeConfig(connection)), ...options };
+    if (config.enabled === false && options.force !== true) {
+      return {
+        ok: true,
+        run_id: runId,
+        skipped: true,
+        reason: "runtime_config_disabled",
+        secrets_included: false,
+      };
+    }
     const [lockRows] = await connection.query("SELECT GET_LOCK(?, 0) AS acquired", [CYCLE_LOCK]);
     lockAcquired = Number(lockRows?.[0]?.acquired || 0) === 1;
     if (!lockAcquired) return { ok: true, run_id: runId, skipped: true, reason: "cycle_lock_busy", secrets_included: false };
