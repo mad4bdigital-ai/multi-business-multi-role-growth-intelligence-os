@@ -741,8 +741,8 @@ export async function readOperationalAlerts({
     },
     completeness: {
       all_known_issues_visible: missingKnownIssueKeys.length === 0,
-      expected_known_issue_count: KNOWN_ISSUE_KEYS.length,
-      visible_known_issue_count: KNOWN_ISSUE_KEYS.length - missingKnownIssueKeys.length,
+      expected_known_issue_count: expectedKnownIssueKeys.length,
+      visible_known_issue_count: expectedKnownIssueKeys.length - missingKnownIssueKeys.length,
       missing_known_issue_keys: missingKnownIssueKeys,
       all_matching_problems_returned_in_page: !hasMore,
       details_omitted_silently: false,
