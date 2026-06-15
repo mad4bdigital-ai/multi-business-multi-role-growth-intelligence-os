@@ -3225,4 +3225,20 @@ if (!isBackendApiKeyEnabled(process.env)) {
 
 app.listen(port, () => {
   console.log(`http_generic_api_connector listening on port ${port}`);
+  startDynamicAuditScheduler()
+    .then((result) => {
+      console.log(JSON.stringify({
+        event: "dynamic_audit_scheduler_start",
+        ...result,
+        secrets_included: false,
+      }));
+    })
+    .catch((error) => {
+      console.error(JSON.stringify({
+        event: "dynamic_audit_scheduler_start_failed",
+        code: error?.code || "dynamic_audit_scheduler_start_failed",
+        message: String(error?.message || error).slice(0, 500),
+        secrets_included: false,
+      }));
+    });
 });
