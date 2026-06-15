@@ -499,6 +499,13 @@ paths:
   /tenant/dashboard:
     get:
       tags: [growth-dashboard]
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: getTenantGrowthDashboard
       x-openai-isConsequential: false
       summary: Read the tenant growth cockpit
