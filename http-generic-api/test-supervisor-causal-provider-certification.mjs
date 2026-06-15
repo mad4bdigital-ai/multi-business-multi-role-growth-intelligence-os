@@ -6,6 +6,9 @@ const migration = readFileSync(new URL("./migrations/1008_sprint69_supervisor_ca
 const routes = readFileSync(new URL("./routes/adminCliRoutes.js", import.meta.url), "utf8");
 
 assert.match(script, /runOpenClaudeOpenRouterLiveDispatch/);
+assert.match(script, /JOIN agent_skills s ON BINARY s\.skill_id = BINARY g\.skill_id/);
+assert.match(script, /s\.skill_key = 'logic\.evaluate_pack'/);
+assert.doesNotMatch(script, /g\.skill_key/);
 assert.match(script, /INSERT INTO execution_plans/);
 assert.match(script, /INSERT INTO workflow_runs/);
 assert.match(script, /writeExecutionEvidence/);

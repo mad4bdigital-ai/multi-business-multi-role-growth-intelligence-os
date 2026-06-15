@@ -27,8 +27,9 @@ async function selectHealthySupervisorAgent(pool) {
     `SELECT DISTINCT a.agent_id
        FROM agents a
        JOIN agent_skill_grants g ON BINARY g.agent_id = BINARY a.agent_id
+       JOIN agent_skills s ON BINARY s.skill_id = BINARY g.skill_id
       WHERE a.status = 'active' AND a.health_status = 'active'
-        AND g.skill_key = 'logic.evaluate_pack' AND g.status = 'active'
+        AND s.skill_key = 'logic.evaluate_pack' AND s.status = 'active' AND g.status = 'active'
       ORDER BY a.agent_id
       LIMIT 1`
   );
