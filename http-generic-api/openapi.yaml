@@ -11833,8 +11833,8 @@ paths:
       tags: [connector-proxy]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: postConnectorDeviceAgentRuntime
-      summary: Optional local model-provider multi-agent runtime via device tunnel
-      description: "Proxies POST /agent-runtime. Read actions are non-mutating; settings changes, installation, and runs enforce separate explicit approvals."
+      summary: Optional local/API-provider/managed multi-agent runtime via device tunnel
+      description: "Proxies POST /agent-runtime. Read actions are non-mutating; settings changes, installation, and runs enforce separate explicit approvals. OpenRouter is available only as a governed platform API model-provider bridge; provider credentials are never copied to the local device."
       parameters:
         - { name: device_id, in: path, required: true, schema: { type: string } }
         - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only - target user id. }
@@ -11853,11 +11853,12 @@ paths:
                 settings_update_approved: { type: boolean }
                 installation_approved: { type: boolean }
                 model_installation_approved: { type: boolean }
-                provider_key: { type: string, enum: [ollama, lm_studio, localai, llama_cpp, vllm, jan, custom_openai_compatible] }
+                provider_key: { type: string, enum: [ollama, lm_studio, localai, llama_cpp, vllm, jan, custom_openai_compatible, openrouter] }
+                api_model_provider_key: { type: string, enum: [openrouter] }
                 delegation_approved: { type: boolean }
                 delegation_mode: { type: string, enum: [manual_api] }
                 delegation_reason: { type: string }
-                execution_target: { type: string, enum: [local_device, platform_managed] }
+                execution_target: { type: string, enum: [local_device, api_model_provider, platform_managed, dedicated_managed] }
                 model: { type: string }
                 max_parallel_agents: { type: integer, minimum: 1, maximum: 6 }
                 agents: { type: array, maxItems: 6, items: { type: object, additionalProperties: true } }

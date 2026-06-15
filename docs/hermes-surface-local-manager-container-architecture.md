@@ -211,13 +211,13 @@ successful, matching, `secrets_included=false` control envelope and verifies
 repair elevation or settings capability-consent evidence before declaring the
 refresh successful.
 
-The first non-activated RPC dispatcher is implemented in
+The first certified read-only RPC dispatcher is implemented in
 `apps/local-manager-windows/SidecarReadOnlyDispatcher.cs`. It supports only
 `device.getStatus`, `connector.getControls`, `runtime.getCapabilities`, and
 `runtime.getRecommendations`, loads the device credential inside the
 sidecar-owned boundary, rechecks secret-safe output, and rejects every operation
-without an attached bounded adapter. The named-pipe server is still not started
-by the WinForms recovery shell.
+without an attached bounded adapter. The WinForms recovery shell starts the
+certified read-only named-pipe server for the shell lifetime only.
 
 Runtime readback uses `apps/local-manager-windows/LocalRuntimeClient.cs` and the
 device-token endpoint `POST /local-manager/device/agent-runtime`. The backend
@@ -309,16 +309,27 @@ memory synchronization, local shell, or multi-agent delegation.
 ## Provider and multi-agent integration
 
 The provider picker should present MAD4B runtime providers from
-`POST /agent-runtime` capability discovery. Hermes-native provider settings may
-remain available only inside an explicitly enabled Hermes assistant profile.
+`POST /agent-runtime` capability discovery. It must expose four explicit targets:
+`local_device`, `api_model_provider`, `platform_managed`, and
+`dedicated_managed`. OpenRouter appears under `api_model_provider` through the
+governed platform bridge and `openrouter_model_selection_policy_v1`; the local
+app must not ask for, store, or call with `OPENROUTER_API_KEY`. Hermes-native
+provider settings may remain available only inside an explicitly enabled Hermes
+assistant profile.
 
 MAD4B local multi-agent jobs remain governed by:
 
-- `execution_target=local_device`;
+- `execution_target=local_device` for device-hosted models, or
+  `execution_target=api_model_provider` for the OpenRouter platform bridge;
 - `delegation_approved=true`;
 - `delegation_mode=manual_api`;
 - meaningful `delegation_reason`;
 - an explicit model, agent list, and concurrency limit.
+
+When the selected target is `api_model_provider`, the local connector records
+the preference and returns a platform-bridge handoff for execution. The actual
+provider dispatch must be performed by the governed platform runtime so provider
+secrets remain server-side and no local fallback is inferred automatically.
 
 Hermes Kanban and sub-agent UI may visualize MAD4B jobs, but it must not silently
 translate card creation into execution. Dispatch remains a separate explicit

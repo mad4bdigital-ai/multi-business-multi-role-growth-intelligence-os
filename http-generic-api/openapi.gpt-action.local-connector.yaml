@@ -196,8 +196,8 @@ paths:
       x-openai-isConsequential: false
       tags: [connector]
       operationId: connectorAgentRuntime
-      summary: Optional local model-provider multi-agent runtime
-      description: "Inspects or explicitly operates the local agent runtime. Settings updates, installation, and runs enforce separate approval fields."
+      summary: Optional local/API-provider/managed multi-agent runtime
+      description: "Inspects or explicitly operates the local agent runtime, or records selection of a governed API model provider such as OpenRouter, platform managed, or dedicated managed runtime. Settings updates, installation, and runs enforce separate approval fields. Provider API credentials are never copied to the local device."
       security:
         - connectorBearerAuth: []
       requestBody:
@@ -215,11 +215,12 @@ paths:
                 settings_update_approved: { type: boolean, default: false }
                 installation_approved: { type: boolean, default: false }
                 model_installation_approved: { type: boolean, default: false }
-                provider_key: { type: string, enum: [ollama, lm_studio, localai, llama_cpp, vllm, jan, custom_openai_compatible] }
+                provider_key: { type: string, enum: [ollama, lm_studio, localai, llama_cpp, vllm, jan, custom_openai_compatible, openrouter] }
+                api_model_provider_key: { type: string, enum: [openrouter] }
                 delegation_approved: { type: boolean, default: false }
                 delegation_mode: { type: string, enum: [manual_api] }
                 delegation_reason: { type: string, minLength: 10 }
-                execution_target: { type: string, enum: [local_device, platform_managed] }
+                execution_target: { type: string, enum: [local_device, api_model_provider, platform_managed, dedicated_managed] }
                 model: { type: string }
                 max_parallel_agents: { type: integer, minimum: 1, maximum: 6 }
                 agents: { type: array, maxItems: 6, items: { type: object, additionalProperties: true } }

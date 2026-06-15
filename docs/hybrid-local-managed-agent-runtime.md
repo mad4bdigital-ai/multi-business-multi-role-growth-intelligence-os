@@ -1,11 +1,13 @@
 # Hybrid Local and Managed Agent Runtime
 
-The platform supports two explicit multi-agent execution targets:
+The platform supports four explicit multi-agent execution targets:
 
 - `local_device`: a tenant-owned Local Manager device runs a selected local model provider.
+- `api_model_provider`: the governed platform bridge runs against an API model provider such as OpenRouter.
 - `platform_managed`: the governed platform agent runtime runs the work.
+- `dedicated_managed`: a dedicated managed runtime runs the work for a tenant/customer boundary.
 
-The platform remains the orchestration and governance authority. A local device is an optional execution worker.
+The platform remains the orchestration and governance authority. A local device is an optional execution worker. API model providers are selected from the local settings surface, but provider credentials stay server-side in the platform bridge.
 
 ## Controls
 
@@ -13,8 +15,10 @@ The platform remains the orchestration and governance authority. A local device 
 - Settings changes require `settings_update_approved=true`.
 - Provider installation requires device setting `install_enabled=true` and `installation_approved=true`.
 - Managed fallback is never inferred from local failure.
+- OpenRouter/API-provider fallback is never inferred from local failure.
 - Tenant GPT can target only a device owned by the authenticated tenant/user.
 - No model-provider secrets are returned or copied to the local device.
+- `api_model_provider`, `platform_managed`, and `dedicated_managed` selections are preferences/readback on the local connector; execution must go through the governed platform runtime or provider bridge.
 
 ## Settings
 
@@ -22,15 +26,16 @@ Safe device settings persist at `~/.mad4b/local-agent-runtime-settings.json`.
 
 | Setting | Values |
 | --- | --- |
-| `execution_target` | `local_device`, `platform_managed` |
+| `execution_target` | `local_device`, `api_model_provider`, `platform_managed`, `dedicated_managed` |
 | `fallback_policy` | `none`, `require_approval`, `managed_allowed` |
 | `local_runtime_enabled` | boolean |
 | `install_enabled` | boolean |
 | `max_parallel_agents` | 1-6 |
-| `provider_key` | `ollama`, `lm_studio`, `localai`, `llama_cpp`, `vllm`, `jan`, `custom_openai_compatible` |
+| `provider_key` | local providers: `ollama`, `lm_studio`, `localai`, `llama_cpp`, `vllm`, `jan`, `custom_openai_compatible`; API provider selector: `openrouter` |
+| `api_model_provider_key` | `openrouter` |
 | `endpoint_url` | localhost HTTP URL only |
 | `preferred_model` | selected provider model name |
-| `recommendation_site` | `ollama_library`, `huggingface_model_memory`, `google_gemma` |
+| `recommendation_site` | `openrouter_models`, `ollama_library`, `huggingface_model_memory`, `google_gemma` |
 
 `managed_allowed` records preference only. It does not dispatch managed agents.
 
@@ -54,6 +59,7 @@ The recommendation response links to:
 - `https://ollama.com/library`
 - `https://huggingface.co/spaces/hf-accelerate/model-memory-usage`
 - `https://ai.google.dev/gemma`
+- `https://openrouter.ai/models`
 
 Provider support:
 
@@ -66,6 +72,12 @@ Provider support:
 | vLLM | OpenAI-compatible | Manual | No |
 | Jan | OpenAI-compatible | Manual | No |
 | Custom local server | OpenAI-compatible | Manual | Provider-dependent |
+
+API provider support:
+
+| Provider | Runtime | Credential boundary | Local execution |
+| --- | --- | --- | --- |
+| OpenRouter | Governed platform bridge using `openrouter_model_selection_policy_v1` | Platform-managed secret reference only | No provider call from local connector |
 
 Google Gemma is supported as a model family through compatible providers such as Ollama, LM Studio, LocalAI, llama.cpp, and vLLM.
 
@@ -101,6 +113,26 @@ Enable local execution:
   }
 }
 ```
+
+Select OpenRouter as the API model-provider option:
+
+```json
+{
+  "device_id": "customer-device",
+  "action": "settings_update",
+  "settings_update_approved": true,
+  "settings": {
+    "execution_target": "api_model_provider",
+    "provider_key": "openrouter",
+    "api_model_provider_key": "openrouter",
+    "fallback_policy": "require_approval",
+    "max_parallel_agents": 3,
+    "preferred_model": "openrouter/free"
+  }
+}
+```
+
+When `execution_target=api_model_provider`, the local connector returns `API_MODEL_PROVIDER_BRIDGE_REQUIRED` for `run`. The Admin/Tenant GPT must dispatch the actual job through the governed platform model-provider bridge so the OpenRouter credential remains server-side.
 
 Run local agents:
 

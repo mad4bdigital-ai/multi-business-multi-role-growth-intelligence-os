@@ -65,9 +65,28 @@ const LOCAL_PROVIDER_REGISTRY = {
     website: null,
   },
 };
+const API_MODEL_PROVIDER_REGISTRY = {
+  openrouter: {
+    display_name: 'OpenRouter',
+    protocol: 'openai_compatible_platform_bridge',
+    credential_boundary: 'platform_managed_secret_reference_only',
+    default_model: 'openrouter/free',
+    model_policy_key: 'openrouter_model_selection_policy_v1',
+    provider_key: 'openrouter_openai_compatible',
+    website: 'https://openrouter.ai/models',
+    execution_surface: 'auth.mad4b.com provider bridge',
+  },
+};
+const EXECUTION_TARGETS = ['local_device', 'api_model_provider', 'platform_managed', 'dedicated_managed'];
 const SETTINGS_PATH = process.env.LOCAL_AGENT_SETTINGS_PATH
   || path.join(os.homedir(), '.mad4b', 'local-agent-runtime-settings.json');
 const MODEL_GUIDES = [
+  {
+    key: 'openrouter_models',
+    name: 'OpenRouter Model Directory',
+    url: 'https://openrouter.ai/models',
+    purpose: 'Compare hosted model choices before selecting the governed platform OpenRouter bridge.',
+  },
   {
     key: 'ollama_library',
     name: 'Ollama Model Library',
@@ -97,6 +116,7 @@ const DEFAULT_SETTINGS = {
   ollama_url: String(process.env.LOCAL_AGENT_OLLAMA_URL || DEFAULT_OLLAMA_URL),
   preferred_model: String(process.env.OLLAMA_MODEL || ''),
   provider_key: String(process.env.LOCAL_AGENT_PROVIDER_KEY || 'ollama'),
+  api_model_provider_key: String(process.env.API_MODEL_PROVIDER_KEY || 'openrouter'),
   endpoint_url: String(process.env.LOCAL_AGENT_PROVIDER_URL || process.env.LOCAL_AGENT_OLLAMA_URL || DEFAULT_OLLAMA_URL),
   recommendation_site: 'ollama_library',
 };
@@ -114,12 +134,21 @@ let runtimeSettings = loadSettings();
 
 function sanitizeSettings(input = {}) {
   const next = { ...runtimeSettings };
-  if (['local_device', 'platform_managed'].includes(input.execution_target)) next.execution_target = input.execution_target;
+  if (EXECUTION_TARGETS.includes(input.execution_target)) next.execution_target = input.execution_target;
   if (['none', 'require_approval', 'managed_allowed'].includes(input.fallback_policy)) next.fallback_policy = input.fallback_policy;
   if (typeof input.local_runtime_enabled === 'boolean') next.local_runtime_enabled = input.local_runtime_enabled;
   if (typeof input.install_enabled === 'boolean') next.install_enabled = input.install_enabled;
   if (input.max_parallel_agents != null) next.max_parallel_agents = clamp(input.max_parallel_agents, 1, 6, 2);
   if (typeof input.preferred_model === 'string') next.preferred_model = input.preferred_model.trim().slice(0, 160);
+  if (API_MODEL_PROVIDER_REGISTRY[input.provider_key]) {
+    next.api_model_provider_key = input.provider_key;
+    next.execution_target = input.execution_target && EXECUTION_TARGETS.includes(input.execution_target)
+      ? input.execution_target
+      : 'api_model_provider';
+  }
+  if (API_MODEL_PROVIDER_REGISTRY[input.api_model_provider_key]) {
+    next.api_model_provider_key = input.api_model_provider_key;
+  }
   if (LOCAL_PROVIDER_REGISTRY[input.provider_key]) {
     next.provider_key = input.provider_key;
     if (!input.endpoint_url) next.endpoint_url = LOCAL_PROVIDER_REGISTRY[input.provider_key].default_endpoint_url;
@@ -162,6 +191,13 @@ function selectedProvider() {
   const endpointUrl = String(runtimeSettings.endpoint_url || provider.default_endpoint_url).replace(/\/$/, '');
   if (!isLocalEndpoint(endpointUrl)) throw Object.assign(new Error('Local provider endpoint must use localhost HTTP.'), { code: 'non_local_provider_endpoint' });
   return { provider_key: providerKey, endpoint_url: endpointUrl, ...provider };
+}
+
+function selectedApiModelProvider() {
+  const providerKey = API_MODEL_PROVIDER_REGISTRY[runtimeSettings.api_model_provider_key]
+    ? runtimeSettings.api_model_provider_key
+    : 'openrouter';
+  return { api_model_provider_key: providerKey, ...API_MODEL_PROVIDER_REGISTRY[providerKey] };
 }
 
 function runCommand(command, args = [], timeoutMs = 120000) {
@@ -239,23 +275,41 @@ async function providerModels(provider) {
 
 async function capabilities() {
   const gpu = await discoverGpu();
-  const provider = selectedProvider();
+  const usesLocalProvider = runtimeSettings.execution_target === 'local_device';
+  const provider = usesLocalProvider ? selectedProvider() : null;
+  const apiModelProvider = selectedApiModelProvider();
   let models = [];
-  let providerReady = false;
-  try {
-    models = await providerModels(provider);
-    providerReady = true;
-  } catch {
-    providerReady = false;
+  let providerReady = null;
+  if (provider) {
+    try {
+      models = await providerModels(provider);
+      providerReady = true;
+    } catch {
+      providerReady = false;
+    }
   }
   return {
+    execution_targets: EXECUTION_TARGETS,
+    execution_target: runtimeSettings.execution_target,
     runtime_enabled: runtimeSettings.local_runtime_enabled === true,
     install_enabled: runtimeSettings.install_enabled === true,
-    provider_key: provider.provider_key,
-    provider_protocol: provider.protocol,
-    provider_display_name: provider.display_name,
-    provider_endpoint_url: provider.endpoint_url,
+    provider_key: provider?.provider_key || runtimeSettings.provider_key,
+    provider_protocol: provider?.protocol || null,
+    provider_display_name: provider?.display_name || null,
+    provider_endpoint_url: provider?.endpoint_url || null,
     provider_ready: providerReady,
+    api_model_provider_key: apiModelProvider.api_model_provider_key,
+    api_model_provider: apiModelProvider,
+    api_model_provider_ready: runtimeSettings.execution_target === 'api_model_provider'
+      ? 'platform_bridge_required'
+      : null,
+    api_model_provider_dispatch: {
+      provider_key: apiModelProvider.provider_key,
+      model_policy_key: apiModelProvider.model_policy_key,
+      credential_boundary: apiModelProvider.credential_boundary,
+      local_provider_call_allowed: false,
+      secrets_included: false,
+    },
     cpu: { logical_cores: os.cpus().length, model: os.cpus()[0]?.model || null },
     memory_gb: Math.round((os.totalmem() / (1024 ** 3)) * 10) / 10,
     gpu,
@@ -270,6 +324,16 @@ async function capabilities() {
       install_mode: value.install_mode,
       model_install_supported: value.model_install_supported,
       website: value.website,
+    })),
+    api_model_provider_candidates: Object.entries(API_MODEL_PROVIDER_REGISTRY).map(([provider_key, value]) => ({
+      provider_key,
+      display_name: value.display_name,
+      protocol: value.protocol,
+      credential_boundary: value.credential_boundary,
+      default_model: value.default_model,
+      model_policy_key: value.model_policy_key,
+      website: value.website,
+      execution_surface: value.execution_surface,
     })),
     secrets_included: false,
   };
@@ -291,6 +355,13 @@ function recommendModels(device) {
     supported_model_families: ['Gemma', 'Qwen', 'Llama', 'DeepSeek', 'Phi', 'Mistral', 'other provider-compatible models'],
     recommendation_sites: MODEL_GUIDES,
     selected_recommendation_site: MODEL_GUIDES.find(site => site.key === runtimeSettings.recommendation_site) || MODEL_GUIDES[0],
+    api_model_provider_recommendation: {
+      provider_key: 'openrouter',
+      execution_target: 'api_model_provider',
+      credential_boundary: 'platform_managed_secret_reference_only',
+      model_directory: 'https://openrouter.ai/models',
+      dispatch_note: 'Use the governed platform OpenRouter bridge; do not copy provider keys to the local device.',
+    },
     warning: 'Validate exact quantization and context-window memory before installation.',
   };
 }
@@ -377,6 +448,19 @@ function publicJob(job) {
 }
 
 async function installProvider(providerKey) {
+  if (API_MODEL_PROVIDER_REGISTRY[providerKey]) {
+    const provider = API_MODEL_PROVIDER_REGISTRY[providerKey];
+    return {
+      provider_key: providerKey,
+      install_mode: 'platform_bridge',
+      automatic_install_supported: false,
+      website: provider.website,
+      credential_boundary: provider.credential_boundary,
+      dispatch_surface: provider.execution_surface,
+      local_install_required: false,
+      secrets_included: false,
+    };
+  }
   const provider = LOCAL_PROVIDER_REGISTRY[providerKey];
   if (!provider) throw Object.assign(new Error('Unknown local provider.'), { code: 'unknown_local_provider' });
   if (provider.install_mode !== 'winget' || !provider.winget_id) {
@@ -425,12 +509,18 @@ export function createLocalAgentRuntimeHandler({ requireAuth, readBody, ok, err,
       }
       if (action === 'settings') {
         return ok(res, {
-          execution_targets: ['local_device', 'platform_managed'],
+          execution_targets: EXECUTION_TARGETS,
           fallback_policies: ['none', 'require_approval', 'managed_allowed'],
           ...runtimeSettings,
           settings_path: SETTINGS_PATH,
           recommendation_sites: MODEL_GUIDES,
           provider_candidates: Object.entries(LOCAL_PROVIDER_REGISTRY).map(([provider_key, provider]) => ({ provider_key, ...provider })),
+          api_model_provider_candidates: Object.entries(API_MODEL_PROVIDER_REGISTRY).map(([provider_key, provider]) => ({ provider_key, ...provider })),
+          api_model_provider_dispatch: {
+            local_provider_call_allowed: false,
+            credential_boundary: 'platform_managed_secret_reference_only',
+            dispatch_surface: 'auth.mad4b.com',
+          },
           automatic_delegation_allowed: false,
         });
       }
@@ -451,8 +541,15 @@ export function createLocalAgentRuntimeHandler({ requireAuth, readBody, ok, err,
         return ok(res, { installed: true, result: await installModel(body.model), next_action: 'capabilities' });
       }
       if (action === 'run') {
+        const requestedTarget = String(body.execution_target || runtimeSettings.execution_target || 'local_device');
+        if (requestedTarget === 'api_model_provider') {
+          return err(res, 409, 'API_MODEL_PROVIDER_BRIDGE_REQUIRED', 'Use the governed platform model-provider bridge for execution_target=api_model_provider; provider credentials are never copied to the local device.');
+        }
+        if (requestedTarget === 'platform_managed' || requestedTarget === 'dedicated_managed') {
+          return err(res, 409, 'MANAGED_RUNTIME_REQUIRED', `Use the platform managed-agent API for execution_target=${requestedTarget}.`);
+        }
+        if (requestedTarget !== 'local_device') return err(res, 400, 'UNKNOWN_EXECUTION_TARGET', 'execution_target must be local_device, api_model_provider, platform_managed, or dedicated_managed.');
         if (runtimeSettings.local_runtime_enabled !== true) return err(res, 403, 'RUNTIME_DISABLED', 'Local agent runtime is disabled in device settings.');
-        if (String(body.execution_target || 'local_device') !== 'local_device') return err(res, 409, 'MANAGED_RUNTIME_REQUIRED', 'Use the platform managed-agent API for execution_target=platform_managed.');
         const agents = validateRunRequest(body);
         const model = String(body.model || runtimeSettings.preferred_model || '').trim();
         if (!model) return err(res, 400, 'MODEL_REQUIRED', 'model is required for local execution.');
