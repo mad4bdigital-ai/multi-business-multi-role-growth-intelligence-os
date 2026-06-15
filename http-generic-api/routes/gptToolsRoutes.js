@@ -1331,6 +1331,25 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     }
   }
 
+  if (callerType === "admin" && toolKey === "growth_intelligence_pilot_run") {
+    try {
+      const result = await runGrowthIntelligencePilotAdmin(args || {});
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "growth_intelligence_pilot_admin_failed",
+            message: err?.message || "Growth Intelligence pilot failed.",
+          },
+          secrets_included: false,
+        },
+      };
+    }
+  }
+
   if (callerType === "admin" && toolKey === "platform_tool_binding_integrity_audit") {
     try {
       const result = await auditPlatformToolBindings(args || {});
