@@ -52,6 +52,11 @@ for (const token of [
   assert.match(runtime, new RegExp(token));
 }
 assert.match(runtime, /deployed_commit_sha_intentionally_unset/);
+assert.match(runtime, /dynamic_audit_runtime_fast/);
+assert.match(runtime, /last_audit_log_id/);
+assert.match(runtime, /full_quality_scan_deferred: true/);
+assert.match(runtime, /runtime_config_disabled/);
+assert.doesNotMatch(runtime, /SELECT \* FROM v_dynamic_audit_pipeline_readiness/);
 assert.match(runtime, /raw_payload_stored: false/);
 assert.match(runtime, /secrets_included: false/);
 assert.match(server, /startDynamicAuditScheduler/);
