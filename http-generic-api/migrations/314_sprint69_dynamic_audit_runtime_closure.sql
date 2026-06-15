@@ -1,3 +1,5 @@
+-- Migration execution safety: no_provider_call true; no_credential_payload_read true; no_raw_secrets true;
+-- no_external_send true; no_external_write true; secrets_included=false.
 -- Sprint 69: Dynamic Audit runtime closure.
 -- Additive and idempotent. No provider calls. No raw payload storage.
 -- No credentials. No external sends. No external writes. secrets_included=false
