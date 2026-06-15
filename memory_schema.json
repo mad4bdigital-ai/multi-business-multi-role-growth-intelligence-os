@@ -207,6 +207,44 @@
         "secret_policy": { "const": "never_return_raw_secret_values" }
       }
     },
+    "operational_alerting_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lifecycle_table",
+        "rule_registry",
+        "sync_run_table",
+        "notification_outbox",
+        "evidence_authority",
+        "known_issue_visibility_policy",
+        "completeness_contract",
+        "secret_policy"
+      ],
+      "properties": {
+        "lifecycle_table": { "const": "operational_alerts" },
+        "rule_registry": { "const": "operational_alert_rule_registry" },
+        "sync_run_table": { "const": "operational_alert_sync_runs" },
+        "notification_outbox": { "const": "operational_alert_notification_outbox" },
+        "evidence_authority": { "const": "sql_runtime_evidence_sources_plus_operational_alert_lifecycle" },
+        "known_issue_visibility_policy": { "const": "platform_admin_only" },
+        "lifecycle_states": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["open", "acknowledged", "investigating", "resolved", "ignored"] },
+          "default": ["open", "acknowledged", "investigating", "resolved", "ignored"]
+        },
+        "completeness_contract": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["all_known_issues_visible", "all_matching_problems_returned_in_page", "final_result_complete"],
+          "properties": {
+            "all_known_issues_visible": { "type": "boolean" },
+            "all_matching_problems_returned_in_page": { "type": "boolean" },
+            "final_result_complete": { "type": "boolean" }
+          }
+        },
+        "secret_policy": { "const": "never_return_raw_secret_values" }
+      }
+    },
     "execution_logging_state": { "$ref": "schemas/operations.schema.json#/$defs/execution_logging_state" },
     "governance_rules": { "$ref": "schemas/governance.schema.json#/$defs/governance_rules" },
     "governance_drift_state": { "$ref": "schemas/governance.schema.json#/$defs/governance_drift_state" },
