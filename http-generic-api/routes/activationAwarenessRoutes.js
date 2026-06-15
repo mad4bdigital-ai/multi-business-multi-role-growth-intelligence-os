@@ -10,6 +10,11 @@ import {
   buildAwarenessIndex,
   readActivationDynamicTabDetail,
 } from "../activationAwarenessService.js";
+import {
+  readOperationalAlerts,
+  synchronizeOperationalAlerts,
+  updateOperationalAlertLifecycle,
+} from "../operationalAlertService.js";
 import { acknowledgeActivationRun } from "../activationSessionLifecycleService.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
@@ -84,6 +89,12 @@ function queryText(value, max = 200) {
   if (Array.isArray(value)) value = value[0];
   const text = String(value || "").trim();
   return text ? text.slice(0, max) : null;
+}
+
+function queryBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === "") return fallback;
+  if (typeof value === "boolean") return value;
+  return ["1", "true", "yes", "on"].includes(String(value).trim().toLowerCase());
 }
 
 function profileValue(value) {
@@ -193,6 +204,40 @@ async function detailResponse(req, isAdmin) {
   });
 }
 
+async function operationalAttentionResponse(req, isAdmin) {
+  return readOperationalAlerts({
+    sessionContext: subjectContext(req, isAdmin),
+    explicitSubject: {
+      is_admin: isAdmin,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    cursor: boundedInt(req.query.cursor, 0, 0, 1000000),
+    limit: boundedInt(req.query.limit, 500, 1, 1000),
+    lookbackHours: boundedInt(req.query.lookback_hours, 168, 1, 2160),
+    includeResolved: queryBoolean(req.query.include_resolved, false),
+    severity: queryText(req.query.severity, 32),
+    sourceType: queryText(req.query.source_type, 128),
+    lifecycleStatus: queryText(req.query.lifecycle_status, 64),
+    q: queryText(req.query.q, 300),
+  });
+}
+
+async function operationalAttentionSyncResponse(req, isAdmin) {
+  return synchronizeOperationalAlerts({
+    sessionContext: subjectContext(req, isAdmin),
+    explicitSubject: {
+      is_admin: isAdmin,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    lookbackHours: boundedInt(req.body?.lookback_hours, 168, 1, 2160),
+    requestedBy: queryText(req.body?.requested_by || req.auth?.user_id || "platform_admin", 191),
+  });
+}
+
 export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
   const router = Router();
   const adminGuards = [requireBackendApiKey].filter(Boolean);
@@ -210,6 +255,37 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
       return res.status(200).json(await detailResponse(req, true));
     } catch (err) {
       return errorResponse(res, err, "activation_dynamic_tab_detail_failed");
+    }
+  });
+
+  router.get("/activation/operational-attention", ...adminGuards, async (req, res) => {
+    try {
+      return res.status(200).json(await operationalAttentionResponse(req, true));
+    } catch (err) {
+      return errorResponse(res, err, "activation_operational_attention_read_failed");
+    }
+  });
+
+  router.post("/activation/operational-attention/sync", ...adminGuards, async (req, res) => {
+    try {
+      return res.status(200).json(await operationalAttentionSyncResponse(req, true));
+    } catch (err) {
+      return errorResponse(res, err, "activation_operational_attention_sync_failed");
+    }
+  });
+
+  router.post("/activation/operational-attention/:alertId/lifecycle", ...adminGuards, async (req, res) => {
+    try {
+      return res.status(200).json(await updateOperationalAlertLifecycle({
+        sessionContext: subjectContext(req, true),
+        explicitSubject: { is_admin: true, user_id: req.auth?.user_id || null, auth_mode: req.auth?.mode || null },
+        alertId: req.params.alertId,
+        lifecycleStatus: req.body?.lifecycle_status,
+        actor: queryText(req.body?.actor || req.auth?.user_id || "platform_admin", 191),
+        note: queryText(req.body?.note, 2000),
+      }));
+    } catch (err) {
+      return errorResponse(res, err, "activation_operational_alert_lifecycle_failed");
     }
   });
 
@@ -241,6 +317,14 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
+  router.get("/tenant/activation/operational-attention", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await operationalAttentionResponse(req, false));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_activation_operational_attention_read_failed");
+    }
+  });
+
   router.get("/tenant/activation/dynamic-tabs/detail", requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await detailResponse(req, false));
@@ -256,6 +340,7 @@ export const _testingActivationAwarenessRoutes = {
   verifyUserJwt,
   boundedInt,
   queryText,
+  queryBoolean,
   profileValue,
   subjectContext,
 };
