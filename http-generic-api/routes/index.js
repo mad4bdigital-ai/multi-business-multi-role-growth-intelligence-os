@@ -160,6 +160,7 @@ export function registerRoutes(app, deps) {
   app.use(buildStatusRoutes(deps));
   app.use(buildActivationHardRunRoutes({ ...deps, requireBackendApiKey: deps.requireBackendApiKey }));
   app.use(buildActivationAwarenessRoutes({ ...deps, requireBackendApiKey: deps.requireBackendApiKey }));
+  app.use(buildTenantGrowthDashboardRoutes({ ...deps, requireBackendApiKey: deps.requireBackendApiKey }));
   app.use(buildActivationRoutes(deps));
   app.use(buildActivationGuidanceRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildRuntimeVerificationRoutes({ ...deps, requireAdminPrincipal }));
