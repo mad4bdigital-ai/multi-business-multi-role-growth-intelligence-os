@@ -107,6 +107,24 @@ const migration = read("migrations/20260615_tenant_growth_dashboard_product.sql"
 const responseService = read("activationHardResponseService.js");
 const openapiText = read("openapi.tenant-gpt.auth.yaml");
 const openapi = YAML.parse(openapiText);
+const primaryOpenapi = YAML.parse(read("openapi.yaml"));
+
+function resolveLocalRef(document, ref) {
+  assert.match(ref, /^#\//, `Only local refs are supported in this contract test: ${ref}`);
+  return ref.slice(2).split("/").reduce((value, segment) => value?.[segment.replaceAll("~1", "/").replaceAll("~0", "~")], document);
+}
+
+function assertLocalRefsResolve(document, value) {
+  if (Array.isArray(value)) {
+    for (const item of value) assertLocalRefsResolve(document, item);
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  if (typeof value.$ref === "string" && value.$ref.startsWith("#/")) {
+    assert.ok(resolveLocalRef(document, value.$ref), `Unresolved OpenAPI ref: ${value.$ref}`);
+  }
+  for (const child of Object.values(value)) assertLocalRefsResolve(document, child);
+}
 
 assert.match(routeSource, /req\.auth\.tenant_id/);
 assert.match(routeSource, /req\.auth\.user_id/);
