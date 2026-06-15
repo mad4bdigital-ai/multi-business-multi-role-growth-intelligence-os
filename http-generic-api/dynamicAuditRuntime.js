@@ -345,9 +345,75 @@ async function produceRepoFileAudit(connection, commitSha, limit) {
 }
 
 async function readDynamicReadiness(connection) {
-  if (!(await tableExists(connection, "v_dynamic_audit_pipeline_readiness"))) return null;
-  const [rows] = await connection.query("SELECT * FROM v_dynamic_audit_pipeline_readiness LIMIT 1");
-  return rows?.[0] || null;
+  const [rows] = await connection.query(
+    `SELECT
+       COALESCE((SELECT MAX(id) FROM audit_log),0) AS audit_log_max_id,
+       COALESCE((
+         SELECT CAST(JSON_UNQUOTE(JSON_EXTRACT(config_json,'$.last_audit_log_id')) AS UNSIGNED)
+           FROM platform_runtime_config
+          WHERE config_key='audit_log_event_bus_bridge_schedule'
+          LIMIT 1
+       ),0) AS audit_log_cursor_id,
+       (SELECT COUNT(*) FROM platform_audit_event_bus
+         WHERE event_status IN ('observed','pending_rollup')) AS event_bus_unrolled_total,
+       (SELECT COUNT(*) FROM repo_file_audit_runs
+         WHERE run_status='completed') AS repo_file_audit_run_total,
+       (SELECT COUNT(*) FROM asset_audit_events
+         WHERE provider_key='google_drive') AS drive_asset_event_total,
+       (SELECT COUNT(*) FROM checkpoint_auto_rollups
+         WHERE rollup_status='planned') AS checkpoint_rollup_planned_total,
+       (SELECT COUNT(*) FROM checkpoint_auto_rollups
+         WHERE rollup_status='written') AS checkpoint_rollup_written_total,
+       (SELECT COUNT(*) FROM db_change_audit_events) AS db_change_rollup_total,
+       (SELECT COUNT(*) FROM db_change_audit_events
+         WHERE mutation_class='unknown'
+            OR table_name IN ('db','unresolved_admin_control_db')) AS db_change_semantics_unknown_total,
+       (SELECT MAX(completed_at) FROM dynamic_audit_scheduler_runs
+         WHERE run_status='succeeded') AS scheduler_last_success_at`
+  );
+  const row = rows?.[0] || {};
+  const auditGap = Math.max(
+    0,
+    Number(row.audit_log_max_id || 0) - Number(row.audit_log_cursor_id || 0)
+  );
+  const schedulerLastSuccess = row.scheduler_last_success_at
+    ? new Date(row.scheduler_last_success_at).getTime()
+    : 0;
+  const schedulerStale = !schedulerLastSuccess || Date.now() - schedulerLastSuccess > 15 * 60_000;
+  let readinessStatus = "pass";
+  let readinessReason = "runtime_fast_ready";
+  if (auditGap > 1000) {
+    readinessStatus = "warn";
+    readinessReason = "audit_log_to_event_bus_gap_high";
+  } else if (Number(row.event_bus_unrolled_total || 0) > 5000) {
+    readinessStatus = "warn";
+    readinessReason = "event_bus_rollup_lag_high";
+  } else if (Number(row.repo_file_audit_run_total || 0) === 0) {
+    readinessStatus = "warn";
+    readinessReason = "repo_file_audit_missing";
+  } else if (Number(row.drive_asset_event_total || 0) === 0) {
+    readinessStatus = "warn";
+    readinessReason = "google_drive_audit_missing";
+  } else if (
+    Number(row.db_change_rollup_total || 0) > 0 &&
+    Number(row.db_change_semantics_unknown_total || 0) * 2 > Number(row.db_change_rollup_total || 0)
+  ) {
+    readinessStatus = "warn";
+    readinessReason = "db_change_semantics_incomplete";
+  } else if (schedulerStale) {
+    readinessStatus = "warn";
+    readinessReason = "scheduler_success_pending_or_stale";
+  }
+  return {
+    readiness_key: "dynamic_audit_runtime_fast",
+    readiness_status: readinessStatus,
+    readiness_reason: readinessReason,
+    ...row,
+    audit_log_to_event_bus_gap: auditGap,
+    full_quality_scan_deferred: true,
+    raw_payload_stored: false,
+    secrets_included: false,
+  };
 }
 
 async function writeCheckpoint(connection, config, commitSha) {
@@ -459,6 +525,15 @@ export async function runDynamicAuditCycle(options = {}, dependencies = {}) {
   let result = null;
   try {
     const config = { ...(await loadRuntimeConfig(connection)), ...options };
+    if (config.enabled === false && options.force !== true) {
+      return {
+        ok: true,
+        run_id: runId,
+        skipped: true,
+        reason: "runtime_config_disabled",
+        secrets_included: false,
+      };
+    }
     const [lockRows] = await connection.query("SELECT GET_LOCK(?, 0) AS acquired", [CYCLE_LOCK]);
     lockAcquired = Number(lockRows?.[0]?.acquired || 0) === 1;
     if (!lockAcquired) return { ok: true, run_id: runId, skipped: true, reason: "cycle_lock_busy", secrets_included: false };
