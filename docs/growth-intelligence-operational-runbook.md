@@ -4,6 +4,12 @@
 
 The value path may run only while the platform baseline is pass and healthy. Treat readiness failures, actionable migration drift, or a non-empty governance surface queue as release blockers.
 
+## Governed Admin Entrypoint
+
+Use the virtual Admin tool `growth_intelligence_pilot_run` through `/gpt/tools/call`. It resolves the tenant, brand, active Brand Core assets, and Business Activity Type from MySQL authority; validates route, workflow, engine, and governed-dispatch evidence; runs the existing pilot; persists the report, insights, actions, approval holds, and readiness assessment; and performs same-cycle readback. The tool supports only `persistence_mode=internal_registry`, returns `apply_allowed=false` and `execution_allowed=false`, and rejects provider writes, external sends, live execution, and secret-bearing results.
+
+For the first production pilot, use tenant `65f3f066-eefa-4625-9023-8318c858e94b`, brand key `arab_cooling`, and registry-backed activity `business_and_industrial_products`. The activity selection is an explicit current-registry approximation for HVAC/cooling and must be replaced if a more specific registered activity is added later.
+
 ## Status Response
 
 | Signal | Operator action |
