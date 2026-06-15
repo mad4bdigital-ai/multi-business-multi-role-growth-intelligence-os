@@ -195,6 +195,16 @@ extracted into `apps/local-manager-windows/DeviceControlClient.cs`. Its section
 allowlist and GET-only contract intentionally exclude repair installation,
 capability mutation, and arbitrary device URLs.
 
+Signed repair and capability installer request, governed download, local file
+validation, and UAC process handoff are extracted into
+`apps/local-manager-windows/SignedInstallerCoordinator.cs`. It accepts only the
+device-scoped installer endpoint, HTTPS downloads from the configured MAD4B
+host and exact installer-download path, and `.bat` files inside the Local
+Manager updates directory. Redirects are disabled, downloaded files receive
+unpredictable names, and SHA-256 is rechecked immediately before UAC handoff.
+WinForms retains the explicit confirmation dialog, progress messaging, and
+post-install control verification.
+
 The MAD4B shell and embedded Hermes workspace call a narrow `mad4bDesktop`
 context bridge. The desktop main process validates input and forwards typed
 requests to the sidecar.

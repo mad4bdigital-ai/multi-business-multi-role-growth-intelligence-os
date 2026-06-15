@@ -6,6 +6,8 @@ const localManager = readFileSync('routes/localManagerBetaRoutes.js', 'utf8');
 const installRoutes = readFileSync('routes/localConnectorInstallRoutes.js', 'utf8');
 const proxyRoutes = readFileSync('routes/connectorProxyRoutes.js', 'utf8');
 const localManagerWindows = readFileSync('../apps/local-manager-windows/Program.cs', 'utf8');
+const signedInstallerCoordinator = readFileSync('../apps/local-manager-windows/SignedInstallerCoordinator.cs', 'utf8');
+const localManagerWindowsInstallerSurface = localManagerWindows + signedInstallerCoordinator;
 const localManagerProject = readFileSync('../apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj', 'utf8');
 
 assert(connectorAgent.includes('const AGENT_VERSION = "2026.05.28.1"'), 'connector agent version must move for DB-driven shell policy release');
@@ -51,15 +53,15 @@ assert(!installRoutes.includes('CONNECTOR_WIN_ENABLED=true",'), 'Windows control
 assert(proxyRoutes.includes('code: "DISABLED"'), 'connector proxy must preserve disabled capability errors');
 assert(proxyRoutes.includes('connector_capability_status: "disabled"'), 'connector proxy response must classify disabled capability state');
 
-assert(localManagerWindows.includes('app_managed = true'), 'Windows app must request app-managed installer bootstraps');
-assert(localManagerWindows.includes('suppress_pause = true'), 'Windows app must request no-pause installer bootstraps');
+assert(localManagerWindowsInstallerSurface.includes('app_managed = true'), 'Windows app must request app-managed installer bootstraps');
+assert(localManagerWindowsInstallerSurface.includes('suppress_pause = true'), 'Windows app must request no-pause installer bootstraps');
 assert(installRoutes.includes('app_managed: appManaged'), 'installer route must sign app-managed mode into download tokens');
 assert(installRoutes.includes('appManaged: payload.app_managed === true'), 'download route must pass app-managed mode into bootstrap BAT generation');
 assert(installRoutes.includes('const doneSuffix = appManaged ? "exit /b 0" : "pause"'), 'app-managed bootstrap BAT must exit instead of pausing');
 assert(installRoutes.includes('const failSuffix = appManaged ? "exit /b 1" : "pause & exit /b 1"'), 'app-managed bootstrap BAT failures must exit instead of pausing');
 assert(localManagerWindows.includes('RunElevatedInstallerAndVerifyAsync'), 'Windows app must run connector installers through an in-app elevated workflow');
 assert(localManagerWindows.includes('RefreshDeviceControlsAfterInstallerAsync'), 'Windows app must refresh device controls after installer execution');
-assert(localManagerWindows.includes('WaitForExitAsync'), 'Windows app must wait for elevated installer completion when possible');
+assert(localManagerWindowsInstallerSurface.includes('WaitForExitAsync'), 'Windows app must wait for elevated installer completion when possible');
 assert(localManagerWindows.includes('UAC prompt'), 'Windows app must clearly explain local Administrator approval');
 assert(localManagerWindows.includes('installer_applied = false'), 'Windows app must handle cancelled UAC prompts explicitly');
 assert(localManagerWindows.includes('installer_launching = true'), 'Windows app must show sanitized installer launch diagnostics');
@@ -72,11 +74,11 @@ assert(localManagerWindows.includes('Capabilities'), 'Windows app must expose ca
 assert(localManagerWindows.includes('ConfigureConnectorCapabilitiesAsync'), 'Windows app must request capability installer from user action');
 assert(localManagerWindows.includes('powershell_admin'), 'Windows app must support PowerShell capability selection');
 assert(localManagerWindows.includes('windows_control'), 'Windows app must support Windows control capability selection');
-assert(localManagerWindows.includes('permission_grants'), 'Windows app must send dynamic permission grants');
+assert(localManagerWindowsInstallerSurface.includes('permission_grants'), 'Windows app must send dynamic permission grants');
 assert(localManagerWindows.includes('OpenFileDialog'), 'Windows app must let users choose app/helper executables locally');
 assert(localManagerWindows.includes('FolderBrowserDialog'), 'Windows app must let users choose allowed paths locally');
 assert(localManagerWindows.includes('PickInstalledApp'), 'Windows app must provide installed-app discovery for easier app grants');
 assert(localManagerWindows.includes('Registry.CurrentUser') && localManagerWindows.includes('Registry.LocalMachine'), 'installed-app discovery must read per-user and machine uninstall registries');
-assert(localManagerWindows.includes('RunAsAdminRequired'), 'Windows app must surface local Administrator requirement');
+assert(localManagerWindowsInstallerSurface.includes('RunAsAdminRequired'), 'Windows app must surface local Administrator requirement');
 
 console.log('local manager tool release owner tests passed');

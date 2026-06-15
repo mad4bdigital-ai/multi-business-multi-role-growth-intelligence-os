@@ -23,7 +23,7 @@ internal static class Program
     private const string RoutesUrl = BaseUrl + "/app/local-manager/routes?source=windows-app";
     private const string BackupsUrl = BaseUrl + "/app/local-manager/backups?source=windows-app";
     private const string SettingsUrl = BaseUrl + "/app/local-manager/settings?source=windows-app";
-    private const string DeviceRepairInstallerUrl = BaseUrl + "/local-connector/install/device-download-link"; private const string DesktopCommandsUrl = BaseUrl + "/local-manager/device/desktop-commands";
+    private const string DesktopCommandsUrl = BaseUrl + "/local-manager/device/desktop-commands";
     private const string N8nPublicUrl = "";
     private const string N8nCommandPath = @"D:\npm-global\n8n.cmd";
     private const string N8nUserFolder = @"D:\n8n-data";
@@ -148,6 +148,7 @@ internal static class Program
         private readonly DeviceIdentityStore _deviceIdentityStore = new();
         private readonly DeviceLinkClient _deviceLinkClient = new(BaseUrl);
         private readonly DeviceControlClient _deviceControlClient = new(BaseUrl);
+        private readonly SignedInstallerCoordinator _signedInstallerCoordinator = new(BaseUrl, UpdatesRoot);
 
         public MainForm()
         {
@@ -465,42 +466,23 @@ internal static class Program
                 EnsureLocalFiles(_status);
                 _progress.Value = 0;
                 _status.Text = "Requesting device-scoped connector repair installer…";
-                using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-                using var req = new HttpRequestMessage(HttpMethod.Post, DeviceRepairInstallerUrl)
-                {
-                    Content = JsonContent(new { format = "bat", ttl_minutes = 30, app_managed = true, suppress_pause = true })
-                };
-                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-                req.Headers.Accept.ParseAdd("application/json");
-                using var response = await client.SendAsync(req);
-                var text = await response.Content.ReadAsStringAsync();
-                var link = JsonSerializer.Deserialize<DeviceInstallerLinkResponse>(text, _json);
+                var response = await _signedInstallerCoordinator.RequestRepairAsync(token);
+                var link = response.Link;
                 if (!response.IsSuccessStatusCode || link?.Ok != true || string.IsNullOrWhiteSpace(link.DownloadUrl))
                 {
                     _status.Text = "Repair link request failed: " + (link?.Error?.Message ?? response.ReasonPhrase ?? "unknown error");
-                    _output.Text = text;
+                    _output.Text = response.RawText;
                     return;
                 }
 
                 _progress.Value = 25;
-                var safeDeviceId = SafeFileSegment(link.CanonicalDeviceId ?? link.DeviceId ?? Environment.MachineName);
-                var target = Path.Combine(UpdatesRoot, $"install-local-connector-{safeDeviceId}.bat");
                 _status.Text = "Downloading signed repair installer…";
-                using (var installerResponse = await client.GetAsync(link.DownloadUrl, HttpCompletionOption.ResponseHeadersRead))
-                {
-                    installerResponse.EnsureSuccessStatusCode();
-                    await using var source = await installerResponse.Content.ReadAsStreamAsync();
-                    await using var destination = File.Create(target);
-                    await source.CopyToAsync(destination);
-                }
-
-                var fileInfo = new FileInfo(target);
-                if (!fileInfo.Exists || fileInfo.Length < 64) throw new InvalidOperationException("Downloaded installer file is missing or too small.");
+                var download = await _signedInstallerCoordinator.DownloadAsync(link, SignedInstallerKind.Repair);
                 _progress.Value = 75;
                 _output.Text = JsonSerializer.Serialize(new
                 {
                     repair_installer_downloaded = true,
-                    installer_path = target,
+                    installer_path = download.InstallerPath,
                     canonical_device_id = link.CanonicalDeviceId,
                     config_id = link.ConfigId,
                     run_as_admin_required = link.RunAsAdminRequired,
@@ -508,7 +490,7 @@ internal static class Program
                 }, _json);
 
                 await RunElevatedInstallerAndVerifyAsync(
-                    target,
+                    download,
                     "connector repair installer",
                     "Repair connector",
                     "This will repair and restart the local connector service. Approve the Windows UAC prompt to continue.",
@@ -659,53 +641,27 @@ internal static class Program
                 EnsureLocalFiles(_status);
                 _progress.Value = 0;
                 _status.Text = "Requesting capability installer from auth.mad4b.com…";
-                using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-                using var req = new HttpRequestMessage(HttpMethod.Post, DeviceRepairInstallerUrl)
-                {
-                    Content = JsonContent(new
-                    {
-                        format = "bat",
-                        ttl_minutes = 30,
-                        app_managed = true,
-                        suppress_pause = true,
-                        capabilities = requestedCapabilities,
-                        permission_grants = new
-                        {
-                            apps = selectedApps,
-                            allowed_paths = selectedPaths,
-                            shell_aliases = selectedHelpers
-                        }
-                    })
-                };
-                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-                req.Headers.Accept.ParseAdd("application/json");
-                using var response = await client.SendAsync(req);
-                var text = await response.Content.ReadAsStringAsync();
-                var link = JsonSerializer.Deserialize<DeviceInstallerLinkResponse>(text, _json);
+                var response = await _signedInstallerCoordinator.RequestCapabilitiesAsync(
+                    token,
+                    requestedCapabilities,
+                    selectedApps,
+                    selectedPaths,
+                    selectedHelpers);
+                var link = response.Link;
                 if (!response.IsSuccessStatusCode || link?.Ok != true || string.IsNullOrWhiteSpace(link.DownloadUrl))
                 {
                     _status.Text = "Capability installer request failed: " + (link?.Error?.Message ?? response.ReasonPhrase ?? "unknown error");
-                    _output.Text = text;
+                    _output.Text = response.RawText;
                     return;
                 }
 
                 _progress.Value = 25;
-                var safeDeviceId = SafeFileSegment(link.CanonicalDeviceId ?? link.DeviceId ?? Environment.MachineName);
-                var target = Path.Combine(UpdatesRoot, $"enable-connector-capabilities-{safeDeviceId}.bat");
-                using (var installerResponse = await client.GetAsync(link.DownloadUrl, HttpCompletionOption.ResponseHeadersRead))
-                {
-                    installerResponse.EnsureSuccessStatusCode();
-                    await using var source = await installerResponse.Content.ReadAsStreamAsync();
-                    await using var destination = File.Create(target);
-                    await source.CopyToAsync(destination);
-                }
-                var fileInfo = new FileInfo(target);
-                if (!fileInfo.Exists || fileInfo.Length < 64) throw new InvalidOperationException("Downloaded capability installer file is missing or too small.");
+                var download = await _signedInstallerCoordinator.DownloadAsync(link, SignedInstallerKind.Capabilities);
                 _progress.Value = 75;
                 _output.Text = JsonSerializer.Serialize(new
                 {
                     capability_installer_downloaded = true,
-                    installer_path = target,
+                    installer_path = download.InstallerPath,
                     capabilities = requestedCapabilities,
                     app_grants = selectedApps.Count,
                     allowed_paths = selectedPaths,
@@ -716,7 +672,7 @@ internal static class Program
                 }, _json);
 
                 await RunElevatedInstallerAndVerifyAsync(
-                    target,
+                    download,
                     "connector capability installer",
                     "Connector capabilities",
                     "This will update the local connector service configuration for the selected capabilities and permission grants. Approve the Windows UAC prompt to continue.",
@@ -729,7 +685,7 @@ internal static class Program
             }
         }
 
-        private async Task RunElevatedInstallerAndVerifyAsync(string installerPath, string installerLabel, string dialogTitle, string explanation, Func<Task>? refreshAfterInstall)
+        private async Task RunElevatedInstallerAndVerifyAsync(SignedInstallerDownload download, string installerLabel, string dialogTitle, string explanation, Func<Task>? refreshAfterInstall)
         {
             var result = MessageBox.Show(
                 $"{installerLabel} is ready.\n\n{explanation}\n\nLocal Manager will launch the correct installer, wait for it to finish when Windows exposes the process handle, then refresh device controls automatically.",
@@ -738,7 +694,7 @@ internal static class Program
                 MessageBoxIcon.Warning);
             if (result != DialogResult.OK)
             {
-                _status.Text = $"{installerLabel} downloaded: {installerPath}. Click the same button again when ready to apply it.";
+                _status.Text = $"{installerLabel} downloaded: {download.InstallerPath}. Click the same button again when ready to apply it.";
                 return;
             }
 
@@ -748,24 +704,14 @@ internal static class Program
             {
                 installer_launching = true,
                 installer_label = installerLabel,
-                installer_path = installerPath,
+                installer_path = download.InstallerPath,
                 uac_required = true,
                 token_plaintext_shown = false,
                 secrets_included = false
             }, _json);
 
-            Process? process = null;
-            try
-            {
-                process = Process.Start(new ProcessStartInfo
-                {
-                    FileName = installerPath,
-                    UseShellExecute = true,
-                    WorkingDirectory = Path.GetDirectoryName(installerPath) ?? UpdatesRoot,
-                    Verb = "runas"
-                });
-            }
-            catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
+            var runResult = await _signedInstallerCoordinator.RunElevatedAsync(download);
+            if (runResult == SignedInstallerRunResult.CancelledByUser)
             {
                 _status.Text = $"{installerLabel} was not applied because the UAC prompt was cancelled.";
                 _output.Text = JsonSerializer.Serialize(new
@@ -778,25 +724,10 @@ internal static class Program
                 }, _json);
                 return;
             }
-
-            if (process is null)
+            if (runResult == SignedInstallerRunResult.ProcessHandleUnavailable)
             {
                 _status.Text = $"Windows did not return a process handle for {installerLabel}.";
                 return;
-            }
-
-            _status.Text = $"{installerLabel} is running with elevation. Waiting for completion…";
-            try
-            {
-                await process.WaitForExitAsync();
-            }
-            catch
-            {
-                await Task.Delay(TimeSpan.FromSeconds(10));
-            }
-            finally
-            {
-                process.Dispose();
             }
 
             _progress.Value = Math.Max(_progress.Value, 92);
@@ -1569,16 +1500,4 @@ internal static class Program
         [JsonPropertyName("release_notes")] public string[]? ReleaseNotes { get; set; }
     }
 
-    private sealed class DeviceInstallerLinkResponse
-    {
-        [JsonPropertyName("ok")] public bool Ok { get; set; }
-        [JsonPropertyName("device_id")] public string? DeviceId { get; set; }
-        [JsonPropertyName("canonical_device_id")] public string? CanonicalDeviceId { get; set; }
-        [JsonPropertyName("config_id")] public string? ConfigId { get; set; }
-        [JsonPropertyName("format")] public string? Format { get; set; }
-        [JsonPropertyName("ttl_minutes")] public int TtlMinutes { get; set; }
-        [JsonPropertyName("download_url")] public string? DownloadUrl { get; set; }
-        [JsonPropertyName("run_as_admin_required")] public bool RunAsAdminRequired { get; set; }
-        [JsonPropertyName("error")] public DeviceLinkError? Error { get; set; }
-    }
 }
