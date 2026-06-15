@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { getPool } from "./db.js";
+import { readOperationalAlerts } from "./operationalAlertService.js";
 
 const SAFE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
 const BLOCKED_COLUMN_PATTERN = /(secret|credential_ref|credential|token|password|private_key|cipher|api_key|value_ciphertext|value_sha|config_json|system_prompt|payload_json)/i;
