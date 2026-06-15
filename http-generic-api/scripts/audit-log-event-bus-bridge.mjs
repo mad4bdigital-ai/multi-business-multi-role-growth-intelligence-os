@@ -59,18 +59,41 @@ function buildEvidence(row) {
   };
 }
 
+async function readCursor(connection, requestedSinceId = 0) {
+  const explicit = Math.max(0, Number(requestedSinceId || 0));
+  if (explicit > 0) return explicit;
+  const [rows] = await connection.query(
+    `SELECT CAST(JSON_UNQUOTE(JSON_EXTRACT(config_json,'$.last_audit_log_id')) AS UNSIGNED) AS cursor_id
+       FROM platform_runtime_config
+      WHERE config_key=?
+      LIMIT 1`,
+    [CONFIG_KEY]
+  );
+  return Math.max(0, Number(rows?.[0]?.cursor_id || 0));
+}
+
+async function writeCursor(connection, cursorId) {
+  await connection.query(
+    `UPDATE platform_runtime_config
+        SET config_json=JSON_SET(
+              config_json,
+              '$.last_audit_log_id',CAST(? AS UNSIGNED),
+              '$.last_cursor_at',DATE_FORMAT(UTC_TIMESTAMP(),'%Y-%m-%dT%H:%i:%sZ'),
+              '$.secrets_included',FALSE
+            ),
+            updated_at=UTC_TIMESTAMP()
+      WHERE config_key=?`,
+    [Math.max(0, Number(cursorId || 0)), CONFIG_KEY]
+  );
+}
+
 async function loadRows(connection, options) {
   const [rows] = await connection.query(
     `SELECT id,audit_id,tenant_id,actor_type,session_id,conversation_id,correlation_id,
             execution_context_json,action,resource_type,resource_id,before_json,after_json,occurred_at
-       FROM audit_log a
-      WHERE a.id > ?
-        AND NOT EXISTS (
-          SELECT 1 FROM platform_audit_event_bus b
-           WHERE b.event_key COLLATE utf8mb4_unicode_ci =
-                 CONCAT('audit_log:', a.audit_id) COLLATE utf8mb4_unicode_ci
-        )
-      ORDER BY a.id ASC
+       FROM audit_log
+      WHERE id > ?
+      ORDER BY id ASC
       LIMIT ?`,
     [options.sinceId, options.limit]
   );
