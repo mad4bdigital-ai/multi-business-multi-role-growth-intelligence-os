@@ -10,7 +10,7 @@ This repository is the canonical source for that system. It is not primarily a g
 
 The architecture is centered on canonical authority documents, registry-backed execution control, validation-first runtime behavior, and governed logging/writeback.
 
-Explicit multi-agent work can run on a tenant-owned Local Manager device through Ollama or through the platform-managed runtime. Local execution, settings changes, installation, and managed fallback remain separately controlled actions. See `docs/hybrid-local-managed-agent-runtime.md`.
+Explicit multi-agent work can run on a tenant-owned Local Manager device through Ollama or a localhost OpenAI-compatible provider, or through the platform-managed runtime. Local execution, settings changes, installation, and managed fallback remain separately controlled actions. See `docs/hybrid-local-managed-agent-runtime.md`.
 
 ## Canonical authority order
 

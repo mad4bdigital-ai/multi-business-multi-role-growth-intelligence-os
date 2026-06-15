@@ -14,6 +14,14 @@ assert.match(localRuntime, /manual_api/);
 assert.match(localRuntime, /installation_approved/);
 assert.match(localRuntime, /model_installation_approved/);
 assert.match(localRuntime, /installModel/);
+assert.match(localRuntime, /LOCAL_PROVIDER_REGISTRY/);
+for (const provider of ["lm_studio", "localai", "llama_cpp", "vllm", "jan", "custom_openai_compatible"]) {
+  assert.match(localRuntime, new RegExp(provider));
+}
+assert.match(localRuntime, /google_gemma/);
+assert.match(localRuntime, /ai\.google\.dev\/gemma/);
+assert.match(localRuntime, /openAiCompatibleRequest/);
+assert.match(localRuntime, /isLocalEndpoint/);
 assert.match(localRuntime, /settings_update_approved/);
 assert.match(localRuntime, /automatic_delegation_allowed: false/);
 assert.match(localRuntime, /platform_managed/);
@@ -49,5 +57,26 @@ assert.equal(result.content, "LOCAL_OK");
 assert.equal(result.provider_key, "ollama");
 assert.equal(result.tokens_used, 5);
 assert.equal(request.url, "http://127.0.0.1:11434/api/chat");
+
+let compatibleRequest = null;
+const compatibleModel = buildCallModel({
+  provider: "openai_compatible",
+  model: "google/gemma-3-4b",
+  base_url: "http://127.0.0.1:1234/v1",
+  fetch: async (url, options) => {
+    compatibleRequest = { url, options };
+    return {
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: "GEMMA_LOCAL_OK", tool_calls: [] } }],
+        usage: { total_tokens: 7 },
+      }),
+    };
+  },
+});
+const compatibleResult = await compatibleModel([{ role: "user", content: "test" }], []);
+assert.equal(compatibleResult.content, "GEMMA_LOCAL_OK");
+assert.equal(compatibleResult.provider_key, "openai_compatible");
+assert.equal(compatibleRequest.url, "http://127.0.0.1:1234/v1/chat/completions");
 
 console.log("hybrid local/managed agent runtime tests passed");

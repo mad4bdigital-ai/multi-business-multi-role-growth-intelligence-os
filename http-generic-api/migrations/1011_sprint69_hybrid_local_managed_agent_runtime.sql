@@ -6,7 +6,7 @@ INSERT INTO admin_platform_endpoint_tools
 VALUES
   ('local_agent_runtime_control',
    'Control Optional Local Agent Runtime',
-   'Inspect, configure, install, run, monitor, or cancel the optional Ollama-backed local multi-agent runtime on one governed device. Run, settings changes, and installation require separate explicit approvals.',
+   'Inspect, configure, install, run, monitor, or cancel an optional local multi-agent runtime using Ollama or a local OpenAI-compatible provider. Run, settings changes, and installation require separate explicit approvals.',
    'POST', '/connector/{device_id}/agent-runtime', JSON_ARRAY('device_id'),
    JSON_OBJECT(
      'type','object',
@@ -14,10 +14,11 @@ VALUES
      'additionalProperties',true,
      'properties',JSON_OBJECT(
        'device_id',JSON_OBJECT('type','string'),
-       'action',JSON_OBJECT('type','string','enum',JSON_ARRAY('capabilities','recommend_models','settings','settings_update','install_ollama','install_model','run','job_status','cancel')),
+       'action',JSON_OBJECT('type','string','enum',JSON_ARRAY('capabilities','recommend_models','settings','settings_update','install_provider','install_ollama','install_model','run','job_status','cancel')),
        'settings_update_approved',JSON_OBJECT('type','boolean','default',false),
        'installation_approved',JSON_OBJECT('type','boolean','default',false),
        'model_installation_approved',JSON_OBJECT('type','boolean','default',false),
+       'provider_key',JSON_OBJECT('type','string','enum',JSON_ARRAY('ollama','lm_studio','localai','llama_cpp','vllm','jan','custom_openai_compatible')),
        'delegation_approved',JSON_OBJECT('type','boolean','default',false),
        'delegation_mode',JSON_OBJECT('type','string','enum',JSON_ARRAY('manual_api')),
        'delegation_reason',JSON_OBJECT('type','string','minLength',10),
@@ -30,7 +31,7 @@ VALUES
      )
    ),
    JSON_OBJECT(),
-   'admin,agents,local-device,ollama,multi-agent,manual-api,opt-in,install-approval,no-secrets',
+   'admin,agents,local-device,local-model-provider,openai-compatible,ollama,gemma,multi-agent,manual-api,opt-in,install-approval,no-secrets',
    1, 733, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON DUPLICATE KEY UPDATE
   display_name=VALUES(display_name), description=VALUES(description), http_method=VALUES(http_method),
@@ -69,11 +70,11 @@ INSERT INTO local_gateway_tools
    requires_approval, is_consequential, input_schema, tags, status, sort_order, notes)
 VALUES
   ('local.connector.agent_runtime', 'connector_agent_runtime', 'Optional Local Multi-Agent Runtime',
-   'Inspect or explicitly operate an Ollama-backed multi-agent runtime on a tenant-owned local device. No automatic delegation or managed fallback.',
+   'Inspect or explicitly operate an Ollama or OpenAI-compatible multi-agent runtime on a tenant-owned local device. No automatic delegation or managed fallback.',
    '/connector/{device_id}/agent-runtime', 'local_device_agent_runtime', 'high',
    '["tenant","admin"]', '["self_serve","assisted","managed"]', 1, 1, 0, 0, 1,
-   '{"type":"object","required":["device_id","action"],"properties":{"device_id":{"type":"string"},"action":{"type":"string","enum":["capabilities","recommend_models","settings","settings_update","install_ollama","install_model","run","job_status","cancel"]},"settings_update_approved":{"type":"boolean"},"installation_approved":{"type":"boolean"},"model_installation_approved":{"type":"boolean"},"delegation_approved":{"type":"boolean"},"delegation_mode":{"type":"string","enum":["manual_api"]},"delegation_reason":{"type":"string"},"execution_target":{"type":"string","enum":["local_device","platform_managed"]},"model":{"type":"string"},"max_parallel_agents":{"type":"integer","minimum":1,"maximum":6},"agents":{"type":"array","maxItems":6},"job_id":{"type":"string"},"settings":{"type":"object"},"user_id":{"type":"string"}}}',
-   'local,device,agents,ollama,multi-agent,manual-api,opt-in,approval,no-secrets', 'active', 95,
+   '{"type":"object","required":["device_id","action"],"properties":{"device_id":{"type":"string"},"action":{"type":"string","enum":["capabilities","recommend_models","settings","settings_update","install_provider","install_ollama","install_model","run","job_status","cancel"]},"settings_update_approved":{"type":"boolean"},"installation_approved":{"type":"boolean"},"model_installation_approved":{"type":"boolean"},"provider_key":{"type":"string","enum":["ollama","lm_studio","localai","llama_cpp","vllm","jan","custom_openai_compatible"]},"delegation_approved":{"type":"boolean"},"delegation_mode":{"type":"string","enum":["manual_api"]},"delegation_reason":{"type":"string"},"execution_target":{"type":"string","enum":["local_device","platform_managed"]},"model":{"type":"string"},"max_parallel_agents":{"type":"integer","minimum":1,"maximum":6},"agents":{"type":"array","maxItems":6},"job_id":{"type":"string"},"settings":{"type":"object"},"user_id":{"type":"string"}}}',
+   'local,device,agents,local-model-provider,openai-compatible,ollama,gemma,multi-agent,manual-api,opt-in,approval,no-secrets', 'active', 95,
    'Tenant/Admin GPT may inspect freely. Settings updates, installation, and multi-agent runs require explicit action-specific approval.')
 ON DUPLICATE KEY UPDATE
   dispatch_tool_key=VALUES(dispatch_tool_key), display_name=VALUES(display_name), description=VALUES(description),

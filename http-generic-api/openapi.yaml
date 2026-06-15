@@ -11778,7 +11778,7 @@ paths:
       tags: [connector-proxy]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: postConnectorDeviceAgentRuntime
-      summary: Optional local Ollama multi-agent runtime via device tunnel
+      summary: Optional local model-provider multi-agent runtime via device tunnel
       description: "Proxies POST /agent-runtime. Read actions are non-mutating; settings changes, installation, and runs enforce separate explicit approvals."
       parameters:
         - { name: device_id, in: path, required: true, schema: { type: string } }
@@ -11794,10 +11794,11 @@ paths:
               properties:
                 action:
                   type: string
-                  enum: [capabilities, recommend_models, settings, settings_update, install_ollama, install_model, run, job_status, cancel]
+                  enum: [capabilities, recommend_models, settings, settings_update, install_provider, install_ollama, install_model, run, job_status, cancel]
                 settings_update_approved: { type: boolean }
                 installation_approved: { type: boolean }
                 model_installation_approved: { type: boolean }
+                provider_key: { type: string, enum: [ollama, lm_studio, localai, llama_cpp, vllm, jan, custom_openai_compatible] }
                 delegation_approved: { type: boolean }
                 delegation_mode: { type: string, enum: [manual_api] }
                 delegation_reason: { type: string }

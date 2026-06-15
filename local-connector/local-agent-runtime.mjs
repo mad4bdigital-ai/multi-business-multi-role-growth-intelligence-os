@@ -6,6 +6,65 @@ import crypto from 'node:crypto';
 
 const jobs = new Map();
 const DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434';
+const LOCAL_PROVIDER_REGISTRY = {
+  ollama: {
+    display_name: 'Ollama',
+    protocol: 'ollama',
+    default_endpoint_url: DEFAULT_OLLAMA_URL,
+    install_mode: 'winget',
+    winget_id: 'Ollama.Ollama',
+    model_install_supported: true,
+    website: 'https://ollama.com/',
+  },
+  lm_studio: {
+    display_name: 'LM Studio',
+    protocol: 'openai_compatible',
+    default_endpoint_url: 'http://127.0.0.1:1234/v1',
+    install_mode: 'manual',
+    model_install_supported: false,
+    website: 'https://lmstudio.ai/',
+  },
+  localai: {
+    display_name: 'LocalAI',
+    protocol: 'openai_compatible',
+    default_endpoint_url: 'http://127.0.0.1:8080/v1',
+    install_mode: 'manual',
+    model_install_supported: false,
+    website: 'https://localai.io/',
+  },
+  llama_cpp: {
+    display_name: 'llama.cpp Server',
+    protocol: 'openai_compatible',
+    default_endpoint_url: 'http://127.0.0.1:8080/v1',
+    install_mode: 'manual',
+    model_install_supported: false,
+    website: 'https://github.com/ggml-org/llama.cpp',
+  },
+  vllm: {
+    display_name: 'vLLM',
+    protocol: 'openai_compatible',
+    default_endpoint_url: 'http://127.0.0.1:8000/v1',
+    install_mode: 'manual',
+    model_install_supported: false,
+    website: 'https://docs.vllm.ai/',
+  },
+  jan: {
+    display_name: 'Jan',
+    protocol: 'openai_compatible',
+    default_endpoint_url: 'http://127.0.0.1:1337/v1',
+    install_mode: 'manual',
+    model_install_supported: false,
+    website: 'https://jan.ai/',
+  },
+  custom_openai_compatible: {
+    display_name: 'Custom OpenAI-Compatible Local Server',
+    protocol: 'openai_compatible',
+    default_endpoint_url: 'http://127.0.0.1:8000/v1',
+    install_mode: 'manual',
+    model_install_supported: false,
+    website: null,
+  },
+};
 const SETTINGS_PATH = process.env.LOCAL_AGENT_SETTINGS_PATH
   || path.join(os.homedir(), '.mad4b', 'local-agent-runtime-settings.json');
 const MODEL_GUIDES = [
@@ -21,6 +80,12 @@ const MODEL_GUIDES = [
     url: 'https://huggingface.co/spaces/hf-accelerate/model-memory-usage',
     purpose: 'Estimate model memory requirements before downloading a model.',
   },
+  {
+    key: 'google_gemma',
+    name: 'Google Gemma',
+    url: 'https://ai.google.dev/gemma',
+    purpose: 'Review Google Gemma open-model variants and deployment guidance.',
+  },
 ];
 
 const DEFAULT_SETTINGS = {
@@ -31,6 +96,8 @@ const DEFAULT_SETTINGS = {
   max_parallel_agents: clamp(process.env.LOCAL_AGENT_MAX_PARALLEL, 1, 6, 2),
   ollama_url: String(process.env.LOCAL_AGENT_OLLAMA_URL || DEFAULT_OLLAMA_URL),
   preferred_model: String(process.env.OLLAMA_MODEL || ''),
+  provider_key: String(process.env.LOCAL_AGENT_PROVIDER_KEY || 'ollama'),
+  endpoint_url: String(process.env.LOCAL_AGENT_PROVIDER_URL || process.env.LOCAL_AGENT_OLLAMA_URL || DEFAULT_OLLAMA_URL),
   recommendation_site: 'ollama_library',
 };
 
@@ -53,9 +120,17 @@ function sanitizeSettings(input = {}) {
   if (typeof input.install_enabled === 'boolean') next.install_enabled = input.install_enabled;
   if (input.max_parallel_agents != null) next.max_parallel_agents = clamp(input.max_parallel_agents, 1, 6, 2);
   if (typeof input.preferred_model === 'string') next.preferred_model = input.preferred_model.trim().slice(0, 160);
+  if (LOCAL_PROVIDER_REGISTRY[input.provider_key]) {
+    next.provider_key = input.provider_key;
+    if (!input.endpoint_url) next.endpoint_url = LOCAL_PROVIDER_REGISTRY[input.provider_key].default_endpoint_url;
+  }
   if (MODEL_GUIDES.some(site => site.key === input.recommendation_site)) next.recommendation_site = input.recommendation_site;
   if (typeof input.ollama_url === 'string' && /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/i.test(input.ollama_url.trim())) {
     next.ollama_url = input.ollama_url.trim().replace(/\/$/, '');
+    if (next.provider_key === 'ollama') next.endpoint_url = next.ollama_url;
+  }
+  if (typeof input.endpoint_url === 'string' && isLocalEndpoint(input.endpoint_url)) {
+    next.endpoint_url = input.endpoint_url.trim().replace(/\/$/, '');
   }
   return next;
 }
@@ -70,6 +145,23 @@ function persistSettings(next) {
 function clamp(value, min, max, fallback) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.min(Math.max(parsed, min), max) : fallback;
+}
+
+function isLocalEndpoint(value) {
+  try {
+    const url = new URL(String(value || ''));
+    return url.protocol === 'http:' && ['127.0.0.1', 'localhost', '::1'].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function selectedProvider() {
+  const providerKey = LOCAL_PROVIDER_REGISTRY[runtimeSettings.provider_key] ? runtimeSettings.provider_key : 'ollama';
+  const provider = LOCAL_PROVIDER_REGISTRY[providerKey];
+  const endpointUrl = String(runtimeSettings.endpoint_url || provider.default_endpoint_url).replace(/\/$/, '');
+  if (!isLocalEndpoint(endpointUrl)) throw Object.assign(new Error('Local provider endpoint must use localhost HTTP.'), { code: 'non_local_provider_endpoint' });
+  return { provider_key: providerKey, endpoint_url: endpointUrl, ...provider };
 }
 
 function runCommand(command, args = [], timeoutMs = 120000) {
@@ -112,7 +204,7 @@ async function discoverGpu() {
 }
 
 async function ollamaRequest(path, options = {}) {
-  const baseUrl = String(runtimeSettings.ollama_url || DEFAULT_OLLAMA_URL).replace(/\/$/, '');
+  const baseUrl = selectedProvider().endpoint_url;
   const response = await fetch(`${baseUrl}${path}`, {
     ...options,
     headers: { 'content-type': 'application/json', ...(options.headers || {}) },
@@ -122,31 +214,63 @@ async function ollamaRequest(path, options = {}) {
   return response.json();
 }
 
-async function capabilities() {
-  const gpu = await discoverGpu();
-  let models = [];
-  let ollamaReady = false;
-  try {
+async function openAiCompatibleRequest(path, options = {}) {
+  const provider = selectedProvider();
+  const response = await fetch(`${provider.endpoint_url}${path}`, {
+    ...options,
+    headers: { 'content-type': 'application/json', ...(options.headers || {}) },
+    signal: options.signal || AbortSignal.timeout(120000),
+  });
+  if (!response.ok) throw new Error(`${provider.display_name} ${response.status}: ${(await response.text()).slice(0, 500)}`);
+  return response.json();
+}
+
+async function providerModels(provider) {
+  if (provider.protocol === 'ollama') {
     const tags = await ollamaRequest('/api/tags', { method: 'GET', signal: AbortSignal.timeout(5000) });
-    models = (tags.models || []).map(model => ({
+    return (tags.models || []).map(model => ({
       name: model.name,
       size_gb: Math.round((Number(model.size || 0) / (1024 ** 3)) * 10) / 10,
     }));
-    ollamaReady = true;
+  }
+  const response = await openAiCompatibleRequest('/models', { method: 'GET', signal: AbortSignal.timeout(5000) });
+  return (response.data || []).map(model => ({ name: model.id, owned_by: model.owned_by || null }));
+}
+
+async function capabilities() {
+  const gpu = await discoverGpu();
+  const provider = selectedProvider();
+  let models = [];
+  let providerReady = false;
+  try {
+    models = await providerModels(provider);
+    providerReady = true;
   } catch {
-    ollamaReady = false;
+    providerReady = false;
   }
   return {
     runtime_enabled: runtimeSettings.local_runtime_enabled === true,
     install_enabled: runtimeSettings.install_enabled === true,
-    provider: 'ollama',
-    ollama_ready: ollamaReady,
+    provider_key: provider.provider_key,
+    provider_protocol: provider.protocol,
+    provider_display_name: provider.display_name,
+    provider_endpoint_url: provider.endpoint_url,
+    provider_ready: providerReady,
     cpu: { logical_cores: os.cpus().length, model: os.cpus()[0]?.model || null },
     memory_gb: Math.round((os.totalmem() / (1024 ** 3)) * 10) / 10,
     gpu,
     models,
     max_parallel_agents: runtimeSettings.max_parallel_agents,
     recommendation_sites: MODEL_GUIDES,
+    provider_candidates: Object.entries(LOCAL_PROVIDER_REGISTRY).map(([provider_key, value]) => ({
+      provider_key,
+      display_name: value.display_name,
+      protocol: value.protocol,
+      default_endpoint_url: value.default_endpoint_url,
+      install_mode: value.install_mode,
+      model_install_supported: value.model_install_supported,
+      website: value.website,
+    })),
     secrets_included: false,
   };
 }
@@ -154,7 +278,7 @@ async function capabilities() {
 function recommendModels(device) {
   const availableGb = device.gpu?.memory_gb || device.memory_gb * 0.55;
   const candidates = availableGb >= 40
-    ? ['qwen3-coder:30b', 'deepseek-r1:32b', 'llama3.3:70b-q4_K_M']
+    ? ['qwen3-coder:30b', 'deepseek-r1:32b', 'gemma3:27b', 'llama3.3:70b-q4_K_M']
     : availableGb >= 20
       ? ['qwen3-coder:14b', 'deepseek-r1:14b', 'gemma3:27b']
       : availableGb >= 10
@@ -164,6 +288,7 @@ function recommendModels(device) {
     sizing_basis: device.gpu ? 'gpu_vram' : 'system_memory_conservative_share',
     available_memory_estimate_gb: Math.round(availableGb * 10) / 10,
     recommended_models: candidates,
+    supported_model_families: ['Gemma', 'Qwen', 'Llama', 'DeepSeek', 'Phi', 'Mistral', 'other provider-compatible models'],
     recommendation_sites: MODEL_GUIDES,
     selected_recommendation_site: MODEL_GUIDES.find(site => site.key === runtimeSettings.recommendation_site) || MODEL_GUIDES[0],
     warning: 'Validate exact quantization and context-window memory before installation.',
@@ -194,19 +319,25 @@ async function runOneAgent(agent, model, signal) {
   const name = String(agent.name || agent.agent_key || 'agent').slice(0, 100);
   const prompt = String(agent.prompt || '').trim();
   if (!prompt) throw new Error(`Agent ${name} requires a prompt.`);
-  const response = await ollamaRequest('/api/chat', {
+  const messages = [
+    { role: 'system', content: `You are the ${name} sub-agent. Return a concise, evidence-based result.` },
+    { role: 'user', content: prompt },
+  ];
+  const provider = selectedProvider();
+  if (provider.protocol === 'ollama') {
+    const response = await ollamaRequest('/api/chat', {
+      method: 'POST',
+      body: JSON.stringify({ model, stream: false, messages }),
+      signal,
+    });
+    return { agent_key: name, content: response.message?.content || '', done: response.done === true };
+  }
+  const response = await openAiCompatibleRequest('/chat/completions', {
     method: 'POST',
-    body: JSON.stringify({
-      model,
-      stream: false,
-      messages: [
-        { role: 'system', content: `You are the ${name} sub-agent. Return a concise, evidence-based result.` },
-        { role: 'user', content: prompt },
-      ],
-    }),
+    body: JSON.stringify({ model, stream: false, messages }),
     signal,
   });
-  return { agent_key: name, content: response.message?.content || '', done: response.done === true };
+  return { agent_key: name, content: response.choices?.[0]?.message?.content || '', done: true };
 }
 
 async function runJob(job, agents, model, maxParallel) {
@@ -233,6 +364,7 @@ function publicJob(job) {
     job_id: job.job_id,
     status: job.status,
     model: job.model,
+    provider_key: job.provider_key,
     agent_count: job.agent_count,
     results: job.results,
     errors: job.errors,
@@ -244,16 +376,25 @@ function publicJob(job) {
   };
 }
 
-async function installOllama() {
+async function installProvider(providerKey) {
+  const provider = LOCAL_PROVIDER_REGISTRY[providerKey];
+  if (!provider) throw Object.assign(new Error('Unknown local provider.'), { code: 'unknown_local_provider' });
+  if (provider.install_mode !== 'winget' || !provider.winget_id) {
+    return { provider_key: providerKey, install_mode: provider.install_mode, automatic_install_supported: false, website: provider.website };
+  }
   if (process.platform !== 'win32') {
-    const error = new Error('Automatic Ollama installation is currently supported on Windows devices only.');
+    const error = new Error('Automatic provider installation is currently supported on Windows devices only.');
     error.code = 'automatic_install_platform_not_supported';
     throw error;
   }
-  return runCommand('winget.exe', ['install', '--id', 'Ollama.Ollama', '--exact', '--accept-source-agreements', '--accept-package-agreements'], 600000);
+  return runCommand('winget.exe', ['install', '--id', provider.winget_id, '--exact', '--accept-source-agreements', '--accept-package-agreements'], 600000);
 }
 
 async function installModel(model) {
+  const provider = selectedProvider();
+  if (!provider.model_install_supported || provider.protocol !== 'ollama') {
+    return { installed: false, provider_key: provider.provider_key, model_install_supported: false, website: provider.website };
+  }
   const normalized = String(model || '').trim();
   if (!/^[A-Za-z0-9._/-]+(?::[A-Za-z0-9._-]+)?$/.test(normalized)) {
     const error = new Error('model must be a valid Ollama model name.');
@@ -289,6 +430,7 @@ export function createLocalAgentRuntimeHandler({ requireAuth, readBody, ok, err,
           ...runtimeSettings,
           settings_path: SETTINGS_PATH,
           recommendation_sites: MODEL_GUIDES,
+          provider_candidates: Object.entries(LOCAL_PROVIDER_REGISTRY).map(([provider_key, provider]) => ({ provider_key, ...provider })),
           automatic_delegation_allowed: false,
         });
       }
@@ -297,10 +439,11 @@ export function createLocalAgentRuntimeHandler({ requireAuth, readBody, ok, err,
         const settings = persistSettings(sanitizeSettings(body.settings || {}));
         return ok(res, { settings, automatic_delegation_allowed: false, secrets_included: false });
       }
-      if (action === 'install_ollama') {
+      if (action === 'install_provider' || action === 'install_ollama') {
         if (runtimeSettings.install_enabled !== true) return err(res, 403, 'INSTALL_DISABLED', 'Local agent installation is disabled in device settings.');
         if (body.installation_approved !== true) return err(res, 403, 'INSTALL_APPROVAL_REQUIRED', 'installation_approved=true is required.');
-        return ok(res, { installed: true, result: await installOllama(), next_action: 'recommend_models' });
+        const providerKey = action === 'install_ollama' ? 'ollama' : String(body.provider_key || runtimeSettings.provider_key || 'ollama');
+        return ok(res, { provider_key: providerKey, result: await installProvider(providerKey), next_action: 'recommend_models' });
       }
       if (action === 'install_model') {
         if (runtimeSettings.install_enabled !== true) return err(res, 403, 'INSTALL_DISABLED', 'Local agent installation is disabled in device settings.');
@@ -317,6 +460,7 @@ export function createLocalAgentRuntimeHandler({ requireAuth, readBody, ok, err,
           job_id: `local_agent_${crypto.randomUUID()}`,
           status: 'queued',
           model,
+          provider_key: selectedProvider().provider_key,
           agent_count: agents.length,
           results: [],
           errors: [],
@@ -349,6 +493,8 @@ export function createLocalAgentRuntimeHandler({ requireAuth, readBody, ok, err,
         'delegation_reason_required',
         'agents_required',
         'invalid_model_name',
+        'unknown_local_provider',
+        'non_local_provider_endpoint',
       ].includes(error.code) ? 400 : 500;
       return err(res, status, error.code || 'LOCAL_AGENT_RUNTIME_ERROR', error.message);
     }
