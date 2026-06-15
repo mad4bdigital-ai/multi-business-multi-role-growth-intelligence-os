@@ -32,8 +32,9 @@ The live certification command creates controlled fixtures inside a database tra
 - If workflow-run creation fails after the claim, the plan transitions to `failed` and returns `workflow_run_create_failed` instead of remaining stuck in `executing`.
 - Planner and chain agent selection require `health_status='active'` and use deterministic `agent_id` ordering.
 - Connector skill grants are validated fail-closed before plan claim; missing grants and unavailable grant authority block execution.
-- Chain dispatch attempts at most one configured healthy fallback agent after primary-agent failure.
+- Chain dispatch is manual-API opt-in only. It attempts a configured healthy fallback agent after primary-agent failure only when the explicit dispatch request separately opts into fallback.
 - Chain events persist root/parent lineage, workflow path, and bounded depth; cycles and depth overflow are recorded as `skipped`.
+- `linked_workflows` are exposed as delegation options and do not automatically create or dispatch chain events.
 - One-time handoff state includes tenant scope, expiry, revocation, and atomic consumption.
 - Shared dispatch requires capability envelopes before claim for MCP execution and WordPress `apply=true`; specialized mutation paths retain their narrower envelope guards.
 
@@ -47,6 +48,8 @@ The static readiness audit now returns `execution_ready=true` only when every so
 - operational monitoring confirming no unexpected `failed` or `skipped` chain-event growth.
 
 Until live and behavioral evidence is current, sequential governed orchestration remains the supported production default.
+
+Optional multi-agent execution remains disabled by default even after readiness passes. Use the governed manual API sequence documented in `optional-manual-agent-delegation.md`; do not schedule automatic chain-event sweeps.
 
 ## Readiness Evidence
 

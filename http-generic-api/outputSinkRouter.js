@@ -15,6 +15,7 @@ import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { writeAuditLog } from "./auditLogger.js"; // Assuming auditLogger.js exists
 import { resolveRuntimeWorkflow } from "./runtimeWorkflowResolver.js";
+import { requireAgentDelegationOptIn } from "./agentDelegationOptIn.js";
 
 const REPORT_TYPES = new Set([
   "Report", "Analysis", "Scorecard", "Dataset", "Research", "Map",
@@ -213,6 +214,47 @@ async function sinkChainEvents({ source_run_id, source_agent_id, source_workflow
   return events;
 }
 
+export async function createExplicitChainEvents(input = {}) {
+  const delegation = requireAgentDelegationOptIn(input);
+  if (!input.source_run_id || !input.tenant_id || !input.target_workflow_keys) {
+    const error = new Error("source_run_id, tenant_id, and target_workflow_keys are required.");
+    error.code = "agent_chain_event_fields_required";
+    error.status = 400;
+    throw error;
+  }
+  const targetWorkflowKeys = normalizeLinkedWorkflowKeys(input.target_workflow_keys);
+  if (!targetWorkflowKeys.length || targetWorkflowKeys.length > 8) {
+    const error = new Error("Explicit delegation requires between 1 and 8 unique target workflow keys.");
+    error.code = "agent_delegation_target_count_invalid";
+    error.status = 400;
+    throw error;
+  }
+  const [runRows] = await getPool().query(
+    `SELECT run_id, tenant_id, agent_id, workflow_key, output_json, status
+     FROM \`workflow_runs\`
+     WHERE run_id = ? AND tenant_id = ?
+     LIMIT 1`,
+    [input.source_run_id, input.tenant_id]
+  );
+  const sourceRun = runRows[0];
+  if (!sourceRun || sourceRun.status !== "completed") {
+    const error = new Error("Explicit delegation requires a completed source workflow run in the same tenant.");
+    error.code = "agent_delegation_source_run_invalid";
+    error.status = 409;
+    throw error;
+  }
+  const events = await sinkChainEvents({
+    source_run_id: sourceRun.run_id,
+    source_agent_id: sourceRun.agent_id || null,
+    source_workflow_key: sourceRun.workflow_key || null,
+    linked_workflows: targetWorkflowKeys,
+    tenant_id: sourceRun.tenant_id,
+    output: sourceRun.output_json ?? null,
+    passed: input.passed,
+  });
+  return { ok: true, delegation, events, secrets_included: false };
+}
+
 // ─── Public entry point ───────────────────────────────────────────────────────
 
 export async function routeOutput({ run_id, agent_id, tenant_id, brand_key, workflow_id, workflow_key, output }) {
@@ -266,13 +308,12 @@ export async function routeOutput({ run_id, agent_id, tenant_id, brand_key, work
   }
 
   if (linked_workflows) {
-    try {
-      const events = await sinkChainEvents({ source_run_id: run_id, source_agent_id: agent_id, source_workflow_key: workflow_key, linked_workflows, tenant_id, output, passed: rulePassed });
-      for (const e of events) {
-        dispatched.push({ sink: "chain_event", id: e.event_id, target: e.target_workflow_key, status: e.status, reason: e.failure_reason });
-        await logSink(run_id, agent_id, tenant_id, "chain_event", e.event_id, e.status === "skipped" ? "skipped" : "ok", e.failure_reason, sinkContext);
-      }
-    } catch (err) { await logSink(run_id, agent_id, tenant_id, "chain_event", null, "failed", err.message, sinkContext); }
+    dispatched.push({
+      sink: "delegation_option",
+      status: "manual_api_opt_in_required",
+      target_workflow_keys: normalizeLinkedWorkflowKeys(linked_workflows),
+      automatic_delegation_allowed: false,
+    });
   }
 
   try {

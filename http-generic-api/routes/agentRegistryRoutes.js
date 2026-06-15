@@ -2,6 +2,7 @@ import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
 import { writeAuditLog } from "../auditLogger.js";
+import { requireAgentDelegationOptIn } from "../agentDelegationOptIn.js";
 
 export function buildAgentRegistryRoutes(deps) {
   const { requireBackendApiKey } = deps;
@@ -146,6 +147,7 @@ router.post("/agents/:id/delegate", async (req, res) => {
     const { user_id, tenant_id, intent_key, brand_key, plan_id } = req.body;
     if (!user_id || !tenant_id || !intent_key)
       return res.status(400).json({ error: "user_id, tenant_id, intent_key required" });
+    const delegation = requireAgentDelegationOptIn(req.body || {});
 
     const agent = await findAgent(req.params.id);
     if (!agent) return res.status(404).json({ error: "agent_not_found" });
@@ -198,9 +200,10 @@ router.post("/agents/:id/delegate", async (req, res) => {
       execution_class: agent.execution_class,
       expires_at,
       status: "pending",
+      delegation_mode: delegation.delegation_mode,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: { code: err.code || "agent_delegation_failed", message: err.message, details: err.details } });
   }
 });
 

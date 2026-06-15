@@ -166,7 +166,7 @@ Important governed surfaces (all SQL-primary, `DATA_SOURCE=sql`):
 | `endpoints` | Endpoint keys, method, path, domain |
 | `output_artifacts` | Canonical store for agent-generated outputs |
 | `sink_dispatch_log` | Audit trail for output routing decisions |
-| `agent_chain_events` | Event bus for inter-agent chaining |
+| `agent_chain_events` | Optional manual-API queue for explicitly approved inter-agent chaining |
 | `local_connector_user_configs` | Per-user device tunnel config, connector_secret |
 | `local_connector_shell_allowlists` | Per-device shell alias allowlists |
 | `local_connector_file_access_rules` | Per-device file path access rules |
@@ -345,6 +345,8 @@ npm run supervisor:readiness:live
 The live command is read-only: it checks schema metadata plus active route/grant and fallback-agent relationships. See [`docs/supervisor-agent-runtime-readiness.md`](docs/supervisor-agent-runtime-readiness.md) for enforced guarantees and activation boundaries.
 
 The bounded causal provider-lane certification is admin-only and must run through `auth.mad4b.com` with list-before-call discovery. It proves one synthetic plan-to-workflow-run-to-provider path with zero tools, local execution, repository mutation, or secret return; it does not authorize unrestricted master-agent execution. See [`docs/execution-log-supervisor-provider-certification-2026-06-15.md`](docs/execution-log-supervisor-provider-certification-2026-06-15.md).
+
+Sub-agent delegation is optional and fail-closed. `linked_workflows` never dispatch automatically; creation and single-event dispatch require explicit `manual_api` opt-in through governed APIs, and fallback agents require a separate opt-in flag. See [`docs/optional-manual-agent-delegation.md`](docs/optional-manual-agent-delegation.md).
 
 Ongoing priorities:
 - maintain canonical/runtime alignment on every change
