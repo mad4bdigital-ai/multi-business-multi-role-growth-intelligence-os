@@ -165,6 +165,19 @@ parity and recovery flows remain available.
 Use a Windows named pipe with an ACL restricted to the current Windows user.
 Do not expose the privileged sidecar through a general localhost HTTP port.
 
+The initial typed operation registry and validation contract is implemented in
+`apps/local-manager-windows/SidecarRpcContracts.cs`. It is intentionally
+transport-independent so the current WinForms application and the future
+MAD4B-owned desktop container can share the same allowlist and action-specific
+approval checks before the named-pipe server is introduced.
+
+The bounded current-user-only named-pipe transport skeleton is implemented in
+`apps/local-manager-windows/SidecarRpcServer.cs`. It validates the operation and
+action-specific approval before dispatch, rejects oversized requests, validates
+successful result envelopes for forbidden secret-like fields, and redacts
+sensitive failure text. It is not started by the WinForms application yet and
+has no privileged operation dispatcher in this phase.
+
 The MAD4B shell and embedded Hermes workspace call a narrow `mad4bDesktop`
 context bridge. The desktop main process validates input and forwards typed
 requests to the sidecar.

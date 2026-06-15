@@ -150,6 +150,7 @@ export const testCommands = [
   "node test-local-manager-tool-release-owner.mjs",
   "node test-local-manager-activate-binding.mjs",
   "node test-local-manager-chatgpt-url-capture.mjs",
+  "node test-local-manager-sidecar-rpc-contract.mjs",
   "node test-platform-plugin-catalog.mjs",
   "node test-platform-plugin-resolver.mjs",
   "node test-platform-plugin-policy.mjs",
