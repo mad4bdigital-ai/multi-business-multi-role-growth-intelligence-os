@@ -13126,6 +13126,81 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+  /platform/remote-runtime/hosting/deploy-release:
+    post:
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: remoteRuntimeHostingerDeployRelease
+      x-custom-gpt-exclude: true
+      x-gpt-action-exclude: true
+      x-openai-isConsequential: true
+      summary: Deploy an approved Hostinger runtime release
+      description: Performs a SHA-pinned, capability-envelope-gated deploy. When restart is requested and the deploy succeeds, returns 202 with deployment_run_id and a readback path while the deferred restart and runtime parity verification complete.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [target_id, expected_commit_sha]
+              properties:
+                target_id: { type: string }
+                app_key: { type: string, default: auth.mad4b.com }
+                app_path: { type: string }
+                branch: { type: string, enum: [main], default: main }
+                expected_commit_sha: { type: string, pattern: '^[0-9a-fA-F]{40}$' }
+                dry_run: { type: boolean, default: true }
+                force_clean: { type: boolean, default: false }
+                restart: { type: boolean, default: true }
+                approval_reason: { type: string, minLength: 20 }
+                capability_envelope_id: { type: string }
+                timeout_ms: { type: integer, minimum: 1000, maximum: 300000 }
+                ssh_auth_mode: { type: string, enum: [password, private_key] }
+      responses:
+        '200':
+          description: Dry-run completed or deployment completed without restart.
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '202':
+          description: Deployment files were updated and a deferred restart was accepted; poll the deployment readback endpoint.
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '400': { description: Invalid deployment input. }
+        '403': { description: Approval, capability envelope, or execution gate missing. }
+        '409': { description: Target, path, branch, SHA, or dry-run plan conflict. }
+        '502': { description: SSH deployment failed before acceptance. }
+  /platform/remote-runtime/hosting/deploy-runs/{deploymentRunId}:
+    get:
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: remoteRuntimeHostingerDeployRunRead
+      x-custom-gpt-exclude: true
+      x-gpt-action-exclude: true
+      x-openai-isConsequential: false
+      summary: Read Hostinger deployment status
+      description: Reads bounded no-secret deployment evidence by deployment_run_id and combines it with production runtime parity. Returns accepted until the deployed SHA is verified healthy, then completed.
+      parameters:
+        - in: path
+          name: deploymentRunId
+          required: true
+          schema:
+            type: string
+            pattern: '^hostinger_ssh_deploy_[0-9a-fA-F-]{36}$'
+      responses:
+        '200':
+          description: Deployment status readback.
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '400': { description: Invalid deployment run ID. }
+        '404': { description: Deployment run not found. }
   /platform/remote-runtime/local-path/execute-readonly:
     post:
       x-openai-isConsequential: true
