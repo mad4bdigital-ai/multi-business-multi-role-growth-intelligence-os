@@ -17,6 +17,7 @@ import {
   sanitizeBrowser4Checks,
   validateBrowser4Url,
 } from './browser4-adapter.mjs';
+import { createLocalAgentRuntimeHandler } from './local-agent-runtime.mjs';
 
 // ---------------------------------------------------------------------------
 // Bootstrap â€” manual .env parse (no dotenv dependency)
@@ -1173,6 +1174,8 @@ async function handleApps(req, res) {
   return err(res, 400, 'UNKNOWN_ACTION', 'action must be "status", "list", "launch", "status_app", or "close"');
 }
 
+const handleLocalAgentRuntime = createLocalAgentRuntimeHandler({ requireAuth, readBody, ok, err, audit });
+
 async function handleBrowser(req, res) {
   if (!APPS_ENABLED) return err(res, 403, 'DISABLED', 'Browser control endpoint is disabled on this connector');
   if (!requireAuth(req, res)) return;
@@ -1933,6 +1936,7 @@ const server = http.createServer(async (req, res) => {
     if (method === 'POST' && url === '/github') return await handleGitHub(req, res);
     if (method === 'POST' && url === '/gcloud') return await handleGCloud(req, res);
     if (method === 'POST' && url === '/dependencies') return await handleDependencies(req, res);
+    if (method === 'POST' && url === '/agent-runtime') return await handleLocalAgentRuntime(req, res);
     if (method === 'POST' && url === '/shell') return await handleShell(req, res);
     if (method === 'POST' && url === '/apps') return await handleApps(req, res);
     if (method === 'POST' && url === '/browser') return await handleBrowser(req, res);

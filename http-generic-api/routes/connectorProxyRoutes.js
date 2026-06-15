@@ -822,6 +822,11 @@ export function buildConnectorProxyRoutes(deps) {
     catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
   });
 
+  router.post("/connector/:device_id/agent-runtime", requireBackendApiKey, async (req, res) => {
+    try { await proxyToDevice(req, res, req.params.device_id, "/agent-runtime"); }
+    catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
+  });
+
   router.post("/connector/:device_id/apps", requireBackendApiKey, async (req, res) => {
     try { await proxyToDevice(req, res, req.params.device_id, "/apps"); }
     catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }

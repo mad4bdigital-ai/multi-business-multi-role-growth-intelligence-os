@@ -182,6 +182,26 @@ async function callOpenRouter(messages, tools, config = {}) {
   return normalizeOpenAIResponse(await res.json());
 }
 
+async function callOllama(messages, tools, config = {}) {
+  const { fetch: _fetch = fetch } = config;
+  const model = config.model || process.env.OLLAMA_MODEL || "qwen3:8b";
+  const baseUrl = String(config.base_url || process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace(/\/$/, "");
+  const body = { model, messages, stream: false };
+  if (tools.length) body.tools = tools;
+  const res = await _fetch(`${baseUrl}/api/chat`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Ollama API ${res.status}: ${sanitizeUpstreamErrorBody(await res.text())}`);
+  const raw = await res.json();
+  return {
+    content: raw.message?.content || "",
+    tool_calls: raw.message?.tool_calls || [],
+    tokens_used: Number(raw.prompt_eval_count || 0) + Number(raw.eval_count || 0),
+  };
+}
+
 async function callGemini(messages, tools, config = {}) {
   const { fetch: _fetch = fetch } = config;
   const apiKey = config.api_key || process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
@@ -210,14 +230,14 @@ async function callGemini(messages, tools, config = {}) {
   });
 }
 
-const PROVIDERS = { anthropic: callAnthropic, openai: callOpenAI, openrouter: callOpenRouter, gemini: callGemini };
+const PROVIDERS = { anthropic: callAnthropic, openai: callOpenAI, openrouter: callOpenRouter, gemini: callGemini, ollama: callOllama };
 
 // Returns a callModel(messages, tools) function bound to the chosen provider.
 // provider: "anthropic" | "openai" | "openrouter" | "gemini"  (default: anthropic)
 export function buildCallModel(config = {}) {
   const provider = String(config.provider || process.env.AGENT_MODEL_PROVIDER || "anthropic").toLowerCase();
   const caller = PROVIDERS[provider];
-  if (!caller) throw new Error(`Unknown model provider: ${provider}. Use anthropic | openai | openrouter | gemini`);
+  if (!caller) throw new Error(`Unknown model provider: ${provider}. Use anthropic | openai | openrouter | gemini | ollama`);
   const modelKey = config.model || process.env.AGENT_MODEL || process.env.OPENROUTER_MODEL || process.env.GEMINI_MODEL || process.env.OPENAI_MODEL || process.env.ANTHROPIC_MODEL || "unknown";
   const callModel = async (messages, tools = []) => {
     const response = await caller(messages, tools, config);

@@ -11773,6 +11773,47 @@ paths:
         "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
+  /connector/{device_id}/agent-runtime:
+    post:
+      tags: [connector-proxy]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: postConnectorDeviceAgentRuntime
+      summary: Optional local Ollama multi-agent runtime via device tunnel
+      description: "Proxies POST /agent-runtime. Read actions are non-mutating; settings changes, installation, and runs enforce separate explicit approvals."
+      parameters:
+        - { name: device_id, in: path, required: true, schema: { type: string } }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only - target user id. }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [capabilities, recommend_models, settings, settings_update, install_ollama, install_model, run, job_status, cancel]
+                settings_update_approved: { type: boolean }
+                installation_approved: { type: boolean }
+                model_installation_approved: { type: boolean }
+                delegation_approved: { type: boolean }
+                delegation_mode: { type: string, enum: [manual_api] }
+                delegation_reason: { type: string }
+                execution_target: { type: string, enum: [local_device, platform_managed] }
+                model: { type: string }
+                max_parallel_agents: { type: integer, minimum: 1, maximum: 6 }
+                agents: { type: array, maxItems: 6, items: { type: object, additionalProperties: true } }
+                job_id: { type: string }
+                settings: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Local agent runtime result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Device not found or not enabled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
   /connector/{device_id}/apps:
     post:
       tags: [connector-proxy]

@@ -5,13 +5,15 @@
 The agent execution runtime wires the AI model loop, engine dispatch, and knowledge layer into a single governed execution chain.
 All AI-driven workflow execution must flow through this layer — no workflow calls a model directly.
 
+The runtime supports explicit `local_device` and `platform_managed` execution targets. Local Manager devices are optional execution workers using Ollama; platform governance remains authoritative. Multi-agent dispatch, settings mutation, installation, and managed fallback must never be inferred or automatically activated. See `docs/hybrid-local-managed-agent-runtime.md`.
+
 ## Runtime Modules
 
 | Module | Role |
 |---|---|
 | `agentRuntime.js` | Singleton factory — composes `callModel`, `runLogicWithModel`, `engineExecutorRegistry`, and `getCallModelForClass` into a single `deps` object |
 | `agentLoopRunner.js` | Entry point — `runAgentLoop(plan, deps)` loads the workflow row, loads the logic definition, runs the ReAct model loop, and optionally runs the verify pass |
-| `modelAdapterRouter.js` | `buildCallModel(config)` — normalises Anthropic / OpenAI / OpenRouter / Gemini request and response shapes to the common internal format |
+| `modelAdapterRouter.js` | `buildCallModel(config)` — normalises Anthropic / OpenAI / OpenRouter / Gemini / local Ollama request and response shapes to the common internal format |
 | `agentModelRuntimeSettings.js` | Loads and validates `platform_runtime_config.agent_model_runtime`; resolves Gemini-primary/OpenRouter-fallback provider order, env-var references, and class-to-model mappings without storing secrets |
 | `modelAdapter.js` | `runLogicWithModel` — executes the ReAct tool-calling loop with iteration cap and tool dispatch |
 | `engineExecutorRegistry.js` | `buildEngineExecutorRegistry` — routes tool-call dispatch to MCP, HTTP action, or logic-as-engine by name |
