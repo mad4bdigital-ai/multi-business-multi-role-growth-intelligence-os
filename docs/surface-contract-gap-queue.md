@@ -4,11 +4,11 @@
 
 ## Summary
 
-- Total queue items: 4
+- Total queue items: 5
 - Critical review: 1
 - High review: 3
 - Medium review: 0
-- Low review: 0
+- Low review: 1
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
@@ -68,4 +68,18 @@
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `agent_chain_event_dispatch`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+
+### 5. `314_sprint69_dynamic_audit_runtime_closure.sql`
+
+- Queue class: low_review
+- Score: 219
+- Gap severity: none
+- Missing docs: none
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_credential_payload_read`, `no_raw_secrets`
+- Surface counts: plugins=0, tools=4, views=3, policies=0, routes=0
+- Remediation actions:
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `allow_record_only`, `drive_asset_readback_verified_total`, `requires_preflight`, `v_dynamic_audit_pipeline_readiness`
+- `verify_readback_view` → db-readback-review; targets: `v_dynamic_audit_pipeline_counts`, `v_dynamic_audit_pipeline_quality`, `v_dynamic_audit_pipeline_readiness`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`
 
