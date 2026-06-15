@@ -83,24 +83,9 @@ async function loadRows(connection, limit) {
   const [rows] = await connection.query(
     `SELECT event_id,event_key,source_family,event_type,resource_kind,resource_key,
             event_status,evidence_json,created_at
-       FROM platform_audit_event_bus e
-      WHERE e.event_status IN ('observed','pending_rollup')
-        AND NOT EXISTS (
-          SELECT 1 FROM db_change_audit_events d
-           WHERE d.source_event_key COLLATE utf8mb4_unicode_ci =
-                 e.event_key COLLATE utf8mb4_unicode_ci
-        )
-        AND NOT EXISTS (
-          SELECT 1 FROM asset_audit_events a
-           WHERE a.source_event_key COLLATE utf8mb4_unicode_ci =
-                 e.event_key COLLATE utf8mb4_unicode_ci
-        )
-        AND NOT EXISTS (
-          SELECT 1 FROM checkpoint_auto_rollups c
-           WHERE c.source_event_key COLLATE utf8mb4_unicode_ci =
-                 e.event_key COLLATE utf8mb4_unicode_ci
-        )
-      ORDER BY e.event_id ASC
+       FROM platform_audit_event_bus
+      WHERE event_status IN ('observed','pending_rollup')
+      ORDER BY event_id ASC
       LIMIT ?`,
     [limit]
   );
