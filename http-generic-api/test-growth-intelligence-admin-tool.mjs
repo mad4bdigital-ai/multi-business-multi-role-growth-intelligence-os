@@ -137,6 +137,12 @@ assert.equal(result.mutations_executed, false);
 assert.equal(result.secrets_included, false);
 assert.equal(result.workflow.stages.find((stage) => stage.stage === "tenant_activation")?.status, "pass");
 assert.equal(result.workflow.stages.find((stage) => stage.stage === "approval_hold")?.status, "pass");
+assert.equal(result.workflow.stages.find((stage) => stage.stage === "prompt_router")?.status, "pass");
+assert.equal(result.workflow.stages.find((stage) => stage.stage === "module_loader")?.status, "pass");
+assert.equal(result.workflow.stages.find((stage) => stage.stage === "engine_compatibility")?.status, "pass");
+assert.equal(result.workflow.stages.find((stage) => stage.stage === "governed_tool_dispatch")?.status, "pass");
+assert.equal(result.workflow.stages.every((stage) => stage.status === "pass"), true);
+assert.equal(result.readback.all_stages_passed, true);
 assert.ok(result.report.evidence.every((item) => item.assumption === false));
 
 await expectCode(
