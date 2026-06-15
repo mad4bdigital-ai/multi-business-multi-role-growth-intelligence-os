@@ -125,15 +125,11 @@ async function insertRows(connection, rows) {
   return inserted;
 }
 
-async function countRemaining(connection) {
+async function countRemaining(connection, cursorId) {
   const [rows] = await connection.query(
-    `SELECT COUNT(*) AS count
-       FROM audit_log a
-      WHERE NOT EXISTS (
-        SELECT 1 FROM platform_audit_event_bus b
-         WHERE b.event_key COLLATE utf8mb4_unicode_ci =
-               CONCAT('audit_log:', a.audit_id) COLLATE utf8mb4_unicode_ci
-      )`
+    `SELECT GREATEST(COALESCE(MAX(id),0)-?,0) AS count
+       FROM audit_log`,
+    [Math.max(0, Number(cursorId || 0))]
   );
   return Number(rows?.[0]?.count || 0);
 }
