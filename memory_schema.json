@@ -33,6 +33,7 @@
     "agent_chain_state",
     "memory_scope_state",
     "agent_governance_state",
+    "capability_assurance_state",
     "local_connector_governance_state"
   ],
   "properties": {
