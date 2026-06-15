@@ -1,55 +1,65 @@
-# Tenant Growth Dashboard Product Contract
+# Tenant Growth Dashboard Product
 
 ## Status
 
-Implementation branch only. Not production-enabled until migration, tests, dev verification, PR review, and release readiness pass.
+Implementation candidate on a governed work branch. Production deployment remains blocked until migration review, CI, development-environment validation, and explicit release approval complete.
 
-## Product purpose
+## Product goal
 
-The Tenant Growth Dashboard turns governed platform state into a customer-facing growth cockpit. It is available through Tenant GPT activation and through visual web/mobile renderers using the same backend contract.
+The Tenant Growth Dashboard turns platform registries, connected-system state, Brand knowledge, tasks, signals, agents, and governed actions into a customer-facing growth cockpit.
 
-The product answers five questions:
+The experience must answer five questions:
 
 1. What changed?
-2. What matters to the business?
+2. What matters to this business?
 3. What is blocked or missing?
-4. What is the next best action?
-5. Which governed platform capability can help?
+4. What is the highest-impact next action?
+5. Which platform capability can help safely?
+
+## Customer experience
+
+The same backend contract supports:
+
+- Tenant GPT conversational navigation.
+- Web and mobile dashboard renderers.
+- Compact daily and weekly digests.
+- Governed action previews and follow-up execution flows.
+
+The default entry point is `tenant_today`. It presents a bounded summary, typed cards, growth guidance, and no more than three next-best actions.
 
 ## Runtime flow
 
 ```text
-signed tenant JWT
+Signed tenant JWT
   -> tenant and user scope
-  -> active workspace and linked Brand
-  -> business activity resolution
-  -> Brand Core readiness
-  -> growth goal and data readiness
-  -> relevant Dynamic Tabs
-  -> typed cards and growth guidance
-  -> governed action preview
-  -> explicit confirmation and runtime authority for consequential execution
-  -> recommendation feedback and result readback
+  -> active/preferred workspace
+  -> linked Brand and Brand Core readiness
+  -> business activity and business type
+  -> growth stage and primary goal
+  -> relevant product tabs
+  -> typed cards and data status
+  -> growth guidance
+  -> governed action previews
+  -> feedback and result observation
 ```
 
-SQL remains runtime read authority. Google Sheets is an asynchronous mirror and recovery surface, not the runtime dashboard source.
+SQL is the runtime read authority. Sheets remains an asynchronous mirror/recovery surface. Tenant/user identity always comes from the signed JWT.
 
-## Public tenant surfaces
+## Product routes
 
-- `GET /activation/session-context` returns bounded `product_guidance` for a signed non-admin Tenant GPT principal.
-- `GET /tenant/dashboard` returns the full customer-facing dashboard contract.
-- `GET /tenant/dashboard/tabs/{tabKey}` returns one selected tab.
-- `GET /tenant/dashboard/preferences` reads the signed-in user's dashboard state.
-- `PUT /tenant/dashboard/preferences` replaces that user's dashboard state.
-- `GET /tenant/dashboard/digest` returns a compact in-app or delivery-adapter digest.
-- `GET /tenant/dashboard/actions/{actionRefKey}/preview` resolves readiness without execution.
-- `POST /tenant/dashboard/recommendations/{recommendationId}/feedback` records recommendation lifecycle feedback and observed outcomes.
+- `GET /tenant/dashboard`
+- `GET /tenant/dashboard/tabs/{tabKey}`
+- `GET /tenant/dashboard/preferences`
+- `PUT /tenant/dashboard/preferences`
+- `GET /tenant/dashboard/digest`
+- `GET /tenant/dashboard/actions/{actionRefKey}/preview`
+- `POST /tenant/dashboard/recommendations/{recommendationId}/feedback`
 
-Tenant and user identity always come from the signed JWT. Request bodies must not override identity scope.
+Tenant activation through `GET /activation/session-context` includes a compact `product_guidance` overlay and a `dashboard_entry` pointer.
 
-## Customer-facing tabs
+## Dynamic Tabs
 
-The registry-backed initial product set is:
+The initial customer-facing tabs are:
 
 - Today
 - Growth Plan
@@ -64,75 +74,60 @@ The registry-backed initial product set is:
 - Knowledge & Brand
 - Reports
 
-Tab selection is contextual. It considers business type, business activity, goal tags, data availability, Brand Core, role, and saved user preferences. The interface should normally display five to seven high-relevance tabs first and may expose the remainder through progressive disclosure.
-
-## Today contract
-
-Today is the default mobile and conversational entry point. It contains:
-
-- key readiness and performance cards
-- changed-since-last-visit attention items
-- highest-priority gap or opportunity
-- no more than three next-best actions
-- quick commands
-- links to relevant tabs and governed details
-
-Today must not inline every operational row. Activation returns navigation and guidance; detailed rows remain cursor-loaded.
+Tabs are selected and ordered by registry profiles, business activity, business type, goals, role/scope, connector readiness, Brand Core readiness, available data, and user preferences. The product must not return every operational tab to every customer.
 
 ## Typed cards
 
-Cards include:
+Cards expose stable IDs and renderer-friendly types such as KPI, score, status, task, connector status, recommendation, funnel, campaign, content opportunity, or lead opportunity.
 
-- stable `card_id`
-- `card_type`
-- title, value, unit, and status
-- stable metric key when applicable
-- business interpretation
-- related governed actions
-- freshness and observation timestamp
+Each card must preserve:
+
+- title and interpretation
+- value and unit when available
+- metric identity when available
+- status and comparison context
 - source system and tenant-authorized scope
-- confidence and partial-data flags
-- optional detail reference
+- observed time and freshness state
+- confidence and partial-data markers
+- authorized action references
+- governed detail reference when hydration is deferred
 
-Missing data is not zero. The renderer must distinguish `not_connected`, `unavailable`, `unknown`, `stale`, `partial`, and an observed numeric zero.
+Missing data is not zero. The valid states include unavailable, not connected, unknown, stale, partial, failed, and true numeric zero.
 
 ## Growth guidance
 
-Tenant GPT instructions must:
+The product instruction layer leads with business outcomes and avoids internal table or registry terminology. It should:
 
-- lead with business outcomes rather than registry terminology
-- explain why a signal matters
-- identify the capability that can help
-- disclose readiness or blockers
-- rank no more than three actions
-- state impact, effort, confidence, and missing-data assumptions
-- keep customer-facing content blocked when required Brand Core is unresolved
+- explain why the current signal matters
+- identify the relevant platform capability
+- identify readiness, connection, permission, or confirmation gaps
+- rank impact, effort, and confidence
+- expose no more than three next actions
+- tailor commands and empty states to the resolved business activity
 
-## Action governance
+Initial profiles cover general businesses, travel/destination businesses, expert service firms, and B2B product suppliers.
 
-Actions may be:
+## Actions and safety
 
-- read-only
-- advisory
-- draft-only
-- write-requires-confirmation
+Actions may be read-only, advisory, draft-only, or confirmation-required. Preview endpoints never execute providers or write business data.
 
-Preview never executes a provider. A consequential action requires same-cycle validation of:
+Consequential execution remains subject to:
 
 - route and workflow authority
-- tenant/object scope
-- capability readiness
-- required integrations and credentials
-- Brand Core when applicable
-- approval policy
+- dependency readiness
+- capability and action grants
+- credential resolution
+- Brand Core requirements
 - explicit confirmation
-- success readback and failure recovery contract
+- provider readback and audit requirements
 
-## Preferences and feedback
+## Preferences
 
-Preferences store active container, active tab, pinned and hidden tabs, date range, filters, dismissed alerts, favorite metrics, density, language, currency, timezone, and notification choices.
+Per-user tenant dashboard preferences include active container/tab, pinned and hidden tabs, date range, saved filters, dismissed alerts, favorite metrics, density, language, currency, timezone, and notification preferences.
 
-Recommendation events support:
+## Feedback loop
+
+Recommendation events record:
 
 - shown
 - opened
@@ -142,31 +137,40 @@ Recommendation events support:
 - failed
 - result observed
 
-Dismissal reasons and observed metric values support future recommendation ordering. These records must not contain credentials, tokens, raw private conversations, or unrestricted provider payloads.
+Feedback is tenant scoped, no-secret, and may include bounded context and observed metric outcomes. Dismissal reasons support relevance and timing improvements.
 
-## Response budget
+## Activation and transport
 
-Tenant activation defaults to the `evidence` response profile. It returns one active container, relevant navigation, Today, guidance, and governed detail references. Large responses use the existing governed chunk-continuation contract.
+Tenant activation defaults to `response_profile=evidence`. It returns compact guidance and governed detail references instead of inlining all workspaces, tabs, sections, and rows.
 
-Admin activation uses the same response budget semantics. When a full Dynamic Tabs manifest exceeds the hard budget, the runtime keeps active-container navigation and a compact container index instead of expanding every tab for every container.
+Admin hard activation applies a response-budget projection that keeps the active container navigation and indexes other containers. If a response still exceeds the hard limit, governed chunk continuation is used; arbitrary string truncation is forbidden.
 
-## Migration and rollback
+Activation lifecycle preserves validation, evidence preparation, delivery, and consumer acknowledgement as separate states.
 
-The migration is additive. It creates product registries, preference state, recommendation events, metrics, instruction profiles, tab profiles, and additive metadata columns on existing activation registries.
+## Persistence
 
-Rollback should first disable seeded product rows and route exposure. Physical column or table removal requires a separately reviewed destructive migration after data retention and export decisions.
+Migration `20260615_tenant_growth_dashboard_product.sql` adds additive fields and creates:
 
-## Release gates
+- `tenant_dynamic_dashboard_preferences`
+- `tenant_growth_recommendation_events`
+- `growth_dashboard_metric_registry`
+- `growth_dashboard_tab_profile_registry`
+- `growth_dashboard_instruction_registry`
 
-Before merge or deployment:
+The migration also seeds product tabs, metric definitions, instruction profiles, and no-provider-write growth action references.
 
-- OpenAPI 3.1 parses and matches all public routes.
-- Unit and contract tests pass.
-- Tenant JWT isolation is verified.
-- Migration applies cleanly on development DB and additive rollback strategy is recorded.
-- `node build-canonicals.mjs` completes after canonical edits.
-- Activation response sizes are measured for admin and tenant fixtures.
-- PR merge preview reports no conflicts.
-- Required CI checks pass.
-- Dev deployment and tenant smoke verify navigation, cards, preferences, preview, feedback, and degraded states.
-- Production deployment requires explicit release approval.
+## Rollout
+
+1. CI validates JavaScript syntax, tests, OpenAPI parsing, canonical source structure, and generated canonical output.
+2. Review migration compatibility and query plans.
+3. Deploy the branch to `dev.mad4b.com` only.
+4. Apply the additive migration to the development database.
+5. Run a signed Tenant JWT smoke for activation, dashboard, preferences, action preview, and feedback.
+6. Measure response bytes and SQL query counts for admin and tenant activation.
+7. Verify tenant isolation and no-secret responses.
+8. Complete release-readiness review.
+9. Merge and deploy production only after explicit approval.
+
+## Rollback
+
+Before production use, rollback is code-first: remove route mounting and product projection while retaining additive tables. Because feedback/preferences tables are additive and non-authoritative, they may remain dormant. Destructive table or column removal requires a separate reviewed migration and is not part of the initial rollback procedure.
