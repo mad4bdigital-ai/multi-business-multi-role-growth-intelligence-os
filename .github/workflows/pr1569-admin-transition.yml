@@ -1,0 +1,47 @@
+name: PR 1569 Admin Transition
+
+on:
+  push:
+    branches:
+      - gpt/automation-intelligence-guard-v2
+    paths:
+      - ".github/workflows/pr1569-admin-transition.yml"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr1569-admin-transition
+  cancel-in-progress: false
+
+jobs:
+  transition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Reopen existing pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api --method PATCH \
+            "repos/${GITHUB_REPOSITORY}/pulls/1569" \
+            -f state=open \
+            --jq '{number,state,draft,head_sha:.head.sha}'
+
+      - name: Mark existing pull request ready for review
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/1569")"
+          node_id="$(jq -r '.node_id' <<<"$pr_json")"
+          is_draft="$(jq -r '.draft' <<<"$pr_json")"
+          if [[ "$is_draft" == "true" ]]; then
+            gh api graphql \
+              -f query='mutation($id:ID!){markPullRequestReadyForReview(input:{pullRequestId:$id}){pullRequest{number state isDraft}}}' \
+              -F id="$node_id"
+          else
+            echo "PR 1569 is already ready for review."
+          fi
