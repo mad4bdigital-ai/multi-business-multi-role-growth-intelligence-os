@@ -5,6 +5,7 @@ import { getPool } from "../db.js";
 
 export const AUDIT_BRIDGE_CONFIRMATION = "APPLY_AUDIT_LOG_EVENT_BUS_BRIDGE";
 const LOCK_NAME = "dynamic_audit.audit_log_event_bus_bridge.v1";
+const CONFIG_KEY = "audit_log_event_bus_bridge_schedule";
 
 function parseArgs(argv = process.argv.slice(2)) {
   const out = { apply: false, confirm: "", limit: 500, sinceId: 0 };
@@ -58,18 +59,41 @@ function buildEvidence(row) {
   };
 }
 
+async function readCursor(connection, requestedSinceId = 0) {
+  const explicit = Math.max(0, Number(requestedSinceId || 0));
+  if (explicit > 0) return explicit;
+  const [rows] = await connection.query(
+    `SELECT CAST(JSON_UNQUOTE(JSON_EXTRACT(config_json,'$.last_audit_log_id')) AS UNSIGNED) AS cursor_id
+       FROM platform_runtime_config
+      WHERE config_key=?
+      LIMIT 1`,
+    [CONFIG_KEY]
+  );
+  return Math.max(0, Number(rows?.[0]?.cursor_id || 0));
+}
+
+async function writeCursor(connection, cursorId) {
+  await connection.query(
+    `UPDATE platform_runtime_config
+        SET config_json=JSON_SET(
+              config_json,
+              '$.last_audit_log_id',CAST(? AS UNSIGNED),
+              '$.last_cursor_at',DATE_FORMAT(UTC_TIMESTAMP(),'%Y-%m-%dT%H:%i:%sZ'),
+              '$.secrets_included',FALSE
+            ),
+            updated_at=UTC_TIMESTAMP()
+      WHERE config_key=?`,
+    [Math.max(0, Number(cursorId || 0)), CONFIG_KEY]
+  );
+}
+
 async function loadRows(connection, options) {
   const [rows] = await connection.query(
     `SELECT id,audit_id,tenant_id,actor_type,session_id,conversation_id,correlation_id,
             execution_context_json,action,resource_type,resource_id,before_json,after_json,occurred_at
-       FROM audit_log a
-      WHERE a.id > ?
-        AND NOT EXISTS (
-          SELECT 1 FROM platform_audit_event_bus b
-           WHERE b.event_key COLLATE utf8mb4_unicode_ci =
-                 CONCAT('audit_log:', a.audit_id) COLLATE utf8mb4_unicode_ci
-        )
-      ORDER BY a.id ASC
+       FROM audit_log
+      WHERE id > ?
+      ORDER BY id ASC
       LIMIT ?`,
     [options.sinceId, options.limit]
   );
@@ -101,15 +125,11 @@ async function insertRows(connection, rows) {
   return inserted;
 }
 
-async function countRemaining(connection) {
+async function countRemaining(connection, cursorId) {
   const [rows] = await connection.query(
-    `SELECT COUNT(*) AS count
-       FROM audit_log a
-      WHERE NOT EXISTS (
-        SELECT 1 FROM platform_audit_event_bus b
-         WHERE b.event_key COLLATE utf8mb4_unicode_ci =
-               CONCAT('audit_log:', a.audit_id) COLLATE utf8mb4_unicode_ci
-      )`
+    `SELECT GREATEST(COALESCE(MAX(id),0)-?,0) AS count
+       FROM audit_log`,
+    [Math.max(0, Number(cursorId || 0))]
   );
   return Number(rows?.[0]?.count || 0);
 }
@@ -129,13 +149,14 @@ export async function runAuditLogEventBusBridge(options = {}, dependencies = {})
     lockAcquired = Number(lockRows?.[0]?.acquired || 0) === 1;
     if (!lockAcquired) return { ok: true, mode: normalized.apply ? "apply" : "dry_run", skipped: true, reason: "bridge_lock_busy", inserted_count: 0, remaining_count: null, secrets_included: false };
 
-    const rows = await loadRows(connection, normalized);
+    const cursorId = await readCursor(connection, normalized.sinceId);
+    const rows = await loadRows(connection, { ...normalized, sinceId: cursorId });
     const base = {
       ok: true,
       mode: normalized.apply ? "apply" : "dry_run",
       candidate_count: rows.length,
       limit: normalized.limit,
-      since_id: normalized.sinceId,
+      since_id: cursorId,
       sample: rows.slice(0, 10).map((row) => ({
         audit_log_id: row.id,
         event_key: `audit_log:${row.audit_id}`,
@@ -149,7 +170,7 @@ export async function runAuditLogEventBusBridge(options = {}, dependencies = {})
       secrets_included: false,
     };
 
-    if (!normalized.apply) return { ...base, inserted_count: 0, remaining_count: await countRemaining(connection), reason: "dry_run_only" };
+    if (!normalized.apply) return { ...base, inserted_count: 0, remaining_count: await countRemaining(connection, cursorId), reason: "dry_run_only" };
     if (normalized.confirm !== AUDIT_BRIDGE_CONFIRMATION) {
       const error = new Error(`--confirm=${AUDIT_BRIDGE_CONFIRMATION} required`);
       error.code = "missing_audit_bridge_confirmation";
@@ -157,7 +178,17 @@ export async function runAuditLogEventBusBridge(options = {}, dependencies = {})
     }
 
     const inserted = await insertRows(connection, rows);
-    return { ...base, inserted_count: inserted, remaining_count: await countRemaining(connection), reason: "audit_log_events_mirrored" };
+    const nextCursorId = rows.length
+      ? Math.max(...rows.map((row) => Number(row.id || cursorId)))
+      : cursorId;
+    if (nextCursorId > cursorId) await writeCursor(connection, nextCursorId);
+    return {
+      ...base,
+      inserted_count: inserted,
+      cursor_id: nextCursorId,
+      remaining_count: await countRemaining(connection, nextCursorId),
+      reason: "audit_log_events_mirrored",
+    };
   } finally {
     if (lockAcquired) await connection.query("SELECT RELEASE_LOCK(?) AS released", [LOCK_NAME]).catch(() => {});
     connection.release();
