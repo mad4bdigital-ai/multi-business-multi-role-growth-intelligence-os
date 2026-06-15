@@ -108,7 +108,15 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "950_sprint68_platform_resource_authority_bindings.sql",
   "233_sprint68_general_mode_choice_governance.sql",
   "311_sprint69_superseded_closed_pr_branch_cleanup.sql",
+  "311_sprint69_platform_tool_dispatch_binding_integrity.sql",
+  "312_sprint69_platform_tool_dispatch_integrity_scope_fix.sql",
+  "1008_sprint69_post_deploy_restart_and_superseded_cleanup_policy.sql",
 ];
+
+const REQUIRED_TOOL_DISPATCH_MIGRATION_CHECKSUMS = Object.freeze({
+  "311_sprint69_platform_tool_dispatch_binding_integrity.sql": "7bb6d1a934d3504682303894b8bf1b95ed2d2e383c629a2838ecf1f4f7911216",
+  "312_sprint69_platform_tool_dispatch_integrity_scope_fix.sql": "e64c8068e49266c1e630ae2b8b5f38778a0d642f0ba4287ff43ce2a26d600ed8",
+});
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
   "admin_cloudflare",
@@ -1282,6 +1290,54 @@ async function checkRuntimeProductionParityGate() {
   }
 }
 
+async function checkPlatformToolDispatchBindingIntegrity() {
+  try {
+    const [[row]] = await getPool().query(
+      `SELECT COUNT(*) AS binding_count,
+              SUM(endpoint_not_ready) AS endpoint_not_ready,
+              SUM(missing_active_export) AS missing_exports,
+              SUM(missing_active_dispatch_binding) AS missing_bindings,
+              SUM(mutation_missing_capability_key) AS mutation_capability_gaps,
+              SUM(binding_missing_readback_policy) AS readback_policy_gaps,
+              SUM(db_callable_surface_missing) AS callable_surface_gaps
+         FROM v_platform_tool_dispatch_integrity
+        WHERE parent_action_key = 'github_api_mcp'`
+    );
+    const result = {
+      binding_count: Number(row?.binding_count || 0),
+      endpoint_not_ready: Number(row?.endpoint_not_ready || 0),
+      missing_exports: Number(row?.missing_exports || 0),
+      missing_bindings: Number(row?.missing_bindings || 0),
+      mutation_capability_gaps: Number(row?.mutation_capability_gaps || 0),
+      readback_policy_gaps: Number(row?.readback_policy_gaps || 0),
+      callable_surface_gaps: Number(row?.callable_surface_gaps || 0),
+    };
+    const gapCount = Object.entries(result)
+      .filter(([key]) => key !== "binding_count")
+      .reduce((sum, [, value]) => sum + Number(value || 0), 0);
+    const passed = result.binding_count === 14 && gapCount === 0;
+    return {
+      status: passed ? "pass" : "fail",
+      detail: passed
+        ? "GitHub tool dispatch integrity is healthy for 14/14 registered bindings."
+        : `GitHub tool dispatch integrity expected 14 healthy bindings and found ${result.binding_count} with ${gapCount} gap(s).`,
+      ...result,
+      gap_count: gapCount,
+      healthy_count: Math.max(0, result.binding_count - gapCount),
+      secrets_included: false,
+    };
+  } catch (err) {
+    return {
+      status: "fail",
+      detail: `Platform tool dispatch binding integrity check failed: ${err?.message || "unknown error"}`,
+      binding_count: 0,
+      healthy_count: 0,
+      gap_count: 1,
+      secrets_included: false,
+    };
+  }
+}
+
 async function checkTableExists(table) {
   try {
     const [[row]] = await getPool().query(
@@ -1363,7 +1419,7 @@ async function checkGovernedMigrationLedger() {
   const mode_counts = Object.fromEntries((modeRows || []).map((row) => [row.mode, Number(row.count || 0)]));
 
   const [coverageRows] = await pool.query(
-    "SELECT migration_file, mode, statement_count, preflight_status, preflight_risk_count, secrets_included, applied_at FROM governed_migration_ledger WHERE migration_file IN (?) ORDER BY applied_at ASC",
+    "SELECT migration_file, migration_checksum_sha256, mode, statement_count, preflight_status, preflight_risk_count, secrets_included, applied_at FROM governed_migration_ledger WHERE migration_file IN (?) ORDER BY applied_at ASC",
     [EXPECTED_GOVERNED_LEDGER_MIGRATIONS]
   );
   const covered = new Set((coverageRows || []).map((row) => String(row.migration_file)));
@@ -1373,15 +1429,22 @@ async function checkGovernedMigrationLedger() {
     || Number(row.preflight_risk_count || 0) > 0
     || Number(row.secrets_included || 0) !== 0
   );
-  const latest_apply = [...(coverageRows || [])].reverse().find((row) => row.mode === "apply") || null;
+  const [[latestApplyRow]] = await pool.query(
+    "SELECT migration_file, migration_checksum_sha256, mode, statement_count, preflight_status, preflight_risk_count, secrets_included, applied_at FROM governed_migration_ledger WHERE mode = 'apply' ORDER BY applied_at DESC LIMIT 1"
+  );
+  const latest_apply = latestApplyRow || null;
   const latest_record_only = [...(coverageRows || [])].reverse().find((row) => row.mode === "record_only") || null;
-  const status = missing_expected_migrations.length || risky_entries.length ? "warn" : "pass";
+  const required_checksum_mismatches = (coverageRows || []).filter((row) => {
+    const expected = REQUIRED_TOOL_DISPATCH_MIGRATION_CHECKSUMS[row.migration_file];
+    return expected && String(row.migration_checksum_sha256 || "").toLowerCase() !== expected;
+  });
+  const status = missing_expected_migrations.length || risky_entries.length || required_checksum_mismatches.length ? "warn" : "pass";
 
   return {
     status,
     detail: status === "pass"
       ? `Governed migration ledger covers ${coverageRows.length}/${EXPECTED_GOVERNED_LEDGER_MIGRATIONS.length} expected migration record(s).`
-      : `Governed migration ledger has ${missing_expected_migrations.length} missing expected record(s) and ${risky_entries.length} risky record(s).`,
+      : `Governed migration ledger has ${missing_expected_migrations.length} missing expected record(s), ${risky_entries.length} risky record(s), and ${required_checksum_mismatches.length} required checksum mismatch(es).`,
     table_exists: true,
     total_entries: Object.values(mode_counts).reduce((sum, count) => sum + Number(count || 0), 0),
     mode_counts,
@@ -1389,10 +1452,16 @@ async function checkGovernedMigrationLedger() {
     covered_count: coverageRows.length,
     missing_expected_migrations,
     risky_entries: risky_entries.slice(0, 10),
+    required_checksum_mismatches: required_checksum_mismatches.map((row) => ({
+      migration_file: row.migration_file,
+      expected_checksum_sha256: REQUIRED_TOOL_DISPATCH_MIGRATION_CHECKSUMS[row.migration_file],
+      actual_checksum_sha256: row.migration_checksum_sha256 || null,
+    })),
     latest_apply,
     latest_record_only,
     checked_migrations: (coverageRows || []).map((row) => ({
       migration_file: row.migration_file,
+      migration_checksum_sha256: row.migration_checksum_sha256 || null,
       mode: row.mode,
       statement_count: row.statement_count,
       preflight_status: row.preflight_status,
@@ -1795,6 +1864,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     platform_secret_promotion_monitoring: null,
     graph_memory_diagnostics: null,
     runtime_production_parity_gate: null,
+    platform_tool_dispatch_binding_integrity: null,
   };
 
   // DB connectivity
@@ -1838,6 +1908,9 @@ export async function runReleaseReadiness({ persist = false } = {}) {
   // that were applied or historically backfilled through the governed runner.
   report.governed_migration_ledger = await checkGovernedMigrationLedgerSafe();
   if (report.governed_migration_ledger.status === "warn" && report.overall === "pass") report.overall = "warn";
+
+  report.platform_tool_dispatch_binding_integrity = await checkPlatformToolDispatchBindingIntegrity();
+  if (report.platform_tool_dispatch_binding_integrity.status === "fail") report.overall = "fail";
 
   // Admin tool registry smoke — read-only registry verification only. This does
   // not dispatch any high-risk admin tool.
@@ -1891,6 +1964,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     ...Object.values(report.seed_data),
     report.migration_inventory,
     report.governed_migration_ledger,
+    report.platform_tool_dispatch_binding_integrity,
     report.admin_tool_registry_smoke,
     report.migration_drift,
     report.runtime_policy_seed_readiness,
@@ -1912,6 +1986,12 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     governed_migration_ledger_expected_count: report.governed_migration_ledger?.expected_count ?? null,
     governed_migration_ledger_covered_count: report.governed_migration_ledger?.covered_count ?? null,
     governed_migration_ledger_missing_expected_count: report.governed_migration_ledger?.missing_expected_migrations?.length ?? null,
+    governed_migration_ledger_checksum_mismatch_count: report.governed_migration_ledger?.required_checksum_mismatches?.length ?? null,
+    latest_governed_migration_apply: report.governed_migration_ledger?.latest_apply?.migration_file || null,
+    tool_dispatch_binding_integrity_status: report.platform_tool_dispatch_binding_integrity?.status || null,
+    tool_dispatch_binding_count: report.platform_tool_dispatch_binding_integrity?.binding_count ?? null,
+    tool_dispatch_binding_healthy_count: report.platform_tool_dispatch_binding_integrity?.healthy_count ?? null,
+    tool_dispatch_binding_gap_count: report.platform_tool_dispatch_binding_integrity?.gap_count ?? null,
     admin_tool_registry_smoke_status: report.admin_tool_registry_smoke?.status || null,
     admin_tool_registry_smoke_expected_count: report.admin_tool_registry_smoke?.expected_count ?? null,
     admin_tool_registry_smoke_covered_count: report.admin_tool_registry_smoke?.covered_count ?? null,
@@ -1961,6 +2041,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
         ...Object.entries(report.seed_data),
         ["migration_inventory", report.migration_inventory],
         ["governed_migration_ledger", report.governed_migration_ledger],
+        ["platform_tool_dispatch_binding_integrity", report.platform_tool_dispatch_binding_integrity],
         ["admin_tool_registry_smoke", report.admin_tool_registry_smoke],
         ["migration_drift", report.migration_drift],
         ["gpt_session_archive_monitoring", report.gpt_session_archive_monitoring],
