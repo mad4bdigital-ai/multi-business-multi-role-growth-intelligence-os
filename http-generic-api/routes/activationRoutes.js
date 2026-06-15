@@ -15,14 +15,17 @@ import { buildActivationOperationalIntelligenceEvidence } from "../activationOpe
 import {
   resolveActivationSessionLifecycle,
   acknowledgeActivationRun,
+  markActivationRunPrepared,
   markActivationRunDelivered,
 } from "../activationSessionLifecycleService.js";
 import {
   buildProfiledHardActivationResponse,
   recordPreparedActivationResponse,
   normalizeActivationResponseProfile,
+  projectActivationSessionContext,
 } from "../activationHardResponseService.js";
 import { readActivationDynamicTabDetail } from "../activationAwarenessService.js";
+import { buildTenantGrowthDashboard } from "../tenantGrowthDashboardService.js";
 import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
 import {
   REGISTRY_SPREADSHEET_ID,
