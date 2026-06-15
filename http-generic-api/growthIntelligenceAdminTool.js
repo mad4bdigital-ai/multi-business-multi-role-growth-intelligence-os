@@ -197,6 +197,9 @@ export async function resolveGrowthIntelligencePilotAdminContext({
       brand_core_asset_count: coreRows.length,
       business_activity_type_key: activity.business_activity_type_key,
       business_activity_registry_backed: true,
+      supported_route_keys: registryList(activity.supported_route_keys),
+      supported_workflows: registryList(activity.supported_workflows),
+      supported_engine_categories: registryList(activity.supported_engine_categories),
       secrets_included: false,
     },
   };
