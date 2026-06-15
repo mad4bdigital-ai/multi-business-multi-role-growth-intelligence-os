@@ -47,6 +47,14 @@ assert(
   "Health route must expose the no-secret-copy boundary."
 );
 assert(
+  bridgeBlock.includes('readiness: liveProviderReady ? "ready_for_live_provider_dispatch"'),
+  "Health route must report certified live provider dispatch readiness."
+);
+assert(
+  bridgeBlock.includes("local_runtime_required_for_provider_bridge: false"),
+  "Health route must distinguish the platform provider bridge from the local OpenClaude runtime."
+);
+assert(
   !bridgeBlock.includes("OPENROUTER_API_KEY") && !bridgeBlock.includes("GEMINI_API_KEY"),
   "Bridge route block must not read provider API keys directly."
 );

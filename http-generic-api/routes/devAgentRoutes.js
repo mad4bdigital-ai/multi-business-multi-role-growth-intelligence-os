@@ -689,15 +689,17 @@ export function buildDevAgentRoutes(deps) {
       const profileMetadata = safeParseJsonObject(profile?.metadata_json);
       const endpointLive = profileMetadata.endpoint_live === true || profileMetadata.endpoint_live === "true";
       const dispatchAllowed = Boolean(Number(certification?.dispatch_allowed || 0));
+      const liveProviderReady = endpointLive && dispatchAllowed && profile?.status === "active";
 
       return res.json({
         ok: true,
-        readiness: endpointLive && dispatchAllowed ? "ready_for_dry_run_dispatch" : "contract_registered_pending_provider_dispatch",
+        readiness: liveProviderReady ? "ready_for_live_provider_dispatch" : "contract_registered_pending_provider_dispatch",
         bridge: {
           contract_key: contract?.config_key || "openclaude_provider_bridge_contract_v1",
           contract_status: contractJson.status || "missing_contract",
           route_live: true,
           provider_dispatch_enabled: dispatchAllowed,
+          live_provider_ready: liveProviderReady,
           chat_completions_endpoint: "/dev-agent/openclaude/bridge/v1/chat/completions",
           health_endpoint: "/dev-agent/openclaude/bridge/v1/health",
         },
@@ -706,6 +708,7 @@ export function buildDevAgentRoutes(deps) {
           status: runtime?.status || "missing_runtime",
           device_id: runtime?.device_id || "essam-pc",
           execution_status: runtimePolicy.execution_status || "blocked_pending_provider_bridge_route",
+          local_runtime_required_for_provider_bridge: false,
         },
         profile: {
           profile_key: profile?.profile_key || "openclaude_essam_openrouter_bridge_v1",
