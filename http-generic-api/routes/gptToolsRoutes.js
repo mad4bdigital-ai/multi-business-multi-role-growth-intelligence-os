@@ -25,6 +25,7 @@ import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBran
 import { applyGithubRepositoryChangeSet, deleteGithubBranchRef, finalizeGithubPullRequest, getGithubPullRequestCiGate } from "../githubRepositoryLifecycle.js";
 import { runGithubSupersededBranchCleanup } from "../githubSupersededBranchCleanup.js";
 import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveReport } from "../platformCapabilityReports.js";
+import { runGrowthIntelligencePilotAdmin } from "../growthIntelligenceAdminTool.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -443,6 +444,28 @@ const VIRTUAL_ADMIN_TOOLS = [
             additionalProperties: false,
           },
         },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "growth_intelligence_pilot_run",
+    displayName: "Run Growth Intelligence Pilot",
+    description: "Run the registry-backed Growth Intelligence pilot for one active tenant and Brand Core-ready brand. Resolves Business Activity from SQL, persists the report, insights, actions, approval holds, and readiness assessment to internal registries, and performs same-cycle readback. No provider writes, external sends, live execution, or secrets.",
+    method: "VIRTUAL",
+    path: "internal://growth-intelligence-pilot-run",
+    tags: ["growth_intelligence", "pilot", "internal_registry", "approval_required", "dry_run", "no_provider_write", "no_external_send", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["tenant_id", "brand_key"],
+      properties: {
+        tenant_id: { type: "string", minLength: 1, maxLength: 64 },
+        brand_key: { type: "string", minLength: 1, maxLength: 128 },
+        business_activity_type_key: { type: "string", default: "business_and_industrial_products" },
+        persistence_mode: { type: "string", enum: ["internal_registry"], default: "internal_registry" },
+        evidence_limit: { type: "integer", minimum: 1, maximum: 50, default: 20 },
+        report_id: { type: "string", maxLength: 64 },
+        requested_by: { type: "string", maxLength: 128 },
       },
       additionalProperties: false,
     },
@@ -1304,6 +1327,25 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       return {
         status: err?.status || 500,
         body: { ok: false, error: { code: err?.code || "repo_patch_batch_apply_failed", message: err?.message || "Repository batch patch failed.", details: err?.details } },
+      };
+    }
+  }
+
+  if (callerType === "admin" && toolKey === "growth_intelligence_pilot_run") {
+    try {
+      const result = await runGrowthIntelligencePilotAdmin(args || {});
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "growth_intelligence_pilot_admin_failed",
+            message: err?.message || "Growth Intelligence pilot failed.",
+          },
+          secrets_included: false,
+        },
       };
     }
   }
