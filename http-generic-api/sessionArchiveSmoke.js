@@ -327,7 +327,7 @@ export async function runSessionArchiveSmoke({
     checked_at: new Date().toISOString(),
     session_id: sessionId,
     tenant_id: tenantId,
-    user_id: userId,
+    user_id: persistedUserId,
     originator: SMOKE_ORIGINATOR,
     smoke_subfolder: smokeSubfolder,
     drive: {
