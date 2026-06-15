@@ -56,6 +56,8 @@ Migration `314_sprint69_dynamic_audit_runtime_closure.sql` promotes the Dynamic 
 
 Dynamic Audit evidence is summary-only and no-secret. Direct DB calls without table/mutation metadata remain explicitly unresolved. Google Drive coverage includes platform-recorded uploads, session artifacts, and workspace assets; it does not imply observation of out-of-band Drive edits. Repo changed-file inventory is not exhaustive full-repo validation. Checkpoints may preserve runtime `main_commit_sha`, but must not infer `deployed_commit_sha`. Continuous/active classification requires fresh scheduler success and readiness thresholds to pass.
 
+Recurring bridge work must advance `platform_runtime_config.audit_log_event_bus_bridge_schedule.last_audit_log_id` as a durable keyset cursor. Rollup cycles select indexed pending statuses and rely on idempotent target writes before marking events `rolled_up`. The five-minute runtime path uses bounded fast-readiness counts; `v_dynamic_audit_pipeline_quality` remains a deep-audit surface and must not run inside each scheduler cycle. A live `enabled=false` config must cause new cycles to skip before lock acquisition or evidence writes.
+
 ### Runtime and model chain
 
 Deployment claims require runtime evidence. The API `prestart` lifecycle generates
