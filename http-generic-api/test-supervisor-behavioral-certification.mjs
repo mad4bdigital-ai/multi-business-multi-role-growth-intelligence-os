@@ -63,6 +63,11 @@ class ChainMemoryPool {
 
 const workflow = { workflow_id: "wf-cert", workflow_key: "supervisor_certification_workflow" };
 const workflowResolver = async () => ({ ok: true, workflow });
+const delegationRequest = {
+  delegation_approved: true,
+  delegation_mode: "manual_api",
+  delegation_reason: "Controlled supervisor behavioral certification.",
+};
 let idCounter = 0;
 const nextId = () => `cert-plan-${++idCounter}`;
 
@@ -72,7 +77,7 @@ const cyclePool = new ChainMemoryPool([{
   target_workflow_key: workflow.workflow_key,
   workflow_path_json: JSON.stringify(["a", "a"]),
 }]);
-const cycle = await dispatchChainEvent("cycle-event", { pool: cyclePool, resolveRuntimeWorkflow: workflowResolver, randomUUID: nextId });
+const cycle = await dispatchChainEvent("cycle-event", { pool: cyclePool, resolveRuntimeWorkflow: workflowResolver, randomUUID: nextId, delegationRequest });
 assert.equal(cycle.reason, "chain_cycle_detected");
 assert.equal(cyclePool.events.get("cycle-event").status, "skipped");
 
@@ -83,7 +88,7 @@ const depthPool = new ChainMemoryPool([{
   chain_depth: 9,
   max_chain_depth: 8,
 }]);
-const depth = await dispatchChainEvent("depth-event", { pool: depthPool, resolveRuntimeWorkflow: workflowResolver, randomUUID: nextId });
+const depth = await dispatchChainEvent("depth-event", { pool: depthPool, resolveRuntimeWorkflow: workflowResolver, randomUUID: nextId, delegationRequest });
 assert.equal(depth.reason, "chain_depth_exceeded");
 assert.equal(depthPool.events.get("depth-event").status, "skipped");
 
@@ -94,8 +99,8 @@ const claimPool = new ChainMemoryPool([{
   target_workflow_key: workflow.workflow_key,
 }]);
 const successfulDispatch = async () => ({ ok: true, run_id: "run-primary" });
-const firstClaim = await dispatchChainEvent("claim-event", { pool: claimPool, dispatchPlan: successfulDispatch, resolveRuntimeWorkflow: workflowResolver, randomUUID: nextId });
-const duplicateClaim = await dispatchChainEvent("claim-event", { pool: claimPool, dispatchPlan: successfulDispatch, resolveRuntimeWorkflow: workflowResolver, randomUUID: nextId });
+const firstClaim = await dispatchChainEvent("claim-event", { pool: claimPool, dispatchPlan: successfulDispatch, resolveRuntimeWorkflow: workflowResolver, randomUUID: nextId, delegationRequest });
+const duplicateClaim = await dispatchChainEvent("claim-event", { pool: claimPool, dispatchPlan: successfulDispatch, resolveRuntimeWorkflow: workflowResolver, randomUUID: nextId, delegationRequest });
 assert.equal(firstClaim.ok, true);
 assert.equal(firstClaim.run_id, "run-primary");
 assert.equal(duplicateClaim.skipped, true);
@@ -109,6 +114,7 @@ const fallbackPool = new ChainMemoryPool([{
   target_agent_id: "agent-primary",
   target_workflow_key: workflow.workflow_key,
 }]);
+const fallbackDelegationRequest = { ...delegationRequest, allow_fallback_agent: true };
 const dispatchActors = [];
 const fallbackDispatch = async (_planId, options) => {
   dispatchActors.push(options.actor_id);
@@ -116,7 +122,7 @@ const fallbackDispatch = async (_planId, options) => {
     ? { ok: false, error: { code: "cert_primary_failure", message: "controlled primary failure" } }
     : { ok: true, run_id: "run-fallback" };
 };
-const fallback = await dispatchChainEvent("fallback-event", { pool: fallbackPool, dispatchPlan: fallbackDispatch, resolveRuntimeWorkflow: workflowResolver, randomUUID: nextId });
+const fallback = await dispatchChainEvent("fallback-event", { pool: fallbackPool, dispatchPlan: fallbackDispatch, resolveRuntimeWorkflow: workflowResolver, randomUUID: nextId, delegationRequest: fallbackDelegationRequest });
 assert.equal(fallback.ok, true);
 assert.equal(fallback.agent_id, "agent-fallback");
 assert.equal(fallback.fallback_agent_id, "agent-fallback");

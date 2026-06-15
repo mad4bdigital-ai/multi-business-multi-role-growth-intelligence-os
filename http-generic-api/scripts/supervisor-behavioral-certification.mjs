@@ -26,6 +26,12 @@ const pool = getPool();
 const connection = await pool.getConnection();
 const tenantId = "supervisor-certification";
 const workflowKey = "supervisor_certification_no_provider";
+const delegationRequest = {
+  delegation_approved: true,
+  delegation_mode: "manual_api",
+  delegation_reason: "Controlled transaction-rollback supervisor behavioral certification.",
+  allow_fallback_agent: true,
+};
 const createdPlanIds = [];
 const createdRunIds = [];
 let rolledBack = false;
@@ -80,7 +86,7 @@ try {
     createdRunIds.push(runId);
     return { ok: true, run_id: runId };
   };
-  const deps = { pool: connection, dispatchPlan: controlledDispatch, resolveRuntimeWorkflow: workflowResolver };
+  const deps = { pool: connection, dispatchPlan: controlledDispatch, resolveRuntimeWorkflow: workflowResolver, delegationRequest };
 
   const claimEventId = randomUUID();
   await insertEvent({ event_id: claimEventId, source_agent_id: "cert-claim", target_agent_id: agents.primary_agent_id });
