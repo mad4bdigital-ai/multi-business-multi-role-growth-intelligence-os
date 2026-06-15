@@ -935,3 +935,22 @@ Superseded Branch Cleanup Verification Rule
 When a closed pull-request branch has been replaced by later commits on the default branch, system_bootstrap may expose `github_superseded_branch_cleanup` as a separate evidence-bound cleanup recipe. The general unmerged-branch deletion guard must remain active.
 
 Before apply, the recipe must verify closed-PR state, the `superseded` label, absence of an open PR, default-branch ancestry for every replacement commit, complete non-generated changed-file coverage, policy limits, fresh base/branch SHAs, a matching evidence fingerprint, capability-envelope approval, typed confirmation, and an explicit reason. Before deleting the named Git ref, it must write a synchronous no-secret intent audit. After the provider result it must write completion or failure audit evidence; successful completion also requires same-cycle missing-ref readback and returns `secrets_included=false`. Any stale, incomplete, protected, force, or fallback condition must remain blocked.
+
+## Operational Alerting Control Plane
+
+`system_bootstrap` must expose a unified alert readback that combines persisted alert lifecycle rows with live SQL evidence from execution, connector, task, agent, skill-approval, freshness, signal, readiness, and telemetry surfaces.
+
+Required behavior:
+
+- use stable alert keys for deduplication across repeated observations
+- keep severity, verification, and lifecycle as separate dimensions
+- preserve Known Issues until an explicit governed lifecycle decision resolves or ignores them
+- auto-resolve only non-manual alerts that disappear after a successful synchronization
+- queue high and critical notifications through `operational_alert_notification_outbox`; external delivery remains separately governed
+- preserve tenant isolation and keep platform Known Issues admin-only
+- support cursor/offset pagination with explicit `has_more` and `next_cursor`
+- never silently omit matching problems; when a page is incomplete, `all_matching_problems_returned_in_page` and `final_result_complete` must be false
+- return source-health evidence and keep `final_result_complete = false` while a required source is degraded
+- expose acknowledge, investigate, resolve, ignore, and reopen transitions through a governed lifecycle endpoint
+
+Activation summaries must derive attention totals and previews from this unified surface rather than recomputing a competing problem list.
