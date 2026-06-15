@@ -117,11 +117,21 @@ This foundation supports the next Dynamic Capability OS stages:
 Until those writers are added, these are compatibility views and evidence
 intake tables only.
 
-## Governed continuous-ready tick
+## Governed runtime closure
 
-`scripts/governed-platform-automation-tick.mjs` composes three existing governed
-stages: migration reconciliation, `audit_log` event-bus mirroring, and audit
-rollup building. Apply requires a typed outer confirmation, while each child
-stage preserves its own policy and confirmation gates. The tick is suitable for
-an approved external scheduler or worker binding; it deliberately does not add
-MySQL triggers or scheduled events.
+Sprint 69 promotes the intake foundation into a bounded internal runtime cycle.
+`dynamicAuditRuntime.js` starts after the HTTP server is listening, reads its
+cadence and limits from `platform_runtime_config`, and uses MySQL advisory locks
+to prevent overlapping bridge, rollup, and checkpoint cycles. The runtime is
+disabled in test mode and startup failures are logged without preventing the
+API from serving traffic.
+
+The cycle now mirrors `audit_log`, SQL-primary Drive records, release-readiness,
+and changed-file repo evidence; builds DB, asset, and checkpoint rollups; writes
+bounded platform checkpoints without inventing `deployed_commit_sha`; and records
+every scheduler attempt in `dynamic_audit_scheduler_runs`.
+
+The runtime does not create MySQL triggers, does not store raw request/response
+payloads, and does not claim to observe out-of-band Google Drive edits that were
+never recorded in SQL. Scheduler startup is fail-open for HTTP availability but
+fail-closed for Dynamic Audit readiness classification.
