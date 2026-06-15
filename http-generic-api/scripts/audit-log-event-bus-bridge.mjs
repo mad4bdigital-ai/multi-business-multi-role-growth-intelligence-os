@@ -156,7 +156,7 @@ export async function runAuditLogEventBusBridge(options = {}, dependencies = {})
       mode: normalized.apply ? "apply" : "dry_run",
       candidate_count: rows.length,
       limit: normalized.limit,
-      since_id: normalized.sinceId,
+      since_id: cursorId,
       sample: rows.slice(0, 10).map((row) => ({
         audit_log_id: row.id,
         event_key: `audit_log:${row.audit_id}`,
