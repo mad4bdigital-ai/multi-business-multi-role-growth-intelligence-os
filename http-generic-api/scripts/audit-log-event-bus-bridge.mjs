@@ -170,7 +170,7 @@ export async function runAuditLogEventBusBridge(options = {}, dependencies = {})
       secrets_included: false,
     };
 
-    if (!normalized.apply) return { ...base, inserted_count: 0, remaining_count: await countRemaining(connection), reason: "dry_run_only" };
+    if (!normalized.apply) return { ...base, inserted_count: 0, remaining_count: await countRemaining(connection, cursorId), reason: "dry_run_only" };
     if (normalized.confirm !== AUDIT_BRIDGE_CONFIRMATION) {
       const error = new Error(`--confirm=${AUDIT_BRIDGE_CONFIRMATION} required`);
       error.code = "missing_audit_bridge_confirmation";
