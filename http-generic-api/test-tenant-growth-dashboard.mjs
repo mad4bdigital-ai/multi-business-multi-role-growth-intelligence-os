@@ -143,15 +143,18 @@ assert.ok(
   "tenant overlay must mount before the generic activation router"
 );
 
-for (const path of [
+const dashboardPaths = [
   "/tenant/dashboard",
   "/tenant/dashboard/tabs/{tabKey}",
   "/tenant/dashboard/preferences",
   "/tenant/dashboard/digest",
   "/tenant/dashboard/actions/{actionRefKey}/preview",
   "/tenant/dashboard/recommendations/{recommendationId}/feedback",
-]) {
-  assert.ok(openapi.paths[path], `OpenAPI path missing: ${path}`);
+];
+for (const path of dashboardPaths) {
+  assert.ok(openapi.paths[path], `Tenant GPT OpenAPI path missing: ${path}`);
+  assert.ok(primaryOpenapi.paths[path], `Primary OpenAPI path missing: ${path}`);
+  assertLocalRefsResolve(primaryOpenapi, primaryOpenapi.paths[path]);
 }
 assert.equal(openapi.openapi, "3.1.0");
 assert.equal(openapi.paths["/tenant/dashboard"].get.operationId, "getTenantGrowthDashboard");
