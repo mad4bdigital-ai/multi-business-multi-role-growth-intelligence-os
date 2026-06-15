@@ -103,3 +103,13 @@ When a DB repair temporarily clears a live blocker before process reload, record
 - migration/test/docs PR that codifies the repair
 
 Never record raw secret values.
+
+## Accepted deploy and restart readback
+
+When `restart=true`, the deploy executor schedules `tmp/restart.txt` after a short detached delay instead of touching it inside the active HTTP request. A successful file update returns `202 Accepted` with `deployment_run_id` and a GET readback path. Poll the readback until `deployment_status=completed` and `runtime_parity.matches_expected_commit=true` before claiming the runtime is live. `accepted` is not completion, and transport interruption must never be interpreted as deploy failure without readback.
+
+The deployment readback is bounded to no-secret fields from `execution_log` plus production runtime parity. Invalid run IDs return 400; unknown run IDs return 404; SSH failures remain 502 before acceptance.
+
+## Superseded closed-PR branch cleanup bound
+
+The governed legacy cleanup policy permits at most 30 ahead commits. This is a bounded limit increase from 20 and does not relax closed-PR, `superseded` label, no-open-PR, replacement ancestry, changed-file coverage, fresh-SHA, capability-envelope, typed-confirmation, no-force, audit, or same-cycle absence-readback requirements.
