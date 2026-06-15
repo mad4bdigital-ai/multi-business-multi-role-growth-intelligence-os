@@ -28,7 +28,7 @@ function makePool() {
         state.session = {
           session_id: params[0],
           tenant_id: params[1],
-          user_id: params[2],
+          user_id: String(params[2] || "").slice(0, 36),
           originator: params[3] || "gpt_action_smoke",
           session_status: "open",
           started_at: new Date("2026-05-16T10:00:00.000Z"),
@@ -188,10 +188,11 @@ function makeDriveDeps() {
   const pool = makePool();
   const drive = makeDriveDeps();
   let activationReq = null;
+  const requestedUserId = "platform_admin_surface_recovery_smoke_debug";
   const result = await runSessionArchiveSmoke({
     pool,
     tenantId: "tenant-1",
-    userId: "smoke-user",
+    userId: requestedUserId,
     injectedArchiveDeps: drive.deps,
     fetchDriveContentFn: drive.fetchDriveContent,
     deleteDriveFileFn: drive.deleteDriveFile,
@@ -205,6 +206,8 @@ function makeDriveDeps() {
   assert.equal(result.status, "pass");
   assert.equal(result.originator, "gpt_action_smoke", "smoke must keep gpt_action_smoke originator for filtering");
   assert.equal(activationReq?.query?.include_smoke_sessions, true, "smoke activation readback must explicitly request gpt_action_smoke sessions");
+  assert.equal(activationReq?.query?.user_id, requestedUserId.slice(0, 36), "activation readback must use the persisted varchar(36) user id");
+  assert.equal(result.user_id, requestedUserId.slice(0, 36), "smoke result must report the persisted user id");
   assert.equal(activationReq?.query?.read_only, true, "smoke activation readback must not open a new GPT action session");
   assert.equal(activationReq?.query?.no_open_session, true, "smoke activation readback must not mint a diagnostic session");
   assert.equal(result.smoke_subfolder, "_smoke_archives", "smoke must sequester to _smoke_archives subfolder");

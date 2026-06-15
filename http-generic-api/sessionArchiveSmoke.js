@@ -230,13 +230,14 @@ export async function runSessionArchiveSmoke({
     }
   }
 
+  const persistedUserId = freshSession?.user_id || userId;
   let activationContext = null;
   let activationError = null;
   try {
     activationContext = await activationContextReader({
       query: {
         tenant_id: tenantId,
-        user_id: userId,
+        user_id: persistedUserId,
         limit: 10,
         include_smoke_sessions: true,
         read_only: true,
@@ -326,7 +327,7 @@ export async function runSessionArchiveSmoke({
     checked_at: new Date().toISOString(),
     session_id: sessionId,
     tenant_id: tenantId,
-    user_id: userId,
+    user_id: persistedUserId,
     originator: SMOKE_ORIGINATOR,
     smoke_subfolder: smokeSubfolder,
     drive: {
