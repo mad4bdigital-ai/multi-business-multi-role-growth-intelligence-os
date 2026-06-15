@@ -1,5 +1,6 @@
 import * as authService from './authService.js';
 import { generateDeploymentManifest } from "./scripts/generate-deployment-manifest.mjs";
+import { startDynamicAuditScheduler } from "./dynamicAuditRuntime.js";
 import { createLocalConnectorOrchestrator } from "./services/localConnectorOrchestrator.js";
 import { createStateManager } from "./stateManager.js";
 import { DATA_SOURCE_MODE } from "./dataSource.js";
