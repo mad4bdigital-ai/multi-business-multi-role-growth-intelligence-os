@@ -457,7 +457,7 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
               occurrence_count, first_seen_at, last_seen_at, recommended_action_key,
               requires_confirmation, manual_known_issue
          FROM operational_alerts
-        WHERE ${subject.is_admin ? "1 = 1" : "(tenant_id = ? OR tenant_id IS NULL)"}
+        WHERE ${subject.is_admin ? "1 = 1" : "tenant_id = ?"}
         ORDER BY FIELD(severity,'critical','high','medium','low','info'), last_seen_at DESC
         LIMIT 2000`,
       subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__"]
