@@ -389,7 +389,7 @@ export const testCommands = [
   "node test-business-activity-resolver.mjs",
   "node test-knowledge-profile-resolver.mjs",
   "node test-brand-core-resolver.mjs",
-  "node test-growth-intelligence-pilot.mjs",
+  "node test-growth-intelligence-pilot.mjs", "node test-growth-intelligence-admin-tool.mjs",
   "node test-growth-intelligence-product-registry.mjs",
   "node test-sequential-plan-orchestrator.mjs",
   "node test-agent-governance-runtime.mjs",
