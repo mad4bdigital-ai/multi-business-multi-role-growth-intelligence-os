@@ -25,6 +25,7 @@ import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBran
 import { applyGithubRepositoryChangeSet, deleteGithubBranchRef, finalizeGithubPullRequest, getGithubPullRequestCiGate } from "../githubRepositoryLifecycle.js";
 import { runGithubSupersededBranchCleanup } from "../githubSupersededBranchCleanup.js";
 import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveReport } from "../platformCapabilityReports.js";
+import { runGrowthIntelligencePilotAdmin } from "../growthIntelligenceAdminTool.js";
 
 const execFileAsync = promisify(execFile);
 
