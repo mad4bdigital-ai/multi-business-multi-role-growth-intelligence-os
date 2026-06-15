@@ -153,6 +153,7 @@ export const testCommands = [
   "node test-local-manager-sidecar-rpc-contract.mjs",
   "node test-local-manager-device-identity-store.mjs",
   "node test-local-manager-device-link-client.mjs",
+  "node test-local-manager-device-control-client.mjs",
   "node test-platform-plugin-catalog.mjs",
   "node test-platform-plugin-resolver.mjs",
   "node test-platform-plugin-policy.mjs",

@@ -23,7 +23,6 @@ internal static class Program
     private const string RoutesUrl = BaseUrl + "/app/local-manager/routes?source=windows-app";
     private const string BackupsUrl = BaseUrl + "/app/local-manager/backups?source=windows-app";
     private const string SettingsUrl = BaseUrl + "/app/local-manager/settings?source=windows-app";
-    private const string DeviceControlsUrl = BaseUrl + "/local-manager/device/controls";
     private const string DeviceRepairInstallerUrl = BaseUrl + "/local-connector/install/device-download-link"; private const string DesktopCommandsUrl = BaseUrl + "/local-manager/device/desktop-commands";
     private const string N8nPublicUrl = "";
     private const string N8nCommandPath = @"D:\npm-global\n8n.cmd";
@@ -148,6 +147,7 @@ internal static class Program
         private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
         private readonly DeviceIdentityStore _deviceIdentityStore = new();
         private readonly DeviceLinkClient _deviceLinkClient = new(BaseUrl);
+        private readonly DeviceControlClient _deviceControlClient = new(BaseUrl);
 
         public MainForm()
         {
@@ -433,22 +433,17 @@ internal static class Program
                 OpenUrl(fallbackUrl);
                 return;
             }
-            await CallDeviceApiAsync(DeviceControlsUrl + "?section=" + Uri.EscapeDataString(section), token, section);
+            await DisplayDeviceControlsAsync(section, token, section);
         }
 
-        private async Task CallDeviceApiAsync(string url, string token, string label)
+        private async Task DisplayDeviceControlsAsync(string section, string token, string label)
         {
             try
             {
                 _status.Text = "Loading " + label + " using DPAPI-protected device token…";
-                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                using var req = new HttpRequestMessage(HttpMethod.Get, url);
-                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-                req.Headers.Accept.ParseAdd("application/json");
-                using var response = await client.SendAsync(req);
-                var text = await response.Content.ReadAsStringAsync();
+                var response = await _deviceControlClient.GetAsync(section, token);
                 _status.Text = response.IsSuccessStatusCode ? label + " loaded." : label + " failed: " + response.StatusCode;
-                _output.Text = text;
+                _output.Text = response.RawText;
             }
             catch (Exception ex)
             {
@@ -825,7 +820,7 @@ internal static class Program
                 _status.Text = label + ": no linked device token; use Device session after relinking.";
                 return;
             }
-            await CallDeviceApiAsync(DeviceControlsUrl + "?section=" + Uri.EscapeDataString(section), token, label);
+            await DisplayDeviceControlsAsync(section, token, label);
         }
 
         private sealed record InstalledAppChoice(string DisplayName, string ExecutablePath)
@@ -1049,14 +1044,9 @@ internal static class Program
         {
             var token = LoadDeviceToken(false);
             if (string.IsNullOrWhiteSpace(token)) return N8nLocalProfile.Default();
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-            using var req = new HttpRequestMessage(HttpMethod.Get, DeviceControlsUrl + "?section=n8n");
-            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            req.Headers.Accept.ParseAdd("application/json");
-            using var response = await client.SendAsync(req);
-            var text = await response.Content.ReadAsStringAsync();
+            var response = await _deviceControlClient.GetAsync("n8n", token);
             if (!response.IsSuccessStatusCode) return N8nLocalProfile.Default();
-            using var doc = JsonDocument.Parse(text);
+            using var doc = JsonDocument.Parse(response.RawText);
             var root = doc.RootElement;
             var connector = root.TryGetProperty("n8n_connector", out var c) ? c : default;
             var profile = connector.ValueKind == JsonValueKind.Object && connector.TryGetProperty("profile", out var p) ? p : default;

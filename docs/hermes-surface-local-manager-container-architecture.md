@@ -190,6 +190,11 @@ launch, progress, recovery messages, and the explicit handoff of an approved
 device token to `DeviceIdentityStore`; the transport client neither persists
 credentials nor exposes a generic request surface.
 
+Read-only routes, backups, settings, repairs, and n8n control readback are
+extracted into `apps/local-manager-windows/DeviceControlClient.cs`. Its section
+allowlist and GET-only contract intentionally exclude repair installation,
+capability mutation, and arbitrary device URLs.
+
 The MAD4B shell and embedded Hermes workspace call a narrow `mad4bDesktop`
 context bridge. The desktop main process validates input and forwards typed
 requests to the sidecar.
