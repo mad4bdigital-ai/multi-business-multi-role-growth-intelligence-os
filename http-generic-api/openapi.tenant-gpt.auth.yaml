@@ -254,7 +254,6 @@ components:
         secrets_included:
           type: boolean
           enum: [false]
-          type: boolean
   responses:
     BadRequest:
       description: Invalid request body or missing required field
