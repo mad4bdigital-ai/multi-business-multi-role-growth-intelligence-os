@@ -1,3 +1,5 @@
+-- Migration execution safety: no_provider_call true; no_credential_payload_read true; no_raw_secrets true;
+-- no_external_send true; no_external_write true; secrets_included=false.
 -- Sprint 69: register bounded supervisor plan-to-provider causal certification.
 -- Provider dispatch only; no tools, repository mutation, local execution, or secret return.
 
