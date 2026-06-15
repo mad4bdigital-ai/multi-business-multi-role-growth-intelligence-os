@@ -687,8 +687,9 @@ export async function readOperationalAlerts({
   const subject = resolveSubject(sessionContext || {}, explicitSubject);
   const collected = await collectOperationalAlertCandidates({ subject, lookbackHours, includePersisted: true });
   const allMerged = collected.alerts;
+  const expectedKnownIssueKeys = subject.is_admin ? KNOWN_ISSUE_KEYS : [];
   const foundKnownIssueKeys = new Set(allMerged.filter((item) => item.manual_known_issue).map((item) => item.alert_key));
-  const missingKnownIssueKeys = KNOWN_ISSUE_KEYS.filter((key) => !foundKnownIssueKeys.has(key));
+  const missingKnownIssueKeys = expectedKnownIssueKeys.filter((key) => !foundKnownIssueKeys.has(key));
   const normalizedSeverity = severity ? String(severity).toLowerCase() : null;
   const normalizedSource = sourceType ? String(sourceType) : null;
   const normalizedLifecycle = lifecycleStatus ? String(lifecycleStatus).toLowerCase() : null;
