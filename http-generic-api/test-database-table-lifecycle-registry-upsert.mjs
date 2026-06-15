@@ -177,4 +177,47 @@ assert(
   "owner engine alignment migration must be allowlisted for governed apply",
 );
 
+const taxonomyV2Plan = buildDatabaseTableLifecycleRegisterPlan([
+  { table_name: "platform_audit_event_bus", approx_rows: 25000, size_mb: 25 },
+  { table_name: "activation_runs", approx_rows: 15, size_mb: 0.2 },
+  { table_name: "activation_policy_registry", approx_rows: 4, size_mb: 0.1 },
+  { table_name: "runtime_verification_steps", approx_rows: 20, size_mb: 0.2 },
+  { table_name: "session_insight_candidates", approx_rows: 5, size_mb: 0.1 },
+  { table_name: "session_insight_review_events", approx_rows: 8, size_mb: 0.1 },
+  { table_name: "platform_resource_authority_bindings", approx_rows: 3, size_mb: 0.1 },
+  { table_name: "cms_site_access_grants", approx_rows: 5, size_mb: 0.1 },
+  { table_name: "platform_orchestration_state_snapshots", approx_rows: 10, size_mb: 0.1 },
+  { table_name: "ticket_lifecycle_events", approx_rows: 12, size_mb: 0.1 },
+  { table_name: "external_delivery_provider_adapter_contract_registry", approx_rows: 6, size_mb: 0.1 },
+  { table_name: "governed_migration_authorization_registry", approx_rows: 7, size_mb: 0.1 },
+  { table_name: "admin_platform_endpoint_tools", approx_rows: 200, size_mb: 1 },
+  { table_name: "agent_model_runs", approx_rows: 11, size_mb: 0.1 },
+  { table_name: "ai_model_registry", approx_rows: 2, size_mb: 0.1 },
+]);
+const taxonomyV2ByTable = new Map(taxonomyV2Plan.upsert_rows.map((row) => [row.table_name, row]));
+for (const tableName of taxonomyV2ByTable.keys()) {
+  assert.notEqual(
+    taxonomyV2ByTable.get(tableName).usage_status,
+    "runtime_unclassified",
+    `${tableName} must not fall through to runtime_unclassified`,
+  );
+}
+assert.equal(taxonomyV2ByTable.get("platform_audit_event_bus").table_family, "dynamic_audit_pipeline");
+assert.equal(taxonomyV2ByTable.get("platform_audit_event_bus").usage_status, "runtime_log");
+assert.equal(taxonomyV2ByTable.get("activation_runs").table_family, "activation_runtime");
+assert.equal(taxonomyV2ByTable.get("activation_runs").usage_status, "runtime_log");
+assert.equal(taxonomyV2ByTable.get("activation_policy_registry").usage_status, "runtime_registry");
+assert.equal(taxonomyV2ByTable.get("runtime_verification_steps").usage_status, "runtime_log");
+assert.equal(taxonomyV2ByTable.get("session_insight_candidates").usage_status, "runtime_canonical");
+assert.equal(taxonomyV2ByTable.get("session_insight_review_events").usage_status, "runtime_log");
+assert.equal(taxonomyV2ByTable.get("platform_resource_authority_bindings").owner_engine_key, "resource_authority_engine");
+assert.equal(taxonomyV2ByTable.get("cms_site_access_grants").table_family, "cms_resource_authority");
+assert.equal(taxonomyV2ByTable.get("platform_orchestration_state_snapshots").usage_status, "runtime_log");
+assert.equal(taxonomyV2ByTable.get("ticket_lifecycle_events").table_family, "ticket_lifecycle");
+assert.equal(taxonomyV2ByTable.get("external_delivery_provider_adapter_contract_registry").table_family, "external_delivery");
+assert.equal(taxonomyV2ByTable.get("governed_migration_authorization_registry").table_family, "platform_runtime_governance");
+assert.equal(taxonomyV2ByTable.get("admin_platform_endpoint_tools").usage_status, "runtime_registry");
+assert.equal(taxonomyV2ByTable.get("agent_model_runs").usage_status, "runtime_log");
+assert.equal(taxonomyV2ByTable.get("ai_model_registry").usage_status, "runtime_registry");
+
 console.log("database table lifecycle registry upsert tests passed");
