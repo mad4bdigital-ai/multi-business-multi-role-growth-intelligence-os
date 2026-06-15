@@ -710,6 +710,7 @@ export async function getDeviceSession(req, res) {
         n8n: "/local-manager/device/controls?section=n8n",
         connector_repair_installer: "/local-connector/install/device-download-link",
         settings: "/local-manager/device/controls?section=settings",
+        runtime_readback: "/local-manager/device/agent-runtime",
       },
       secrets_included: false,
     });

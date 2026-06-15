@@ -5054,6 +5054,61 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /local-manager/device/agent-runtime:
+    post:
+      tags: [local-manager]
+      security:
+        - localManagerBearerAuth: []
+      operationId: postLocalManagerDeviceAgentRuntimeReadback
+      summary: Read local agent runtime capabilities or model recommendations
+      description: >
+        Uses the linked-device token to resolve connector authority server-side.
+        Only capabilities and recommend_models are accepted; settings,
+        installation, job execution, cancellation, and arbitrary connector
+        request fields are rejected.
+      x-openai-isConsequential: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                action:
+                  type: string
+                  enum: [capabilities, recommend_models]
+                  default: capabilities
+      responses:
+        "200":
+          description: Secret-free local runtime capability or recommendation readback
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400":
+          description: Unsupported device runtime read action
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Linked device token is required or invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Wrong token scope or missing linked-device session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /app/local-manager:
     get:
       tags: [local-manager]

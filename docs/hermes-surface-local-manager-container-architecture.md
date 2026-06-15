@@ -213,10 +213,19 @@ refresh successful.
 
 The first non-activated RPC dispatcher is implemented in
 `apps/local-manager-windows/SidecarReadOnlyDispatcher.cs`. It supports only
-`device.getStatus` and `connector.getControls`, loads the device credential
-inside the sidecar-owned boundary, rechecks secret-safe output, and rejects
-every operation without an attached bounded adapter. The named-pipe server is
-still not started by the WinForms recovery shell.
+`device.getStatus`, `connector.getControls`, `runtime.getCapabilities`, and
+`runtime.getRecommendations`, loads the device credential inside the
+sidecar-owned boundary, rechecks secret-safe output, and rejects every operation
+without an attached bounded adapter. The named-pipe server is still not started
+by the WinForms recovery shell.
+
+Runtime readback uses `apps/local-manager-windows/LocalRuntimeClient.cs` and the
+device-token endpoint `POST /local-manager/device/agent-runtime`. The backend
+accepts only `capabilities` and `recommend_models`, rebuilds the connector body
+from the allowlisted action, and resolves the per-device connector authority
+server-side. The Local Manager never reads or receives `connector_secret` or a
+backend credential, and mutation/runtime execution actions cannot cross this
+endpoint.
 
 The MAD4B shell and embedded Hermes workspace call a narrow `mad4bDesktop`
 context bridge. The desktop main process validates input and forwards typed

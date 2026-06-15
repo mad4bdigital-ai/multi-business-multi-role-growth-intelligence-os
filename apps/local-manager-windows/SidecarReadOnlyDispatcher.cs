@@ -6,13 +6,16 @@ internal sealed class SidecarReadOnlyDispatcher
 {
     private readonly DeviceIdentityStore _deviceIdentityStore;
     private readonly ConnectorCapabilityVerifier _connectorCapabilityVerifier;
+    private readonly LocalRuntimeClient _localRuntimeClient;
 
     internal SidecarReadOnlyDispatcher(
         DeviceIdentityStore deviceIdentityStore,
-        ConnectorCapabilityVerifier connectorCapabilityVerifier)
+        ConnectorCapabilityVerifier connectorCapabilityVerifier,
+        LocalRuntimeClient localRuntimeClient)
     {
         _deviceIdentityStore = deviceIdentityStore;
         _connectorCapabilityVerifier = connectorCapabilityVerifier;
+        _localRuntimeClient = localRuntimeClient;
     }
 
     internal Task<JsonElement> DispatchAsync(
@@ -22,6 +25,8 @@ internal sealed class SidecarReadOnlyDispatcher
         {
             "device.getStatus" => Task.FromResult(GetDeviceStatus()),
             "connector.getControls" => GetConnectorControlsAsync(request.Arguments, cancellationToken),
+            "runtime.getCapabilities" => GetRuntimeReadbackAsync("capabilities", cancellationToken),
+            "runtime.getRecommendations" => GetRuntimeReadbackAsync("recommend_models", cancellationToken),
             _ => throw new InvalidOperationException("The sidecar operation has no attached dispatcher.")
         };
 
@@ -39,11 +44,34 @@ internal sealed class SidecarReadOnlyDispatcher
         });
     }
 
-    private async Task<JsonElement> GetConnectorControlsAsync(
-        JsonElement arguments,
+    private async Task<JsonElement> GetRuntimeReadbackAsync(
+        string action,
         CancellationToken cancellationToken)
     {
-        var section = GetOptionalString(arguments, "section") ?? "overview";
+        var token = LoadDeviceToken();
+        var response = await _localRuntimeClient.GetAsync(action, token, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"Local runtime readback failed with status {(int)response.StatusCode}.");
+        }
+
+        using var document = JsonDocument.Parse(response.RawText);
+        var root = document.RootElement;
+        if (root.ValueKind != JsonValueKind.Object
+            || !GetTrueBoolean(root, "ok")
+            || GetTrueBoolean(root, "secrets_included"))
+        {
+            throw new InvalidOperationException("Local runtime readback returned an invalid or unsafe envelope.");
+        }
+
+        var payload = root.Clone();
+        SidecarRpcContracts.AssertSecretSafeResponse(payload);
+        return payload;
+    }
+
+    private string LoadDeviceToken()
+    {
         var token = _deviceIdentityStore.Load(out var loadError);
         if (token is null)
         {
@@ -53,6 +81,15 @@ internal sealed class SidecarReadOnlyDispatcher
                     : "The linked-device credential is unavailable.");
         }
 
+        return token;
+    }
+
+    private async Task<JsonElement> GetConnectorControlsAsync(
+        JsonElement arguments,
+        CancellationToken cancellationToken)
+    {
+        var section = GetOptionalString(arguments, "section") ?? "overview";
+        var token = LoadDeviceToken();
         var verification = await _connectorCapabilityVerifier.VerifyAsync(section, token, cancellationToken);
         SidecarRpcContracts.AssertSecretSafeResponse(verification.ControlEnvelope);
         return JsonSerializer.SerializeToElement(new
@@ -76,4 +113,7 @@ internal sealed class SidecarReadOnlyDispatcher
 
         return value.GetString();
     }
+
+    private static bool GetTrueBoolean(JsonElement element, string propertyName) =>
+        element.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.True;
 }
