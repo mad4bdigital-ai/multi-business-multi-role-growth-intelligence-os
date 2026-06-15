@@ -294,3 +294,18 @@ using:
 - `Registry Surfaces Catalog`
 - `Row Audit Schema`
 - `Validation & Repair Registry`
+
+## Operational Alerting Evidence Contract
+
+The unified operational alerting surface must preserve the distinction between runtime evidence and alert lifecycle state:
+
+- `execution_log`, telemetry, readiness, connector, task, agent, skill, freshness, and signal surfaces remain evidence authorities
+- `operational_alerts` is the SQL-primary lifecycle and deduplication store; it must not replace or rewrite the underlying evidence
+- every alert must preserve a stable `alert_key`, `source_type`, `reason_code`, severity, lifecycle state, verification state, first/last seen timestamps, occurrence count, and governed evidence reference
+- execution-derived alerts should preserve `execution_log_id` and `trace_id` when available
+- raw credentials, tokens, passwords, private keys, prompt bodies, and secret-bearing payload fields must never be stored in or returned through alert evidence
+- platform Known Issues are admin-visible and must not leak into tenant-scoped responses
+- alert synchronization must write an audited sync-run record and return same-cycle readback evidence
+- a successful final result must explicitly report whether all expected Known Issues are visible, whether the page contains all matching problems, whether any evidence source degraded, and whether the final result is complete
+
+`execution_log` remains evidence, not an alert queue. Resolution of an alert must not delete its source evidence.
