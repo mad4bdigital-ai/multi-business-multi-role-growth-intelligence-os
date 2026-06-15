@@ -1,5 +1,7 @@
 # Automated Docs Agent Notes
 
+> Auto-docs coverage for `314_sprint69_dynamic_audit_runtime_closure.sql` must retain its additive/no-trigger safety class, internal advisory-lock scheduler, scheduler-run ledger, SQL-recorded Drive/repo/release evidence boundaries, bounded checkpoint rollups, governed migration allowlist, and readiness semantics. Generated notes must distinguish changed-file observation from exhaustive repository validation, must not claim visibility into Drive changes absent from SQL evidence, and must not infer production deployment parity. No raw payloads, credential values, provider calls, external sends, deploy actions, or secrets are included.
+
 > Auto-docs coverage for `1004_sprint68_hostinger_ssh_executor_db_gate.sql`, `1004_sprint69_agent_governance_admin_tools.sql`, and `1005_sprint69_agent_skill_coverage_prompt_enrichment.sql` must retain: disabled-by-default target/expiry gating, admin-only Agent Governance exposure, read-only skill coverage behavior, canonical `/version` and `/deployment-info` manifest parity, focused regression tests, and post-change readback. These migrations do not perform provider calls, credential payload reads, raw-secret returns, external sends, or deployment execution; `secrets_included=false`.
 
 <!-- surface-contract-auto-remediation:start -->

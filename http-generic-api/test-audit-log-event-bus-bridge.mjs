@@ -5,15 +5,18 @@ const script = readFileSync(new URL("./scripts/audit-log-event-bus-bridge.mjs", 
 const adminCli = readFileSync(new URL("./routes/adminCliRoutes.js", import.meta.url), "utf8");
 
 assert.match(script, /APPLY_AUDIT_LOG_EVENT_BUS_BRIDGE/);
+assert.match(script, /export async function runAuditLogEventBusBridge/);
+assert.match(script, /GET_LOCK/);
+assert.match(script, /RELEASE_LOCK/);
 assert.match(script, /platform_audit_event_bus/);
 assert.match(script, /audit_log:/);
 assert.match(script, /INSERT IGNORE INTO platform_audit_event_bus/);
+assert.match(script, /'pending_rollup'/);
+assert.match(script, /remaining_count/);
 assert.match(script, /NOT EXISTS/);
 assert.match(script, /COLLATE utf8mb4_unicode_ci/);
 assert.match(script, /dry_run_only/);
 assert.match(script, /missing_audit_bridge_confirmation/);
-assert.match(script, /process\.exit\(0\)/);
-assert.match(script, /process\.exit\(1\)/);
 assert.match(script, /raw_payload_stored: false/);
 assert.match(script, /raw_before_after_stored: false/);
 assert.match(script, /secrets_included: false/);
