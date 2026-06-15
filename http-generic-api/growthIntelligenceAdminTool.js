@@ -244,7 +244,30 @@ export async function runGrowthIntelligencePilotAdmin(args = {}, dependencies = 
   const tenantStage = result.workflow?.stages?.find((stage) => stage.stage === "tenant_activation");
   if (tenantStage) {
     tenantStage.status = "pass";
+    tenantStage.evidence_ref = "tenants.status=active";
     delete tenantStage.reason;
+  }
+  const stageEvidence = [
+    ["prompt_router", context.resolution.supported_route_keys, "business_activity_types.supported_route_keys"],
+    ["module_loader", context.resolution.supported_workflows, "business_activity_types.supported_workflows"],
+    ["engine_compatibility", context.resolution.supported_engine_categories, "business_activity_types.supported_engine_categories"],
+    ["governed_tool_dispatch", ["growth_intelligence_pilot_run"], "admin_virtual_tool_dispatch"],
+  ];
+  for (const [stageName, evidence, evidenceRef] of stageEvidence) {
+    if (!Array.isArray(evidence) || evidence.length === 0) {
+      throw fail(
+        "growth_pilot_admin_stage_evidence_missing",
+        `Registry evidence is missing for Growth Intelligence stage: ${stageName}`,
+        409
+      );
+    }
+    const stage = result.workflow?.stages?.find((item) => item.stage === stageName);
+    if (stage) {
+      stage.status = "pass";
+      stage.evidence_ref = evidenceRef;
+      stage.evidence = evidence;
+      delete stage.reason;
+    }
   }
   result.registry = await persistPilot(result, { pool, requestedBy });
   const approvalStage = result.workflow?.stages?.find((stage) => stage.stage === "approval_hold");
