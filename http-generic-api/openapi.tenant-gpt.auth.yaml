@@ -287,7 +287,7 @@ paths:
       operationId: callTool
       x-openai-isConsequential: false
       summary: Call a governed MCP-style system tool
-      description: Calls a fixed system-layer tool through principal-aware runtime validation. Tenant principals are scoped to their tenant; admin principals can inspect all connector registry records and run provider-bootstrap probes. Oversized results return a chunk continuation envelope with response_chunked=true,.
+      description: Calls a fixed system-layer tool through principal-aware runtime validation. Descriptor tools may declare an explicit handler_name when the public tool name does not map one-to-one to the runtime export; descriptor readiness verifies that the selected handler is callable. Repository Intelligence V2.
       requestBody:
         required: true
         content:
