@@ -294,3 +294,25 @@ using:
 - `Registry Surfaces Catalog`
 - `Row Audit Schema`
 - `Validation & Repair Registry`
+
+---
+
+Dynamic Audit Runtime Closure Rule
+
+The Dynamic Audit runtime must execute through the SQL-primary governed cycle:
+
+- `audit_log` bridge events enter `platform_audit_event_bus` as `pending_rollup`
+- repo, Drive, release-readiness, DB, and checkpoint evidence must remain bounded and no-secret
+- the internal scheduler must resolve cadence and limits from `platform_runtime_config`
+- every cycle must use MySQL advisory locks and must record a scheduler run result
+- overlapping bridge, rollup, source-producer, and checkpoint cycles are forbidden
+- processed event-bus rows must transition to `rolled_up`; completion must not remain implicit forever
+- provider diagnostics and GitHub REST fallbacks are operational evidence, not asset mutations
+- direct DB calls without table/mutation metadata must be classified as unresolved rather than assigned fabricated semantics
+- Drive evidence is authoritative only for SQL-recorded uploads, artifacts, or workspace assets; out-of-band Drive changes must not be claimed as observed without a real callback or scan
+- repo file-audit runs must preserve commit SHA and audit depth; changed-file observation is not exhaustive full-repo validation
+- checkpoint rollups may write `main_commit_sha` only from runtime provenance and must never infer `deployed_commit_sha`
+- readiness must evaluate key-level bridge lag, all-source rollup lag, scheduler freshness, repo audit coverage, Drive readback, checkpoint completion, DB semantic quality, duplicate keys, and secret/evidence violations
+- raw request/response payloads, before/after bodies, credentials, tokens, and secret values must not be stored in the Dynamic Audit evidence tables
+
+Recovered, active, or continuous classification is forbidden while the scheduler is stale, the pipeline backlog exceeds policy thresholds, or required evidence surfaces remain missing.
