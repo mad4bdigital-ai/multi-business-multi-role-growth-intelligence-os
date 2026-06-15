@@ -206,6 +206,8 @@ function makeDriveDeps() {
   assert.equal(result.status, "pass");
   assert.equal(result.originator, "gpt_action_smoke", "smoke must keep gpt_action_smoke originator for filtering");
   assert.equal(activationReq?.query?.include_smoke_sessions, true, "smoke activation readback must explicitly request gpt_action_smoke sessions");
+  assert.equal(activationReq?.query?.user_id, requestedUserId.slice(0, 36), "activation readback must use the persisted varchar(36) user id");
+  assert.equal(result.user_id, requestedUserId.slice(0, 36), "smoke result must report the persisted user id");
   assert.equal(activationReq?.query?.read_only, true, "smoke activation readback must not open a new GPT action session");
   assert.equal(activationReq?.query?.no_open_session, true, "smoke activation readback must not mint a diagnostic session");
   assert.equal(result.smoke_subfolder, "_smoke_archives", "smoke must sequester to _smoke_archives subfolder");
