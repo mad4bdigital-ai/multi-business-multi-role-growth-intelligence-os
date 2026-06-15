@@ -498,6 +498,295 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /tenant/dashboard:
+    get:
+      tags: [growth-dashboard]
+      operationId: getTenantGrowthDashboard
+      x-openai-isConsequential: false
+      summary: Read the tenant growth cockpit
+      description: Returns the active workspace, business context, relevant Dynamic Tabs, typed cards, growth guidance, and up to three next-best actions. Tenant and user identity come only from the signed JWT.
+      parameters:
+        - name: container_key
+          in: query
+          schema: { type: string }
+        - name: tab
+          in: query
+          schema: { type: string }
+        - name: date_range
+          in: query
+          schema: { type: string, default: last_30_days }
+        - name: filters
+          in: query
+          description: JSON object containing saved dashboard filters.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Tenant growth dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrowthDashboardResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: Tenant scope violation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Dashboard build failure
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /tenant/dashboard/tabs/{tabKey}:
+    get:
+      tags: [growth-dashboard]
+      operationId: getTenantGrowthDashboardTab
+      x-openai-isConsequential: false
+      summary: Read one tenant dashboard tab
+      parameters:
+        - name: tabKey
+          in: path
+          required: true
+          schema: { type: string, pattern: "^tenant_[a-z0-9_]+$" }
+        - name: container_key
+          in: query
+          schema: { type: string }
+        - name: date_range
+          in: query
+          schema: { type: string, default: last_30_days }
+        - name: filters
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Selected tab with typed cards and actions
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GrowthDashboardResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404":
+          description: Dashboard tab not available for the current tenant context
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Dashboard tab build failure
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /tenant/dashboard/preferences:
+    get:
+      tags: [growth-dashboard]
+      operationId: getTenantDashboardPreferences
+      x-openai-isConsequential: false
+      summary: Read tenant dashboard preferences
+      responses:
+        "200":
+          description: Dashboard preferences for the signed-in user
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, preferences, secrets_included]
+                properties:
+                  ok: { type: boolean }
+                  preferences: { $ref: "#/components/schemas/GrowthDashboardPreferences" }
+                  degraded: { type: boolean }
+                  error:
+                    type: [object, "null"]
+                    additionalProperties: true
+                  secrets_included: { type: boolean, enum: [false] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500":
+          description: Preferences read failure
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    put:
+      tags: [growth-dashboard]
+      operationId: updateTenantDashboardPreferences
+      x-openai-isConsequential: true
+      summary: Replace tenant dashboard preferences
+      description: Replaces the signed-in user's dashboard state. Tenant and user identifiers are never accepted from the request body.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GrowthDashboardPreferences" }
+      responses:
+        "200":
+          description: Updated dashboard preferences
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, preferences, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  preferences: { $ref: "#/components/schemas/GrowthDashboardPreferences" }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500":
+          description: Preferences write failure
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /tenant/dashboard/digest:
+    get:
+      tags: [growth-dashboard]
+      operationId: getTenantGrowthDigest
+      x-openai-isConsequential: false
+      summary: Read a compact tenant growth digest
+      parameters:
+        - name: container_key
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Compact growth digest
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, product_layer, headline, summary, opportunities, secrets_included]
+                properties:
+                  ok: { type: boolean }
+                  product_layer: { type: string, enum: [tenant_growth_digest] }
+                  generated_at: { type: string, format: date-time }
+                  active_container:
+                    type: [object, "null"]
+                    additionalProperties: true
+                  headline: { type: string }
+                  summary:
+                    type: object
+                    additionalProperties: true
+                  opportunities:
+                    type: array
+                    maxItems: 3
+                    items:
+                      type: object
+                      additionalProperties: true
+                  quick_commands:
+                    type: array
+                    items: { type: string }
+                  secrets_included: { type: boolean, enum: [false] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500":
+          description: Digest build failure
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /tenant/dashboard/actions/{actionRefKey}/preview:
+    get:
+      tags: [growth-dashboard]
+      operationId: previewTenantGrowthAction
+      x-openai-isConsequential: false
+      summary: Preview a governed growth action
+      description: Resolves action readiness and expected business outcome without executing a provider or writing business data.
+      parameters:
+        - name: actionRefKey
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[a-z][a-z0-9_]{1,179}$" }
+        - name: container_key
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Action preview and governance state
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, product_layer, action, preview, policy, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  product_layer: { type: string, enum: [tenant_growth_action_preview] }
+                  action: { $ref: "#/components/schemas/GrowthDashboardAction" }
+                  preview:
+                    type: object
+                    additionalProperties: true
+                  policy:
+                    type: object
+                    additionalProperties: true
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404":
+          description: Action not available in the caller scope
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Action preview failure
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /tenant/dashboard/recommendations/{recommendationId}/feedback:
+    post:
+      tags: [growth-dashboard]
+      operationId: recordTenantGrowthRecommendationFeedback
+      x-openai-isConsequential: true
+      summary: Record recommendation feedback or outcome
+      parameters:
+        - name: recommendationId
+          in: path
+          required: true
+          schema: { type: string, maxLength: 180 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [event_type]
+              properties:
+                event_type:
+                  type: string
+                  enum: [shown, opened, accepted, dismissed, executed, failed, result_observed]
+                reason_code:
+                  type: string
+                  enum: [not_relevant, wrong_timing, too_expensive, already_done, missing_information, other]
+                workspace_id: { type: string }
+                recommendation_key: { type: string }
+                tab_key: { type: string }
+                card_id: { type: string }
+                result_metric_key: { type: string }
+                result_value: {}
+                context:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "201":
+          description: Recommendation event recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, event_id, event_type, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  event_id: { type: string, format: uuid }
+                  event_type:
+                    type: string
+                    enum: [shown, opened, accepted, dismissed, executed, failed, result_observed]
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500":
+          description: Recommendation event write failure
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
   /system/tools:
     get:
       tags:
