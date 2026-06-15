@@ -1,3 +1,5 @@
+-- Migration execution safety: no_provider_call true; no_credential_payload_read true; no_raw_secrets true;
+-- no_external_send true; no_external_write true; secrets_included=false.
 -- Sprint 69: expose agent delegation as explicit, manual, admin-governed API actions.
 -- No automatic delegation. No batch dispatch tool. No provider call occurs during event creation.
 -- Dispatch remains subject to runtime agent, skill, workflow, and execution governance.
