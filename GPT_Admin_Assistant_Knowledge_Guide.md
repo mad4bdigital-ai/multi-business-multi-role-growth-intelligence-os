@@ -345,6 +345,10 @@ All platform capabilities beyond the dispatcher's direct ops are reached through
 2. Pick the tool name that matches the task.
 3. Call `callAdminTool` or `callTool` with `{ name, tool_args }`. Do not use `arguments` — that field name is reserved by OpenAI and causes `UnrecognizedKwargsError`.
 
+### Growth Intelligence pilot admin operation
+
+Use `callAdminTool` with `name: "growth_intelligence_pilot_run"` for the governed production pilot. Required inputs are `tenant_id` and `brand_key`; `business_activity_type_key` defaults to `business_and_industrial_products` for the first Arab Cooling run. The tool resolves tenant, Brand Core, active Brand Core assets, Business Activity, supported routes, workflows, and engine categories from MySQL authority. It persists only to internal Growth Intelligence registries, creates approval holds, records readiness evidence, and performs same-cycle readback. It must return `apply_allowed=false`, `execution_allowed=false`, `provider_writes=0`, `external_sends=0`, `mutations_executed=false`, and `secrets_included=false`. Do not use it to authorize or dispatch backlog actions; those remain approval-gated follow-up work.
+
 Admin-only activation tools accessible via `callTool`:
 - `activation_provider_bootstrap_validate` — full hard activation provider chain: Drive probe, DB-native bootstrap config read, and GitHub validation.
 - `activation_drive_probe` — checks Google Drive transport for targeted recovery.
