@@ -139,6 +139,81 @@ paths:
             default: 4000
             maximum: 20000
           description: Maximum characters per raw dump field when include_raw=true.
+        - name: response_profile
+          in: query
+          schema:
+            type: string
+            enum: [evidence, summary, dashboard, diagnostic, full]
+            default: evidence
+          description: Use evidence for compact activation with growth guidance. Full and diagnostic are reserved for explicit troubleshooting.
+        - name: session_policy
+          in: query
+          schema:
+            type: string
+            enum: [reuse_or_create, create_new, reuse_only, read_only]
+            default: reuse_or_create
+          description: Controls whether activation reuses or creates a customer session.
+        - name: idempotency_key
+          in: query
+          schema:
+            type: string
+            maxLength: 180
+          description: Stable key for safe activation retries.
+        - name: conversation_ref
+          in: query
+          schema:
+            type: string
+            maxLength: 500
+          description: Stable conversation reference used to derive an idempotency key.
+        - name: reuse_window_hours
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 168
+            default: 24
+        - name: container_key
+          in: query
+          schema:
+            type: string
+          description: Optional preferred workspace container for the product dashboard.
+        - name: tab
+          in: query
+          schema:
+            type: string
+          description: Optional preferred customer-facing dashboard tab.
+        - name: date_range
+          in: query
+          schema:
+            type: string
+            default: last_30_days
+        - name: max_response_chars
+          in: query
+          schema:
+            type: integer
+            minimum: 5000
+            maximum: 150000
+            default: 40000
+          description: Transport budget before a governed chunk continuation envelope is returned.
+        - name: include_turns
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: authorized_access_limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 5
+        - name: authorized_surface_limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 5
       responses:
         "200":
           description: Session history and related platform scopes
