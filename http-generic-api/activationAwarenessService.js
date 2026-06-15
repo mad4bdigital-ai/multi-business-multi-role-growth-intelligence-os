@@ -436,14 +436,26 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
   const skillCounts = aggregateRows(skills.rows, "group_value");
   const freshnessCounts = aggregateRows(freshness.rows, "group_value");
   const signalCounts = aggregateRows(signals.rows, "group_value");
+  const unifiedAttention = await readOperationalAlerts({
+    sessionContext,
+    cursor: 0,
+    limit: Math.min(Math.max(safeNumber(attentionLimit), 1), 20),
+    lookbackHours: 168,
+    includeResolved: false,
+  });
+  const unifiedBySource = unifiedAttention?.summary?.by_source || {};
 
   const attentionBySource = {
-    connected_systems: safeNumber(systemCounts.error) + safeNumber(systemCounts.pending),
-    tasks: safeNumber(taskCounts.blocked),
-    agents: safeNumber(agentCounts.degraded) + safeNumber(agentCounts.offline),
-    skills: safeNumber(skillCounts.requires_approval),
-    freshness: safeNumber(freshnessCounts.stale) + safeNumber(freshnessCounts.failed),
-    signals: Object.entries(signalCounts).reduce((sum, [key, count]) => sum + (/^(critical|high):(new|failed)$/.test(key) ? safeNumber(count) : 0), 0),
+    connected_systems: safeNumber(unifiedBySource.connected_systems),
+    tasks: safeNumber(unifiedBySource.v_activation_pending_tasks),
+    agents: safeNumber(unifiedBySource.v_activation_agent_catalog),
+    skills: safeNumber(unifiedBySource.v_activation_agent_skill_grants),
+    freshness: safeNumber(unifiedBySource.activation_freshness_ledger),
+    signals: safeNumber(unifiedBySource.activation_signal_inbox),
+    execution_log: safeNumber(unifiedBySource.execution_log),
+    readiness_checks: safeNumber(unifiedBySource.readiness_checks),
+    telemetry_spans: safeNumber(unifiedBySource.telemetry_spans),
+    known_issues: safeNumber(unifiedAttention?.summary?.known_issue_count),
   };
 
   const attentionItems = [];
