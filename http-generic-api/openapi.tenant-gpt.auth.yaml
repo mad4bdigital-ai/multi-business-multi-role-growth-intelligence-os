@@ -225,11 +225,10 @@ paths:
                 required:
                   - ok
                   - activation_layer
+                  - response_profile
                   - subject
-                  - pagination
-                  - session_history
-                  - related_scopes
-                  - history
+                  - product_guidance
+                  - secrets_included
                 properties:
                   ok:
                     type: boolean
