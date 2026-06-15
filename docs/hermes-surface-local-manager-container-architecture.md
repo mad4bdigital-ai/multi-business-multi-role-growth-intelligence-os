@@ -227,6 +227,13 @@ server-side. The Local Manager never reads or receives `connector_secret` or a
 backend credential, and mutation/runtime execution actions cannot cross this
 endpoint.
 
+`apps/local-manager-windows/SidecarLifecycleSupervisor.cs` provides a bounded
+restart and shutdown lifecycle around the named-pipe server. The server drops
+stalled clients after 30 seconds and continues accepting after malformed or
+disconnected clients. The lifecycle supervisor is implemented but remains
+intentionally unattached to `Program.cs` until a live named-pipe exchange,
+shutdown, and restart certification exists.
+
 The MAD4B shell and embedded Hermes workspace call a narrow `mad4bDesktop`
 context bridge. The desktop main process validates input and forwards typed
 requests to the sidecar.

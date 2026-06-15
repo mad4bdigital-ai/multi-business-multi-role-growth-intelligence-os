@@ -157,6 +157,7 @@ export const testCommands = [
   "node test-local-manager-signed-installer-coordinator.mjs",
   "node test-local-manager-capability-verifier-and-sidecar-dispatcher.mjs",
   "node test-local-manager-runtime-readback-boundary.mjs",
+  "node test-local-manager-sidecar-lifecycle-supervision.mjs",
   "node test-platform-plugin-catalog.mjs",
   "node test-platform-plugin-resolver.mjs",
   "node test-platform-plugin-policy.mjs",

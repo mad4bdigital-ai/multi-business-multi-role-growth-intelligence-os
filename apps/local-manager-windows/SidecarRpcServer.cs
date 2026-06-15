@@ -8,6 +8,7 @@ namespace Mad4B.LocalManager.Windows;
 internal sealed class SidecarRpcServer
 {
     private const int MaxRequestBytes = 256 * 1024;
+    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
 
     private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web)
     {
@@ -28,7 +29,24 @@ internal sealed class SidecarRpcServer
                 PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
 
             await pipe.WaitForConnectionAsync(cancellationToken);
-            await HandleConnectionAsync(pipe, dispatch, cancellationToken);
+            using var requestTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            requestTimeout.CancelAfter(RequestTimeout);
+            try
+            {
+                await HandleConnectionAsync(pipe, dispatch, requestTimeout.Token);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                // Drop stalled local clients so the single-instance pipe can accept the next request.
+            }
+            catch (IOException)
+            {
+                // Disconnected clients must not terminate the server accept loop.
+            }
+            catch (InvalidOperationException)
+            {
+                // Malformed or oversized clients must not terminate the server accept loop.
+            }
         }
     }
 
