@@ -1,3 +1,5 @@
+-- Migration execution safety: no_provider_call true; no_credential_payload_read true; no_raw_secrets true;
+-- no_external_send true; no_external_write true; secrets_included=false.
 -- Activation Awareness and Completeness Control Plane.
 -- Additive only: preserves Dynamic Tabs, Dashboard, legacy full activation, and existing clients.
 -- No provider call. No credential payload read. No raw secrets. No external send/write. secrets_included=false.
