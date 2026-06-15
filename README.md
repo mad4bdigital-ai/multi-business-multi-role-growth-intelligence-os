@@ -12,6 +12,12 @@ The architecture is centered on canonical authority documents, registry-backed e
 
 Explicit multi-agent work can run on a tenant-owned Local Manager device through Ollama or a localhost OpenAI-compatible provider, or through the platform-managed runtime. Local execution, settings changes, installation, and managed fallback remain separately controlled actions. See `docs/hybrid-local-managed-agent-runtime.md`.
 
+The planned unified local desktop experience keeps MAD4B Local Desktop as the
+product container and embeds a governed, pinned Hermes Surface workspace. A
+native MAD4B sidecar retains DPAPI, device identity, signed installers, UAC,
+connector recovery, and local command governance. See
+`docs/hermes-surface-local-manager-container-architecture.md`.
+
 ## Canonical authority order
 
 When understanding or changing this repository, use the following authority order:

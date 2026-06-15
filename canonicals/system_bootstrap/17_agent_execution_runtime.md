@@ -7,6 +7,14 @@ All AI-driven workflow execution must flow through this layer — no workflow ca
 
 The runtime supports explicit `local_device` and `platform_managed` execution targets. Local Manager devices are optional execution workers using Ollama or localhost OpenAI-compatible model servers; platform governance remains authoritative. Multi-agent dispatch, settings mutation, installation, and managed fallback must never be inferred or automatically activated. See `docs/hybrid-local-managed-agent-runtime.md`.
 
+MAD4B Local Desktop may embed Hermes Surface as an optional agent workspace,
+but MAD4B remains the product container, lifecycle owner, update authority, and
+recovery surface. The combined application must keep device identity, DPAPI
+tokens, signed installer handoff, UAC, and connector recovery inside a native
+MAD4B sidecar. The Hermes renderer, gateway, agent runtime, plugins, skills, and
+model providers must not receive device or platform credentials. See
+`docs/hermes-surface-local-manager-container-architecture.md`.
+
 ## Runtime Modules
 
 | Module | Role |
