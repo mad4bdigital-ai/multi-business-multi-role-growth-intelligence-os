@@ -12,6 +12,7 @@ export const testCommands = [
   "node test-supervisor-runtime-readiness.mjs",
   "node test-supervisor-chain-runtime-guards.mjs",
   "node test-supervisor-behavioral-certification.mjs",
+  "node test-supervisor-causal-provider-certification.mjs",
   "node test-dynamic-capability-resolution-graph.mjs",
   "node test-dynamic-capability-simulation-suite.mjs",
   "node test-tool-bus-collision-audit-and-preview.mjs",

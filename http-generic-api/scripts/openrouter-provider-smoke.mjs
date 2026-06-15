@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { getPool } from "../db.js";
 import { decryptToken } from "../tokenEncryption.js";
 import { buildCallModel } from "../modelAdapterRouter.js";
@@ -206,7 +208,10 @@ export async function runOpenRouterProviderSmoke(options = {}) {
   };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+const isDirectExecution = process.argv[1]
+  && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+
+if (isDirectExecution) {
   const args = parseArgs();
   runOpenRouterProviderSmoke(args)
     .then(async (result) => {
