@@ -1,5 +1,7 @@
 # Deployment Parity Checklist
 
+> Dynamic Audit parity for `314_sprint69_dynamic_audit_runtime_closure.sql`: do not report deployment complete until the deployed commit is independently confirmed, migration 314 appears in the governed migration ledger, `dynamic_audit_scheduler_runs` records a successful fresh cycle, `v_dynamic_audit_pipeline_readiness` is reviewed, event-bus backlog and checkpoint rollups are bounded, and repo/Drive/DB evidence readback is present. The scheduler may fail open for HTTP availability, but readiness must fail closed. No MySQL trigger, raw payload storage, credential return, provider call, external send, or inferred `deployed_commit_sha` is allowed.
+
 > Runtime parity additions for `1004_sprint68_hostinger_ssh_executor_db_gate.sql`, `1004_sprint69_agent_governance_admin_tools.sql`, and `1005_sprint69_agent_skill_coverage_prompt_enrichment.sql`: verify the Hostinger DB gate exists disabled by default, is target-bound, and has no unbounded expiry; verify `/version` and `/deployment-info` report the same canonical manifest commit; verify Agent Governance tools remain admin-only; verify skill coverage remains read-only. A deploy is not current until same-cycle dry-run, approved capability envelope, exact SHA, path allowlist, bounded output, and post-deploy health/readback succeed. No secrets may be returned.
 
 <!-- surface-contract-auto-remediation:start -->
