@@ -29,6 +29,10 @@ assert(executor.includes("git checkout --detach"), "deploy must checkout a fixed
 assert(executor.includes("pathAllowedByTarget"), "executor must enforce target path allowlists");
 assert(executor.includes("approval_reason") || executor.includes("approvalReason"), "executor must require approval reason for execution");
 assert(executor.includes("buildHostingerDeployReloadVerification"), "deploy must build explicit reload verification evidence");
+assert(executor.includes("scheduled:tmp/restart.txt"), "deploy restart must be deferred until after the response can flush");
+assert(executor.includes("deployment_run_id"), "deploy responses must expose a deployment run id");
+assert(executor.includes("http_status: httpStatus"), "deploy responses must expose their intended HTTP status");
+assert(executor.includes("readHostingerSshDeployRunStatus"), "deploy must expose bounded run-status readback");
 assert(executor.includes("restart_signal_ok"), "deploy must verify restart signal emission when restart is requested");
 assert(executor.includes("runtime_health_readback_required"), "deploy must require live health readback after restart signal emission");
 assert(executor.includes("buildHostingerDeployContinuationEvidence"), "deploy must create continuation evidence for pending reload/health verification");
@@ -43,6 +47,9 @@ assert(!executor.includes("exec("), "executor must not use exec shell freeform")
 assert(routes.includes("executeHostingerSshDeployRelease"), "platform routes must import hostinger deploy executor");
 assert(routes.includes('/platform/remote-runtime/hosting/deploy-release'), "platform routes must expose deploy release path");
 assert(routes.includes("remote_runtime_hosting_deploy_release_failed"), "route must use structured error code");
+assert(routes.includes("result.http_status"), "deploy route must honor 202 accepted responses");
+assert(routes.includes("/platform/remote-runtime/hosting/deploy-runs/:deploymentRunId"), "platform routes must expose deploy status readback");
+assert(routes.includes("remote_runtime_hosting_deploy_run_read_failed"), "readback route must use a structured error code");
 
 assert(migration.includes("remote_runtime_hostinger_deploy_release"), "migration must register admin tool row");
 assert(migration.includes("deploy_release"), "migration must register deploy_release command");
@@ -52,6 +59,6 @@ assert(migration.includes("no_secrets"), "migration tags must record no_secrets 
 assert(migration.includes("expected_sha_required"), "migration tags must require expected SHA");
 assert(migration.includes("/home/*/domains/auth.mad4b.com/nodejs"), "migration must allowlist auth.mad4b.com nodejs path");
 
-assert(allowlist.includes("POST /platform/remote-runtime/hosting/deploy-release"), "route coverage must explicitly account for the deploy endpoint until OpenAPI regeneration");
+assert(!allowlist.includes("POST /platform/remote-runtime/hosting/deploy-release"), "documented deploy endpoint must not remain allowlisted");
 
 console.log("Hostinger SSH deploy executor safety tests passed");
