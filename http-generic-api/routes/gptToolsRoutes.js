@@ -449,6 +449,28 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "growth_intelligence_pilot_run",
+    displayName: "Run Growth Intelligence Pilot",
+    description: "Run the registry-backed Growth Intelligence pilot for one active tenant and Brand Core-ready brand. Resolves Business Activity from SQL, persists the report, insights, actions, approval holds, and readiness assessment to internal registries, and performs same-cycle readback. No provider writes, external sends, live execution, or secrets.",
+    method: "VIRTUAL",
+    path: "internal://growth-intelligence-pilot-run",
+    tags: ["growth_intelligence", "pilot", "internal_registry", "approval_required", "dry_run", "no_provider_write", "no_external_send", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["tenant_id", "brand_key"],
+      properties: {
+        tenant_id: { type: "string", minLength: 1, maxLength: 64 },
+        brand_key: { type: "string", minLength: 1, maxLength: 128 },
+        business_activity_type_key: { type: "string", default: "business_and_industrial_products" },
+        persistence_mode: { type: "string", enum: ["internal_registry"], default: "internal_registry" },
+        evidence_limit: { type: "integer", minimum: 1, maximum: 50, default: 20 },
+        report_id: { type: "string", maxLength: 64 },
+        requested_by: { type: "string", maxLength: 128 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "platform_tool_binding_integrity_audit",
     displayName: "Platform Tool Binding Integrity Audit",
     description: "Audit active ready endpoints, endpoint exports, dispatch bindings, and callable admin tools. Returns bounded relation gaps without mutation or secrets.",
