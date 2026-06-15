@@ -338,6 +338,7 @@ export const testCommands = [
   "node test-hostinger-sshpass-dependency-install.mjs",
   "node test-hostinger-ssh-probe-runner-modes.mjs",
   "node test-session-summary-service.mjs",
+  "node test-session-summary-surface-authority-recovery.mjs",
   "node test-dynamic-memory-scope-types.mjs",
   "node test-memory-scope-links-foundation.mjs",
   "node test-session-insight-candidates-foundation.mjs",
