@@ -1,3 +1,5 @@
+-- Safety contract: no_provider_call true; no_credential_payload_read true; no_raw_secrets true;
+-- no_external_send true; no_external_write true; secrets_included=false.
 -- Sprint 69 follow-up: scope platform tool dispatch integrity to governed bindings.
 -- Replaces the endpoint-wide projection with one row per registered dispatch binding.
 -- Additive/idempotent view replacement only. No provider calls, credentials, or secrets.
