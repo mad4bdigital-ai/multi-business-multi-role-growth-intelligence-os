@@ -5,6 +5,7 @@ import { getPool } from "../db.js";
 
 export const AUDIT_BRIDGE_CONFIRMATION = "APPLY_AUDIT_LOG_EVENT_BUS_BRIDGE";
 const LOCK_NAME = "dynamic_audit.audit_log_event_bus_bridge.v1";
+const CONFIG_KEY = "audit_log_event_bus_bridge_schedule";
 
 function parseArgs(argv = process.argv.slice(2)) {
   const out = { apply: false, confirm: "", limit: 500, sinceId: 0 };
