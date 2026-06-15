@@ -148,10 +148,12 @@ internal static class Program
         private readonly DeviceIdentityStore _deviceIdentityStore = new();
         private readonly DeviceLinkClient _deviceLinkClient = new(BaseUrl);
         private readonly DeviceControlClient _deviceControlClient = new(BaseUrl);
+        private readonly ConnectorCapabilityVerifier _connectorCapabilityVerifier;
         private readonly SignedInstallerCoordinator _signedInstallerCoordinator = new(BaseUrl, UpdatesRoot);
 
         public MainForm()
         {
+            _connectorCapabilityVerifier = new ConnectorCapabilityVerifier(_deviceControlClient);
             Text = "Mad4B Local Manager";
             MinimumSize = new Size(900, 780);
             StartPosition = FormStartPosition.CenterScreen;
@@ -751,7 +753,9 @@ internal static class Program
                 _status.Text = label + ": no linked device token; use Device session after relinking.";
                 return;
             }
-            await DisplayDeviceControlsAsync(section, token, label);
+            var verification = await _connectorCapabilityVerifier.VerifyAsync(section, token);
+            _status.Text = label + " verified.";
+            _output.Text = verification.ControlEnvelope.GetRawText();
         }
 
         private sealed record InstalledAppChoice(string DisplayName, string ExecutablePath)

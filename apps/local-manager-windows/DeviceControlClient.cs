@@ -7,6 +7,7 @@ internal sealed class DeviceControlClient
 {
     private static readonly HashSet<string> AllowedSections = new(StringComparer.Ordinal)
     {
+        "overview",
         "routes",
         "backups",
         "settings",

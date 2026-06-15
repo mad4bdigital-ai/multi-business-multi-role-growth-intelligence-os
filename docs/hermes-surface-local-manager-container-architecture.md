@@ -205,6 +205,19 @@ unpredictable names, and SHA-256 is rechecked immediately before UAC handoff.
 WinForms retains the explicit confirmation dialog, progress messaging, and
 post-install control verification.
 
+Post-install control verification is extracted into
+`apps/local-manager-windows/ConnectorCapabilityVerifier.cs`. It requires a
+successful, matching, `secrets_included=false` control envelope and verifies
+repair elevation or settings capability-consent evidence before declaring the
+refresh successful.
+
+The first non-activated RPC dispatcher is implemented in
+`apps/local-manager-windows/SidecarReadOnlyDispatcher.cs`. It supports only
+`device.getStatus` and `connector.getControls`, loads the device credential
+inside the sidecar-owned boundary, rechecks secret-safe output, and rejects
+every operation without an attached bounded adapter. The named-pipe server is
+still not started by the WinForms recovery shell.
+
 The MAD4B shell and embedded Hermes workspace call a narrow `mad4bDesktop`
 context bridge. The desktop main process validates input and forwards typed
 requests to the sidecar.

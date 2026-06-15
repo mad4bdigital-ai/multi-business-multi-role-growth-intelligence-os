@@ -13,7 +13,7 @@ const client = readFileSync(
 assert.match(program, /private readonly DeviceControlClient _deviceControlClient = new\(BaseUrl\);/);
 assert.match(program, /_deviceControlClient\.GetAsync\(section, token\)/);
 assert.match(program, /_deviceControlClient\.GetAsync\("n8n", token\)/);
-assert.match(program, /DisplayDeviceControlsAsync\(section, token, label\)/);
+assert.match(program, /_connectorCapabilityVerifier\.VerifyAsync\(section, token\)/);
 assert.doesNotMatch(program, /DeviceControlsUrl/);
 assert.doesNotMatch(program, /CallDeviceApiAsync/);
 
