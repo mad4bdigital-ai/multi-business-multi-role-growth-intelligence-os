@@ -4,9 +4,9 @@
 
 ## Summary
 
-- Total queue items: 3
+- Total queue items: 4
 - Critical review: 1
-- High review: 2
+- High review: 3
 - Medium review: 0
 - Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
@@ -54,4 +54,18 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `virtual_admin_tool`
 - `verify_readback_view` → db-readback-review; targets: `v_platform_tool_dispatch_integrity`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 4. `1010_sprint69_disable_legacy_agent_chain_dispatch_tool.sql`
+
+- Queue class: high_review
+- Score: 507
+- Gap severity: medium
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `agent_chain_event_dispatch`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 

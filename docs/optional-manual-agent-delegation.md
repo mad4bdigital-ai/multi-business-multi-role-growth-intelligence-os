@@ -22,6 +22,8 @@ Use `https://auth.mad4b.com` with admin list-before-call discovery:
 
 No batch-dispatch tool is exposed through the governed control plane. The internal batch route remains explicit opt-in and must not be scheduled as an automatic sweep.
 
+The legacy `agent_chain_event_dispatch` control-plane tool is disabled because its old input contract did not carry the required explicit delegation opt-in fields.
+
 ## Safety Boundaries
 
 - Source workflow run identity and tenant scope are read from the database.
