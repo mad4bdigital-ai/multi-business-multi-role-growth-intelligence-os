@@ -304,6 +304,9 @@ The Dynamic Audit runtime must execute through the SQL-primary governed cycle:
 - `audit_log` bridge events enter `platform_audit_event_bus` as `pending_rollup`
 - repo, Drive, release-readiness, DB, and checkpoint evidence must remain bounded and no-secret
 - the internal scheduler must resolve cadence and limits from `platform_runtime_config`
+- the audit-log bridge must persist and advance a primary-key cursor; recurring cycles must not rescan the full audit history
+- runtime cycles must use bounded fast-readiness queries; full evidence-quality scans remain explicit deep-audit operations outside the recurring critical path
+- `enabled=false` must stop startup and already-scheduled cycles before lock acquisition or evidence mutation
 - every cycle must use MySQL advisory locks and record a scheduler run result
 - overlapping bridge, rollup, source-producer, and checkpoint cycles are forbidden
 - processed event-bus rows must transition to `rolled_up`
