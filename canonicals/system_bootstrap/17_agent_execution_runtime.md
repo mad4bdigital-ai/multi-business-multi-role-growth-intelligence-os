@@ -152,3 +152,7 @@ Before claiming supervisor execution readiness, run `npm run supervisor:readines
 The runtime enforces atomic execution-plan claiming, applicable capability-envelope validation before claim, fail-closed skill grants, deterministic healthy-agent selection, one bounded healthy fallback attempt, and durable chain lineage with depth/cycle rejection.
 
 Static `execution_ready=true` is necessary but not sufficient for production activation. Sequential governed orchestration remains the supported default until live schema and controlled-tenant behavioral evidence are current.
+
+A bounded causal provider-lane certification must use the admin-only governed `supervisor_causal_provider_certification` tool through `auth.mad4b.com` after list-before-call discovery. Certification is valid only when durable readback proves one completed synthetic execution plan, its linked completed workflow run, and complete execution-log evidence with the same trace/correlation. The certification permits one bounded provider dispatch and zero tools, local execution, repository mutation, or secret return.
+
+Passing causal provider-lane certification proves only that constrained path. It must not be interpreted as unrestricted master-agent authority, business-tenant mutation approval, or permission to bypass tenant scope, capability envelopes, budgets, approvals, skill grants, or action-specific governance.

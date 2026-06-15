@@ -344,6 +344,8 @@ npm run supervisor:readiness:live
 
 The live command is read-only: it checks schema metadata plus active route/grant and fallback-agent relationships. See [`docs/supervisor-agent-runtime-readiness.md`](docs/supervisor-agent-runtime-readiness.md) for enforced guarantees and activation boundaries.
 
+The bounded causal provider-lane certification is admin-only and must run through `auth.mad4b.com` with list-before-call discovery. It proves one synthetic plan-to-workflow-run-to-provider path with zero tools, local execution, repository mutation, or secret return; it does not authorize unrestricted master-agent execution. See [`docs/execution-log-supervisor-provider-certification-2026-06-15.md`](docs/execution-log-supervisor-provider-certification-2026-06-15.md).
+
 Ongoing priorities:
 - maintain canonical/runtime alignment on every change
 - keep test coverage and architecture checks green
