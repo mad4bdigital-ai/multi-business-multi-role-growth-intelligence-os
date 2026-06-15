@@ -308,6 +308,36 @@
         "runtime_status": { "type": "string", "enum": ["active", "validating", "degraded", "blocked"], "default": "validating" }
       }
     },
+    "capability_assurance_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "canonical_capability_table",
+        "evidence_table",
+        "certification_table",
+        "debt_table",
+        "readiness_view",
+        "gap_view",
+        "invocation_authority_policy",
+        "resource_authority_policy",
+        "secret_policy"
+      ],
+      "properties": {
+        "authority": { "const": "capability_assurance_graph" },
+        "canonical_capability_table": { "const": "platform_plugin_capabilities" },
+        "evidence_table": { "const": "platform_evidence_events" },
+        "certification_table": { "const": "platform_capability_certifications" },
+        "debt_table": { "const": "platform_capability_debt" },
+        "readiness_view": { "const": "v_platform_capability_readiness_vector" },
+        "gap_view": { "const": "v_platform_capability_assurance_gaps" },
+        "invocation_authority_policy": { "const": "fresh_capability_envelope_required_for_scoped_execution" },
+        "resource_authority_policy": { "const": "effective_resource_binding_required_for_external_resource_mutation" },
+        "secret_policy": { "const": "hash_and_reference_only_no_plaintext" },
+        "reconciliation_tool": { "const": "platform_capability_assurance_reconcile" },
+        "runtime_status": { "type": "string", "enum": ["active", "validating", "degraded", "blocked"], "default": "validating" }
+      }
+    },
     "local_connector_governance_state": {
       "type": "object",
       "additionalProperties": false,
