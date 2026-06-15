@@ -16868,8 +16868,16 @@ paths:
               schema: { type: object, additionalProperties: true }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '500': { $ref: '#/components/responses/InternalServerError' }
+        '403':
+          description: Authenticated principal is not allowed to access the requested tenant resource
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500':
+          description: Unexpected server failure
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
   /tenant/dashboard/digest:
     get:
       tags: [growth-dashboard]
