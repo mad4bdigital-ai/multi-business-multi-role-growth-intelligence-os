@@ -213,3 +213,10 @@ not meant to be executed. When a policy stores examples of safe operations, use
 plain descriptive wording such as `idempotent registry guard table creation`
 rather than executable-looking strings. This keeps migration-drift diagnostics
 focused on real DDL statements instead of JSON policy prose.
+## Record-only ingestion
+
+`POST /platform/capability-vault/repo-ingestion-record` is separate from the dry-run planner. It records only a pinned GitHub repository source, a planned source-resolution row, one capability-candidate row, and a completed preview job. It never executes or installs source assets, never creates runtime grants, and never marks provider verification complete.
+
+The operation requires an admin principal and `confirm_record_only=true`. It uses deterministic IDs for the same repository commit, writes inside a transaction, emits synchronous intent and completion audit rows, and succeeds only after same-cycle readback verifies the source, resolution, candidate, and preview job. Unknown request fields such as provider tokens are not persisted or returned.
+
+Record-only ingestion does not certify the candidate. The candidate remains `candidate`, the source resolution remains `planned`, sandbox/certification remain required, and runtime dispatch/apply authority stays unchanged.

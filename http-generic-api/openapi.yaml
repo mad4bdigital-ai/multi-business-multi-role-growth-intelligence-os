@@ -14324,6 +14324,63 @@ paths:
                 type: object
                 additionalProperties: true
 
+  /platform/capability-vault/repo-ingestion-record:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultRepoIngestionRecord
+      summary: Record a repository capability ingestion preview
+      description: >
+        Records a previously classified, pinned GitHub repository snapshot as source metadata,
+        a planned source resolution, a capability candidate, and a completed preview job.
+        It never executes or installs source assets, never grants dispatch/apply authority, and
+        requires explicit confirm_record_only=true. The operation is transactional, audited,
+        idempotent for the same repository commit, and same-cycle readback verified.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [source_repo_full_name, source_commit_sha, files, confirm_record_only]
+              properties:
+                source_repo_full_name:
+                  type: string
+                  pattern: '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'
+                source_commit_sha:
+                  type: string
+                  pattern: '^(?:[a-fA-F0-9]{40}|[a-fA-F0-9]{64})$'
+                default_branch: { type: string }
+                parent_repo_full_name: { type: string }
+                license_spdx: { type: string }
+                description: { type: string }
+                runtime_language: { type: string }
+                confirm_record_only:
+                  type: boolean
+                  const: true
+                files:
+                  type: array
+                  maxItems: 5000
+                  items:
+                    type: object
+                    additionalProperties: true
+      responses:
+        '200':
+          description: Record-only ingestion metadata was committed and read back.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Confirmation or repository reference validation failed.
+        '422':
+          description: The ingestion plan is blocked by policy.
+
   /platform/capability-vault/install-request-plan:
     post:
       x-openai-isConsequential: false

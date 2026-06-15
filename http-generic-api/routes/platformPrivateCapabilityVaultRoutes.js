@@ -11,6 +11,7 @@ import {
   resolveCapabilityRuntime,
   resolveGoogleFileReadDecision,
 } from "../platformPrivateCapabilityVault.js";
+import { recordRepoIngestionPlan } from "../platformCapabilityVaultRecordOnly.js";
 
 function errorResponse(res, error, fallbackCode) {
   res.status(error.status || 500).json({
@@ -47,6 +48,22 @@ export function buildPlatformPrivateCapabilityVaultRoutes(deps = {}) {
       errorResponse(res, error, "platform_capability_vault_repo_ingestion_plan_failed");
     }
   });
+  router.post("/platform/capability-vault/repo-ingestion-record", ...requireAdmin, async (req, res) => {
+    try {
+      const result = await recordRepoIngestionPlan(req.body || {}, {
+        ...deps,
+        principal: {
+          tenant_id: req.auth?.tenant_id || null,
+          user_id: req.auth?.user_id || null,
+          mode: req.auth?.mode || "backend_api_key",
+        },
+      });
+      res.json({ ok: true, result });
+    } catch (error) {
+      errorResponse(res, error, "platform_capability_vault_repo_ingestion_record_failed");
+    }
+  });
+
   router.post("/platform/capability-vault/mirror-plan", ...requireAdmin, (req, res) => {
     try {
       res.json({ ok: true, plan: buildCapabilityMirrorPlan(req.body || {}) });

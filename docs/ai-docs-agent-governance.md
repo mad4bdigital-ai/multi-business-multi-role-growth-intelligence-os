@@ -142,3 +142,14 @@ http-generic-api/test-docs-impact-classifier.mjs
 docs/auto-docs-agent/README.md
 docs/ai-docs-agent-governance.md
 ```
+## Sprint 69 capability evidence surface contracts
+
+- `312_sprint69_platform_tool_dispatch_integrity_scope_fix.sql` narrows `v_platform_tool_dispatch_integrity` to the declared admin/tenant scope without provider calls, credential reads, external sends, or runtime mutation.
+- `314_sprint69_capability_authority_evidence_projection.sql` projects evidence only from active `platform_tool_dispatch_bindings` rows with a named readback policy, then rebuilds capability maturity/gap views without granting dispatch or apply authority.
+## Sprint 69 supervisor causal provider certification surface
+
+- `1008_sprint69_supervisor_causal_provider_certification_tool.sql` registers the bounded `supervisor_causal_provider_certification` admin tool. Migration execution itself performs no provider call, credential read, external send/write, or secret return. Runtime certification remains confirmation-gated, no-tool, no-repository-mutation, no-local-execution, bounded-cost, and readback/audit governed.
+## Sprint 69 explicit manual delegation surfaces
+
+- `1009_sprint69_optional_manual_agent_delegation_tools.sql` registers explicit, admin-governed manual delegation creation/dispatch/contract tools. Migration execution performs no provider call, credential read, external send/write, or secret return; runtime delegation remains opt-in and confirmation/authorization governed.
+- `1010_sprint69_disable_legacy_agent_chain_dispatch_tool.sql` disables the ambiguous legacy dispatch surface and directs callers to `agent_chain_event_dispatch_manual`. It is a guarded registry update only and performs no provider call, credential read, external send/write, or secret return.

@@ -1,3 +1,5 @@
+-- Migration execution safety: no_provider_call true; no_credential_payload_read true; no_raw_secrets true;
+-- no_external_send true; no_external_write true; secrets_included=false.
 -- Dynamic invocation registry for Activation Guidance Intelligence.
 -- Tags and slash aliases are language-neutral routing hints; they never bypass authorization, approval, or runtime readiness.
 
