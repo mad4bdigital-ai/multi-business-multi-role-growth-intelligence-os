@@ -6,38 +6,40 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 420,
+    "migrations_with_surfaces": 421,
     "docs_complete_count": 419,
-    "docs_gap_count": 1,
-    "docs_completion_percent": 99.76,
+    "docs_gap_count": 2,
+    "docs_completion_percent": 99.52,
     "surface_totals": {
       "plugins": 12,
       "tools": 1946,
       "views": 365,
       "policies": 155,
-      "routes": 553
+      "routes": 554
     },
     "migrations_by_surface_type": {
       "plugins": 9,
       "tools": 356,
       "views": 151,
       "policies": 98,
-      "routes": 230
+      "routes": 231
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 1,
-      "deployment_parity_checklist.md": 1,
-      "docs/ai-docs-agent-governance.md": 1,
-      "docs/auto-docs-agent/README.md": 1,
-      "docs/change-documentation-governance.md": 1
+      "Updating Registry Patch Index.md": 2,
+      "deployment_parity_checklist.md": 2,
+      "docs/ai-docs-agent-governance.md": 2,
+      "docs/auto-docs-agent/README.md": 2,
+      "docs/change-documentation-governance.md": 2
     },
     "gap_severity_counts": {
-      "high": 0,
+      "high": 1,
       "medium": 1,
       "low": 0,
       "none": 419
     },
-    "high_risk_missing_docs": [],
+    "high_risk_missing_docs": [
+      "1008_sprint69_supervisor_causal_provider_certification_tool.sql"
+    ],
     "medium_risk_missing_docs": [
       "312_sprint69_platform_tool_dispatch_integrity_scope_fix.sql"
     ],
@@ -49,14 +51,14 @@
       "no_external_write": 419,
       "secrets_included_false": 420
     },
-    "safety_marker_gap_migrations": 0,
+    "safety_marker_gap_migrations": 1,
     "route_coverage": {
       "sql_route_count": 0,
-      "total_sql_route_like_count": 553,
-      "openapi_exempt_sql_route_count": 553,
+      "total_sql_route_like_count": 554,
+      "openapi_exempt_sql_route_count": 554,
       "route_class_counts": {
         "http_route": 0,
-        "admin_tool_registry_route": 111,
+        "admin_tool_registry_route": 112,
         "tenant_tool_registry_route": 35,
         "system_tool_dispatch_route": 12,
         "registry_only_surface": 1,
@@ -70,28 +72,72 @@
     }
   },
   "queue": {
-    "total_items": 1,
+    "total_items": 2,
     "class_counts": {
       "critical_review": 0,
-      "high_review": 1,
+      "high_review": 2,
       "medium_review": 0,
       "low_review": 0
     }
   },
   "triage": {
-    "total_items": 1,
+    "total_items": 2,
     "class_counts": {
+      "new_surface_immediate_review": 1,
       "safety_marker_review": 1
     },
-    "gate_candidate_count": 0
+    "gate_candidate_count": 1
   },
   "gate": {
-    "ok": true,
+    "ok": false,
     "mode": "future_only_all_new_gaps",
-    "new_item_count": 0,
-    "blocking_new_item_count": 0
+    "new_item_count": 1,
+    "blocking_new_item_count": 1
   },
-  "top_immediate_items": [],
+  "top_immediate_items": [
+    {
+      "migration_file": "1008_sprint69_supervisor_causal_provider_certification_tool.sql",
+      "score": 688,
+      "queue_class": "high_review",
+      "triage_class": "new_surface_immediate_review",
+      "gate_scope": "new_gap_gate_candidate",
+      "gap_severity": "high",
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send",
+        "no_external_write",
+        "secrets_included_false"
+      ],
+      "remediation_action_keys": [
+        "document_surface_contract",
+        "add_explicit_safety_markers"
+      ],
+      "owner_hints": [
+        "docs-agent/human-review",
+        "safety-contract-review"
+      ],
+      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    }
+  ],
   "safety": {
     "executes_provider_calls": false,
     "reads_credentials": false,
