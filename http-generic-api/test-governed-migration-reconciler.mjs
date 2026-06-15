@@ -5,6 +5,8 @@ const script = readFileSync("scripts/governed-migration-reconciler.mjs", "utf8")
 const migration = readFileSync("migrations/308_sprint69_dynamic_governed_migration_reconciliation.sql", "utf8");
 const cliRoutes = readFileSync("routes/adminCliRoutes.js", "utf8");
 const rollupBuilder = readFileSync("scripts/audit-event-rollup-builder.mjs", "utf8");
+const automationTick = readFileSync("scripts/governed-platform-automation-tick.mjs", "utf8");
+const dynamicAuditRuntime = readFileSync("dynamicAuditRuntime.js", "utf8");
 
 for (const token of [
   "platform_engine_registry",
@@ -41,8 +43,17 @@ assert(!/DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i.test(migration), "reconci
 
 assert(cliRoutes.includes("migration_reconciliation_dry_run"), "admin CLI must expose reconciliation dry-run");
 assert(cliRoutes.includes("migration_reconciliation_apply"), "admin CLI must expose gated reconciliation apply");
-assert(cliRoutes.includes("governed_platform_automation_tick"), "admin CLI must expose the continuous-ready governed automation tick");
+assert(cliRoutes.includes("governed_platform_automation_tick"), "admin CLI must expose the governed automation tick");
 assert(rollupBuilder.includes("governed_migration_reconciliation"), "dynamic audit rollups must consume governed migration reconciliation events");
 assert(rollupBuilder.includes("database_migration"), "migration reconciliation events must classify as DB change evidence");
 
-console.log("governed migration reconciler contract tests passed");
+assert.match(automationTick, /parseStructuredOutput/);
+assert.match(automationTick, /boundedReconciliation/);
+assert.match(automationTick, /runDynamicAuditCycle/);
+assert.match(automationTick, /continuous_scheduler_external: false/);
+assert.doesNotMatch(automationTick, /items:\s*output\.items/);
+assert.match(dynamicAuditRuntime, /internal_runtime_interval_with_mysql_advisory_lock/);
+assert.match(dynamicAuditRuntime, /dynamic_audit_scheduler_runs/);
+assert.match(dynamicAuditRuntime, /secrets_included: false/);
+
+console.log("governed migration reconciler and automation tick contract tests passed");
