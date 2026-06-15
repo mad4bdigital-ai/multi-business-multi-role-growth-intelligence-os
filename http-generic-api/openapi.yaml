@@ -30,9 +30,9 @@ tags:
   - name: dev-diagnostics
     description: Passive development environment diagnostics for dev.mad4b.com.
   - name: activation
+    description: Once-per-session activation probes, session history, and scope context.
   - name: growth-dashboard
     description: Tenant-scoped growth cockpit, guidance, preferences, previews, and recommendation feedback.
-    description: Once-per-session activation probes, session history, and scope context.
   - name: jobs
     description: Async governed execution jobs.
   - name: execution
