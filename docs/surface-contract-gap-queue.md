@@ -4,8 +4,8 @@
 
 ## Summary
 
-- Total queue items: 2
-- Critical review: 0
+- Total queue items: 3
+- Critical review: 1
 - High review: 2
 - Medium review: 0
 - Low review: 0
@@ -13,7 +13,23 @@
 
 ## Top Queue Items
 
-### 1. `1008_sprint69_supervisor_causal_provider_certification_tool.sql`
+### 1. `314_sprint69_capability_assurance_graph.sql`
+
+- Queue class: critical_review
+- Score: 1141
+- Gap severity: high
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=10, views=8, policies=1, routes=1
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `blocks_dispatch`, `capability_envelope_decision`, `idx_ppc_dispatch_apply`, `ready_for_dispatch`, `requires_readback`, `runtime_dispatch`, `runtime_dispatch_certification_registry`, `tenant_platform_endpoint_tools`, `v_platform_capability_readiness_vector`
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `platform_secret_promotion_policy_v1`
+- `verify_readback_view` → db-readback-review; targets: `v_effective_platform_resource_authority_bindings`, `v_platform_bindings_current`, `v_platform_capabilities_current`, `v_platform_capability_assurance_gaps`, `v_platform_capability_assurance_summary`, `v_platform_capability_readiness_vector`, `v_platform_exports_current`, `v_platform_secret_promotion_monitoring`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 2. `1008_sprint69_supervisor_causal_provider_certification_tool.sql`
 
 - Queue class: high_review
 - Score: 688
@@ -26,7 +42,7 @@
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 2. `312_sprint69_platform_tool_dispatch_integrity_scope_fix.sql`
+### 3. `312_sprint69_platform_tool_dispatch_integrity_scope_fix.sql`
 
 - Queue class: high_review
 - Score: 569
