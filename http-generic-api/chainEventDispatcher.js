@@ -10,6 +10,7 @@ import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { dispatchPlan } from "./connectorExecutor.js"; // Assuming this is the correct dispatcher
 import { resolveRuntimeWorkflow } from "./runtimeWorkflowResolver.js";
+import { requireAgentDelegationOptIn } from "./agentDelegationOptIn.js";
 
 function runtimeDeps(deps = {}) {
   return {
@@ -106,6 +107,7 @@ async function createChainPlan(event, workflowDef, overrideAgentId = null, deps 
 // ─── Core dispatcher ───────────────────────────────────────────────────────────
 
 export async function dispatchChainEvent(event_id, deps = {}) {
+  const delegation = requireAgentDelegationOptIn(deps.delegationRequest);
   const runtime = runtimeDeps(deps);
   const { pool } = runtime;
   const pendingEvent = await loadEvent(event_id, deps);
@@ -170,8 +172,10 @@ export async function dispatchChainEvent(event_id, deps = {}) {
 
   } catch (err) {
     dispatchError = err;
-    fallback_agent_id = await resolveFallbackAgent(agent_id || event.target_agent_id, deps);
-    if (workflowDef && fallback_agent_id && fallback_agent_id !== agent_id) {
+    fallback_agent_id = delegation.fallback_agent_allowed
+      ? await resolveFallbackAgent(agent_id || event.target_agent_id, deps)
+      : null;
+    if (delegation.fallback_agent_allowed && workflowDef && fallback_agent_id && fallback_agent_id !== agent_id) {
       try {
         ({ plan_id, agent_id } = await createChainPlan(event, workflowDef, fallback_agent_id, deps));
         dispatchResult = await runtime.dispatchPlan(plan_id, { apply: false, actor_id: `chain-fallback:${event.source_agent_id || "system"}` });
@@ -193,12 +197,13 @@ export async function dispatchChainEvent(event_id, deps = {}) {
     }
   }
 
-  return { ok: !dispatchError, event_id, plan_id: plan_id || null, agent_id: agent_id || null, fallback_agent_id: fallback_agent_id || null, target_workflow: event.target_workflow_key, run_id: dispatchResult?.run_id || null, error: dispatchError ? dispatchError.message : undefined };
+  return { ok: !dispatchError, event_id, plan_id: plan_id || null, agent_id: agent_id || null, fallback_agent_id: fallback_agent_id || null, target_workflow: event.target_workflow_key, run_id: dispatchResult?.run_id || null, delegation_mode: delegation.delegation_mode, error: dispatchError ? dispatchError.message : undefined };
 }
 
 // ─── Batch sweep ───────────────────────────────────────────────────────────────
 
 export async function dispatchPendingChainEvents({ tenant_id, limit = 20 } = {}, deps = {}) {
+  requireAgentDelegationOptIn(deps.delegationRequest);
   const { pool } = runtimeDeps(deps);
   let sql = "SELECT event_id FROM `agent_chain_events` WHERE status = 'pending'";
   const params = [];

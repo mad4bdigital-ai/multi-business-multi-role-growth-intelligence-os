@@ -37,6 +37,7 @@ export function inspectStaticSupervisorRuntimeReadiness() {
   const planner = source("./routes/plannerRoutes.js");
   const chain = source("./chainEventDispatcher.js");
   const outputSink = source("./outputSinkRouter.js");
+  const delegationOptIn = source("./agentDelegationOptIn.js");
   const agentMigration = source("./migrations/016_sprint20_agent_registry.sql");
   const chainMigration = source("./migrations/1003_sprint68_supervisor_chain_runtime_guards.sql");
 
@@ -96,6 +97,15 @@ export function inspectStaticSupervisorRuntimeReadiness() {
         && /chain_cycle_detected/.test(outputSink),
       "blocker",
       "Agent chain events require durable lineage, bounded depth, and cycle rejection."
+    ),
+    check(
+      "delegation_manual_api_opt_in",
+      /automatic_delegation_allowed:\s*false/.test(delegationOptIn)
+        && /manual_api_delegation_mode_required/.test(delegationOptIn)
+        && /manual_api_opt_in_required/.test(outputSink)
+        && !/await sinkChainEvents\(\{ source_run_id: run_id/.test(outputSink),
+      "blocker",
+      "Linked workflows must remain optional and require explicit manual API delegation."
     ),
     check(
       "atomic_one_time_handoff",

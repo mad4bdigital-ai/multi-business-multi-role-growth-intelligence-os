@@ -149,7 +149,11 @@ Admin GPT and Tenant GPT may coordinate governed sub-agent work, but unrestricte
 
 Before claiming supervisor execution readiness, run `npm run supervisor:readiness` from `http-generic-api/`. Use `npm run supervisor:readiness:live` when configured live-schema evidence is required. The command is read-only, emits no secrets, and must return `execution_ready=true`.
 
-The runtime enforces atomic execution-plan claiming, applicable capability-envelope validation before claim, fail-closed skill grants, deterministic healthy-agent selection, one bounded healthy fallback attempt, and durable chain lineage with depth/cycle rejection.
+The runtime enforces atomic execution-plan claiming, applicable capability-envelope validation before claim, fail-closed skill grants, deterministic healthy-agent selection, and durable chain lineage with depth/cycle rejection.
+
+Sub-agent delegation is optional and fail-closed. Workflow output and `linked_workflows` must not automatically create or dispatch chain events. Creating a chain event, dispatching one selected event, or creating a user-to-agent delegation contract requires an authenticated API request with `delegation_approved=true`, `delegation_mode=manual_api`, and a meaningful `delegation_reason`. A fallback agent is not automatic and requires the separate `allow_fallback_agent=true` opt-in on the explicit dispatch request.
+
+The governed control-plane sequence is list-before-call followed by `agent_chain_event_create_manual` and then `agent_chain_event_dispatch_manual`. No batch-dispatch tool is exposed through the governed control plane. Delegation opt-in does not bypass tenant scope, agent health, skill grants, workflow resolution, capability envelopes, budgets, approvals, or action-specific authority.
 
 Static `execution_ready=true` is necessary but not sufficient for production activation. Sequential governed orchestration remains the supported default until live schema and controlled-tenant behavioral evidence are current.
 

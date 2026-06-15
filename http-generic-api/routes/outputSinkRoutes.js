@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
-import { routeOutput } from "../outputSinkRouter.js";
+import { createExplicitChainEvents, routeOutput } from "../outputSinkRouter.js";
 import { dispatchChainEvent, dispatchPendingChainEvents } from "../chainEventDispatcher.js";
 import { dispatchPlan } from "../connectorExecutor.js";
 import { diagnoseWordpressAuthContext } from "../wordpressBlogPublishOrchestrator.js";
@@ -68,15 +68,27 @@ export function buildOutputSinkRoutes(deps) {
 
   // ── POST /agent-chain-events/dispatch-pending — batch sweep ───────────────
   // Must be before /:id/dispatch so Express doesn't match "dispatch-pending" as an :id.
-  // Picks up all pending chain events (up to limit) and dispatches them in order.
-  // Safe to call from a cron/job runner — each event is atomically claimed before dispatch.
+  // Explicit operator API only. Do not schedule as an automatic cron/job sweep.
   router.post("/agent-chain-events/dispatch-pending", async (req, res) => {
     try {
-      const { tenant_id, limit = 20 } = req.body || {};
-      const result = await dispatchPendingChainEvents({ tenant_id, limit });
+      const { tenant_id, limit = 20, delegation_approved, delegation_mode, delegation_reason, allow_fallback_agent = false } = req.body || {};
+      const result = await dispatchPendingChainEvents(
+        { tenant_id, limit },
+        { delegationRequest: { delegation_approved, delegation_mode, delegation_reason, allow_fallback_agent } }
+      );
       res.json(result);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      res.status(err.status || 500).json({ error: { code: err.code || "agent_chain_dispatch_failed", message: err.message, details: err.details } });
+    }
+  });
+
+  // ── POST /agent-chain-events — explicitly create optional sub-agent work ──
+  router.post("/agent-chain-events", async (req, res) => {
+    try {
+      const result = await createExplicitChainEvents(req.body || {});
+      res.status(201).json(result);
+    } catch (err) {
+      res.status(err.status || 500).json({ error: { code: err.code || "agent_chain_event_create_failed", message: err.message, details: err.details } });
     }
   });
 
@@ -84,13 +96,13 @@ export function buildOutputSinkRoutes(deps) {
   // Atomically claims the event, creates a child execution_plan, and dispatches it.
   router.post("/agent-chain-events/:id/dispatch", async (req, res) => {
     try {
-      const result = await dispatchChainEvent(req.params.id);
+      const result = await dispatchChainEvent(req.params.id, { delegationRequest: req.body || {} });
       if (result.error && !result.skipped) {
         return res.status(result.error === "event_not_found" ? 404 : 422).json(result);
       }
       res.json(result);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      res.status(err.status || 500).json({ error: { code: err.code || "agent_chain_dispatch_failed", message: err.message, details: err.details } });
     }
   });
 

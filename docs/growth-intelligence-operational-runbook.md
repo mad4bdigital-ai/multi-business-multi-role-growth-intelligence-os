@@ -92,6 +92,8 @@ The live certification uses controlled database fixtures inside a transaction an
 
 For a bounded causal provider-lane certification, use the admin-only governed `supervisor_causal_provider_certification` tool through `https://auth.mad4b.com` after list-before-call discovery. The tool requires the exact typed confirmation `CERTIFY_SUPERVISOR_CAUSAL_PROVIDER_LANE`, creates a synthetic certification plan and linked workflow run, permits one bounded provider dispatch, and permits zero tools, local execution, repository mutation, or secret return. Accept the result only after durable readback proves the same correlation identifier and completed terminal states across the plan, workflow run, and execution log.
 
+Multi-agent delegation is optional. Do not schedule `/agent-chain-events/dispatch-pending` or treat `linked_workflows` as automatic work. Through `auth.mad4b.com`, discover and call `agent_chain_event_create_manual`, then dispatch only the selected event with `agent_chain_event_dispatch_manual`. Every call requires `delegation_approved=true`, `delegation_mode=manual_api`, and a meaningful reason. Keep `allow_fallback_agent=false` unless one fallback attempt is explicitly required.
+
 Monitor:
 
 - active routed agents missing `logic.evaluate_pack` grants;
