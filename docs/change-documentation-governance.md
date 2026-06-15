@@ -1,5 +1,7 @@
 # Repo and SQL Change Documentation Governance
 
+> Change-governance contract for `314_sprint69_dynamic_audit_runtime_closure.sql`: review the scheduler lifecycle, MySQL advisory-lock concurrency, additive schema/view changes, idempotent evidence writes, bounded result payloads, checkpoint transaction boundaries, query/index impact, migration rollback approach, test coverage, and production readback. The change must remain no-trigger and no-secret, must not claim out-of-band Drive observation or exhaustive repo coverage, and must not infer deployment parity. Merge requires green CI and documented rollout; apply requires the governed migration runner and typed confirmation.
+
 > Reference contract: changes represented by `1004_sprint68_hostinger_ssh_executor_db_gate.sql`, `1004_sprint69_agent_governance_admin_tools.sql`, and `1005_sprint69_agent_skill_coverage_prompt_enrichment.sql` require explicit safety markers, focused regression tests, registry/tool binding review, canonical deployment-manifest parity, and database/readback evidence. Hostinger execution gates must default disabled and remain target- and expiry-bound; Agent Governance tools remain admin-only; skill coverage remains read-only. No deployment may be declared complete before same-cycle dry-run, approved capability envelope, exact SHA, bounded execution, health/readback, and gate reset or expiry.
 
 <!-- surface-contract-auto-remediation:start -->
