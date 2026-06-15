@@ -67,6 +67,194 @@ components:
           $ref: "#/components/schemas/ErrorObject"
         execution_guardrail:
           type: boolean
+    GrowthDataStatus:
+      type: object
+      additionalProperties: false
+      required: [freshness, source_system, source_scope, confidence, partial_data]
+      properties:
+        freshness:
+          type: string
+          enum: [fresh, stale, unknown, failed]
+        observed_at:
+          type: [string, "null"]
+          format: date-time
+        source_system:
+          type: string
+        source_scope:
+          type: string
+          enum: [tenant_authorized]
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        partial_data:
+          type: boolean
+    GrowthDashboardAction:
+      type: object
+      additionalProperties: true
+      required: [action_ref_key, label, ready, requires_confirmation]
+      properties:
+        action_ref_key:
+          type: string
+        label:
+          type: string
+        mode:
+          type: string
+          enum: [read_only, advisory, draft_only, write_requires_confirmation]
+        ready:
+          type: boolean
+        requires_confirmation:
+          type: boolean
+        required_capability_key:
+          type: [string, "null"]
+        runtime_action_key:
+          type: [string, "null"]
+        blocked_reason:
+          type: [string, "null"]
+        expected_impact_metric_key:
+          type: [string, "null"]
+    GrowthDashboardCard:
+      type: object
+      additionalProperties: true
+      required: [card_id, card_type, title, status, tab_key, data_status]
+      properties:
+        card_id:
+          type: string
+        card_type:
+          type: string
+          enum: [kpi, trend, score, funnel, alert, recommendation, task, list, calendar, campaign, content_opportunity, lead_opportunity, connector_status, progress, comparison, status]
+        title:
+          type: string
+        value: {}
+        unit:
+          type: [string, "null"]
+        status:
+          type: string
+        change: {}
+        metric_key:
+          type: [string, "null"]
+        interpretation:
+          type: string
+        tab_key:
+          type: string
+        actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/GrowthDashboardAction"
+        data_status:
+          $ref: "#/components/schemas/GrowthDataStatus"
+        details_ref:
+          type: [object, "null"]
+          additionalProperties: true
+    GrowthDashboardPreferences:
+      type: object
+      additionalProperties: false
+      properties:
+        active_container_key:
+          type: [string, "null"]
+        active_tab_key:
+          type: [string, "null"]
+        pinned_tabs:
+          type: array
+          items: { type: string }
+        hidden_tabs:
+          type: array
+          items: { type: string }
+        preferred_date_range:
+          type: string
+          default: last_30_days
+        saved_filters:
+          type: object
+          additionalProperties: true
+        dismissed_alerts:
+          type: array
+          items: { type: string }
+        favorite_metrics:
+          type: array
+          items: { type: string }
+        dashboard_density:
+          type: string
+          enum: [compact, comfortable, detailed]
+        language:
+          type: [string, "null"]
+        currency:
+          type: [string, "null"]
+        timezone:
+          type: [string, "null"]
+        notification_preferences:
+          type: object
+          additionalProperties: true
+    GrowthDashboardResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, product_layer, subject, navigation, cards, growth_guidance, next_best_actions, secrets_included]
+      properties:
+        ok:
+          type: boolean
+        product_layer:
+          type: string
+          enum: [tenant_growth_dashboard]
+        product_version:
+          type: string
+        subject:
+          type: object
+          additionalProperties: false
+          required: [tenant_id, user_id, scope]
+          properties:
+            tenant_id: { type: string }
+            user_id: { type: string }
+            scope: { type: string, enum: [tenant_user] }
+        active_container:
+          type: [object, "null"]
+          additionalProperties: true
+        available_containers:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        business_context:
+          type: object
+          additionalProperties: true
+        dashboard_state:
+          type: object
+          additionalProperties: true
+        navigation:
+          type: object
+          additionalProperties: true
+        today:
+          type: object
+          additionalProperties: true
+        cards:
+          type: array
+          items:
+            $ref: "#/components/schemas/GrowthDashboardCard"
+        growth_guidance:
+          type: object
+          additionalProperties: true
+        next_best_actions:
+          type: array
+          maxItems: 3
+          items:
+            type: object
+            additionalProperties: true
+        available_actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/GrowthDashboardAction"
+        assistant_guidance:
+          type: object
+          additionalProperties: true
+        quick_commands:
+          type: array
+          items: { type: string }
+        degraded_surfaces:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        secrets_included:
+          type: boolean
+          enum: [false]
   responses:
     BadRequest:
       description: Invalid request body or missing required field
