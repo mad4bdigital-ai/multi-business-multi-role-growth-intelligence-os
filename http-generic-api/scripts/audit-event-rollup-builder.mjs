@@ -180,11 +180,8 @@ async function insertRollups(connection, rows) {
 async function countRemaining(connection) {
   const [rows] = await connection.query(
     `SELECT COUNT(*) AS count
-       FROM platform_audit_event_bus e
-      WHERE e.event_status IN ('observed','pending_rollup')
-        AND NOT EXISTS (SELECT 1 FROM db_change_audit_events d WHERE d.source_event_key COLLATE utf8mb4_unicode_ci = e.event_key COLLATE utf8mb4_unicode_ci)
-        AND NOT EXISTS (SELECT 1 FROM asset_audit_events a WHERE a.source_event_key COLLATE utf8mb4_unicode_ci = e.event_key COLLATE utf8mb4_unicode_ci)
-        AND NOT EXISTS (SELECT 1 FROM checkpoint_auto_rollups c WHERE c.source_event_key COLLATE utf8mb4_unicode_ci = e.event_key COLLATE utf8mb4_unicode_ci)`
+       FROM platform_audit_event_bus
+      WHERE event_status IN ('observed','pending_rollup')`
   );
   return Number(rows?.[0]?.count || 0);
 }
