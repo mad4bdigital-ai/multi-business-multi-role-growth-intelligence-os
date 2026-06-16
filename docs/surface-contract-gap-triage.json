@@ -140,7 +140,7 @@
     },
     {
       "migration_file": "1012_sprint69_sql_only_runtime_auth_schema.sql",
-      "score": 527,
+      "score": 455,
       "queue_class": "high_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -153,25 +153,16 @@
         "docs/change-documentation-governance.md"
       ],
       "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write",
-        "secrets_included_false"
-      ],
+      "safety_marker_gaps": [],
       "remediation_action_keys": [
         "document_surface_contract",
         "verify_tool_registry_binding",
-        "verify_readback_view",
-        "add_explicit_safety_markers"
+        "verify_readback_view"
       ],
       "owner_hints": [
         "docs-agent/human-review",
         "runtime-registry-review",
-        "db-readback-review",
-        "safety-contract-review"
+        "db-readback-review"
       ],
       "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
       "safety": {
