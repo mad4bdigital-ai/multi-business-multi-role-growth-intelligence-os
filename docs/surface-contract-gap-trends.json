@@ -10,7 +10,7 @@
   "openapi_sql_route_coverage_percent": 100,
   "openapi_exempt_sql_route_count": 558,
   "total_sql_route_like_count": 558,
-  "safety_marker_gap_migrations": 2,
+  "safety_marker_gap_migrations": 1,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",

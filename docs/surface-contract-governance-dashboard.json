@@ -46,14 +46,14 @@
       "20260615_tenant_growth_dashboard_product.sql"
     ],
     "safety_marker_counts": {
-      "no_provider_call": 426,
-      "no_credential_payload_read": 426,
-      "no_raw_secrets": 426,
-      "no_external_send": 426,
-      "no_external_write": 426,
-      "secrets_included_false": 427
+      "no_provider_call": 427,
+      "no_credential_payload_read": 427,
+      "no_raw_secrets": 427,
+      "no_external_send": 427,
+      "no_external_write": 427,
+      "secrets_included_false": 428
     },
-    "safety_marker_gap_migrations": 2,
+    "safety_marker_gap_migrations": 1,
     "route_coverage": {
       "sql_route_count": 0,
       "total_sql_route_like_count": 558,
@@ -190,7 +190,7 @@
     },
     {
       "migration_file": "1012_sprint69_sql_only_runtime_auth_schema.sql",
-      "score": 527,
+      "score": 455,
       "queue_class": "high_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -203,25 +203,16 @@
         "docs/change-documentation-governance.md"
       ],
       "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write",
-        "secrets_included_false"
-      ],
+      "safety_marker_gaps": [],
       "remediation_action_keys": [
         "document_surface_contract",
         "verify_tool_registry_binding",
-        "verify_readback_view",
-        "add_explicit_safety_markers"
+        "verify_readback_view"
       ],
       "owner_hints": [
         "docs-agent/human-review",
         "runtime-registry-review",
-        "db-readback-review",
-        "safety-contract-review"
+        "db-readback-review"
       ],
       "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
       "safety": {
