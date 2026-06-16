@@ -228,3 +228,7 @@ Session Insight batch remediation must include exact migration filenames across 
 
 - `1009_sprint69_optional_manual_agent_delegation_tools.sql` registers explicit, admin-governed manual delegation creation/dispatch/contract tools. Migration execution performs no provider call, credential read, external send/write, or secret return; runtime delegation remains opt-in and confirmation/authorization governed.
 - `1010_sprint69_disable_legacy_agent_chain_dispatch_tool.sql` disables the ambiguous legacy dispatch surface and directs callers to `agent_chain_event_dispatch_manual`. It is a guarded registry update only and performs no provider call, credential read, external send/write, or secret return.
+
+## Capability Assurance Graph change surface
+
+Changes to 314_sprint69_capability_assurance_graph.sql, capability assurance views, reconciliation tooling, or resource-binding semantics require synchronized updates to canonicals, tests, OpenAPI/tool exports where applicable, and AI_Agent_Knowledge_Guide.md before merge.
