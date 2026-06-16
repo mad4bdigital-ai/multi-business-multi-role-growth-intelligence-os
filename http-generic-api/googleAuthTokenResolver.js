@@ -292,7 +292,7 @@ async function fetchGlobalGoogleToken(options = {}) {
           run: async () => {
             // ADC attempts the GCP metadata server (169.254.169.254) which hangs
             // indefinitely on non-GCP hosts like Hostinger. Hard-cap at 5s.
-            const auth = new google.auth.GoogleAuth({ scopes: GOOGLE_WORKSPACE_SCOPES });
+            const auth = new google.auth.GoogleAuth({ scopes });
             const deadline = new Promise((_, reject) =>
               setTimeout(() => reject(new Error("ADC metadata server timeout (non-GCP host)")), 5000)
             );
