@@ -17,6 +17,7 @@ const insight = await decideGrowthIntelligenceInsightAdmin({
   insight_id: "opp_1",
   decision: "accepted",
 }, {
+  pool: {},
   async decideInsight(input) {
     assert.equal(input.tenantId, tenantId);
     assert.equal(input.reportId, reportId);
