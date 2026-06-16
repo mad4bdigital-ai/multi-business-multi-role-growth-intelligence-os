@@ -110,6 +110,13 @@ The hardened activation routing wrapper is active:
   - `session_context_scope = same_user_unless_admin`
   - `session_context_raw_dump_allowed = bounded_when_requested`
   - `platform_access_endpoint = /activation/platform-access`
+  - `tenant_product_guidance_required = true` for signed non-admin Tenant GPT principals when the product layer is available
+  - `tenant_product_guidance_default_profile = evidence`
+  - `tenant_product_dashboard_endpoint = /tenant/dashboard`
+  - `tenant_product_start_tab = tenant_today`
+  - `tenant_product_action_limit = 3`
+  - `tenant_product_missing_data_is_not_zero = true`
+  - `tenant_product_write_actions_require_governed_confirmation = true`
   - `platform_access_counts = brands_plugins_logics_engines_actions`
   - `provider_bootstrap_sequence_required = drive_then_sheets_bootstrap_then_github`
   - project-folder-scoped Google Drive discovery through folder `1gNYX47P4TNuMXEbWvLNCvV4XRocH41K2` when fallback discovery or canonical lookup is needed
@@ -117,6 +124,46 @@ The hardened activation routing wrapper is active:
 - status, readiness, tenant, brand-count, and action-count routes must remain diagnostics and must not replace provider bootstrap probes
 - if downstream execution returns without a real governed activation transport attempt after the permitted same-cycle retry path, routing-compatible activation must be treated as failed enforcement
 
+
+Tenant Growth Cockpit Routing Rule
+
+When the signed principal is a Tenant GPT user and activation or dashboard intent is detected, prompt_router must preserve the tenant growth product layer as the customer-facing navigation and guidance surface.
+
+Relevant intents include:
+
+- open dashboard
+- show today
+- show growth opportunities
+- review leads or bookings
+- review content, SEO, campaigns, reputation, tasks, operations, integrations, Brand knowledge, or reports
+- create or update the growth plan
+- explain what the platform can do for the business
+
+Routing must preserve when available:
+
+- `tenant_growth_dashboard_required = true`
+- `active_container_resolution_required = true`
+- `business_activity_resolution_required = true`
+- `brand_core_readiness_required = true`
+- `customer_dynamic_tab_resolution_required = true`
+- `growth_guidance_required = true`
+- `next_best_action_limit = 3`
+- `missing_data_is_not_zero = true`
+- `detail_hydration_mode = governed_cursor_reference`
+
+The default customer-facing entry tab is `tenant_today`. The router should prefer the smallest relevant tab set for the resolved business activity and current goal rather than exposing every registered operational tab.
+
+When a user asks a broad question such as "what can the platform do for my business?", the router must first resolve the active container, business activity, Brand Core readiness, connected-system readiness, and available governed actions. It must then answer in business-outcome language and provide no more than three prioritized next actions.
+
+When the selected action is advisory, read-only, or draft-only, routing may prepare the matching preview or planning surface. When the selected action is consequential, routing must preserve:
+
+- `runtime_authority_validation_required = true`
+- `capability_readiness_required = true`
+- `credential_resolution_required = true`
+- `confirmation_required` according to the action registry
+- `success_readback_required = true` when the action changes external or platform state
+
+Tenant dashboard routes must derive identity from the signed JWT. Routing must not accept or preserve client-supplied tenant/user identity overrides. Internal table names, credential references, raw configuration blobs, and admin-only diagnostics must not be exposed as customer guidance.
 
 
 Exhaustive Full-System Audit Routing Guard
