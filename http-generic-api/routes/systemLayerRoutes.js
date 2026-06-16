@@ -35,6 +35,7 @@ import {
   runGovernedResource,
 } from "../platformResourceRecipeCapability.js";
 import {
+  REPOSITORY_PR_RECONCILE_RECIPE_KEY,
   TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
   createRepositoryAuthorityBinding,
   listRepositoryAuthorityBindings,
