@@ -2168,6 +2168,12 @@ export async function runReleaseReadiness({ persist = false } = {}) {
   if (report.migration_drift.status === "warn" && report.overall === "pass") report.overall = "warn";
   if (report.migration_drift.status === "fail") report.overall = "fail";
 
+  // Approval Hold identity readiness — fail closed when the migration/view is missing,
+  // any varchar(36) join key drifts from utf8mb4_unicode_ci, or an active orphan exists.
+  report.approval_hold_identity_collation_readiness = await checkApprovalHoldIdentityCollationReadinessSafe();
+  if (report.approval_hold_identity_collation_readiness.status === "warn" && report.overall === "pass") report.overall = "warn";
+  if (report.approval_hold_identity_collation_readiness.status === "fail") report.overall = "fail";
+
   // Runtime policy seed readiness — verifies the live DB has the policy rows
   // required by governedExecutionPreflight. This catches missing seed rows that
   // source-code and migration-file checks alone cannot detect.
