@@ -31,6 +31,19 @@ const GPT_TOOLS_ROUTES_PATH = path.join(__dirname, "routes", "gptToolsRoutes.js"
 const OPENAPI_PATH = path.join(__dirname, "openapi.yaml");
 const ROUTES_DIR = path.join(__dirname, "routes");
 
+function safeJsonArray(value, fallback = []) {
+  if (Array.isArray(value)) return value;
+  if (value == null || value === "") return fallback;
+  const normalized = Buffer.isBuffer(value) ? value.toString("utf8") : value;
+  if (typeof normalized !== "string") return fallback;
+  try {
+    const parsed = JSON.parse(normalized);
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "051_sprint48_cloudflare_and_self_repair_tools.sql",
   "052_sprint49_local_connector_install_bundle.sql",
