@@ -9,6 +9,14 @@ import {
   smokeSafeTenantId,
 } from "./repositoryTenantIntelligenceV2.js";
 
+const source = readFileSync(new URL("./repositoryTenantIntelligenceV2.js", import.meta.url), "utf8");
+assert.match(source, /selectRepositoryReadinessSmokeMembership/);
+assert.match(source, /FROM memberships m/);
+assert.match(source, /m\.status='active'/);
+assert.match(source, /user_id: userId/);
+assert.match(source, /active_tenant_membership_required_for_smoke/);
+assert.doesNotMatch(source, /const tenantId = smokeSafeTenantId\(`repository_intelligence_v2_/);
+
 const repoRef = normalizeGithubRepoRef({ resource_uri: "github://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os" });
 assert.equal(repoRef.owner, "mad4bdigital-ai");
 assert.equal(repoRef.repo, "multi-business-multi-role-growth-intelligence-os");
