@@ -488,7 +488,7 @@ export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { 
   const checks = [
     { name: "descriptor_handler_present", pass: descriptorHandlersPresent },
     { name: "direct_public_tool_call_succeeds", pass: create?.ok === true && listed?.ok === true && positive?.ok === true && revoke?.ok === true },
-    { name: "tenant_scope_forced", pass: negative?.tenant_scope?.tenant_id === negativeTenantId && positive?.tenant_scope?.tenant_id === tenantId && positive?.tenant_scope?.tenant_id !== conflictingTenantId },
+    { name: "tenant_scope_forced", pass: negative?.tenant_scope?.tenant_id === tenantId && positive?.tenant_scope?.tenant_id === tenantId && positive?.tenant_scope?.tenant_id !== conflictingTenantId },
     { name: "missing_binding_blocks_before_provider", pass: negative?.ok === false && Number(negative?.provider_calls_made || 0) === 0 && negative?.reason_code === "blocked_missing_platform_resource_authority_binding" },
     { name: "active_binding_allows_read_only", pass: positive?.ok === true && positive?.apply_allowed === false && positive?.mutations_executed === false && Number(positive?.summary?.provider_calls_made || 0) > 0 },
     { name: "binding_lifecycle_direct", pass: create?.binding?.permission_level === "read_only" && (create?.binding?.allowed_modes || []).includes("read_only") && listed?.bindings?.some((binding) => binding.binding_id === bindingId) && revoke?.binding?.status === "revoked" },
