@@ -261,7 +261,7 @@
     },
     {
       "migration_file": "1012_sprint69_sql_only_runtime_auth_schema.sql",
-      "score": 527,
+      "score": 455,
       "queue_class": "high_review",
       "gap_severity": "medium",
       "documentation_complete": false,
@@ -273,14 +273,7 @@
         "docs/change-documentation-governance.md"
       ],
       "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write",
-        "secrets_included_false"
-      ],
+      "safety_marker_gaps": [],
       "surface_counts": {
         "plugins": 0,
         "tools": 1,
@@ -317,19 +310,6 @@
             "v_var_name"
           ],
           "reason": "Readback views should have parity/readiness documentation and smoke evidence."
-        },
-        {
-          "action_key": "add_explicit_safety_markers",
-          "owner_hint": "safety-contract-review",
-          "targets": [
-            "no_provider_call",
-            "no_credential_payload_read",
-            "no_raw_secrets",
-            "no_external_send",
-            "no_external_write",
-            "secrets_included_false"
-          ],
-          "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
         }
       ],
       "safety": {
