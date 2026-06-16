@@ -13,7 +13,6 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
     action,
     endpoint,
     brand,
-    drive,
     hostingAccounts,
     policies,
     callerHeaders,
@@ -38,7 +37,6 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
     mintGoogleAccessTokenForEndpoint,
     isDelegatedTransportTarget,
     ensureWritePermissions,
-    fetchSchemaContract,
     resolveSchemaOperation,
     injectAuthForSchemaValidation,
     getAdditionalStaticAuthHeaders,
@@ -367,12 +365,20 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
 
   const localSchemaJsonAssets = (deps && Array.isArray(deps.jsonAssets)) ? deps.jsonAssets :
     ((deps && Array.isArray(deps.registryJsonAssets)) ? deps.registryJsonAssets : []);
-  const endpointLocalSchemaContract = resolveEndpointLocalSchemaContract(endpoint, { jsonAssets: localSchemaJsonAssets });
-  const schemaContract = endpointLocalSchemaContract ||
-    await fetchSchemaContract(drive, action.openai_schema_file_id);
-  const schemaSource = schemaContract?.source ||
-    (endpointLocalSchemaContract ? "endpoint_local" : "action_openai_schema_file");
-  const schemaContractFileId = schemaContract?.fileId || action.openai_schema_file_id || "";
+  const schemaContract = resolveEndpointLocalSchemaContract(endpoint, { jsonAssets: localSchemaJsonAssets });
+  if (!schemaContract) {
+    const err = new Error("Endpoint schema contract is missing from the SQL runtime registry.");
+    err.code = "schema_contract_missing";
+    err.status = 500;
+    err.details = {
+      parent_action_key: String(parent_action_key || "").trim(),
+      endpoint_key: String(endpoint_key || "").trim(),
+      required_surface: "endpoints.schema_json"
+    };
+    throw err;
+  }
+  const schemaSource = schemaContract.source || "sql:endpoints.schema_json";
+  const schemaContractFileId = schemaContract.fileId || endpoint.child_openai_schema_file_id || "";
   debugLog("SCHEMA_CONTRACT_SOURCE:", JSON.stringify({
     source: schemaSource,
     schema_name: schemaContract?.name || "",
