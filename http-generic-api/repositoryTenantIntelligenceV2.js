@@ -430,9 +430,8 @@ export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { 
       secrets_included: false,
     };
   }
-  const negativeTenantId = smokeSafeTenantId(`${tenantId}_missing`);
-  const negativeAuth = { ...(auth || {}), is_admin: false, tenant_id: negativeTenantId };
-  const tenantAuth = { ...(auth || {}), is_admin: false, tenant_id: tenantId };
+  const negativeAuth = { ...(auth || {}), is_admin: false, tenant_id: tenantId, user_id: userId };
+  const tenantAuth = { ...(auth || {}), is_admin: false, tenant_id: tenantId, user_id: userId };
   const adminAuth = { ...(auth || {}), is_admin: true };
   const conflictingTenantId = smokeSafeTenantId(`${tenantId}_conflict`);
   const negative = await dispatchSystemTool("tenant_repo_pr_reconciliation_sweep", {
