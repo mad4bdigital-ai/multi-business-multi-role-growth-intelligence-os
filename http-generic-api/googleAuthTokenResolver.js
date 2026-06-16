@@ -3,7 +3,39 @@ import { readFileSync } from "node:fs";
 import { createSign } from "node:crypto";
 import { findGoogleUserAppConnection, markUserAppConnectionUsed, normalizeEmailKey, parseOauthConfigRef } from "./userAppConnectionCredentials.js";
 
-const GOOGLE_WORKSPACE_SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/documents", "https://www.googleapis.com/auth/drive"];
+function parseRuntimeBindingProfile(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value;
+  const raw = String(value || "").trim();
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export function getGoogleScopesFromAction(action = {}) {
+  const profile = parseRuntimeBindingProfile(action.runtime_binding_profile);
+  const strategy = profile.auth_strategy && typeof profile.auth_strategy === "object"
+    ? profile.auth_strategy
+    : {};
+  const rawScopes = strategy.required_scopes || strategy.requiredScopes || [];
+  const scopes = Array.isArray(rawScopes)
+    ? rawScopes.map(value => String(value || "").trim()).filter(Boolean)
+    : String(rawScopes || "").split(/[|,\s]+/).map(value => value.trim()).filter(Boolean);
+  const uniqueScopes = [...new Set(scopes)];
+  if (uniqueScopes.length) return uniqueScopes;
+
+  const err = new Error("Google OAuth scope contract is missing from the SQL action registry.");
+  err.code = "auth_scope_contract_missing";
+  err.status = 500;
+  err.details = {
+    action_key: String(action.action_key || "").trim(),
+    required_surface: "actions.runtime_binding_profile.auth_strategy.required_scopes"
+  };
+  throw err;
+}
 
 const cache = new Map();
 let fetchingGlobal = false, warned = false, logged = false;
