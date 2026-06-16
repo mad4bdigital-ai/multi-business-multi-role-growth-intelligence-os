@@ -1,7 +1,7 @@
 {
   "ok": true,
   "schema_version": "surface-contract-discovery-v3",
-  "migration_surface_count": 426,
+  "migration_surface_count": 427,
   "reported_count": 80,
   "openapi_operation_count": 465,
   "openapi_path_count": 412,
@@ -521,38 +521,39 @@
     "closed_migration_count": 399
   },
   "coverage_summary": {
-    "migrations_with_surfaces": 426,
+    "migrations_with_surfaces": 427,
     "docs_complete_count": 425,
-    "docs_gap_count": 1,
-    "docs_completion_percent": 99.77,
+    "docs_gap_count": 2,
+    "docs_completion_percent": 99.53,
     "surface_totals": {
       "plugins": 12,
-      "tools": 1965,
+      "tools": 1988,
       "views": 375,
-      "policies": 155,
-      "routes": 557
+      "policies": 157,
+      "routes": 558
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 361,
+      "tools": 362,
       "views": 153,
-      "policies": 98,
-      "routes": 233
+      "policies": 99,
+      "routes": 234
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 0,
-      "deployment_parity_checklist.md": 0,
-      "docs/ai-docs-agent-governance.md": 0,
-      "docs/auto-docs-agent/README.md": 1,
-      "docs/change-documentation-governance.md": 1
+      "Updating Registry Patch Index.md": 1,
+      "deployment_parity_checklist.md": 1,
+      "docs/ai-docs-agent-governance.md": 1,
+      "docs/auto-docs-agent/README.md": 2,
+      "docs/change-documentation-governance.md": 2
     },
     "gap_severity_counts": {
-      "high": 1,
+      "high": 2,
       "medium": 0,
       "low": 0,
       "none": 425
     },
     "high_risk_missing_docs": [
+      "1011_sprint69_governed_repository_engine_v6.sql",
       "315_sprint69_capability_vault_record_tool_export.sql"
     ],
     "medium_risk_missing_docs": [],
@@ -562,18 +563,18 @@
       "no_raw_secrets": 426,
       "no_external_send": 426,
       "no_external_write": 426,
-      "secrets_included_false": 426
+      "secrets_included_false": 427
     },
     "safety_marker_gap_migrations": 0,
     "route_coverage": {
       "sql_route_count": 0,
-      "total_sql_route_like_count": 557,
-      "openapi_exempt_sql_route_count": 557,
+      "total_sql_route_like_count": 558,
+      "openapi_exempt_sql_route_count": 558,
       "route_class_counts": {
         "http_route": 0,
         "admin_tool_registry_route": 115,
         "tenant_tool_registry_route": 35,
-        "system_tool_dispatch_route": 12,
+        "system_tool_dispatch_route": 13,
         "registry_only_surface": 1,
         "false_positive_route_like_string": 0,
         "legacy_closure_route_reviewed": 394
@@ -587,14 +588,117 @@
   "gap_queue": {
     "ok": true,
     "schema_version": "surface-contract-gap-queue-v1",
-    "total_items": 1,
+    "total_items": 2,
     "class_counts": {
-      "critical_review": 1,
+      "critical_review": 2,
       "high_review": 0,
       "medium_review": 0,
       "low_review": 0
     },
     "top_items": [
+      {
+        "migration_file": "1011_sprint69_governed_repository_engine_v6.sql",
+        "score": 1171,
+        "queue_class": "critical_review",
+        "gap_severity": "high",
+        "documentation_complete": false,
+        "missing_docs": [
+          "Updating Registry Patch Index.md",
+          "deployment_parity_checklist.md",
+          "docs/ai-docs-agent-governance.md",
+          "docs/auto-docs-agent/README.md",
+          "docs/change-documentation-governance.md"
+        ],
+        "missing_openapi_routes": [],
+        "safety_marker_gaps": [
+          "no_provider_call",
+          "no_credential_payload_read",
+          "no_raw_secrets",
+          "no_external_send",
+          "no_external_write"
+        ],
+        "surface_counts": {
+          "plugins": 0,
+          "tools": 23,
+          "views": 0,
+          "policies": 2,
+          "routes": 1
+        },
+        "remediation": [
+          {
+            "action_key": "document_surface_contract",
+            "owner_hint": "docs-agent/human-review",
+            "targets": [
+              "Updating Registry Patch Index.md",
+              "deployment_parity_checklist.md",
+              "docs/ai-docs-agent-governance.md",
+              "docs/auto-docs-agent/README.md",
+              "docs/change-documentation-governance.md"
+            ],
+            "reason": "Migration surfaces are not mentioned in all required documentation targets."
+          },
+          {
+            "action_key": "verify_tool_registry_binding",
+            "owner_hint": "runtime-registry-review",
+            "targets": [
+              "action_specific_apply_gated",
+              "admin_only_tools",
+              "app_integration_tool_bindings",
+              "bind_tool_github_tenant_repository_mutation_apply_v6",
+              "expected_readback_json",
+              "github_pull_request",
+              "negative_gate_and_readback",
+              "negative_gate_passed_positive_apply_pending",
+              "policy_gate",
+              "required_gates_json",
+              "requires_dispatch_allowed",
+              "requires_readback",
+              "requires_ready_for_dispatch",
+              "requires_same_cycle_readback",
+              "runtime_dispatch_certification_registry",
+              "same_cycle_readback",
+              "system_layer_tool_descriptor_source_registry",
+              "tenant_exported_tools",
+              "tenant_platform_endpoint_tools",
+              "tenant_platform_tool",
+              "tenant_repository_governance_v6_readiness_smoke",
+              "tenant_repository_mutation_readback_v6",
+              "unknown_provider_outcome_requires_readback"
+            ],
+            "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
+          },
+          {
+            "action_key": "verify_policy_seed_readiness",
+            "owner_hint": "runtime-policy-review",
+            "targets": [
+              "governed_repository_engine_v6_policy_v1",
+              "governed_repository_mutation_plan_v6_policy_v1"
+            ],
+            "reason": "Policy surfaces need active/blocking/valid-JSON readiness evidence."
+          },
+          {
+            "action_key": "add_explicit_safety_markers",
+            "owner_hint": "safety-contract-review",
+            "targets": [
+              "no_provider_call",
+              "no_credential_payload_read",
+              "no_raw_secrets",
+              "no_external_send",
+              "no_external_write"
+            ],
+            "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
+          }
+        ],
+        "safety": {
+          "executes_provider_calls": false,
+          "reads_credentials": false,
+          "mutates_runtime": false,
+          "writes_database": false,
+          "external_sends": false,
+          "deploys": false,
+          "secrets_included": false
+        }
+      },
       {
         "migration_file": "315_sprint69_capability_vault_record_tool_export.sql",
         "score": 831,
@@ -16232,6 +16336,119 @@
         },
         "surface_count": 1,
         "safety_marker_count": 6
+      }
+    },
+    {
+      "migration_file": "1011_sprint69_governed_repository_engine_v6.sql",
+      "legacy_backlog_closed": false,
+      "safety_attestation": null,
+      "surfaces": {
+        "routes": [
+          "/system/tools/call"
+        ],
+        "route_classifications": [
+          {
+            "route": "/system/tools/call",
+            "route_class": "system_tool_dispatch_route",
+            "openapi_required": false,
+            "reason": "System-tool dispatch endpoints are documented by the fixed dispatcher contract and should not create per-tool OpenAPI gaps."
+          }
+        ],
+        "views": [],
+        "policies": [
+          "governed_repository_engine_v6_policy_v1",
+          "governed_repository_mutation_plan_v6_policy_v1"
+        ],
+        "plugins": [],
+        "tools": [
+          "action_specific_apply_gated",
+          "admin_only_tools",
+          "app_integration_tool_bindings",
+          "bind_tool_github_tenant_repository_mutation_apply_v6",
+          "expected_readback_json",
+          "github_pull_request",
+          "negative_gate_and_readback",
+          "negative_gate_passed_positive_apply_pending",
+          "policy_gate",
+          "required_gates_json",
+          "requires_dispatch_allowed",
+          "requires_readback",
+          "requires_ready_for_dispatch",
+          "requires_same_cycle_readback",
+          "runtime_dispatch_certification_registry",
+          "same_cycle_readback",
+          "system_layer_tool_descriptor_source_registry",
+          "tenant_exported_tools",
+          "tenant_platform_endpoint_tools",
+          "tenant_platform_tool",
+          "tenant_repository_governance_v6_readiness_smoke",
+          "tenant_repository_mutation_readback_v6",
+          "unknown_provider_outcome_requires_readback"
+        ],
+        "safety": {
+          "no_provider_call": false,
+          "no_credential_payload_read": false,
+          "no_raw_secrets": false,
+          "no_external_send": false,
+          "no_external_write": false,
+          "secrets_included_false": true
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": false,
+        "deployment_parity_checklist.md": false,
+        "docs/ai-docs-agent-governance.md": false,
+        "docs/auto-docs-agent/README.md": false,
+        "docs/change-documentation-governance.md": false
+      },
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "documentation_complete": false,
+      "coverage": {
+        "gap_severity": "high",
+        "requires_docs_review": true,
+        "route_coverage": {
+          "route_count": 0,
+          "total_route_count": 1,
+          "openapi_required_route_count": 0,
+          "exempted_route_count": 1,
+          "route_class_counts": {
+            "http_route": 0,
+            "admin_tool_registry_route": 0,
+            "tenant_tool_registry_route": 0,
+            "system_tool_dispatch_route": 1,
+            "registry_only_surface": 0,
+            "false_positive_route_like_string": 0,
+            "legacy_closure_route_reviewed": 0
+          },
+          "documented_count": 0,
+          "missing_count": 0,
+          "documented_routes": [],
+          "missing_routes": [],
+          "exempted_routes": [
+            {
+              "route": "/system/tools/call",
+              "route_class": "system_tool_dispatch_route",
+              "openapi_required": false,
+              "reason": "System-tool dispatch endpoints are documented by the fixed dispatcher contract and should not create per-tool OpenAPI gaps."
+            }
+          ],
+          "route_classifications": [
+            {
+              "route": "/system/tools/call",
+              "route_class": "system_tool_dispatch_route",
+              "openapi_required": false,
+              "reason": "System-tool dispatch endpoints are documented by the fixed dispatcher contract and should not create per-tool OpenAPI gaps."
+            }
+          ]
+        },
+        "surface_count": 26,
+        "safety_marker_count": 1
       }
     },
     {
