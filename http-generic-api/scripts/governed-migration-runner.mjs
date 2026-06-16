@@ -251,6 +251,7 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "245_sprint68_agent_governance_runtime.sql",
   "1004_sprint69_agent_governance_admin_tools.sql",
   "1005_sprint69_agent_skill_coverage_prompt_enrichment.sql",
+  "1011_sprint69_governed_repository_engine_v6.sql",
 ]);
 
 const RUNNER_VERSION = "governed-migration-runner-v2";
