@@ -38,7 +38,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 - SQL route coverage in OpenAPI: 0/0 (100.00%)
 - SQL route-like literals exempted from OpenAPI scoring: 559/559
 - SQL routes missing OpenAPI path coverage: 0
-- Migrations without explicit `secrets_included=false` marker: 2
+- Migrations without explicit `secrets_included=false` marker: 1
 
 ### Surface Totals
 
@@ -64,12 +64,12 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 427 |
-| no_credential_payload_read | 427 |
-| no_raw_secrets | 427 |
-| no_external_send | 427 |
-| no_external_write | 427 |
-| secrets_included_false | 428 |
+| no_provider_call | 428 |
+| no_credential_payload_read | 428 |
+| no_raw_secrets | 428 |
+| no_external_send | 428 |
+| no_external_write | 428 |
+| secrets_included_false | 429 |
 
 ### Route Classification Coverage
 
@@ -99,7 +99,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `1011_sprint69_governed_repository_engine_v6.sql` | critical_review | 1171 | high | 5 | 0 | 5 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness, add_explicit_safety_markers |
 | `315_sprint69_capability_vault_record_tool_export.sql` | critical_review | 831 | high | 2 | 0 | 0 | document_surface_contract, verify_tool_registry_binding |
 | `20260615_tenant_growth_dashboard_product.sql` | high_review | 662 | medium | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
-| `1012_sprint69_sql_only_runtime_auth_schema.sql` | high_review | 527 | medium | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
+| `1012_sprint69_sql_only_runtime_auth_schema.sql` | high_review | 455 | medium | 5 | 0 | 0 | document_surface_contract, verify_tool_registry_binding, verify_readback_view |
 
 
 ## Latest Surface Coverage
