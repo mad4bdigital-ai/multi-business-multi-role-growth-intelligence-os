@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   buildRepositoryActionPlannerV4,
@@ -97,4 +98,10 @@ assert.equal(planner.summary.mutations_executed, false);
 assert.equal(planner.apply_allowed, false);
 assert.equal(planner.next_gate, "approval_gated_mutations_v5_not_enabled");
 
+const runtimeSource = readFileSync(new URL("./repositoryTenantIntelligenceV2.js", import.meta.url), "utf8");
+assert.match(runtimeSource, /findUsableRepositoryProviderBinding/);
+assert.match(runtimeSource, /repository_provider_binding_required/);
+assert.match(runtimeSource, /status:'authorization_gated'/);
+assert.match(runtimeSource, /source_system_id IS NOT NULL/);
+assert.doesNotMatch(runtimeSource, /temporary repository intelligence v2 readiness smoke binding/);
 console.log("repository tenant intelligence v2/v3/v4 tests passed");

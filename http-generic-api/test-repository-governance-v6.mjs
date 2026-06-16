@@ -8,6 +8,15 @@ import {
 } from "./repositoryGovernanceV6.js";
 import { buildBindingContext } from "./scripts/capability-resolution-envelope-create.mjs";
 
+const releaseReadinessSource = fs.readFileSync(new URL("./releaseReadiness.js", import.meta.url), "utf8");
+assert.match(releaseReadinessSource, /function safeJsonArray/);
+assert.match(releaseReadinessSource, /isRepositoryAuthorizationGatedSmoke/);
+const systemLayerSource = fs.readFileSync(new URL("./routes/systemLayerRoutes.js", import.meta.url), "utf8");
+assert.match(systemLayerSource, /authorization_gated_source_count/);
+assert.match(systemLayerSource, /system_layer_descriptor_callability_authorization_gated/);
+const governanceSource = fs.readFileSync(new URL("./repositoryGovernanceV6.js", import.meta.url), "utf8");
+assert.match(governanceSource, /repository_governance_v6_authorization_gated/);
+assert.match(governanceSource, /findUsableRepositoryProviderBinding/);
 const bindingContext = buildBindingContext([
   "--plan-id=plan-1",
   "--plan-item-id=item-1",
