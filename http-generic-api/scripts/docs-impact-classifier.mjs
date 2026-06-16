@@ -66,7 +66,8 @@ const FAMILY_RULES = [
     key: "docs_agent",
     risk: "low",
     docs: ["docs/ai-docs-agent-governance.md", "docs/auto-docs-agent/README.md"],
-    match: (file) => /docs-impact-classifier|docs-agent|ai-docs-agent|auto-docs-agent/i.test(file),
+    match: (file) => !/^docs\/auto-docs-agent\/(pr-|commit-)/.test(file)
+      && /docs-impact-classifier|docs-agent|ai-docs-agent|auto-docs-agent/i.test(file),
     reason: "documentation automation changed; keep docs-agent governance current",
   },
 ];
@@ -84,7 +85,7 @@ export function maxRisk(values = []) {
 }
 
 export function isDocsLike(file = "") {
-  return /(^docs\/|\.md$|^README\.md$|^canonicals\/|^schemas\/|^deployment_parity_checklist\.md$|^runtime_boundary_map\.md$|^connector_contracts\.md$|^AI_Agent_Knowledge_Guide\.md$|^GPT_.*_Knowledge_Guide\.md$|^GPT_.*_Instructions\.md$|^Top Level Instructions\.md$|^Updating Registry Patch Index\.md$)/.test(file);
+  return /(^docs\/|\.md$|^README\.md$|^canonicals\/|^schemas\/|^http-generic-api\/openapi(?:\.[^/]+)?\.ya?ml$|^deployment_parity_checklist\.md$|^runtime_boundary_map\.md$|^connector_contracts\.md$|^AI_Agent_Knowledge_Guide\.md$|^GPT_.*_Knowledge_Guide\.md$|^GPT_.*_Instructions\.md$|^Top Level Instructions\.md$|^Updating Registry Patch Index\.md$)/.test(file);
 }
 
 export function isTestLike(file = "") {

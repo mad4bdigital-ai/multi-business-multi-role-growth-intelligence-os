@@ -25,7 +25,7 @@ Tenant operation aliases must be unique in the canonical source. In particular:
 
 ## Admin virtual tools
 
-Virtual Admin tools such as `growth_intelligence_pilot_run` are exposed through the existing `POST /gpt/tools/call` dispatcher and do not add independent split-schema paths. Their tool name, description, and input schema come from the Admin tool catalog at runtime. Changes must update the canonical `http-generic-api/openapi.yaml` dispatcher description, keep the generated auth-dispatcher operation stable, and preserve `callAdminTool` request/response compatibility. The split generator must not create a dedicated public endpoint for a virtual tool.
+Virtual Admin tools such as `growth_intelligence_pilot_run` are exposed through the existing `POST /gpt/tools/call` dispatcher and do not add independent split-schema paths. Their tool name, description, and input schema come from the Admin tool catalog at runtime. Changes must update the canonical `http-generic-api/openapi.yaml` dispatcher description, keep the generated auth-dispatcher operation stable, and preserve `callAdminTool` request/response compatibility. The split generator must not create a dedicated public endpoint for a virtual tool. Growth Intelligence insight/action decisions, readiness refresh, and V5 plan-bound approval-hold operations remain catalog-backed virtual tools behind the stable dispatcher; their schemas must preserve no-execution/no-provider-write boundaries and typed-confirmation requirements.
 
 ## Enforcement
 

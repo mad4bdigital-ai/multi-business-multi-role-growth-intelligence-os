@@ -26,6 +26,13 @@ import { applyGithubRepositoryChangeSet, deleteGithubBranchRef, finalizeGithubPu
 import { runGithubSupersededBranchCleanup } from "../githubSupersededBranchCleanup.js";
 import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveReport } from "../platformCapabilityReports.js";
 import { runGrowthIntelligencePilotAdmin } from "../growthIntelligenceAdminTool.js";
+import {
+  approveRepositoryAdvisoryCommentApprovalHoldAdmin,
+  createRepositoryAdvisoryCommentApprovalHoldAdmin,
+  decideGrowthIntelligenceActionAdmin,
+  decideGrowthIntelligenceInsightAdmin,
+  refreshGrowthIntelligenceReadinessAdmin,
+} from "../growthIntelligenceAdminDecisions.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -466,6 +473,90 @@ const VIRTUAL_ADMIN_TOOLS = [
         evidence_limit: { type: "integer", minimum: 1, maximum: 50, default: 20 },
         report_id: { type: "string", maxLength: 64 },
         requested_by: { type: "string", maxLength: 128 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "growth_intelligence_insight_decide",
+    displayName: "Decide Growth Intelligence Insight",
+    description: "Accept, reject, or mark stale one persisted Growth Intelligence insight. Records an internal decision only; no provider write, external send, or execution.",
+    method: "VIRTUAL",
+    path: "internal://growth-intelligence-insight-decide",
+    tags: ["growth_intelligence", "decision", "internal_registry", "no_execution", "no_provider_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["tenant_id", "report_id", "insight_id", "decision"],
+      properties: {
+        tenant_id: { type: "string" }, report_id: { type: "string" }, insight_id: { type: "string" },
+        decision: { type: "string", enum: ["accepted", "rejected", "stale"] },
+        decision_by: { type: "string", maxLength: 36 }, decision_note: { type: "string", maxLength: 512 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "growth_intelligence_action_decide",
+    displayName: "Decide Growth Intelligence Action",
+    description: "Approve or reject one Growth Intelligence dry-run action and its linked approval hold. Never dispatches the action or performs provider writes.",
+    method: "VIRTUAL",
+    path: "internal://growth-intelligence-action-decide",
+    tags: ["growth_intelligence", "approval", "internal_registry", "no_execution", "no_provider_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["tenant_id", "report_id", "action_id", "decision"],
+      properties: {
+        tenant_id: { type: "string" }, report_id: { type: "string" }, action_id: { type: "string" },
+        decision: { type: "string", enum: ["approved", "rejected"] },
+        decision_by: { type: "string", maxLength: 36 }, decision_note: { type: "string", maxLength: 512 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "growth_intelligence_readiness_refresh",
+    displayName: "Refresh Growth Intelligence Readiness",
+    description: "Recompute and persist Growth Intelligence review readiness after insight and action decisions. Does not enable or dispatch execution.",
+    method: "VIRTUAL",
+    path: "internal://growth-intelligence-readiness-refresh",
+    tags: ["growth_intelligence", "readiness", "internal_registry", "no_execution", "no_provider_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["tenant_id", "report_id"],
+      properties: { tenant_id: { type: "string" }, report_id: { type: "string" }, assessed_by: { type: "string", maxLength: 128 } },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "repository_advisory_comment_approval_hold_create",
+    displayName: "Create Repository Advisory Comment Approval Hold",
+    description: "Create or reuse a dedicated approval hold for one V5 advisory-comment plan. Records internal workflow and approval state only; no GitHub comment is posted.",
+    method: "VIRTUAL",
+    path: "internal://repository-advisory-comment-approval-hold-create",
+    tags: ["repository_intelligence", "v5", "approval_hold", "internal_registry", "no_provider_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["plan_id"],
+      properties: {
+        plan_id: { type: "string" }, requested_by: { type: "string", maxLength: 36 },
+        required_role: { type: "string", maxLength: 64 }, ttl_minutes: { type: "integer", minimum: 5, maximum: 1440, default: 60 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "repository_advisory_comment_approval_hold_approve",
+    displayName: "Approve Repository Advisory Comment Approval Hold",
+    description: "Approve the dedicated hold for exactly one V5 advisory GitHub comment using plan/hold binding and typed confirmation. Approval itself performs no provider write.",
+    method: "VIRTUAL",
+    path: "internal://repository-advisory-comment-approval-hold-approve",
+    tags: ["repository_intelligence", "v5", "approval_hold", "typed_confirmation", "no_provider_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["plan_id", "approval_hold_id", "confirm"],
+      properties: {
+        plan_id: { type: "string" }, approval_hold_id: { type: "string" }, confirm: { type: "string" },
+        decision_by: { type: "string", maxLength: 36 }, decision_note: { type: "string", maxLength: 512 },
       },
       additionalProperties: false,
     },
@@ -1327,6 +1418,39 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       return {
         status: err?.status || 500,
         body: { ok: false, error: { code: err?.code || "repo_patch_batch_apply_failed", message: err?.message || "Repository batch patch failed.", details: err?.details } },
+      };
+    }
+  }
+
+  if (callerType === "admin" && [
+    "growth_intelligence_insight_decide",
+    "growth_intelligence_action_decide",
+    "growth_intelligence_readiness_refresh",
+    "repository_advisory_comment_approval_hold_create",
+    "repository_advisory_comment_approval_hold_approve",
+  ].includes(toolKey)) {
+    try {
+      const handlers = {
+        growth_intelligence_insight_decide: decideGrowthIntelligenceInsightAdmin,
+        growth_intelligence_action_decide: decideGrowthIntelligenceActionAdmin,
+        growth_intelligence_readiness_refresh: refreshGrowthIntelligenceReadinessAdmin,
+        repository_advisory_comment_approval_hold_create: createRepositoryAdvisoryCommentApprovalHoldAdmin,
+        repository_advisory_comment_approval_hold_approve: approveRepositoryAdvisoryCommentApprovalHoldAdmin,
+      };
+      const result = await handlers[toolKey](args || {});
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "growth_intelligence_admin_decision_failed",
+            message: err?.message || "Growth Intelligence admin decision failed.",
+            ...(err?.details ? { details: err.details } : {}),
+          },
+          secrets_included: false,
+        },
       };
     }
   }
