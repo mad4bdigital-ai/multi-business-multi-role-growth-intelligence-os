@@ -171,9 +171,8 @@ export async function resolveDelegatedGoogleScopes({ policies, action, endpoint 
   throw err;
 }
 
-export async function mintGoogleAccessTokenForEndpoint({ drive, policies, action, endpoint }) {
+export async function mintGoogleAccessTokenForEndpoint({ policies, action, endpoint }) {
   const { explicitScopes, scopeSource } = await resolveDelegatedGoogleScopes({
-    drive,
     policies,
     action,
     endpoint
