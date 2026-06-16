@@ -26,6 +26,13 @@ import { applyGithubRepositoryChangeSet, deleteGithubBranchRef, finalizeGithubPu
 import { runGithubSupersededBranchCleanup } from "../githubSupersededBranchCleanup.js";
 import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveReport } from "../platformCapabilityReports.js";
 import { runGrowthIntelligencePilotAdmin } from "../growthIntelligenceAdminTool.js";
+import {
+  approveRepositoryAdvisoryCommentApprovalHoldAdmin,
+  createRepositoryAdvisoryCommentApprovalHoldAdmin,
+  decideGrowthIntelligenceActionAdmin,
+  decideGrowthIntelligenceInsightAdmin,
+  refreshGrowthIntelligenceReadinessAdmin,
+} from "../growthIntelligenceAdminDecisions.js";
 
 const execFileAsync = promisify(execFile);
 
