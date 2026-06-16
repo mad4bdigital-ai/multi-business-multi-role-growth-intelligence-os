@@ -111,19 +111,15 @@ EXECUTE approval_hold_orphan_guard_stmt;
 DEALLOCATE PREPARE approval_hold_orphan_guard_stmt;
 
 ALTER TABLE local_gateway_tool_call_log
-  DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   MODIFY approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL;
 
 ALTER TABLE repository_advisory_comment_plans
-  DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   MODIFY approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL;
 
 ALTER TABLE ticket_workflow_links
-  DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   MODIFY approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL;
 
 ALTER TABLE approval_holds
-  DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   MODIFY hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL;
 
 CREATE OR REPLACE VIEW v_approval_hold_identity_collation_readiness AS
