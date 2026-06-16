@@ -439,6 +439,7 @@ export const testCommands = [
   "node test-database-lifecycle-incident-bridge.mjs",
   "node test-platform-private-capability-vault.mjs",
   "node test-platform-capability-vault-record-only.mjs",
+  "node test-capability-vault-record-tool-export.mjs",
   "node test-database-lifecycle-reporting-views.mjs",
   "node test-connected-execution-continuity-api.mjs",
   "node test-connected-execution-worker-bridge.mjs",
