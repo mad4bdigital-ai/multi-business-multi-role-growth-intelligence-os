@@ -25,6 +25,7 @@ Open the source file listed below for the relevant domain instead of loading thi
 | Dispatch and local connector governance | `canonicals/direct_instructions_registry_patch/14_dispatch_local_connector_governance.md` | task_routes mutation rules, MODULE_EXECUTORS registration, agent skills/grants/bindings, supervision policy, and DNS enforcement. |
 | Schema repair governance | `canonicals/direct_instructions_registry_patch/15_schema_repair_governance.md` | Safe additive schema repair, collation guard, and capability-vault draft runtime safety. |
 | Activation guidance intelligence | `canonicals/direct_instructions_registry_patch/16_activation_guidance_intelligence.md` | Proactive Tenant/Admin activation guidance, account counts, readiness semantics, and next-best actions. |
+| Capability assurance graph | `canonicals/direct_instructions_registry_patch/17_capability_assurance_graph.md` | Direct enforcement of invocation evidence, capability-specific resource authority, typed gaps, provenance, certification, and no-secret reconciliation. |
 
 ---
 
