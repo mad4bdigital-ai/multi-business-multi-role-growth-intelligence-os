@@ -880,7 +880,35 @@ export async function tenantRepositoryMutationReadbackV6(args = {}, { auth = {} 
   const updated = await loadMutationRunV6(runId);
   return { ok: readback.ok, tool: "tenant_repository_mutation_readback_v6", classification: readback.ok ? "repository_mutation_readback_verified" : "repository_mutation_readback_unverified", run: mutationRunPublicV6(updated), evidence, provider_calls_made: 1, mutations_executed: false, secrets_included: false };
 }
-export async function tenantRepositoryGovernanceV6ReadinessSmoke(args = {}, { auth = {}, runGovernedResource } = {}) {
+async function findRepositoryGovernanceV6ReadinessBinding(repoRef, { pool = getPool() } = {}) {
+  if (!repoRef?.resource_uri) return null;
+  const [rows] = await pool.query(
+    `SELECT *
+       FROM platform_resource_authority_bindings
+      WHERE status = 'active'
+        AND resource_type = 'github_repo'
+        AND BINARY resource_uri = BINARY ?
+        AND (recipe_key = ? OR recipe_key IS NULL)
+        AND permission_level = 'read_only'
+        AND tenant_id IS NOT NULL
+        AND user_id IS NULL
+        AND (expires_at IS NULL OR expires_at > NOW())
+        AND (
+          source_system_id IS NOT NULL
+          OR source_installation_id IS NOT NULL
+          OR LOWER(authority_source) IN ('admin_grant', 'platform_managed', 'system_seed')
+        )
+      ORDER BY (created_by NOT LIKE 'system:%readiness_smoke%') DESC,
+               (source_system_id IS NOT NULL OR source_installation_id IS NOT NULL) DESC,
+               updated_at DESC,
+               created_at DESC
+      LIMIT 1`,
+    [repoRef.resource_uri, REPOSITORY_PR_RECONCILE_RECIPE_KEY]
+  );
+  return rows?.[0] || null;
+}
+
+export async function tenantRepositoryGovernanceV6ReadinessSmoke(args = {}, { auth = {}, runGovernedResource, readinessRunGovernedResource } = {}) {
   const repoRef=normalizeGithubRepoRef(args)||normalizeGithubRepoRef({owner:'mad4bdigital-ai',repo:'multi-business-multi-role-growth-intelligence-os'});
   const providerBinding=await findUsableRepositoryProviderBinding(repoRef);
   if(!providerBinding) return {ok:false,tool:'tenant_repository_governance_v6_readiness_smoke',status:'authorization_gated',classification:'repository_governance_v6_authorization_gated',reason_code:'repository_provider_binding_required',checks:[{name:'provider_binding_required',pass:true},{name:'no_mutation',pass:true},{name:'no_secrets',pass:true}],apply_allowed:false,mutations_executed:false,secrets_included:false};
