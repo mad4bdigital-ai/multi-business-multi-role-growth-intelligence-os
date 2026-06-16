@@ -26,6 +26,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = path.join(__dirname, "migrations");
 const SYSTEM_LAYER_ROUTES_PATH = path.join(__dirname, "routes", "systemLayerRoutes.js");
 const REPOSITORY_TENANT_INTELLIGENCE_V2_PATH = path.join(__dirname, "repositoryTenantIntelligenceV2.js");
+const REPOSITORY_GOVERNANCE_V6_PATH = path.join(__dirname, "repositoryGovernanceV6.js");
 const GPT_TOOLS_ROUTES_PATH = path.join(__dirname, "routes", "gptToolsRoutes.js");
 const OPENAPI_PATH = path.join(__dirname, "openapi.yaml");
 const ROUTES_DIR = path.join(__dirname, "routes");
@@ -108,6 +109,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "950_sprint68_platform_resource_authority_bindings.sql",
   "233_sprint68_general_mode_choice_governance.sql",
   "311_sprint69_superseded_closed_pr_branch_cleanup.sql",
+  "1011_sprint69_governed_repository_engine_v6.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
@@ -138,6 +140,7 @@ const REQUIRED_RUNTIME_POLICY_SEEDS = [
   { check_key: "repo_mutation_guard", policy_group: "Repository Mutation Governance", policy_key: "Stale Duplicate Branch Merge Guard", required_blocking: true, required_scope_tokens: ["repo_patch_apply", "gpt_tools_call"], required_affects_layer_tokens: ["gptToolsRoutes", "repo_patch_apply"] },
   { check_key: "governed_repository_intelligence_engine", policy_group: "Repository Intelligence Governance", policy_key: "governed_repository_intelligence_engine_policy_v1", required_blocking: true, required_scope_tokens: ["governed_repository_intelligence", "repo.pr.reconciliation_sweep", "platform_resource_recipes"], required_affects_layer_tokens: ["platformResourceRecipeCapability", "releaseReadiness", "capability_resolution_envelope_ledger"] },
   { check_key: "platform_resource_authority_binding", policy_group: "Repository Intelligence Governance", policy_key: "platform_resource_authority_binding_policy_v1", required_blocking: true, required_scope_tokens: ["platform_resource_authority_bindings", "governed_resource_run", "repo.pr.reconciliation_sweep"], required_affects_layer_tokens: ["platformResourceRecipeCapability", "platform_resource_authority_bindings", "releaseReadiness"] },
+  { check_key: "governed_repository_engine_v6", policy_group: "Repository Intelligence Governance", policy_key: "governed_repository_engine_v6_policy_v1", required_blocking: true, required_scope_tokens: ["tenant_repository_intelligence", "v6", "provider_binding", "deep_reconciliation"], required_affects_layer_tokens: ["repositoryGovernanceV6", "platform_resource_authority_bindings", "connected_systems", "installations", "releaseReadiness"] },
   { check_key: "app_action_visibility", policy_group: "External App Action Governance", policy_key: "External App Action Preflight Visibility", required_blocking: false, required_scope_tokens: ["app_action", "external_app_action"], required_affects_layer_tokens: ["appAdapters", "appAdapters/index.js"] },
   { check_key: "n8n_workflow_execution_guard", policy_group: "External App Action Governance", policy_key: "n8n Workflow Execution Guard", required_blocking: true, required_scope_tokens: ["n8n", "execute_workflow"], required_affects_layer_tokens: ["appAdapters", "n8n"] },
   { check_key: "connector_dispatch_visibility", policy_group: "Connector Dispatch Governance", policy_key: "Connector Dispatch Preflight Visibility", required_blocking: false, required_scope_tokens: ["connector_dispatch", "workflow_dispatch"], required_affects_layer_tokens: ["connectorExecutor", "connectorExecutor.js"] },
@@ -1775,6 +1778,222 @@ async function checkRepositoryIntelligenceV2Readiness() {
 }
 
 // ── Public: run all release readiness checks ─────────────────────────────────
+async function checkRepositoryGovernanceV6Readiness() {
+  const requiredToolNames = [
+    "tenant_repository_intelligence_v6_report",
+    "tenant_repository_mutation_plan_v6",
+    "platform_repository_mutation_authority_binding_create_v6",
+    "tenant_repository_mutation_apply_v6",
+    "tenant_repository_mutation_readback_v6",
+    "tenant_repository_governance_v6_readiness_smoke",
+  ];
+  const expectedRecipeStates = {
+    "repo.pr.comment_advisory": "active",
+    "repo.pr.label": "planned",
+    "repo.pr.close_superseded": "planned",
+    "repo.branch.fast_forward": "planned",
+    "repo.branch.rebuild_fresh": "planned",
+    "repo.file.patch_apply": "planned",
+    "repo.pr.merge_ready": "planned",
+  };
+  const requiredRuntimeTokens = [
+    "tenantRepositoryIntelligenceV6Report",
+    "tenantRepositoryMutationPlanV6",
+    "createRepositoryMutationAuthorityBindingV6",
+    "tenantRepositoryMutationApplyV6",
+    "tenantRepositoryMutationReadbackV6",
+    "tenantRepositoryGovernanceV6ReadinessSmoke",
+    "repository_workspace_tenant_mismatch",
+    "repository_user_membership_required",
+    "repository_provider_binding_required",
+    "repository_connected_system_invalid",
+    "github_provider_installation_id_missing",
+    "exact_changed_file_parity_with_main",
+    "canonical_migration_replacement_exists",
+    "tenant_repository_intelligence_report_v6",
+    "tenant_repository_mutation_plan.v6",
+    "repository_mutation_runs_v6",
+    "repository_mutation_replay_blocked_existing_run",
+    "unknown_provider_outcome",
+    "failed_prewrite",
+    "repository_mutation_plan_workspace_mismatch",
+    "repository_mutation_capability_binding_mismatch",
+    "repo.pr.comment_advisory.apply",
+    "mutations_executed: false",
+  ];
+  try {
+    const [routesSource, moduleSource, openapiSource, migrationSource] = await Promise.all([
+      fs.readFile(SYSTEM_LAYER_ROUTES_PATH, "utf8"),
+      fs.readFile(REPOSITORY_GOVERNANCE_V6_PATH, "utf8"),
+      fs.readFile(OPENAPI_PATH, "utf8"),
+      fs.readFile(path.join(MIGRATIONS_DIR, "1011_sprint69_governed_repository_engine_v6.sql"), "utf8"),
+    ]);
+    const missingTools = requiredToolNames.filter((toolName) => !routesSource.includes(toolName) || !moduleSource.includes(toolName));
+    const missingRuntimeTokens = requiredRuntimeTokens.filter((token) => !moduleSource.includes(token));
+    const openapi_documented = requiredToolNames.every((toolName) => openapiSource.includes(toolName));
+    const migration_documents_all_tools = requiredToolNames.every((toolName) => migrationSource.includes(toolName));
+    let dispatcher_smoke = null;
+    try {
+      const { runRepositoryGovernanceV6DescriptorReadinessSmoke } = await import("./routes/systemLayerRoutes.js");
+      dispatcher_smoke = await runRepositoryGovernanceV6DescriptorReadinessSmoke({ limit: 1 });
+    } catch (err) {
+      dispatcher_smoke = {
+        ok: false,
+        status: "fail",
+        classification: "repository_governance_v6_dispatcher_smoke_failed",
+        reason_code: err?.code || "repository_governance_v6_dispatcher_smoke_error",
+        message: err?.message || "Repository Governance V6 dispatcher smoke failed.",
+        checks: [],
+        mutations_executed: false,
+        secrets_included: false,
+      };
+    }
+    const [tableRows] = await getPool().query(
+      `SELECT COUNT(*) AS table_count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('repository_mutation_plans_v6','repository_mutation_runs_v6')`
+    );
+    const [descriptorRows] = await getPool().query(
+      `SELECT source_key, status, tool_count_expected, secrets_included FROM system_layer_tool_descriptor_source_registry WHERE source_key = 'repository_governance_v6' LIMIT 1`
+    );
+    const [policyRows] = await getPool().query(
+      `SELECT policy_key, active, blocking FROM execution_policies WHERE policy_group = 'Repository Intelligence Governance' AND policy_key = 'governed_repository_engine_v6_policy_v1' LIMIT 1`
+    );
+    const recipeKeys = Object.keys(expectedRecipeStates);
+    const [recipeRows] = await getPool().query(
+      `SELECT recipe_key, status, read_only, requires_capability_envelope, requires_typed_confirmation, requires_same_cycle_readback
+         FROM platform_resource_recipes
+        WHERE recipe_key IN (${recipeKeys.map(() => "?").join(",")})`,
+      recipeKeys
+    );
+    const [bindingColumnRows] = await getPool().query(
+      `SELECT column_name FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+          AND table_name = 'platform_resource_authority_bindings'
+          AND column_name IN ('source_system_id','source_installation_id')`
+    );
+    const [evidenceRows] = await getPool().query(
+      `SELECT COUNT(*) AS evidence_rows
+         FROM audit_payload_evidence
+        WHERE evidence_type = 'tenant_repository_intelligence_report_v6'
+          AND secrets_included = 0`
+    );
+    const [toolBindingRows] = await getPool().query(
+      `SELECT binding_id, status, credential_source, exposure_scope
+         FROM app_integration_tool_bindings
+        WHERE app_key='github'
+          AND tool_key='tenant_repository_mutation_apply_v6'
+          AND tool_surface='tenant_platform_tool'
+          AND binding_role='state_changing'
+        LIMIT 1`
+    );
+    const [certificationRows] = await getPool().query(
+      `SELECT certification_key, certification_status, dispatch_allowed, apply_allowed,
+              requires_resource_authority, requires_dry_run, requires_audit_evidence, requires_readback
+         FROM runtime_dispatch_certification_registry
+        WHERE certification_key='tenant_repository_mutation_apply_v6'
+        LIMIT 1`
+    );
+    const [applyPolicyRows] = await getPool().query(
+      `SELECT policy_key, status, app_key, capability_key, operation_intent, runtime_surface,
+              allow_external_write, requires_ready_for_dispatch, requires_dispatch_allowed,
+              requires_zero_blocking_gaps, requires_audit_evidence, requires_readback,
+              requires_typed_confirmation, requires_same_cycle_dry_run, allowed_source_tiers_json
+         FROM capability_apply_authorization_policy_registry
+        WHERE policy_key='repo_pr_comment_advisory_v6_apply_policy'
+        LIMIT 1`
+    );    const [tenantCatalogRows] = await getPool().query(
+      `SELECT tool_key, is_enabled
+         FROM tenant_platform_endpoint_tools
+        WHERE tool_key IN (
+          'tenant_repository_intelligence_v6_report',
+          'tenant_repository_mutation_plan_v6',
+          'tenant_repository_mutation_apply_v6',
+          'tenant_repository_mutation_readback_v6',
+          'platform_repository_mutation_authority_binding_create_v6',
+          'tenant_repository_governance_v6_readiness_smoke'
+        )`
+    );
+    const recipeMap = new Map((recipeRows || []).map((row) => [row.recipe_key, row]));
+    const invalidRecipes = recipeKeys.filter((recipeKey) => {
+      const row = recipeMap.get(recipeKey);
+      if (!row || row.status !== expectedRecipeStates[recipeKey]) return true;
+      if (row.status === "planned" && Number(row.read_only) !== 0) return true;
+      if (row.status === "planned" && (!Number(row.requires_capability_envelope) || !Number(row.requires_typed_confirmation) || !Number(row.requires_same_cycle_readback))) return true;
+      return false;
+    });
+    const issues = [];
+    if (missingTools.length) issues.push(`missing V6 tool wiring: ${missingTools.join(", ")}`);
+    if (missingRuntimeTokens.length) issues.push(`missing V6 runtime tokens: ${missingRuntimeTokens.join(", ")}`);
+    if (!openapi_documented) issues.push("OpenAPI does not document all V6 tools");
+    if (!migration_documents_all_tools) issues.push("Migration 1011 does not register all V6 tools");
+    if (Number(tableRows?.[0]?.table_count || 0) !== 2) issues.push("repository_mutation_plans_v6 or repository_mutation_runs_v6 table missing");
+    if (descriptorRows?.[0]?.status !== "active" || Number(descriptorRows?.[0]?.tool_count_expected || 0) !== 6 || Number(descriptorRows?.[0]?.secrets_included || 0) !== 0) issues.push("repository_governance_v6 descriptor source missing or invalid");
+    if (policyRows?.[0]?.active !== "TRUE" || policyRows?.[0]?.blocking !== "TRUE") issues.push("governed_repository_engine_v6_policy_v1 missing or non-blocking");
+    if (bindingColumnRows.length !== 2) issues.push("repository authority provider-binding columns missing");
+    if (invalidRecipes.length) issues.push(`invalid V6 recipe states or gates: ${invalidRecipes.join(", ")}`);
+    if (Number(evidenceRows?.[0]?.evidence_rows || 0) < 1) issues.push("No no-secret V6 report evidence found");
+    const toolBinding = toolBindingRows?.[0] || null;
+    if (!toolBinding || toolBinding.status !== "active" || toolBinding.credential_source !== "tenant_connection" || toolBinding.exposure_scope !== "tenant") issues.push("V6 GitHub tenant mutation tool binding missing or invalid");
+    const certification = certificationRows?.[0] || null;
+    if (!certification || Number(certification.dispatch_allowed) !== 1 || Number(certification.apply_allowed) !== 0 || !Number(certification.requires_resource_authority) || !Number(certification.requires_dry_run) || !Number(certification.requires_audit_evidence) || !Number(certification.requires_readback)) issues.push("V6 dispatch certification must allow planning/approval dispatch while denying direct apply");
+    const applyPolicy = applyPolicyRows?.[0] || null;
+    const sourceTiers = safeJsonArray(applyPolicy?.allowed_source_tiers_json);
+    if (!applyPolicy || applyPolicy.status !== "active" || applyPolicy.app_key !== "github" || applyPolicy.capability_key !== "tenant_repository_mutation_apply_v6" || applyPolicy.operation_intent !== "repo.pr.comment_advisory.apply" || applyPolicy.runtime_surface !== "tenant_repository_mutation_apply_v6" || Number(applyPolicy.allow_external_write) !== 1 || !Number(applyPolicy.requires_ready_for_dispatch) || !Number(applyPolicy.requires_dispatch_allowed) || !Number(applyPolicy.requires_zero_blocking_gaps) || !Number(applyPolicy.requires_audit_evidence) || !Number(applyPolicy.requires_readback) || !Number(applyPolicy.requires_typed_confirmation) || !Number(applyPolicy.requires_same_cycle_dry_run) || !sourceTiers.includes("tenant_managed") || sourceTiers.includes("platform_managed_fallback")) issues.push("V6 advisory-comment apply authorization policy missing, over-broad, or invalid");
+    const requiredTenantExports = new Set([
+      "tenant_repository_intelligence_v6_report",
+      "tenant_repository_mutation_plan_v6",
+      "tenant_repository_mutation_apply_v6",
+      "tenant_repository_mutation_readback_v6",
+    ]);
+    const forbiddenTenantExports = new Set([
+      "platform_repository_mutation_authority_binding_create_v6",
+      "tenant_repository_governance_v6_readiness_smoke",
+    ]);
+    const enabledTenantExports = new Set((tenantCatalogRows || []).filter((row) => Number(row.is_enabled) === 1).map((row) => row.tool_key));
+    const missingTenantExports = [...requiredTenantExports].filter((toolKey) => !enabledTenantExports.has(toolKey));
+    const exposedAdminTools = [...forbiddenTenantExports].filter((toolKey) => enabledTenantExports.has(toolKey));
+    if (missingTenantExports.length) issues.push(`Missing V6 tenant exports: ${missingTenantExports.join(", ")}`);
+    if (exposedAdminTools.length) issues.push(`Admin-only V6 tools exposed to tenant catalog: ${exposedAdminTools.join(", ")}`);
+    if (dispatcher_smoke?.status !== "pass" || dispatcher_smoke?.ok !== true) issues.push(`V6 dispatcher smoke failed: ${dispatcher_smoke?.reason_code || dispatcher_smoke?.classification || "unknown"}`);
+    const failedSmokeChecks = (dispatcher_smoke?.checks || []).filter((check) => check?.pass !== true).map((check) => check?.name).filter(Boolean);
+    if (failedSmokeChecks.length) issues.push(`V6 smoke checks failed: ${failedSmokeChecks.join(", ")}`);
+    return {
+      status: issues.length ? "fail" : "pass",
+      detail: issues.length ? `Repository Governance V6 readiness has ${issues.length} blocking issue(s).` : "Repository Governance V6 scope, provider binding, deep evidence, mutation planning, descriptors, and no-secret guarantees are ready.",
+      required_tools: requiredToolNames,
+      missing_tools: missingTools,
+      missing_runtime_tokens: missingRuntimeTokens,
+      openapi_documented,
+      migration_documents_all_tools,
+      plan_and_run_tables_present: Number(tableRows?.[0]?.table_count || 0) === 2,
+      descriptor_source: descriptorRows?.[0] || null,
+      policy_present: Boolean(policyRows?.[0]),
+      provider_binding_columns_present: bindingColumnRows.map((row) => row.column_name).sort(),
+      expected_recipe_states: expectedRecipeStates,
+      invalid_recipes: invalidRecipes,
+      v6_evidence_rows: Number(evidenceRows?.[0]?.evidence_rows || 0),
+      tenant_mutation_tool_binding: toolBindingRows?.[0] || null,
+      dispatch_certification: certificationRows?.[0] || null,
+      advisory_comment_apply_policy: applyPolicyRows?.[0] || null,
+      tenant_catalog_tools: tenantCatalogRows || [],
+      tenant_catalog_missing: missingTenantExports,
+      tenant_catalog_admin_exposure: exposedAdminTools,
+      dispatcher_smoke,
+      issues,
+      executes_tools: true,
+      repository_mutations_executed: false,
+      secrets_included: false,
+    };
+  } catch (err) {
+    return {
+      status: "fail",
+      detail: `Repository Governance V6 readiness check could not complete: ${err?.message || err}`,
+      reason_code: err?.code || "repository_governance_v6_readiness_exception",
+      executes_tools: true,
+      repository_mutations_executed: false,
+      secrets_included: false,
+    };
+  }
+}
 export async function runReleaseReadiness({ persist = false } = {}) {
   const run_id = randomUUID();
   const report = {
@@ -1792,6 +2011,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     runtime_policy_seed_readiness: null,
     system_layer_descriptor_callability: null,
     repository_intelligence_v2_readiness: null,
+    repository_governance_v6_readiness: null,
     platform_secret_promotion_monitoring: null,
     graph_memory_diagnostics: null,
     runtime_production_parity_gate: null,
@@ -1864,6 +2084,9 @@ export async function runReleaseReadiness({ persist = false } = {}) {
   report.repository_intelligence_v2_readiness = await checkRepositoryIntelligenceV2Readiness();
   if (report.repository_intelligence_v2_readiness.status === "warn" && report.overall === "pass") report.overall = "warn";
   if (report.repository_intelligence_v2_readiness.status === "fail") report.overall = "fail";
+  report.repository_governance_v6_readiness = await checkRepositoryGovernanceV6Readiness();
+  if (report.repository_governance_v6_readiness.status === "warn" && report.overall === "pass") report.overall = "warn";
+  if (report.repository_governance_v6_readiness.status === "fail") report.overall = "fail";
 
   report.platform_secret_promotion_monitoring = await checkPlatformSecretPromotionMonitoringSafe();
   if (report.platform_secret_promotion_monitoring.status === "warn" && report.overall === "pass") report.overall = "warn";
@@ -1895,6 +2118,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     report.migration_drift,
     report.runtime_policy_seed_readiness,
     report.repository_intelligence_v2_readiness,
+    report.repository_governance_v6_readiness,
     report.gpt_session_archive_monitoring,
     report.graph_memory_diagnostics,
   ];
@@ -1937,6 +2161,10 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     repository_intelligence_v2_active_real_bindings: report.repository_intelligence_v2_readiness?.active_real_bindings ?? null,
     repository_intelligence_v2_evidence_rows: report.repository_intelligence_v2_readiness?.v2_evidence_rows ?? null,
     repository_intelligence_v2_openapi_documented: report.repository_intelligence_v2_readiness?.openapi_documented ?? null,
+    repository_governance_v6_status: report.repository_governance_v6_readiness?.status || null,
+    repository_governance_v6_evidence_rows: report.repository_governance_v6_readiness?.v6_evidence_rows ?? null,
+    repository_governance_v6_invalid_recipe_count: report.repository_governance_v6_readiness?.invalid_recipes?.length ?? null,
+    repository_governance_v6_openapi_documented: report.repository_governance_v6_readiness?.openapi_documented ?? null,
     migration_drift_candidate_files: report.migration_drift?.migration_apply_plan?.candidate_files || [],
     migration_apply_preflight_status: report.migration_drift?.migration_apply_preflight?.status || null,
     migration_apply_preflight_risk_count: report.migration_drift?.migration_apply_preflight?.risk_count ?? null,

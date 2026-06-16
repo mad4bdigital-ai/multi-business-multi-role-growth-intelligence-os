@@ -86,10 +86,43 @@ function buildDryRunArgs(passthrough = []) {
   return args;
 }
 
+export function buildBindingContext(passthrough = []) {
+  const context = { plan_id: "", plan_item_id: "", resource_uri: "", recipe_key: "", expected_commit_sha: "" };
+  for (let i = 0; i < passthrough.length; i += 1) {
+    const item = passthrough[i];
+    const [key, inlineValue] = item.includes("=") ? item.split(/=(.*)/s).filter((_, idx) => idx < 2) : [item, null];
+    const value = inlineValue ?? passthrough[i + 1];
+    const consume = inlineValue === null;
+    if (key === "--plan-id") { context.plan_id = safeText(value, 64); if (consume) i += 1; }
+    else if (key === "--plan-item-id") { context.plan_item_id = safeText(value, 64); if (consume) i += 1; }
+    else if (key === "--resource-uri") { context.resource_uri = safeText(value, 512); if (consume) i += 1; }
+    else if (key === "--recipe-key") { context.recipe_key = safeText(value, 191); if (consume) i += 1; }
+    else if (key === "--expected-commit-sha") { context.expected_commit_sha = safeText(value, 64).toLowerCase(); if (consume) i += 1; }
+  }
+  if (context.expected_commit_sha && !/^[0-9a-f]{40}$/.test(context.expected_commit_sha)) {
+    const err = new Error("--expected-commit-sha must be a 40-character hexadecimal commit SHA.");
+    err.code = "capability_resolution_expected_commit_sha_invalid";
+    throw err;
+  }
+  if (context.resource_uri && !/^[a-z][a-z0-9+.-]*:\/\//i.test(context.resource_uri)) {
+    const err = new Error("--resource-uri must be an absolute governed resource URI.");
+    err.code = "capability_resolution_resource_uri_invalid";
+    throw err;
+  }
+  return Object.fromEntries(Object.entries(context).filter(([, value]) => Boolean(value)));
+}
 export async function createCapabilityResolutionEnvelopeLedger(args = parseArgs()) {
   const dryRunArgs = buildDryRunArgs(args.passthrough);
+  const bindingContext = buildBindingContext(args.passthrough);
   const dryRun = await runCapabilityResolutionDryRun(dryRunArgs);
-  const envelope = redactDangerousKeys({ ...dryRun, ledger_created_by: safeText(args.requestedBy), secrets_included: false });
+  const envelope = redactDangerousKeys({
+    ...dryRun,
+    request_context: { ...(dryRun.request_context || {}), ...bindingContext },
+    capability: { ...(dryRun.capability || {}), recipe_key: bindingContext.recipe_key || null, expected_commit_sha: bindingContext.expected_commit_sha || null },
+    inputs: { ...bindingContext },
+    ledger_created_by: safeText(args.requestedBy),
+    secrets_included: false,
+  });
   const envelopeHash = sha256Json(envelope);
   const envelopeId = randomUUID();
   const ttl = Math.max(5, Math.min(Number(args.ttlMinutes || 60), 1440));
