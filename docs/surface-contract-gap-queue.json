@@ -1,14 +1,73 @@
 {
   "ok": true,
   "schema_version": "surface-contract-gap-queue-v1",
-  "total_items": 0,
+  "total_items": 1,
   "class_counts": {
-    "critical_review": 0,
+    "critical_review": 1,
     "high_review": 0,
     "medium_review": 0,
     "low_review": 0
   },
-  "top_items": [],
+  "top_items": [
+    {
+      "migration_file": "315_sprint69_capability_vault_record_tool_export.sql",
+      "score": 831,
+      "queue_class": "critical_review",
+      "gap_severity": "high",
+      "documentation_complete": false,
+      "missing_docs": [
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [],
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 11,
+        "views": 0,
+        "policies": 0,
+        "routes": 1
+      },
+      "remediation": [
+        {
+          "action_key": "document_surface_contract",
+          "owner_hint": "docs-agent/human-review",
+          "targets": [
+            "docs/auto-docs-agent/README.md",
+            "docs/change-documentation-governance.md"
+          ],
+          "reason": "Migration surfaces are not mentioned in all required documentation targets."
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "owner_hint": "runtime-registry-review",
+          "targets": [
+            "admin_platform_endpoint_tool",
+            "capability_vault_record_only_same_cycle_v1",
+            "capability_vault_record_only_transaction_rollback_v1",
+            "capability_vault_repo_ingestion_record",
+            "confirm_record_only",
+            "confirm_record_only_required",
+            "grants_dispatch_or_apply",
+            "platform_capability_vault_record_only",
+            "platform_capability_vault_repo_ingestion_record",
+            "ptdb_capability_vault_repo_ingestion_record",
+            "same_cycle_readback"
+          ],
+          "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
+        }
+      ],
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    }
+  ],
   "safety": {
     "executes_provider_calls": false,
     "reads_credentials": false,
