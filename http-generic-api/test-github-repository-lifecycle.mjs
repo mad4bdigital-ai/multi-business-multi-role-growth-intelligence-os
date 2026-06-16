@@ -46,16 +46,21 @@ function queuedFetch(entries, calls = []) {
     expected_head_sha: HEAD_SHA,
     confirm: githubBranchDeleteConfirmation(branch),
     fetchImpl: queuedFetch([
+      { status: 200, payload: { default_branch: "main" } },
       { status: 200, payload: { object: { sha: HEAD_SHA } } },
       { status: 200, payload: [] },
+      { status: 200, payload: { status: "behind", ahead_by: 0, behind_by: 4 } },
+      { status: 200, payload: { object: { sha: HEAD_SHA } } },
       { status: 204, payload: {} },
       { status: 404, payload: { message: "Not Found" } },
     ], calls),
   });
   assert.equal(result.deleted, true);
   assert.equal(result.verified_absent, true);
-  assert.equal(calls[2].method, "DELETE");
-  assert.match(calls[2].url, /git\/refs\/heads\/gpt\/closed-pr-cleanup/);
+  assert.equal(result.default_branch, "main");
+  assert.equal(result.safety_evidence.unique_commits, 0);
+  assert.equal(calls[5].method, "DELETE");
+  assert.match(calls[5].url, /git\/refs\/heads\/gpt\/closed-pr-cleanup/);
 }
 
 {
@@ -67,7 +72,10 @@ function queuedFetch(entries, calls = []) {
       branch: "gpt/changed",
       expected_head_sha: HEAD_SHA,
       confirm: githubBranchDeleteConfirmation("gpt/changed"),
-      fetchImpl: queuedFetch([{ status: 200, payload: { object: { sha: BASE_SHA } } }]),
+      fetchImpl: queuedFetch([
+        { status: 200, payload: { default_branch: "main" } },
+        { status: 200, payload: { object: { sha: BASE_SHA } } },
+      ]),
     }),
     (error) => error.code === "github_branch_delete_sha_mismatch"
   );
@@ -82,9 +90,73 @@ function queuedFetch(entries, calls = []) {
       branch: "main",
       expected_head_sha: HEAD_SHA,
       confirm: githubBranchDeleteConfirmation("main"),
-      fetchImpl: queuedFetch([]),
+      fetchImpl: queuedFetch([{ status: 200, payload: { default_branch: "main" } }]),
     }),
     (error) => error.code === "github_branch_delete_protected"
+  );
+}
+
+
+{
+  await assert.rejects(
+    () => deleteGithubBranchRef({
+      owner: OWNER,
+      repo: REPO,
+      default_branch: "main",
+      token: "test-token",
+      branch: "gpt/contains-valid-work",
+      expected_head_sha: HEAD_SHA,
+      confirm: githubBranchDeleteConfirmation("gpt/contains-valid-work"),
+      fetchImpl: queuedFetch([
+        { status: 200, payload: { default_branch: "main" } },
+        { status: 200, payload: { object: { sha: HEAD_SHA } } },
+        { status: 200, payload: [] },
+        { status: 200, payload: { status: "diverged", ahead_by: 2, behind_by: 9 } },
+      ]),
+    }),
+    (error) => error.code === "github_branch_delete_contains_unique_commits"
+      && error.details?.unique_commits === 2
+  );
+}
+
+{
+  await assert.rejects(
+    () => deleteGithubBranchRef({
+      owner: OWNER,
+      repo: REPO,
+      default_branch: "main",
+      token: "test-token",
+      branch: "trunk",
+      allowed_prefixes: [],
+      expected_head_sha: HEAD_SHA,
+      confirm: githubBranchDeleteConfirmation("trunk"),
+      fetchImpl: queuedFetch([{ status: 200, payload: { default_branch: "trunk" } }]),
+    }),
+    (error) => error.code === "github_branch_delete_protected"
+      && error.details?.default_branch === "trunk"
+  );
+}
+
+{
+  await assert.rejects(
+    () => deleteGithubBranchRef({
+      owner: OWNER,
+      repo: REPO,
+      default_branch: "main",
+      token: "test-token",
+      branch: "docs-agent/race-after-validation",
+      expected_head_sha: HEAD_SHA,
+      confirm: githubBranchDeleteConfirmation("docs-agent/race-after-validation"),
+      fetchImpl: queuedFetch([
+        { status: 200, payload: { default_branch: "main" } },
+        { status: 200, payload: { object: { sha: HEAD_SHA } } },
+        { status: 200, payload: [] },
+        { status: 200, payload: { status: "behind", ahead_by: 0, behind_by: 5 } },
+        { status: 200, payload: { object: { sha: BASE_SHA } } },
+      ]),
+    }),
+    (error) => error.code === "github_branch_delete_sha_mismatch"
+      && error.details?.validation_phase === "pre_delete_readback"
   );
 }
 
@@ -99,8 +171,11 @@ function queuedFetch(entries, calls = []) {
     fetchImpl: queuedFetch([
       { status: 200, payload: { number: 1570, html_url: "https://example/pr/1570", head: { ref: branch, sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
       { status: 200, payload: { number: 1570, state: "closed" } },
+      { status: 200, payload: { default_branch: "main" } },
       { status: 200, payload: { object: { sha: HEAD_SHA } } },
       { status: 200, payload: [] },
+      { status: 200, payload: { status: "behind", ahead_by: 0, behind_by: 2 } },
+      { status: 200, payload: { object: { sha: HEAD_SHA } } },
       { status: 204, payload: {} },
       { status: 404, payload: { message: "Not Found" } },
     ]),
@@ -122,6 +197,7 @@ function queuedFetch(entries, calls = []) {
     fetchImpl: queuedFetch([
       { status: 200, payload: { number: 1571, head: { ref: branch, sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
       { status: 200, payload: { number: 1571, state: "closed" } },
+      { status: 200, payload: { default_branch: "main" } },
       { status: 200, payload: { object: { sha: HEAD_SHA } } },
       { status: 200, payload: [{ number: 2000 }] },
     ]),
@@ -196,8 +272,10 @@ function queuedFetch(entries, calls = []) {
       { status: 200, payload: { merged: true, sha: COMMIT_SHA, message: "merged" } },
       { status: 200, payload: { object: { sha: COMMIT_SHA } } },
       { status: 200, payload: { status: "identical", ahead_by: 0, behind_by: 0 } },
+      { status: 200, payload: { default_branch: "main" } },
       { status: 200, payload: { object: { sha: HEAD_SHA } } },
       { status: 200, payload: [] },
+      { status: 200, payload: { object: { sha: HEAD_SHA } } },
       { status: 204, payload: {} },
       { status: 404, payload: { message: "Not Found" } },
     ], calls),
