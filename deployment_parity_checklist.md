@@ -261,6 +261,7 @@ Use this checklist for PR #1270 and migration `906_sprint68_ticket_external_deli
 ## Sprint 69 database lifecycle registry upsert deployment parity
 
 - Confirm migration `316_sprint69_database_lifecycle_registry_upsert_admin_tool.sql` is authorized, preflighted, and applied only through the governed migration runner.
+- Confirm the governed migration ledger records the repository file with a matching checksum before lifecycle registry apply is considered complete.
 - Confirm `database_table_lifecycle_registry_upsert` is exported through the Admin tool registry and `/admin/control`, with bounded `extra_args` and no public API contract change.
 - Run dry-run first, then apply missing-only with the exact confirmation token. Existing-row refresh requires its separate token and must not occur during missing-only rollout.
 - Require same-cycle readback: `remaining_missing_count=0`, tool registry row active, and no provider call, credential payload read, raw-secret return, external send/write, drop, truncate, delete, archive execution, or compaction; `secrets_included=false`.
