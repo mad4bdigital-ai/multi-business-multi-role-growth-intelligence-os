@@ -31,6 +31,20 @@ const GPT_TOOLS_ROUTES_PATH = path.join(__dirname, "routes", "gptToolsRoutes.js"
 const OPENAPI_PATH = path.join(__dirname, "openapi.yaml");
 const ROUTES_DIR = path.join(__dirname, "routes");
 
+function safeJsonArray(value, fallback = []) {
+  if (Array.isArray(value)) return value;
+  if (value === null || value === undefined || value === "") return fallback;
+  try { const parsed = JSON.parse(String(value)); return Array.isArray(parsed) ? parsed : fallback; }
+  catch { return fallback; }
+}
+
+function isRepositoryAuthorizationGatedSmoke(smoke = {}) {
+  return smoke?.status === "authorization_gated"
+    && smoke?.reason_code === "repository_provider_binding_required"
+    && smoke?.mutations_executed === false
+    && smoke?.secrets_included === false;
+}
+
 const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "051_sprint48_cloudflare_and_self_repair_tools.sql",
   "052_sprint49_local_connector_install_bundle.sql",
@@ -1642,12 +1656,16 @@ async function checkSystemLayerDescriptorCallability() {
   try {
     const { runSystemLayerDescriptorCallabilityAudit } = await import("./routes/systemLayerRoutes.js");
     const audit = await runSystemLayerDescriptorCallabilityAudit();
-    const pass = audit?.ok === true && audit?.status === "pass";
+    const authorizationGated = audit?.ok === true && audit?.status === "authorization_gated";
+    const pass = audit?.ok === true && (audit?.status === "pass" || authorizationGated);
     return {
       status: pass ? "pass" : "fail",
-      detail: pass
-        ? `System-layer descriptor callability passed for ${audit.descriptor_tool_count || 0} tool(s) across ${audit.descriptor_source_count || 0} source(s).`
-        : `System-layer descriptor callability failed for ${audit?.failed_source_count || 0} source(s) with ${audit?.missing_handler_count || 0} missing handler(s).`,
+      runtime_classification: authorizationGated ? "authorization_gated" : (pass ? "active" : "degraded"),
+      detail: authorizationGated
+        ? `System-layer descriptor handlers are callable; ${audit.authorization_gated_source_count || 0} source(s) require a tenant GitHub provider binding.`
+        : pass
+          ? `System-layer descriptor callability passed for ${audit.descriptor_tool_count || 0} tool(s) across ${audit.descriptor_source_count || 0} source(s).`
+          : `System-layer descriptor callability failed for ${audit?.failed_source_count || 0} source(s) with ${audit?.missing_handler_count || 0} missing handler(s).`,
       audit,
       executes_tools: true,
       mutations_executed: false,
@@ -1738,10 +1756,11 @@ async function checkRepositoryIntelligenceV2Readiness() {
     if (!openapi_documented) issues.push("OpenAPI description does not document all V2 system tools");
     if (active_real_bindings < 1) issues.push("No active read_only GitHub repo authority binding found");
     if (v2_evidence_rows < 1) issues.push("No tenant_repository_pr_reconciliation_summary_v2 evidence rows found");
-    if (dispatcher_smoke?.status !== "pass" || dispatcher_smoke?.ok !== true) {
+    const authorization_gated = isRepositoryAuthorizationGatedSmoke(dispatcher_smoke);
+    if (!authorization_gated && (dispatcher_smoke?.status !== "pass" || dispatcher_smoke?.ok !== true)) {
       issues.push(`Public descriptor dispatcher smoke failed: ${dispatcher_smoke?.reason_code || dispatcher_smoke?.classification || "unknown"}`);
     }
-    const failed_dispatcher_checks = (dispatcher_smoke?.checks || [])
+    const failed_dispatcher_checks = authorization_gated ? [] : (dispatcher_smoke?.checks || [])
       .filter((check) => check?.pass !== true)
       .map((check) => check?.name)
       .filter(Boolean);
@@ -1750,7 +1769,8 @@ async function checkRepositoryIntelligenceV2Readiness() {
     }
     return {
       status: issues.length ? "fail" : "pass",
-      detail: issues.length ? `Repository Intelligence V2 readiness has ${issues.length} blocking issue(s).` : "Repository Intelligence V2 public descriptors, binding, evidence, and documentation are ready.",
+      runtime_classification: authorization_gated ? "authorization_gated" : "active",
+      detail: issues.length ? `Repository Intelligence V2 readiness has ${issues.length} blocking issue(s).` : authorization_gated ? "Repository Intelligence V2 structural readiness passed; live GitHub dispatch is authorization-gated until a tenant provider binding exists." : "Repository Intelligence V2 public descriptors, binding, evidence, and documentation are ready.",
       required_tools: requiredToolNames,
       missing_tools: missingTools,
       missing_runtime_tokens: missingRuntimeTokens,
@@ -1761,7 +1781,7 @@ async function checkRepositoryIntelligenceV2Readiness() {
       issues,
       executes_tools: true,
       provider_calls_made: Number(dispatcher_smoke?.positive?.summary?.provider_calls_made || 0),
-      temporary_authority_binding_lifecycle_executed: true,
+      temporary_authority_binding_lifecycle_executed: false,
       repository_mutations_executed: false,
       secrets_included: false,
     };
@@ -1953,12 +1973,14 @@ async function checkRepositoryGovernanceV6Readiness() {
     const exposedAdminTools = [...forbiddenTenantExports].filter((toolKey) => enabledTenantExports.has(toolKey));
     if (missingTenantExports.length) issues.push(`Missing V6 tenant exports: ${missingTenantExports.join(", ")}`);
     if (exposedAdminTools.length) issues.push(`Admin-only V6 tools exposed to tenant catalog: ${exposedAdminTools.join(", ")}`);
-    if (dispatcher_smoke?.status !== "pass" || dispatcher_smoke?.ok !== true) issues.push(`V6 dispatcher smoke failed: ${dispatcher_smoke?.reason_code || dispatcher_smoke?.classification || "unknown"}`);
-    const failedSmokeChecks = (dispatcher_smoke?.checks || []).filter((check) => check?.pass !== true).map((check) => check?.name).filter(Boolean);
+    const authorization_gated = isRepositoryAuthorizationGatedSmoke(dispatcher_smoke);
+    if (!authorization_gated && (dispatcher_smoke?.status !== "pass" || dispatcher_smoke?.ok !== true)) issues.push(`V6 dispatcher smoke failed: ${dispatcher_smoke?.reason_code || dispatcher_smoke?.classification || "unknown"}`);
+    const failedSmokeChecks = authorization_gated ? [] : (dispatcher_smoke?.checks || []).filter((check) => check?.pass !== true).map((check) => check?.name).filter(Boolean);
     if (failedSmokeChecks.length) issues.push(`V6 smoke checks failed: ${failedSmokeChecks.join(", ")}`);
     return {
       status: issues.length ? "fail" : "pass",
-      detail: issues.length ? `Repository Governance V6 readiness has ${issues.length} blocking issue(s).` : "Repository Governance V6 scope, provider binding, deep evidence, mutation planning, descriptors, and no-secret guarantees are ready.",
+      runtime_classification: authorization_gated ? "authorization_gated" : "active",
+      detail: issues.length ? `Repository Governance V6 readiness has ${issues.length} blocking issue(s).` : authorization_gated ? "Repository Governance V6 structural readiness passed; live GitHub provider execution is authorization-gated until a tenant provider binding exists." : "Repository Governance V6 scope, provider binding, deep evidence, mutation planning, descriptors, and no-secret guarantees are ready.",
       required_tools: requiredToolNames,
       missing_tools: missingTools,
       missing_runtime_tokens: missingRuntimeTokens,

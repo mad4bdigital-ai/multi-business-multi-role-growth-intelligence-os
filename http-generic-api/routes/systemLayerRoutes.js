@@ -586,12 +586,17 @@ export async function runSystemLayerDescriptorCallabilityAudit() {
     }
 
     const smokePass = smoke?.ok === true && smoke?.status === "pass";
+    const authorizationGated = !error
+      && smoke?.status === "authorization_gated"
+      && smoke?.reason_code === "repository_provider_binding_required"
+      && smoke?.mutations_executed === false
+      && smoke?.secrets_included === false;
     sourceResults.push({
       source_key: source.source_key,
       descriptor_tool_count: sourceRows.length,
       missing_handler_count: missingSourceHandlers.length,
       readiness_tool: source.readiness_tool || null,
-      readiness_status: error ? "fail" : (smokePass ? "pass" : "fail"),
+      readiness_status: error ? "fail" : (smokePass ? "pass" : (authorizationGated ? "authorization_gated" : "fail")),
       readiness_classification: smoke?.classification || null,
       checks: Array.isArray(smoke?.checks) ? smoke.checks : [],
       error,
@@ -601,19 +606,21 @@ export async function runSystemLayerDescriptorCallabilityAudit() {
     });
   }
 
-  const failedSources = sourceResults.filter((row) => row.readiness_status !== "pass");
+  const failedSources = sourceResults.filter((row) => row.readiness_status === "fail");
+  const authorizationGatedSources = sourceResults.filter((row) => row.readiness_status === "authorization_gated");
   const pass = missingHandlers.length === 0 && failedSources.length === 0;
   return {
     ok: pass,
     tool: "system_layer_descriptor_callability_audit",
-    status: pass ? "pass" : "fail",
+    status: pass ? (authorizationGatedSources.length ? "authorization_gated" : "pass") : "fail",
     classification: pass
-      ? "system_layer_descriptor_callability_ready"
+      ? (authorizationGatedSources.length ? "system_layer_descriptor_callability_authorization_gated" : "system_layer_descriptor_callability_ready")
       : "system_layer_descriptor_callability_blocked",
     descriptor_source_count: SYSTEM_LAYER_DESCRIPTOR_SOURCES.length,
     descriptor_tool_count: readiness.length,
     missing_handler_count: missingHandlers.length,
     failed_source_count: failedSources.length,
+    authorization_gated_source_count: authorizationGatedSources.length,
     sources: sourceResults,
     handlers: readiness,
     apply_allowed: false,

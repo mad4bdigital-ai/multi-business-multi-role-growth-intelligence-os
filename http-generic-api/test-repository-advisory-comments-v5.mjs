@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 import {
   REPOSITORY_ADVISORY_COMMENT_V5_GATE,
@@ -50,4 +51,8 @@ for (const forbidden of ["close", "label", "merge", "patch", "force_push", "migr
   assert.ok(preview.forbidden_mutations.includes(forbidden));
 }
 
+const runtimeSource = readFileSync(new URL("./repositoryTenantAdvisoryCommentsV5.js", import.meta.url), "utf8");
+assert.match(runtimeSource, /findUsableRepositoryProviderBinding/);
+assert.match(runtimeSource, /repository_advisory_comment_v5_authorization_gated/);
+assert.doesNotMatch(runtimeSource, /temporary repository advisory comment v5 readiness smoke binding/);
 console.log("repository advisory comments v5 tests passed");
