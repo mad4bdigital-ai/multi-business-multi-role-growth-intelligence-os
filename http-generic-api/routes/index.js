@@ -2,6 +2,8 @@ import { buildHealthRoutes } from "./healthRoutes.js";
 import { buildStatusRoutes } from "./statusRoutes.js";
 import { buildActivationRoutes } from "./activationRoutes.js";
 import { buildActivationHardRunRoutes } from "./activationHardRunRoutes.js";
+import { buildTenantGrowthDashboardRoutes } from "./tenantGrowthDashboardRoutes.js";
+import { buildTenantActivationOverlayRoutes } from "./tenantActivationOverlayRoutes.js";
 import { buildActivationAwarenessRoutes } from "./activationAwarenessRoutes.js";
 import { buildMcpRoutes } from "./mcpRoutes.js";
 import { buildGovernanceRoutes } from "./governanceRoutes.js";
@@ -158,6 +160,8 @@ export function registerRoutes(app, deps) {
   app.use(buildOnboardingRoutes(deps));
   app.use(buildStatusRoutes(deps));
   app.use(buildActivationHardRunRoutes({ ...deps, requireBackendApiKey: deps.requireBackendApiKey }));
+  app.use(buildTenantGrowthDashboardRoutes({ ...deps, requireBackendApiKey: deps.requireBackendApiKey }));
+  app.use(buildTenantActivationOverlayRoutes({ ...deps, requireBackendApiKey: deps.requireBackendApiKey }));
   app.use(buildActivationAwarenessRoutes({ ...deps, requireBackendApiKey: deps.requireBackendApiKey }));
   app.use(buildActivationRoutes(deps));
   app.use(buildActivationGuidanceRoutes({ ...deps, requireAdminPrincipal }));
