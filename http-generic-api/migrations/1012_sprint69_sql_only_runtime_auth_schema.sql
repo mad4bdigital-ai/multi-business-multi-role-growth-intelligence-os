@@ -1,6 +1,8 @@
 -- 1012_sprint69_sql_only_runtime_auth_schema.sql
 -- Runtime authority: endpoint schemas and authentication configuration are SQL-backed.
 -- Secret values remain server-side; this migration stores references and bindings only.
+-- Safety: no_provider_call; no_credential_payload_read; no_raw_secrets.
+-- Safety: no_external_send; no_external_write; secrets_included=false.
 
 INSERT INTO `secret_references`
   (`ref_id`,`tenant_id`,`owner_type`,`owner_id`,`action_key`,`provider_family`,`connector_family`,`credential_type`,`scope_json`,`consent_status`,`rotation_status`,`validation_status`,`status`,`secret_key`,`store_type`,`env_var_name`,`description`)
