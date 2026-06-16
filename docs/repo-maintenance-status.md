@@ -117,6 +117,6 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - New public routes should be documented in `http-generic-api/openapi.yaml`.
 - Generated split schemas should derive from the main OpenAPI source.
 - DB tool registry rows should preserve method/path/tag parity with OpenAPI when a tool maps to an HTTP route.
-- Virtual Admin tools exposed through `/gpt/tools/call` must retain catalog/schema compatibility, focused tests, and canonical dispatcher documentation. Growth Intelligence pilots remain internal-registry-only, approval-gated, provider-write-free, external-send-free, and secret-free.
+- Virtual Admin tools exposed through `/gpt/tools/call` must retain catalog/schema compatibility, focused tests, and canonical dispatcher documentation. Growth Intelligence pilots and review decisions remain internal-registry-only, approval-gated, execution-dispatch-free, provider-write-free, external-send-free, and secret-free. V5 comments require a dedicated plan-bound hold and typed confirmation before the separate apply/readback stage.
 - Runtime/schema authority changes should include tests, docs, or canonical coverage.
 - Automation should open reviewable PRs rather than pushing generated contract changes directly to `main`.

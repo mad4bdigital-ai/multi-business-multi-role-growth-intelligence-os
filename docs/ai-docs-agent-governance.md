@@ -106,6 +106,8 @@ The classifier is deterministic and dependency-free. It maps changed files into 
 
 Each family maps to required documentation targets and risk level. The generated note records changed files, required docs, docs missing from the diff, and a short recommendation.
 
+Generated impact notes under `docs/auto-docs-agent/pr-*` and `docs/auto-docs-agent/commit-*` are evidence outputs and must not classify themselves as `docs_agent` changes. This prevents recursive documentation requirements caused only by the agent updating its own note. Canonical OpenAPI files such as `http-generic-api/openapi.yaml` count as documentation coverage even though they are YAML rather than Markdown; when present in the changed-file set they must satisfy the OpenAPI documentation target instead of remaining falsely listed as missing. Focused classifier tests preserve both guarantees.
+
 ## Optional AI layer
 
 The current implementation is deterministic so the workflow remains reliable without external model credentials. OpenRouter is the priority model provider candidate for the first model-backed drafting layer because it can be exposed through an OpenAI-compatible, platform-managed bridge.

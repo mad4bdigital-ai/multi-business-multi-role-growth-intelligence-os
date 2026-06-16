@@ -22,6 +22,8 @@ This directory is maintained by the Docs Agent workflow. Each generated note rec
 
 Generated notes are reviewable evidence. They do not replace targeted human documentation for high-risk changes, but they make the required docs targets explicit and keep the repository auto-mergeable when a follow-up documentation note is enough.
 
+Generated `pr-*` and `commit-*` notes are classifier outputs, not documentation-automation source changes, and therefore must not trigger the `docs_agent` family by themselves. Canonical OpenAPI YAML files count as documentation evidence for missing-doc calculations. These rules prevent self-referential note churn and false OpenAPI gaps while preserving normal `docs_agent` classification when the classifier, runner, workflow, or governance source actually changes.
+
 Rules:
 
 - `965_sprint68_hostinger_apply_policy_safe_field_names.sql` is resolved by explicit patch-index, deployment-parity, Docs Agent, and change-governance documentation. It is policy/readback-only, performs no provider call, credential payload read, external send/write, deploy, or secret return, and is verified by `v_hostinger_apply_policy_safe_field_readiness` plus `test-hostinger-apply-policy-safe-field-names.mjs`.
