@@ -63,6 +63,7 @@ const readiness = await refreshGrowthIntelligenceReadinessAdmin({
   tenant_id: tenantId,
   report_id: reportId,
 }, {
+  pool: {},
   async persistAssessment(input) {
     assert.equal(input.tenantId, tenantId);
     return {
