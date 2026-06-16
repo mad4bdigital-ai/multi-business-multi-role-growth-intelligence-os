@@ -100,37 +100,47 @@ export function normalizeGoogleScopeList(scopes = []) {
     : [];
 }
 
-export function getScopesFromOAuthConfig(oauthConfigContract, action) {
-  const parsed = oauthConfigContract?.parsed || {};
-  const byFamily = parsed?.scopes_by_action_family || {};
-  const actionKey = String(action.action_key || "").trim();
-  return normalizeGoogleScopeList(byFamily[actionKey] || []);
-}
-
-export function validateGoogleOAuthConfigTraceability(action, oauthConfigContract) {
-  const expectedName = String(action.oauth_config_file_name || "").trim();
-  const actualName = String(oauthConfigContract?.name || "").trim();
-  if (!expectedName || !actualName) return;
-  if (expectedName !== actualName) {
-    _debug("OAUTH_CONFIG_NAME_MISMATCH:", {
-      action_key: action.action_key,
-      expected: expectedName,
-      actual: actualName
-    });
+function parseRuntimeBindingProfile(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value;
+  const raw = String(value || "").trim();
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
   }
 }
 
-export async function resolveDelegatedGoogleScopes({ drive, policies, action, endpoint }) {
+export function getScopesFromRuntimeBindingProfile(record = {}) {
+  const profile = parseRuntimeBindingProfile(record.runtime_binding_profile);
+  const authStrategy = profile.auth_strategy || profile.authStrategy || {};
+  return normalizeGoogleScopeList(
+    authStrategy.required_scopes ||
+    authStrategy.requiredScopes ||
+    profile.required_scopes ||
+    profile.requiredScopes ||
+    []
+  );
+}
+
+export async function resolveDelegatedGoogleScopes({ policies, action, endpoint }) {
   const endpointScopedKey = `${action.action_key}|${endpoint.endpoint_key}|scopes`;
   const actionScopedKey = `${action.action_key}|scopes`;
 
-  const oauthConfigContract = await fetchOAuthConfigContract(drive, action);
-  validateGoogleOAuthConfigTraceability(action, oauthConfigContract);
-  const fileScopes = getScopesFromOAuthConfig(oauthConfigContract, action);
-  if (fileScopes.length) {
+  const endpointContractScopes = getScopesFromRuntimeBindingProfile(endpoint);
+  if (endpointContractScopes.length) {
     return {
-      explicitScopes: fileScopes,
-      scopeSource: `oauth_config_file:${oauthConfigContract.name || action.oauth_config_file_name || action.oauth_config_file_id}`
+      explicitScopes: endpointContractScopes,
+      scopeSource: `sql:endpoint.runtime_binding_profile:${endpoint.endpoint_key}`
+    };
+  }
+
+  const actionContractScopes = getScopesFromRuntimeBindingProfile(action);
+  if (actionContractScopes.length) {
+    return {
+      explicitScopes: actionContractScopes,
+      scopeSource: `sql:action.runtime_binding_profile:${action.action_key}`
     };
   }
 
@@ -138,7 +148,7 @@ export async function resolveDelegatedGoogleScopes({ drive, policies, action, en
   if (endpointPolicyScopes.length) {
     return {
       explicitScopes: endpointPolicyScopes,
-      scopeSource: `execution_policy:endpoint:${endpointScopedKey}`
+      scopeSource: `sql:execution_policy:endpoint:${endpointScopedKey}`
     };
   }
 
@@ -146,14 +156,19 @@ export async function resolveDelegatedGoogleScopes({ drive, policies, action, en
   if (actionPolicyScopes.length) {
     return {
       explicitScopes: actionPolicyScopes,
-      scopeSource: `execution_policy:action:${actionScopedKey}`
+      scopeSource: `sql:execution_policy:action:${actionScopedKey}`
     };
   }
 
-  return {
-    explicitScopes: getDefaultGoogleScopes(action, endpoint),
-    scopeSource: `server_default:${action.action_key}`
+  const err = new Error("Google OAuth scope contract is missing from the SQL runtime registry.");
+  err.code = "auth_scope_contract_missing";
+  err.status = 500;
+  err.details = {
+    action_key: String(action.action_key || "").trim(),
+    endpoint_key: String(endpoint.endpoint_key || "").trim(),
+    required_surface: "runtime_binding_profile_or_execution_policy"
   };
+  throw err;
 }
 
 export async function mintGoogleAccessTokenForEndpoint({ drive, policies, action, endpoint }) {
