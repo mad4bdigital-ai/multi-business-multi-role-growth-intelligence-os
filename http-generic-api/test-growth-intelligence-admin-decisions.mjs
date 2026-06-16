@@ -37,6 +37,7 @@ const action = await decideGrowthIntelligenceActionAdmin({
   action_id: "action_1",
   decision: "approved",
 }, {
+  pool: {},
   async decideAction(input) {
     assert.equal(input.decision, "approved");
     return {
