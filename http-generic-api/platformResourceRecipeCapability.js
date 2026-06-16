@@ -1816,6 +1816,55 @@ function liteGithubPullRequest(pr = {}) {
   };
 }
 
+async function resolveRepositoryGithubReadOnlyToken(args = {}) {
+  const binding = args.authority_binding || {};
+  if (!binding.source_system_id && !binding.source_installation_id) {
+    const tenantScoped = Boolean(binding.scope?.tenant_id || binding.scope?.workspace_id || binding.scope?.user_id);
+    const compatible = !tenantScoped && ["admin_grant", "platform_managed", "system_seed", ""].includes(asString(binding.authority_source).toLowerCase());
+    if (!compatible) {
+      const err = new Error("Repository provider binding is required before GitHub access.");
+      err.status = 403;
+      err.code = "repository_provider_binding_required";
+      throw err;
+    }
+    return getGitHubAppInstallationToken({});
+  }
+  const [systems] = await getPool().query(
+    "SELECT system_id, tenant_id, provider_family, status, config_json FROM connected_systems WHERE system_id = ? LIMIT 1",
+    [binding.source_system_id]
+  );
+  const system = systems?.[0];
+  if (!system || system.status !== "active" || asString(system.provider_family).toLowerCase() !== "github" || (binding.scope?.tenant_id && system.tenant_id !== binding.scope.tenant_id)) {
+    const err = new Error("Repository connected system is not active, GitHub-scoped, or tenant-aligned.");
+    err.status = 403;
+    err.code = "repository_connected_system_invalid";
+    throw err;
+  }
+  let installation = null;
+  if (binding.source_installation_id) {
+    const [rows] = await getPool().query(
+      "SELECT installation_id, system_id, tenant_id, status, expires_at, meta_json FROM installations WHERE installation_id = ? AND system_id = ? LIMIT 1",
+      [binding.source_installation_id, system.system_id]
+    );
+    installation = rows?.[0] || null;
+    if (!installation || installation.status !== "active" || (installation.expires_at && new Date(installation.expires_at).getTime() <= Date.now()) || (binding.scope?.tenant_id && installation.tenant_id !== binding.scope.tenant_id)) {
+      const err = new Error("Repository GitHub installation is missing, inactive, expired, or tenant-misaligned.");
+      err.status = 403;
+      err.code = "repository_provider_installation_invalid";
+      throw err;
+    }
+  }
+  const config = parseJson(system.config_json, {});
+  const meta = parseJson(installation?.meta_json, {});
+  const providerInstallationId = asString(meta.github_app_installation_id || meta.provider_installation_id || config.github_app_installation_id || config.provider_installation_id);
+  if (!providerInstallationId) {
+    const err = new Error("GitHub provider installation id is missing from the governed connected-system binding.");
+    err.status = 409;
+    err.code = "github_provider_installation_id_missing";
+    throw err;
+  }
+  return getGitHubAppInstallationToken({ action: { github_app_installation_id: providerInstallationId } });
+}
 async function executeRepositoryPrReconciliationReadOnly(operationKey = "", args = {}) {
   if (operationKey !== "repo_pr_reconciliation_sweep") {
     const err = new Error(`Unsupported GitHub read-only resource recipe operation: ${operationKey}`);
@@ -1832,7 +1881,7 @@ async function executeRepositoryPrReconciliationReadOnly(operationKey = "", args
     throw err;
   }
 
-  const token = await getGitHubAppInstallationToken({});
+  const token = await resolveRepositoryGithubReadOnlyToken(args);
   const safeOwner = encodeGithubPathPart(owner);
   const safeRepo = encodeGithubPathPart(repo);
   const state = encodeURIComponent(String(args.state || "open"));
@@ -2085,94 +2134,45 @@ function modeAllowedByBinding(binding = {}, mode = "read_only") {
 }
 
 async function resolvePlatformResourceAuthorityBinding(plan = {}, args = {}, mode = "read_only") {
-  if (!scopedAuthorityRequested(args)) {
-    return {
-      required: false,
-      granted: true,
-      decision: "platform_admin_unscoped_read_only_allowed",
-      binding_id: null,
-      secrets_included: false,
-    };
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  const scope = {
+    tenant_id: args.tenant_id || options.tenant_id || null,
+    workspace_id: args.workspace_id || options.workspace_id || null,
+    user_id: args.user_id || options.user_id || null,
+  };
+  const scoped = Boolean(scope.tenant_id || scope.workspace_id || scope.user_id);
+  if (!scoped) {
+    if (args.auth?.is_admin === true || args.is_admin === true) {
+      return { required: false, granted: true, decision: "platform_admin_unscoped_read_only_allowed", binding_id: null, secrets_included: false };
+    }
+    return { required: true, granted: false, decision: "blocked_unscoped_non_admin_resource_access", scope, secrets_included: false };
   }
-
-  const scope = authorityScopeArgs(args);
   const resourceType = plan.resolved_resource?.resource_type || plan.recipe?.resource_type || null;
   const resourceUri = plan.resolved_resource?.resource_uri || null;
   const recipeKey = plan.recipe?.recipe_key || args.recipe_key || null;
-  if (!resourceType || !resourceUri) {
-    return {
-      required: true,
-      granted: false,
-      decision: "blocked_authority_binding_unresolved_resource",
-      scope,
-      secrets_included: false,
-    };
+  if (!resourceType || !resourceUri) return { required: true, granted: false, decision: "blocked_authority_binding_unresolved_resource", scope, secrets_included: false };
+  if (scope.workspace_id && scope.tenant_id) {
+    const [workspaceRows] = await getPool().query("SELECT workspace_id FROM workspace_registry WHERE workspace_id = ? AND tenant_id = ? LIMIT 1", [scope.workspace_id, scope.tenant_id]);
+    if (!workspaceRows.length) return { required: true, granted: false, decision: "blocked_workspace_tenant_scope_mismatch", scope, resource_type: resourceType, resource_uri: resourceUri, recipe_key: recipeKey, secrets_included: false };
   }
-
-  const scopeClauses = [];
+  if (scope.user_id && scope.tenant_id) {
+    const [membershipRows] = await getPool().query("SELECT id FROM memberships WHERE user_id = ? AND tenant_id = ? AND status = 'active' LIMIT 1", [scope.user_id, scope.tenant_id]);
+    if (!membershipRows.length) return { required: true, granted: false, decision: "blocked_user_tenant_membership_missing", scope, resource_type: resourceType, resource_uri: resourceUri, recipe_key: recipeKey, secrets_included: false };
+  }
+  const clauses = ["status = 'active'", "resource_type = ?", "resource_uri = ?", "(recipe_key = ? OR recipe_key IS NULL)", "(expires_at IS NULL OR expires_at > NOW())"];
   const params = [resourceType, resourceUri, recipeKey];
-  for (const key of ["tenant_id", "workspace_id", "user_id"]) {
-    if (scope[key]) {
-      scopeClauses.push(`${key} = ?`);
-      params.push(scope[key]);
-    }
-  }
-  if (!scopeClauses.length) {
-    return {
-      required: false,
-      granted: true,
-      decision: "platform_admin_unscoped_read_only_allowed",
-      binding_id: null,
-      secrets_included: false,
-    };
-  }
-
+  if (scope.tenant_id) { clauses.push("tenant_id = ?"); params.push(scope.tenant_id); } else clauses.push("tenant_id IS NULL");
+  if (scope.workspace_id) { clauses.push("(workspace_id IS NULL OR workspace_id = ?)"); params.push(scope.workspace_id); } else clauses.push("workspace_id IS NULL");
+  if (scope.user_id) { clauses.push("(user_id IS NULL OR user_id = ?)"); params.push(scope.user_id); } else clauses.push("user_id IS NULL");
   let rows = [];
   try {
-    [rows] = await getPool().query(
-      `SELECT *
-         FROM platform_resource_authority_bindings
-        WHERE status = 'active'
-          AND resource_type = ?
-          AND resource_uri = ?
-          AND (recipe_key = ? OR recipe_key IS NULL)
-          AND (expires_at IS NULL OR expires_at > NOW())
-          AND (${scopeClauses.join(" OR ")})
-        ORDER BY recipe_key IS NOT NULL DESC, workspace_id IS NOT NULL DESC, user_id IS NOT NULL DESC, tenant_id IS NOT NULL DESC, created_at DESC
-        LIMIT 1`,
-      params
-    );
+    [rows] = await getPool().query(`SELECT * FROM platform_resource_authority_bindings WHERE ${clauses.join(" AND ")} ORDER BY user_id IS NOT NULL DESC, workspace_id IS NOT NULL DESC, recipe_key IS NOT NULL DESC, created_at DESC LIMIT 1`, params);
   } catch (error) {
-    if (/ER_NO_SUCH_TABLE|doesn't exist/i.test(String(error?.message || ""))) {
-      return {
-        required: true,
-        granted: false,
-        decision: "blocked_authority_binding_table_missing",
-        scope,
-        resource_type: resourceType,
-        resource_uri: resourceUri,
-        recipe_key: recipeKey,
-        secrets_included: false,
-      };
-    }
+    if (/ER_NO_SUCH_TABLE|doesn't exist/i.test(String(error?.message || ""))) return { required: true, granted: false, decision: "blocked_authority_binding_table_missing", scope, resource_type: resourceType, resource_uri: resourceUri, recipe_key: recipeKey, secrets_included: false };
     throw error;
   }
-
   const binding = rows?.[0] || null;
-  if (!binding) {
-    return {
-      required: true,
-      granted: false,
-      decision: "blocked_missing_platform_resource_authority_binding",
-      scope,
-      resource_type: resourceType,
-      resource_uri: resourceUri,
-      recipe_key: recipeKey,
-      mode,
-      secrets_included: false,
-    };
-  }
-
+  if (!binding) return { required: true, granted: false, decision: "blocked_missing_platform_resource_authority_binding", scope, resource_type: resourceType, resource_uri: resourceUri, recipe_key: recipeKey, mode, secrets_included: false };
   const granted = modeAllowedByBinding(binding, mode);
   return {
     required: true,
@@ -2181,6 +2181,9 @@ async function resolvePlatformResourceAuthorityBinding(plan = {}, args = {}, mod
     binding_id: binding.binding_id,
     permission_level: binding.permission_level,
     allowed_modes: parseJson(binding.allowed_modes_json, []),
+    authority_source: binding.authority_source || null,
+    source_system_id: binding.source_system_id || null,
+    source_installation_id: binding.source_installation_id || null,
     scope,
     resource_type: resourceType,
     resource_uri: resourceUri,
@@ -2415,7 +2418,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
       ? deps.executeGithubReadOnly
       : executeRepositoryPrReconciliationReadOnly;
 
-    const githubArgs = buildRepositoryPrReconciliationArgs(plan, args);
+    const githubArgs = { ...buildRepositoryPrReconciliationArgs(plan, args), authority_binding: authorityBinding };
     const githubReadOnlyResult = await githubReadOnlyExecutor("repo_pr_reconciliation_sweep", githubArgs);
     const reconciliation = buildRepositoryPrReconciliation(githubReadOnlyResult, plan, args);
     const auditEvidence = await recordRepositoryPrReconciliationEvidence(reconciliation, plan, args);

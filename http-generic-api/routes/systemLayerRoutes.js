@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import {
   ACTIVATION_BOOTSTRAP_CONFIG_SHEET,
   ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
@@ -54,6 +54,16 @@ import {
   tenantRepositoryAdvisoryCommentV5ReadinessSmoke,
 } from "../repositoryTenantAdvisoryCommentsV5.js";
 import * as RepositoryTenantAdvisoryCommentV5Runtime from "../repositoryTenantAdvisoryCommentsV5.js";
+import {
+  TENANT_REPOSITORY_GOVERNANCE_V6_SYSTEM_TOOLS,
+  createRepositoryMutationAuthorityBindingV6,
+  tenantRepositoryGovernanceV6ReadinessSmoke,
+  tenantRepositoryIntelligenceV6Report,
+  tenantRepositoryMutationApplyV6,
+  tenantRepositoryMutationPlanV6,
+  tenantRepositoryMutationReadbackV6,
+} from "../repositoryGovernanceV6.js";
+import * as RepositoryGovernanceV6Runtime from "../repositoryGovernanceV6.js";
 import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
 
 const SYSTEM_LAYER_TOOLS = [
@@ -403,6 +413,13 @@ const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
     readiness_tool: "tenant_repository_advisory_comment_v5_readiness_smoke",
     readiness_args: { limit: 1 },
   },
+  {
+    source_key: "repository_governance_v6",
+    tools: TENANT_REPOSITORY_GOVERNANCE_V6_SYSTEM_TOOLS,
+    handlers: RepositoryGovernanceV6Runtime,
+    readiness_tool: "tenant_repository_governance_v6_readiness_smoke",
+    readiness_args: { limit: 1 },
+  },
 ];
 
 function snakeToolNameToCamelHandlerName(name = "") {
@@ -499,6 +516,27 @@ export async function runRepositoryIntelligenceV2DescriptorReadinessSmoke(args =
     const err = new Error("Repository Intelligence V2 readiness descriptor is not registered.");
     err.status = 500;
     err.code = "repository_intelligence_v2_readiness_descriptor_missing";
+    throw err;
+  }
+  return dispatched.result;
+}
+
+export async function runRepositoryGovernanceV6DescriptorReadinessSmoke(args = {}) {
+  const auth = {
+    is_admin: true,
+    user_id: "system:release_readiness",
+    tenant_id: null,
+  };
+  const dispatched = await callDescriptorSystemToolIfAvailable(
+    "tenant_repository_governance_v6_readiness_smoke",
+    { limit: 1, ...args },
+    auth,
+    {}
+  );
+  if (!dispatched.handled) {
+    const err = new Error("Repository Governance V6 readiness descriptor is not registered.");
+    err.status = 500;
+    err.code = "repository_governance_v6_readiness_descriptor_missing";
     throw err;
   }
   return dispatched.result;

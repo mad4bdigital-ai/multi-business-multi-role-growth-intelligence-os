@@ -187,3 +187,33 @@ No governed addition may bypass:
 - dependency gate
 - promotion-state assignment
 - readback verification
+### Governed Repository Engine V6 Runtime Rule
+
+Repository governance V6 is a tenant/user-scoped dynamic engine exposed only through descriptor-backed system-layer tools. Its public surfaces are:
+- `tenant_repository_intelligence_v6_report`
+- `tenant_repository_mutation_plan_v6`
+- `platform_repository_mutation_authority_binding_create_v6`
+- `tenant_repository_mutation_apply_v6`
+- `tenant_repository_mutation_readback_v6`
+- `tenant_repository_governance_v6_readiness_smoke`
+
+Runtime requirements:
+1. non-admin repository operations must derive `tenant_id` and `user_id` from authenticated principal context; request fields must not override authenticated scope
+2. workspace and user membership must belong to the resolved tenant before provider access
+3. tenant-owned GitHub bindings must resolve the exact active `connected_systems` and `installations` rows; platform-managed authority is restricted to governed admin/system sources
+4. intelligence and mutation-plan creation are read-only and must use provider-authoritative evidence rather than client-supplied reports
+5. deep classification must fail closed to `manual_review_required` when changed-file, check-run, or comparison pagination is incomplete, the main tree is truncated, or branch-protection evidence needed for merge readiness is not visible
+6. each plan must have expiry, `report_sha256`, `plan_sha256`, and per-item evidence hashes tied to exact PR/head/branch/action evidence
+7. apply requires an active action-specific mutation recipe, matching permission binding, ready no-secret capability envelope, approved hold, typed confirmation, unchanged target SHA, same-cycle reanalysis, audit evidence, and readback
+8. capability envelopes must bind the exact tenant, workspace/user scope, `plan_id`, `plan_item_id`, repository URI, recipe/action, and head SHA; mutation intents must be recipe-specific and end in `.apply`
+9. `repository_mutation_runs_v6` must reserve a unique `(plan_id, plan_item_id)` before provider write; duplicate apply calls must return the existing run and must not replay the provider mutation
+10. ambiguous post-dispatch failures must become `unknown_provider_outcome`; recovery may perform bounded readback only and must never resend the write automatically
+11. force-push and migration application are forbidden repository-engine actions
+12. planned recipes remain fail-closed until their action-specific positive smoke certification and release-readiness policy are active
+
+Initial activation posture:
+- `repo.pr.comment_advisory` may be active when all gates pass
+- label, close-superseded, non-force fast-forward, rebuild-fresh, bounded patch, and merge-ready recipes remain `planned` until separately certified
+- `repo.branch.rebuild_fresh` and `repo.file.patch_apply` remain adapter-disabled in V6 until bounded conflict/patch and rollback contracts exist
+
+The readiness smoke must verify public descriptor callability, provider binding, temporary-binding revocation, plan/run ledger presence, active/planned recipe gates, no-secret output, and zero repository mutations.

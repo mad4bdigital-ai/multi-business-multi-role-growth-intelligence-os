@@ -1,0 +1,32 @@
+{
+  "surface_key": "repository_mutation_plans_v6",
+  "display_name": "Repository Mutation Plans V6",
+  "description": "Tenant- and user-scoped repository mutation plan metadata visible during activation. Payloads, hashes, and secret-bearing fields are excluded.",
+  "source_table": "repository_mutation_plans_v6",
+  "covered_source_tables": ["repository_mutation_plans_v6"],
+  "result_key_column": "plan_id",
+  "result_label_column": "status",
+  "tenant_column": "tenant_id",
+  "user_column": "user_id",
+  "status_column": "status",
+  "active_status_values": [],
+  "result_columns": [
+    "plan_id",
+    "tenant_id",
+    "workspace_id",
+    "user_id",
+    "resource_uri",
+    "status",
+    "approval_hold_id",
+    "capability_envelope_id",
+    "expires_at",
+    "created_at",
+    "updated_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 25,
+  "sort_order": 260,
+  "status": "active",
+  "notes": "Repo-managed activation surface. Excludes report_sha256, plan_sha256, plan_json, and secrets_included."
+}
