@@ -16,6 +16,7 @@ Open the source file listed below for the relevant domain instead of loading thi
 | Governed context dependencies | `canonicals/module_loader/05_governed_context_resolution.md` | Governed context dependencies for module loader HTTP execution. |
 | Business type and brand path dependencies | `canonicals/module_loader/06_business_type_brand_path_resolution.md` | Loader dependencies for Business Type Path Resolver, Brand Path Resolver, and completion gates. |
 | Context resolver layer dependencies | `canonicals/module_loader/07_context_resolver_layer.md` | Loader row collections for resolveContext and resolver loading order. |
+| Capability assurance graph dependencies | `canonicals/module_loader/08_capability_assurance_graph.md` | Capability, envelope, binding, evidence, certification, provenance, and debt dependencies for governed dispatch. |
 
 ---
 
