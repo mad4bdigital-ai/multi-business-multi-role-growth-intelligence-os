@@ -66,7 +66,8 @@ const FAMILY_RULES = [
     key: "docs_agent",
     risk: "low",
     docs: ["docs/ai-docs-agent-governance.md", "docs/auto-docs-agent/README.md"],
-    match: (file) => /docs-impact-classifier|docs-agent|ai-docs-agent|auto-docs-agent/i.test(file),
+    match: (file) => !/^docs\/auto-docs-agent\/(pr-|commit-)/.test(file)
+      && /docs-impact-classifier|docs-agent|ai-docs-agent|auto-docs-agent/i.test(file),
     reason: "documentation automation changed; keep docs-agent governance current",
   },
 ];
