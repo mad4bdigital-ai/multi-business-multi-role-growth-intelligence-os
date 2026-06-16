@@ -233,6 +233,24 @@ This rule is general and is not limited to Hostinger `runner_mode`. It applies t
 
 The user-facing prompt must include the valid modes, recommended/default mode when one exists, risk and side-effect class, expected evidence, and a clear request to choose. Agents must not silently choose the first enum value, switch modes after failure, or treat `auto` as consent for a higher-risk mode. If a selected mode fails and a fallback mode is possible, the fallback requires a fresh user-visible choice. Execution summaries should preserve `selected_mode`, `selection_source`, `mode_choices_presented`, and `secrets_included=false`. See `docs/mode-choice-governance.md`.
 
+### Capability Assurance Graph governance
+
+Capability execution follows the evidence chain:
+
+```text
+Capability -> Envelope -> Evidence -> Authority -> Dispatch -> Readback -> Certification
+```
+
+Migration `314_sprint69_capability_assurance_graph.sql` adds the additive canonical plugin/capability graph, generic evidence and certification registries, persistent capability debt, closure threads, source provenance, and hash-only secret movement evidence. Compatibility views remain valid until canonical parity and cutover evidence pass.
+
+Agents must keep static capability requirements separate from invocation evidence. A fresh capability envelope is scoped to one actor, tenant, workspace, operation, resource, policy state, and expiry window. Admin or Tenant exposure and POST method alone do not prove an external-resource authority requirement.
+
+Use `v_platform_capability_readiness_vector` for independent readiness dimensions and `v_platform_capability_assurance_gaps` for typed gaps. A maturity score must never override a failed resource, approval, quota, credential, readback, or certification gate. Resource readiness requires a capability-specific envelope-to-binding relationship; an unrelated active binding is never sufficient.
+
+`platform_capability_assurance_reconcile` is dry-run by default. Apply requires a fresh `ready_for_dispatch` capability envelope, performs SQL registry/evidence/certification/debt upserts only, performs no provider calls or external writes, and requires readback. Secret movement evidence is reference-and-hash only through `platform_secret_movement_ledger`; plaintext secret values are forbidden.
+
+Detailed operator contract: `docs/platform-capability-assurance-graph.md`.
+
 ### Platform Plugin smoke certification governance
 
 Platform Plugin REST actions must not be treated as dispatch-ready just because `app_integrations`, action bindings, or endpoint rows exist. The public dispatch path must resolve readiness, credential/connection state, action grants, and smoke certification before execution.
