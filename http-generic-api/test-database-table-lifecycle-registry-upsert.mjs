@@ -220,4 +220,17 @@ assert.equal(taxonomyV2ByTable.get("admin_platform_endpoint_tools").usage_status
 assert.equal(taxonomyV2ByTable.get("agent_model_runs").usage_status, "runtime_log");
 assert.equal(taxonomyV2ByTable.get("ai_model_registry").usage_status, "runtime_registry");
 
+for (const tableName of [
+  "repair_backup_actions",
+  "repair_backup_platform_audit_event_bus",
+  "rb_platform_tool_dispatch_bindings",
+]) {
+  const backupRow = buildDatabaseTableLifecycleRegisterPlan([
+    { table_name: tableName, approx_rows: 12, size_mb: 0.1 },
+  ]).upsert_rows[0];
+  assert.equal(backupRow.usage_status, "backup_snapshot", `${tableName} must preserve backup precedence`);
+  assert.equal(backupRow.table_family, "backup_repair_snapshot", `${tableName} must keep backup family`);
+  assert.equal(backupRow.write_strategy, "read_only", `${tableName} must remain read only`);
+}
+
 console.log("database table lifecycle registry upsert tests passed");
