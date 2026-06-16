@@ -10,15 +10,15 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - Source file: `http-generic-api/openapi.yaml`
 - OpenAPI version: `3.1.0`
-- Paths: 411
-- Operations: 464
+- Paths: 412
+- Operations: 465
 - Top-level tags: 33
 
 ## Top Operation Tags
 
 - `platform-plugins`: 50
 - `connected-systems`: 47
-- `platform-intelligence`: 35
+- `platform-intelligence`: 36
 - `admin-control`: 25
 - `customers`: 24
 - `security`: 22
@@ -117,5 +117,6 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - New public routes should be documented in `http-generic-api/openapi.yaml`.
 - Generated split schemas should derive from the main OpenAPI source.
 - DB tool registry rows should preserve method/path/tag parity with OpenAPI when a tool maps to an HTTP route.
+- Virtual Admin tools exposed through `/gpt/tools/call` must retain catalog/schema compatibility, focused tests, and canonical dispatcher documentation. Growth Intelligence pilots remain internal-registry-only, approval-gated, provider-write-free, external-send-free, and secret-free.
 - Runtime/schema authority changes should include tests, docs, or canonical coverage.
 - Automation should open reviewable PRs rather than pushing generated contract changes directly to `main`.

@@ -1,5 +1,7 @@
 # Deployment Parity Checklist
 
+> Dynamic Audit parity for `314_sprint69_dynamic_audit_runtime_closure.sql`: do not report deployment complete until the deployed commit is independently confirmed, migration 314 appears in the governed migration ledger, `dynamic_audit_scheduler_runs` records a successful fresh cycle, `v_dynamic_audit_pipeline_readiness` is reviewed, event-bus backlog and checkpoint rollups are bounded, and repo/Drive/DB evidence readback is present. The scheduler may fail open for HTTP availability, but readiness must fail closed. No MySQL trigger, raw payload storage, credential return, provider call, external send, or inferred `deployed_commit_sha` is allowed.
+
 > Runtime parity additions for `1004_sprint68_hostinger_ssh_executor_db_gate.sql`, `1004_sprint69_agent_governance_admin_tools.sql`, and `1005_sprint69_agent_skill_coverage_prompt_enrichment.sql`: verify the Hostinger DB gate exists disabled by default, is target-bound, and has no unbounded expiry; verify `/version` and `/deployment-info` report the same canonical manifest commit; verify Agent Governance tools remain admin-only; verify skill coverage remains read-only. A deploy is not current until same-cycle dry-run, approved capability envelope, exact SHA, path allowlist, bounded output, and post-deploy health/readback succeed. No secrets may be returned.
 
 <!-- surface-contract-auto-remediation:start -->
@@ -243,3 +245,14 @@ Use this checklist for PR #1270 and migration `906_sprint68_ticket_external_deli
 - Runtime deployed: `POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification` is documented and routes through admin guards.
 - Live behavior confirmed: certification responses remain no-send/no-secret; adapters keep dispatch disabled; sandbox is no-network; live_send remains blocked by policy.
 - Drift detection: if route exists without OpenAPI or tool registry entry, treat release as documentation/contract drift and block promotion until aligned.
+## Sprint 69 capability evidence surface contracts
+
+- `312_sprint69_platform_tool_dispatch_integrity_scope_fix.sql` narrows `v_platform_tool_dispatch_integrity` to the declared admin/tenant scope without provider calls, credential reads, external sends, or runtime mutation.
+- `314_sprint69_capability_authority_evidence_projection.sql` projects evidence only from active `platform_tool_dispatch_bindings` rows with a named readback policy, then rebuilds capability maturity/gap views without granting dispatch or apply authority.
+## Sprint 69 supervisor causal provider certification surface
+
+- `1008_sprint69_supervisor_causal_provider_certification_tool.sql` registers the bounded `supervisor_causal_provider_certification` admin tool. Migration execution itself performs no provider call, credential read, external send/write, or secret return. Runtime certification remains confirmation-gated, no-tool, no-repository-mutation, no-local-execution, bounded-cost, and readback/audit governed.
+## Sprint 69 explicit manual delegation surfaces
+
+- `1009_sprint69_optional_manual_agent_delegation_tools.sql` registers explicit, admin-governed manual delegation creation/dispatch/contract tools. Migration execution performs no provider call, credential read, external send/write, or secret return; runtime delegation remains opt-in and confirmation/authorization governed.
+- `1010_sprint69_disable_legacy_agent_chain_dispatch_tool.sql` disables the ambiguous legacy dispatch surface and directs callers to `agent_chain_event_dispatch_manual`. It is a guarded registry update only and performs no provider call, credential read, external send/write, or secret return.

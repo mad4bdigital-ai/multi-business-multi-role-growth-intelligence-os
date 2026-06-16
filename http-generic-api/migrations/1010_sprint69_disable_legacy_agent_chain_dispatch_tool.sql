@@ -1,3 +1,5 @@
+-- Migration execution safety: no_provider_call true; no_credential_payload_read true; no_raw_secrets true;
+-- no_external_send true; no_external_write true; secrets_included=false.
 -- Sprint 69: retire the legacy chain dispatch tool that lacks explicit delegation opt-in fields.
 -- Runtime already rejects calls without manual API opt-in; this removes the misleading tool surface.
 
