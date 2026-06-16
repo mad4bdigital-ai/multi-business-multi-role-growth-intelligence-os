@@ -14,9 +14,14 @@ assert.match(releaseReadinessSource, /isRepositoryAuthorizationGatedSmoke/);
 const systemLayerSource = fs.readFileSync(new URL("./routes/systemLayerRoutes.js", import.meta.url), "utf8");
 assert.match(systemLayerSource, /authorization_gated_source_count/);
 assert.match(systemLayerSource, /system_layer_descriptor_callability_authorization_gated/);
+assert.match(systemLayerSource, /export function systemLayerDescriptorReadiness/);
+assert.doesNotMatch(systemLayerSource, /\.\.\.TENANT_REPOSITORY_GOVERNANCE_V6_SYSTEM_TOOLS,\n  \{/);
 const governanceSource = fs.readFileSync(new URL("./repositoryGovernanceV6.js", import.meta.url), "utf8");
 assert.match(governanceSource, /repository_governance_v6_authorization_gated/);
 assert.match(governanceSource, /findUsableRepositoryProviderBinding/);
+assert.match(governanceSource, /"repo\.pr\.comment_advisory": "repo\.pr\.comment_advisory\.apply"/);
+assert.match(releaseReadinessSource, /systemLayerModule\.systemLayerDescriptorReadiness/);
+assert.match(releaseReadinessSource, /!authorization_gated && Number\(evidenceRows/);
 const bindingContext = buildBindingContext([
   "--plan-id=plan-1",
   "--plan-item-id=item-1",
