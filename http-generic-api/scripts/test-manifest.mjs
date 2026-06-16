@@ -300,6 +300,7 @@ export const testCommands = [
   "node test-connectors.mjs",
   "node test-sql-first-governed-record-resolution.mjs",
   "node test-google-auth-token-resolver.mjs",
+  "node test-sql-only-runtime-contracts.mjs",
   "node test-github-app-auth.mjs",
   "node test-github-app-auth-decoders.mjs",
   "node test-github-tooling-schema-contracts.mjs",
