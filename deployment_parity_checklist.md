@@ -258,6 +258,13 @@ Use this checklist for PR #1270 and migration `906_sprint68_ticket_external_deli
 
 - `1009_sprint69_optional_manual_agent_delegation_tools.sql` registers explicit, admin-governed manual delegation creation/dispatch/contract tools. Migration execution performs no provider call, credential read, external send/write, or secret return; runtime delegation remains opt-in and confirmation/authorization governed.
 - `1010_sprint69_disable_legacy_agent_chain_dispatch_tool.sql` disables the ambiguous legacy dispatch surface and directs callers to `agent_chain_event_dispatch_manual`. It is a guarded registry update only and performs no provider call, credential read, external send/write, or secret return.
+## Sprint 69 database lifecycle registry upsert deployment parity
+
+- Confirm migration `316_sprint69_database_lifecycle_registry_upsert_admin_tool.sql` is authorized, preflighted, and applied only through the governed migration runner.
+- Confirm `database_table_lifecycle_registry_upsert` is exported through the Admin tool registry and `/admin/control`, with bounded `extra_args` and no public API contract change.
+- Run dry-run first, then apply missing-only with the exact confirmation token. Existing-row refresh requires its separate token and must not occur during missing-only rollout.
+- Require same-cycle readback: `remaining_missing_count=0`, tool registry row active, and no provider call, credential payload read, raw-secret return, external send/write, drop, truncate, delete, archive execution, or compaction; `secrets_included=false`.
+
 ## Sprint 69 Capability Vault record-only tool export
 
 - `315_sprint69_capability_vault_record_tool_export.sql` exports the already implemented admin-only `/platform/capability-vault/repo-ingestion-record` route through `admin_platform_endpoint_tools` and binds it to `capability_vault_record_only_same_cycle_v1`. The tool remains confirmation-gated, transactional, audited, idempotent, no-execution, no-install, no-external-send, and no-secret.
