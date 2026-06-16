@@ -399,7 +399,19 @@ export async function tenantRepositoryMutationPlanV6(args = {}, deps = {}) {
   return { ok: true, tool: "tenant_repository_mutation_plan_v6", classification: "tenant_repository_mutation_plan_v6_created", plan_id: planId, plan_sha256: planSha256, expires_in_minutes: ttlMinutes, plan, apply_allowed: false, mutations_executed: false, secrets_included: false };
 }
 
-function mutationOperationIntentV6(action = "") { return `${s(action)}.apply`; }
+const REPOSITORY_MUTATION_OPERATION_INTENT_BY_RECIPE = Object.freeze({
+  "repo.pr.comment_advisory": "repo.pr.comment_advisory.apply",
+  "repo.pr.label": "repo.pr.label.apply",
+  "repo.pr.close_superseded": "repo.pr.close_superseded.apply",
+  "repo.branch.fast_forward": "repo.branch.fast_forward.apply",
+  "repo.branch.rebuild_fresh": "repo.branch.rebuild_fresh.apply",
+  "repo.file.patch_apply": "repo.file.patch_apply.apply",
+  "repo.pr.merge_ready": "repo.pr.merge_ready.apply",
+});
+
+function mutationOperationIntentV6(action = "") {
+  return REPOSITORY_MUTATION_OPERATION_INTENT_BY_RECIPE[s(action)] || "";
+}
 
 const MUTATION_PERMISSION_BY_RECIPE = {
   "repo.pr.comment_advisory": "comment",
