@@ -85,7 +85,7 @@ export function maxRisk(values = []) {
 }
 
 export function isDocsLike(file = "") {
-  return /(^docs\/|\.md$|^README\.md$|^canonicals\/|^schemas\/|^deployment_parity_checklist\.md$|^runtime_boundary_map\.md$|^connector_contracts\.md$|^AI_Agent_Knowledge_Guide\.md$|^GPT_.*_Knowledge_Guide\.md$|^GPT_.*_Instructions\.md$|^Top Level Instructions\.md$|^Updating Registry Patch Index\.md$)/.test(file);
+  return /(^docs\/|\.md$|^README\.md$|^canonicals\/|^schemas\/|^http-generic-api\/openapi(?:\.[^/]+)?\.ya?ml$|^deployment_parity_checklist\.md$|^runtime_boundary_map\.md$|^connector_contracts\.md$|^AI_Agent_Knowledge_Guide\.md$|^GPT_.*_Knowledge_Guide\.md$|^GPT_.*_Instructions\.md$|^Top Level Instructions\.md$|^Updating Registry Patch Index\.md$)/.test(file);
 }
 
 export function isTestLike(file = "") {
