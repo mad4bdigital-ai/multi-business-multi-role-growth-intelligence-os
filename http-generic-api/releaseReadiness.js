@@ -1543,6 +1543,75 @@ function listMissingTokens(text = "", tokens = []) {
   return (tokens || []).filter((token) => !source.includes(token));
 }
 
+async function checkApprovalHoldIdentityCollationReadiness() {
+  const pool = getPool();
+  const [[viewRow]] = await pool.query(
+    "SELECT COUNT(*) AS cnt FROM information_schema.views WHERE table_schema = DATABASE() AND table_name = 'v_approval_hold_identity_collation_readiness'"
+  );
+  if (!Number(viewRow?.cnt || 0)) {
+    return {
+      status: "fail",
+      detail: "Approval Hold identity collation readiness view is missing.",
+      reason_code: "approval_hold_identity_collation_view_missing",
+      secrets_included: false,
+    };
+  }
+
+  const [[row]] = await pool.query(
+    `SELECT expected_column_count, present_column_count, ready_column_count,
+            collation_mismatch_count, orphan_reference_count, readiness_status,
+            provider_calls, credential_payload_reads, external_sends, external_writes,
+            secrets_included
+       FROM v_approval_hold_identity_collation_readiness
+      LIMIT 1`
+  );
+  const expected = Number(row?.expected_column_count || 0);
+  const present = Number(row?.present_column_count || 0);
+  const ready = Number(row?.ready_column_count || 0);
+  const mismatches = Number(row?.collation_mismatch_count || 0);
+  const orphans = Number(row?.orphan_reference_count || 0);
+  const safetyReady = Number(row?.provider_calls || 0) === 0
+    && Number(row?.credential_payload_reads || 0) === 0
+    && Number(row?.external_sends || 0) === 0
+    && Number(row?.external_writes || 0) === 0
+    && Number(row?.secrets_included || 0) === 0;
+  const passed = row?.readiness_status === "ready"
+    && expected === 10
+    && present === 10
+    && ready === 10
+    && mismatches === 0
+    && orphans === 0
+    && safetyReady;
+
+  return {
+    status: passed ? "pass" : "fail",
+    detail: passed
+      ? "Approval Hold identity keys are aligned and orphan-free."
+      : "Approval Hold identity collation readiness is blocked.",
+    reason_code: passed ? null : "approval_hold_identity_collation_blocked",
+    expected_column_count: expected,
+    present_column_count: present,
+    ready_column_count: ready,
+    collation_mismatch_count: mismatches,
+    orphan_reference_count: orphans,
+    safety_ready: safetyReady,
+    secrets_included: false,
+  };
+}
+
+async function checkApprovalHoldIdentityCollationReadinessSafe() {
+  try {
+    return await checkApprovalHoldIdentityCollationReadiness();
+  } catch (err) {
+    return {
+      status: "fail",
+      detail: err?.message || "Approval Hold identity collation readiness check failed.",
+      reason_code: "approval_hold_identity_collation_check_failed",
+      secrets_included: false,
+    };
+  }
+}
+
 async function checkRuntimePolicySeedReadiness() {
   const pool = getPool();
   const [[tableRow]] = await pool.query(
