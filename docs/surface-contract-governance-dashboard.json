@@ -51,9 +51,9 @@
       "no_raw_secrets": 427,
       "no_external_send": 427,
       "no_external_write": 427,
-      "secrets_included_false": 428
+      "secrets_included_false": 429
     },
-    "safety_marker_gap_migrations": 2,
+    "safety_marker_gap_migrations": 1,
     "route_coverage": {
       "sql_route_count": 0,
       "total_sql_route_like_count": 559,
@@ -190,7 +190,7 @@
     },
     {
       "migration_file": "1012_sprint69_sql_only_runtime_auth_schema.sql",
-      "score": 527,
+      "score": 515,
       "queue_class": "high_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -208,8 +208,7 @@
         "no_credential_payload_read",
         "no_raw_secrets",
         "no_external_send",
-        "no_external_write",
-        "secrets_included_false"
+        "no_external_write"
       ],
       "remediation_action_keys": [
         "document_surface_contract",

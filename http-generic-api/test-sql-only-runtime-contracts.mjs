@@ -70,6 +70,21 @@ assert.match(migration, /GOOGLE_CLIENT_SECRET/);
 assert.match(migration, /sql_only_runtime_contracts_v1/);
 assert.match(migration, /v_sql_only_runtime_contract_readiness/);
 assert.match(migration, /external_file_reads_allowed',false/);
+assert.match(
+  migration,
+  /cb\.action_key COLLATE utf8mb4_unicode_ci=a\.action_key COLLATE utf8mb4_unicode_ci/,
+  "readiness view joins mixed-collation action keys explicitly"
+);
+for (const marker of [
+  "no_provider_call",
+  "no_credential_payload_read",
+  "no_raw_secrets",
+  "no_external_send",
+  "no_external_write",
+  "secrets_included=false"
+]) {
+  assert.ok(migration.includes(marker), `migration must declare safety marker: ${marker}`);
+}
 assert.doesNotMatch(migration, /BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY/i);
 assert.doesNotMatch(migration, /client_secret\s*[=:]\s*["'][^"']+/i);
 
