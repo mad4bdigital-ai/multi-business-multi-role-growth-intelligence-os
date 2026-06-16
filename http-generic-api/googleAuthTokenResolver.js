@@ -377,7 +377,7 @@ export async function getGoogleAccessToken(options = {}) {
     }
   }
 
-  if (!token) token = await fetchGlobalGoogleToken();
+  if (!token) token = await fetchGlobalGoogleToken(options);
   if (token) cache.set(key, { token, expiresAt: Date.now() + 55 * 60000 });
   return token;
 }
