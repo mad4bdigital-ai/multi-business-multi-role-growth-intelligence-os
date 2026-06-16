@@ -359,8 +359,31 @@ export function smokeSafeTenantId(value = "") {
   return `smoke_${sha256Hex(raw).slice(0, 24)}`;
 }
 
+async function selectRepositoryReadinessSmokeMembership(repoRef) {
+  const [rows] = await getPool().query(
+    `SELECT m.tenant_id,m.user_id
+       FROM memberships m
+      WHERE m.status='active'
+        AND NOT EXISTS (
+          SELECT 1
+            FROM platform_resource_authority_bindings b
+           WHERE b.status='active'
+             AND b.resource_type=?
+             AND b.resource_uri=?
+             AND (b.recipe_key=? OR b.recipe_key IS NULL)
+             AND b.tenant_id=m.tenant_id
+             AND b.workspace_id IS NULL
+             AND (b.user_id IS NULL OR b.user_id=m.user_id)
+             AND (b.expires_at IS NULL OR b.expires_at>NOW())
+        )
+      ORDER BY FIELD(m.role,'owner','admin','operator','member','viewer'),m.updated_at DESC,m.id DESC
+      LIMIT 1`,
+    [GITHUB_REPO_RESOURCE_TYPE, repoRef.resource_uri, REPOSITORY_PR_RECONCILE_RECIPE_KEY]
+  );
+  return rows?.[0] || null;
+}
+
 export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { auth, runGovernedResource, dispatchSystemTool, descriptorReadiness } = {}) {
-  const tenantId = smokeSafeTenantId(`repository_intelligence_v2_${randomUUID()}`);
   const repoRef = normalizeGithubRepoRef(args) || normalizeGithubRepoRef({
     owner: "mad4bdigital-ai",
     repo: "multi-business-multi-role-growth-intelligence-os",
