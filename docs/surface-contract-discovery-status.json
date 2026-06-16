@@ -573,9 +573,9 @@
       "no_raw_secrets": 427,
       "no_external_send": 427,
       "no_external_write": 427,
-      "secrets_included_false": 428
+      "secrets_included_false": 429
     },
-    "safety_marker_gap_migrations": 2,
+    "safety_marker_gap_migrations": 1,
     "route_coverage": {
       "sql_route_count": 0,
       "total_sql_route_like_count": 559,
@@ -858,7 +858,7 @@
       },
       {
         "migration_file": "1012_sprint69_sql_only_runtime_auth_schema.sql",
-        "score": 527,
+        "score": 515,
         "queue_class": "high_review",
         "gap_severity": "medium",
         "documentation_complete": false,
@@ -875,8 +875,7 @@
           "no_credential_payload_read",
           "no_raw_secrets",
           "no_external_send",
-          "no_external_write",
-          "secrets_included_false"
+          "no_external_write"
         ],
         "surface_counts": {
           "plugins": 0,
@@ -923,8 +922,7 @@
               "no_credential_payload_read",
               "no_raw_secrets",
               "no_external_send",
-              "no_external_write",
-              "secrets_included_false"
+              "no_external_write"
             ],
             "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
           }
@@ -16638,7 +16636,7 @@
           "no_raw_secrets": false,
           "no_external_send": false,
           "no_external_write": false,
-          "secrets_included_false": false
+          "secrets_included_false": true
         }
       },
       "docs": {
@@ -16681,7 +16679,7 @@
           "route_classifications": []
         },
         "surface_count": 3,
-        "safety_marker_count": 0
+        "safety_marker_count": 1
       }
     },
     {

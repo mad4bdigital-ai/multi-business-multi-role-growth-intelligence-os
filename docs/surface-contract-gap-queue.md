@@ -59,15 +59,15 @@
 ### 4. `1012_sprint69_sql_only_runtime_auth_schema.sql`
 
 - Queue class: high_review
-- Score: 527
+- Score: 515
 - Gap severity: medium
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
-- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 - Surface counts: plugins=0, tools=1, views=2, policies=0, routes=0
 - Remediation actions:
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `v_sql_only_runtime_contract_readiness`
 - `verify_readback_view` → db-readback-review; targets: `v_sql_only_runtime_contract_readiness`, `v_var_name`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
