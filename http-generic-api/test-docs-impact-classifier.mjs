@@ -40,6 +40,32 @@ assert(deploymentImpact.required_docs.includes("deployment_parity_checklist.md")
 assert(deploymentImpact.required_docs.includes("docs/hostinger-node-deploy.md"));
 assert.equal(deploymentImpact.risk, "high");
 
+const openApiImpact = classifyChangedFiles([
+  "http-generic-api/routes/gptToolsRoutes.js",
+  "http-generic-api/openapi.yaml",
+  "docs/openapi-split-governance.md",
+  "docs/repo-maintenance-status.md",
+]);
+assert(openApiImpact.families.includes("openapi_schema"));
+assert(openApiImpact.docs_files_changed.includes("http-generic-api/openapi.yaml"));
+assert(!openApiImpact.docs_missing.includes("http-generic-api/openapi.yaml"));
+
+const generatedNoteImpact = classifyChangedFiles([
+  "docs/auto-docs-agent/pr-1689.md",
+]);
+assert.equal(generatedNoteImpact.docs_only, true);
+assert.equal(generatedNoteImpact.should_generate, false);
+assert(!generatedNoteImpact.families.includes("docs_agent"));
+assert.equal(generatedNoteImpact.required_docs.length, 0);
+
+const classifierImpact = classifyChangedFiles([
+  "http-generic-api/scripts/docs-impact-classifier.mjs",
+  "docs/ai-docs-agent-governance.md",
+  "docs/auto-docs-agent/README.md",
+]);
+assert(classifierImpact.families.includes("docs_agent"));
+assert.equal(classifierImpact.docs_missing.length, 0);
+
 const markdown = renderImpactMarkdown(migrationImpact, { title: "Test Impact" });
 assert(markdown.includes("# Test Impact"));
 assert(markdown.includes("Updating Registry Patch Index.md"));
