@@ -489,7 +489,7 @@ async function callDescriptorSystemToolIfAvailable(name, args = {}, auth = null,
   return { handled: true, result };
 }
 
-function systemLayerDescriptorReadiness() {
+export function systemLayerDescriptorReadiness() {
   return [...SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.entries()].map(([tool_name, entry]) => ({
     tool_name,
     source_key: entry.source_key,

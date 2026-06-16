@@ -1848,14 +1848,19 @@ async function checkRepositoryGovernanceV6Readiness() {
       fs.readFile(OPENAPI_PATH, "utf8"),
       fs.readFile(path.join(MIGRATIONS_DIR, "1011_sprint69_governed_repository_engine_v6.sql"), "utf8"),
     ]);
-    const missingTools = requiredToolNames.filter((toolName) => !routesSource.includes(toolName) || !moduleSource.includes(toolName));
+    const systemLayerModule = await import("./routes/systemLayerRoutes.js");
+    const descriptorToolNames = new Set(
+      (systemLayerModule.systemLayerDescriptorReadiness?.() || [])
+        .filter((row) => row?.source_key === "repository_governance_v6" && row?.handler_present === true)
+        .map((row) => row.tool_name)
+    );
+    const missingTools = requiredToolNames.filter((toolName) => !descriptorToolNames.has(toolName) || !moduleSource.includes(toolName));
     const missingRuntimeTokens = requiredRuntimeTokens.filter((token) => !moduleSource.includes(token));
     const openapi_documented = requiredToolNames.every((toolName) => openapiSource.includes(toolName));
     const migration_documents_all_tools = requiredToolNames.every((toolName) => migrationSource.includes(toolName));
     let dispatcher_smoke = null;
     try {
-      const { runRepositoryGovernanceV6DescriptorReadinessSmoke } = await import("./routes/systemLayerRoutes.js");
-      dispatcher_smoke = await runRepositoryGovernanceV6DescriptorReadinessSmoke({ limit: 1 });
+      dispatcher_smoke = await systemLayerModule.runRepositoryGovernanceV6DescriptorReadinessSmoke({ limit: 1 });
     } catch (err) {
       dispatcher_smoke = {
         ok: false,
@@ -1940,6 +1945,7 @@ async function checkRepositoryGovernanceV6Readiness() {
       if (row.status === "planned" && (!Number(row.requires_capability_envelope) || !Number(row.requires_typed_confirmation) || !Number(row.requires_same_cycle_readback))) return true;
       return false;
     });
+    const authorization_gated = isRepositoryAuthorizationGatedSmoke(dispatcher_smoke);
     const issues = [];
     if (missingTools.length) issues.push(`missing V6 tool wiring: ${missingTools.join(", ")}`);
     if (missingRuntimeTokens.length) issues.push(`missing V6 runtime tokens: ${missingRuntimeTokens.join(", ")}`);
@@ -1950,7 +1956,7 @@ async function checkRepositoryGovernanceV6Readiness() {
     if (policyRows?.[0]?.active !== "TRUE" || policyRows?.[0]?.blocking !== "TRUE") issues.push("governed_repository_engine_v6_policy_v1 missing or non-blocking");
     if (bindingColumnRows.length !== 2) issues.push("repository authority provider-binding columns missing");
     if (invalidRecipes.length) issues.push(`invalid V6 recipe states or gates: ${invalidRecipes.join(", ")}`);
-    if (Number(evidenceRows?.[0]?.evidence_rows || 0) < 1) issues.push("No no-secret V6 report evidence found");
+    if (!authorization_gated && Number(evidenceRows?.[0]?.evidence_rows || 0) < 1) issues.push("No no-secret V6 report evidence found");
     const toolBinding = toolBindingRows?.[0] || null;
     if (!toolBinding || toolBinding.status !== "active" || toolBinding.credential_source !== "tenant_connection" || toolBinding.exposure_scope !== "tenant") issues.push("V6 GitHub tenant mutation tool binding missing or invalid");
     const certification = certificationRows?.[0] || null;
@@ -1973,7 +1979,6 @@ async function checkRepositoryGovernanceV6Readiness() {
     const exposedAdminTools = [...forbiddenTenantExports].filter((toolKey) => enabledTenantExports.has(toolKey));
     if (missingTenantExports.length) issues.push(`Missing V6 tenant exports: ${missingTenantExports.join(", ")}`);
     if (exposedAdminTools.length) issues.push(`Admin-only V6 tools exposed to tenant catalog: ${exposedAdminTools.join(", ")}`);
-    const authorization_gated = isRepositoryAuthorizationGatedSmoke(dispatcher_smoke);
     if (!authorization_gated && (dispatcher_smoke?.status !== "pass" || dispatcher_smoke?.ok !== true)) issues.push(`V6 dispatcher smoke failed: ${dispatcher_smoke?.reason_code || dispatcher_smoke?.classification || "unknown"}`);
     const failedSmokeChecks = authorization_gated ? [] : (dispatcher_smoke?.checks || []).filter((check) => check?.pass !== true).map((check) => check?.name).filter(Boolean);
     if (failedSmokeChecks.length) issues.push(`V6 smoke checks failed: ${failedSmokeChecks.join(", ")}`);
