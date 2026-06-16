@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-let cachedInstallationToken = null;
+const cachedInstallationTokens = new Map();
 
 function envSecretFromReference(reference = "") {
   const ref = String(reference || "").trim();
@@ -186,6 +186,9 @@ export function resolveGitHubAppConfig(action = {}) {
 
 export async function getGitHubAppInstallationToken({ action = {}, fetchImpl = fetch } = {}) {
   const nowMs = Date.now();
+  const { appId, installationId, privateKey } = resolveGitHubAppConfig(action);
+  const cacheKey = `${appId}:${installationId}`;
+  const cachedInstallationToken = cachedInstallationTokens.get(cacheKey);
   if (
     cachedInstallationToken?.token &&
     cachedInstallationToken?.expiresAtMs &&
@@ -194,7 +197,6 @@ export async function getGitHubAppInstallationToken({ action = {}, fetchImpl = f
     return cachedInstallationToken.token;
   }
 
-  const { appId, installationId, privateKey } = resolveGitHubAppConfig(action);
   if (!installationId) {
     const err = new Error("Missing GitHub App installation id.");
     err.code = "github_app_auth_missing_installation_id";
@@ -223,14 +225,15 @@ export async function getGitHubAppInstallationToken({ action = {}, fetchImpl = f
   }
 
   const expiresAtMs = body.expires_at ? Date.parse(body.expires_at) : nowMs + 55 * 60_000;
-  cachedInstallationToken = {
+  const nextCachedInstallationToken = {
     token: body.token,
     expiresAtMs: Number.isFinite(expiresAtMs) ? expiresAtMs : nowMs + 55 * 60_000,
   };
 
-  return cachedInstallationToken.token;
+  cachedInstallationTokens.set(cacheKey, nextCachedInstallationToken);
+  return nextCachedInstallationToken.token;
 }
 
 export function clearGitHubAppInstallationTokenCache() {
-  cachedInstallationToken = null;
+  cachedInstallationTokens.clear();
 }

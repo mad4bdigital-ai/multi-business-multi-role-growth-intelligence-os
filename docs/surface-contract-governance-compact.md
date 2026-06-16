@@ -1,14 +1,14 @@
 # Surface Contract Governance Compact
 
-- Gate: pass
-- Blocking new items: 0
-- Docs completion: 425/426 (99.77%)
-- Queue items: 1
+- Gate: fail
+- Blocking new items: 1
+- Docs completion: 425/427 (99.53%)
+- Queue items: 2
 - OpenAPI missing SQL routes: 0
-- OpenAPI-exempt SQL route-like literals: 557/557
+- OpenAPI-exempt SQL route-like literals: 558/558
 - Safety marker gap migrations: 0
-- Trend quality gate: pass
+- Trend quality gate: fail
 
 ## Top actionable
 
-- none
+- `1011_sprint69_governed_repository_engine_v6.sql` — critical_review, score 1171; add targeted patch-index, parity, and governance documentation

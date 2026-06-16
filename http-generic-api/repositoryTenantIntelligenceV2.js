@@ -152,8 +152,8 @@ function checkRuns(pr = {}) {
   if (Array.isArray(pr.evidence?.check_runs)) return pr.evidence.check_runs;
   return [];
 }
-function hasOnlyDocsAgentFiles(files = []) { return files.length > 0 && files.every((file) => String(file.filename || "").startsWith("docs/auto-docs-agent/")); }
-function migrationNumbers(files = []) { return files.map((file) => String(file.filename || "").match(/migrations\/(\d+)_.*\.sql$/)?.[1]).filter(Boolean); }
+function hasOnlyDocsAgentFiles(files = []) { return files.length > 0 && files.every((file) => String(file.filename || file.path || "").startsWith("docs/auto-docs-agent/")); }
+function migrationNumbers(files = []) { return files.map((file) => String(file.filename || file.path || "").match(/migrations\/(\d+)_.*\.sql$/)?.[1]).filter(Boolean); }
 function duplicateValues(values = []) { const seen = new Set(); const dupes = new Set(); for (const value of values) { if (seen.has(value)) dupes.add(value); seen.add(value); } return [...dupes]; }
 
 export function classifyRepositoryPullRequestV2(pr = {}) {
@@ -171,7 +171,7 @@ export function classifyRepositoryPullRequestV2(pr = {}) {
   if (pr.draft) { classifications.push("manual_review_required"); reasons.push("draft_pull_request"); }
   if (headRef.startsWith("docs-agent/") || /^Docs agent:/i.test(asString(pr.title)) || hasOnlyDocsAgentFiles(files)) { classifications.push("stale_docs_agent_only"); reasons.push("docs_agent_signal"); }
   if (duplicateMigrationNumbers.length) { classifications.push("duplicate_migration_conflict"); reasons.push(`duplicate_migration_numbers:${duplicateMigrationNumbers.join(",")}`); }
-  if (nums.length && files.some((file) => String(file.filename || "").includes("sprint68"))) { classifications.push("migration_number_conflict"); reasons.push("migration_files_require_number_collision_review"); }
+  if (nums.length && files.some((file) => String(file.filename || file.path || "").includes("sprint68"))) { classifications.push("migration_number_conflict"); reasons.push("migration_files_require_number_collision_review"); }
   if (mergeStateStatus === "behind") { classifications.push("behind_only"); reasons.push("github_merge_state_behind"); }
   if (["dirty", "blocked", "unknown"].includes(mergeStateStatus)) { classifications.push("manual_review_required"); reasons.push(`github_merge_state_${mergeStateStatus}`); }
   if (failedChecks.length) { classifications.push("unsafe_to_merge"); reasons.push("failed_or_cancelled_checks"); }

@@ -1243,3 +1243,24 @@ The recipe must never target a protected/default branch, force-update a ref, use
 ## Capability Report Selection Boundary
 
 Capability contract verification and live operational verification are separate authority surfaces. `platform_capability_contract_report` may inspect declared schema/tool contracts and classify proposed versus implemented surfaces, but it must not return live counts or claim historical CI/deployment truth. `platform_capability_live_report` may query current MySQL-primary maturity, gap, envelope, certification, and source-resolution state with bounded freshness, but it must not infer contractual completeness or restate historical report numbers. A combined conclusion requires an explicit later comparison step; neither tool may silently call or merge the other.
+### Repository Mutation Authority V6
+
+Repository mutation authority must be action-specific. A generic read-only repository binding, an admin role by itself, a successful prior PR analysis, or the presence of an adapter must never grant mutation authority.
+
+Before any V6 repository write:
+- resolve the authenticated tenant/user/workspace hierarchy and reject cross-scope overrides
+- resolve one active `platform_resource_authority_bindings` row for the exact GitHub repository URI, recipe key, permission level, and `apply` mode
+- validate tenant-owned authority against the exact active `connected_systems` and `installations` records
+- require the recipe to be `active`, `risk_class=mutation`, `mode=apply`, `read_only=0`, and gated by dry-run, capability envelope, typed confirmation, and same-cycle readback
+- bind the capability envelope and approval hold to the exact plan item, resource, action, and head SHA
+- reserve one `repository_mutation_runs_v6` row before provider dispatch
+- perform one provider write at most, followed by same-cycle readback and bounded audit evidence
+
+Replay rules:
+- the unique `(plan_id, plan_item_id)` run identity is authoritative
+- any existing run blocks another provider write
+- `write_confirmed`, `readback_verified`, and `readback_failed` indicate a write was dispatched
+- `unknown_provider_outcome` requires readback/reconciliation only; automatic replay is forbidden
+- readback failure must not be reclassified as successful execution
+
+Mutation recipes in `planned`, disabled, expired, mismatched, incomplete-evidence, or unauthorized states must block before token resolution and provider dispatch. Force-push and repository-engine migration apply are always forbidden.
