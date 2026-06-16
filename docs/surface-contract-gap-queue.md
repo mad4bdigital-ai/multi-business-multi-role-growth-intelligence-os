@@ -4,8 +4,8 @@
 
 ## Summary
 
-- Total queue items: 2
-- Critical review: 2
+- Total queue items: 3
+- Critical review: 3
 - High review: 0
 - Medium review: 0
 - Low review: 0
@@ -40,4 +40,18 @@
 - Remediation actions:
 - `document_surface_contract` → docs-agent/human-review; targets: `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tool`, `capability_vault_record_only_same_cycle_v1`, `capability_vault_record_only_transaction_rollback_v1`, `capability_vault_repo_ingestion_record`, `confirm_record_only`, `confirm_record_only_required`, `grants_dispatch_or_apply`, `platform_capability_vault_record_only`, `platform_capability_vault_repo_ingestion_record`, `ptdb_capability_vault_repo_ingestion_record`, `same_cycle_readback`
+
+### 3. `316_sprint69_database_lifecycle_registry_upsert_admin_tool.sql`
+
+- Queue class: critical_review
+- Score: 771
+- Gap severity: high
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=1
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `database_lifecycle_registry_upsert_admin_tool`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 

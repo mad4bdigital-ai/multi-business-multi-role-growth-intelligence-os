@@ -6,40 +6,41 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 427,
+    "migrations_with_surfaces": 428,
     "docs_complete_count": 425,
-    "docs_gap_count": 2,
-    "docs_completion_percent": 99.53,
+    "docs_gap_count": 3,
+    "docs_completion_percent": 99.3,
     "surface_totals": {
       "plugins": 12,
-      "tools": 1988,
+      "tools": 1989,
       "views": 375,
       "policies": 157,
-      "routes": 558
+      "routes": 559
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 362,
+      "tools": 363,
       "views": 153,
       "policies": 99,
-      "routes": 234
+      "routes": 235
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 1,
-      "deployment_parity_checklist.md": 1,
-      "docs/ai-docs-agent-governance.md": 1,
-      "docs/auto-docs-agent/README.md": 2,
-      "docs/change-documentation-governance.md": 2
+      "Updating Registry Patch Index.md": 2,
+      "deployment_parity_checklist.md": 2,
+      "docs/ai-docs-agent-governance.md": 2,
+      "docs/auto-docs-agent/README.md": 3,
+      "docs/change-documentation-governance.md": 3
     },
     "gap_severity_counts": {
-      "high": 2,
+      "high": 3,
       "medium": 0,
       "low": 0,
       "none": 425
     },
     "high_risk_missing_docs": [
       "1011_sprint69_governed_repository_engine_v6.sql",
-      "315_sprint69_capability_vault_record_tool_export.sql"
+      "315_sprint69_capability_vault_record_tool_export.sql",
+      "316_sprint69_database_lifecycle_registry_upsert_admin_tool.sql"
     ],
     "medium_risk_missing_docs": [],
     "safety_marker_counts": {
@@ -48,16 +49,16 @@
       "no_raw_secrets": 426,
       "no_external_send": 426,
       "no_external_write": 426,
-      "secrets_included_false": 427
+      "secrets_included_false": 428
     },
     "safety_marker_gap_migrations": 0,
     "route_coverage": {
       "sql_route_count": 0,
-      "total_sql_route_like_count": 558,
-      "openapi_exempt_sql_route_count": 558,
+      "total_sql_route_like_count": 559,
+      "openapi_exempt_sql_route_count": 559,
       "route_class_counts": {
         "http_route": 0,
-        "admin_tool_registry_route": 115,
+        "admin_tool_registry_route": 116,
         "tenant_tool_registry_route": 35,
         "system_tool_dispatch_route": 13,
         "registry_only_surface": 1,
@@ -71,19 +72,20 @@
     }
   },
   "queue": {
-    "total_items": 2,
+    "total_items": 3,
     "class_counts": {
-      "critical_review": 2,
+      "critical_review": 3,
       "high_review": 0,
       "medium_review": 0,
       "low_review": 0
     }
   },
   "triage": {
-    "total_items": 2,
+    "total_items": 3,
     "class_counts": {
       "new_surface_immediate_review": 1,
-      "standard_backlog_review": 1
+      "standard_backlog_review": 1,
+      "safety_marker_review": 1
     },
     "gate_candidate_count": 1
   },
