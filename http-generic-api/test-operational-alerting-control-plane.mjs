@@ -90,7 +90,7 @@ function testRepositoryContracts() {
   const service = read("./operationalAlertService.js");
   const routes = read("./routes/activationAwarenessRoutes.js");
   const awareness = read("./activationAwarenessService.js");
-  const migration = read("./migrations/1009_sprint69_operational_alerting_control_plane.sql");
+  const migration = read("./migrations/1011_sprint69_operational_alerting_control_plane.sql");
   const openapi = read("./openapi.yaml");
   const memory = read("../memory_schema.json");
   const auditCanonical = read("../canonicals/system_bootstrap/03_audit_logging_schema.md");
