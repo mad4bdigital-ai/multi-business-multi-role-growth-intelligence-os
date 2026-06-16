@@ -50,8 +50,19 @@ export function classifyDatabaseTableLifecycle(row = {}) {
   let cleanupStrategy = "none";
   let riskLevel = "medium";
   const reasons = [];
+  const isBackupRepairSnapshot = /^(repair_backup_|rb_|collation_backup_|zz_collation_backup_)/i.test(tableName);
 
-  if (["session_events", "gpt_session_turns", "session_turns", "customer_sessions"].includes(tableName)) {
+  if (isBackupRepairSnapshot) {
+    tableFamily = "backup_repair_snapshot";
+    ownerEngineKey = "repair_archive_engine";
+    usageStatus = "backup_snapshot";
+    retentionClass = "temporary_repair_snapshot";
+    retentionDays = 90;
+    archiveStrategy = "retain_until_verified_replacement";
+    cleanupStrategy = "archive_candidate_after_retention_and_approval";
+    riskLevel = "high";
+    reasons.push("backup_or_repair_snapshot");
+  } else if (["session_events", "gpt_session_turns", "session_turns", "customer_sessions"].includes(tableName)) {
     tableFamily = "session_log";
     ownerEngineKey = "session_memory_lifecycle_engine";
     usageStatus = rows > 0 ? "runtime_log" : "planned_placeholder";
