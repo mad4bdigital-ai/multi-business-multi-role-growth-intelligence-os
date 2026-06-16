@@ -58,6 +58,20 @@ Dynamic Audit evidence is summary-only and no-secret. Direct DB calls without ta
 
 Recurring bridge work must advance `platform_runtime_config.audit_log_event_bus_bridge_schedule.last_audit_log_id` as a durable keyset cursor. Rollup cycles select indexed pending statuses and rely on idempotent target writes before marking events `rolled_up`. The five-minute runtime path uses bounded fast-readiness counts; `v_dynamic_audit_pipeline_quality` remains a deep-audit surface and must not run inside each scheduler cycle. A live `enabled=false` config must cause new cycles to skip before lock acquisition or evidence writes.
 
+### Hostinger production deployment policy
+
+Hostinger production for `auth.mad4b.com` deploys automatically from the GitHub repository branch `main`. The normal update path is therefore:
+
+1. merge the governed change into `main`;
+2. allow Hostinger Auto Deploy to complete;
+3. verify the production Git HEAD matches GitHub `main`;
+4. verify `/health` and runtime dependencies;
+5. record deployment/readback evidence.
+
+Do not use Hostinger SSH for routine repository updates, fast-forwards, restarts, or deployment parity. SSH is break-glass only and may be considered solely when Auto Deploy is demonstrably unavailable, the hosting plan and network path permit SSH, and a user explicitly approves the exception through a fresh capability envelope. A transient delay between a `main` commit and Hostinger checkout is not evidence that manual SSH deployment is required; recheck production Git HEAD and health before opening any fallback path.
+
+The live SQL policy is `platform_runtime_config.hostinger_deployment_policy`. Its normal strategy is `github_main_auto_deploy`, with `ssh_normal_updates_allowed=false` and `ssh_break_glass_only=true`.
+
 ### Runtime and model chain
 
 Deployment claims require runtime evidence. The API `prestart` lifecycle generates
