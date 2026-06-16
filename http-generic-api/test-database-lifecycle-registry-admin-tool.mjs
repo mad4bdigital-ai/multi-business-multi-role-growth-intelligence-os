@@ -32,6 +32,16 @@ assert(migration.includes("'maxItems',6"), "tool must bound shell arguments");
 assert(migration.includes("governed_migration_authorization_registry"), "migration must persist its authorization row");
 assert(migration.includes("'allow_apply',") || migration.includes("allow_apply"), "migration authorization must declare apply policy");
 assert(migration.includes("bootstrap_authorization_required_for_first_apply"), "migration must document first-apply bootstrap authorization");
+for (const marker of [
+  "no_provider_call true",
+  "no_credential_payload_read true",
+  "no_raw_secrets true",
+  "no_external_send true",
+  "no_external_write true",
+  "secrets_included=false",
+]) {
+  assert(migration.includes(marker), `migration must include explicit safety marker: ${marker}`);
+}
 assert(!/^\s*(DROP\b|TRUNCATE\b|DELETE\s+FROM\b|ALTER\s+TABLE\b[^;]*\bDROP\b)/im.test(migration), "migration must not contain destructive SQL");
 
 assert(adminRoutes.includes(`${toolKey}: {`), "admin shell alias must be registered");
