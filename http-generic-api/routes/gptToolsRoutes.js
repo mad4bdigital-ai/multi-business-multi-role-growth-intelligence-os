@@ -402,7 +402,7 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "github_branch_delete",
     displayName: "GitHub Branch Delete",
-    description: "Delete a governed disposable GitHub branch only after capability approval, expected-head SHA match, typed confirmation, open-PR guard, and same-cycle absence readback.",
+    description: "Delete a governed disposable GitHub branch only after capability approval, actual GitHub default-branch protection, expected-head SHA match, typed confirmation, open-PR guard, proof of zero unique commits, pre-delete SHA readback, and same-cycle absence readback.",
     method: "VIRTUAL",
     path: "internal://github-branch-delete",
     tags: ["repo", "github", "branch", "mutation", "capability_envelope", "readback"],
