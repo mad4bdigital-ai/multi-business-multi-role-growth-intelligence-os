@@ -50,8 +50,19 @@ export function classifyDatabaseTableLifecycle(row = {}) {
   let cleanupStrategy = "none";
   let riskLevel = "medium";
   const reasons = [];
+  const isBackupRepairSnapshot = /^(repair_backup_|rb_|collation_backup_|zz_collation_backup_)/i.test(tableName);
 
-  if (["session_events", "gpt_session_turns", "session_turns", "customer_sessions"].includes(tableName)) {
+  if (isBackupRepairSnapshot) {
+    tableFamily = "backup_repair_snapshot";
+    ownerEngineKey = "repair_archive_engine";
+    usageStatus = "backup_snapshot";
+    retentionClass = "temporary_repair_snapshot";
+    retentionDays = 90;
+    archiveStrategy = "retain_until_verified_replacement";
+    cleanupStrategy = "archive_candidate_after_retention_and_approval";
+    riskLevel = "high";
+    reasons.push("backup_or_repair_snapshot");
+  } else if (["session_events", "gpt_session_turns", "session_turns", "customer_sessions"].includes(tableName)) {
     tableFamily = "session_log";
     ownerEngineKey = "session_memory_lifecycle_engine";
     usageStatus = rows > 0 ? "runtime_log" : "planned_placeholder";
@@ -141,6 +152,86 @@ export function classifyDatabaseTableLifecycle(row = {}) {
     cleanupStrategy = "retain_approval_and_evidence_links";
     riskLevel = tableName === "growth_intelligence_actions" ? "high" : "medium";
     reasons.push("growth_intelligence_product_family");
+  } else if (includesAny(tableName, ["platform_audit_event_bus", "asset_audit_events", "db_change_audit_events", "checkpoint_auto_rollups", "audit_payload_evidence", "timeline_events"])) {
+    tableFamily = "dynamic_audit_pipeline";
+    ownerEngineKey = "observability_lifecycle_engine";
+    usageStatus = rows > 0 ? "runtime_log" : "planned_placeholder";
+    retentionClass = "hot_then_archive";
+    retentionDays = 180;
+    archiveStrategy = "archive_terminal_events_by_time_window";
+    cleanupStrategy = "retain_non_terminal_then_archive_terminal_events";
+    riskLevel = sizeMb > 8 || rows > 10000 ? "high" : "medium";
+    reasons.push("dynamic_audit_pipeline_family");
+  } else if (includesAny(tableName, ["activation_", "runtime_verification_", "runtime_gap_", "runtime_ci_", "runtime_deployment_parity_status"])) {
+    const isRuntimeEvidence = includesAny(tableName, ["_runs", "_steps", "_events", "_log", "_ledger", "_gaps", "_evidence", "_snapshots", "_readbacks"]);
+    tableFamily = includesAny(tableName, ["activation_"]) ? "activation_runtime" : "runtime_verification";
+    ownerEngineKey = "workflow_runtime_engine";
+    usageStatus = rows > 0 ? (isRuntimeEvidence ? "runtime_log" : "runtime_registry") : "planned_placeholder";
+    retentionClass = isRuntimeEvidence ? "hot_then_archive" : "registry";
+    retentionDays = isRuntimeEvidence ? 180 : null;
+    archiveStrategy = isRuntimeEvidence ? "time_window_archive" : "archive_disabled_rows";
+    cleanupStrategy = isRuntimeEvidence ? "archive_terminal_runtime_evidence" : "review_superseded_registry_rows";
+    riskLevel = includesAny(tableName, ["approval", "authorization", "credential", "secret"]) ? "high" : "medium";
+    reasons.push("activation_or_runtime_verification_family");
+  } else if (includesAny(tableName, ["session_insight_"])) {
+    const isSessionInsightEvidence = includesAny(tableName, ["_events", "_reviews", "_readbacks", "_preflights", "_previews", "_dispatches", "_executions"]);
+    tableFamily = "session_insight_runtime";
+    ownerEngineKey = "session_memory_lifecycle_engine";
+    usageStatus = rows > 0 ? (isSessionInsightEvidence ? "runtime_log" : "runtime_canonical") : "planned_placeholder";
+    retentionClass = isSessionInsightEvidence ? "hot_then_archive" : "business_record";
+    retentionDays = isSessionInsightEvidence ? 180 : null;
+    archiveStrategy = isSessionInsightEvidence ? "time_window_archive" : "compact_superseded_versions";
+    cleanupStrategy = isSessionInsightEvidence ? "archive_terminal_session_insight_evidence" : "retain_latest_promoted_state";
+    riskLevel = "high";
+    reasons.push("session_insight_runtime_family");
+  } else if (includesAny(tableName, ["platform_resource_", "cms_", "brand_site_bindings", "permission_grants"])) {
+    tableFamily = includesAny(tableName, ["cms_", "brand_site_bindings"]) ? "cms_resource_authority" : "platform_resource_authority";
+    ownerEngineKey = "resource_authority_engine";
+    usageStatus = rows > 0 ? "runtime_canonical" : "planned_placeholder";
+    retentionClass = "business_record";
+    archiveStrategy = "archive_revoked_or_superseded_authority_rows";
+    cleanupStrategy = "retain_active_authority_and_audit_lineage";
+    riskLevel = "high";
+    reasons.push("resource_authority_family");
+  } else if (includesAny(tableName, ["platform_orchestration_", "ticket_", "tickets", "external_delivery_"])) {
+    const isOrchestrationEvidence = includesAny(tableName, ["_events", "_runs", "_readbacks", "_attempts", "_snapshots", "_recommendations", "_decisions"]);
+    tableFamily = includesAny(tableName, ["ticket_", "tickets"]) ? "ticket_lifecycle" : includesAny(tableName, ["external_delivery_"]) ? "external_delivery" : "orchestration_intelligence";
+    ownerEngineKey = "workflow_runtime_engine";
+    usageStatus = rows > 0 ? (isOrchestrationEvidence ? "runtime_log" : "runtime_registry") : "planned_placeholder";
+    retentionClass = isOrchestrationEvidence ? "hot_then_archive" : "registry";
+    retentionDays = isOrchestrationEvidence ? 365 : null;
+    archiveStrategy = isOrchestrationEvidence ? "archive_terminal_workflow_evidence" : "archive_disabled_rows";
+    cleanupStrategy = isOrchestrationEvidence ? "retain_approval_and_execution_lineage" : "review_superseded_registry_rows";
+    riskLevel = "high";
+    reasons.push("orchestration_ticket_or_external_delivery_family");
+  } else if (includesAny(tableName, ["governed_migration_", "platform_tool_dispatch_", "admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "actions", "endpoints", "workflows", "task_routes", "execution_policies"])) {
+    tableFamily = "platform_runtime_governance";
+    ownerEngineKey = "platform_contract_governance_engine";
+    usageStatus = rows > 0 ? "runtime_registry" : "planned_placeholder";
+    retentionClass = "registry";
+    archiveStrategy = "archive_disabled_rows";
+    cleanupStrategy = "review_superseded_governance_rows";
+    riskLevel = "high";
+    reasons.push("platform_runtime_governance_family");
+  } else if (includesAny(tableName, ["agent_model_runs", "agent_tool_calls", "agent_chain_events"])) {
+    tableFamily = "agent_model_runtime_log";
+    ownerEngineKey = "observability_lifecycle_engine";
+    usageStatus = rows > 0 ? "runtime_log" : "planned_placeholder";
+    retentionClass = "hot_then_archive";
+    retentionDays = 180;
+    archiveStrategy = "time_window_archive";
+    cleanupStrategy = "archive_completed_agent_runtime_evidence";
+    riskLevel = "high";
+    reasons.push("agent_model_runtime_evidence_family");
+  } else if (includesAny(tableName, ["ai_model_", "agent_tool_index", "agent_skills", "intelligence_engines", "intelligence_policies", "intelligence_policy_rules"])) {
+    tableFamily = "agent_model_runtime_registry";
+    ownerEngineKey = "platform_contract_governance_engine";
+    usageStatus = rows > 0 ? "runtime_registry" : "planned_placeholder";
+    retentionClass = "registry";
+    archiveStrategy = "archive_disabled_rows";
+    cleanupStrategy = "review_superseded_model_and_policy_rows";
+    riskLevel = "high";
+    reasons.push("agent_model_runtime_registry_family");
   } else if (includesAny(tableName, ["database_lifecycle_", "database_collation_"])) {
     tableFamily = includesAny(tableName, ["database_collation_"]) ? "schema_collation_governance" : "database_lifecycle";
     ownerEngineKey = includesAny(tableName, ["database_collation_"])
