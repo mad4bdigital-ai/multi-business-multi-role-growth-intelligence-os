@@ -431,6 +431,7 @@ export const testCommands = [
   "node test-cms-grant-dedupe-hardening.mjs",
   "node test-cms-authority-collation-alignment.mjs",
   "node test-database-table-lifecycle-registry-upsert.mjs",
+  "node test-database-lifecycle-registry-admin-tool.mjs",
   "node test-database-lifecycle-retention-plan.mjs",
   "node test-database-lifecycle-report-snapshot.mjs",
   "node test-database-lifecycle-report-schedule-readiness.mjs",

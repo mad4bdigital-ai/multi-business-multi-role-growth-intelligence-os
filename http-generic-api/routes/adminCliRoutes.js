@@ -1865,6 +1865,7 @@ function builtInShellAllowlist() {
       built_in: true
     },
     webhook_delivery_dispatch: { command: process.execPath, args: ["http-generic-api/scripts/webhook-delivery-dispatcher.mjs"], display_name: "Webhook delivery dispatcher", allow_extra_args: true, max_extra_args: 2, timeout_ms: 180000, built_in: true },
+    database_table_lifecycle_registry_upsert: { command: process.execPath, args: ["http-generic-api/scripts/database-table-lifecycle-registry-upsert.mjs"], display_name: "Database table lifecycle registry upsert", allow_extra_args: true, max_extra_args: 6, timeout_ms: 180000, built_in: true },
     openrouter_provider_smoke: { command: process.execPath, args: ["http-generic-api/scripts/openrouter-provider-smoke.mjs"], display_name: "OpenRouter provider live smoke", allow_extra_args: true, max_extra_args: 8, timeout_ms: 180000, built_in: true },
     supervisor_causal_provider_certification: { command: process.execPath, args: ["http-generic-api/scripts/supervisor-causal-provider-certification.mjs"], display_name: "Supervisor causal provider certification", allow_extra_args: true, max_extra_args: 3, timeout_ms: 180000, built_in: true },
     openrouter_model_policy: { command: process.execPath, args: ["http-generic-api/scripts/openrouter-model-policy.mjs"], display_name: "OpenRouter model policy control", allow_extra_args: true, max_extra_args: 12, timeout_ms: 120000, built_in: true },

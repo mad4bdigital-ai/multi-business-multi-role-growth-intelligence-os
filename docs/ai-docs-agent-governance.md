@@ -155,6 +155,12 @@ docs/ai-docs-agent-governance.md
 
 - `1009_sprint69_optional_manual_agent_delegation_tools.sql` registers explicit, admin-governed manual delegation creation/dispatch/contract tools. Migration execution performs no provider call, credential read, external send/write, or secret return; runtime delegation remains opt-in and confirmation/authorization governed.
 - `1010_sprint69_disable_legacy_agent_chain_dispatch_tool.sql` disables the ambiguous legacy dispatch surface and directs callers to `agent_chain_event_dispatch_manual`. It is a guarded registry update only and performs no provider call, credential read, external send/write, or secret return.
+## Sprint 69 database lifecycle registry upsert documentation contract
+
+- `316_sprint69_database_lifecycle_registry_upsert_admin_tool.sql` must remain documented as an Admin registry surface, not a new public Express endpoint. `/admin/control` is registry-governed and OpenAPI-exempt for this tool registration.
+- Generated notes must preserve missing-only dry-run as the default, separate exact confirmation for existing-row refresh, transactional apply, and same-cycle `remaining_missing_count=0` readback.
+- Documentation must not imply provider calls, credential payload reads, raw-secret access, external sends/writes, destructive SQL, archive execution, compaction, or lifecycle-policy approval beyond the bounded metadata upsert; `secrets_included=false`.
+
 ## Sprint 69 Capability Vault record-only tool export
 
 - `315_sprint69_capability_vault_record_tool_export.sql` exports the already implemented admin-only `/platform/capability-vault/repo-ingestion-record` route through `admin_platform_endpoint_tools` and binds it to `capability_vault_record_only_same_cycle_v1`. The tool remains confirmation-gated, transactional, audited, idempotent, no-execution, no-install, no-external-send, and no-secret.
