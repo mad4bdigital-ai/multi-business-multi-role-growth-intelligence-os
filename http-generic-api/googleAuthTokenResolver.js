@@ -177,7 +177,11 @@ function scopedOauthRefFromRuntimeContext(options = {}) {
   const userId = String(ctx.user_id || options.user_id || "").trim();
   const tenantId = String(ctx.tenant_id || options.tenant_id || "").trim();
   const appKey = String(ctx.app_key || options.app_key || defaultGoogleAppKey(action)).trim();
-  const scopes = String(ctx.scopes || options.scopes || action.required_oauth_scopes || "https://www.googleapis.com/auth/drive").trim();
+  const scopes = String(
+    ctx.scopes ||
+    options.scopes ||
+    getGoogleScopesFromAction(action).join(" ")
+  ).trim();
   const scopeParam = scopes ? `;scopes=${scopes}` : "";
 
   if (["user", "member_user_id"].includes(credentialScope) && userId) {
