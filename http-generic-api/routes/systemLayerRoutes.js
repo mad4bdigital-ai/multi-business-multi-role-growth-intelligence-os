@@ -479,9 +479,14 @@ async function callDescriptorSystemToolIfAvailable(name, args = {}, auth = null,
     }
     return child.result;
   };
+  const readinessRunGovernedResource =
+    name === "tenant_repository_governance_v6_readiness_smoke" && isAdminPrincipal(auth)
+      ? runRepositoryGovernanceV6ReadinessResource
+      : null;
   const result = await entry.handler(args, {
     auth,
     runGovernedResource,
+    readinessRunGovernedResource,
     req: deps.req,
     executionFacade: deps.executionFacade,
     dispatchSystemTool,
