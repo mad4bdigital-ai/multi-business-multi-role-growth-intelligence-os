@@ -261,7 +261,7 @@ export async function createRepositoryAdvisoryCommentApprovalHoldAdmin(args = {}
         JSON.stringify(context),
         requestedBy,
         requiredRole,
-        ttlMinutes,
+        expiresAt,
       ]
     );
     await connection.query(
