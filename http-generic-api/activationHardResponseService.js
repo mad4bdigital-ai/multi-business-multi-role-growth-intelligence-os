@@ -217,6 +217,72 @@ function minimalTabManifest(tabManifest) {
   compacted.section_index = sectionIndex;
   return compacted;
 }
+function navigationOnlyTabManifest(tabManifest = {}) {
+  const source = clone(tabManifest);
+  const containers = Array.isArray(source.containers) ? source.containers : [];
+  const active = containers[0] || null;
+  const compactActive = active ? {
+    container_key: active.container_key,
+    container_type: active.container_type,
+    workspace_id: active.workspace_id || null,
+    workspace_key: active.workspace_key || null,
+    tenant_id: active.tenant_id || null,
+    display_name: active.display_name,
+    bootstrap_status: active.bootstrap_status,
+    linked_brand_key: active.linked_brand_key || null,
+    tab_count: safeNumber(active.tab_count),
+    attention_tab_count: safeNumber(active.attention_tab_count),
+    tabs: (active.tabs || []).map((tab) => ({
+      tab_key: tab.tab_key,
+      display_name: tab.display_name,
+      tab_group: tab.tab_group,
+      status: tab.status,
+      item_count: safeNumber(tab.item_count),
+      attention_count: safeNumber(tab.attention_count),
+      badge: tab.badge || {},
+      freshness: tab.freshness || "unknown",
+      hydration_state: tab.hydration_state || "manifest_only",
+      details_ref: tab.details_ref || null,
+    })),
+  } : null;
+  return {
+    attempted: source.attempted,
+    ok: source.ok,
+    activation_layer: source.activation_layer,
+    registry_version: source.registry_version,
+    subject: source.subject,
+    summary: source.summary,
+    active_container: compactActive,
+    container_index: containers.map((container) => ({
+      container_key: container.container_key,
+      container_type: container.container_type,
+      workspace_id: container.workspace_id || null,
+      tenant_id: container.tenant_id || null,
+      display_name: container.display_name,
+      bootstrap_status: container.bootstrap_status,
+      linked_brand_key: container.linked_brand_key || null,
+      tab_count: safeNumber(container.tab_count),
+      attention_tab_count: safeNumber(container.attention_tab_count),
+      details_ref: {
+        tool_key: "activation_awareness_read_api",
+        container_key: container.container_key,
+        supports_cursor: true,
+      },
+    })),
+    shared_surface_summary: {
+      count: Array.isArray(source.shared_surfaces) ? source.shared_surfaces.length : 0,
+      details_ref: { tool_key: "activation_awareness_read_api", surface: "shared_surfaces" },
+    },
+    degraded_surfaces: source.degraded_surfaces || [],
+    policy: {
+      ...(source.policy || {}),
+      non_active_containers_are_indexed_not_expanded: true,
+      active_container_tabs_are_navigation_only: true,
+    },
+    secrets_included: false,
+  };
+}
+
 
 function applyResponseBudget(body, config) {
   const originalBytes = byteLength(body);
@@ -247,6 +313,11 @@ function applyResponseBudget(body, config) {
     output.dynamic_tabs_manifest = minimalTabManifest(output.dynamic_tabs_manifest);
     deferred.push("dynamic_tabs_manifest.inline_section_arrays");
     projectionSteps.push("move_sections_to_global_index");
+  if (byteLength(output) > config.hard_bytes && output.dynamic_tabs_manifest) {
+    output.dynamic_tabs_manifest = navigationOnlyTabManifest(output.dynamic_tabs_manifest);
+    deferred.push("dynamic_tabs_manifest.non_active_container_tabs");
+    projectionSteps.push("project_active_container_navigation_and_container_index");
+  }
   }
   if (byteLength(output) > config.hard_bytes && output.selected_detail) {
     output.selected_detail = {
