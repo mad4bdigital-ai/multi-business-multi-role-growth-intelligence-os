@@ -382,7 +382,5 @@ export async function getGoogleAccessToken(options = {}) {
   return token;
 }
 
-if (String(process.env.GOOGLE_AUTH_DISABLE_PREWARM || "").trim().toLowerCase() !== "true") {
-  fetchGlobalGoogleToken().catch(() => {});
-  setInterval(() => fetchGlobalGoogleToken().catch(() => {}), 50 * 60000).unref();
-}
+// Tokens are resolved lazily per action so the SQL-declared scope contract is
+// always available. An actionless global prewarm would bypass that authority.
