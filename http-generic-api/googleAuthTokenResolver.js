@@ -3,7 +3,39 @@ import { readFileSync } from "node:fs";
 import { createSign } from "node:crypto";
 import { findGoogleUserAppConnection, markUserAppConnectionUsed, normalizeEmailKey, parseOauthConfigRef } from "./userAppConnectionCredentials.js";
 
-const GOOGLE_WORKSPACE_SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/documents", "https://www.googleapis.com/auth/drive"];
+function parseRuntimeBindingProfile(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value;
+  const raw = String(value || "").trim();
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export function getGoogleScopesFromAction(action = {}) {
+  const profile = parseRuntimeBindingProfile(action.runtime_binding_profile);
+  const strategy = profile.auth_strategy && typeof profile.auth_strategy === "object"
+    ? profile.auth_strategy
+    : {};
+  const rawScopes = strategy.required_scopes || strategy.requiredScopes || [];
+  const scopes = Array.isArray(rawScopes)
+    ? rawScopes.map(value => String(value || "").trim()).filter(Boolean)
+    : String(rawScopes || "").split(/[|,\s]+/).map(value => value.trim()).filter(Boolean);
+  const uniqueScopes = [...new Set(scopes)];
+  if (uniqueScopes.length) return uniqueScopes;
+
+  const err = new Error("Google OAuth scope contract is missing from the SQL action registry.");
+  err.code = "auth_scope_contract_missing";
+  err.status = 500;
+  err.details = {
+    action_key: String(action.action_key || "").trim(),
+    required_surface: "actions.runtime_binding_profile.auth_strategy.required_scopes"
+  };
+  throw err;
+}
 
 const cache = new Map();
 let fetchingGlobal = false, warned = false, logged = false;
@@ -145,7 +177,11 @@ function scopedOauthRefFromRuntimeContext(options = {}) {
   const userId = String(ctx.user_id || options.user_id || "").trim();
   const tenantId = String(ctx.tenant_id || options.tenant_id || "").trim();
   const appKey = String(ctx.app_key || options.app_key || defaultGoogleAppKey(action)).trim();
-  const scopes = String(ctx.scopes || options.scopes || action.required_oauth_scopes || "https://www.googleapis.com/auth/drive").trim();
+  const scopes = String(
+    ctx.scopes ||
+    options.scopes ||
+    getGoogleScopesFromAction(action).join(" ")
+  ).trim();
   const scopeParam = scopes ? `;scopes=${scopes}` : "";
 
   if (["user", "member_user_id"].includes(credentialScope) && userId) {
@@ -230,10 +266,11 @@ async function saJsonToAccessToken(saJson, scopes) {
   return data.access_token;
 }
 
-async function fetchGlobalGoogleToken() {
+async function fetchGlobalGoogleToken(options = {}) {
   if (fetchingGlobal) return "";
   fetchingGlobal = true;
   try {
+    const scopes = getGoogleScopesFromAction(options.action || {});
     const credFile = process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GOOGLE_CREDENTIALS_PATH;
     const saJson = parseSaJson(process.env.GOOGLE_SA_JSON) || loadSaFile(credFile);
     const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
@@ -244,7 +281,7 @@ async function fetchGlobalGoogleToken() {
         attempts.push({
           source: "explicit service account",
           run: async () => saJson
-            ? saJsonToAccessToken(saJson, GOOGLE_WORKSPACE_SCOPES)
+            ? saJsonToAccessToken(saJson, scopes)
             : (() => { throw new Error("No SA JSON loaded and no keyFilename fallback."); })()
         });
       }
@@ -255,7 +292,7 @@ async function fetchGlobalGoogleToken() {
           run: async () => {
             // ADC attempts the GCP metadata server (169.254.169.254) which hangs
             // indefinitely on non-GCP hosts like Hostinger. Hard-cap at 5s.
-            const auth = new google.auth.GoogleAuth({ scopes: GOOGLE_WORKSPACE_SCOPES });
+            const auth = new google.auth.GoogleAuth({ scopes });
             const deadline = new Promise((_, reject) =>
               setTimeout(() => reject(new Error("ADC metadata server timeout (non-GCP host)")), 5000)
             );
@@ -340,12 +377,10 @@ export async function getGoogleAccessToken(options = {}) {
     }
   }
 
-  if (!token) token = await fetchGlobalGoogleToken();
+  if (!token) token = await fetchGlobalGoogleToken(options);
   if (token) cache.set(key, { token, expiresAt: Date.now() + 55 * 60000 });
   return token;
 }
 
-if (String(process.env.GOOGLE_AUTH_DISABLE_PREWARM || "").trim().toLowerCase() !== "true") {
-  fetchGlobalGoogleToken().catch(() => {});
-  setInterval(() => fetchGlobalGoogleToken().catch(() => {}), 50 * 60000).unref();
-}
+// Tokens are resolved lazily per action so the SQL-declared scope contract is
+// always available. An actionless global prewarm would bypass that authority.
