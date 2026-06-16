@@ -261,7 +261,20 @@ const baseInput = {
     parent_action_key: "test_action",
     endpoint_path_or_function: "/test",
     method: "POST",
-    module_binding: "test_module"
+    module_binding: "test_module",
+    schema_json: JSON.stringify({
+      operationId: "testOperation",
+      method: "POST",
+      path: "/test",
+      bodySchema: {
+        type: "object",
+        additionalProperties: true
+      },
+      response: {
+        type: "object",
+        additionalProperties: true
+      }
+    })
   },
   brand: {
     brand_name: "Arab Cooling",
