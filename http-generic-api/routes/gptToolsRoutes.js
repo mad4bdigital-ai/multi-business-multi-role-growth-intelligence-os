@@ -1422,6 +1422,39 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     }
   }
 
+  if (callerType === "admin" && [
+    "growth_intelligence_insight_decide",
+    "growth_intelligence_action_decide",
+    "growth_intelligence_readiness_refresh",
+    "repository_advisory_comment_approval_hold_create",
+    "repository_advisory_comment_approval_hold_approve",
+  ].includes(toolKey)) {
+    try {
+      const handlers = {
+        growth_intelligence_insight_decide: decideGrowthIntelligenceInsightAdmin,
+        growth_intelligence_action_decide: decideGrowthIntelligenceActionAdmin,
+        growth_intelligence_readiness_refresh: refreshGrowthIntelligenceReadinessAdmin,
+        repository_advisory_comment_approval_hold_create: createRepositoryAdvisoryCommentApprovalHoldAdmin,
+        repository_advisory_comment_approval_hold_approve: approveRepositoryAdvisoryCommentApprovalHoldAdmin,
+      };
+      const result = await handlers[toolKey](args || {});
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "growth_intelligence_admin_decision_failed",
+            message: err?.message || "Growth Intelligence admin decision failed.",
+            ...(err?.details ? { details: err.details } : {}),
+          },
+          secrets_included: false,
+        },
+      };
+    }
+  }
+
   if (callerType === "admin" && toolKey === "growth_intelligence_pilot_run") {
     try {
       const result = await runGrowthIntelligencePilotAdmin(args || {});
