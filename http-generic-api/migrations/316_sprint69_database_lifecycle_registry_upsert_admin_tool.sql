@@ -45,3 +45,37 @@ ON DUPLICATE KEY UPDATE
   tags = VALUES(tags),
   is_enabled = VALUES(is_enabled),
   sort_order = VALUES(sort_order);
+
+INSERT INTO governed_migration_authorization_registry (
+  migration_file, authorization_status, authorization_source, policy_key,
+  risk_tier, requires_preflight, requires_confirmation,
+  allow_record_only, allow_apply, notes, metadata_json
+) VALUES (
+  '316_sprint69_database_lifecycle_registry_upsert_admin_tool.sql',
+  'authorized',
+  'migration_seed',
+  'governed_migration_runner_authorization_v1',
+  'medium',
+  1,
+  1,
+  1,
+  1,
+  'Authorize the additive lifecycle registry admin tool registration migration.',
+  JSON_OBJECT(
+    'scope','database_lifecycle_registry_upsert_admin_tool',
+    'bootstrap_authorization_required_for_first_apply',true,
+    'secrets_included',false
+  )
+)
+ON DUPLICATE KEY UPDATE
+  authorization_status = VALUES(authorization_status),
+  authorization_source = VALUES(authorization_source),
+  policy_key = VALUES(policy_key),
+  risk_tier = VALUES(risk_tier),
+  requires_preflight = VALUES(requires_preflight),
+  requires_confirmation = VALUES(requires_confirmation),
+  allow_record_only = VALUES(allow_record_only),
+  allow_apply = VALUES(allow_apply),
+  notes = VALUES(notes),
+  metadata_json = VALUES(metadata_json),
+  updated_at = CURRENT_TIMESTAMP;
