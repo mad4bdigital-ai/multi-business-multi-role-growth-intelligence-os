@@ -10,6 +10,8 @@ Use the virtual Admin tool `growth_intelligence_pilot_run` through `/gpt/tools/c
 
 For the first production pilot, use tenant `65f3f066-eefa-4625-9023-8318c858e94b`, brand key `arab_cooling`, and registry-backed activity `business_and_industrial_products`. The activity selection is an explicit current-registry approximation for HVAC/cooling and must be replaced if a more specific registered activity is added later.
 
+Use `growth_intelligence_insight_decide` and `growth_intelligence_action_decide` for persisted review decisions. Action approval updates its linked hold and report state but always returns `execution_dispatched=false`. Recompute evidence with `growth_intelligence_readiness_refresh`; `review_ready` remains non-executable. For one V5 GitHub advisory comment, create a dedicated plan-bound hold with `repository_advisory_comment_approval_hold_create`, approve it only with the returned typed confirmation through `repository_advisory_comment_approval_hold_approve`, then call the system-layer apply and readback tools. Do not reuse Growth Intelligence action holds for repository comments.
+
 ## Status Response
 
 | Signal | Operator action |

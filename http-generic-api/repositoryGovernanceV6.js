@@ -5,9 +5,8 @@ import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import { markCapabilityEnvelopeReferenced, resolveCapabilityExecutionEnvelope } from "./capabilityResolutionEnvelopeGuard.js";
 import {
   REPOSITORY_PR_RECONCILE_RECIPE_KEY,
-  createRepositoryAuthorityBinding,
+  findUsableRepositoryProviderBinding,
   normalizeGithubRepoRef,
-  revokeRepositoryAuthorityBinding,
   tenantRepositoryPrReconciliationSweep,
 } from "./repositoryTenantIntelligenceV2.js";
 
@@ -871,38 +870,12 @@ export async function tenantRepositoryMutationReadbackV6(args = {}, { auth = {} 
   return { ok: readback.ok, tool: "tenant_repository_mutation_readback_v6", classification: readback.ok ? "repository_mutation_readback_verified" : "repository_mutation_readback_unverified", run: mutationRunPublicV6(updated), evidence, provider_calls_made: 1, mutations_executed: false, secrets_included: false };
 }
 export async function tenantRepositoryGovernanceV6ReadinessSmoke(args = {}, { auth = {}, runGovernedResource } = {}) {
-  const tenantId = s(args.tenant_id || `repo_v6_${randomUUID()}`).slice(0, 36);
-  const repoRef = normalizeGithubRepoRef(args) || normalizeGithubRepoRef({ owner: "mad4bdigital-ai", repo: "multi-business-multi-role-growth-intelligence-os" });
-  const create = await createRepositoryAuthorityBinding({ tenant_id: tenantId, owner: repoRef.owner, repo: repoRef.repo, permission_level: "read_only", allowed_modes: ["read_only"], authority_source: "system_seed", notes: "temporary repository governance v6 readiness binding", created_by: "system:repository_governance_v6_readiness" }, { auth: { ...auth, is_admin: true } });
-  let report;
-  try {
-    report = await tenantRepositoryIntelligenceV6Report({ tenant_id: tenantId, owner: repoRef.owner, repo: repoRef.repo, limit: 1, equivalence_file_limit: 1, record_evidence: true }, { auth: { ...auth, is_admin: true }, runGovernedResource });
-  } finally {
-    if (create?.binding?.binding_id) await revokeRepositoryAuthorityBinding({ binding_id: create.binding.binding_id, revoked_by: "system:repository_governance_v6_readiness" }, { auth: { ...auth, is_admin: true } });
-  }
-  const [[revokedBinding]] = create?.binding?.binding_id
-    ? await getPool().query(`SELECT status FROM platform_resource_authority_bindings WHERE binding_id=? LIMIT 1`, [create.binding.binding_id])
-    : [[null]];
-  const [[commentRecipe]] = await getPool().query(`SELECT status, risk_class, mode, read_only, requires_capability_envelope, requires_typed_confirmation, requires_same_cycle_readback FROM platform_resource_recipes WHERE recipe_key='repo.pr.comment_advisory' LIMIT 1`);
-  let plannedMutationBlocked = false;
-  try { await loadActiveMutationRecipeV6("repo.pr.label"); }
-  catch (error) { plannedMutationBlocked = error?.code === "repository_mutation_recipe_not_active"; }
-  const [[tableCount]] = await getPool().query(`SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('repository_mutation_plans_v6','repository_mutation_runs_v6')`);
-  const descriptorNames = TENANT_REPOSITORY_GOVERNANCE_V6_SYSTEM_TOOLS.map((tool) => tool.name);
-  const checks = [
-    { name: "scope_hierarchy_validated", pass: report?.report?.scope?.validated === true },
-    { name: "provider_binding_validated", pass: report?.report?.provider?.ok === true },
-    { name: "deep_pr_evidence_present", pass: Array.isArray(report?.report?.pull_requests) },
-    { name: "temporary_binding_revoked", pass: revokedBinding?.status === "revoked" || revokedBinding?.status === "archived" },
-    { name: "comment_recipe_active_and_gated", pass: commentRecipe?.status === "active" && commentRecipe?.risk_class === "mutation" && commentRecipe?.mode === "apply" && Number(commentRecipe?.read_only) === 0 && Number(commentRecipe?.requires_capability_envelope) === 1 && Number(commentRecipe?.requires_typed_confirmation) === 1 && Number(commentRecipe?.requires_same_cycle_readback) === 1 },
-    { name: "planned_mutation_fails_closed", pass: plannedMutationBlocked },
-    { name: "plan_and_run_ledgers_present", pass: Number(tableCount?.c || 0) === 2 },
-    { name: "six_descriptor_tools_present", pass: descriptorNames.length === 6 && descriptorNames.includes("tenant_repository_mutation_apply_v6") && descriptorNames.includes("tenant_repository_mutation_readback_v6") },
-    { name: "no_mutation", pass: report?.mutations_executed === false },
-    { name: "no_secrets", pass: report?.secrets_included === false },
-  ];
-  const ok = checks.every((item) => item.pass);
-  return { ok, tool: "tenant_repository_governance_v6_readiness_smoke", status: ok ? "pass" : "fail", classification: ok ? "repository_governance_v6_ready" : "repository_governance_v6_not_ready", checks, descriptor_tools: descriptorNames, apply_allowed: false, mutations_executed: false, secrets_included: false };
+  const repoRef=normalizeGithubRepoRef(args)||normalizeGithubRepoRef({owner:'mad4bdigital-ai',repo:'multi-business-multi-role-growth-intelligence-os'});
+  const providerBinding=await findUsableRepositoryProviderBinding(repoRef);
+  if(!providerBinding) return {ok:false,tool:'tenant_repository_governance_v6_readiness_smoke',status:'authorization_gated',classification:'repository_governance_v6_authorization_gated',reason_code:'repository_provider_binding_required',checks:[{name:'provider_binding_required',pass:true},{name:'no_mutation',pass:true},{name:'no_secrets',pass:true}],apply_allowed:false,mutations_executed:false,secrets_included:false};
+  const tenantId=providerBinding.tenant_id,workspaceId=providerBinding.workspace_id||null;
+  const report=await tenantRepositoryIntelligenceV6Report({tenant_id:tenantId,workspace_id:workspaceId,owner:repoRef.owner,repo:repoRef.repo,limit:1,equivalence_file_limit:1,record_evidence:true},{auth:{...auth,is_admin:true},runGovernedResource});
+  const [[commentRecipe]]=await getPool().query(`SELECT status,risk_class,mode,read_only,requires_capability_envelope,requires_typed_confirmation,requires_same_cycle_readback FROM platform_resource_recipes WHERE recipe_key='repo.pr.comment_advisory' LIMIT 1`);let plannedMutationBlocked=false;try{await loadActiveMutationRecipeV6('repo.pr.label')}catch(error){plannedMutationBlocked=error?.code==='repository_mutation_recipe_not_active'}const [[tableCount]]=await getPool().query(`SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('repository_mutation_plans_v6','repository_mutation_runs_v6')`);const descriptorNames=TENANT_REPOSITORY_GOVERNANCE_V6_SYSTEM_TOOLS.map((tool)=>tool.name);const checks=[{name:'scope_hierarchy_validated',pass:report?.report?.scope?.validated===true},{name:'provider_binding_validated',pass:report?.report?.provider?.ok===true},{name:'deep_pr_evidence_present',pass:Array.isArray(report?.report?.pull_requests)},{name:'provider_bound_authority_present',pass:Boolean(providerBinding.source_system_id||providerBinding.source_installation_id)},{name:'comment_recipe_active_and_gated',pass:commentRecipe?.status==='active'&&commentRecipe?.risk_class==='mutation'&&commentRecipe?.mode==='apply'&&Number(commentRecipe?.read_only)===0&&Number(commentRecipe?.requires_capability_envelope)===1&&Number(commentRecipe?.requires_typed_confirmation)===1&&Number(commentRecipe?.requires_same_cycle_readback)===1},{name:'planned_mutation_fails_closed',pass:plannedMutationBlocked},{name:'plan_and_run_ledgers_present',pass:Number(tableCount?.c||0)===2},{name:'six_descriptor_tools_present',pass:descriptorNames.length===6&&descriptorNames.includes('tenant_repository_mutation_apply_v6')&&descriptorNames.includes('tenant_repository_mutation_readback_v6')},{name:'no_mutation',pass:report?.mutations_executed===false},{name:'no_secrets',pass:report?.secrets_included===false}];const ok=checks.every((item)=>item.pass);return {ok,tool:'tenant_repository_governance_v6_readiness_smoke',status:ok?'pass':'fail',classification:ok?'repository_governance_v6_ready':'repository_governance_v6_not_ready',checks,descriptor_tools:descriptorNames,binding_id:providerBinding.binding_id,apply_allowed:false,mutations_executed:false,secrets_included:false};
 }
 
 export const TENANT_REPOSITORY_GOVERNANCE_V6_SYSTEM_TOOLS = [
