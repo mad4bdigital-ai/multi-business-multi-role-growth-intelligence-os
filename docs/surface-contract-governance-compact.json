@@ -1,17 +1,23 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 99.3,
+  "docs_completion_percent": 99.07,
   "docs_complete_count": 425,
-  "docs_gap_count": 3,
-  "queue_items": 3,
-  "blocking_new_item_count": 2,
+  "docs_gap_count": 4,
+  "queue_items": 4,
+  "blocking_new_item_count": 3,
   "gate_ok": false,
   "top_actionable": [
     {
       "migration_file": "1011_sprint69_governed_repository_engine_v6.sql",
       "queue_class": "critical_review",
       "score": 1171,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
+      "migration_file": "20260615_tenant_growth_dashboard_product.sql",
+      "queue_class": "high_review",
+      "score": 662,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
@@ -24,13 +30,13 @@
   "openapi_missing_sql_route_count": 0,
   "openapi_exempt_sql_route_count": 558,
   "total_sql_route_like_count": 558,
-  "safety_marker_gap_migrations": 1,
+  "safety_marker_gap_migrations": 2,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 2,
-    "warning_new_item_count": 2
+    "blocking_new_item_count": 3,
+    "warning_new_item_count": 3
   },
   "safety": {
     "executes_provider_calls": false,

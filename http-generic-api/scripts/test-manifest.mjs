@@ -326,6 +326,7 @@ export const testCommands = [
   "node test-activation-source-table-coverage-audit.mjs",
   "node test-activation-positive-surface-fixtures.mjs",
   "node test-activation-hard-evidence.mjs",
+  "node test-tenant-growth-dashboard.mjs",
   "node test-activation-awareness-completeness.mjs",
   "node test-session-archive-service.mjs",
   "node test-gpt-session-archive-monitoring.mjs",
