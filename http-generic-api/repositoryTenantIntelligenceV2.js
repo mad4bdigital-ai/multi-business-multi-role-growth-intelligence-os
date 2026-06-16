@@ -388,6 +388,22 @@ export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { 
     owner: "mad4bdigital-ai",
     repo: "multi-business-multi-role-growth-intelligence-os",
   });
+  const membership = await selectRepositoryReadinessSmokeMembership(repoRef);
+  if (!membership?.tenant_id || !membership?.user_id) {
+    return {
+      ok: false,
+      tool: "tenant_repository_intelligence_v2_readiness_smoke",
+      status: "fail",
+      classification: "tenant_repository_intelligence_v2_membership_missing",
+      checks: [{ name: "active_tenant_membership_available", pass: false }],
+      reason_code: "active_tenant_membership_required_for_smoke",
+      apply_allowed: false,
+      mutations_executed: false,
+      secrets_included: false,
+    };
+  }
+  const tenantId = membership.tenant_id;
+  const userId = membership.user_id;
   const requiredDescriptorTools = [
     "platform_resource_authority_binding_create",
     "platform_resource_authority_binding_list",
