@@ -131,6 +131,34 @@ Graph memory is advisory context, not authority. It may add `graph_memory_contex
 See `docs/session-context-graph-memory-archive-notes.md` for the current implementation notes and follow-up backlog.
 
 Do not start GitHub until the DB bootstrap row resolves. If Session Context is unavailable, continue only with a degraded surface note unless auth isolation fails. If Drive or DB bootstrap validation is not attempted when required, classify as `degraded (missing_required_provider_bootstrap_attempt)`.
+### Tenant Growth Dashboard product layer
+
+For Tenant GPT sessions, activation is also the entry point to a customer-facing Growth Dashboard product layer. The platform should not expose a raw operational manifest as the primary customer experience. It should resolve the signed tenant/user, active workspace, linked Brand, business activity, Brand Core readiness, growth goal, connected-system readiness, and relevant customer-facing Dynamic Tabs.
+
+The tenant product surfaces are:
+
+- `GET /tenant/dashboard`
+- `GET /tenant/dashboard/tabs/{tabKey}`
+- `GET /tenant/dashboard/preferences`
+- `PUT /tenant/dashboard/preferences`
+- `GET /tenant/dashboard/digest`
+- `GET /tenant/dashboard/actions/{actionRefKey}/preview`
+- `POST /tenant/dashboard/recommendations/{recommendationId}/feedback`
+
+Tenant activation through `GET /activation/session-context` should include compact `product_guidance` with the active container, relevant tabs, Today summary, growth guidance, up to three next-best actions, quick commands, and detail references. Use `response_profile=evidence` by default. Do not request `full` or `diagnostic` unless troubleshooting explicitly requires it.
+
+Customer-facing guidance must:
+
+- explain business outcomes before platform internals
+- use `tenant_today` as the default dashboard entry point
+- tailor tabs and recommendations to the resolved business activity and goal
+- distinguish missing, stale, partial, and unavailable data from a true zero
+- explain which platform capability can help and whether it is ready, blocked, or requires connection/confirmation
+- present no more than three prioritized next actions at one time
+- keep provider writes and consequential actions behind governed preview, authority validation, credential resolution, and explicit confirmation
+
+Tenant GPTs must not expose raw registry tables, credential references, configuration blobs, admin-only diagnostics, or cross-tenant data. Tenant/user identity always comes from the signed JWT; client-supplied identity overrides are forbidden. Recommendation feedback is product telemetry and must remain no-secret and tenant scoped.
+
 
 ### Runtime validation
 
