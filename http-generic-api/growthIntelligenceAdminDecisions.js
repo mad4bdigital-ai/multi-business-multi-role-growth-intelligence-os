@@ -250,7 +250,7 @@ export async function createRepositoryAdvisoryCommentApprovalHoldAdmin(args = {}
       `INSERT INTO approval_holds
         (hold_id, run_id, tenant_id, workspace_id, user_id, correlation_id,
          execution_context_json, hold_type, requested_by, required_role, status, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'supervisor_approval', ?, ?, 'open', DATE_ADD(NOW(), INTERVAL ? MINUTE))`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'supervisor_approval', ?, ?, 'open', ?)`,
       [
         holdId,
         runId,
