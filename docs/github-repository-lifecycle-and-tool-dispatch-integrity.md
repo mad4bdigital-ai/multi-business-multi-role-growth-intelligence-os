@@ -47,7 +47,7 @@ Local connector diagnosis also treated Cloudflare tunnel status as a proxy for t
 - Authorize migration 311 through the governed migration authorization process; do not add it to legacy bootstrap allowlists.
 - Apply migration 311 through the governed migration runner after authorization.
 - Run `platform_tool_binding_integrity_audit` and require zero critical gaps for the GitHub action family.
-- Use `github_branch_delete` to remove obsolete closed-PR branches after verifying expected SHA.
+- Use `github_branch_delete` only after reading the actual GitHub default branch, verifying expected SHA, rejecting open PRs, proving `ahead_by=0` against the default branch, re-reading SHA immediately before deletion, and confirming same-cycle ref absence.
 
 ## Consequences
 
