@@ -4,9 +4,9 @@
 
 ## Summary
 
-- Total queue items: 3
+- Total queue items: 4
 - Critical review: 2
-- High review: 1
+- High review: 2
 - Medium review: 0
 - Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
@@ -41,7 +41,22 @@
 - `document_surface_contract` → docs-agent/human-review; targets: `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tool`, `capability_vault_record_only_same_cycle_v1`, `capability_vault_record_only_transaction_rollback_v1`, `capability_vault_repo_ingestion_record`, `confirm_record_only`, `confirm_record_only_required`, `grants_dispatch_or_apply`, `platform_capability_vault_record_only`, `platform_capability_vault_repo_ingestion_record`, `ptdb_capability_vault_repo_ingestion_record`, `same_cycle_readback`
 
-### 3. `1012_sprint69_sql_only_runtime_auth_schema.sql`
+### 3. `20260615_tenant_growth_dashboard_product.sql`
+
+- Queue class: high_review
+- Score: 662
+- Gap severity: medium
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+- Surface counts: plugins=0, tools=6, views=3, policies=0, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `agent_readiness_interpretation`, `brand_readiness`, `data_readiness`, `growth_readiness_interpretation`, `integration_readiness_interpretation`, `skill_readiness_interpretation`
+- `verify_readback_view` → db-readback-review; targets: `v_activation_agent_catalog`, `v_activation_agent_skill_grants`, `v_activation_pending_tasks`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+
+### 4. `1012_sprint69_sql_only_runtime_auth_schema.sql`
 
 - Queue class: high_review
 - Score: 527
