@@ -6,23 +6,23 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 429,
-    "docs_complete_count": 425,
+    "migrations_with_surfaces": 430,
+    "docs_complete_count": 426,
     "docs_gap_count": 4,
     "docs_completion_percent": 99.07,
     "surface_totals": {
       "plugins": 12,
-      "tools": 1995,
+      "tools": 1996,
       "views": 380,
       "policies": 157,
-      "routes": 558
+      "routes": 559
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 364,
+      "tools": 365,
       "views": 155,
       "policies": 99,
-      "routes": 234
+      "routes": 235
     },
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 3,
@@ -35,7 +35,7 @@
       "high": 2,
       "medium": 2,
       "low": 0,
-      "none": 425
+      "none": 426
     },
     "high_risk_missing_docs": [
       "1011_sprint69_governed_repository_engine_v6.sql",
@@ -46,21 +46,21 @@
       "20260615_tenant_growth_dashboard_product.sql"
     ],
     "safety_marker_counts": {
-      "no_provider_call": 426,
-      "no_credential_payload_read": 426,
-      "no_raw_secrets": 426,
-      "no_external_send": 426,
-      "no_external_write": 426,
-      "secrets_included_false": 427
+      "no_provider_call": 427,
+      "no_credential_payload_read": 427,
+      "no_raw_secrets": 427,
+      "no_external_send": 427,
+      "no_external_write": 427,
+      "secrets_included_false": 428
     },
     "safety_marker_gap_migrations": 2,
     "route_coverage": {
       "sql_route_count": 0,
-      "total_sql_route_like_count": 558,
-      "openapi_exempt_sql_route_count": 558,
+      "total_sql_route_like_count": 559,
+      "openapi_exempt_sql_route_count": 559,
       "route_class_counts": {
         "http_route": 0,
-        "admin_tool_registry_route": 115,
+        "admin_tool_registry_route": 116,
         "tenant_tool_registry_route": 35,
         "system_tool_dispatch_route": 13,
         "registry_only_surface": 1,
