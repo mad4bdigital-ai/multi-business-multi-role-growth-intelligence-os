@@ -13,7 +13,6 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
     action,
     endpoint,
     brand,
-    drive,
     hostingAccounts,
     policies,
     callerHeaders,
