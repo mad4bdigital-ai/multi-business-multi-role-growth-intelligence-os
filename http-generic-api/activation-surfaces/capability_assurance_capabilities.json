@@ -1,0 +1,20 @@
+{
+  "surface_key": "capability_assurance_capabilities",
+  "display_name": "Capability Assurance Capabilities",
+  "description": "Admin-only canonical capability readiness metadata without execution payloads or secret-bearing fields.",
+  "source_table": "platform_plugin_capabilities",
+  "covered_source_tables": ["platform_plugin_capabilities"],
+  "result_key_column": "capability_key",
+  "result_label_column": "display_name",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": ["active"],
+  "result_columns": ["capability_key", "plugin_key", "display_name", "capability_family", "source_table", "source_key", "operation_class", "risk_class", "runtime_status", "exposure_scope", "authority_requirement_type", "resource_authority_required", "dispatch_allowed", "apply_allowed", "requires_audit_evidence", "requires_readback", "legacy_evidence_ref", "status", "updated_at"],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 100,
+  "sort_order": 271,
+  "status": "active",
+  "notes": "Excludes metadata_json and any provider payload."
+}
