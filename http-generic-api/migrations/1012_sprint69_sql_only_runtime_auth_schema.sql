@@ -152,7 +152,7 @@ SELECT
   0 AS external_file_runtime_required
 FROM actions a
 LEFT JOIN endpoints e ON e.parent_action_key=a.action_key
-LEFT JOIN credential_bindings cb ON cb.action_key=a.action_key AND cb.tenant_id='00000000-0000-0000-0000-000000000000'
+LEFT JOIN credential_bindings cb ON cb.action_key COLLATE utf8mb4_unicode_ci=a.action_key COLLATE utf8mb4_unicode_ci AND cb.tenant_id='00000000-0000-0000-0000-000000000000'
 LEFT JOIN secret_references sr_client ON sr_client.tenant_id='00000000-0000-0000-0000-000000000000' AND sr_client.secret_key='GOOGLE_CLIENT_ID' AND sr_client.status='active'
 LEFT JOIN secret_references sr_secret ON sr_secret.tenant_id='00000000-0000-0000-0000-000000000000' AND sr_secret.secret_key='GOOGLE_CLIENT_SECRET' AND sr_secret.status='active'
 WHERE a.action_key IN ('analytics_admin_api','analytics_data_api','google_docs_api','google_drive_api','google_sheets_api','googleads_api','searchads360_api','searchconsole_api','tagmanager_api')
