@@ -124,7 +124,7 @@ const connection = {
       };
       return [{ affectedRows: 1 }];
     }
-    if (sql.includes("UPDATE repository_advisory_comment_plans") && sql.includes("approval_hold_id = ?")) {
+    if (sql.includes("UPDATE repository_advisory_comment_plans") && sql.includes("SET approval_hold_id = ?")) {
       state.plan.approval_hold_id = params[0];
       state.plan.status = "approval_required";
       return [{ affectedRows: 1 }];
