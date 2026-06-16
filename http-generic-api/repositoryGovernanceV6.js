@@ -5,7 +5,6 @@ import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import { markCapabilityEnvelopeReferenced, resolveCapabilityExecutionEnvelope } from "./capabilityResolutionEnvelopeGuard.js";
 import {
   REPOSITORY_PR_RECONCILE_RECIPE_KEY,
-  findUsableRepositoryProviderBinding,
   normalizeGithubRepoRef,
   tenantRepositoryPrReconciliationSweep,
 } from "./repositoryTenantIntelligenceV2.js";
