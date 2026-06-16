@@ -37,7 +37,6 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
     mintGoogleAccessTokenForEndpoint,
     isDelegatedTransportTarget,
     ensureWritePermissions,
-    fetchSchemaContract,
     resolveSchemaOperation,
     injectAuthForSchemaValidation,
     getAdditionalStaticAuthHeaders,
