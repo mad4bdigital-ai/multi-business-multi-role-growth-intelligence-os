@@ -1,7 +1,7 @@
 {
   "ok": true,
   "schema_version": "surface-contract-discovery-v3",
-  "migration_surface_count": 425,
+  "migration_surface_count": 426,
   "reported_count": 80,
   "openapi_operation_count": 465,
   "openapi_path_count": 412,
@@ -521,55 +521,57 @@
     "closed_migration_count": 399
   },
   "coverage_summary": {
-    "migrations_with_surfaces": 425,
+    "migrations_with_surfaces": 426,
     "docs_complete_count": 425,
-    "docs_gap_count": 0,
-    "docs_completion_percent": 100,
+    "docs_gap_count": 1,
+    "docs_completion_percent": 99.77,
     "surface_totals": {
       "plugins": 12,
-      "tools": 1954,
+      "tools": 1965,
       "views": 375,
       "policies": 155,
-      "routes": 556
+      "routes": 557
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 360,
+      "tools": 361,
       "views": 153,
       "policies": 98,
-      "routes": 232
+      "routes": 233
     },
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 0,
       "deployment_parity_checklist.md": 0,
       "docs/ai-docs-agent-governance.md": 0,
-      "docs/auto-docs-agent/README.md": 0,
-      "docs/change-documentation-governance.md": 0
+      "docs/auto-docs-agent/README.md": 1,
+      "docs/change-documentation-governance.md": 1
     },
     "gap_severity_counts": {
-      "high": 0,
+      "high": 1,
       "medium": 0,
       "low": 0,
       "none": 425
     },
-    "high_risk_missing_docs": [],
+    "high_risk_missing_docs": [
+      "315_sprint69_capability_vault_record_tool_export.sql"
+    ],
     "medium_risk_missing_docs": [],
     "safety_marker_counts": {
-      "no_provider_call": 425,
-      "no_credential_payload_read": 425,
-      "no_raw_secrets": 425,
-      "no_external_send": 425,
-      "no_external_write": 425,
-      "secrets_included_false": 425
+      "no_provider_call": 426,
+      "no_credential_payload_read": 426,
+      "no_raw_secrets": 426,
+      "no_external_send": 426,
+      "no_external_write": 426,
+      "secrets_included_false": 426
     },
     "safety_marker_gap_migrations": 0,
     "route_coverage": {
       "sql_route_count": 0,
-      "total_sql_route_like_count": 556,
-      "openapi_exempt_sql_route_count": 556,
+      "total_sql_route_like_count": 557,
+      "openapi_exempt_sql_route_count": 557,
       "route_class_counts": {
         "http_route": 0,
-        "admin_tool_registry_route": 114,
+        "admin_tool_registry_route": 115,
         "tenant_tool_registry_route": 35,
         "system_tool_dispatch_route": 12,
         "registry_only_surface": 1,
@@ -585,14 +587,73 @@
   "gap_queue": {
     "ok": true,
     "schema_version": "surface-contract-gap-queue-v1",
-    "total_items": 0,
+    "total_items": 1,
     "class_counts": {
-      "critical_review": 0,
+      "critical_review": 1,
       "high_review": 0,
       "medium_review": 0,
       "low_review": 0
     },
-    "top_items": [],
+    "top_items": [
+      {
+        "migration_file": "315_sprint69_capability_vault_record_tool_export.sql",
+        "score": 831,
+        "queue_class": "critical_review",
+        "gap_severity": "high",
+        "documentation_complete": false,
+        "missing_docs": [
+          "docs/auto-docs-agent/README.md",
+          "docs/change-documentation-governance.md"
+        ],
+        "missing_openapi_routes": [],
+        "safety_marker_gaps": [],
+        "surface_counts": {
+          "plugins": 0,
+          "tools": 11,
+          "views": 0,
+          "policies": 0,
+          "routes": 1
+        },
+        "remediation": [
+          {
+            "action_key": "document_surface_contract",
+            "owner_hint": "docs-agent/human-review",
+            "targets": [
+              "docs/auto-docs-agent/README.md",
+              "docs/change-documentation-governance.md"
+            ],
+            "reason": "Migration surfaces are not mentioned in all required documentation targets."
+          },
+          {
+            "action_key": "verify_tool_registry_binding",
+            "owner_hint": "runtime-registry-review",
+            "targets": [
+              "admin_platform_endpoint_tool",
+              "capability_vault_record_only_same_cycle_v1",
+              "capability_vault_record_only_transaction_rollback_v1",
+              "capability_vault_repo_ingestion_record",
+              "confirm_record_only",
+              "confirm_record_only_required",
+              "grants_dispatch_or_apply",
+              "platform_capability_vault_record_only",
+              "platform_capability_vault_repo_ingestion_record",
+              "ptdb_capability_vault_repo_ingestion_record",
+              "same_cycle_readback"
+            ],
+            "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
+          }
+        ],
+        "safety": {
+          "executes_provider_calls": false,
+          "reads_credentials": false,
+          "mutates_runtime": false,
+          "writes_database": false,
+          "external_sends": false,
+          "deploys": false,
+          "secrets_included": false
+        }
+      }
+    ],
     "safety": {
       "executes_provider_calls": false,
       "reads_credentials": false,
@@ -2525,6 +2586,101 @@
         },
         "surface_count": 8,
         "safety_marker_count": 1
+      }
+    },
+    {
+      "migration_file": "315_sprint69_capability_vault_record_tool_export.sql",
+      "legacy_backlog_closed": false,
+      "safety_attestation": null,
+      "surfaces": {
+        "routes": [
+          "/platform/capability-vault/repo-ingestion-record"
+        ],
+        "route_classifications": [
+          {
+            "route": "/platform/capability-vault/repo-ingestion-record",
+            "route_class": "admin_tool_registry_route",
+            "openapi_required": false,
+            "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+          }
+        ],
+        "views": [],
+        "policies": [],
+        "plugins": [],
+        "tools": [
+          "admin_platform_endpoint_tool",
+          "capability_vault_record_only_same_cycle_v1",
+          "capability_vault_record_only_transaction_rollback_v1",
+          "capability_vault_repo_ingestion_record",
+          "confirm_record_only",
+          "confirm_record_only_required",
+          "grants_dispatch_or_apply",
+          "platform_capability_vault_record_only",
+          "platform_capability_vault_repo_ingestion_record",
+          "ptdb_capability_vault_repo_ingestion_record",
+          "same_cycle_readback"
+        ],
+        "safety": {
+          "no_provider_call": true,
+          "no_credential_payload_read": true,
+          "no_raw_secrets": true,
+          "no_external_send": true,
+          "no_external_write": true,
+          "secrets_included_false": true
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": true,
+        "deployment_parity_checklist.md": true,
+        "docs/ai-docs-agent-governance.md": true,
+        "docs/auto-docs-agent/README.md": false,
+        "docs/change-documentation-governance.md": false
+      },
+      "missing_docs": [
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "documentation_complete": false,
+      "coverage": {
+        "gap_severity": "high",
+        "requires_docs_review": true,
+        "route_coverage": {
+          "route_count": 0,
+          "total_route_count": 1,
+          "openapi_required_route_count": 0,
+          "exempted_route_count": 1,
+          "route_class_counts": {
+            "http_route": 0,
+            "admin_tool_registry_route": 1,
+            "tenant_tool_registry_route": 0,
+            "system_tool_dispatch_route": 0,
+            "registry_only_surface": 0,
+            "false_positive_route_like_string": 0,
+            "legacy_closure_route_reviewed": 0
+          },
+          "documented_count": 0,
+          "missing_count": 0,
+          "documented_routes": [],
+          "missing_routes": [],
+          "exempted_routes": [
+            {
+              "route": "/platform/capability-vault/repo-ingestion-record",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            }
+          ],
+          "route_classifications": [
+            {
+              "route": "/platform/capability-vault/repo-ingestion-record",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            }
+          ]
+        },
+        "surface_count": 12,
+        "safety_marker_count": 6
       }
     },
     {
@@ -7885,119 +8041,6 @@
         },
         "surface_count": 17,
         "safety_marker_count": 2
-      }
-    },
-    {
-      "migration_file": "267_sprint68_ticket_external_adapter_readiness_checklist.sql",
-      "legacy_backlog_closed": true,
-      "safety_attestation": null,
-      "surfaces": {
-        "routes": [
-          "/admin/support/tickets/external-send/provider-adapter-readiness/plan",
-          "/admin/support/tickets/external-send/provider-adapter-readiness/record"
-        ],
-        "route_classifications": [
-          {
-            "route": "/admin/support/tickets/external-send/provider-adapter-readiness/plan",
-            "route_class": "legacy_closure_route_reviewed",
-            "openapi_required": false,
-            "reason": "Route-like literal belongs to 267_sprint68_ticket_external_adapter_readiness_checklist.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
-          },
-          {
-            "route": "/admin/support/tickets/external-send/provider-adapter-readiness/record",
-            "route_class": "legacy_closure_route_reviewed",
-            "openapi_required": false,
-            "reason": "Route-like literal belongs to 267_sprint68_ticket_external_adapter_readiness_checklist.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
-          }
-        ],
-        "views": [
-          "v_external_delivery_provider_adapter_readiness_checklist_summary"
-        ],
-        "policies": [
-          "external_adapter_readiness_checklist_policy_v1"
-        ],
-        "plugins": [],
-        "tools": [
-          "admin_platform_endpoint_tools",
-          "external_adapter_readiness_checklist_is_pre_implementation_only",
-          "external_adapter_readiness_checklist_policy_v1",
-          "external_delivery_provider_adapter_readiness_checklists",
-          "provider_dispatch_enablement_allowed",
-          "requires_separate_dispatch_policy",
-          "support_ticket_external_adapter_readiness_plan",
-          "support_ticket_external_adapter_readiness_record",
-          "v_external_delivery_provider_adapter_readiness_checklist_summary"
-        ],
-        "safety": {
-          "no_provider_call": false,
-          "no_credential_payload_read": false,
-          "no_raw_secrets": false,
-          "no_external_send": false,
-          "no_external_write": false,
-          "secrets_included_false": true
-        }
-      },
-      "docs": {
-        "Updating Registry Patch Index.md": true,
-        "deployment_parity_checklist.md": true,
-        "docs/ai-docs-agent-governance.md": true,
-        "docs/auto-docs-agent/README.md": true,
-        "docs/change-documentation-governance.md": true
-      },
-      "missing_docs": [],
-      "documentation_complete": true,
-      "coverage": {
-        "gap_severity": "none",
-        "requires_docs_review": false,
-        "route_coverage": {
-          "route_count": 0,
-          "total_route_count": 2,
-          "openapi_required_route_count": 0,
-          "exempted_route_count": 2,
-          "route_class_counts": {
-            "http_route": 0,
-            "admin_tool_registry_route": 0,
-            "tenant_tool_registry_route": 0,
-            "system_tool_dispatch_route": 0,
-            "registry_only_surface": 0,
-            "false_positive_route_like_string": 0,
-            "legacy_closure_route_reviewed": 2
-          },
-          "documented_count": 0,
-          "missing_count": 0,
-          "documented_routes": [],
-          "missing_routes": [],
-          "exempted_routes": [
-            {
-              "route": "/admin/support/tickets/external-send/provider-adapter-readiness/plan",
-              "route_class": "legacy_closure_route_reviewed",
-              "openapi_required": false,
-              "reason": "Route-like literal belongs to 267_sprint68_ticket_external_adapter_readiness_checklist.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
-            },
-            {
-              "route": "/admin/support/tickets/external-send/provider-adapter-readiness/record",
-              "route_class": "legacy_closure_route_reviewed",
-              "openapi_required": false,
-              "reason": "Route-like literal belongs to 267_sprint68_ticket_external_adapter_readiness_checklist.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
-            }
-          ],
-          "route_classifications": [
-            {
-              "route": "/admin/support/tickets/external-send/provider-adapter-readiness/plan",
-              "route_class": "legacy_closure_route_reviewed",
-              "openapi_required": false,
-              "reason": "Route-like literal belongs to 267_sprint68_ticket_external_adapter_readiness_checklist.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
-            },
-            {
-              "route": "/admin/support/tickets/external-send/provider-adapter-readiness/record",
-              "route_class": "legacy_closure_route_reviewed",
-              "openapi_required": false,
-              "reason": "Route-like literal belongs to 267_sprint68_ticket_external_adapter_readiness_checklist.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
-            }
-          ]
-        },
-        "surface_count": 13,
-        "safety_marker_count": 1
       }
     }
   ],
@@ -44909,6 +44952,101 @@
           "route_classifications": []
         },
         "surface_count": 7,
+        "safety_marker_count": 6
+      }
+    },
+    {
+      "migration_file": "315_sprint69_capability_vault_record_tool_export.sql",
+      "legacy_backlog_closed": false,
+      "safety_attestation": null,
+      "surfaces": {
+        "routes": [
+          "/platform/capability-vault/repo-ingestion-record"
+        ],
+        "route_classifications": [
+          {
+            "route": "/platform/capability-vault/repo-ingestion-record",
+            "route_class": "admin_tool_registry_route",
+            "openapi_required": false,
+            "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+          }
+        ],
+        "views": [],
+        "policies": [],
+        "plugins": [],
+        "tools": [
+          "admin_platform_endpoint_tool",
+          "capability_vault_record_only_same_cycle_v1",
+          "capability_vault_record_only_transaction_rollback_v1",
+          "capability_vault_repo_ingestion_record",
+          "confirm_record_only",
+          "confirm_record_only_required",
+          "grants_dispatch_or_apply",
+          "platform_capability_vault_record_only",
+          "platform_capability_vault_repo_ingestion_record",
+          "ptdb_capability_vault_repo_ingestion_record",
+          "same_cycle_readback"
+        ],
+        "safety": {
+          "no_provider_call": true,
+          "no_credential_payload_read": true,
+          "no_raw_secrets": true,
+          "no_external_send": true,
+          "no_external_write": true,
+          "secrets_included_false": true
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": true,
+        "deployment_parity_checklist.md": true,
+        "docs/ai-docs-agent-governance.md": true,
+        "docs/auto-docs-agent/README.md": false,
+        "docs/change-documentation-governance.md": false
+      },
+      "missing_docs": [
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "documentation_complete": false,
+      "coverage": {
+        "gap_severity": "high",
+        "requires_docs_review": true,
+        "route_coverage": {
+          "route_count": 0,
+          "total_route_count": 1,
+          "openapi_required_route_count": 0,
+          "exempted_route_count": 1,
+          "route_class_counts": {
+            "http_route": 0,
+            "admin_tool_registry_route": 1,
+            "tenant_tool_registry_route": 0,
+            "system_tool_dispatch_route": 0,
+            "registry_only_surface": 0,
+            "false_positive_route_like_string": 0,
+            "legacy_closure_route_reviewed": 0
+          },
+          "documented_count": 0,
+          "missing_count": 0,
+          "documented_routes": [],
+          "missing_routes": [],
+          "exempted_routes": [
+            {
+              "route": "/platform/capability-vault/repo-ingestion-record",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            }
+          ],
+          "route_classifications": [
+            {
+              "route": "/platform/capability-vault/repo-ingestion-record",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            }
+          ]
+        },
+        "surface_count": 12,
         "safety_marker_count": 6
       }
     },
