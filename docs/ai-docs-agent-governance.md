@@ -156,3 +156,7 @@ docs/ai-docs-agent-governance.md
 ## Sprint 69 Capability Vault record-only tool export
 
 - `315_sprint69_capability_vault_record_tool_export.sql` exports the already implemented admin-only `/platform/capability-vault/repo-ingestion-record` route through `admin_platform_endpoint_tools` and binds it to `capability_vault_record_only_same_cycle_v1`. The tool remains confirmation-gated, transactional, audited, idempotent, no-execution, no-install, no-external-send, and no-secret.
+
+## Capability Assurance Graph documentation contract
+
+Migration 314_sprint69_capability_assurance_graph.sql is documented by docs/platform-capability-assurance-graph.md. Auto-docs must preserve the separation between capability requirements, invocation envelopes, resource authority, evidence, certification, debt, and closure state.
