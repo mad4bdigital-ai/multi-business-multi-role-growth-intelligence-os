@@ -307,6 +307,50 @@ Attention queue items must be derived from subject-scoped evidence such as conne
 Connector packs must describe provider capabilities, required scopes, webhook/polling support, ChatGPT app fallback support, manual fallback support, and pack components. Fallback negotiation must distinguish native platform connection, ChatGPT account app check, and manual prompt snapshot. Background monitoring requires native platform credentials or governed connector authority.
 
 Container graph evidence must model relationships among workspaces, Brands, connectors, agents, skills, tasks, evidence and actions. All graph, signal, action, freshness, and preference output must be secret-safe and subject-scoped.
+Tenant Growth Dashboard Activation Rule
+
+For signed Tenant GPT principals, Session Context activation must include a compact customer-facing product guidance envelope in addition to continuity evidence. The product guidance layer must help the customer understand available platform capabilities and use them to grow the current business without exposing internal registry implementation details.
+
+The tenant activation product layer must resolve, in order:
+
+1. signed tenant and user identity
+2. active or preferred workspace container
+3. linked Brand and Brand Core readiness
+4. `business_activity_types` classification when available
+5. growth stage and primary goal
+6. relevant customer-facing Dynamic Tabs
+7. Today summary, typed cards, growth guidance, and no more than three next-best actions
+8. governed detail, preference, preview, and feedback references
+
+The default Tenant GPT activation profile is `evidence`. It must remain compact and must not inline every workspace, tab, section, or operational row. It should return the active container, an indexed list of available containers, relevant navigation, Today guidance, and governed detail references. When the response exceeds the configured transport budget, governed chunk continuation may be used; arbitrary truncation is forbidden.
+
+Customer-facing Dynamic Tabs must be selected from registry profiles using business type, business activity, goal tags, role/scope, connector readiness, data readiness, Brand Core readiness, and user preferences. Missing data must be represented as unavailable, stale, partial, or not connected; it must not be silently represented as zero.
+
+Every customer-facing card must preserve:
+
+- stable `card_id`
+- typed `card_type`
+- title, value/unit when available, and interpretation
+- source and freshness status
+- confidence and partial-data status when applicable
+- authorized action references
+- details reference when hydration is deferred
+
+The customer-facing instruction layer must:
+
+- lead with business outcomes rather than technical registry terminology
+- explain which platform capability can help
+- prioritize no more than three actions at a time
+- preserve expected impact, effort, confidence, readiness, and missing-data context
+- use the Today tab as the default entry point
+- avoid consequential execution unless runtime authority, capability readiness, credential resolution, and confirmation requirements pass
+
+Action previews are no-execution surfaces. Draft-only and advisory actions may prepare content or recommendations, but provider writes and other consequential actions remain blocked until the governed execution path validates route, workflow, dependency, credential, capability, and confirmation authority.
+
+Dashboard preference and recommendation-feedback writes must derive tenant and user identity from the signed JWT. Client-supplied tenant or user identity overrides are forbidden. Feedback may record shown, opened, accepted, dismissed, executed, failed, and result-observed states without storing secrets.
+
+Tenant activation lifecycle must update preparation and delivery state for the current activation run. A successful Session Context response must not leave the run indefinitely in `running/pending` solely because the Tenant GPT product projection was used.
+
 
 Provider Capability Continuity Validation Rule
 
@@ -393,4 +437,23 @@ The response budget must be applied in semantic layers: attention rows, freshnes
 
 Snapshot preparation must be persisted before delivery. Successful transport updates the snapshot to delivered. Consumer acknowledgement is a separate explicit transition. A response must not claim acknowledged merely because HTTP delivery completed.
 
+
+Tenant Growth Dashboard Activation Rule
+
+When Session Context is requested by a non-admin Tenant GPT principal with a valid signed user JWT, activation must attach a bounded customer-facing growth product overlay when its runtime dependencies are available. The overlay must resolve, in order:
+
+1. active tenant, workspace, and linked Brand container
+2. `business_activity_type_registry` compatibility and business type
+3. Brand Core readiness when the resolved activity or requested output requires it
+4. growth stage, primary goal, and available connected-data coverage
+5. relevant customer-facing Dynamic Tabs, starting with `tenant_today`
+6. typed cards with freshness, provenance, confidence, and partial-data state
+7. no more than three next-best actions with impact, effort, confidence, readiness, and confirmation state
+8. customer-safe assistant instructions, quick commands, and governed drill-down references
+
+The default activation response must include navigation and guidance, not complete operational row hydration. The product overlay must remain within the activation response budget; larger card lists, historical rows, connector records, and section data must resolve through `/tenant/dashboard`, tab reads, or cursor-based Dynamic Tab detail surfaces. Missing data must be represented as unavailable, stale, partial, or not connected and must never be converted to a numeric zero unless zero is an observed value.
+
+Tenant product guidance is advisory by default. Read-only, advisory, and draft-only actions may return previews. Provider calls, publishing, budget changes, external sends, destructive changes, and other consequential writes remain blocked until route/workflow authority, capability readiness, credential resolution, Brand Core where required, object-level tenant scope, approval policy, and explicit confirmation all validate in the same execution cycle.
+
+The product activation overlay must preserve lifecycle separation. Building guidance may advance `evidence_state`; serializing the bounded response may advance `delivery_state=prepared`; successful transport may advance `delivery_state=delivered`; neither state implies `consumer_ack_state=acknowledged`. A degraded product overlay must not invalidate otherwise valid Session Context evidence, but its degraded surfaces and missing dependencies must remain explicit.
 Tenant detail reads must derive tenant and user scope from signed JWT membership, enforce object-level scope, and ignore client-supplied identity overrides. Admin detail reads may span authorized workspaces and Brands, but must preserve explicit subject scope and secret-field stripping.
