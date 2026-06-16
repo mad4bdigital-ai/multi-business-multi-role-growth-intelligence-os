@@ -1,0 +1,20 @@
+{
+  "surface_key": "capability_assurance_envelope_binding_links",
+  "display_name": "Capability Envelope Binding Links",
+  "description": "Admin-only normalized linkage between invocation envelopes and resource-authority bindings.",
+  "source_table": "platform_capability_envelope_binding_links",
+  "covered_source_tables": ["platform_capability_envelope_binding_links"],
+  "result_key_column": "envelope_id",
+  "result_label_column": "binding_id",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": ["active"],
+  "result_columns": ["envelope_id", "binding_id", "link_role", "status", "created_at"],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 100,
+  "sort_order": 276,
+  "status": "active",
+  "notes": "Binding links only; resource payloads and authorization secrets are excluded."
+}
