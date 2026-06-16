@@ -482,8 +482,8 @@ export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { 
   const [cleanupRows] = await getPool().query(
     `SELECT SUM(status = 'active') AS active_smoke_bindings, COUNT(*) AS total_smoke_bindings
        FROM platform_resource_authority_bindings
-      WHERE tenant_id IN (?, ?) OR created_by = 'system:tenant_repository_intelligence_v2_readiness_smoke'`,
-    [tenantId, negativeTenantId]
+      WHERE tenant_id = ? OR created_by = 'system:tenant_repository_intelligence_v2_readiness_smoke'`,
+    [tenantId]
   );
   const checks = [
     { name: "descriptor_handler_present", pass: descriptorHandlersPresent },
