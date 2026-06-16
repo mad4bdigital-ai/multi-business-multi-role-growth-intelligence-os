@@ -266,10 +266,11 @@ async function saJsonToAccessToken(saJson, scopes) {
   return data.access_token;
 }
 
-async function fetchGlobalGoogleToken() {
+async function fetchGlobalGoogleToken(options = {}) {
   if (fetchingGlobal) return "";
   fetchingGlobal = true;
   try {
+    const scopes = getGoogleScopesFromAction(options.action || {});
     const credFile = process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GOOGLE_CREDENTIALS_PATH;
     const saJson = parseSaJson(process.env.GOOGLE_SA_JSON) || loadSaFile(credFile);
     const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
