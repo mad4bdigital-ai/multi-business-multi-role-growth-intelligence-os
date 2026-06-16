@@ -215,6 +215,7 @@ export async function createRepositoryAdvisoryCommentApprovalHoldAdmin(args = {}
     const requestedBy = bounded(args.requested_by, 36) || "gpt_admin_v5_comment";
     const requiredRole = bounded(args.required_role, 64) || "platform_admin";
     const ttlMinutes = Math.max(5, Math.min(Number(args.ttl_minutes) || 60, 1440));
+    const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
     const context = {
       source: "repository_advisory_comment_v5",
       plan_id: planId,
