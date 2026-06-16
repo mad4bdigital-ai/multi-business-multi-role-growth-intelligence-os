@@ -261,7 +261,7 @@
     },
     {
       "migration_file": "1012_sprint69_sql_only_runtime_auth_schema.sql",
-      "score": 527,
+      "score": 515,
       "queue_class": "high_review",
       "gap_severity": "medium",
       "documentation_complete": false,
@@ -278,8 +278,7 @@
         "no_credential_payload_read",
         "no_raw_secrets",
         "no_external_send",
-        "no_external_write",
-        "secrets_included_false"
+        "no_external_write"
       ],
       "surface_counts": {
         "plugins": 0,
@@ -326,8 +325,7 @@
             "no_credential_payload_read",
             "no_raw_secrets",
             "no_external_send",
-            "no_external_write",
-            "secrets_included_false"
+            "no_external_write"
           ],
           "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
         }

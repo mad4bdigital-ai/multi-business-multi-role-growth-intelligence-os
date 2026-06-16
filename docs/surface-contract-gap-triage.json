@@ -140,7 +140,7 @@
     },
     {
       "migration_file": "1012_sprint69_sql_only_runtime_auth_schema.sql",
-      "score": 527,
+      "score": 515,
       "queue_class": "high_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -158,8 +158,7 @@
         "no_credential_payload_read",
         "no_raw_secrets",
         "no_external_send",
-        "no_external_write",
-        "secrets_included_false"
+        "no_external_write"
       ],
       "remediation_action_keys": [
         "document_surface_contract",
