@@ -4,8 +4,8 @@
 
 ## Summary
 
-- Total queue items: 1
-- Critical review: 1
+- Total queue items: 2
+- Critical review: 2
 - High review: 0
 - Medium review: 0
 - Low review: 0
@@ -13,7 +13,22 @@
 
 ## Top Queue Items
 
-### 1. `315_sprint69_capability_vault_record_tool_export.sql`
+### 1. `1011_sprint69_governed_repository_engine_v6.sql`
+
+- Queue class: critical_review
+- Score: 1171
+- Gap severity: high
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=23, views=0, policies=2, routes=1
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `action_specific_apply_gated`, `admin_only_tools`, `app_integration_tool_bindings`, `bind_tool_github_tenant_repository_mutation_apply_v6`, `expected_readback_json`, `github_pull_request`, `negative_gate_and_readback`, `negative_gate_passed_positive_apply_pending`, `policy_gate`, `required_gates_json`, `requires_dispatch_allowed`, `requires_readback`, ...and 11 more
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `governed_repository_engine_v6_policy_v1`, `governed_repository_mutation_plan_v6_policy_v1`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 2. `315_sprint69_capability_vault_record_tool_export.sql`
 
 - Queue class: critical_review
 - Score: 831
