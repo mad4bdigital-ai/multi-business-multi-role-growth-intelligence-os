@@ -123,6 +123,21 @@ async function main() {
 
   if (gate.allowed) {
     response.apply = await applyLifecycleRegistryUpsert(pool, plan.upsert_rows);
+    const readback = await planDatabaseTableLifecycleRegistryUpsert({
+      limit: args.limit,
+      include_existing: false,
+    }, { pool });
+    response.readback = {
+      live_table_count: readback.live_table_count,
+      existing_registry_count: readback.existing_registry_count,
+      remaining_missing_count: readback.selected_table_count,
+      verified: readback.selected_table_count === 0,
+    };
+    if (!response.readback.verified) {
+      const error = new Error(`Lifecycle registry readback found ${readback.selected_table_count} remaining missing table(s).`);
+      error.code = "DATABASE_TABLE_LIFECYCLE_REGISTRY_UPSERT_READBACK_FAILED";
+      throw error;
+    }
   }
 
   await pool.end();
