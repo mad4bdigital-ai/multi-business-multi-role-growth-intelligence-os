@@ -4,9 +4,8 @@ import { GITHUB_API_BASE_URL } from "./config.js";
 import { getPool } from "./db.js";
 import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import {
-  createRepositoryAuthorityBinding,
+  findUsableRepositoryProviderBinding,
   normalizeGithubRepoRef,
-  revokeRepositoryAuthorityBinding,
   smokeSafeTenantId,
   tenantRepositoryActionPlannerDryRun,
 } from "./repositoryTenantIntelligenceV2.js";
@@ -229,21 +228,14 @@ export async function tenantRepositoryAdvisoryCommentReadback(args = {}, { auth 
 }
 
 export async function tenantRepositoryAdvisoryCommentV5ReadinessSmoke(args = {}, { auth, runGovernedResource } = {}) {
-  const tenantId = smokeSafeTenantId(args.tenant_id || `repository_advisory_comment_v5_${randomUUID()}`);
-  const repoRef = normalizeGithubRepoRef(args) || normalizeGithubRepoRef({ owner: "mad4bdigital-ai", repo: "multi-business-multi-role-growth-intelligence-os" });
-  const create = await createRepositoryAuthorityBinding({ tenant_id: tenantId, owner: repoRef.owner, repo: repoRef.repo, permission_level: "read_only", allowed_modes: ["read_only"], notes: "temporary repository advisory comment v5 readiness smoke binding", created_by: "system:tenant_repository_advisory_comment_v5_readiness_smoke" }, { auth: { ...(auth || {}), is_admin: true } });
-  const preview = await tenantRepositoryAdvisoryCommentPreview({ tenant_id: tenantId, owner: repoRef.owner, repo: repoRef.repo, state: "open", limit: 1, include_changed_files: false, include_check_runs: false }, { auth, runGovernedResource });
-  const blockedApply = preview?.plan_id ? await tenantRepositoryAdvisoryCommentApply({ plan_id: preview.plan_id }, { auth }) : null;
-  const bindingId = create?.binding?.binding_id;
-  const revoke = bindingId ? await revokeRepositoryAuthorityBinding({ binding_id: bindingId, revoked_by: "system:tenant_repository_advisory_comment_v5_readiness_smoke_cleanup" }, { auth: { ...(auth || {}), is_admin: true } }) : null;
-  const checks = [
-    { name: "binding_created_read_only", pass: create?.ok === true && create?.binding?.permission_level === "read_only" },
-    { name: "v5_preview_created", pass: preview?.ok === true && preview?.preview?.schema_version === REPOSITORY_ADVISORY_COMMENT_V5_SCHEMA && preview?.mutations_executed === false },
-    { name: "v5_apply_blocks_without_approval", pass: blockedApply?.ok === false && blockedApply?.reason_code === "approval_hold_required" && blockedApply?.mutations_executed === false },
-    { name: "cleanup_revoked_binding", pass: revoke?.ok === true },
-  ];
-  const pass = checks.every((check) => check.pass === true);
-  return { ok: pass, tool: "tenant_repository_advisory_comment_v5_readiness_smoke", status: pass ? "pass" : "fail", classification: pass ? "repository_advisory_comment_v5_ready" : "repository_advisory_comment_v5_not_ready", checks, preview: preview?.ok ? { plan_id: preview.plan_id, classification: preview.classification, pr_number: preview.preview?.pr_number || null } : preview, blocked_apply: blockedApply, binding_id: bindingId || null, apply_allowed: false, mutations_executed: false, secrets_included: false };
+  const repoRef=normalizeGithubRepoRef(args)||normalizeGithubRepoRef({owner:'mad4bdigital-ai',repo:'multi-business-multi-role-growth-intelligence-os'});
+  const providerBinding=await findUsableRepositoryProviderBinding(repoRef);
+  if(!providerBinding) return {ok:false,tool:'tenant_repository_advisory_comment_v5_readiness_smoke',status:'authorization_gated',classification:'repository_advisory_comment_v5_authorization_gated',reason_code:'repository_provider_binding_required',checks:[{name:'provider_binding_required',pass:true},{name:'no_mutation',pass:true},{name:'no_secrets',pass:true}],apply_allowed:false,mutations_executed:false,secrets_included:false};
+  const tenantId=providerBinding.tenant_id,workspaceId=providerBinding.workspace_id||null;
+  const preview=await tenantRepositoryAdvisoryCommentPreview({tenant_id:tenantId,workspace_id:workspaceId,owner:repoRef.owner,repo:repoRef.repo,state:'open',limit:1,include_changed_files:false,include_check_runs:false},{auth:{...(auth||{}),is_admin:true},runGovernedResource});
+  const blockedApply=preview?.plan_id?await tenantRepositoryAdvisoryCommentApply({plan_id:preview.plan_id},{auth:{...(auth||{}),is_admin:true}}):null;
+  const checks=[{name:'provider_bound_authority_present',pass:Boolean(providerBinding.source_system_id||providerBinding.source_installation_id)},{name:'v5_preview_created',pass:preview?.ok===true&&preview?.preview?.schema_version===REPOSITORY_ADVISORY_COMMENT_V5_SCHEMA&&preview?.mutations_executed===false},{name:'v5_apply_blocks_without_approval',pass:blockedApply?.ok===false&&blockedApply?.reason_code==='approval_hold_required'&&blockedApply?.mutations_executed===false},{name:'binding_preserved',pass:providerBinding.status==='active'}];
+  const pass=checks.every((check)=>check.pass===true);return {ok:pass,tool:'tenant_repository_advisory_comment_v5_readiness_smoke',status:pass?'pass':'fail',classification:pass?'repository_advisory_comment_v5_ready':'repository_advisory_comment_v5_not_ready',checks,preview:preview?.ok?{plan_id:preview.plan_id,classification:preview.classification,pr_number:preview.preview?.pr_number||null}:preview,blocked_apply:blockedApply,binding_id:providerBinding.binding_id,apply_allowed:false,mutations_executed:false,secrets_included:false};
 }
 
 export const TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS = [

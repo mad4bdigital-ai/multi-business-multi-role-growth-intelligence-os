@@ -73,6 +73,8 @@ function bindingRowToObject(row = {}) {
     permission_level: row.permission_level,
     allowed_modes: safeJson(row.allowed_modes_json, []),
     authority_source: row.authority_source,
+    source_system_id: row.source_system_id || null,
+    source_installation_id: row.source_installation_id || null,
     expires_at: row.expires_at || null,
     status: row.status,
     notes: row.notes || null,
@@ -81,6 +83,41 @@ function bindingRowToObject(row = {}) {
     updated_at: row.updated_at || null,
     secrets_included: false,
   };
+}
+
+export async function findUsableRepositoryProviderBinding(repoRef, { pool = getPool() } = {}) {
+  if (!repoRef?.resource_uri) return null;
+  const [rows] = await pool.query(
+    `SELECT b.*
+       FROM platform_resource_authority_bindings b
+       JOIN connected_systems s ON BINARY s.system_id = BINARY b.source_system_id
+       LEFT JOIN installations i ON BINARY i.installation_id = BINARY b.source_installation_id
+                                AND BINARY i.system_id = BINARY b.source_system_id
+      WHERE b.status = 'active'
+        AND b.resource_type = 'github_repo'
+        AND BINARY b.resource_uri = BINARY ?
+        AND (b.recipe_key = ? OR b.recipe_key IS NULL)
+        AND b.permission_level = 'read_only'
+        AND b.tenant_id IS NOT NULL
+        AND b.user_id IS NULL
+        AND b.source_system_id IS NOT NULL
+        AND (b.expires_at IS NULL OR b.expires_at > NOW())
+        AND s.status = 'active'
+        AND LOWER(s.provider_family) = 'github'
+        AND BINARY s.tenant_id = BINARY b.tenant_id
+        AND (b.source_installation_id IS NULL OR (i.status = 'active' AND BINARY i.tenant_id = BINARY b.tenant_id AND (i.expires_at IS NULL OR i.expires_at > NOW())))
+        AND (b.source_installation_id IS NOT NULL
+          OR NULLIF(JSON_UNQUOTE(JSON_EXTRACT(s.config_json, '$.github_app_installation_id')), '') IS NOT NULL
+          OR NULLIF(JSON_UNQUOTE(JSON_EXTRACT(s.config_json, '$.provider_installation_id')), '') IS NOT NULL)
+      ORDER BY b.workspace_id IS NOT NULL DESC, b.updated_at DESC, b.created_at DESC
+      LIMIT 1`,
+    [repoRef.resource_uri, REPOSITORY_PR_RECONCILE_RECIPE_KEY]
+  );
+  return rows?.[0] ? bindingRowToObject(rows[0]) : null;
+}
+
+function repositoryProviderAuthorizationGatedResult(tool, classification, checks = []) {
+  return { ok:false, tool, status:'authorization_gated', classification, reason_code:'repository_provider_binding_required', checks, provider_calls_made:0, apply_allowed:false, mutations_executed:false, secrets_included:false };
 }
 
 export async function createRepositoryAuthorityBinding(args = {}, { auth } = {}) {
@@ -360,120 +397,32 @@ export function smokeSafeTenantId(value = "") {
 }
 
 export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { auth, runGovernedResource, dispatchSystemTool, descriptorReadiness } = {}) {
-  const tenantId = smokeSafeTenantId(`repository_intelligence_v2_${randomUUID()}`);
-  const repoRef = normalizeGithubRepoRef(args) || normalizeGithubRepoRef({
-    owner: "mad4bdigital-ai",
-    repo: "multi-business-multi-role-growth-intelligence-os",
-  });
-  const requiredDescriptorTools = [
-    "platform_resource_authority_binding_create",
-    "platform_resource_authority_binding_list",
-    "platform_resource_authority_binding_revoke",
-    "tenant_repo_pr_reconciliation_sweep",
+  const repoRef = normalizeGithubRepoRef(args) || normalizeGithubRepoRef({ owner:'mad4bdigital-ai', repo:'multi-business-multi-role-growth-intelligence-os' });
+  const requiredDescriptorTools=['platform_resource_authority_binding_create','platform_resource_authority_binding_list','platform_resource_authority_binding_revoke','tenant_repo_pr_reconciliation_sweep'];
+  const descriptorRows=typeof descriptorReadiness==='function'?descriptorReadiness():[];
+  const descriptorHandlersPresent=requiredDescriptorTools.every((toolName)=>descriptorRows.some((row)=>row.tool_name===toolName&&row.handler_present===true));
+  if(typeof dispatchSystemTool!=='function') return { ok:false, tool:'tenant_repository_intelligence_v2_readiness_smoke', status:'fail', classification:'tenant_repository_intelligence_v2_dispatcher_missing', checks:[{name: "descriptor_handler_present",pass:descriptorHandlersPresent},{name: "direct_public_tool_call_succeeds",pass:false}], reason_code:'system_layer_descriptor_dispatcher_missing', apply_allowed:false, mutations_executed:false, secrets_included:false };
+  const providerBinding=await findUsableRepositoryProviderBinding(repoRef);
+  if(!providerBinding) return repositoryProviderAuthorizationGatedResult('tenant_repository_intelligence_v2_readiness_smoke','tenant_repository_intelligence_v2_authorization_gated',[{name: "descriptor_handler_present",pass:descriptorHandlersPresent},{name:'provider_binding_required',pass:true},{name: "no_mutation",pass:true},{name: "no_secrets",pass:true}]);
+  const tenantId=providerBinding.tenant_id,workspaceId=providerBinding.workspace_id||null;
+  const negativeTenantId=smokeSafeTenantId(`repository_intelligence_v2_missing_${randomUUID()}`);
+  const negative=await dispatchSystemTool('tenant_repo_pr_reconciliation_sweep',{tenant_id:negativeTenantId,owner:repoRef.owner,repo:repoRef.repo,state:'open',limit:1,include_changed_files:false,include_check_runs:false,record_evidence:false},{...(auth||{}),is_admin:false,tenant_id:negativeTenantId,workspace_id:null,user_id:null});
+  const positive=await dispatchSystemTool('tenant_repo_pr_reconciliation_sweep',{tenant_id:'conflicting-smoke-tenant',workspace_id:workspaceId,owner:repoRef.owner,repo:repoRef.repo,state:'open',limit:clampLimit(args.limit,1,5),include_changed_files:false,include_check_runs:false,record_evidence:true},{...(auth||{}),is_admin:false,tenant_id:tenantId,workspace_id:workspaceId,user_id:null});
+  const listed=await dispatchSystemTool('platform_resource_authority_binding_list',{tenant_id:tenantId,workspace_id:workspaceId,owner:repoRef.owner,repo:repoRef.repo,recipe_key:REPOSITORY_PR_RECONCILE_RECIPE_KEY,status:'active',limit:20},{...(auth||{}),is_admin:true});
+  const checks=[
+    {name: "descriptor_handler_present",pass:descriptorHandlersPresent},
+    {name:'provider_bound_authority_present',pass:Boolean(providerBinding.source_system_id||providerBinding.source_installation_id)},
+    {name: "direct_public_tool_call_succeeds",pass:listed?.ok===true&&positive?.ok===true},
+    {name: "tenant_scope_forced",pass:negative?.tenant_scope?.tenant_id===negativeTenantId&&positive?.tenant_scope?.tenant_id===tenantId},
+    {name: "missing_binding_blocks_before_provider",pass:negative?.ok===false&&Number(negative?.provider_calls_made||0)===0&&negative?.reason_code==='blocked_missing_platform_resource_authority_binding'},
+    {name: "active_binding_allows_read_only",pass:positive?.ok===true&&positive?.apply_allowed===false&&positive?.mutations_executed===false&&Number(positive?.summary?.provider_calls_made||0)>0},
+    {name:'binding_preserved',pass:listed?.bindings?.some((binding)=>binding.binding_id===providerBinding.binding_id&&binding.status==='active')},
+    {name: "no_mutation",pass:positive?.apply_allowed===false&&positive?.mutations_executed===false},
+    {name: "no_secrets",pass:[negative,listed,positive].every((result)=>result?.secrets_included===false)},
+    {name:'v2_evidence_written',pass:Boolean(positive?.evidence?.evidence_id)&&positive?.evidence?.metadata?.schema_version==='tenant_repository_pr_reconciliation_evidence.v2'}
   ];
-  const descriptorRows = typeof descriptorReadiness === "function" ? descriptorReadiness() : [];
-  const descriptorHandlersPresent = requiredDescriptorTools.every((toolName) =>
-    descriptorRows.some((row) => row.tool_name === toolName && row.handler_present === true)
-  );
-  if (typeof dispatchSystemTool !== "function") {
-    return {
-      ok: false,
-      tool: "tenant_repository_intelligence_v2_readiness_smoke",
-      status: "fail",
-      classification: "tenant_repository_intelligence_v2_dispatcher_missing",
-      checks: [
-        { name: "descriptor_handler_present", pass: descriptorHandlersPresent },
-        { name: "direct_public_tool_call_succeeds", pass: false },
-      ],
-      reason_code: "system_layer_descriptor_dispatcher_missing",
-      apply_allowed: false,
-      mutations_executed: false,
-      secrets_included: false,
-    };
-  }
-  const negativeTenantId = smokeSafeTenantId(`${tenantId}_missing`);
-  const negativeAuth = { ...(auth || {}), is_admin: false, tenant_id: negativeTenantId };
-  const tenantAuth = { ...(auth || {}), is_admin: false, tenant_id: tenantId };
-  const adminAuth = { ...(auth || {}), is_admin: true };
-  const conflictingTenantId = smokeSafeTenantId(`${tenantId}_conflict`);
-  const negative = await dispatchSystemTool("tenant_repo_pr_reconciliation_sweep", {
-    tenant_id: conflictingTenantId,
-    owner: repoRef.owner,
-    repo: repoRef.repo,
-    state: "open",
-    limit: 1,
-    include_changed_files: false,
-    include_check_runs: false,
-    record_evidence: false,
-  }, negativeAuth);
-  const create = await dispatchSystemTool("platform_resource_authority_binding_create", {
-    tenant_id: tenantId,
-    owner: repoRef.owner,
-    repo: repoRef.repo,
-    recipe_key: REPOSITORY_PR_RECONCILE_RECIPE_KEY,
-    permission_level: "read_only",
-    allowed_modes: ["read_only"],
-    notes: "temporary repository intelligence v2 readiness smoke binding",
-    created_by: "system:tenant_repository_intelligence_v2_readiness_smoke",
-  }, adminAuth);
-  const positive = await dispatchSystemTool("tenant_repo_pr_reconciliation_sweep", {
-    tenant_id: conflictingTenantId,
-    owner: repoRef.owner,
-    repo: repoRef.repo,
-    state: "open",
-    limit: clampLimit(args.limit, 1, 5),
-    include_changed_files: false,
-    include_check_runs: false,
-    record_evidence: true,
-  }, tenantAuth);
-  const listed = await dispatchSystemTool("platform_resource_authority_binding_list", {
-    tenant_id: tenantId,
-    owner: repoRef.owner,
-    repo: repoRef.repo,
-    recipe_key: REPOSITORY_PR_RECONCILE_RECIPE_KEY,
-    status: "active",
-    limit: 10,
-  }, adminAuth);
-  const bindingId = create?.binding?.binding_id;
-  const revoke = bindingId && create?.created !== false
-    ? await dispatchSystemTool("platform_resource_authority_binding_revoke", {
-      binding_id: bindingId,
-      revoked_by: "system:tenant_repository_intelligence_v2_readiness_smoke_cleanup",
-    }, adminAuth)
-    : null;
-  const [cleanupRows] = await getPool().query(
-    `SELECT SUM(status = 'active') AS active_smoke_bindings, COUNT(*) AS total_smoke_bindings
-       FROM platform_resource_authority_bindings
-      WHERE tenant_id IN (?, ?) OR created_by = 'system:tenant_repository_intelligence_v2_readiness_smoke'`,
-    [tenantId, negativeTenantId]
-  );
-  const checks = [
-    { name: "descriptor_handler_present", pass: descriptorHandlersPresent },
-    { name: "direct_public_tool_call_succeeds", pass: create?.ok === true && listed?.ok === true && positive?.ok === true && revoke?.ok === true },
-    { name: "tenant_scope_forced", pass: negative?.tenant_scope?.tenant_id === negativeTenantId && positive?.tenant_scope?.tenant_id === tenantId && positive?.tenant_scope?.tenant_id !== conflictingTenantId },
-    { name: "missing_binding_blocks_before_provider", pass: negative?.ok === false && Number(negative?.provider_calls_made || 0) === 0 && negative?.reason_code === "blocked_missing_platform_resource_authority_binding" },
-    { name: "active_binding_allows_read_only", pass: positive?.ok === true && positive?.apply_allowed === false && positive?.mutations_executed === false && Number(positive?.summary?.provider_calls_made || 0) > 0 },
-    { name: "binding_lifecycle_direct", pass: create?.binding?.permission_level === "read_only" && (create?.binding?.allowed_modes || []).includes("read_only") && listed?.bindings?.some((binding) => binding.binding_id === bindingId) && revoke?.binding?.status === "revoked" },
-    { name: "no_mutation", pass: positive?.apply_allowed === false && positive?.mutations_executed === false },
-    { name: "no_secrets", pass: [negative, create, listed, positive, revoke].every((result) => result?.secrets_included === false) },
-    { name: "v2_evidence_written", pass: Boolean(positive?.evidence?.evidence_id) && positive?.evidence?.metadata?.schema_version === "tenant_repository_pr_reconciliation_evidence.v2" },
-    { name: "cleanup_revoked_binding", pass: revoke?.ok === true && String(cleanupRows?.[0]?.active_smoke_bindings || "0") === "0" },
-  ];
-  const pass = checks.every((check) => check.pass === true);
-  return {
-    ok: pass,
-    tool: "tenant_repository_intelligence_v2_readiness_smoke",
-    status: pass ? "pass" : "fail",
-    classification: pass ? "tenant_repository_intelligence_v2_ready" : "tenant_repository_intelligence_v2_not_ready",
-    checks,
-    negative: { ok: negative?.ok, classification: negative?.classification, reason_code: negative?.reason_code, provider_calls_made: negative?.provider_calls_made, secrets_included: false },
-    positive: { ok: positive?.ok, classification: positive?.classification, summary: positive?.summary, evidence_id: positive?.evidence?.evidence_id || null, apply_allowed: positive?.apply_allowed, mutations_executed: positive?.mutations_executed, secrets_included: false },
-    cleanup: cleanupRows?.[0] || null,
-    binding_id: bindingId || null,
-    apply_allowed: false,
-    mutations_executed: false,
-    secrets_included: false,
-  };
+  const pass=checks.every((check)=>check.pass===true);
+  return {ok:pass,tool:'tenant_repository_intelligence_v2_readiness_smoke',status:pass?'pass':'fail',classification:pass?'tenant_repository_intelligence_v2_ready':'tenant_repository_intelligence_v2_not_ready',checks,negative:{ok:negative?.ok,classification:negative?.classification,reason_code:negative?.reason_code,provider_calls_made:negative?.provider_calls_made,secrets_included:false},positive:{ok:positive?.ok,classification:positive?.classification,summary:positive?.summary,evidence_id:positive?.evidence?.evidence_id||null,apply_allowed:positive?.apply_allowed,mutations_executed:positive?.mutations_executed,secrets_included:false},binding_id:providerBinding.binding_id,provider_calls_made:Number(positive?.summary?.provider_calls_made||0),apply_allowed:false,mutations_executed:false,secrets_included:false};
 }
 
 export async function tenantRepositoryIntelligenceV3V4ReadinessSmoke(args = {}, { auth, runGovernedResource } = {}) {
