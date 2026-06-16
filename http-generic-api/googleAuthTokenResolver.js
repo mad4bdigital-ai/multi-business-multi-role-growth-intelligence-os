@@ -281,7 +281,7 @@ async function fetchGlobalGoogleToken(options = {}) {
         attempts.push({
           source: "explicit service account",
           run: async () => saJson
-            ? saJsonToAccessToken(saJson, GOOGLE_WORKSPACE_SCOPES)
+            ? saJsonToAccessToken(saJson, scopes)
             : (() => { throw new Error("No SA JSON loaded and no keyFilename fallback."); })()
         });
       }
