@@ -396,6 +396,30 @@ export function smokeSafeTenantId(value = "") {
   return `smoke_${sha256Hex(raw).slice(0, 24)}`;
 }
 
+async function selectRepositoryNegativeSmokeMembership(repoRef) {
+  const [rows] = await getPool().query(
+    `SELECT m.tenant_id,m.user_id
+       FROM memberships m
+      WHERE m.status='active'
+        AND NOT EXISTS (
+          SELECT 1
+            FROM platform_resource_authority_bindings b
+           WHERE b.status='active'
+             AND b.resource_type='github_repo'
+             AND BINARY b.resource_uri=BINARY ?
+             AND (BINARY b.recipe_key=BINARY ? OR b.recipe_key IS NULL)
+             AND BINARY b.tenant_id=BINARY m.tenant_id
+             AND b.workspace_id IS NULL
+             AND (b.user_id IS NULL OR BINARY b.user_id=BINARY m.user_id)
+             AND (b.expires_at IS NULL OR b.expires_at>NOW())
+        )
+      ORDER BY FIELD(m.role,'owner','admin','operator','member','viewer'),m.updated_at DESC,m.id DESC
+      LIMIT 1`,
+    [repoRef.resource_uri, REPOSITORY_PR_RECONCILE_RECIPE_KEY]
+  );
+  return rows?.[0] || null;
+}
+
 export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { auth, runGovernedResource, dispatchSystemTool, descriptorReadiness } = {}) {
   const repoRef = normalizeGithubRepoRef(args) || normalizeGithubRepoRef({ owner:'mad4bdigital-ai', repo:'multi-business-multi-role-growth-intelligence-os' });
   const requiredDescriptorTools=['platform_resource_authority_binding_create','platform_resource_authority_binding_list','platform_resource_authority_binding_revoke','tenant_repo_pr_reconciliation_sweep'];
@@ -405,8 +429,10 @@ export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { 
   const providerBinding=await findUsableRepositoryProviderBinding(repoRef);
   if(!providerBinding) return repositoryProviderAuthorizationGatedResult('tenant_repository_intelligence_v2_readiness_smoke','tenant_repository_intelligence_v2_authorization_gated',[{name: "descriptor_handler_present",pass:descriptorHandlersPresent},{name:'provider_binding_required',pass:true},{name: "no_mutation",pass:true},{name: "no_secrets",pass:true}]);
   const tenantId=providerBinding.tenant_id,workspaceId=providerBinding.workspace_id||null;
-  const negativeTenantId=smokeSafeTenantId(`repository_intelligence_v2_missing_${randomUUID()}`);
-  const negative=await dispatchSystemTool('tenant_repo_pr_reconciliation_sweep',{tenant_id:negativeTenantId,owner:repoRef.owner,repo:repoRef.repo,state:'open',limit:1,include_changed_files:false,include_check_runs:false,record_evidence:false},{...(auth||{}),is_admin:false,tenant_id:negativeTenantId,workspace_id:null,user_id:null});
+  const negativeMembership=await selectRepositoryNegativeSmokeMembership(repoRef);
+  if(!negativeMembership?.tenant_id||!negativeMembership?.user_id) return {ok:false,tool:'tenant_repository_intelligence_v2_readiness_smoke',status:'fail',classification:'tenant_repository_intelligence_v2_negative_membership_missing',checks:[{name:'negative_membership_available',pass:false},{name:'no_mutation',pass:true},{name:'no_secrets',pass:true}],reason_code:'active_unbound_tenant_membership_required',apply_allowed:false,mutations_executed:false,secrets_included:false};
+  const negativeTenantId=negativeMembership.tenant_id,negativeUserId=negativeMembership.user_id;
+  const negative=await dispatchSystemTool('tenant_repo_pr_reconciliation_sweep',{tenant_id:negativeTenantId,owner:repoRef.owner,repo:repoRef.repo,state:'open',limit:1,include_changed_files:false,include_check_runs:false,record_evidence:false},{...(auth||{}),is_admin:false,tenant_id:negativeTenantId,workspace_id:null,user_id:negativeUserId});
   const positive=await dispatchSystemTool('tenant_repo_pr_reconciliation_sweep',{tenant_id:'conflicting-smoke-tenant',workspace_id:workspaceId,owner:repoRef.owner,repo:repoRef.repo,state:'open',limit:clampLimit(args.limit,1,5),include_changed_files:false,include_check_runs:false,record_evidence:true},{...(auth||{}),is_admin:false,tenant_id:tenantId,workspace_id:workspaceId,user_id:null});
   const listed=await dispatchSystemTool('platform_resource_authority_binding_list',{tenant_id:tenantId,workspace_id:workspaceId,owner:repoRef.owner,repo:repoRef.repo,recipe_key:REPOSITORY_PR_RECONCILE_RECIPE_KEY,status:'active',limit:20},{...(auth||{}),is_admin:true});
   const checks=[
