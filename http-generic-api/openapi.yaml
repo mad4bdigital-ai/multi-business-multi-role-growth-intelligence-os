@@ -675,6 +675,147 @@ components:
             session_context_claim_requires: { type: string }
         secrets_included: { type: boolean, enum: [false] }
 
+    OperationalAlert:
+      type: object
+      additionalProperties: true
+      required: [alert_key, fingerprint_sha256, source_type, category, severity, title, reason_code, lifecycle_status, verification_state, occurrence_count, first_seen_at, last_seen_at, manual_known_issue, persisted, secrets_included]
+      properties:
+        alert_id: { type: [string, 'null'] }
+        alert_key: { type: string }
+        fingerprint_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        source_type: { type: string }
+        source_ref: { type: [string, 'null'] }
+        source_record_id: { type: [string, 'null'] }
+        tenant_id: { type: [string, 'null'] }
+        user_id: { type: [string, 'null'] }
+        workspace_id: { type: [string, 'null'] }
+        container_key: { type: [string, 'null'] }
+        category: { type: string }
+        severity: { type: string, enum: [info, low, medium, high, critical] }
+        title: { type: string }
+        summary: { type: [string, 'null'] }
+        reason_code: { type: string }
+        lifecycle_status: { type: string, enum: [open, acknowledged, investigating, resolved, ignored] }
+        verification_state: { type: string, enum: [unverified, observed, verified, not_reproduced] }
+        evidence_type: { type: [string, 'null'] }
+        evidence_ref: { type: [string, 'null'] }
+        evidence: { type: object, additionalProperties: true }
+        execution_log_id: { type: [integer, 'null'] }
+        trace_id: { type: [string, 'null'] }
+        occurrence_count: { type: integer, minimum: 1 }
+        first_seen_at: { type: string, format: date-time }
+        last_seen_at: { type: string, format: date-time }
+        recommended_action_key: { type: [string, 'null'] }
+        requires_confirmation: { type: boolean }
+        manual_known_issue: { type: boolean }
+        persisted: { type: boolean }
+        secrets_included: { type: boolean, enum: [false] }
+
+    OperationalAlertReadResponse:
+      type: object
+      additionalProperties: false
+      required: [attempted, ok, activation_layer, source_authority, subject, summary, final_result, page, completeness, source_health, policy, secrets_included]
+      properties:
+        attempted: { type: boolean, enum: [true] }
+        ok: { type: boolean }
+        activation_layer: { type: string, enum: [operational_alerting_control_plane] }
+        source_authority: { type: string, enum: [sql_runtime_evidence_sources_plus_operational_alert_lifecycle] }
+        subject: { type: object, additionalProperties: true }
+        summary:
+          type: object
+          additionalProperties: true
+          required: [total_count, open_count, known_issue_count, current_detected_count, by_severity, by_source, by_lifecycle, by_verification, returned_count, degraded_source_count, truncated_source_count]
+          properties:
+            total_count: { type: integer, minimum: 0 }
+            open_count: { type: integer, minimum: 0 }
+            known_issue_count: { type: integer, minimum: 0 }
+            current_detected_count: { type: integer, minimum: 0 }
+            returned_count: { type: integer, minimum: 0 }
+            degraded_source_count: { type: integer, minimum: 0 }
+            truncated_source_count: { type: integer, minimum: 0 }
+            by_severity: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+            by_source: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+            by_lifecycle: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+            by_verification: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+        final_result:
+          type: array
+          items: { $ref: '#/components/schemas/OperationalAlert' }
+        page:
+          type: object
+          additionalProperties: false
+          required: [cursor, limit, returned_count, total_count, has_more]
+          properties:
+            cursor: { type: integer, minimum: 0 }
+            limit: { type: integer, minimum: 1, maximum: 1000 }
+            returned_count: { type: integer, minimum: 0 }
+            total_count: { type: integer, minimum: 0 }
+            has_more: { type: boolean }
+            next_cursor: { type: [integer, 'null'], minimum: 0 }
+        completeness:
+          type: object
+          additionalProperties: false
+          required: [all_known_issues_visible, expected_known_issue_count, visible_known_issue_count, missing_known_issue_keys, all_matching_problems_returned_in_page, details_omitted_silently, degraded_sources, all_sources_untruncated, truncated_sources, final_result_complete]
+          properties:
+            all_known_issues_visible: { type: boolean }
+            expected_known_issue_count: { type: integer, minimum: 0 }
+            visible_known_issue_count: { type: integer, minimum: 0 }
+            missing_known_issue_keys: { type: array, items: { type: string } }
+            all_matching_problems_returned_in_page: { type: boolean }
+            details_omitted_silently: { type: boolean, enum: [false] }
+            degraded_sources: { type: array, items: { $ref: '#/components/schemas/OperationalAlertSourceHealth' } }
+            all_sources_untruncated: { type: boolean }
+            truncated_sources: { type: array, items: { $ref: '#/components/schemas/OperationalAlertSourceHealth' } }
+            final_result_complete: { type: boolean }
+        source_health:
+          type: array
+          items: { $ref: '#/components/schemas/OperationalAlertSourceHealth' }
+        policy: { type: object, additionalProperties: true }
+        secrets_included: { type: boolean, enum: [false] }
+
+    OperationalAlertSourceHealth:
+      type: object
+      additionalProperties: false
+      required: [source, ok, row_count, row_cap, truncated]
+      properties:
+        source: { type: string }
+        ok: { type: boolean }
+        row_count: { type: integer, minimum: 0 }
+        row_cap: { type: [integer, 'null'], minimum: 1 }
+        truncated: { type: boolean }
+        error:
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: 'null'
+
+    OperationalAlertSyncResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, sync_run_id, sync_status, candidate_count, upserted_count, resolved_count, notification_queued_count, degraded_sources, resolution_skipped_due_to_degraded_sources, readback, secrets_included]
+      properties:
+        ok: { type: boolean }
+        sync_run_id: { type: string }
+        sync_status: { type: string, enum: [completed, completed_degraded] }
+        candidate_count: { type: integer, minimum: 0 }
+        upserted_count: { type: integer, minimum: 0 }
+        resolved_count: { type: integer, minimum: 0 }
+        notification_queued_count: { type: integer, minimum: 0 }
+        degraded_sources: { type: array, items: { $ref: '#/components/schemas/OperationalAlertSourceHealth' } }
+        resolution_skipped_due_to_degraded_sources: { type: boolean }
+        readback: { $ref: '#/components/schemas/OperationalAlertReadResponse' }
+        secrets_included: { type: boolean, enum: [false] }
+
+    OperationalAlertLifecycleResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, alert, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        alert:
+          type: object
+          additionalProperties: true
+          required: [alert_id, alert_key, severity, title, lifecycle_status, verification_state, updated_at]
+        secrets_included: { type: boolean, enum: [false] }
     ActivationAwarenessResponse:
       type: object
       additionalProperties: true
@@ -5062,6 +5203,141 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
 
+  /activation/operational-attention:
+    get:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: readActivationOperationalAttention
+      x-openai-isConsequential: false
+      summary: Read unified operational alerts
+      description: Returns current SQL-evidenced problems and persisted Known Issues with lifecycle, evidence references, source health, pagination, and explicit completeness. Platform Known Issues are admin-only.
+      parameters:
+        - { in: query, name: cursor, schema: { type: integer, minimum: 0, default: 0 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 1000, default: 500 } }
+        - { in: query, name: lookback_hours, schema: { type: integer, minimum: 1, maximum: 2160, default: 168 } }
+        - { in: query, name: include_resolved, schema: { type: boolean, default: false } }
+        - { in: query, name: severity, schema: { type: string, enum: [info, low, medium, high, critical] } }
+        - { in: query, name: source_type, schema: { type: string, maxLength: 128 } }
+        - { in: query, name: lifecycle_status, schema: { type: string, enum: [open, acknowledged, investigating, resolved, ignored] } }
+        - { in: query, name: q, schema: { type: string, maxLength: 300 } }
+      responses:
+        '200':
+          description: Unified operational alert result.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OperationalAlertReadResponse' }
+        '400':
+          description: Invalid filter or pagination input.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: Backend authentication required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500':
+          description: Operational alert read failed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /activation/operational-attention/sync:
+    post:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: synchronizeActivationOperationalAttention
+      x-openai-isConsequential: true
+      summary: Synchronize operational alerts from SQL evidence
+      description: Evaluates governed SQL evidence sources, upserts lifecycle rows, resolves disappeared automatic alerts, queues in-app notifications, and returns same-cycle readback. Performs no provider call or external send.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                lookback_hours: { type: integer, minimum: 1, maximum: 2160, default: 168 }
+                requested_by: { type: string, maxLength: 191 }
+      responses:
+        '200':
+          description: Synchronization result with complete readback.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OperationalAlertSyncResponse' }
+        '400':
+          description: Invalid synchronization input.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: Backend authentication required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500':
+          description: Synchronization failed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /activation/operational-attention/{alertId}/lifecycle:
+    post:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: updateActivationOperationalAlertLifecycle
+      x-openai-isConsequential: true
+      summary: Update one operational alert lifecycle
+      parameters:
+        - in: path
+          name: alertId
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [lifecycle_status]
+              properties:
+                lifecycle_status: { type: string, enum: [open, acknowledged, investigating, resolved, ignored] }
+                actor: { type: string, maxLength: 191 }
+                note: { type: string, maxLength: 2000 }
+      responses:
+        '200':
+          description: Updated lifecycle readback.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OperationalAlertLifecycleResponse' }
+        '400':
+          description: Invalid lifecycle transition input.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: Backend authentication required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Alert not found within caller scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500':
+          description: Lifecycle update failed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
   /activation/dynamic-tabs/detail:
     get:
       tags: [activation]
@@ -5443,6 +5719,50 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /tenant/activation/operational-attention:
+    get:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+      operationId: readTenantActivationOperationalAttention
+      x-openai-isConsequential: false
+      summary: Read tenant-scoped operational alerts
+      description: Resolves tenant scope from signed JWT membership and returns current tenant-visible problems. Platform Known Issues are excluded.
+      parameters:
+        - { in: query, name: cursor, schema: { type: integer, minimum: 0, default: 0 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 1000, default: 500 } }
+        - { in: query, name: lookback_hours, schema: { type: integer, minimum: 1, maximum: 2160, default: 168 } }
+        - { in: query, name: include_resolved, schema: { type: boolean, default: false } }
+        - { in: query, name: severity, schema: { type: string, enum: [info, low, medium, high, critical] } }
+        - { in: query, name: source_type, schema: { type: string, maxLength: 128 } }
+        - { in: query, name: lifecycle_status, schema: { type: string, enum: [open, acknowledged, investigating, resolved, ignored] } }
+        - { in: query, name: q, schema: { type: string, maxLength: 300 } }
+      responses:
+        '200':
+          description: Tenant-scoped operational alert result.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OperationalAlertReadResponse' }
+        '400':
+          description: Invalid filter or pagination input.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: User JWT required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Active tenant membership required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500':
+          description: Tenant operational alert read failed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
   /tenant/activation/awareness:
     get:
       tags: [activation]
