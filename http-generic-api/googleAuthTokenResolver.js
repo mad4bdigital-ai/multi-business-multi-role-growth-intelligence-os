@@ -268,9 +268,11 @@ async function saJsonToAccessToken(saJson, scopes) {
 }
 
 async function fetchGlobalGoogleToken(options = {}) {
-  if (fetchingGlobal) return "";
-  fetchingGlobal = true;
-  try {
+  const inflightKey = cacheKey(options);
+  const existing = globalTokenInflight.get(inflightKey);
+  if (existing) return existing;
+
+  const task = (async () => {
     const scopes = getGoogleScopesFromAction(options.action || {});
     const credFile = process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GOOGLE_CREDENTIALS_PATH;
     const saJson = parseSaJson(process.env.GOOGLE_SA_JSON) || loadSaFile(credFile);
