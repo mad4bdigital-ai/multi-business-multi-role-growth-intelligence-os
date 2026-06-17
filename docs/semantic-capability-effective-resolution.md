@@ -203,6 +203,22 @@ Rollback is non-destructive:
 - A generic runtime endpoint dispatcher is not exposed through these descriptors.
 - Shadow comparison writes only a bounded no-secret decision record.
 
+## Governed migration authorization boundary
+
+`311_sprint69_semantic_capability_effective_resolution.sql` intentionally does not authorize itself and must not be added to the legacy bootstrap allowlist. The governed migration runner checks `governed_migration_authorization_registry` before reading or applying the file.
+
+After merge, a separately approved operational change must create the authorization row before staging or production execution. That authorization is not part of this PR and must record risk tier, preflight requirement, confirmation requirement, and whether apply or record-only modes are allowed.
+
+Once the merged migration file is present in the deployed checkout, the required sequence is:
+
+1. Create and read back the separately approved authorization row.
+2. Run `migration_apply_guarded_dry_run --migration 311_sprint69_semantic_capability_effective_resolution.sql`.
+3. Require `status=pass`, `risk_count=0`, and an 11-statement count match.
+4. Apply only through the governed runner with typed confirmation `APPLY_311_SPRINT69_SEMANTIC_CAPABILITY_EFFECTIVE_RESOLUTION` and a separate explicit deployment approval.
+5. Read back the eight expected schema objects and confirm the WordPress binding remains `shadow` with no active derived export.
+
+Automated migration reconciliation additionally requires an explicit active policy rule for this exact filename. Absence of that rule must remain `diagnose_only`, never implicit auto-apply.
+
 ## Definition of done for canary promotion
 
 - Migration applies cleanly in staging.
