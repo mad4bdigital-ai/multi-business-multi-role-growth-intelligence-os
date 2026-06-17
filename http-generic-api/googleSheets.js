@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import { getGoogleAccessToken } from "./googleAuthTokenResolver.js";
+import { getPool } from "./db.js";
 import { REGISTRY_SPREADSHEET_ID } from "./config.js";
 import { headerMap } from "./sheetHelpers.js";
 import { READ_POLICIES } from "./registryReadPolicies.js";
