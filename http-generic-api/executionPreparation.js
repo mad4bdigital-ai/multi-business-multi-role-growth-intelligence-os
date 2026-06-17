@@ -159,7 +159,6 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
       authContract.mode = "bearer_token";
       authContract.header_name = "Authorization";
       authContract.secret = await mintGoogleAccessTokenForEndpoint({
-        drive,
         policies,
         action,
         endpoint
