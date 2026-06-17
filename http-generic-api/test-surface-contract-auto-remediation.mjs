@@ -51,6 +51,31 @@ assert.deepEqual(
   "runtime reviews should remain explicit evidence requirements",
 );
 
+const descriptiveGrantSql = `
+INSERT INTO example_registry (description)
+VALUES ('This binding does not grant provider-write authority by itself.')
+ON DUPLICATE KEY UPDATE description = VALUES(description);
+`;
+const descriptiveGrant = buildAttestation({ item: safeItem, source: descriptiveGrantSql });
+assert.equal(descriptiveGrant.eligible, true, "descriptive grant text followed by ON DUPLICATE must not be treated as a GRANT statement");
+
+const descriptiveExecuteSql = `
+-- This route cannot execute or install source assets.
+INSERT INTO example_registry (description)
+VALUES ('No source execution or external send.')
+ON DUPLICATE KEY UPDATE description = VALUES(description);
+`;
+const descriptiveExecute = buildAttestation({ item: safeItem, source: descriptiveExecuteSql });
+assert.equal(descriptiveExecute.eligible, true, "descriptive execute text must not be treated as an EXECUTE statement");
+
+const actualGrant = buildAttestation({ item: safeItem, source: "GRANT SELECT ON example.* TO 'reader'@'%';" });
+assert.equal(actualGrant.eligible, false, "actual GRANT statements must remain manual review only");
+assert(actualGrant.reasons.includes("forbidden_sql_pattern_detected"));
+
+const actualExecute = buildAttestation({ item: safeItem, source: "EXECUTE prepared_statement;" });
+assert.equal(actualExecute.eligible, false, "actual EXECUTE statements must remain manual review only");
+assert(actualExecute.reasons.includes("forbidden_sql_pattern_detected"));
+
 const destructive = buildAttestation({ item: safeItem, source: "DELETE FROM execution_policies;" });
 assert.equal(destructive.eligible, false, "destructive SQL must never be auto attested");
 assert(destructive.reasons.includes("forbidden_sql_pattern_detected"));
