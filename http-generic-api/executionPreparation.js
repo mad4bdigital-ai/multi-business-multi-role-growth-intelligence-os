@@ -125,7 +125,7 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
   debugLog("INFERRED_AUTH_MODE:", authContract.mode);
   enforceSupportedAuthMode(policies, authContract.mode);
 
-  if (authContract.mode === "oauth_gpt_action") {
+  if (!passiveAuthResolution && authContract.mode === "oauth_gpt_action") {
     const handling = policyValue(
       policies,
       "HTTP Execution Governance",
