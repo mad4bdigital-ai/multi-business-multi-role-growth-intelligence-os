@@ -11,6 +11,7 @@ import {
 const owner = "mad4bdigital-ai";
 const repo = "multi-business-multi-role-growth-intelligence-os";
 const branch = "gpt/migration-245-collation-immutability-20260614";
+const orphanBranch = "gpt/safe-branch-cleanup-support-v2-20260616";
 const baseSha = "b".repeat(40);
 const branchSha = "a".repeat(40);
 const migrationCommit = "1".repeat(40);
@@ -27,6 +28,14 @@ const policy = {
   superseded_branch_delete_requires_fresh_sha_evidence: true,
   superseded_branch_delete_requires_capability_envelope: true,
   superseded_branch_delete_requires_same_cycle_readback: true,
+  allow_superseded_orphan_branch_delete: true,
+  superseded_orphan_branch_requires_no_matching_pr: true,
+  superseded_orphan_branch_requires_main_ancestor_replacement: true,
+  superseded_orphan_branch_requires_changed_file_coverage: true,
+  superseded_orphan_branch_requires_content_equivalence: true,
+  superseded_orphan_branch_requires_fresh_sha_evidence: true,
+  superseded_orphan_branch_requires_capability_envelope: true,
+  superseded_orphan_branch_requires_same_cycle_readback: true,
   superseded_branch_delete_generated_path_prefixes: ["docs/auto-docs-agent/"],
   superseded_branch_delete_required_label: "superseded",
   superseded_branch_delete_max_ahead_commits: 20,
@@ -226,6 +235,61 @@ assert(incompleteCoverage.blockers.includes("changed_file_coverage_incomplete"))
 assert.deepEqual(incompleteCoverage.branch_evidence.uncovered_files, [testFile]);
 assert.equal(deleteCalls, 0);
 
+const orphanMigrationBlob = "3".repeat(40);
+const orphanTestBlob = "4".repeat(40);
+function makeOrphanFetch({ withPr = false, mismatchFile = "" } = {}) {
+  return async (url, options = {}) => {
+    const parsed = new URL(url);
+    const apiPath = `${parsed.pathname}${parsed.search}`;
+    const decodedPath = decodeURIComponent(parsed.pathname);
+    if (apiPath.includes("/pulls?")) {
+      return response(200, withPr ? [{
+        number: 1700,
+        state: "closed",
+        head: { ref: orphanBranch, repo: { full_name: `${owner}/${repo}` } },
+        base: { ref: "main" },
+        labels: [{ name: "superseded" }],
+      }] : []);
+    }
+    if (decodedPath.includes("/git/ref/heads/main")) return response(200, { object: { sha: baseSha } });
+    if (decodedPath.includes(`/git/ref/heads/${orphanBranch}`)) return response(200, { object: { sha: branchSha } });
+    if (decodedPath.includes(`/compare/main...${orphanBranch}`)) {
+      return response(200, {
+        status: "diverged",
+        ahead_by: 2,
+        behind_by: 5,
+        files: [{ filename: migrationFile }, { filename: testFile }],
+      });
+    }
+    if (decodedPath.includes(`/contents/${migrationFile}`)) {
+      const isDefault = parsed.searchParams.get("ref") === baseSha;
+      return response(200, { type: "file", sha: isDefault && mismatchFile === migrationFile ? "5".repeat(40) : orphanMigrationBlob });
+    }
+    if (decodedPath.includes(`/contents/${testFile}`)) {
+      const isDefault = parsed.searchParams.get("ref") === baseSha;
+      return response(200, { type: "file", sha: isDefault && mismatchFile === testFile ? "6".repeat(40) : orphanTestBlob });
+    }
+    return fetchImpl(url, options);
+  };
+}
+const orphanArgs = { ...args, branch: orphanBranch, allow_orphan_branch: true };
+const orphanDryRun = await buildSupersededBranchCleanupEvidence(orphanArgs, { ...deps, fetchImpl: makeOrphanFetch() });
+assert.equal(orphanDryRun.ready, true);
+assert.equal(orphanDryRun.pull_request_evidence.lifecycle_mode, "orphan_branch");
+assert.equal(orphanDryRun.pull_request_evidence.matching_count, 0);
+assert.deepEqual(orphanDryRun.branch_evidence.content_mismatches, []);
+assert.equal(orphanDryRun.branch_evidence.content_equivalence_evidence.length, 2);
+assert(orphanDryRun.branch_evidence.content_equivalence_evidence.every((item) => item.content_equivalent));
+
+const orphanWithPr = await buildSupersededBranchCleanupEvidence(orphanArgs, { ...deps, fetchImpl: makeOrphanFetch({ withPr: true }) });
+assert.equal(orphanWithPr.ready, false);
+assert(orphanWithPr.blockers.includes("orphan_branch_requires_no_matching_pull_request"));
+
+const orphanMismatch = await buildSupersededBranchCleanupEvidence(orphanArgs, { ...deps, fetchImpl: makeOrphanFetch({ mismatchFile: testFile }) });
+assert.equal(orphanMismatch.ready, false);
+assert(orphanMismatch.blockers.includes("orphan_branch_content_not_equivalent_to_default"));
+assert.deepEqual(orphanMismatch.branch_evidence.content_mismatches, [testFile]);
+
 await assert.rejects(
   () => runGithubSupersededBranchCleanup({
     ...args,
@@ -281,10 +345,12 @@ assert.equal(applied.audit.completed, true);
 
 const routes = readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
 const migration = readFileSync(new URL("./migrations/311_sprint69_superseded_closed_pr_branch_cleanup.sql", import.meta.url), "utf8");
+const orphanMigration = readFileSync(new URL("./migrations/317_sprint69_superseded_orphan_branch_cleanup.sql", import.meta.url), "utf8");
 assert.equal((routes.match(/name: "github_superseded_branch_cleanup"/g) || []).length, 1);
 assert.match(routes, /requireGithubSupersededBranchCleanupEnvelope/);
 assert.match(routes, /acceptedIntents: \["github_superseded_branch_cleanup", "github_branch_delete", "branch_cleanup", "repo_mutation"\]/);
 assert.match(routes, /runGithubSupersededBranchCleanup/);
+assert.match(routes, /allow_orphan_branch/);
 assert.match(migration, /allow_superseded_closed_pr_branch_delete/);
 assert.match(migration, /superseded_branch_delete_requires_changed_file_coverage/);
 assert.match(migration, /superseded_branch_delete_requires_same_cycle_readback/);
@@ -293,5 +359,11 @@ assert.match(migration, /superseded_branch_delete_max_ahead_commits/);
 assert.match(migration, /superseded_branch_delete_force_allowed', false/);
 assert.match(migration, /generic_fallback_allowed', false/);
 assert.match(migration, /311_sprint69_superseded_closed_pr_branch_cleanup\.sql/);
+assert.match(orphanMigration, /allow_superseded_orphan_branch_delete/);
+assert.match(orphanMigration, /superseded_orphan_branch_requires_no_matching_pr/);
+assert.match(orphanMigration, /superseded_orphan_branch_requires_content_equivalence/);
+assert.match(orphanMigration, /superseded_orphan_branch_force_allowed.*false/s);
+assert.match(orphanMigration, /317_sprint69_superseded_orphan_branch_cleanup\.sql/);
+assert.doesNotMatch(orphanMigration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
 
 console.log("superseded branch cleanup tests passed");
