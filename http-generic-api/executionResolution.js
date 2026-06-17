@@ -387,7 +387,6 @@ export async function resolveExecutionRequest(reqBody = {}, deps = {}) {
     provider_domain,
     parent_action_key,
     endpoint_key,
-    drive,
     hostingAccounts,
     policies,
     callerHeaders,
