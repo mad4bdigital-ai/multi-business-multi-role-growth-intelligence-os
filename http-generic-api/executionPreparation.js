@@ -72,6 +72,11 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
   debugLog("PLACEHOLDER_RESOLUTION_SOURCE:", placeholderResolutionSource);
 
   const requestBody = requestPayload;
+  const passiveAuthResolution =
+    requestBody.dry_run === true ||
+    String(requestBody.dry_run || "").trim().toLowerCase() === "true" ||
+    requestBody.preflight_only === true ||
+    String(requestBody.preflight_only || "").trim().toLowerCase() === "true";
   const resolvedTargetKey = String(
     requestPayload.target_key || brand?.target_key || ""
   ).trim();
