@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 
 const migration = readFileSync("migrations/1008_sprint69_post_deploy_restart_and_superseded_cleanup_policy.sql", "utf8");
 assert.match(migration, /superseded_branch_delete_max_ahead_commits/);
+assert.match(migration, /JSON_SET\(\s*policy_value\s*,/i);
+assert.doesNotMatch(migration, /CAST\s*\(\s*policy_value\s+AS\s+JSON\s*\)/i);
 assert.match(migration, /30/);
 for (const guard of [
   "requires_closed_pr",
