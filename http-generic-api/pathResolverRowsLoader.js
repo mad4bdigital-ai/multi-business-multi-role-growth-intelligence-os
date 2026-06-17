@@ -394,7 +394,9 @@ export async function loadPathResolverRowsForRequest(requestPayload = {}, deps =
     };
   }
 
-  const envDataSource = typeof process !== "undefined" ? process.env?.DATA_SOURCE : "";
+  const envDataSource = typeof process !== "undefined"
+    ? (process.env?.DATA_SOURCE || "sql")
+    : "sql";
   const dataSourceMode = lower(firstNonEmpty(
     deps.DATA_SOURCE,
     deps.runtimeAuthority,
