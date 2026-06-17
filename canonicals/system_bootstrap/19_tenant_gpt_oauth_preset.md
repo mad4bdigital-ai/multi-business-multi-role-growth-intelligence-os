@@ -32,6 +32,12 @@ OpenAI GPT Actions require the OAuth fields to be configured in the GPT Builder 
 
 The popup may use Google as upstream identity proof, but `/auth/oauth/token` must mint a fresh Mad4B-signed tenant JWT for ChatGPT. ChatGPT then sends that JWT as `Authorization: Bearer <token>` on tenant action calls. The Tenant GPT must not ask users for passwords, OAuth codes, Google ID tokens, provider tokens, API keys, connector secrets, or registration credentials in chat.
 
+## Google Sign-In localization
+
+Google Identity Services localization must remain account/browser-driven by default. Do not hardcode or dynamically inject `locale` into `google.accounts.id.renderButton`, and do not append `hl` to the `gsi/client` script URL for the standard Tenant GPT, Connect, or Local Manager sign-in surfaces. Omitting both lets Google select the language from the signed-in Google Account or browser settings and avoids conflicting locale state across the button, account chooser, and consent flow.
+
+If an explicit language override is introduced later, it must be a validated BCP 47 tag, use the same canonical value for the client-library `hl` parameter and button `locale`, preserve a safe fallback, and include regression tests for supported, regional, and invalid values.
+
 ## Platform Credential Clients
 
 Credential clients are governed DB configuration, not hardcoded prompt text. Admins can create Google-style platform credential options for API keys, OAuth clients, and service accounts through `POST /system/tools/call` with `name: "credential_client_config_upsert"` or locally with `node scripts/upsert-platform-credential-client.mjs`. The records are stored in `platform_runtime_config` with keys beginning `platform_credential_client.` and can be listed with `credential_client_config_list`.

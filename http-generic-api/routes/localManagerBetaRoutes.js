@@ -607,7 +607,8 @@ function setupGoogle(){
       } catch (err) { setOut({ok:false,error:{code:'google_sign_in_failed',message:err.message}}); }
     }
   });
-  window.google.accounts.id.renderButton($('googleSignIn'), { theme:'outline', size:'large', width:320, text:'continue_with', locale:'en' });
+  // Allow GIS to localize from the Google Account or browser settings.
+  window.google.accounts.id.renderButton($('googleSignIn'), { theme:'outline', size:'large', width:320, text:'continue_with' });
 }
 async function loadPreview(){
   const code = normalizeCode($('deviceCode').value);
@@ -757,7 +758,8 @@ function setupGoogle(){
       } catch (err) { renderDevices({ok:false,error:{code:'google_sign_in_failed',message:err.message}}); }
     }
   });
-  window.google.accounts.id.renderButton($('googleSignIn'), { theme:'outline', size:'large', width:280, text:'continue_with', locale:'en' });
+  // Allow GIS to localize from the Google Account or browser settings.
+  window.google.accounts.id.renderButton($('googleSignIn'), { theme:'outline', size:'large', width:280, text:'continue_with' });
 }
 $('signIn').onclick = async () => { const res=await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})}); const data=await res.json(); if(!res.ok||!data.token){ renderDevices(data); return; } setToken(data.token,data); await loadDevices(); };
 $('load').onclick = loadDevices;
