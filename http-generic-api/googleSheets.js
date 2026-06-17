@@ -229,9 +229,25 @@ export async function resolveGoogleRuntimeAction(options = {}) {
   return { ...providedAction, ...action };
 }
 
+function googleClientContextKey(options = {}, action = {}) {
+  const ctx = options.auth_context && typeof options.auth_context === "object"
+    ? options.auth_context
+    : {};
+  return [
+    String(action.action_key || "").trim(),
+    String(ctx.credential_scope || options.credential_scope || "platform").trim().toLowerCase(),
+    String(ctx.user_id || options.user_id || "").trim(),
+    String(ctx.tenant_id || options.tenant_id || "").trim(),
+    String(ctx.connection_id || options.connection_id || "").trim(),
+    String(ctx.app_key || options.app_key || "").trim(),
+    String(options.oauth_config_ref || action.oauth_config_ref || "").trim()
+  ].join("|");
+}
+
 export async function getGoogleClients(options = {}) {
   const action = await resolveGoogleRuntimeAction(options);
   const actionKey = String(action.action_key || "").trim();
+  const clientContextKey = googleClientContextKey(options, action);
   const token = await getGoogleAccessToken({ ...options, action });
   if (!token) {
     throw Object.assign(
