@@ -1,0 +1,29 @@
+{
+  "surface_key": "tenant_capability_shadow_decisions",
+  "display_name": "Tenant Capability Shadow Decisions",
+  "description": "Tenant-scoped activation visibility for no-payload semantic capability shadow comparison outcomes.",
+  "source_table": "tenant_capability_shadow_decisions",
+  "result_key_column": "decision_id",
+  "result_label_column": "capability_key",
+  "tenant_column": "tenant_id",
+  "user_column": "user_id",
+  "result_columns": [
+    "decision_id",
+    "tenant_id",
+    "user_id",
+    "workspace_id",
+    "capability_key",
+    "resource_ref",
+    "legacy_decision",
+    "effective_decision",
+    "difference_class",
+    "manifest_hash",
+    "created_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 50,
+  "sort_order": 320,
+  "status": "active",
+  "notes": "Repo-managed tenant-scoped activation surface. Excludes decision_json and any provider payload material."
+}

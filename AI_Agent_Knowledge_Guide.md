@@ -49,6 +49,20 @@ Tenant GPTs must not use admin repo tools. Tenant knowledge must come from OAuth
 | `agent_supervision_policy` | Auto-approve class thresholds per agent+tenant |
 | `brand_paths` | Brand to business-type path, Drive folder IDs, Brand Core map |
 | `brand_core` | Brand asset rows and Drive subfolder IDs |
+| `platform_semantic_capabilities` | Provider-independent capability contracts, risk, approval, audit, and readback requirements |
+| `platform_capability_provider_bindings` | Ordered provider implementations and shadow/canary/active rollout authority |
+| `platform_endpoint_aliases` | Compatibility mapping from imported or historical endpoint keys to one canonical endpoint key |
+| `tenant_capability_shadow_decisions` | No-secret legacy-versus-effective resolver comparison evidence |
+
+### Semantic capability resolution
+
+User intent should resolve to a semantic capability before provider-specific action, endpoint, connection, or tool selection. Tenant-effective readiness is the conjunction of authenticated principal, canonical workspace, active membership, semantic capability, provider binding, workspace-linked validated connection, action grant, resource authority, canonical endpoint identity, runtime certification, and derived export state.
+
+Tool exports are projections, not independent authority. A visible legacy tool must not execute when the effective chain is blocked. Equal highest-ranked connections and multiple active canonical endpoint rows are blocking ambiguity states. Tenant principals may not override tenant/user identity, and resolver output must never include credentials or tokens.
+
+`shadow` bindings resolve and compare only; they cannot call providers or activate exports. `canary` and `active` bindings require same-cycle policy, authority, certification, approval, audit, and readback validation. The initial `content.article.create_draft` WordPress binding remains draft-only and shadow-only until separately promoted.
+
+See `docs/semantic-capability-effective-resolution.md` and the semantic capability canonical pages in `system_bootstrap`, `direct_instructions_registry_patch`, `module_loader`, and `prompt_router`.
 
 ### Dynamic Audit runtime
 

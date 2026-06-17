@@ -2,7 +2,7 @@ export const CANONICALS = [
   {
     output: 'system_bootstrap.md',
     sourceDir: 'canonicals/system_bootstrap',
-    expectedFileCount: 23,
+    expectedFileCount: 24,
     index: [
       ['Header and purpose', '00_header_purpose.md', 'Canonical identity, status, and purpose.'],
       ['Logic pointers and knowledge profiles', '01_logic_pointer_knowledge.md', 'Logic pointer authority, knowledge profiles, brand onboarding, and asset-read governance.'],
@@ -27,12 +27,13 @@ export const CANONICALS = [
       ['SQL primary data source', '20_sql_primary_data_source.md', 'SQL runtime authority, sheet-to-table map, async mirror behavior, recovery helpers, and GPT-initiated migration repair flow.'],
       ['Activation guidance intelligence', '21_activation_guidance_intelligence.md', 'Proactive Tenant/Admin activation guidance, account counts, readiness semantics, and next-best actions.'],
       ['Capability assurance graph', '22_capability_assurance_graph.md', 'Canonical capability, invocation evidence, resource authority, readiness, certification, provenance, and debt governance.'],
+      ['Semantic capability resolution', '23_semantic_capability_resolution.md', 'Semantic capability registry, tenant-effective resolution, canonical endpoint identity, derived exports, and shadow rollout governance.'],
     ],
   },
   {
     output: 'direct_instructions_registry_patch.md',
     sourceDir: 'canonicals/direct_instructions_registry_patch',
-    expectedFileCount: 18,
+    expectedFileCount: 19,
     index: [
       ['Header and purpose', '00_header_purpose.md', 'Canonical identity, status, and direct patch purpose.'],
       ['Governance foundation', '01_governance_foundation.md', 'Canonical presentation, pointer authority, brand core, activation, and early logging governance.'],
@@ -52,12 +53,13 @@ export const CANONICALS = [
       ['Schema repair governance', '15_schema_repair_governance.md', 'Safe additive schema repair, collation guard, and capability-vault draft runtime safety.'],
       ['Activation guidance intelligence', '16_activation_guidance_intelligence.md', 'Proactive Tenant/Admin activation guidance, account counts, readiness semantics, and next-best actions.'],
       ['Capability assurance graph', '17_capability_assurance_graph.md', 'Direct enforcement of invocation evidence, capability-specific resource authority, typed gaps, provenance, certification, and no-secret reconciliation.'],
+      ['Semantic capability resolution', '18_semantic_capability_resolution.md', 'Semantic capability registry, tenant-effective resolution, canonical endpoint identity, derived exports, and shadow rollout governance.'],
     ],
   },
   {
     output: 'module_loader.md',
     sourceDir: 'canonicals/module_loader',
-    expectedFileCount: 9,
+    expectedFileCount: 10,
     index: [
       ['Header and purpose', '00_header_purpose.md', 'Canonical identity, status, purpose, and initial loader readiness.'],
       ['Dependency resolution', '01_dependency_resolution.md', 'Credential chains, variable contracts, async dependencies, and Google Workspace dependency resolution.'],
@@ -68,12 +70,13 @@ export const CANONICALS = [
       ['Business type and brand path dependencies', '06_business_type_brand_path_resolution.md', 'Loader dependencies for Business Type Path Resolver, Brand Path Resolver, and completion gates.'],
       ['Context resolver layer dependencies', '07_context_resolver_layer.md', 'Loader row collections for resolveContext and resolver loading order.'],
       ['Capability assurance graph dependencies', '08_capability_assurance_graph.md', 'Capability, envelope, binding, evidence, certification, provenance, and debt dependencies for governed dispatch.'],
+      ['Semantic capability resolution', '09_semantic_capability_resolution.md', 'Semantic capability registry, tenant-effective resolution, canonical endpoint identity, derived exports, and shadow rollout governance.'],
     ],
   },
   {
     output: 'prompt_router.md',
     sourceDir: 'canonicals/prompt_router',
-    expectedFileCount: 10,
+    expectedFileCount: 11,
     index: [
       ['Header and purpose', '00_header_purpose.md', 'Canonical identity, status, purpose, and initial routing posture.'],
       ['Core routing', '01_core_routing.md', 'HTTP variable-aware routing, async routing, and Native Google routing clarification.'],
@@ -85,6 +88,7 @@ export const CANONICALS = [
       ['Business type and brand path routing', '07_business_type_brand_path_resolution.md', 'Routes for new business type addition, new brand under business type, and path validation.'],
       ['Context resolver layer routing', '08_context_resolver_layer.md', 'Pre-route resolution rules, intent routing table, degraded routing states, and successful route conditions.'],
       ['Capability assurance routing', '09_capability_assurance_graph.md', 'Routing for invocation envelopes, capability-specific resource bindings, typed gaps, certification, and reconciliation.'],
+      ['Semantic capability resolution', '10_semantic_capability_resolution.md', 'Semantic capability registry, tenant-effective resolution, canonical endpoint identity, derived exports, and shadow rollout governance.'],
     ],
   },
 ];

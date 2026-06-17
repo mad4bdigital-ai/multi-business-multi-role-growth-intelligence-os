@@ -26,6 +26,7 @@ Open the source file listed below for the relevant domain instead of loading thi
 | Schema repair governance | `canonicals/direct_instructions_registry_patch/15_schema_repair_governance.md` | Safe additive schema repair, collation guard, and capability-vault draft runtime safety. |
 | Activation guidance intelligence | `canonicals/direct_instructions_registry_patch/16_activation_guidance_intelligence.md` | Proactive Tenant/Admin activation guidance, account counts, readiness semantics, and next-best actions. |
 | Capability assurance graph | `canonicals/direct_instructions_registry_patch/17_capability_assurance_graph.md` | Direct enforcement of invocation evidence, capability-specific resource authority, typed gaps, provenance, certification, and no-secret reconciliation. |
+| Semantic capability resolution | `canonicals/direct_instructions_registry_patch/18_semantic_capability_resolution.md` | Semantic capability registry, tenant-effective resolution, canonical endpoint identity, derived exports, and shadow rollout governance. |
 
 ---
 

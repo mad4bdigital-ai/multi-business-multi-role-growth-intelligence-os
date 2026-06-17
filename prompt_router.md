@@ -18,6 +18,7 @@ Open the source file listed below for the relevant domain instead of loading thi
 | Business type and brand path routing | `canonicals/prompt_router/07_business_type_brand_path_resolution.md` | Routes for new business type addition, new brand under business type, and path validation. |
 | Context resolver layer routing | `canonicals/prompt_router/08_context_resolver_layer.md` | Pre-route resolution rules, intent routing table, degraded routing states, and successful route conditions. |
 | Capability assurance routing | `canonicals/prompt_router/09_capability_assurance_graph.md` | Routing for invocation envelopes, capability-specific resource bindings, typed gaps, certification, and reconciliation. |
+| Semantic capability resolution | `canonicals/prompt_router/10_semantic_capability_resolution.md` | Semantic capability registry, tenant-effective resolution, canonical endpoint identity, derived exports, and shadow rollout governance. |
 
 ---
 
