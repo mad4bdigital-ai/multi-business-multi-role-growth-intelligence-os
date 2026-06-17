@@ -155,7 +155,9 @@ export function buildRuntimeReadiness({ action = {}, endpoint = {}, authPreview 
   if (endpointStatus && !["active", "ready"].includes(endpointStatus)) return { status: "blocked_endpoint_inactive", can_execute: false };
   if (readiness && !["ready", "validated", "active"].includes(readiness)) return { status: `degraded_${readiness}`, can_execute: false };
   if (!schemaReport.operation_found) return { status: "blocked_schema_operation_missing", can_execute: false };
-  if (authPreview.credential_resolution_status === "empty_secret" && authPreview.auth_mode !== "none") return { status: "blocked_missing_credentials", can_execute: false };
+  if (["empty_secret", "contract_missing"].includes(authPreview.credential_resolution_status) && authPreview.auth_mode !== "none") {
+    return { status: "blocked_missing_credentials", can_execute: false };
+  }
   if (risk.approval_required) return { status: "approval_required", can_execute: false };
   return { status: "ready", can_execute: true };
 }
