@@ -1003,6 +1003,23 @@ function githubBranchRefUpdateAllowed(apiTarget = "", method = "GET") {
   return String(method || "").toUpperCase() === "PATCH" && String(apiTarget || "").startsWith("/git/refs/heads/");
 }
 
+function githubPullCloseAllowed(apiTarget = "", method = "GET") {
+  return String(method || "").toUpperCase() === "PATCH" && /^\/pulls\/\d+$/.test(String(apiTarget || ""));
+}
+
+function assertGithubPullCloseAllowed(apiTarget = "", fieldValues = {}) {
+  const match = String(apiTarget || "").match(/^\/pulls\/(\d+)$/);
+  const keys = Object.keys(fieldValues || {}).sort();
+  if (!match || keys.length !== 1 || keys[0] !== "state" || fieldValues.state !== "closed") {
+    const err = new Error("GitHub PR close fallback only accepts PATCH /pulls/{number} with the sole field state=closed.");
+    err.status = 400;
+    err.code = "github_rest_pr_close_payload_invalid";
+    err.details = { apiTarget, allowed_fields: ["state"], required_state: "closed" };
+    throw err;
+  }
+  return { pullNumber: match[1], body: { state: "closed" } };
+}
+
 function githubRefUpdateConfirmation(branchName = "") {
   return `RESET_BRANCH_REF_${String(branchName || "").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "").toUpperCase()}`;
 }
@@ -1309,19 +1326,22 @@ async function executeGitHubRestFallbackCore(args = []) {
       );
     const allowedContentsMutation = githubContentsMutationAllowed(apiTarget, method);
     const allowedBranchRefUpdate = githubBranchRefUpdateAllowed(apiTarget, method);
+    const allowedPullClose = githubPullCloseAllowed(apiTarget, method);
     if (allowedContentsMutation) assertGithubContentsWritePathAllowed(apiTarget);
     const branchRefUpdate = allowedBranchRefUpdate ? assertGithubBranchRefUpdateAllowed(apiTarget, fieldValues) : null;
+    const pullClose = allowedPullClose ? assertGithubPullCloseAllowed(apiTarget, fieldValues) : null;
     const allowedMutation = (["POST", "PUT", "PATCH"].includes(method) || allowedContentsMutation) && (
       (method === "POST" && apiTarget === "/pulls")
       || /^\/pulls\/\d+\/update-branch$/.test(apiTarget)
       || /^\/pulls\/\d+\/merge$/.test(apiTarget)
+      || allowedPullClose
       || /^\/actions\/workflows\/[^/]+\/dispatches$/.test(apiTarget)
       || apiTarget === "/merges"
       || allowedContentsMutation
       || allowedBranchRefUpdate
     );
     if (!allowedRead && !allowedMutation) {
-      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus PR update-branch, PR merge, workflow dispatches, repo merges, guarded branch ref updates, and guarded contents PUT mutations.");
+      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus guarded PR close, PR update-branch, PR merge, workflow dispatches, repo merges, guarded branch ref updates, and guarded contents PUT mutations.");
       err.status = 501;
       err.code = "github_rest_api_unsupported_path";
       err.details = { apiTarget, method };
@@ -1333,9 +1353,30 @@ async function executeGitHubRestFallbackCore(args = []) {
       apiPath: apiTarget,
       token,
       method,
-      body: allowedBranchRefUpdate ? branchRefUpdate.body : allowedMutation ? fieldValues : null,
+      body: pullClose ? pullClose.body : allowedBranchRefUpdate ? branchRefUpdate.body : allowedMutation ? fieldValues : null,
     });
-    const output = apiTarget.startsWith("/compare/")
+    let pullCloseReadback = null;
+    if (pullClose) {
+      pullCloseReadback = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(pullClose.pullNumber)}`, token });
+      if (pullCloseReadback?.state !== "closed") {
+        const err = new Error("GitHub PR close fallback readback did not confirm state=closed.");
+        err.status = 502;
+        err.code = "github_rest_pr_close_readback_failed";
+        err.details = { pull_number: pullClose.pullNumber, observed_state: pullCloseReadback?.state || null };
+        throw err;
+      }
+    }
+    const output = pullClose
+      ? {
+          pull_number: Number(pullClose.pullNumber),
+          state: pullCloseReadback.state,
+          closed: true,
+          merged: Boolean(pullCloseReadback.merged),
+          head_sha: pullCloseReadback.head?.sha || null,
+          readback_verified: true,
+          secrets_included: false,
+        }
+      : apiTarget.startsWith("/compare/")
       ? {
           url: payload.url,
           html_url: payload.html_url,
