@@ -54,7 +54,7 @@ export function supersededBranchCleanupConfirmation(branch = "", fingerprint = "
   return `DELETE_SUPERSEDED_BRANCH_${slug}_${String(fingerprint || "").slice(0, 12).toUpperCase()}`;
 }
 
-async function loadCleanupPolicy(deps = {}) {
+async function loadCleanupPolicy(deps = {}, { allowOrphanBranch = false } = {}) {
   if (deps.policy) return deps.policy;
   const pool = deps.pool || getPool();
   const [rows] = await pool.query(
@@ -74,6 +74,18 @@ async function loadCleanupPolicy(deps = {}) {
     "superseded_branch_delete_requires_capability_envelope",
     "superseded_branch_delete_requires_same_cycle_readback",
   ];
+  if (allowOrphanBranch) {
+    required.push(
+      "allow_superseded_orphan_branch_delete",
+      "superseded_orphan_branch_requires_no_matching_pr",
+      "superseded_orphan_branch_requires_main_ancestor_replacement",
+      "superseded_orphan_branch_requires_changed_file_coverage",
+      "superseded_orphan_branch_requires_content_equivalence",
+      "superseded_orphan_branch_requires_fresh_sha_evidence",
+      "superseded_orphan_branch_requires_capability_envelope",
+      "superseded_orphan_branch_requires_same_cycle_readback"
+    );
+  }
   const missing = required.filter((key) => !bool(policy[key]));
   if (!row || !bool(row.active) || !bool(row.blocking) || missing.length) {
     const err = new Error("Superseded branch cleanup policy is unavailable or incomplete.");
@@ -185,7 +197,8 @@ function resolveBranchAheadLimit(policy = {}, branch = "", branchSha = "", nowVa
   return evidence;
 }
 export async function buildSupersededBranchCleanupEvidence(args = {}, deps = {}) {
-  const policy = await loadCleanupPolicy(deps);
+  const allowOrphanBranch = bool(args.allow_orphan_branch);
+  const policy = await loadCleanupPolicy(deps, { allowOrphanBranch });
   const target = await resolveTarget(args);
   const maxCommits = Math.max(1, Math.min(Number(policy.superseded_branch_delete_max_replacement_commits || 20), 50));
   const maxFiles = Math.max(1, Math.min(Number(policy.superseded_branch_delete_max_changed_files || 100), 300));
@@ -227,15 +240,39 @@ export async function buildSupersededBranchCleanupEvidence(args = {}, deps = {})
   const generatedFiles = branchFiles.filter((file) => generatedPrefixes.some((prefix) => file.startsWith(prefix)));
   const coveredFiles = branchFiles.filter((file) => replacementFiles.includes(file));
   const uncoveredFiles = branchFiles.filter((file) => !coveredFiles.includes(file) && !generatedFiles.includes(file));
+  const orphanContentEvidence = allowOrphanBranch
+    ? await Promise.all(branchFiles.filter((file) => !generatedFiles.includes(file)).map(async (file) => {
+        const contentPath = `/contents/${encodeRef(file)}`;
+        const [branchContent, defaultContent] = await Promise.all([
+          githubJson({ ...target, apiPath: `${contentPath}?ref=${encodeURIComponent(branchRefSha)}`, token, fetchImpl, allowNotFound: true }),
+          githubJson({ ...target, apiPath: `${contentPath}?ref=${encodeURIComponent(String(baseRef?.object?.sha || ""))}`, token, fetchImpl, allowNotFound: true }),
+        ]);
+        const branchBlobSha = String(branchContent?.sha || "").toLowerCase() || null;
+        const defaultBlobSha = String(defaultContent?.sha || "").toLowerCase() || null;
+        return {
+          file,
+          branch_blob_sha: branchBlobSha,
+          default_blob_sha: defaultBlobSha,
+          content_equivalent: branchBlobSha === defaultBlobSha
+            && String(branchContent?.type || "file") === String(defaultContent?.type || "file"),
+        };
+      }))
+    : [];
+  const orphanContentMismatches = orphanContentEvidence.filter((item) => !item.content_equivalent).map((item) => item.file);
   const blockers = [];
   if (branchFiles.length > maxFiles) blockers.push("changed_file_limit_exceeded");
   if (Number(baseToBranch?.ahead_by || 0) > maxAhead) blockers.push("ahead_commit_limit_exceeded");
-  if (!closedPulls.length) blockers.push("closed_pull_request_required");
-  if (!labeledClosedPulls.length) blockers.push("superseded_pull_request_label_required");
+  if (allowOrphanBranch) {
+    if (exactPulls.length) blockers.push("orphan_branch_requires_no_matching_pull_request");
+  } else {
+    if (!closedPulls.length) blockers.push("closed_pull_request_required");
+    if (!labeledClosedPulls.length) blockers.push("superseded_pull_request_label_required");
+  }
   if (openPulls.length) blockers.push("open_pull_request_exists");
   if (replacementEvidence.some((item) => item.resolved_sha !== item.sha)) blockers.push("superseding_commit_resolution_mismatch");
   if (replacementEvidence.some((item) => !item.on_default_branch)) blockers.push("superseding_commit_not_on_default_branch");
   if (uncoveredFiles.length) blockers.push("changed_file_coverage_incomplete");
+  if (allowOrphanBranch && orphanContentMismatches.length) blockers.push("orphan_branch_content_not_equivalent_to_default");
   if (!branchFiles.length || Number(baseToBranch?.ahead_by || 0) < 1) blockers.push("branch_has_no_unmerged_changes");
   const fingerprintInput = {
     owner: target.owner, repo: target.repo, branch: target.branch, default_branch: target.default_branch,
@@ -243,11 +280,14 @@ export async function buildSupersededBranchCleanupEvidence(args = {}, deps = {})
     branch_ref_sha: String(branchRef?.object?.sha || "").toLowerCase(),
     compare_status: baseToBranch?.status || null,
     ahead_by: Number(baseToBranch?.ahead_by || 0), behind_by: Number(baseToBranch?.behind_by || 0),
+    lifecycle_mode: allowOrphanBranch ? "orphan_branch" : "closed_pr",
+    allow_orphan_branch: allowOrphanBranch,
     closed_pr_numbers: closedPulls.map((pr) => Number(pr.number)).sort((a, b) => a - b),
     labeled_closed_pr_numbers: labeledClosedPulls.map((pr) => Number(pr.number)).sort((a, b) => a - b),
     required_label: requiredLabel,
     superseding_commits: commits, branch_changed_files: branchFiles, replacement_files: replacementFiles,
     generated_files: generatedFiles, uncovered_files: uncoveredFiles,
+    orphan_content_mismatches: orphanContentMismatches, orphan_content_evidence: orphanContentEvidence,
     branch_limit_evidence: branchLimitEvidence,
   };
   const evidenceFingerprint = supersededBranchCleanupFingerprint(fingerprintInput);
@@ -256,13 +296,14 @@ export async function buildSupersededBranchCleanupEvidence(args = {}, deps = {})
     ok: true, adapter: GITHUB_SUPERSEDED_BRANCH_CLEANUP_VERSION,
     mode: String(args.mode || "dry_run").toLowerCase() === "apply" ? "apply" : "dry_run",
     ready: blockers.length === 0, target,
-    pull_request_evidence: { matching_count: exactPulls.length, open_pr_numbers: openPulls.map((pr) => Number(pr.number)), closed_pr_numbers: closedPulls.map((pr) => Number(pr.number)), labeled_closed_pr_numbers: labeledClosedPulls.map((pr) => Number(pr.number)), required_label: requiredLabel },
+    pull_request_evidence: { lifecycle_mode: fingerprintInput.lifecycle_mode, allow_orphan_branch: allowOrphanBranch, matching_count: exactPulls.length, open_pr_numbers: openPulls.map((pr) => Number(pr.number)), closed_pr_numbers: closedPulls.map((pr) => Number(pr.number)), labeled_closed_pr_numbers: labeledClosedPulls.map((pr) => Number(pr.number)), required_label: requiredLabel },
     replacement_evidence: replacementEvidence,
     policy_evidence: { branch_limit: branchLimitEvidence, secrets_included: false },
     branch_evidence: {
       base_ref_sha: fingerprintInput.base_ref_sha, branch_ref_sha: fingerprintInput.branch_ref_sha,
       compare_status: fingerprintInput.compare_status, ahead_by: fingerprintInput.ahead_by, behind_by: fingerprintInput.behind_by,
       changed_files: branchFiles, covered_files: coveredFiles, generated_files: generatedFiles, uncovered_files: uncoveredFiles,
+      content_equivalence_evidence: orphanContentEvidence, content_mismatches: orphanContentMismatches,
     },
     blockers, evidence_fingerprint: evidenceFingerprint, required_confirmation: requiredConfirmation,
     applies_ref_delete: false, secrets_included: false,

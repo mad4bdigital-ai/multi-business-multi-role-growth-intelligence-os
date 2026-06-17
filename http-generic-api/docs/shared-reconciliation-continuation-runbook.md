@@ -125,19 +125,19 @@ Every continuation/resume audit payload should include:
 - apply result when applicable
 - next step or resumed operation
 - `secrets_included: false`
-### Superseded closed-PR branch cleanup
+### Superseded closed-PR and orphan branch cleanup
 
-Do not use generic branch deletion for an unmerged branch. Use `github_superseded_branch_cleanup` only after `admin_branch_reconcile` has shown that the work branch is no longer the active delivery path and a maintainer has closed and labeled its PR `superseded`.
+Do not use generic branch deletion for an unmerged branch. Use `github_superseded_branch_cleanup` only after `admin_branch_reconcile` has shown that the work branch is no longer the active delivery path. Closed-PR mode requires a maintainer to close and label the PR `superseded`. Orphan mode requires `allow_orphan_branch=true` and zero matching PRs in any state.
 
 When `gh` is unavailable, close the PR only through the guarded REST fallback `PATCH /pulls/{number}` with the sole field `state=closed`. Any title/body/base/additional field must be rejected. Require same-cycle `GET /pulls/{number}` readback with `state=closed`, `readback_verified=true`, and `secrets_included=false`. Apply the allowlisted `superseded` label only after the PR is closed.
 
 Keep the global ahead-commit limit unchanged. For a fully covered historical branch above that limit, use an exact-branch policy override only when it contains the current `expected_branch_sha`, a future `expires_at`, a reason of at least 20 characters, and a bounded `max_ahead_commits`. Treat invalid/expired/SHA-mismatched overrides as non-applicable; the dry-run must expose validation failures and remain blocked. Do not enable force or generic fallback deletion.
 
-1. Run `github_superseded_branch_cleanup` with `mode=dry_run`, the branch name, default branch, and full replacement commit SHAs.
-2. Confirm there is no open PR, the matching PR is closed and labeled `superseded`, every replacement commit is already in the default-branch history, and every non-generated changed file is covered.
-3. Preserve the returned `base_ref_sha`, `branch_ref_sha`, `evidence_fingerprint`, and `required_confirmation`.
+1. Run `github_superseded_branch_cleanup` with `mode=dry_run`, the branch name, default branch, full replacement commit SHAs, and `allow_orphan_branch=true` only for a branch with no PR lifecycle.
+2. Closed-PR mode: confirm there is no open PR and the matching PR is closed and labeled `superseded`. Orphan mode: confirm `matching_count=0` and every non-generated file has `content_equivalent=true`. In both modes confirm every replacement commit is already in the default-branch history and every non-generated changed file is covered.
+3. Preserve the returned `base_ref_sha`, `branch_ref_sha`, lifecycle mode, content-equivalence evidence, `evidence_fingerprint`, and `required_confirmation`.
 4. Approve a GitHub capability envelope specifically for `github_superseded_branch_cleanup` or governed branch cleanup.
 5. Re-run in `mode=apply` with the preserved evidence, exact typed confirmation, capability envelope, and a reason of at least 20 characters.
 6. Require a synchronous no-secret intent audit before DELETE, same-cycle readback showing the ref is absent, and a completion or failure audit with `secrets_included=false`.
 
-Stop without deletion when evidence is stale, any matching PR is open, the `superseded` label is missing, replacement commits are not on the default branch, file coverage is incomplete, policy limits are exceeded, the branch is protected, or any force/generic fallback would be required.
+Stop without deletion when evidence is stale, any matching PR is open, the closed-PR label is missing, orphan mode finds any PR, any orphan non-generated blob differs from the default branch, replacement commits are not on the default branch, file coverage is incomplete, policy limits are exceeded, the branch is protected, or any force/generic fallback would be required.
