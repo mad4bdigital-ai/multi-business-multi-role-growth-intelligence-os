@@ -129,6 +129,8 @@ Every continuation/resume audit payload should include:
 
 Do not use generic branch deletion for an unmerged branch. Use `github_superseded_branch_cleanup` only after `admin_branch_reconcile` has shown that the work branch is no longer the active delivery path and a maintainer has closed and labeled its PR `superseded`.
 
+When `gh` is unavailable, close the PR only through the guarded REST fallback `PATCH /pulls/{number}` with the sole field `state=closed`. Any title/body/base/additional field must be rejected. Require same-cycle `GET /pulls/{number}` readback with `state=closed`, `readback_verified=true`, and `secrets_included=false`. Apply the allowlisted `superseded` label only after the PR is closed.
+
 1. Run `github_superseded_branch_cleanup` with `mode=dry_run`, the branch name, default branch, and full replacement commit SHAs.
 2. Confirm there is no open PR, the matching PR is closed and labeled `superseded`, every replacement commit is already in the default-branch history, and every non-generated changed file is covered.
 3. Preserve the returned `base_ref_sha`, `branch_ref_sha`, `evidence_fingerprint`, and `required_confirmation`.
