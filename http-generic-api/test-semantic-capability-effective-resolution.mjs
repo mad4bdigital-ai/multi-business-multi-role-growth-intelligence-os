@@ -39,6 +39,32 @@ for (const tableName of [
   assert(docs.includes(`\`${tableName}\``), `${tableName} must be documented`);
 }
 
+for (const surfaceName of [
+  "platform_capability_provider_bindings",
+  "tenant_capability_shadow_decisions",
+]) {
+  assert(
+    activationAccessMap.includes(`\`${surfaceName}\``),
+    `activation access map must include ${surfaceName}`
+  );
+}
+assert(
+  activationAccessMap.includes("admin + tenant"),
+  "tenant shadow decision surface must retain tenant visibility in generated activation docs"
+);
+for (const modelName of [
+  "platform_semantic_capabilities",
+  "platform_capability_provider_bindings",
+  "platform_endpoint_aliases",
+  "tenant_capability_shadow_decisions",
+  "v_tenant_effective_capability_candidates",
+]) {
+  assert(
+    dataModelDomainMap.includes(`\`${modelName}\``),
+    `data model domain map must include ${modelName}`
+  );
+}
+
 for (const viewName of [
   "v_platform_endpoint_canonical_identity",
   "v_platform_capability_export_projection",
