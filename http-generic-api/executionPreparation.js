@@ -176,6 +176,7 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
       throw authErr;
     }
   } else if (
+    !passiveAuthResolution &&
     authContract.mode === "none" &&
     isDelegatedTransportTarget(endpoint) &&
     isGoogleApiHost(resolvedProviderDomain)
@@ -184,7 +185,6 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
       authContract.mode = "bearer_token";
       authContract.header_name = "Authorization";
       authContract.secret = await mintGoogleAccessTokenForEndpoint({
-        drive,
         policies,
         action,
         endpoint
