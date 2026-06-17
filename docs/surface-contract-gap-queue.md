@@ -4,9 +4,9 @@
 
 ## Summary
 
-- Total queue items: 4
+- Total queue items: 5
 - Critical review: 2
-- High review: 2
+- High review: 3
 - Medium review: 0
 - Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
@@ -56,7 +56,22 @@
 - `verify_readback_view` → db-readback-review; targets: `v_activation_agent_catalog`, `v_activation_agent_skill_grants`, `v_activation_pending_tasks`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 4. `1012_sprint69_sql_only_runtime_auth_schema.sql`
+### 4. `314_sprint69_capability_assurance_graph.sql`
+
+- Queue class: high_review
+- Score: 541
+- Gap severity: none
+- Missing docs: none
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=10, views=8, policies=1, routes=1
+- Remediation actions:
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `blocks_dispatch`, `capability_envelope_decision`, `idx_ppc_dispatch_apply`, `ready_for_dispatch`, `requires_readback`, `runtime_dispatch`, `runtime_dispatch_certification_registry`, `tenant_platform_endpoint_tools`, `v_platform_capability_readiness_vector`
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `platform_secret_promotion_policy_v1`
+- `verify_readback_view` → db-readback-review; targets: `v_effective_platform_resource_authority_bindings`, `v_platform_bindings_current`, `v_platform_capabilities_current`, `v_platform_capability_assurance_gaps`, `v_platform_capability_assurance_summary`, `v_platform_capability_readiness_vector`, `v_platform_exports_current`, `v_platform_secret_promotion_monitoring`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 5. `1012_sprint69_sql_only_runtime_auth_schema.sql`
 
 - Queue class: high_review
 - Score: 515
