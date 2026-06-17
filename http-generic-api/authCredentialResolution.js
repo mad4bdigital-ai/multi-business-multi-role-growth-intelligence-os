@@ -110,6 +110,66 @@ function resolveRequestedCredentialScope({ strategy, auth_context, credential_sc
   return supported.includes(scope) ? scope : defaultScope;
 }
 
+function hasPreviewCredentialContract(mode, action = {}, strategy = {}) {
+  if (mode === "none") return true;
+  if (["google_oauth2", "google_ads_oauth2", "oauth_gpt_action"].includes(mode)) {
+    return Boolean(
+      asList(strategy.required_scopes).length &&
+      (action.oauth_config_ref || action.oauth_client_id_ref || action.oauth_client_secret_ref)
+    );
+  }
+  if (["api_key_query", "api_key_header", "bearer_token"].includes(mode)) {
+    return Boolean(action.secret_store_ref || action.api_key_storage_mode === "per_target_credentials");
+  }
+  if (mode === "basic_auth") return true;
+  if (mode === "github_app") return true;
+  if (mode === "custom_headers") return true;
+  return false;
+}
+
+export function buildAuthContractPreview({
+  action = {},
+  endpoint = {},
+  brand = null,
+  auth_context = null,
+  credential_scope = "",
+  allow_platform_fallback = undefined
+} = {}) {
+  const mode = inferAuthMode({ action, brand });
+  const strategy = getParentAuthStrategy(action, endpoint);
+  const scope = resolveRequestedCredentialScope({ strategy, auth_context, credential_scope });
+  const fallbackAllowed = allowFallbackForScope({
+    strategy,
+    auth_context,
+    allow_platform_fallback,
+    scope
+  });
+  const contractReady = hasPreviewCredentialContract(mode, action, strategy);
+  return {
+    mode,
+    inject: false,
+    username: "",
+    secret: "",
+    param_name: action.api_key_param_name || "",
+    header_name: mode === "api_key_header"
+      ? (action.api_key_header_name || "x-api-key")
+      : (["google_oauth2", "google_ads_oauth2", "oauth_gpt_action", "bearer_token", "github_app"].includes(mode)
+        ? "Authorization"
+        : ""),
+    custom_headers: {},
+    credential_resolution_status: mode === "none"
+      ? "not_required"
+      : (contractReady ? "contract_ready" : "contract_missing"),
+    credential_resolution_source: "sql_action_contract",
+    credential_scope: scope,
+    fallback_allowed: fallbackAllowed,
+    required_scopes: asList(strategy.required_scopes),
+    materialized: false,
+    provider_call_made: false,
+    secret_read_performed: false
+  };
+}
+
 function allowFallbackForScope({ strategy, auth_context, allow_platform_fallback, scope }) {
   if (allow_platform_fallback !== undefined) return boolOption(allow_platform_fallback, false);
   if (auth_context && Object.prototype.hasOwnProperty.call(auth_context, "allow_platform_fallback")) return boolOption(auth_context.allow_platform_fallback, false);
