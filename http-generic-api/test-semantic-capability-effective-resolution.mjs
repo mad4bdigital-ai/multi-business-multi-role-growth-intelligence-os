@@ -13,6 +13,10 @@ const systemLayer = fs.readFileSync(
   new URL("./routes/systemLayerRoutes.js", import.meta.url),
   "utf8"
 );
+const governedMigrationRunner = fs.readFileSync(
+  new URL("./scripts/governed-migration-runner.mjs", import.meta.url),
+  "utf8"
+);
 const docs = fs.readFileSync(
   new URL("../docs/semantic-capability-effective-resolution.md", import.meta.url),
   "utf8"
