@@ -1862,8 +1862,8 @@ async function logRetryWriteback(input = {}) {
 function headerMap(headerRow, sheetName) { return headerMapUtil(headerRow, sheetName); }
 function getCell(row, map, key) { return getCellUtil(row, map, key); }
 
-async function getGoogleClients() { return getGoogleClientsBase(); }
-async function getGoogleClientsForSpreadsheet(id) { return getGoogleClientsForSpreadsheetBase(id); }
+async function getGoogleClients(options = {}) { return getGoogleClientsBase(options); }
+async function getGoogleClientsForSpreadsheet(id, options = {}) { return getGoogleClientsForSpreadsheetBase(id, options); }
 async function assertSheetExistsInSpreadsheet(spreadsheetId, sheetName) { return assertSheetExistsInSpreadsheetBase(spreadsheetId, sheetName); }
 
 async function assertGovernedSinkSheetsExist() {
