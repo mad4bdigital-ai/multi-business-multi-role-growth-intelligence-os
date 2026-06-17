@@ -3,10 +3,10 @@
   "schema_version": "surface-contract-gap-triage-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
   "source_discovery_schema": "surface-contract-discovery-v3",
-  "total_triaged_items": 6,
+  "total_triaged_items": 7,
   "class_counts": {
     "new_surface_immediate_review": 3,
-    "standard_backlog_review": 1,
+    "standard_backlog_review": 2,
     "safety_marker_review": 2
   },
   "gate_candidate_count": 3,
@@ -141,7 +141,7 @@
     },
     {
       "migration_file": "316_sprint69_safe_branch_cleanup_support.sql",
-      "score": 608,
+      "score": 607,
       "queue_class": "high_review",
       "triage_class": "safety_marker_review",
       "gate_scope": "legacy_baseline_candidate",
@@ -253,6 +253,41 @@
         "runtime-registry-review",
         "db-readback-review",
         "safety-contract-review"
+      ],
+      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "317_sprint69_superseded_orphan_branch_cleanup.sql",
+      "score": 354,
+      "queue_class": "medium_review",
+      "triage_class": "standard_backlog_review",
+      "gate_scope": "legacy_baseline_candidate",
+      "gap_severity": "low",
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [],
+      "remediation_action_keys": [
+        "document_surface_contract",
+        "verify_readback_view"
+      ],
+      "owner_hints": [
+        "docs-agent/human-review",
+        "db-readback-review"
       ],
       "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
       "safety": {
