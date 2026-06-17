@@ -325,7 +325,9 @@ export async function decideGrowthIntelligenceAction({
     const [rows] = await connection.query(
       `SELECT a.action_record_id, a.action_id, a.approval_hold_id, a.workflow_run_id, a.approval_state, h.status AS hold_status
          FROM growth_intelligence_actions a
-         LEFT JOIN approval_holds h ON h.hold_id = a.approval_hold_id
+         LEFT JOIN approval_holds h
+           ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
+            = CONVERT(a.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
         WHERE a.tenant_id = ? AND a.report_id = ? AND a.action_id = ?
         LIMIT 1`,
       [tenantId, reportId, actionId]
