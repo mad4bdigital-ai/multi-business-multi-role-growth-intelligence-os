@@ -64,6 +64,11 @@ import {
   tenantRepositoryMutationReadbackV6,
 } from "../repositoryGovernanceV6.js";
 import * as RepositoryGovernanceV6Runtime from "../repositoryGovernanceV6.js";
+import {
+  TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
+  tenantEffectiveCapabilityPreview,
+  tenantCapabilityShadowCompare,
+} from "../tenantEffectiveCapabilityResolver.js";
 import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
 
 const SYSTEM_LAYER_TOOLS = [
