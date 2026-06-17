@@ -20,7 +20,6 @@ export async function resolveExecutionRequest(reqBody = {}, deps = {}) {
     validateTopLevelRoutingFields,
     getRegistry,
     reloadRegistry,
-    getGoogleClients,
     getRequiredHttpExecutionPolicyKeys,
     requirePolicySet,
     policyValue,
