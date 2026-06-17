@@ -4,11 +4,11 @@
 
 ## Summary
 
-- Total queue items: 8
+- Total queue items: 9
 - Critical review: 3
 - High review: 4
 - Medium review: 1
-- Low review: 0
+- Low review: 1
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
@@ -127,4 +127,18 @@
 - Remediation actions:
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `verify_readback_view` → db-readback-review; targets: `v_superseded_branch_cleanup_policy_readback`
+
+### 9. `1013_sprint69_approval_hold_identity_collation_alignment.sql`
+
+- Queue class: low_review
+- Score: 177
+- Gap severity: none
+- Missing docs: none
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=5, views=1, policies=0, routes=0
+- Remediation actions:
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `ads_provider_profile_onboarding_requests`, `execution_enablement_requests`, `local_gateway_tool_call_log`, `tenant_ssh_cli_approval_requests`, `v_approval_hold_identity_collation_readiness`
+- `verify_readback_view` → db-readback-review; targets: `v_approval_hold_identity_collation_readiness`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 

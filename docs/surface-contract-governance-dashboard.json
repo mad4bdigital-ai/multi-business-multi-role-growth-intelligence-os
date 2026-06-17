@@ -6,21 +6,21 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 434,
-    "docs_complete_count": 427,
+    "migrations_with_surfaces": 435,
+    "docs_complete_count": 428,
     "docs_gap_count": 7,
     "docs_completion_percent": 98.39,
     "surface_totals": {
       "plugins": 12,
-      "tools": 2019,
-      "views": 393,
+      "tools": 2024,
+      "views": 394,
       "policies": 158,
       "routes": 560
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 368,
-      "views": 158,
+      "tools": 369,
+      "views": 159,
       "policies": 100,
       "routes": 236
     },
@@ -35,7 +35,7 @@
       "high": 2,
       "medium": 4,
       "low": 1,
-      "none": 427
+      "none": 428
     },
     "high_risk_missing_docs": [
       "1011_sprint69_governed_repository_engine_v6.sql",
@@ -53,7 +53,7 @@
       "no_raw_secrets": 428,
       "no_external_send": 428,
       "no_external_write": 428,
-      "secrets_included_false": 432
+      "secrets_included_false": 433
     },
     "safety_marker_gap_migrations": 2,
     "route_coverage": {
@@ -76,28 +76,28 @@
     }
   },
   "queue": {
-    "total_items": 8,
+    "total_items": 9,
     "class_counts": {
       "critical_review": 3,
       "high_review": 4,
       "medium_review": 1,
-      "low_review": 0
+      "low_review": 1
     }
   },
   "triage": {
-    "total_items": 8,
+    "total_items": 9,
     "class_counts": {
       "new_surface_immediate_review": 3,
       "standard_backlog_review": 2,
-      "safety_marker_review": 3
+      "safety_marker_review": 4
     },
     "gate_candidate_count": 3
   },
   "gate": {
     "ok": false,
     "mode": "future_only_all_new_gaps",
-    "new_item_count": 3,
-    "blocking_new_item_count": 3
+    "new_item_count": 4,
+    "blocking_new_item_count": 4
   },
   "top_immediate_items": [
     {
