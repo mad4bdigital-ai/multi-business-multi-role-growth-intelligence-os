@@ -10,7 +10,7 @@
 
 UPDATE execution_policies
    SET policy_value = JSON_SET(
-         CAST(policy_value AS JSON),
+         policy_value,
          '$.superseded_branch_delete_max_ahead_commits',
          30
        ),
