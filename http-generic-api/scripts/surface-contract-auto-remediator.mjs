@@ -43,10 +43,10 @@ const FORBIDDEN_SQL_PATTERNS = [
   /\bINTO\s+OUTFILE\b/i,
   /\bCALL\s+[A-Za-z0-9_]+\s*\(/i,
   /\bPREPARE\s+[A-Za-z0-9_]+\s+FROM\b/i,
-  /\bEXECUTE\s+[A-Za-z0-9_]+\b/i,
+  /^\s*EXECUTE\s+[A-Za-z0-9_]+\b/im,
   /\bCREATE\s+(?:PROCEDURE|FUNCTION|TRIGGER)\b/i,
-  /\bGRANT\s+.+\s+ON\b/i,
-  /\bREVOKE\s+.+\s+ON\b/i,
+  /^\s*GRANT\b[\s\S]*?\bON\b/im,
+  /^\s*REVOKE\b[\s\S]*?\bON\b/im,
 ];
 
 function readJson(filePath, fallback = {}) {
