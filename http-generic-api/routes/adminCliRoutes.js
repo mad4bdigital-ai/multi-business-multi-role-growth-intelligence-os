@@ -2891,7 +2891,7 @@ export function buildAdminCliRoutes(deps) {
       let driveError = null;
       if (typeof deps.getGoogleClients === "function") {
         try {
-          const { drive } = await deps.getGoogleClients();
+          const { drive } = await deps.getGoogleClients({ action_key: "google_drive_api" });
           const created = await drive.files.create({
             requestBody: { name: filename, mimeType: "application/octet-stream" },
             media: { mimeType: "application/octet-stream", body: batContent },
