@@ -6,34 +6,34 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 431,
+    "migrations_with_surfaces": 432,
     "docs_complete_count": 427,
-    "docs_gap_count": 4,
-    "docs_completion_percent": 99.07,
+    "docs_gap_count": 5,
+    "docs_completion_percent": 98.84,
     "surface_totals": {
       "plugins": 12,
-      "tools": 2006,
+      "tools": 2009,
       "views": 388,
       "policies": 158,
       "routes": 560
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 366,
+      "tools": 367,
       "views": 156,
       "policies": 100,
       "routes": 236
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 3,
-      "deployment_parity_checklist.md": 3,
-      "docs/ai-docs-agent-governance.md": 3,
-      "docs/auto-docs-agent/README.md": 4,
-      "docs/change-documentation-governance.md": 4
+      "Updating Registry Patch Index.md": 4,
+      "deployment_parity_checklist.md": 4,
+      "docs/ai-docs-agent-governance.md": 4,
+      "docs/auto-docs-agent/README.md": 5,
+      "docs/change-documentation-governance.md": 5
     },
     "gap_severity_counts": {
       "high": 2,
-      "medium": 2,
+      "medium": 3,
       "low": 0,
       "none": 427
     },
@@ -43,7 +43,8 @@
     ],
     "medium_risk_missing_docs": [
       "1012_sprint69_sql_only_runtime_auth_schema.sql",
-      "20260615_tenant_growth_dashboard_product.sql"
+      "20260615_tenant_growth_dashboard_product.sql",
+      "316_sprint69_safe_branch_cleanup_support.sql"
     ],
     "safety_marker_counts": {
       "no_provider_call": 428,
@@ -51,7 +52,7 @@
       "no_raw_secrets": 427,
       "no_external_send": 427,
       "no_external_write": 427,
-      "secrets_included_false": 430
+      "secrets_included_false": 431
     },
     "safety_marker_gap_migrations": 1,
     "route_coverage": {
@@ -74,20 +75,20 @@
     }
   },
   "queue": {
-    "total_items": 5,
+    "total_items": 6,
     "class_counts": {
       "critical_review": 2,
-      "high_review": 3,
+      "high_review": 4,
       "medium_review": 0,
       "low_review": 0
     }
   },
   "triage": {
-    "total_items": 5,
+    "total_items": 6,
     "class_counts": {
       "new_surface_immediate_review": 3,
       "standard_backlog_review": 1,
-      "safety_marker_review": 1
+      "safety_marker_review": 2
     },
     "gate_candidate_count": 3
   },
