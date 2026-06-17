@@ -1586,3 +1586,8 @@ Documents and aligns PR #1270 / migration `906_sprint68_ticket_external_delivery
 ## Sprint 69 Capability Vault record-only tool export
 
 - `315_sprint69_capability_vault_record_tool_export.sql` exports the already implemented admin-only `/platform/capability-vault/repo-ingestion-record` route through `admin_platform_endpoint_tools` and binds it to `capability_vault_record_only_same_cycle_v1`. The tool remains confirmation-gated, transactional, audited, idempotent, no-execution, no-install, no-external-send, and no-secret.
+
+## Capability Assurance Graph ΓÇö Migration 314
+
+- http-generic-api/migrations/314_sprint69_capability_assurance_graph.sql adds the canonical capability graph, invocation evidence links, capability-specific resource bindings, generic certifications, provenance, debt, closure threads, and hash-only secret movement evidence.
+- Apply remains envelope-gated, additive, no-provider-call, and no-plaintext-secret.

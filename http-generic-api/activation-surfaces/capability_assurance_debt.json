@@ -1,0 +1,20 @@
+{
+  "surface_key": "capability_assurance_debt",
+  "display_name": "Capability Assurance Debt",
+  "description": "Admin-only persistent capability assurance gaps and closure blockers.",
+  "source_table": "platform_capability_debt",
+  "covered_source_tables": ["platform_capability_debt"],
+  "result_key_column": "debt_id",
+  "result_label_column": "capability_key",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": ["open", "accepted", "in_progress"],
+  "result_columns": ["debt_id", "capability_key", "gap_key", "severity", "source_view", "status", "blocks_dispatch", "blocks_apply", "first_seen_at", "last_seen_at", "resolved_at"],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 100,
+  "sort_order": 278,
+  "status": "active",
+  "notes": "Excludes recommended_fix free text, evidence pointers, and metadata_json."
+}
