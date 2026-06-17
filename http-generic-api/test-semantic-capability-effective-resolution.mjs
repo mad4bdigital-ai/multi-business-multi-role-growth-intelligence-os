@@ -129,6 +129,11 @@ assert(
   systemLayer.includes('source_key: "tenant_effective_capability_resolver_v1"'),
   "system layer must register the direct resolver descriptor source"
 );
+assert.equal(
+  systemLayer.split('source_key: "tenant_effective_capability_resolver_v1"').length - 1,
+  1,
+  "semantic capability descriptor source must be registered exactly once"
+);
 assert(systemLayer.includes("tenantEffectiveCapabilityPreview"), "preview handler must be wired");
 assert(systemLayer.includes("tenantCapabilityShadowCompare"), "shadow handler must be wired");
 assert(
