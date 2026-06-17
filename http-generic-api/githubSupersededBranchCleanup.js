@@ -135,12 +135,60 @@ function normalizeSupersedingCommits(values = [], maxCommits = 20) {
   }
   return commits.map((sha) => sha.toLowerCase());
 }
+
+function boundedInteger(value, fallback, min, max) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(Math.trunc(parsed), max));
+}
+
+function resolveBranchAheadLimit(policy = {}, branch = "", branchSha = "", nowValue = Date.now()) {
+  const globalMaxAhead = boundedInteger(policy.superseded_branch_delete_max_ahead_commits, 20, 1, 100);
+  const overrides = parseJson(policy.superseded_branch_delete_branch_overrides);
+  const raw = overrides && typeof overrides === "object" ? overrides[branch] : null;
+  const nowMs = typeof nowValue === "function" ? Number(nowValue()) : Number(nowValue);
+  const evidence = {
+    configured: Boolean(raw && typeof raw === "object"),
+    applied: false,
+    branch,
+    global_max_ahead_commits: globalMaxAhead,
+    effective_max_ahead_commits: globalMaxAhead,
+    expected_branch_sha: null,
+    expires_at: null,
+    reason: null,
+    validation_failures: [],
+    secrets_included: false,
+  };
+  if (!evidence.configured) return evidence;
+
+  const requestedMaxAhead = boundedInteger(raw.max_ahead_commits, globalMaxAhead, 1, 100);
+  const expectedBranchSha = String(raw.expected_branch_sha || "").trim().toLowerCase();
+  const expiresAt = String(raw.expires_at || "").trim();
+  const expiresAtMs = Date.parse(expiresAt);
+  const reason = String(raw.reason || "").trim();
+  evidence.requested_max_ahead_commits = requestedMaxAhead;
+  evidence.expected_branch_sha = expectedBranchSha || null;
+  evidence.expires_at = expiresAt || null;
+  evidence.reason = reason || null;
+
+  if (requestedMaxAhead <= globalMaxAhead) evidence.validation_failures.push("override_limit_must_exceed_global_limit");
+  if (!SHA_PATTERN.test(expectedBranchSha) || expectedBranchSha !== String(branchSha || "").toLowerCase()) {
+    evidence.validation_failures.push("override_branch_sha_mismatch");
+  }
+  if (!Number.isFinite(expiresAtMs) || expiresAtMs <= nowMs) evidence.validation_failures.push("override_expired_or_invalid");
+  if (reason.length < 20) evidence.validation_failures.push("override_reason_too_short");
+
+  if (!evidence.validation_failures.length) {
+    evidence.applied = true;
+    evidence.effective_max_ahead_commits = requestedMaxAhead;
+  }
+  return evidence;
+}
 export async function buildSupersededBranchCleanupEvidence(args = {}, deps = {}) {
   const policy = await loadCleanupPolicy(deps);
   const target = await resolveTarget(args);
   const maxCommits = Math.max(1, Math.min(Number(policy.superseded_branch_delete_max_replacement_commits || 20), 50));
   const maxFiles = Math.max(1, Math.min(Number(policy.superseded_branch_delete_max_changed_files || 100), 300));
-  const maxAhead = Math.max(1, Math.min(Number(policy.superseded_branch_delete_max_ahead_commits || 20), 100));
   const requiredLabel = String(policy.superseded_branch_delete_required_label || "superseded").trim().toLowerCase();
   const commits = normalizeSupersedingCommits(args.superseding_commits, maxCommits);
   const token = deps.token || await getGitHubAppInstallationToken({});
@@ -170,6 +218,9 @@ export async function buildSupersededBranchCleanupEvidence(args = {}, deps = {})
   const openPulls = exactPulls.filter((pr) => pr?.state === "open");
   const closedPulls = exactPulls.filter((pr) => pr?.state === "closed");
   const labeledClosedPulls = closedPulls.filter((pr) => (pr?.labels || []).some((label) => String(label?.name || label || "").trim().toLowerCase() === requiredLabel));
+  const branchRefSha = String(branchRef?.object?.sha || "").toLowerCase();
+  const branchLimitEvidence = resolveBranchAheadLimit(policy, target.branch, branchRefSha, deps.now || Date.now());
+  const maxAhead = branchLimitEvidence.effective_max_ahead_commits;
   const branchFiles = fileList(baseToBranch);
   const replacementFiles = uniqueStrings(replacementEvidence.flatMap((item) => item.files)).sort();
   const generatedPrefixes = uniqueStrings(policy.superseded_branch_delete_generated_path_prefixes || []);
@@ -197,6 +248,7 @@ export async function buildSupersededBranchCleanupEvidence(args = {}, deps = {})
     required_label: requiredLabel,
     superseding_commits: commits, branch_changed_files: branchFiles, replacement_files: replacementFiles,
     generated_files: generatedFiles, uncovered_files: uncoveredFiles,
+    branch_limit_evidence: branchLimitEvidence,
   };
   const evidenceFingerprint = supersededBranchCleanupFingerprint(fingerprintInput);
   const requiredConfirmation = supersededBranchCleanupConfirmation(target.branch, evidenceFingerprint);
@@ -206,6 +258,7 @@ export async function buildSupersededBranchCleanupEvidence(args = {}, deps = {})
     ready: blockers.length === 0, target,
     pull_request_evidence: { matching_count: exactPulls.length, open_pr_numbers: openPulls.map((pr) => Number(pr.number)), closed_pr_numbers: closedPulls.map((pr) => Number(pr.number)), labeled_closed_pr_numbers: labeledClosedPulls.map((pr) => Number(pr.number)), required_label: requiredLabel },
     replacement_evidence: replacementEvidence,
+    policy_evidence: { branch_limit: branchLimitEvidence, secrets_included: false },
     branch_evidence: {
       base_ref_sha: fingerprintInput.base_ref_sha, branch_ref_sha: fingerprintInput.branch_ref_sha,
       compare_status: fingerprintInput.compare_status, ahead_by: fingerprintInput.ahead_by, behind_by: fingerprintInput.behind_by,

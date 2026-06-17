@@ -131,6 +131,8 @@ Do not use generic branch deletion for an unmerged branch. Use `github_supersede
 
 When `gh` is unavailable, close the PR only through the guarded REST fallback `PATCH /pulls/{number}` with the sole field `state=closed`. Any title/body/base/additional field must be rejected. Require same-cycle `GET /pulls/{number}` readback with `state=closed`, `readback_verified=true`, and `secrets_included=false`. Apply the allowlisted `superseded` label only after the PR is closed.
 
+Keep the global ahead-commit limit unchanged. For a fully covered historical branch above that limit, use an exact-branch policy override only when it contains the current `expected_branch_sha`, a future `expires_at`, a reason of at least 20 characters, and a bounded `max_ahead_commits`. Treat invalid/expired/SHA-mismatched overrides as non-applicable; the dry-run must expose validation failures and remain blocked. Do not enable force or generic fallback deletion.
+
 1. Run `github_superseded_branch_cleanup` with `mode=dry_run`, the branch name, default branch, and full replacement commit SHAs.
 2. Confirm there is no open PR, the matching PR is closed and labeled `superseded`, every replacement commit is already in the default-branch history, and every non-generated changed file is covered.
 3. Preserve the returned `base_ref_sha`, `branch_ref_sha`, `evidence_fingerprint`, and `required_confirmation`.

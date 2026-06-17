@@ -118,6 +118,80 @@ assert.equal(
 assert.equal(dryRun.evidence_fingerprint.length, 64);
 assert.equal(supersededBranchCleanupFingerprint({ b: 1, a: 2 }), supersededBranchCleanupFingerprint({ a: 2, b: 1 }));
 
+const highAheadFetch = async (url, options = {}) => {
+  const apiPath = `${new URL(url).pathname}${new URL(url).search}`;
+  if (apiPath.includes(`/compare/main...${encodeURIComponent(branch)}`)) {
+    return response(200, {
+      status: "diverged",
+      ahead_by: 53,
+      behind_by: 70,
+      files: [{ filename: migrationFile }, { filename: testFile }, { filename: generatedFile }],
+    });
+  }
+  return fetchImpl(url, options);
+};
+const fixedNow = Date.parse("2026-06-17T10:00:00.000Z");
+const validOverride = {
+  ...policy,
+  superseded_branch_delete_branch_overrides: {
+    [branch]: {
+      max_ahead_commits: 60,
+      expected_branch_sha: branchSha,
+      expires_at: "2026-06-17T11:00:00.000Z",
+      reason: "One-time cleanup of a fully covered superseded branch.",
+    },
+  },
+};
+const highAheadAllowed = await buildSupersededBranchCleanupEvidence(args, {
+  ...deps,
+  policy: validOverride,
+  fetchImpl: highAheadFetch,
+  now: fixedNow,
+});
+assert.equal(highAheadAllowed.ready, true);
+assert.equal(highAheadAllowed.policy_evidence.branch_limit.applied, true);
+assert.equal(highAheadAllowed.policy_evidence.branch_limit.global_max_ahead_commits, 20);
+assert.equal(highAheadAllowed.policy_evidence.branch_limit.effective_max_ahead_commits, 60);
+assert.deepEqual(highAheadAllowed.policy_evidence.branch_limit.validation_failures, []);
+
+const expiredOverride = {
+  ...validOverride,
+  superseded_branch_delete_branch_overrides: {
+    [branch]: {
+      ...validOverride.superseded_branch_delete_branch_overrides[branch],
+      expires_at: "2026-06-17T09:00:00.000Z",
+    },
+  },
+};
+const highAheadExpired = await buildSupersededBranchCleanupEvidence(args, {
+  ...deps,
+  policy: expiredOverride,
+  fetchImpl: highAheadFetch,
+  now: fixedNow,
+});
+assert.equal(highAheadExpired.ready, false);
+assert(highAheadExpired.blockers.includes("ahead_commit_limit_exceeded"));
+assert(highAheadExpired.policy_evidence.branch_limit.validation_failures.includes("override_expired_or_invalid"));
+
+const mismatchedShaOverride = {
+  ...validOverride,
+  superseded_branch_delete_branch_overrides: {
+    [branch]: {
+      ...validOverride.superseded_branch_delete_branch_overrides[branch],
+      expected_branch_sha: "c".repeat(40),
+    },
+  },
+};
+const highAheadShaMismatch = await buildSupersededBranchCleanupEvidence(args, {
+  ...deps,
+  policy: mismatchedShaOverride,
+  fetchImpl: highAheadFetch,
+  now: fixedNow,
+});
+assert.equal(highAheadShaMismatch.ready, false);
+assert(highAheadShaMismatch.blockers.includes("ahead_commit_limit_exceeded"));
+assert(highAheadShaMismatch.policy_evidence.branch_limit.validation_failures.includes("override_branch_sha_mismatch"));
+
 await assert.rejects(
   () => buildSupersededBranchCleanupEvidence({ ...args, branch: "main" }, deps),
   (error) => error?.code === "admin_branch_reconcile_protected_branch"

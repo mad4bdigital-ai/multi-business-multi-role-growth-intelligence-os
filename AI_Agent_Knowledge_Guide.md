@@ -1022,6 +1022,8 @@ Generic deletion of unmerged branches remains blocked. Admins may use `github_su
 
 When `gh` is unavailable, the Admin GitHub REST fallback may close a superseded PR only through `PATCH /pulls/{number}` with the sole field `state=closed`. It must reject title, body, base, label, or any additional mutation field, then perform a same-cycle `GET /pulls/{number}` readback and return `readback_verified=true` with `secrets_included=false`. Labeling remains a separate closed-PR-only allowlisted operation.
 
+The global ahead-commit limit remains unchanged. A policy entry may raise the effective limit for one exact branch only when it binds the current `expected_branch_sha`, a future `expires_at`, a reason of at least 20 characters, and a value no greater than the code hard cap. Invalid, expired, or SHA-mismatched overrides are ignored, recorded in `policy_evidence.branch_limit.validation_failures`, and leave `ahead_commit_limit_exceeded` blocking. Overrides never enable force or generic fallback deletion.
+
 Apply requires the same-cycle base SHA, branch SHA, evidence fingerprint, exact typed confirmation, an approved GitHub capability envelope, and a human-readable reason. The tool must reject open PRs, missing labels, incomplete file coverage, stale evidence, protected branches, excessive commit/file scope, and any replacement commit outside the default-branch history. It deletes only the named Git ref, never force-pushes, requires a synchronous no-secret intent audit before deletion, verifies the ref is absent in the same cycle, writes a completion or failure audit, and returns `secrets_included=false`.
 
 ### Governed repository lifecycle and dispatch-binding integrity
