@@ -20,6 +20,7 @@ import {
   describeHostingerSshProbeRunnerMode,
 } from "./hostingerSshProbeRunnerModes.js";
 import { createContinuationCheckpoint, planContinuationResume } from "./sharedReconciliationEngine.js";
+import { getRuntimeParity } from "./runtimeVerificationService.js";
 
 const DEFAULT_TIMEOUT_MS = 120000;
 const DEFAULT_PROBE_TIMEOUT_MS = 45000;
@@ -369,7 +370,7 @@ function killProcessTree(child, signal = "SIGTERM") {
   try { child.kill(signal); } catch { /* noop */ }
 }
 
-function buildRemoteDeployScript({ appPath, branch, expectedCommitSha, forceClean, restart }) {
+export function buildRemoteDeployScript({ appPath, branch, expectedCommitSha, forceClean, restart }) {
   const safeAppPath = shellQuote(appPath);
   const safeBranch = shellQuote(branch);
   const safeSha = shellQuote(expectedCommitSha);
@@ -377,7 +378,7 @@ function buildRemoteDeployScript({ appPath, branch, expectedCommitSha, forceClea
     ? "git reset --hard HEAD >/dev/null && git clean -fd >/dev/null"
     : "if [ -n \"$(git status --short)\" ]; then echo \"deploy_blocked_dirty_worktree\"; git status --short; exit 23; fi";
   const restartBlock = restart
-    ? "mkdir -p tmp && touch tmp/restart.txt && echo \"restart_signal=tmp/restart.txt\""
+    ? "mkdir -p tmp && (nohup sh -c 'sleep 5; touch tmp/restart.txt' >/dev/null 2>&1 </dev/null &) && echo \"restart_signal=scheduled:tmp/restart.txt\""
     : "echo \"restart_signal=not_requested\"";
   return [
     "set -euo pipefail",
@@ -516,15 +517,17 @@ function parseProbeOutput(stdout = "") {
   return out;
 }
 
-function buildHostingerDeployReloadVerification({ restart = true, parsed = {}, sshOk = false } = {}) {
+export function buildHostingerDeployReloadVerification({ restart = true, parsed = {}, sshOk = false } = {}) {
   const restartSignal = String(parsed.restart_signal || "").trim();
   const deployResult = String(parsed.deploy_result || "").trim();
   const restartRequested = restart === true;
-  const restartSignalOk = !restartRequested || restartSignal === "tmp/restart.txt";
+  const restartSignalScheduled = restartSignal === "scheduled:tmp/restart.txt";
+  const restartSignalOk = !restartRequested || restartSignalScheduled || restartSignal === "tmp/restart.txt";
   const deployResultOk = deployResult === "ok";
   return {
     restart_requested: restartRequested,
     restart_signal: restartSignal || null,
+    restart_signal_scheduled: restartSignalScheduled,
     restart_signal_ok: restartSignalOk,
     deploy_result: deployResult || null,
     deploy_result_ok: deployResultOk,
@@ -537,9 +540,11 @@ function buildHostingerDeployReloadVerification({ restart = true, parsed = {}, s
         ? "deploy_result_missing_or_failed"
         : restartRequested && !restartSignalOk
           ? "deploy_reload_signal_missing"
-          : restartRequested
-            ? "reload_signal_emitted_pending_health_readback"
-            : "reload_not_requested",
+          : restartSignalScheduled
+            ? "restart_scheduled_pending_health_readback"
+            : restartRequested
+              ? "reload_signal_emitted_pending_health_readback"
+              : "reload_not_requested",
     secrets_included: false,
   };
 }
@@ -573,7 +578,7 @@ function buildHostingerDeployContinuationEvidence({
       reload_verification: reloadVerification,
     },
     interruption_signal: "deploy_reload_pending",
-    stage: reloadVerification?.status === "reload_signal_emitted_pending_health_readback" ? "verify" : "dry_run_repair",
+    stage: reloadVerification?.runtime_health_readback_required === true ? "verify" : "dry_run_repair",
     metadata: {
       adapter: "hostinger_deploy_reload",
       restart_requested: restart === true,
@@ -681,6 +686,8 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
     expected_commit_sha: expectedCommitSha || null,
     activate_on_success: activateOnSuccess,
     ssh_auth_mode: sshAuthMode,
+    deployment_run_id: traceId,
+    deployment_status: dryRun ? "planned" : "executing",
     dry_run: dryRun,
     will_execute: !dryRun,
     dispatch_plan: {
@@ -799,6 +806,89 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
       stderr: sshResult.stderr,
       bounded: true,
     },
+    secrets_included: false,
+  };
+}
+
+export async function readHostingerSshDeployRunStatus(input = {}, deps = {}) {
+  const pool = deps.pool || getPool();
+  const parityReader = deps.getRuntimeParity || getRuntimeParity;
+  const deploymentRunId = compact(input.deployment_run_id || input.deploymentRunId, 255);
+  if (!/^hostinger_ssh_deploy_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(deploymentRunId)) {
+    const err = new Error("deployment_run_id is invalid.");
+    err.status = 400;
+    err.code = "hostinger_deployment_run_id_invalid";
+    throw err;
+  }
+  const rows = await safeQuery(
+    pool,
+    `SELECT execution_status, execution_ready_status, failure_reason, output_summary,
+            request_id, created_at
+       FROM execution_log
+      WHERE execution_trace_id_writeback = ?
+        AND entry_type = 'hostinger_ssh_deploy_release'
+      ORDER BY id DESC
+      LIMIT 1`,
+    [deploymentRunId]
+  );
+  const row = rows[0];
+  if (!row) {
+    const err = new Error("Deployment run was not found.");
+    err.status = 404;
+    err.code = "hostinger_deployment_run_not_found";
+    throw err;
+  }
+  const summary = parseJson(row.output_summary, {});
+  const reloadVerification = summary.reload_verification || summary.deploy?.reload_verification || {};
+  const expectedCommitSha = compact(summary.expected_commit_sha || summary.expectedCommitSha, 64).toLowerCase();
+  let parity = { production_parity: "unknown", blocking_gap_count: null, secrets_included: false };
+  try {
+    parity = await parityReader("production");
+  } catch (err) {
+    parity = {
+      production_parity: "unknown",
+      blocking_gap_count: null,
+      readback_error: compact(err?.message || "runtime parity unavailable", 240),
+      secrets_included: false,
+    };
+  }
+  const parityVerified = Boolean(
+    expectedCommitSha
+    && parity.production_parity === "verified"
+    && Number(parity.blocking_gap_count || 0) === 0
+    && String(parity.expected_commit_sha || "").toLowerCase() === expectedCommitSha
+    && String(parity.deployed_commit_sha || "").toLowerCase() === expectedCommitSha
+  );
+  const failed = String(row.execution_status || "").toLowerCase() === "failed" || summary.executed === false;
+  const healthReadbackRequired = reloadVerification.runtime_health_readback_required === true;
+  const deploymentStatus = failed
+    ? "failed"
+    : parityVerified || !healthReadbackRequired
+      ? "completed"
+      : "accepted";
+  return {
+    ok: !failed,
+    deployment_run_id: deploymentRunId,
+    deployment_status: deploymentStatus,
+    execution_status: row.execution_status || null,
+    execution_ready_status: parityVerified ? "complete" : row.execution_ready_status || null,
+    failure_reason: row.failure_reason || null,
+    expected_commit_sha: expectedCommitSha || null,
+    deployed_commit_sha: parity.deployed_commit_sha || null,
+    restart_requested: reloadVerification.restart_requested === true,
+    restart_signal: reloadVerification.restart_signal || null,
+    restart_signal_scheduled: reloadVerification.restart_signal_scheduled === true,
+    runtime_health_readback_required: healthReadbackRequired,
+    runtime_parity: {
+      production_parity: parity.production_parity || "unknown",
+      blocking_gap_count: parity.blocking_gap_count ?? null,
+      latest_run_id: parity.latest_run_id || null,
+      verified_at: parity.verified_at || null,
+      matches_expected_commit: parityVerified,
+      secrets_included: false,
+    },
+    request_id: row.request_id || null,
+    created_at: row.created_at || null,
     secrets_included: false,
   };
 }
@@ -996,9 +1086,14 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     logSource: "sql_primary",
   }).catch(() => null);
 
+  const deploymentStatus = deployOk ? (restart ? "accepted" : "completed") : "failed";
+  const httpStatus = deployOk ? (restart ? 202 : 200) : 502;
   return {
     ...baseResponse,
     ok: deployOk,
+    deployment_run_id: traceId,
+    deployment_status: deploymentStatus,
+    http_status: httpStatus,
     dry_run: false,
     execution: {
       will_execute: true,
@@ -1015,6 +1110,13 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
       reload_verification: reloadVerification,
       continuation,
       live_ready: deployOk && reloadVerification.runtime_health_readback_required !== true,
+    },
+    readback: {
+      required: restart,
+      method: "GET",
+      path: `/platform/remote-runtime/hosting/deploy-runs/${traceId}`,
+      deployment_run_id: traceId,
+      secrets_included: false,
     },
     output: {
       stdout: sshResult.stdout,
