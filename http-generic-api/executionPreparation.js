@@ -105,7 +105,8 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
     credential_scope: requestBody.credential_scope || requestBody.auth_context?.credential_scope || "",
     allow_platform_fallback: Object.prototype.hasOwnProperty.call(requestBody, "allow_platform_fallback")
       ? requestBody.allow_platform_fallback
-      : requestBody.auth_context?.allow_platform_fallback
+      : requestBody.auth_context?.allow_platform_fallback,
+    materialize_credentials: !passiveAuthResolution
   });
 
   if (String(action.action_key || "").trim() === "hostinger_api") {
