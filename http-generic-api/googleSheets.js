@@ -169,28 +169,91 @@ function sheetRange(sheetName, a1Tail) {
 
 // --- Exported Methods ---
 
-export async function getGoogleClients() {
-  requireEnv("REGISTRY_SPREADSHEET_ID");
-  const token = await getGoogleAccessToken();
-  if (!token) throw Object.assign(new Error("Google access token unavailable — check SA credentials."), { code: "google_token_missing", status: 500 });
-  if (token !== _clientsToken) {
-    _clientsToken = token;
-    globalClientsPromise = null;
+export async function resolveGoogleRuntimeAction(options = {}) {
+  const providedAction = options.action && typeof options.action === "object"
+    ? options.action
+    : {};
+  const actionKey = String(
+    options.action_key ||
+    options.parent_action_key ||
+    providedAction.action_key ||
+    "google_sheets_api"
+  ).trim();
+
+  if (
+    String(providedAction.action_key || "").trim() === actionKey &&
+    providedAction.runtime_binding_profile
+  ) {
+    return providedAction;
   }
-  if (!globalClientsPromise) {
-    globalClientsPromise = Promise.resolve().then(() => {
-      const auth = new google.auth.OAuth2();
-      auth.setCredentials({ access_token: token });
-      return {
-        sheets: google.sheets({ version: "v4", auth }),
-        drive: google.drive({ version: "v3", auth })
-      };
-    });
+
+  const cached = googleRuntimeActionCache.get(actionKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return { ...providedAction, ...cached.action };
   }
-  return await globalClientsPromise;
+
+  const [rows] = await getPool().query(
+    `SELECT action_key,
+            status,
+            module_binding,
+            connector_family,
+            api_key_mode,
+            secret_store_ref,
+            oauth_config_ref,
+            oauth_client_id_ref,
+            oauth_client_secret_ref,
+            oauth_secret_storage_type,
+            oauth_binding_status,
+            runtime_binding_profile,
+            required_variable_contracts
+       FROM actions
+      WHERE action_key = ?
+        AND status = 'active'
+      LIMIT 1`,
+    [actionKey]
+  );
+
+  if (!rows.length) {
+    const err = new Error(`Google runtime action contract is missing from SQL: ${actionKey}`);
+    err.code = "google_runtime_action_contract_missing";
+    err.status = 500;
+    err.details = { action_key: actionKey, required_surface: "actions" };
+    throw err;
+  }
+
+  const action = rows[0];
+  googleRuntimeActionCache.set(actionKey, {
+    action,
+    expiresAt: Date.now() + GOOGLE_RUNTIME_ACTION_CACHE_TTL_MS
+  });
+  return { ...providedAction, ...action };
 }
 
-export async function getGoogleClientsForSpreadsheet(spreadsheetId) {
+export async function getGoogleClients(options = {}) {
+  const action = await resolveGoogleRuntimeAction(options);
+  const actionKey = String(action.action_key || "").trim();
+  const token = await getGoogleAccessToken({ ...options, action });
+  if (!token) {
+    throw Object.assign(
+      new Error("Google access token unavailable — check governed credentials."),
+      { code: "google_token_missing", status: 500, details: { action_key: actionKey } }
+    );
+  }
+
+  const cached = googleClientCache.get(actionKey);
+  if (cached?.token === token) return cached.clients;
+
+  const auth = new google.auth.OAuth2();
+  auth.setCredentials({ access_token: token });
+  const clients = {
+    sheets: google.sheets({ version: "v4", auth }),
+    drive: google.drive({ version: "v3", auth })
+  };
+  googleClientCache.set(actionKey, { token, clients });
+  return clients;
+}
+
+export async function getGoogleClientsForSpreadsheet(spreadsheetId, options = {}) {
   requireEnv("REGISTRY_SPREADSHEET_ID");
   if (!String(spreadsheetId || "").trim()) {
     const err = new Error("Missing required spreadsheet id for governed sink.");
@@ -198,7 +261,10 @@ export async function getGoogleClientsForSpreadsheet(spreadsheetId) {
     err.status = 500;
     throw err;
   }
-  const baseClients = await getGoogleClients();
+  const baseClients = await getGoogleClients({
+    ...options,
+    action_key: String(options.action_key || "google_sheets_api").trim()
+  });
   return {
     spreadsheetId: String(spreadsheetId || "").trim(),
     sheets: baseClients.sheets,
