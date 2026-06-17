@@ -238,6 +238,14 @@ assert(
   !/UPDATE\s+`?tenant_platform_endpoint_tools`?/i.test(migration),
   "shadow foundation must not change current tenant tool exposure"
 );
+assert(
+  !migration.includes("governed_migration_authorization_registry"),
+  "semantic capability migration must not self-authorize"
+);
+assert(
+  !governedMigrationRunner.includes("311_sprint69_semantic_capability_effective_resolution.sql"),
+  "semantic capability migration must not use the legacy bootstrap allowlist"
+);
 
 for (const phrase of [
   "Shadow foundation",
