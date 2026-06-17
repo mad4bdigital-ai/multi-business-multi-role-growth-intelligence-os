@@ -254,6 +254,9 @@ for (const phrase of [
   "direct system-layer descriptor tools",
   "avoiding recursive dispatch",
   "A shadow binding must not produce an active export",
+  "separately approved operational change",
+  "APPLY_311_SPRINT69_SEMANTIC_CAPABILITY_EFFECTIVE_RESOLUTION",
+  "must not be added to the legacy bootstrap allowlist",
 ]) {
   assert(docs.includes(phrase), `documentation must state: ${phrase}`);
 }
