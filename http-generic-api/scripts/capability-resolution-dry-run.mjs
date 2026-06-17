@@ -134,9 +134,11 @@ async function loadBrandCore(pool, brandKey) {
   return rows[0] || null;
 }
 
-async function loadWorkspaceGrants(pool, { tenantId, userId, workspaceId, brandKey, appKey }) {
+async function loadWorkspaceGrants(pool, { tenantId, userId, workspaceId, workspaceKey, brandKey, appKey }) {
   if (!tenantId || !userId) return [];
-  const refs = unique([workspaceId, brandKey, appKey]);
+  // Legacy membership backfills used tenant_id as the workspace resource_ref.
+  // New grants use workspace_id; workspace_key remains a supported human-readable alias.
+  const refs = unique([workspaceId, workspaceKey, tenantId, brandKey, appKey]);
   if (!refs.length) return [];
   const [rows] = await pool.query(
     `SELECT grant_id, tenant_id, grantee_user_id, resource_type, resource_ref, permission, grant_status, membership_role, membership_status, expires_at
@@ -213,11 +215,16 @@ async function loadCredentialBindings(pool, { tenantId, appKey, capabilityKey })
 async function loadDispatchCertification(pool, keyCandidates = []) {
   const keys = unique(keyCandidates.map(normalizeKey));
   if (!keys.length) return [];
+  const placeholders = keys.map(() => "?").join(",");
   const [rows] = await pool.query(
-    `SELECT certification_key, certification_status, dispatch_allowed, apply_allowed, requires_dry_run, requires_readback, last_evidence_ref, last_certified_at
+    `SELECT certification_key, surface_key, tool_or_action_key, certification_status, dispatch_allowed, apply_allowed,
+            requires_resource_authority, requires_dry_run, requires_readback, last_evidence_ref, last_certified_at, expires_at
        FROM runtime_dispatch_certification_registry
-      WHERE certification_key IN (${keys.map(() => "?").join(",")})`,
-    keys
+      WHERE (certification_key IN (${placeholders})
+         OR tool_or_action_key IN (${placeholders})
+         OR surface_key IN (${placeholders}))
+        AND (expires_at IS NULL OR expires_at > NOW())`,
+    [...keys, ...keys, ...keys]
   );
   return rows;
 }
@@ -321,11 +328,12 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
   const app = await loadApp(pool, args.appKey);
   const appMap = await loadAppMap(pool, args.appKey);
   const brandCore = await loadBrandCore(pool, brandKey);
-  const grants = await loadWorkspaceGrants(pool, { tenantId, userId: args.userId, workspaceId, brandKey, appKey: args.appKey });
+  const grants = await loadWorkspaceGrants(pool, { tenantId, userId: args.userId, workspaceId, workspaceKey: workspace?.workspace_key || args.workspaceKey, brandKey, appKey: args.appKey });
   const connections = await loadConnections(pool, { tenantId, userId: args.userId, appKey: args.appKey });
   const credentialBindings = await loadCredentialBindings(pool, { tenantId, appKey: args.appKey, capabilityKey: args.capabilityKey });
   const certificationCandidates = unique([
     args.capabilityKey,
+    args.runtimeSurface,
     `${args.appKey}_v1`,
     `${args.appKey}_${args.operationIntent}_v1`,
     ...appMap.map((row) => row.action_key).filter(Boolean),
@@ -394,7 +402,7 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
       missing: authority.missing,
       grants: grants.map((grant) => ({ resource_type: grant.resource_type, resource_ref: grant.resource_ref, permission: grant.permission })),
       brand_core_present: Boolean(brandCore),
-      dispatch_certifications: certifications.map((row) => ({ certification_key: row.certification_key, dispatch_allowed: Boolean(row.dispatch_allowed), apply_allowed: Boolean(row.apply_allowed), status: row.certification_status })),
+      dispatch_certifications: certifications.map((row) => ({ certification_key: row.certification_key, surface_key: row.surface_key || null, tool_or_action_key: row.tool_or_action_key || null, dispatch_allowed: Boolean(row.dispatch_allowed), apply_allowed: Boolean(row.apply_allowed), status: row.certification_status })),
     },
     gates: {
       approval_required: approvalRequired,

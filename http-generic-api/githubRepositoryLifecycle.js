@@ -3,6 +3,12 @@ import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "./activationBootstrapConfig.js";
 
 const PROTECTED_BRANCHES = new Set(["main", "master", "production", "prod"]);
+const DEFAULT_DISPOSABLE_BRANCH_PREFIXES = Object.freeze([
+  "gpt/", "docs-agent/", "chore/", "docs/", "automation/", "feature/", "fix/", "hotfix/",
+  "audit/", "surface-contract-auto/", "bugfix/", "ci/", "infra/", "refactor/", "security/",
+  "perf/", "sync/", "platform/", "admin/", "task/", "work/", "migration/", "claude/",
+  "codex/", "agent/", "backup/", "cleanup/", "patch/", "revert/",
+]);
 const DEFAULT_REQUIRED_CHECKS = Object.freeze([
   "Syntax Check",
   "Architecture Drift Detection",
@@ -96,13 +102,14 @@ async function lifecycleContext(options = {}) {
   return { ...target, token };
 }
 
-function assertDeletableBranch({ branch, defaultBranch, allowedPrefixes = ["gpt/"] }) {
+function assertDeletableBranch({ branch, defaultBranch, allowedPrefixes = DEFAULT_DISPOSABLE_BRANCH_PREFIXES }) {
   const normalized = normalizeBranch(branch);
+  const normalizedDefault = normalizeBranch(defaultBranch);
   if (!normalized) throw lifecycleError(400, "github_branch_required", "branch is required.");
-  if (normalized === defaultBranch || PROTECTED_BRANCHES.has(normalized)) {
-    throw lifecycleError(403, "github_branch_delete_protected", `Refusing to delete protected/default branch '${normalized}'.`, { branch: normalized, default_branch: defaultBranch });
+  if (normalized === normalizedDefault || PROTECTED_BRANCHES.has(normalized)) {
+    throw lifecycleError(403, "github_branch_delete_protected", `Refusing to delete protected/default branch '${normalized}'.`, { branch: normalized, default_branch: normalizedDefault || null });
   }
-  if (!allowedPrefixes.some((prefix) => normalized.startsWith(prefix))) {
+  if (Array.isArray(allowedPrefixes) && allowedPrefixes.length && !allowedPrefixes.some((prefix) => normalized.startsWith(prefix))) {
     throw lifecycleError(403, "github_branch_delete_prefix_blocked", "Branch deletion is restricted to governed disposable branch prefixes.", {
       branch: normalized,
       allowed_prefixes: allowedPrefixes,
@@ -112,8 +119,21 @@ function assertDeletableBranch({ branch, defaultBranch, allowedPrefixes = ["gpt/
 }
 
 export async function deleteGithubBranchRef(options = {}) {
-  const { owner, repo, defaultBranch, token } = await lifecycleContext(options);
-  const branch = assertDeletableBranch({ branch: options.branch, defaultBranch, allowedPrefixes: options.allowed_prefixes || ["gpt/"] });
+  const { owner, repo, defaultBranch: configuredDefaultBranch, token } = await lifecycleContext(options);
+  const repository = await githubLifecycleRequest({ owner, repo, apiPath: "", token, fetchImpl: options.fetchImpl });
+  const actualDefaultBranch = normalizeBranch(repository.payload?.default_branch || configuredDefaultBranch);
+  if (!actualDefaultBranch) {
+    throw lifecycleError(502, "github_default_branch_unresolved", "GitHub repository default branch could not be resolved.", {
+      owner,
+      repo,
+      configured_default_branch: configuredDefaultBranch || null,
+    });
+  }
+  const branch = assertDeletableBranch({
+    branch: options.branch,
+    defaultBranch: actualDefaultBranch,
+    allowedPrefixes: options.allowed_prefixes || DEFAULT_DISPOSABLE_BRANCH_PREFIXES,
+  });
   const expectedConfirm = githubBranchDeleteConfirmation(branch);
   if (String(options.confirm || "") !== expectedConfirm) {
     throw lifecycleError(400, "github_branch_delete_confirmation_required", `Branch deletion requires confirm=${expectedConfirm}.`, {
@@ -124,7 +144,7 @@ export async function deleteGithubBranchRef(options = {}) {
   const refPath = `/git/ref/heads/${encodeBranch(branch)}`;
   const ref = await githubLifecycleRequest({ owner, repo, apiPath: refPath, token, fetchImpl: options.fetchImpl, allowNotFound: true });
   if (ref.status === 404) {
-    return { ok: true, branch, deleted: false, already_absent: true, verified_absent: true, secrets_included: false };
+    return { ok: true, branch, deleted: false, already_absent: true, verified_absent: true, default_branch: actualDefaultBranch, secrets_included: false };
   }
   const currentSha = normalizeSha(ref.payload?.object?.sha);
   const expectedHeadSha = normalizeSha(options.expected_head_sha || options.expectedHeadSha);
@@ -151,6 +171,48 @@ export async function deleteGithubBranchRef(options = {}) {
       open_pull_requests: openPrs.payload.map((pr) => pr.number).filter(Boolean),
     });
   }
+
+  let branchContentEvidence = { check: "merged_pull_request_cleanup", unique_commits: null, compare_status: null };
+  if (options.merged_pull_request_cleanup !== true) {
+    const compare = await githubLifecycleRequest({
+      owner,
+      repo,
+      apiPath: `/compare/${encodeURIComponent(actualDefaultBranch)}...${encodeURIComponent(expectedHeadSha)}`,
+      token,
+      fetchImpl: options.fetchImpl,
+    });
+    const compareStatus = String(compare.payload?.status || "").toLowerCase();
+    const aheadBy = Number(compare.payload?.ahead_by ?? -1);
+    const noUniqueCommits = aheadBy === 0 && ["behind", "identical"].includes(compareStatus);
+    branchContentEvidence = {
+      check: "no_unique_commits_against_default_branch",
+      unique_commits: aheadBy < 0 ? null : aheadBy,
+      compare_status: compareStatus || null,
+      behind_by: Number(compare.payload?.behind_by || 0),
+      default_branch: actualDefaultBranch,
+    };
+    if (!noUniqueCommits) {
+      throw lifecycleError(409, "github_branch_delete_contains_unique_commits", "Branch contains commits that are not present in the repository default branch.", {
+        branch,
+        expected_head_sha: expectedHeadSha,
+        ...branchContentEvidence,
+      });
+    }
+  }
+
+  const preDeleteRef = await githubLifecycleRequest({ owner, repo, apiPath: refPath, token, fetchImpl: options.fetchImpl, allowNotFound: true });
+  if (preDeleteRef.status === 404) {
+    return { ok: true, branch, deleted: false, already_absent: true, verified_absent: true, default_branch: actualDefaultBranch, safety_evidence: branchContentEvidence, secrets_included: false };
+  }
+  const preDeleteSha = normalizeSha(preDeleteRef.payload?.object?.sha);
+  if (preDeleteSha !== expectedHeadSha) {
+    throw lifecycleError(409, "github_branch_delete_sha_mismatch", "Branch head changed after validation and before deletion.", {
+      branch,
+      expected_head_sha: expectedHeadSha,
+      current_head_sha: preDeleteSha || null,
+      validation_phase: "pre_delete_readback",
+    });
+  }
   await githubLifecycleRequest({
     owner,
     repo,
@@ -170,10 +232,13 @@ export async function deleteGithubBranchRef(options = {}) {
   return {
     ok: true,
     branch,
+    default_branch: actualDefaultBranch,
+    configured_default_branch: normalizeBranch(configuredDefaultBranch) || null,
     expected_head_sha: expectedHeadSha,
     deleted: true,
     already_absent: false,
     verified_absent: true,
+    safety_evidence: branchContentEvidence,
     secrets_included: false,
   };
 }
@@ -223,7 +288,7 @@ export async function closeGithubPullRequest(options = {}) {
       branch: pr.head.ref,
       expected_head_sha: options.expected_head_sha || pr.head.sha,
       confirm: options.confirm || githubBranchDeleteConfirmation(pr.head.ref),
-      allowed_prefixes: options.allowed_prefixes || ["gpt/"],
+      allowed_prefixes: options.allowed_prefixes || DEFAULT_DISPOSABLE_BRANCH_PREFIXES,
     });
     return result;
   } catch (error) {
@@ -426,7 +491,8 @@ export async function finalizeGithubPullRequest(options = {}) {
           branch: pr.head.ref,
           expected_head_sha: expectedHeadSha,
           confirm: githubBranchDeleteConfirmation(pr.head.ref),
-          allowed_prefixes: options.allowed_prefixes || ["gpt/"],
+          allowed_prefixes: options.allowed_prefixes || DEFAULT_DISPOSABLE_BRANCH_PREFIXES,
+          merged_pull_request_cleanup: true,
         });
       } catch (error) {
         branchCleanup = {
