@@ -1020,6 +1020,8 @@ If you are an AI agent working in this repo:
 
 Generic deletion of unmerged branches remains blocked. Admins may use `github_superseded_branch_cleanup` only for a governed work branch whose matching PR is closed and explicitly labeled `superseded`. Begin with `mode=dry_run` and supply full replacement commit SHAs. Every replacement commit must be an ancestor of the current default branch, and the replacement set must cover every non-generated file changed by the branch. Generated documentation may be ignored only through the policy-owned path-prefix allowlist.
 
+When `gh` is unavailable, the Admin GitHub REST fallback may close a superseded PR only through `PATCH /pulls/{number}` with the sole field `state=closed`. It must reject title, body, base, label, or any additional mutation field, then perform a same-cycle `GET /pulls/{number}` readback and return `readback_verified=true` with `secrets_included=false`. Labeling remains a separate closed-PR-only allowlisted operation.
+
 Apply requires the same-cycle base SHA, branch SHA, evidence fingerprint, exact typed confirmation, an approved GitHub capability envelope, and a human-readable reason. The tool must reject open PRs, missing labels, incomplete file coverage, stale evidence, protected branches, excessive commit/file scope, and any replacement commit outside the default-branch history. It deletes only the named Git ref, never force-pushes, requires a synchronous no-secret intent audit before deletion, verifies the ref is absent in the same cycle, writes a completion or failure audit, and returns `secrets_included=false`.
 
 ### Governed repository lifecycle and dispatch-binding integrity
