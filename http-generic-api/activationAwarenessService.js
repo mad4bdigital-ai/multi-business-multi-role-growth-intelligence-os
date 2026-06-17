@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { getPool } from "./db.js";
+import { readOperationalAlerts } from "./operationalAlertService.js";
 
 const SAFE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
 const BLOCKED_COLUMN_PATTERN = /(secret|credential_ref|credential|token|password|private_key|cipher|api_key|value_ciphertext|value_sha|config_json|system_prompt|payload_json)/i;
@@ -435,63 +436,60 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
   const skillCounts = aggregateRows(skills.rows, "group_value");
   const freshnessCounts = aggregateRows(freshness.rows, "group_value");
   const signalCounts = aggregateRows(signals.rows, "group_value");
+  const unifiedAttention = await readOperationalAlerts({
+    sessionContext,
+    cursor: 0,
+    limit: Math.min(Math.max(safeNumber(attentionLimit), 1), 20),
+    lookbackHours: 168,
+    includeResolved: false,
+  });
+  const unifiedBySource = unifiedAttention?.summary?.by_source || {};
 
   const attentionBySource = {
-    connected_systems: safeNumber(systemCounts.error) + safeNumber(systemCounts.pending),
-    tasks: safeNumber(taskCounts.blocked),
-    agents: safeNumber(agentCounts.degraded) + safeNumber(agentCounts.offline),
-    skills: safeNumber(skillCounts.requires_approval),
-    freshness: safeNumber(freshnessCounts.stale) + safeNumber(freshnessCounts.failed),
-    signals: Object.entries(signalCounts).reduce((sum, [key, count]) => sum + (/^(critical|high):(new|failed)$/.test(key) ? safeNumber(count) : 0), 0),
+    connected_systems: safeNumber(unifiedBySource.connected_systems),
+    tasks: safeNumber(unifiedBySource.v_activation_pending_tasks),
+    agents: safeNumber(unifiedBySource.v_activation_agent_catalog),
+    skills: safeNumber(unifiedBySource.v_activation_agent_skill_grants),
+    freshness: safeNumber(unifiedBySource.activation_freshness_ledger),
+    signals: safeNumber(unifiedBySource.activation_signal_inbox),
+    execution_log: safeNumber(unifiedBySource.execution_log),
+    readiness_checks: safeNumber(unifiedBySource.readiness_checks),
+    telemetry_spans: safeNumber(unifiedBySource.telemetry_spans),
+    known_issues: safeNumber(unifiedAttention?.summary?.known_issue_count),
   };
 
   const attentionItems = [];
-  const attentionQueries = [
-    safeRows(
-      `SELECT 'connected_systems' AS source, system_id AS item_id,
-              CASE WHEN status = 'error' THEN 'high' ELSE 'medium' END AS severity,
-              CONCAT(COALESCE(display_name, system_key), ' connector is ', status) AS title,
-              updated_at
-         FROM connected_systems
-        WHERE ${tenantWhere} AND status IN ('error','pending')
-        ORDER BY FIELD(status,'error','pending'), updated_at DESC
-        LIMIT ?`,
-      [...tenantParams, Math.min(attentionLimit, 20)]
-    ),
-    safeRows(
-      `SELECT 'tasks' AS source, task_id AS item_id,
-              CASE WHEN priority = 'critical' OR blocker_level = 'hard' THEN 'critical' ELSE 'high' END AS severity,
-              title, updated_at
-         FROM v_activation_pending_tasks
-        WHERE ${userTenantWhere}
-          AND (task_status = 'blocked' OR blocker_level = 'hard' OR priority IN ('critical','high'))
-        ORDER BY FIELD(priority,'critical','high','medium','low'), updated_at DESC
-        LIMIT ?`,
-      [...userTenantParams, Math.min(attentionLimit, 20)]
-    ),
-    safeRows(
-      `SELECT 'freshness' AS source, ledger_id AS item_id,
-              CASE WHEN freshness_status = 'failed' THEN 'high' ELSE 'medium' END AS severity,
-              CONCAT(COALESCE(surface_key, provider_family, 'surface'), ' freshness is ', freshness_status) AS title,
-              updated_at
-         FROM activation_freshness_ledger
-        WHERE ${userTenantWhere} AND freshness_status IN ('stale','failed')
-        ORDER BY FIELD(freshness_status,'failed','stale'), updated_at DESC
-        LIMIT ?`,
-      [...userTenantParams, Math.min(attentionLimit, 20)]
-    ),
-  ];
-  const attentionResults = await Promise.all(attentionQueries);
-  for (const result of attentionResults) {
-    for (const row of result.rows) attentionItems.push(stripSensitive(row));
+  attentionItems.length = 0;
+  for (const item of unifiedAttention?.final_result || []) {
+    attentionItems.push({
+      source: item.source_type,
+      item_id: item.alert_id || item.alert_key,
+      alert_key: item.alert_key,
+      severity: item.severity,
+      title: item.title,
+      lifecycle_status: item.lifecycle_status,
+      verification_state: item.verification_state,
+      evidence_ref: item.evidence_ref,
+      updated_at: item.last_seen_at,
+      secrets_included: false,
+    });
   }
   const severityWeight = { critical: 4, high: 3, medium: 2, low: 1 };
   attentionItems.sort((a, b) => safeNumber(severityWeight[b.severity]) - safeNumber(severityWeight[a.severity]));
 
-  const degraded = [systems, tasks, agents, skills, freshness, signals, actionCount, packCount, subscriptionCount, ...attentionResults]
+  const degraded = [systems, tasks, agents, skills, freshness, signals, actionCount, packCount, subscriptionCount]
     .filter((result) => result?.ok === false)
     .map((result) => result.error);
-  const totalAttention = Object.values(attentionBySource).reduce((sum, value) => sum + safeNumber(value), 0);
+  for (const source of unifiedAttention?.source_health || []) {
+    if (!source.ok) degraded.push(source.error);
+    else if (source.truncated) degraded.push({
+      code: "operational_alert_source_truncated",
+      source: source.source,
+      row_count: source.row_count,
+      row_cap: source.row_cap,
+    });
+  }
+  const totalAttention = safeNumber(unifiedAttention?.summary?.total_count);
   const freshTotal = Object.values(freshnessCounts).reduce((sum, value) => sum + safeNumber(value), 0);
   const freshnessStatus = safeNumber(freshnessCounts.failed) > 0
     ? "failed"
@@ -508,7 +506,10 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
     subject,
     summary: {
       attention_count: totalAttention,
-      critical_attention_count: attentionItems.filter((item) => item.severity === "critical").length,
+      critical_attention_count: safeNumber(unifiedAttention?.summary?.by_severity?.critical),
+      high_attention_count: safeNumber(unifiedAttention?.summary?.by_severity?.high),
+      known_issue_count: safeNumber(unifiedAttention?.summary?.known_issue_count),
+      current_detected_count: safeNumber(unifiedAttention?.summary?.current_detected_count),
       connected_system_count: Object.values(systemCounts).reduce((sum, value) => sum + safeNumber(value), 0),
       pending_task_count: Object.values(taskCounts).reduce((sum, value) => sum + safeNumber(value), 0),
       agent_count: Object.values(agentCounts).reduce((sum, value) => sum + safeNumber(value), 0),
@@ -516,6 +517,8 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
       registered_action_count: actionCount.count,
       connector_pack_count: packCount.count,
       signal_subscription_count: subscriptionCount.count,
+      all_known_issues_visible: unifiedAttention?.completeness?.all_known_issues_visible === true,
+      final_result_complete: unifiedAttention?.completeness?.final_result_complete === true,
       degraded_surface_count: degraded.length,
     },
     tab_badges: {
