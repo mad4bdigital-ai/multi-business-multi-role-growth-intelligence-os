@@ -4,12 +4,12 @@
 - Queue schema: surface-contract-gap-queue-v1
 - Triage schema: surface-contract-gap-triage-v1
 - Gate schema: surface-contract-new-gap-gate-v1
-- Queue items: 4
-- Triaged items: 4
+- Queue items: 8
+- Triaged items: 8
 - Gate candidates: 3
 - New-gap gate: fail
 - Blocking new items: 3
-- Docs completion: 99.07%
+- Docs completion: 98.39%
 - SQL route OpenAPI coverage: 100%
 
 ## Top immediate items

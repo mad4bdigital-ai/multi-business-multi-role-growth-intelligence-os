@@ -49,6 +49,20 @@ Tenant GPTs must not use admin repo tools. Tenant knowledge must come from OAuth
 | `agent_supervision_policy` | Auto-approve class thresholds per agent+tenant |
 | `brand_paths` | Brand to business-type path, Drive folder IDs, Brand Core map |
 | `brand_core` | Brand asset rows and Drive subfolder IDs |
+| `platform_semantic_capabilities` | Provider-independent capability contracts, risk, approval, audit, and readback requirements |
+| `platform_capability_provider_bindings` | Ordered provider implementations and shadow/canary/active rollout authority |
+| `platform_endpoint_aliases` | Compatibility mapping from imported or historical endpoint keys to one canonical endpoint key |
+| `tenant_capability_shadow_decisions` | No-secret legacy-versus-effective resolver comparison evidence |
+
+### Semantic capability resolution
+
+User intent should resolve to a semantic capability before provider-specific action, endpoint, connection, or tool selection. Tenant-effective readiness is the conjunction of authenticated principal, canonical workspace, active membership, semantic capability, provider binding, workspace-linked validated connection, action grant, resource authority, canonical endpoint identity, runtime certification, and derived export state.
+
+Tool exports are projections, not independent authority. A visible legacy tool must not execute when the effective chain is blocked. Equal highest-ranked connections and multiple active canonical endpoint rows are blocking ambiguity states. Tenant principals may not override tenant/user identity, and resolver output must never include credentials or tokens.
+
+`shadow` bindings resolve and compare only; they cannot call providers or activate exports. `canary` and `active` bindings require same-cycle policy, authority, certification, approval, audit, and readback validation. The initial `content.article.create_draft` WordPress binding remains draft-only and shadow-only until separately promoted.
+
+See `docs/semantic-capability-effective-resolution.md` and the semantic capability canonical pages in `system_bootstrap`, `direct_instructions_registry_patch`, `module_loader`, and `prompt_router`.
 
 ### Dynamic Audit runtime
 
@@ -232,6 +246,24 @@ Before executing any governed operation that has multiple valid modes or scope s
 This rule is general and is not limited to Hostinger `runner_mode`. It applies to any executable selector named `mode`, `*_mode`, `*_modes`, `runner_mode`, `execution_mode`, `activation_mode`, `integration_modes`, `credential_scope`, `auth_mode`, `transport_mode`, `dispatch_mode`, `sync_mode`, `deploy_mode`, `reconciliation_mode`, `approval_mode`, or any future scope/mode field declared by registry, OpenAPI, runtime policy, or tool input contracts.
 
 The user-facing prompt must include the valid modes, recommended/default mode when one exists, risk and side-effect class, expected evidence, and a clear request to choose. Agents must not silently choose the first enum value, switch modes after failure, or treat `auto` as consent for a higher-risk mode. If a selected mode fails and a fallback mode is possible, the fallback requires a fresh user-visible choice. Execution summaries should preserve `selected_mode`, `selection_source`, `mode_choices_presented`, and `secrets_included=false`. See `docs/mode-choice-governance.md`.
+
+### Capability Assurance Graph governance
+
+Capability execution follows the evidence chain:
+
+```text
+Capability -> Envelope -> Evidence -> Authority -> Dispatch -> Readback -> Certification
+```
+
+Migration `314_sprint69_capability_assurance_graph.sql` adds the additive canonical plugin/capability graph, generic evidence and certification registries, persistent capability debt, closure threads, source provenance, and hash-only secret movement evidence. Compatibility views remain valid until canonical parity and cutover evidence pass.
+
+Agents must keep static capability requirements separate from invocation evidence. A fresh capability envelope is scoped to one actor, tenant, workspace, operation, resource, policy state, and expiry window. Admin or Tenant exposure and POST method alone do not prove an external-resource authority requirement.
+
+Use `v_platform_capability_readiness_vector` for independent readiness dimensions and `v_platform_capability_assurance_gaps` for typed gaps. A maturity score must never override a failed resource, approval, quota, credential, readback, or certification gate. Resource readiness requires a capability-specific envelope-to-binding relationship; an unrelated active binding is never sufficient.
+
+`platform_capability_assurance_reconcile` is dry-run by default. Apply requires a fresh `ready_for_dispatch` capability envelope, performs SQL registry/evidence/certification/debt upserts only, performs no provider calls or external writes, and requires readback. Secret movement evidence is reference-and-hash only through `platform_secret_movement_ledger`; plaintext secret values are forbidden.
+
+Detailed operator contract: `docs/platform-capability-assurance-graph.md`.
 
 ### Platform Plugin smoke certification governance
 
@@ -836,7 +868,7 @@ Treat `/http-execute` as the main provider execution boundary. Use `/dispatch` a
 
 Agents must not manually inject credentials into request headers unless the backend contract explicitly asks for non-sensitive caller headers. `Authorization` is controlled by the backend and registry auth mode.
 
-Custom GPT Action authentication is configured at the Action connection layer, not inside request payloads. Tenant/customer GPT Actions should use OAuth with authorization URL `https://auth.mad4b.com/auth/oauth/authorize`, token URL `https://auth.mad4b.com/auth/oauth/token`, and scope `tenant`; the imported tenant OpenAPI schema must still keep only one `components.securitySchemes` entry for ChatGPT importer compatibility. The authorize URL may carry safe tenant activation hints (`screen_hint`, `activation_mode`, `device_id`, `workspace_name`, `sign_in_options`) so the popup can show Google, existing-account, and new-workspace options. Never place passwords, API keys, connector secrets, Google ID tokens, or provider tokens in redirect parameters. Admin/service access uses `Authorization: Bearer <BACKEND_API_KEY>` or `x-api-key: <BACKEND_API_KEY>`. User access may use `Authorization: Bearer <USER_JWT>` issued by the OAuth popup bridge, `/auth/login`, or `/auth/google` in a trusted web flow. Treat the GCloud `BACKEND_API_KEY` as an admin/service credential, not a shared per-user credential.
+Custom GPT Action authentication is configured at the Action connection layer, not inside request payloads. Tenant/customer GPT Actions should use OAuth with authorization URL `https://auth.mad4b.com/auth/oauth/authorize`, token URL `https://auth.mad4b.com/auth/oauth/token`, and scope `tenant`; the imported tenant OpenAPI schema must still keep only one `components.securitySchemes` entry for ChatGPT importer compatibility. The authorize URL may carry safe tenant activation hints (`screen_hint`, `activation_mode`, `device_id`, `workspace_name`, `sign_in_options`) so the popup can show Google, existing-account, and new-workspace options. Never place passwords, API keys, connector secrets, Google ID tokens, or provider tokens in redirect parameters. Admin/service access uses `Authorization: Bearer <BACKEND_API_KEY>` or `x-api-key: <BACKEND_API_KEY>`. User access may use `Authorization: Bearer <USER_JWT>` issued by the OAuth popup bridge, `/auth/login`, or `/auth/google` in a trusted web flow. Treat the GCloud `BACKEND_API_KEY` as an admin/service credential, not a shared per-user credential. Google Identity Services sign-in surfaces must not hardcode or dynamically inject a button `locale` or client-library `hl` value by default; let the Google Account or browser select the language, and require validated BCP 47 parity plus regression tests before any explicit override.
 
 If secured routes return 401 or 403, classify activation as `authorization_gated (backend_action_auth_missing_or_invalid)` and stop the provider bootstrap chain for that cycle. Do not continue with Drive, Sheets, tenants, or release-readiness calls until Action authentication is corrected.
 
@@ -998,15 +1030,19 @@ If you are an AI agent working in this repo:
 - Safety contract: no SMTP, no nodemailer, no webhook/fetch/axios network call, no external send, no raw credential values, and no secrets in responses.
 - `sandbox` is a no-network/mock-provider-response mode. `live_send` is present only as a gated mode and remains disabled until future tenant enablement, approval hold, credential readiness, idempotency, and release readiness checks pass.
 - Required readbacks before claiming completion: OpenAPI route exists, admin tool exists, execution policy is active/blocking, adapter contracts remain `skeleton_dispatch_interface_no_network`, send-mode policies keep `external_send_performed_default = 0`, and CI/release readiness pass.
-### Superseded closed-PR branch cleanup
+### Superseded closed-PR and orphan branch cleanup
 
-Generic deletion of unmerged branches remains blocked. Admins may use `github_superseded_branch_cleanup` only for a governed work branch whose matching PR is closed and explicitly labeled `superseded`. Begin with `mode=dry_run` and supply full replacement commit SHAs. Every replacement commit must be an ancestor of the current default branch, and the replacement set must cover every non-generated file changed by the branch. Generated documentation may be ignored only through the policy-owned path-prefix allowlist.
+Generic deletion of unmerged branches remains blocked. Admins may use `github_superseded_branch_cleanup` for either a governed work branch whose matching PR is closed and explicitly labeled `superseded`, or an explicit orphan branch with `allow_orphan_branch=true` and zero matching PRs. Begin with `mode=dry_run` and supply full replacement commit SHAs. Every replacement commit must be an ancestor of the current default branch, and the replacement set must cover every non-generated file changed by the branch. Generated documentation may be ignored only through the policy-owned path-prefix allowlist. Orphan mode additionally requires the Git blob for every non-generated changed file to be byte-identical to the current default-branch blob; any missing or different blob blocks deletion.
 
-Apply requires the same-cycle base SHA, branch SHA, evidence fingerprint, exact typed confirmation, an approved GitHub capability envelope, and a human-readable reason. The tool must reject open PRs, missing labels, incomplete file coverage, stale evidence, protected branches, excessive commit/file scope, and any replacement commit outside the default-branch history. It deletes only the named Git ref, never force-pushes, requires a synchronous no-secret intent audit before deletion, verifies the ref is absent in the same cycle, writes a completion or failure audit, and returns `secrets_included=false`.
+When `gh` is unavailable, the Admin GitHub REST fallback may close a superseded PR only through `PATCH /pulls/{number}` with the sole field `state=closed`. It must reject title, body, base, label, or any additional mutation field, then perform a same-cycle `GET /pulls/{number}` readback and return `readback_verified=true` with `secrets_included=false`. Labeling remains a separate closed-PR-only allowlisted operation.
+
+The global ahead-commit limit remains unchanged. A policy entry may raise the effective limit for one exact branch only when it binds the current `expected_branch_sha`, a future `expires_at`, a reason of at least 20 characters, and a value no greater than the code hard cap. Invalid, expired, or SHA-mismatched overrides are ignored, recorded in `policy_evidence.branch_limit.validation_failures`, and leave `ahead_commit_limit_exceeded` blocking. Overrides never enable force or generic fallback deletion.
+
+Apply requires the same-cycle base SHA, branch SHA, evidence fingerprint, exact typed confirmation, an approved GitHub capability envelope, and a human-readable reason. Closed-PR mode must reject missing labels; orphan mode must reject any matching PR or any non-equivalent non-generated blob. Both modes reject open PRs, incomplete file coverage, stale evidence, protected branches, excessive commit/file scope, and replacement commits outside the default-branch history. The tool deletes only the named Git ref, never force-pushes, requires a synchronous no-secret intent audit before deletion, verifies the ref is absent in the same cycle, writes a completion or failure audit, and returns `secrets_included=false`.
 
 ### Governed repository lifecycle and dispatch-binding integrity
 
-Repository lifecycle automation uses `githubRepositoryLifecycle.js` as the shared application service for Admin CLI fallback and virtual Admin tools. Use `github_pr_ci_gate` for one bounded merge-readiness decision, `github_pr_finalize` for capability-gated CI/freshness/merge/ancestry/cleanup, `github_branch_delete` for expected-SHA and typed-confirmation cleanup, and `repo_patch_batch_apply` for one atomic multi-file commit pinned to an expected base SHA.
+Repository lifecycle automation uses `githubRepositoryLifecycle.js` as the shared application service for Admin CLI fallback and virtual Admin tools. Use `github_pr_ci_gate` for one bounded merge-readiness decision, `github_pr_finalize` for capability-gated CI/freshness/merge/ancestry/cleanup, `github_branch_delete` only after actual-default-branch protection, expected-SHA validation, open-PR rejection, and proof that the branch has zero commits not already present in the default branch, and `repo_patch_batch_apply` for one atomic multi-file commit pinned to an expected base SHA.
 
 Every active-ready endpoint must resolve through an active export and `platform_tool_dispatch_bindings` row to a callable surface. Mutation bindings require a capability key; all bindings require a readback policy; compound operations require an explicit partial-success policy. Use `platform_tool_binding_integrity_audit` or `v_platform_tool_dispatch_integrity` to detect drift. Endpoint readiness alone is not callable evidence.
 

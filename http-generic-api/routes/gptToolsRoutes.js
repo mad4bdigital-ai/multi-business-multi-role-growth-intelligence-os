@@ -402,7 +402,7 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "github_branch_delete",
     displayName: "GitHub Branch Delete",
-    description: "Delete a governed disposable GitHub branch only after capability approval, expected-head SHA match, typed confirmation, open-PR guard, and same-cycle absence readback.",
+    description: "Delete a governed disposable GitHub branch only after capability approval, actual GitHub default-branch protection, expected-head SHA match, typed confirmation, open-PR guard, proof of zero unique commits, pre-delete SHA readback, and same-cycle absence readback.",
     method: "VIRTUAL",
     path: "internal://github-branch-delete",
     tags: ["repo", "github", "branch", "mutation", "capability_envelope", "readback"],
@@ -600,7 +600,7 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "github_superseded_branch_cleanup",
     displayName: "GitHub Superseded Branch Cleanup",
-    description: "Dry-run or delete a closed-PR work branch only when explicit replacement commits are ancestors of the default branch and cover every non-generated changed file. Apply requires fresh SHA/fingerprint evidence, typed confirmation, a capability envelope, a reason, and same-cycle missing-ref readback.",
+    description: "Dry-run or delete a superseded closed-PR branch, or an explicit orphan branch with no matching PR, only when replacement commits are on the default branch and every non-generated file is covered. Orphan mode additionally requires exact Git blob equivalence with the current default branch. Apply requires fresh SHA/fingerprint evidence, typed confirmation, a capability envelope, a reason, and same-cycle missing-ref readback.",
     method: "VIRTUAL",
     path: "internal://github-superseded-branch-cleanup",
     tags: ["repo", "reconciliation", "mutation", "capability_envelope", "closed_pr", "same_cycle_readback"],
@@ -613,6 +613,7 @@ const VIRTUAL_ADMIN_TOOLS = [
         owner: { type: "string", description: "Optional GitHub owner override; defaults to activation bootstrap." },
         repo: { type: "string", description: "Optional GitHub repo override; defaults to activation bootstrap." },
         superseding_commits: { type: "array", minItems: 1, maxItems: 20, items: { type: "string", pattern: "^[0-9a-fA-F]{40}$" } },
+        allow_orphan_branch: { type: "boolean", default: false, description: "Explicit orphan mode. Requires zero matching PRs and exact non-generated file blob equivalence with the current default branch." },
         mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
         expected_base_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
         expected_branch_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
