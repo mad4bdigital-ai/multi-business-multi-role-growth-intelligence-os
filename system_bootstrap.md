@@ -31,6 +31,7 @@ Open the source file listed below for the relevant domain instead of loading thi
 | SQL primary data source | `canonicals/system_bootstrap/20_sql_primary_data_source.md` | SQL runtime authority, sheet-to-table map, async mirror behavior, recovery helpers, and GPT-initiated migration repair flow. |
 | Activation guidance intelligence | `canonicals/system_bootstrap/21_activation_guidance_intelligence.md` | Proactive Tenant/Admin activation guidance, account counts, readiness semantics, and next-best actions. |
 | Capability assurance graph | `canonicals/system_bootstrap/22_capability_assurance_graph.md` | Canonical capability, invocation evidence, resource authority, readiness, certification, provenance, and debt governance. |
+| Semantic capability resolution | `canonicals/system_bootstrap/23_semantic_capability_resolution.md` | Semantic capability registry, tenant-effective resolution, canonical endpoint identity, derived exports, and shadow rollout governance. |
 
 ---
 
