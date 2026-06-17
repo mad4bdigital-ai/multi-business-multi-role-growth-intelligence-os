@@ -486,12 +486,13 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
           }
         }
       });
+      // Let Google Identity Services select the language from the user's Google Account
+      // or browser. Forcing a locale here can conflict with the surrounding OAuth UI.
       window.google.accounts.id.renderButton(document.getElementById("gsi-btn-container"), {
         theme: "outline",
         size: "large",
         width: 320,
-        text: "continue_with",
-        locale: "en"
+        text: "continue_with"
       });
     }
     setup();
