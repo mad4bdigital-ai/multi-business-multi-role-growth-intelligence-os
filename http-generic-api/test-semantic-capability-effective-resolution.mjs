@@ -17,6 +17,14 @@ const docs = fs.readFileSync(
   new URL("../docs/semantic-capability-effective-resolution.md", import.meta.url),
   "utf8"
 );
+const activationAccessMap = fs.readFileSync(
+  new URL("../docs/work-maps/activation-access-map.md", import.meta.url),
+  "utf8"
+);
+const dataModelDomainMap = fs.readFileSync(
+  new URL("../docs/work-maps/data-model-domain-map.md", import.meta.url),
+  "utf8"
+);
 
 for (const tableName of [
   "platform_semantic_capabilities",
