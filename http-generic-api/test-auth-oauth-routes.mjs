@@ -11,6 +11,7 @@ process.env.GOOGLE_CLIENT_ID = "test-google-client-id.apps.googleusercontent.com
 
 import express from "express";
 import jwt from "jsonwebtoken";
+import { readFileSync } from "node:fs";
 
 const { buildAuthRoutes } = await import("./routes/authRoutes.js");
 
@@ -76,8 +77,8 @@ async function postForm(baseUrl, path, body) {
   return { status: response.status, body: await readJson(response) };
 }
 
-async function getText(baseUrl, path) {
-  const response = await fetch(`${baseUrl}${path}`);
+async function getText(baseUrl, path, { headers = {} } = {}) {
+  const response = await fetch(`${baseUrl}${path}`, { headers });
   return {
     status: response.status,
     contentType: response.headers.get("content-type") || "",
@@ -139,6 +140,30 @@ try {
     assert("authorize preselects signup panel", result.text.includes('const INITIAL_PANEL = "register"'));
     assert("authorize includes privacy policy link", result.text.includes('href="/privacy-policy"'));
     assert("authorize includes configured Google client", result.text.includes(process.env.GOOGLE_CLIENT_ID));
+    assert("authorize leaves GIS button locale automatic", !/locale\s*:\s*["'][^"']+["']/.test(result.text));
+    assert("authorize does not force a GSI hl parameter", !result.text.includes("gsi/client?hl="));
+  }
+
+  {
+    const result = await getText(
+      baseUrl,
+      `/auth/oauth/authorize?redirect_uri=${encodedRedirect}&state=${state}&language=ar-EG`,
+      { headers: { "accept-language": "ar-EG,ar;q=0.9,en;q=0.8" } }
+    );
+    assert("Arabic browser language still returns authorize html", result.status === 200, `${result.status}`);
+    assert("Arabic browser language is delegated to GIS", !/locale\s*:\s*["'][^"']+["']/.test(result.text));
+    assert("Arabic browser language does not inject hl", !result.text.includes("gsi/client?hl="));
+  }
+
+  section("Google Identity Services locale policy");
+  for (const relativePath of [
+    "./routes/authRoutes.js",
+    "./routes/localManagerBetaRoutes.js",
+    "./public/connect/app.jsx",
+  ]) {
+    const source = readFileSync(new URL(relativePath, import.meta.url), "utf8");
+    assert(`${relativePath} does not hardcode a GIS locale`, !/renderButton[\s\S]{0,300}locale\s*:/.test(source));
+    assert(`${relativePath} does not force a GSI hl parameter`, !source.includes("accounts.google.com/gsi/client?hl="));
   }
 
   {
