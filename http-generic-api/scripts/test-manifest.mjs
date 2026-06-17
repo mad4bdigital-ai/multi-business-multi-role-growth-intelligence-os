@@ -476,5 +476,7 @@ export const testCommands = [
   "node test-platform-routes.mjs",
   "node test-test-manifest-runner.mjs",
   "node test-platform-engine-validator-runner.mjs",
-  "node test-growth-intelligence-admin-decisions.mjs"
+  "node test-growth-intelligence-admin-decisions.mjs",
+  "node test-growth-intelligence-action-collation.mjs",
+  "node test-approval-hold-identity-collation-alignment.mjs"
 ];
