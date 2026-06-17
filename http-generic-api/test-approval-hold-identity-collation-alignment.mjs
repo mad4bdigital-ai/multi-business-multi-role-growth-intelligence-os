@@ -36,8 +36,10 @@ for (const statement of expectedAlterations) {
   assert(sql.includes(statement), `missing alteration: ${statement}`);
 }
 
-assert.equal((sql.match(/MODIFY approval_hold_id VARCHAR\(36\)/g) || []).length, 3);
-assert.equal((sql.match(/MODIFY hold_id VARCHAR\(36\)/g) || []).length, 1);
+const applySql = sql.split("-- Align only the four mismatched varchar(36) identity columns.")[1] || "";
+assert(applySql, "missing apply-section marker");
+assert.equal((applySql.match(/MODIFY approval_hold_id VARCHAR\(36\)/g) || []).length, 3);
+assert.equal((applySql.match(/MODIFY hold_id VARCHAR\(36\)/g) || []).length, 1);
 assert(!sql.includes("VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"));
 assert(!sql.includes("VARCHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"));
 assert(sql.includes("CREATE OR REPLACE VIEW v_approval_hold_identity_collation_readiness"));
