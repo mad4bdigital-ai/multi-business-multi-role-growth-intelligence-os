@@ -426,6 +426,14 @@ const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
     readiness_tool: "tenant_repository_governance_v6_readiness_smoke",
     readiness_args: { limit: 1 },
   },
+  {
+    source_key: "tenant_effective_capability_resolver_v1",
+    tools: TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
+    handlers: {
+      tenantEffectiveCapabilityPreview,
+      tenantCapabilityShadowCompare,
+    },
+  },
 ];
 
 function snakeToolNameToCamelHandlerName(name = "") {
