@@ -270,6 +270,50 @@ assert.equal(tagsWideningPreflight.status, "pass", "admin tool registry tags wid
 assert.equal(tagsWideningPreflight.counts.alter_table, 1, "must count tags widening ALTER TABLE");
 assert.equal(tagsWideningPreflight.counts.alter_table_idempotent, 1, "must count approved tags widening as idempotent/safe ALTER");
 
+const approvalHoldCollationMigrationName = "1013_sprint69_approval_hold_identity_collation_alignment.sql";
+const approvalHoldCollationMigration = readFileSync(
+  new URL(`migrations/${approvalHoldCollationMigrationName}`, import.meta.url),
+  "utf8"
+);
+const approvalHoldCollationPreflight = assessMigrationSqlPreflight(
+  approvalHoldCollationMigrationName,
+  approvalHoldCollationMigration
+);
+assert.equal(approvalHoldCollationPreflight.status, "pass", "migration 1013 idempotent collation alignment must pass preflight");
+assert.equal(approvalHoldCollationPreflight.risk_count, 0, "migration 1013 dynamic ALTER contracts must not create top-level ALTER warnings");
+assert.equal(approvalHoldCollationPreflight.counts.alter_table, 0, "migration 1013 ALTERs must remain guarded dynamic SQL rather than top-level statements");
+
+const approvalHoldDynamicAlterContracts = [
+  "ALTER TABLE local_gateway_tool_call_log MODIFY approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL",
+  "ALTER TABLE repository_advisory_comment_plans MODIFY approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL",
+  "ALTER TABLE ticket_workflow_links MODIFY approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL",
+  "ALTER TABLE approval_holds MODIFY hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL",
+];
+for (const contract of approvalHoldDynamicAlterContracts) {
+  assert(approvalHoldCollationMigration.includes(`ELSE '${contract}'`), `migration 1013 must retain the guarded dynamic contract: ${contract}`);
+}
+assert.equal(
+  approvalHoldCollationMigration.split("ELSE 'ALTER TABLE ").length - 1,
+  4,
+  "migration 1013 must retain exactly four guarded dynamic ALTER contracts"
+);
+assert.equal(
+  approvalHoldCollationMigration.split("FROM information_schema.columns").length - 1,
+  4,
+  "each migration 1013 dynamic ALTER contract must be selected through information_schema"
+);
+assert.equal(
+  approvalHoldCollationMigration.split("\nPREPARE align_").length - 1,
+  4,
+  "each migration 1013 dynamic ALTER contract must execute through its bounded prepared statement"
+);
+
+const approvalHoldDirectAlterPreflight = assessMigrationSqlPreflight(
+  approvalHoldCollationMigrationName,
+  "ALTER TABLE approval_holds MODIFY hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL;"
+);
+assert.equal(approvalHoldDirectAlterPreflight.status, "warn", "a direct migration 1013 ALTER must still require manual idempotency review");
+
 const warnPreflight = assessMigrationSqlPreflight(
   "warn.sql",
   "CREATE TABLE cms_sites (site_id varchar(36) PRIMARY KEY); INSERT INTO admin_platform_endpoint_tools (tool_key) VALUES ('unsafe_tool');"
