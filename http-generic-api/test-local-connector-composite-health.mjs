@@ -116,7 +116,7 @@ const openApiSource = readFileSync("openapi.yaml", "utf8");
 assert.match(openApiSource, /retry bounded connector health/i);
 assert.doesNotMatch(openApiSource, /CALL IMMEDIATELY when connector\.mad4b\.com returns error 1033/i);
 
-const policyMigrationSource = readFileSync("migrations/318_sprint69_local_connector_transient_retry_policy.sql", "utf8");
+const policyMigrationSource = readFileSync("migrations/1015_sprint69_local_connector_transient_retry_policy.sql", "utf8");
 assert.match(policyMigrationSource, /Cloudflare 1033 Retry Before Repair/);
 assert.match(policyMigrationSource, /'max_attempts', 3/);
 assert.match(policyMigrationSource, /'require_retry_exhaustion_before_repair', true/);
