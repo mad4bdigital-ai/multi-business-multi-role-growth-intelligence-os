@@ -119,7 +119,4 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - DB tool registry rows should preserve method/path/tag parity with OpenAPI when a tool maps to an HTTP route.
 - Virtual Admin tools exposed through `/gpt/tools/call` must retain catalog/schema compatibility, focused tests, and canonical dispatcher documentation. Growth Intelligence pilots and review decisions remain internal-registry-only, approval-gated, execution-dispatch-free, provider-write-free, external-send-free, and secret-free. V5 comments require a dedicated plan-bound hold and typed confirmation before the separate apply/readback stage.
 - Runtime/schema authority changes should include tests, docs, or canonical coverage.
-- Auth lifecycle maintenance currently includes explicit Google action bindings, SQL-default path authority, no-secret dry-run/preflight contracts, principal/connection-scoped token and client caches, and context-keyed inflight token deduplication.
-- The focused regression surfaces are `test-google-auth-token-resolver.mjs`, `test-execution-preparation-path-resolver.mjs`, `test-sql-only-runtime-contracts.mjs`, `test-runtime-profile-contract.mjs`, and the standard architecture validator.
-- Maintenance scans must report zero actionless `getGoogleClients()` calls, no global boolean token lock, and no implicit Drive client in registry snapshots.
 - Automation should open reviewable PRs rather than pushing generated contract changes directly to `main`.
