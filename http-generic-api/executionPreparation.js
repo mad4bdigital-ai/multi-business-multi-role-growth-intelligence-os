@@ -163,6 +163,7 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
   debugLog("INFERRED_AUTH_MODE:", authContract.mode);
   enforceSupportedAuthMode(policies, authContract.mode);
 
+  let delegatedGoogleAuthRequired = false;
   if (authContract.mode === "oauth_gpt_action") {
     const handling = policyValue(
       policies,
@@ -170,7 +171,6 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
       "OAuth GPT Action Transport Handling",
       "NATIVE_ONLY"
     );
-
     const allowDelegatedGoogleOAuth = String(
       policyValue(
         policies,
@@ -179,7 +179,6 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
         "TRUE"
       )
     ).trim().toUpperCase() === "TRUE";
-
     const delegatedGoogleEndpoint =
       isDelegatedTransportTarget(endpoint) &&
       isGoogleApiHost(resolvedProviderDomain);
@@ -192,54 +191,13 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
       err.status = 403;
       throw err;
     }
-
-    try {
-      authContract.mode = "bearer_token";
-      authContract.header_name = "Authorization";
-      authContract.secret = await mintGoogleAccessTokenForEndpoint({
-        drive,
-        policies,
-        action,
-        endpoint
-      });
-    } catch (err) {
-      debugLog("DELEGATED_GOOGLE_OAUTH_FALLBACK:", {
-        action_key: action.action_key,
-        endpoint_key: endpoint.endpoint_key,
-        provider_domain: resolvedProviderDomain,
-        message: err?.message || String(err)
-      });
-      const authErr = new Error("Delegated Google OAuth token mint failed.");
-      authErr.code = "auth_resolution_failed";
-      authErr.status = err?.status || 500;
-      throw authErr;
-    }
+    delegatedGoogleAuthRequired = true;
   } else if (
     authContract.mode === "none" &&
     isDelegatedTransportTarget(endpoint) &&
     isGoogleApiHost(resolvedProviderDomain)
   ) {
-    try {
-      authContract.mode = "bearer_token";
-      authContract.header_name = "Authorization";
-      authContract.secret = await mintGoogleAccessTokenForEndpoint({
-        drive,
-        policies,
-        action,
-        endpoint
-      });
-    } catch (err) {
-      debugLog("DELEGATED_GOOGLE_OAUTH_FALLBACK:", {
-        action_key: action.action_key,
-        endpoint_key: endpoint.endpoint_key,
-        provider_domain: resolvedProviderDomain,
-        message: err?.message || String(err)
-      });
-      const authErr = new Error("Delegated Google OAuth token mint failed.");
-      authErr.code = "auth_resolution_failed";
-      authErr.status = err?.status || 500;
-      throw authErr;
-    }
+    delegatedGoogleAuthRequired = true;
   }
 
   ensureWritePermissions(brand, resolvedMethodPath.method);
