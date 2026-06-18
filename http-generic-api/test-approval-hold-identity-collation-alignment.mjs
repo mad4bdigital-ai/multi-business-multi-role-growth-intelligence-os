@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { assessMigrationSqlPreflight } from "./releaseReadiness.js";
 
 const migrationPath = new URL(
   "./migrations/1013_sprint69_approval_hold_identity_collation_alignment.sql",
