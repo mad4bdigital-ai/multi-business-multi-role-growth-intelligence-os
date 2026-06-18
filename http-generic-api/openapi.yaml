@@ -9048,6 +9048,145 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { description: Admin control execution failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
+  /admin/cli/local-connector/install-bundle:
+    get:
+      tags: [admin-internal]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: getLocalConnectorInstallBundle
+      summary: Resolve or download a local connector installer
+      description: >-
+        Returns metadata-only authenticated download instructions by default. The default JSON mode exits before reading
+        connector credentials. When format=bat is explicitly requested, the backend resolves the scoped Cloudflare tunnel
+        token and connector secret and returns the generated credential-bearing installer as an authenticated binary
+        attachment. The installer is never uploaded to shared or public storage and never receives anyone-reader permissions.
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 128 }
+          description: Admin-selected user whose governed local connector configuration is used.
+        - name: device_id
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 128, default: mohammedlap }
+          description: Governed local connector device identifier.
+        - name: format
+          in: query
+          required: false
+          schema: { type: string, enum: [json, bat], default: json }
+          description: json returns a no-secret handoff; bat returns the authenticated binary installer.
+      responses:
+        "200":
+          description: Metadata-only secure handoff or authenticated installer attachment
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, artifact_delivery, script_content_omitted, credential_materialized, public_storage_allowed, secure_download, secrets_included]
+                properties:
+                  ok: { type: boolean, const: true }
+                  artifact_delivery: { type: string, const: authenticated_direct_download_only }
+                  script_content_omitted: { type: boolean, const: true }
+                  script_content_reason: { type: string }
+                  credential_materialized: { type: boolean, const: false }
+                  public_storage_allowed: { type: boolean, const: false }
+                  secure_download:
+                    type: object
+                    additionalProperties: false
+                    required: [method, path, query, requires_backend_api_key, requires_admin_principal]
+                    properties:
+                      method: { type: string, const: GET }
+                      path: { type: string, const: /admin/cli/local-connector/install-bundle }
+                      query:
+                        type: object
+                        additionalProperties: false
+                        required: [user_id, device_id, format]
+                        properties:
+                          user_id: { type: string }
+                          device_id: { type: string }
+                          format: { type: string, const: bat }
+                      requires_backend_api_key: { type: boolean, const: true }
+                      requires_admin_principal: { type: boolean, const: true }
+                  secrets_included: { type: boolean, const: false }
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /admin/cli/local-connector/self-repair:
+    post:
+      tags: [admin-internal]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: repairLocalConnector
+      summary: Diagnose local connector health and return a secure installer handoff
+      description: >-
+        Performs governed local connector diagnosis and returns an authenticated direct-download handoff when repair is
+        required. The JSON response does not generate, upload, or expose installer content. Secret-bearing installers remain
+        available only from the protected install-bundle endpoint with format=bat.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                user_id: { type: string, minLength: 1, maxLength: 128 }
+                device_id: { type: string, minLength: 1, maxLength: 128, default: mohammedlap }
+      responses:
+        "200":
+          description: Diagnosis and no-secret authenticated repair handoff
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, diagnosis, repair]
+                properties:
+                  ok: { type: boolean, const: true }
+                  diagnosis:
+                    type: object
+                    additionalProperties: true
+                    required: [secrets_included]
+                    properties:
+                      secrets_included: { type: boolean, const: false }
+                  repair:
+                    type: object
+                    additionalProperties: true
+                    required: [required, installer_generated, artifact_delivery, public_storage_allowed, secure_download, secrets_included]
+                    properties:
+                      required: { type: boolean }
+                      installer_generated: { type: boolean, const: false }
+                      artifact_delivery: { type: string, const: authenticated_direct_download_only }
+                      public_storage_allowed: { type: boolean, const: false }
+                      secure_download:
+                        type: object
+                        additionalProperties: true
+                        required: [method, path, query, requires_backend_api_key, requires_admin_principal]
+                        properties:
+                          method: { type: string, const: GET }
+                          path: { type: string, const: /admin/cli/local-connector/install-bundle }
+                          query:
+                            type: object
+                            additionalProperties: true
+                            required: [user_id, device_id, format]
+                            properties:
+                              user_id: { type: string }
+                              device_id: { type: string }
+                              format: { type: string, const: bat }
+                          requires_backend_api_key: { type: boolean, const: true }
+                          requires_admin_principal: { type: boolean, const: true }
+                      secrets_included: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
   /admin/cli/hostinger:
     post:
       tags: [admin-internal]
