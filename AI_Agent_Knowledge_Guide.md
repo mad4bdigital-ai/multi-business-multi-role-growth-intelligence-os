@@ -1053,3 +1053,11 @@ Local connector repair uses composite health. A healthy tunnel with a failed Nod
 ### Capability report selection
 
 Capability reporting is intentionally split into two independent admin tools. Use `platform_capability_contract_report` to classify declared contract surfaces as implemented, partial, or proposed-not-implemented. It must not include live capability counts, live gap distributions, or claims about historical CI/deployment state. Use `platform_capability_live_report` to read a freshness-bounded MySQL-primary snapshot of capability maturity, gaps, envelopes, certifications, and source resolutions. It must include `observed_at` and `expires_at`, and must not include contractual conclusions or historical claims. Do not merge the two outputs into a single status unless the user explicitly requests a separate comparison step.
+
+## Unified Operational Alerting
+
+The platform uses `operationalAlertService.js` and the SQL-primary `operational_alerts` lifecycle store to produce one governed final problem result. Live evidence continues to come from `execution_log`, connectors, pending tasks, agent health, skill approvals, freshness, signals, readiness checks, and telemetry. The alert store supplies deduplication, lifecycle state, notification readiness, and Known Issue continuity.
+
+Admin reads use `activation_operational_attention_read_api`; tenant reads use `tenant_activation_operational_attention_read_api` and derive tenant scope from signed membership. Synchronization uses `activation_operational_attention_sync_api`, performs no provider call or external send, and must return a same-cycle readback. Lifecycle changes use `activation_operational_alert_lifecycle_api`.
+
+A complete administrative final result requires `all_known_issues_visible=true`, no degraded required sources, and `all_matching_problems_returned_in_page=true`. Otherwise `final_result_complete` must remain false and the response must disclose the missing keys, degraded sources, or next cursor.
