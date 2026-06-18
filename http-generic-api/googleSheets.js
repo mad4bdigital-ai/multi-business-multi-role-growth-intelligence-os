@@ -254,7 +254,7 @@ export async function getGoogleClients(options = {}) {
     sheets: google.sheets({ version: "v4", auth }),
     drive: google.drive({ version: "v3", auth })
   };
-  googleClientCache.set(actionKey, { token, clients });
+  googleClientCache.set(clientContextKey, { token, clients });
   return clients;
 }
 
