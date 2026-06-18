@@ -187,7 +187,6 @@ export function createExecutionFacade(deps) {
           provider_domain,
           parent_action_key,
           endpoint_key,
-          drive,
           hostingAccounts,
           policies,
           callerHeaders,
