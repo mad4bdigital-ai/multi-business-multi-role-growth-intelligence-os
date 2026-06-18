@@ -69,6 +69,7 @@ import * as RepositoryGovernanceV6Runtime from "../repositoryGovernanceV6.js";
 import {
   TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
   tenantEffectiveCapabilityPreview,
+  tenantEffectiveCapabilityReadinessSmoke,
   tenantCapabilityShadowCompare,
 } from "../tenantEffectiveCapabilityResolver.js";
 import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
@@ -433,8 +434,11 @@ const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
     tools: TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
     handlers: {
       tenantEffectiveCapabilityPreview,
+      tenantEffectiveCapabilityReadinessSmoke,
       tenantCapabilityShadowCompare,
     },
+    readiness_tool: "tenant_effective_capability_readiness_smoke",
+    readiness_args: {},
   },
 ];
 
