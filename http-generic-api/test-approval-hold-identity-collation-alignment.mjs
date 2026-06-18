@@ -41,7 +41,14 @@ const applySql = sql.split("-- Align only the four mismatched varchar(36) identi
 assert(applySql, "missing apply-section marker");
 assert.equal((applySql.match(/MODIFY approval_hold_id VARCHAR\(36\)/g) || []).length, 3);
 assert.equal((applySql.match(/MODIFY hold_id VARCHAR\(36\)/g) || []).length, 1);
-assert.equal((applySql.match(/FROM information_schema\.columns/g) || []).length, 4);
+for (const guard of [
+  "@align_local_gateway_approval_hold_sql",
+  "@align_repository_advisory_approval_hold_sql",
+  "@align_ticket_workflow_approval_hold_sql",
+  "@align_approval_holds_parent_sql",
+]) {
+  assert(applySql.includes(guard), `missing idempotent guard: ${guard}`);
+}
 assert.equal((applySql.match(/PREPARE align_/g) || []).length, 4);
 assert.equal((applySql.match(/EXECUTE align_/g) || []).length, 4);
 assert.equal((applySql.match(/DEALLOCATE PREPARE align_/g) || []).length, 4);
