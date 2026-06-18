@@ -1,8 +1,14 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { classifyCiCheckRun, classifyCommitParity } from "./runtimeVerificationService.js";
+import {
+  classifyCiCheckRun,
+  classifyCommitParity,
+  readCheckoutCommitSha,
+  resolveDeployedCommitEvidence,
+} from "./runtimeVerificationService.js";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 async function read(relativePath) {
