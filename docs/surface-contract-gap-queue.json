@@ -1,11 +1,11 @@
 {
   "ok": true,
   "schema_version": "surface-contract-gap-queue-v1",
-  "total_items": 2,
+  "total_items": 3,
   "class_counts": {
     "critical_review": 1,
     "high_review": 0,
-    "medium_review": 0,
+    "medium_review": 1,
     "low_review": 1
   },
   "top_items": [
@@ -81,6 +81,82 @@
             "no_credential_payload_read",
             "no_raw_secrets",
             "no_external_write"
+          ],
+          "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
+        }
+      ],
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "311_sprint69_semantic_capability_effective_resolution.sql",
+      "score": 384,
+      "queue_class": "medium_review",
+      "gap_severity": "none",
+      "documentation_complete": true,
+      "missing_docs": [],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send",
+        "no_external_write",
+        "secrets_included_false"
+      ],
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 10,
+        "views": 4,
+        "policies": 0,
+        "routes": 0
+      },
+      "remediation": [
+        {
+          "action_key": "verify_tool_registry_binding",
+          "owner_hint": "runtime-registry-review",
+          "targets": [
+            "connection_not_validated",
+            "effective_decision",
+            "execution_readiness",
+            "idx_capability_binding_lookup",
+            "legacy_decision",
+            "platform_endpoint_tool_exports",
+            "requires_readback",
+            "tenant_capability_shadow_decisions",
+            "workspace_validated_primary",
+            "workspace_validated_single"
+          ],
+          "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
+        },
+        {
+          "action_key": "verify_readback_view",
+          "owner_hint": "db-readback-review",
+          "targets": [
+            "v_platform_capability_export_projection",
+            "v_platform_capability_export_reconciliation",
+            "v_platform_endpoint_canonical_identity",
+            "v_tenant_effective_capability_candidates"
+          ],
+          "reason": "Readback views should have parity/readiness documentation and smoke evidence."
+        },
+        {
+          "action_key": "add_explicit_safety_markers",
+          "owner_hint": "safety-contract-review",
+          "targets": [
+            "no_provider_call",
+            "no_credential_payload_read",
+            "no_raw_secrets",
+            "no_external_send",
+            "no_external_write",
+            "secrets_included_false"
           ],
           "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
         }

@@ -4,7 +4,7 @@
 
 ## Summary
 
-- Triaged items: 2
+- Triaged items: 3
 - Gate candidates: 1
 - New-gap gate: fail
 - Blocking new items: 2
@@ -12,7 +12,7 @@
 ## Class counts
 
 - new_surface_immediate_review: 1
-- safety_marker_review: 1
+- safety_marker_review: 2
 
 ## Immediate review candidates
 

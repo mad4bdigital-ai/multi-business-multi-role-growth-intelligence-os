@@ -42,14 +42,14 @@
     ],
     "medium_risk_missing_docs": [],
     "safety_marker_counts": {
-      "no_provider_call": 435,
-      "no_credential_payload_read": 434,
-      "no_raw_secrets": 434,
-      "no_external_send": 435,
-      "no_external_write": 434,
-      "secrets_included_false": 436
+      "no_provider_call": 434,
+      "no_credential_payload_read": 433,
+      "no_raw_secrets": 433,
+      "no_external_send": 434,
+      "no_external_write": 433,
+      "secrets_included_false": 435
     },
-    "safety_marker_gap_migrations": 0,
+    "safety_marker_gap_migrations": 1,
     "route_coverage": {
       "sql_route_count": 1,
       "total_sql_route_like_count": 564,
@@ -70,19 +70,19 @@
     }
   },
   "queue": {
-    "total_items": 2,
+    "total_items": 3,
     "class_counts": {
       "critical_review": 1,
       "high_review": 0,
-      "medium_review": 0,
+      "medium_review": 1,
       "low_review": 1
     }
   },
   "triage": {
-    "total_items": 2,
+    "total_items": 3,
     "class_counts": {
       "new_surface_immediate_review": 1,
-      "safety_marker_review": 1
+      "safety_marker_review": 2
     },
     "gate_candidate_count": 1
   },

@@ -38,7 +38,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 - SQL route coverage in OpenAPI: 1/1 (100.00%)
 - SQL route-like literals exempted from OpenAPI scoring: 563/564
 - SQL routes missing OpenAPI path coverage: 0
-- Migrations without explicit `secrets_included=false` marker: 0
+- Migrations without explicit `secrets_included=false` marker: 1
 
 ### Surface Totals
 
@@ -64,12 +64,12 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 435 |
-| no_credential_payload_read | 434 |
-| no_raw_secrets | 434 |
-| no_external_send | 435 |
-| no_external_write | 434 |
-| secrets_included_false | 436 |
+| no_provider_call | 434 |
+| no_credential_payload_read | 433 |
+| no_raw_secrets | 433 |
+| no_external_send | 434 |
+| no_external_write | 433 |
+| secrets_included_false | 435 |
 
 ### Route Classification Coverage
 
@@ -88,15 +88,16 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 2
+- Total queue items: 3
 - Critical review: 1
 - High review: 0
-- Medium review: 0
+- Medium review: 1
 - Low review: 1
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `1013_sprint69_operational_alerting_control_plane.sql` | critical_review | 837 | high | 5 | 0 | 3 | document_surface_contract, verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
+| `311_sprint69_semantic_capability_effective_resolution.sql` | medium_review | 384 | none | 0 | 0 | 6 | verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
 | `1013_sprint69_approval_hold_identity_collation_alignment.sql` | low_review | 177 | none | 0 | 0 | 5 | verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
 
 
@@ -748,7 +749,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Routes: none
 - Route classifications: none
 - OpenAPI route gaps: none
-- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
 
 ### `311_sprint69_platform_tool_dispatch_binding_integrity.sql`
 
