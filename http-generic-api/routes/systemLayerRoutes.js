@@ -33,6 +33,7 @@ import {
   planGovernedResource,
   resolveGovernedResource,
   runGovernedResource,
+  executeRepositoryPrReconciliationReadOnlyForAdminReadiness,
 } from "../platformResourceRecipeCapability.js";
 import {
   REPOSITORY_PR_RECONCILE_RECIPE_KEY,
