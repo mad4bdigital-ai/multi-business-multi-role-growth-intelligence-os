@@ -572,14 +572,14 @@
       "1014_sprint69_approval_hold_collation_reconciliation_rule.sql"
     ],
     "safety_marker_counts": {
-      "no_provider_call": 436,
-      "no_credential_payload_read": 435,
-      "no_raw_secrets": 435,
-      "no_external_send": 435,
-      "no_external_write": 435,
-      "secrets_included_false": 437
+      "no_provider_call": 435,
+      "no_credential_payload_read": 434,
+      "no_raw_secrets": 434,
+      "no_external_send": 434,
+      "no_external_write": 434,
+      "secrets_included_false": 436
     },
-    "safety_marker_gap_migrations": 0,
+    "safety_marker_gap_migrations": 1,
     "route_coverage": {
       "sql_route_count": 1,
       "total_sql_route_like_count": 564,
@@ -602,11 +602,11 @@
   "gap_queue": {
     "ok": true,
     "schema_version": "surface-contract-gap-queue-v1",
-    "total_items": 3,
+    "total_items": 4,
     "class_counts": {
       "critical_review": 1,
       "high_review": 1,
-      "medium_review": 0,
+      "medium_review": 1,
       "low_review": 1
     },
     "top_items": [
@@ -747,6 +747,82 @@
             "owner_hint": "safety-contract-review",
             "targets": [
               "no_external_send"
+            ],
+            "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
+          }
+        ],
+        "safety": {
+          "executes_provider_calls": false,
+          "reads_credentials": false,
+          "mutates_runtime": false,
+          "writes_database": false,
+          "external_sends": false,
+          "deploys": false,
+          "secrets_included": false
+        }
+      },
+      {
+        "migration_file": "311_sprint69_semantic_capability_effective_resolution.sql",
+        "score": 384,
+        "queue_class": "medium_review",
+        "gap_severity": "none",
+        "documentation_complete": true,
+        "missing_docs": [],
+        "missing_openapi_routes": [],
+        "safety_marker_gaps": [
+          "no_provider_call",
+          "no_credential_payload_read",
+          "no_raw_secrets",
+          "no_external_send",
+          "no_external_write",
+          "secrets_included_false"
+        ],
+        "surface_counts": {
+          "plugins": 0,
+          "tools": 10,
+          "views": 4,
+          "policies": 0,
+          "routes": 0
+        },
+        "remediation": [
+          {
+            "action_key": "verify_tool_registry_binding",
+            "owner_hint": "runtime-registry-review",
+            "targets": [
+              "connection_not_validated",
+              "effective_decision",
+              "execution_readiness",
+              "idx_capability_binding_lookup",
+              "legacy_decision",
+              "platform_endpoint_tool_exports",
+              "requires_readback",
+              "tenant_capability_shadow_decisions",
+              "workspace_validated_primary",
+              "workspace_validated_single"
+            ],
+            "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
+          },
+          {
+            "action_key": "verify_readback_view",
+            "owner_hint": "db-readback-review",
+            "targets": [
+              "v_platform_capability_export_projection",
+              "v_platform_capability_export_reconciliation",
+              "v_platform_endpoint_canonical_identity",
+              "v_tenant_effective_capability_candidates"
+            ],
+            "reason": "Readback views should have parity/readiness documentation and smoke evidence."
+          },
+          {
+            "action_key": "add_explicit_safety_markers",
+            "owner_hint": "safety-contract-review",
+            "targets": [
+              "no_provider_call",
+              "no_credential_payload_read",
+              "no_raw_secrets",
+              "no_external_send",
+              "no_external_write",
+              "secrets_included_false"
             ],
             "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
           }
@@ -3429,11 +3505,7 @@
     {
       "migration_file": "311_sprint69_semantic_capability_effective_resolution.sql",
       "legacy_backlog_closed": false,
-      "safety_attestation": {
-        "attestation_status": "verified_static_no_external_side_effects",
-        "evidence_mode": "checksum_bound_static_contract",
-        "migration_sha256": "44a590fbb86caaf1283ac60850b07d1ebace378367abf749c4c986a6bdb1ace4"
-      },
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -3458,12 +3530,12 @@
           "workspace_validated_single"
         ],
         "safety": {
-          "no_provider_call": true,
-          "no_credential_payload_read": true,
-          "no_raw_secrets": true,
-          "no_external_send": true,
-          "no_external_write": true,
-          "secrets_included_false": true
+          "no_provider_call": false,
+          "no_credential_payload_read": false,
+          "no_raw_secrets": false,
+          "no_external_send": false,
+          "no_external_write": false,
+          "secrets_included_false": false
         }
       },
       "docs": {
@@ -3500,7 +3572,7 @@
           "route_classifications": []
         },
         "surface_count": 14,
-        "safety_marker_count": 6
+        "safety_marker_count": 0
       }
     },
     {
@@ -45374,11 +45446,7 @@
     {
       "migration_file": "311_sprint69_semantic_capability_effective_resolution.sql",
       "legacy_backlog_closed": false,
-      "safety_attestation": {
-        "attestation_status": "verified_static_no_external_side_effects",
-        "evidence_mode": "checksum_bound_static_contract",
-        "migration_sha256": "44a590fbb86caaf1283ac60850b07d1ebace378367abf749c4c986a6bdb1ace4"
-      },
+      "safety_attestation": null,
       "surfaces": {
         "routes": [],
         "route_classifications": [],
@@ -45403,12 +45471,12 @@
           "workspace_validated_single"
         ],
         "safety": {
-          "no_provider_call": true,
-          "no_credential_payload_read": true,
-          "no_raw_secrets": true,
-          "no_external_send": true,
-          "no_external_write": true,
-          "secrets_included_false": true
+          "no_provider_call": false,
+          "no_credential_payload_read": false,
+          "no_raw_secrets": false,
+          "no_external_send": false,
+          "no_external_write": false,
+          "secrets_included_false": false
         }
       },
       "docs": {
@@ -45445,7 +45513,7 @@
           "route_classifications": []
         },
         "surface_count": 14,
-        "safety_marker_count": 6
+        "safety_marker_count": 0
       }
     },
     {
