@@ -4,19 +4,15 @@
 
 ## Summary
 
-- Triaged items: 8
-- Gate candidates: 3
-- New-gap gate: fail
-- Blocking new items: 3
+- Triaged items: 0
+- Gate candidates: 0
+- New-gap gate: pass
+- Blocking new items: 0
 
 ## Class counts
 
-- new_surface_immediate_review: 3
-- standard_backlog_review: 2
-- safety_marker_review: 3
+- none
 
 ## Immediate review candidates
 
-- `1011_sprint69_governed_repository_engine_v6.sql` — critical_review, score 1171; next: add targeted patch-index, parity, and governance documentation
-- `20260615_tenant_growth_dashboard_product.sql` — high_review, score 662; next: add targeted patch-index, parity, and governance documentation
-- `1012_sprint69_sql_only_runtime_auth_schema.sql` — high_review, score 515; next: add targeted patch-index, parity, and governance documentation
+- none
