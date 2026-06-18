@@ -256,7 +256,6 @@ export function createExecutionFacade(deps) {
             action,
             endpoint,
             brand,
-            drive,
             hostingAccounts,
             policies,
             callerHeaders,
