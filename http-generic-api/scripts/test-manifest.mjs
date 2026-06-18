@@ -439,6 +439,7 @@ export const testCommands = [
   "node test-database-lifecycle-registry-admin-tool.mjs",
   "node test-database-lifecycle-retention-plan.mjs",
   "node test-database-lifecycle-report-snapshot.mjs",
+  "node test-database-lifecycle-daily-snapshot-runtime.mjs",
   "node test-database-lifecycle-report-schedule-readiness.mjs",
   "node test-database-lifecycle-scheduler-binding-readiness.mjs",
   "node test-database-lifecycle-scheduler-approval-metadata.mjs",
