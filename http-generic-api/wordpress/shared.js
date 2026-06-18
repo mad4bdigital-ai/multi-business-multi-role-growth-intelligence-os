@@ -290,7 +290,7 @@ export async function resolveHostingAccountBinding(identity = {}, brandBinding =
 }
 
 export async function resolveWordpressRuntimeInventory(_input = {}, siteRef = {}) {
-  const { sheets } = await getGoogleClients();
+  const { sheets } = await getGoogleClients({ action_key: "google_sheets_api" });
   const rows = await loadSiteRuntimeInventoryRegistry(sheets).catch(() => []);
   const row =
     findRegistryRecordByIdentity(rows, {
