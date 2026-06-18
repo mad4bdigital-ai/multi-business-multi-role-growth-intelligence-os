@@ -299,6 +299,13 @@ const approvalHoldCollationPreflight = assessMigrationSqlPreflight(
 assert.equal(approvalHoldCollationPreflight.status, "pass", "migration 1013 idempotent collation alignment must pass preflight");
 assert.equal(approvalHoldCollationPreflight.risk_count, 0, "migration 1013 dynamic ALTER contracts must not create top-level ALTER warnings");
 assert.equal(approvalHoldCollationPreflight.counts.alter_table, 0, "migration 1013 ALTERs must remain guarded dynamic SQL rather than top-level statements");
+const approvalHoldCollationStatements = splitSqlStatements(approvalHoldCollationMigration);
+assert.equal(approvalHoldCollationStatements.length, 26, "migration 1013 must split into 26 independently executable statements");
+assert.equal(approvalHoldCollationPreflight.counts.statements, 26, "migration 1013 preflight and apply must share the 26-statement boundary contract");
+assert(approvalHoldCollationStatements[0].startsWith("UPDATE execution_enablement_requests"), "migration 1013 first statement must remain the bounded orphan cleanup UPDATE");
+assert(approvalHoldCollationStatements[1].startsWith("CREATE TEMPORARY TABLE tmp_approval_hold_identity_orphans"), "migration 1013 temporary orphan table must be a separate statement");
+assert(approvalHoldCollationStatements.at(-2).startsWith("CREATE OR REPLACE VIEW v_approval_hold_identity_collation_readiness"), "migration 1013 readiness view must be independently executable");
+assert(approvalHoldCollationStatements.at(-1).startsWith("INSERT INTO execution_policies"), "migration 1013 policy seed must be the final independent statement");
 
 const approvalHoldDynamicAlterContracts = [
   "ALTER TABLE local_gateway_tool_call_log MODIFY approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL",
