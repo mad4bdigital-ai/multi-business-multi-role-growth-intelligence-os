@@ -27,9 +27,6 @@ assert(
     migration.includes("`http_path` LIKE '/connector/%'"),
   "migration must disable tenant-visible rows that drift to admin or connector proxy paths"
 );
-assert(
-  migration.includes("auth_derived"),
-  "tenant-safe route schemas must derive tenant/user context from auth instead of GPT-provided arguments"
-);
+assert(migration.includes("auth_derived"), "tenant-safe routes must derive identity context from auth");
 
 console.log("tenant-safe tool route rebinding guard passed");
