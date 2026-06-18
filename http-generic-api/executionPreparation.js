@@ -548,17 +548,52 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
     return { ok: false, response: { status: 200, body: responsePayload } };
   }
 
-  const finalQuery = queryWithAuth;
+  if (!passiveExecutionRequested) {
+    authContract = await normalizeAuthContract(authResolutionArgs);
+
+    if (delegatedGoogleAuthRequired) {
+      try {
+        authContract.mode = "bearer_token";
+        authContract.header_name = "Authorization";
+        authContract.secret = await mintGoogleAccessTokenForEndpoint({
+          policies,
+          action,
+          endpoint
+        });
+        authContract.credential_resolution_status = "resolved";
+        authContract.credential_resolution_source = "delegated_google_oauth_after_authorization";
+      } catch (err) {
+        debugLog("DELEGATED_GOOGLE_OAUTH_FALLBACK:", {
+          action_key: action.action_key,
+          endpoint_key: endpoint.endpoint_key,
+          provider_domain: resolvedProviderDomain,
+          message: err?.message || String(err)
+        });
+        const authErr = new Error("Delegated Google OAuth token mint failed.");
+        authErr.code = "auth_resolution_failed";
+        authErr.status = err?.status || 500;
+        throw authErr;
+      }
+    }
+  }
+
+  const outboundAuthInput = passiveExecutionRequested
+    ? { query: { ...(query || {}) }, headers: { ...(callerHeaders || {}) } }
+    : injectAuthForSchemaValidation(query, callerHeaders, authContract);
+  const finalQuery = outboundAuthInput.query;
   let finalHeaders = {
     Accept: "application/json",
     ...(brand ? jsonParseSafe(brand.default_headers_json, {}) : {}),
-    ...callerHeaders
+    ...outboundAuthInput.headers
   };
-  finalHeaders = injectAuthIntoHeaders(finalHeaders, authContract);
-  finalHeaders = {
-    ...finalHeaders,
-    ...getAdditionalStaticAuthHeaders(action, authContract)
-  };
+
+  if (!passiveExecutionRequested) {
+    finalHeaders = injectAuthIntoHeaders(finalHeaders, authContract);
+    finalHeaders = {
+      ...finalHeaders,
+      ...getAdditionalStaticAuthHeaders(action, authContract)
+    };
+  }
 
   if (body !== undefined && !finalHeaders["Content-Type"] && !finalHeaders["content-type"]) {
     finalHeaders["Content-Type"] = "application/json";
