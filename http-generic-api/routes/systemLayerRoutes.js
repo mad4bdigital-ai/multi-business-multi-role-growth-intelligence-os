@@ -1,7 +1,6 @@
 import { Router } from "express";
 import {
   ACTIVATION_BOOTSTRAP_CONFIG_SHEET,
-  ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
   OVERSIZED_ARTIFACTS_DRIVE_FOLDER_ID,
 } from "../config.js";
 import { getPool } from "../db.js";
