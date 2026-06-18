@@ -439,17 +439,6 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
   const target_workflow = String(action?.action_key || "").trim();
   const brand_name = String(brand?.brand_name || requestPayload.brand || "").trim();
 
-  const callerAuthTrust = policyValue(policies, "HTTP Execution Governance", "Caller Authorization Header Trust", "FALSE");
-  if (
-    String(callerAuthTrust).toUpperCase() === "FALSE" &&
-    (requestPayload.headers?.Authorization || requestPayload.headers?.authorization)
-  ) {
-    const err = new Error("Caller-supplied Authorization is not trusted by policy.");
-    err.code = "forbidden_header";
-    err.status = 403;
-    throw err;
-  }
-
   if (schemaValidationErrors.length) {
     const responsePayload = {
       ok: false,
