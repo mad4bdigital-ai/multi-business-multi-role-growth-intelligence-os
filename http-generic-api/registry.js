@@ -1467,7 +1467,6 @@ export async function fetchFromGoogleSheets() {
   ]);
 
   return {
-    drive,
     brandRows,
     hostingAccounts,
     actionRows,
