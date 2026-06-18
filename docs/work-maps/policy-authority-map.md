@@ -154,7 +154,7 @@ flowchart TD
 | `canonical_agent_runtime_policy_v1` | 1 |
 | `capability_resolution_envelope_approval_tool_policy_v1` | 1 |
 | `capability_resolution_envelope_ledger_policy_v1` | 1 |
-| `database_lifecycle_report_snapshot_schedule_policy_v1` | 2 |
+| `database_lifecycle_report_snapshot_schedule_policy_v1` | 3 |
 | `database_table_lifecycle_policy_v1` | 1 |
 | `development_drift_detection_policy_v1` | 1 |
 | `domain_generalization_before_provider_specific_policy_v1` | 1 |
