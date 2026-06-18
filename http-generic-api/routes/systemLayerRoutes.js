@@ -2055,6 +2055,7 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
       }, deps);
     }
     case "runtime_endpoint_preview": {
+      assertRuntimeEndpointPreviewPayload(args || {});
       const guarded = derivePrincipalExecutionContext({ ...(args || {}), dry_run: true }, auth);
       return await callRuntimeEndpointViaFacade({
         ...guarded.payload,
