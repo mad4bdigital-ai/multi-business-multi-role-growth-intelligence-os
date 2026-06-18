@@ -313,7 +313,7 @@ export async function resolveWordpressRuntimeInventory(_input = {}, siteRef = {}
 }
 
 export async function resolveWordpressSettingsInventory(_input = {}, siteRef = {}) {
-  const { sheets } = await getGoogleClients();
+  const { sheets } = await getGoogleClients({ action_key: "google_sheets_api" });
   const rows = await loadSiteSettingsInventoryRegistry(sheets).catch(() => []);
   const row =
     findRegistryRecordByIdentity(rows, {
