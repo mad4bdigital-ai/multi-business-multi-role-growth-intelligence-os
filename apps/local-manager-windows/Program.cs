@@ -1126,13 +1126,6 @@ internal static class Program
                 }
                 _progress.Value = 100;
                 _status.Text = $"Latest installer downloaded: {target}.\nLaunching update handoff…"; LaunchUpdaterAndRestart(target); return;
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = target,
-                    UseShellExecute = true,
-                    WorkingDirectory = Path.GetDirectoryName(target) ?? UpdatesRoot,
-                    Verb = "open"
-                });
             }
             catch (Exception ex)
             {
