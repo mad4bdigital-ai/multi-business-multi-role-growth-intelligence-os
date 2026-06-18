@@ -1,0 +1,96 @@
+{
+  "ok": true,
+  "schema_version": "surface-contract-manual-safety-attestations-v1",
+  "item_count": 1,
+  "items": [
+    {
+      "migration_file": "1013_sprint69_approval_hold_identity_collation_alignment.sql",
+      "migration_sha256": "116f42095ca313476b57ad9061af16afc697894fd9fef5c592019b84ed44f35e",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_human_review",
+      "review_status": "approved_checksum_bound_internal_sql",
+      "reviewed_by": "platform_admin:0e76b224-7671-47dd-ad68-014fb042df80",
+      "reviewed_at": "2026-06-18T01:10:58Z",
+      "rationale": "Human review confirmed that PREPARE and EXECUTE are restricted to one fail-closed orphan guard that selects success or raises SQLSTATE 45000. The guarded update affects only expired orphaned approval requests; the four ALTER TABLE warnings align varchar identity collations and preserve documented column contracts. This attestation grants no execution or deployment authority.",
+      "execution_authorized": false,
+      "queue_class_at_attestation": "low_review",
+      "gap_severity_at_attestation": "none",
+      "preflight_status": "warn",
+      "preflight_risk_count": 4,
+      "statement_count": 8,
+      "accepted_preflight_risks": {
+        "alter_table_requires_manual_idempotency_review": 4
+      },
+      "accepted_forbidden_patterns": [
+        "\\bPREPARE\\s+[A-Za-z0-9_]+\\s+FROM\\b",
+        "^\\s*EXECUTE\\s+[A-Za-z0-9_]+\\b"
+      ],
+      "required_sql_fragments": [
+        "SET @approval_hold_orphan_guard := IF(",
+        "PREPARE approval_hold_orphan_stmt FROM @approval_hold_orphan_guard;",
+        "EXECUTE approval_hold_orphan_stmt;",
+        "DEALLOCATE PREPARE approval_hold_orphan_stmt;",
+        "Active Approval Hold identity orphans remain; repair before collation alignment"
+      ],
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 5,
+        "views": 1,
+        "policies": 0,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_readback_view",
+          "targets": [
+            "v_approval_hold_identity_collation_readiness"
+          ]
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "ads_provider_profile_onboarding_requests",
+            "execution_enablement_requests",
+            "local_gateway_tool_call_log",
+            "tenant_ssh_cli_approval_requests",
+            "v_approval_hold_identity_collation_readiness"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      },
+      "migration_effects": {
+        "internal_database_write": true,
+        "schema_mutation": true,
+        "external_write": false,
+        "provider_call": false,
+        "credential_payload_read": false,
+        "secrets_included": false
+      }
+    }
+  ],
+  "safety": {
+    "executes_provider_calls": false,
+    "reads_credentials": false,
+    "mutates_runtime": false,
+    "writes_database": false,
+    "external_sends": false,
+    "deploys": false,
+    "secrets_included": false
+  }
+}
