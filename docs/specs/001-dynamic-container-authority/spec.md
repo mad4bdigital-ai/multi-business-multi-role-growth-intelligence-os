@@ -1,10 +1,10 @@
 # Dynamic Container Authority
 
-**Feature:** `001-dynamic-container-authority`  
-**Status:** Design freeze candidate  
-**Scope:** Domain and contract specification only  
-**Runtime effect:** None  
-**Provider calls / credential reads / external writes:** Forbidden by this package
+- **Feature:** `001-dynamic-container-authority`
+- **Status:** Design freeze candidate
+- **Scope:** Domain and contract specification only
+- **Runtime effect:** None
+- **Provider calls / credential reads / external writes:** Forbidden by this package
 
 ## 1. Problem
 
