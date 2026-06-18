@@ -19,7 +19,9 @@ assert.match(systemLayerSource, /export function systemLayerDescriptorReadiness/
 assert.doesNotMatch(systemLayerSource, /\.\.\.TENANT_REPOSITORY_GOVERNANCE_V6_SYSTEM_TOOLS,\n  \{/);
 const governanceSource = fs.readFileSync(new URL("./repositoryGovernanceV6.js", import.meta.url), "utf8");
 assert.match(governanceSource, /repository_governance_v6_authorization_gated/);
-assert.match(governanceSource, /findUsableRepositoryProviderBinding/);
+assert.match(governanceSource, /findRepositoryGovernanceV6ReadinessBinding/);
+assert.match(governanceSource, /readinessRunGovernedResource/);
+assert.doesNotMatch(governanceSource, /findUsableRepositoryProviderBinding/);
 assert.match(governanceSource, /"repo\.pr\.comment_advisory": "repo\.pr\.comment_advisory\.apply"/);
 assert.match(releaseReadinessSource, /systemLayerModule\.systemLayerDescriptorReadiness/);
 assert.match(releaseReadinessSource, /!authorization_gated && Number\(evidenceRows/);
