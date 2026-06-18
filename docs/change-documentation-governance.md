@@ -180,6 +180,22 @@ Do not start any backup or restore operation merely because documentation or rep
 
 Stop before backup planning if that policy is not yet approved.
 
+## Passive authentication lifecycle docs rule
+
+When execution, preview, dry-run, preflight, provider-client construction, token caching, or credential-resolution behavior changes, the same PR must document and test the operation ordering and authority boundaries.
+
+Required evidence:
+
+- preview and preflight build metadata-only auth contracts before secret lookup;
+- `dry_run` and `preflight_only`, including accepted string forms, cannot mint tokens or create authenticated provider clients;
+- principal, tenant, brand, business type, business activity, applicable profiles, action, endpoint, and SQL scope contract resolve before live credential materialization;
+- Google action keys are explicit at every client-acquisition site, with Sheets and Drive capabilities kept separate;
+- token and client cache identity includes credential scope and principal/connection dimensions;
+- same-context inflight requests deduplicate, while different contexts resolve independently;
+- SQL remains the default runtime authority and any Sheets authority mode is explicitly configured;
+- missing scope, credential binding, or action context fails closed with a stable structured code;
+- tests cover no-secret preview evidence, cache isolation, concurrency, explicit action bindings, and absence of actionless provider clients.
+
 ## Credential-bearing artifact delivery docs rule
 
 When a route generates or distributes an artifact containing credentials, tokens, private keys, signed assertions, connection secrets, or executable configuration that embeds them, the same PR must document and test the complete delivery lifecycle.
