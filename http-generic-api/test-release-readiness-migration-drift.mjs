@@ -303,7 +303,7 @@ assert.equal(
   "each migration 1013 dynamic ALTER contract must be selected through information_schema"
 );
 assert.equal(
-  approvalHoldCollationMigration.split("PREPARE align_").length - 1,
+  approvalHoldCollationMigration.split("\nPREPARE align_").length - 1,
   4,
   "each migration 1013 dynamic ALTER contract must execute through its bounded prepared statement"
 );
