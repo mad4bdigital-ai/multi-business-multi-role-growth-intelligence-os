@@ -1563,23 +1563,28 @@ export function buildLocalConnectorInstallRoutes(deps) {
       const { user_id, tenant_id, device_id } = req.body || {};
       const isUserAuthUninstall = req.auth?.mode === "user_jwt" || req.auth?.mode === "api_credential";
       if (!device_id) {
-        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "device_id is required." } });
+        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "device_id is required." }, secrets_included: false });
       }
       if (!isUserAuthUninstall && (!user_id || !tenant_id)) {
-        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "user_id and tenant_id are required for admin/service calls." } });
+        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "user_id and tenant_id are required for admin/service calls." }, secrets_included: false });
       }
       const principal = await resolveRequestedLocalPrincipal(req, { user_id, tenant_id });
-      const [result] = await getPool().query(
+      const pool = getPool();
+      const localApiKeyColumnSupported = await hasConnectorLocalApiKeyColumn(pool);
+      const secretAssignments = [
+        "is_enabled = 0",
+        "cf_token = NULL",
+        "connector_secret = NULL",
+        ...(localApiKeyColumnSupported ? ["connector_local_api_key = NULL"] : []),
+        "updated_at = NOW()",
+      ];
+      const [result] = await pool.query(
         `UPDATE \`local_connector_user_configs\`
-            SET is_enabled = 0,
-                cf_token = NULL,
-                connector_secret = NULL,
-                connector_local_api_key = NULL,
-                updated_at = NOW()
+            SET ${secretAssignments.join(", ")}
           WHERE user_id = ? AND tenant_id = ? AND device_id = ?`,
         [principal.userId, principal.tenantId, device_id]
       );
-      if (result.affectedRows === 0) return res.status(404).json({ ok: false, error: { code: "config_not_found" } });
+      if (result.affectedRows === 0) return res.status(404).json({ ok: false, error: { code: "config_not_found" }, secrets_included: false });
       return res.status(200).json({
         ok: true,
         disabled: true,
