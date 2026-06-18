@@ -3,6 +3,7 @@ import {
   buildLocalConnectorDeviceAliasCandidates,
   buildLocalConnectorDeviceIdentityResolution,
   buildLocalConnectorTunnelProvisioningContinuationEvidence,
+  buildGithubFallbackContinuationEvidence,
   handleEnvControl,
   handleWindowsAppControl,
   parseArgs,
@@ -37,9 +38,27 @@ try {
   assert("local connector JSON responses explain omitted installer secrets",
     adminCliSource.includes("script_content_omitted: true"),
     "responses should make the omission explicit");
-  assert("local connector JSON responses expose sanitized Drive handoff status",
-    adminCliSource.includes("drive_upload_status") && adminCliSource.includes("sanitizeDriveUploadError"),
-    "responses should distinguish uploaded, failed, and unconfigured Drive handoffs without exposing installer content");
+  const installerGenerationCallCount = (adminCliSource.match(/const batContent = generateConnectorInstallerBat/g) || []).length;
+  assert("local connector secret-bearing installers are never made public",
+    !adminCliSource.includes('requestBody: { role: "reader", type: "anyone" }') &&
+    adminCliSource.includes("public_storage_allowed: false") &&
+    adminCliSource.includes("blocked_secret_bearing_artifact"),
+    "secret-bearing installer routes must not create public Drive permissions");
+  assert("local connector JSON metadata exits before credential materialization",
+    adminCliSource.indexOf('if (format !== "bat")') !== -1 &&
+    adminCliSource.indexOf('if (format !== "bat")') < adminCliSource.indexOf("SELECT cf_token, connector_secret") &&
+    adminCliSource.includes("credential_materialized: false"),
+    "default JSON mode must return secure handoff metadata before reading connector credentials");
+  assert("local connector self-repair does not generate installer content",
+    installerGenerationCallCount === 1 &&
+    adminCliSource.includes("installer_generated: false") &&
+    adminCliSource.includes('artifact_delivery: "authenticated_direct_download_only"'),
+    "only the authenticated format=bat route may generate a secret-bearing installer");
+  assert("local connector secure download requires admin authentication",
+    adminCliSource.includes("requires_backend_api_key: true") &&
+    adminCliSource.includes("requires_admin_principal: true") &&
+    adminCliSource.includes('format: "bat"'),
+    "secure download handoffs must retain backend-key and admin-principal requirements");
   assert("local connector missing tunnel token returns continuation handoff",
     adminCliSource.includes("buildLocalConnectorTunnelProvisioningContinuationEvidence") &&
     adminCliSource.includes("connector_tunnel_provisioning_required") &&
@@ -82,6 +101,46 @@ try {
     adminCliSource.includes("mergeable_state") &&
     adminCliSource.includes("Resolve conflicts or recreate the branch"),
     "dirty PRs should produce actionable 409 diagnostics before attempting merge");
+  assert("github REST fallback supports gh workflow list after capability repair",
+    adminCliSource.includes('resource === "workflow" && ["list", "ls"].includes(command)') &&
+    adminCliSource.includes("/actions/workflows?per_page=100&page=") &&
+    adminCliSource.includes("formatGithubWorkflowList") &&
+    adminCliSource.includes('operation: "workflow list"') &&
+    adminCliSource.includes("repaired missing capability and used GitHub REST fallback for workflow list"),
+    "workflow list fallback should support active-only/default output, --all, --limit, and --json without gh CLI");
+
+  const completedGithubFallback = buildGithubFallbackContinuationEvidence({
+    args: ["workflow", "list", "--repo", "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os"],
+    mapped: true,
+  });
+  assert("successful github fallback continuation is completed without drift",
+    completedGithubFallback.checkpoint.status === "completed" &&
+    completedGithubFallback.checkpoint.current_stage === "completed" &&
+    completedGithubFallback.checkpoint.requires_reconciliation_before_resume === false &&
+    completedGithubFallback.resume_plan.risk.classification === "clean" &&
+    completedGithubFallback.resume_plan.risk.resume_allowed === true &&
+    completedGithubFallback.resume_plan.operation_completed === true &&
+    completedGithubFallback.resume_plan.next_required_step === "none",
+    "a successful mapped fallback must not remain pending or report resource_fingerprint_changed_after_interruption");
+
+  const unsupportedGithubFallback = buildGithubFallbackContinuationEvidence({
+    args: ["workflow", "unsupported"],
+    mapped: false,
+  });
+  assert("unsupported github fallback continuation remains pending reconciliation",
+    unsupportedGithubFallback.checkpoint.status === "pending_resume" &&
+    unsupportedGithubFallback.checkpoint.requires_reconciliation_before_resume === true &&
+    unsupportedGithubFallback.resume_plan.operation_completed !== true,
+    "an unmapped operation must keep the shared reconciliation handoff");
+
+  assert("github workflow list fallback maps official JSON fields",
+    adminCliSource.includes("id: workflow.id") &&
+    adminCliSource.includes("name: workflow.name") &&
+    adminCliSource.includes("path: workflow.path") &&
+    adminCliSource.includes("state: workflow.state") &&
+    adminCliSource.includes('workflow.state === "active"'),
+    "workflow list fallback must expose id/name/path/state and hide disabled workflows unless --all is present");
+
   assert("github REST fallback supports gh pr list after capability repair",
     adminCliSource.includes('resource === "pr" && command === "list"') &&
     adminCliSource.includes("/pulls?") &&

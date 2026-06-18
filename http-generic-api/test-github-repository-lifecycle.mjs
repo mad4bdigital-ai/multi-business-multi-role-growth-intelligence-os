@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  applyGithubExistingBlobChangeSet,
   applyGithubRepositoryChangeSet,
   closeGithubPullRequest,
   deleteGithubBranchRef,
@@ -346,6 +347,63 @@ function queuedFetch(entries, calls = []) {
   assert.equal(treeCall.body.tree[1].sha, null);
   const commitCall = calls.find((call) => call.url.endsWith("/git/commits") && call.method === "POST");
   assert.deepEqual(commitCall.body.parents, [BASE_SHA]);
+}
+
+{
+  const calls = [];
+  const docsTreeSha = "f".repeat(40);
+  const result = await applyGithubExistingBlobChangeSet({
+    owner: OWNER,
+    repo: REPO,
+    default_branch: "main",
+    token: "test-token",
+    branch: "gpt/existing-blob-change-set",
+    expected_head_sha: HEAD_SHA,
+    commit_message: "fix: reuse existing generated report blob",
+    changes: [
+      { path: "docs/surface-contract-discovery-status.json", blob_sha: BLOB_SHA },
+    ],
+    fetchImpl: queuedFetch([
+      { status: 200, payload: { object: { sha: HEAD_SHA } } },
+      { status: 200, payload: { sha: HEAD_SHA, tree: { sha: TREE_SHA } } },
+      { status: 201, payload: { sha: docsTreeSha } },
+      { status: 201, payload: { sha: COMMIT_SHA } },
+      { status: 200, payload: { object: { sha: HEAD_SHA } } },
+      { status: 200, payload: { object: { sha: COMMIT_SHA } } },
+      { status: 200, payload: { object: { sha: COMMIT_SHA } } },
+      { status: 200, payload: { tree: [{ path: "docs", type: "tree", sha: TREE_SHA }] } },
+      { status: 200, payload: { tree: [{ path: "surface-contract-discovery-status.json", type: "blob", sha: BLOB_SHA }] } },
+    ], calls),
+  });
+  assert.equal(result.commit_sha, COMMIT_SHA);
+  assert.equal(result.change_count, 1);
+  assert.equal(result.force_used, false);
+  assert.equal(result.ref_readback_verified, true);
+  assert.equal(result.path_readback_verified, true);
+  assert.equal(result.items[0].readback_blob_sha, BLOB_SHA);
+  const treeCall = calls.find((call) => call.url.endsWith("/git/trees") && call.method === "POST");
+  assert.deepEqual(treeCall.body.tree, [{ path: "docs/surface-contract-discovery-status.json", mode: "100644", type: "blob", sha: BLOB_SHA }]);
+  const blobCalls = calls.filter((call) => call.url.includes("/git/blobs"));
+  assert.equal(blobCalls.length, 0, "existing-blob commit must not upload or download blob content");
+  const refUpdate = calls.find((call) => call.url.includes("/git/refs/heads/gpt/existing-blob-change-set") && call.method === "PATCH");
+  assert.equal(refUpdate.body.force, false);
+}
+
+{
+  await assert.rejects(
+    () => applyGithubExistingBlobChangeSet({
+      owner: OWNER,
+      repo: REPO,
+      default_branch: "main",
+      token: "test-token",
+      branch: "gpt/existing-blob-change-set",
+      expected_head_sha: HEAD_SHA,
+      commit_message: "fix: reject stale existing blob update",
+      changes: [{ path: "docs/report.json", blob_sha: BLOB_SHA }],
+      fetchImpl: queuedFetch([{ status: 200, payload: { object: { sha: BASE_SHA } } }]),
+    }),
+    (error) => error.code === "github_existing_blob_head_mismatch"
+  );
 }
 
 console.log("github repository lifecycle tests passed");

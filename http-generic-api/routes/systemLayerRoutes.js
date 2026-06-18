@@ -98,7 +98,8 @@ const SYSTEM_LAYER_TOOLS = [
   },
   {
     name: "runtime_endpoint_call",
-    description: "Kernel dispatcher for governed runtime endpoint execution. Resolves parent_action_key/endpoint_key through registry authority, preserves brand target fields, applies principal context, and delegates provider execution to the runtime facade.",
+    description: "Admin-only kernel dispatcher for governed runtime endpoint execution. Resolves parent_action_key/endpoint_key through registry authority, preserves brand target fields, applies principal context, and delegates provider execution to the runtime facade.",
+    requires_admin: true,
     inputSchema: {
       type: "object",
       properties: {
@@ -406,6 +407,13 @@ const ADMIN_ONLY_SYSTEM_TOOLS = new Set(
   SYSTEM_LAYER_TOOLS.filter((tool) => tool.requires_admin === true).map((tool) => tool.name)
 );
 const LOCAL_SYSTEM_TOOL_NAMES = new Set(SYSTEM_LAYER_TOOLS.map((tool) => tool.name));
+const TENANT_BLOCKED_SYSTEM_TOOL_NAMES = new Set([
+  "runtime_endpoint_call",
+  "github_api_mcp__create_or_update_file_contents",
+  "github_api_mcp__github_create_or_update_file",
+  "github_api_mcp__github_put_contents",
+  "github_api_mcp__github_delete_file",
+]);
 
 const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
   {
@@ -763,6 +771,7 @@ async function listPlatformEndpointToolsForPrincipal(auth, existingNames = new S
 
     return rows
       .filter((row) => row?.tool_name && !existingNames.has(row.tool_name))
+      .filter((row) => isAdminPrincipal(auth) || !TENANT_BLOCKED_SYSTEM_TOOL_NAMES.has(row.tool_name))
       .map((row) => ({
         name: row.tool_name,
         description: `Registry endpoint tool ${row.parent_action_key}/${row.endpoint_key}.`,
@@ -783,6 +792,7 @@ async function listPlatformEndpointToolsForPrincipal(auth, existingNames = new S
 function isTenantRegistryToolAllowedInSystemFacade(tool = {}) {
   const name = String(tool.name || "").trim();
   if (!name || name.startsWith("system_tools_")) return false;
+  if (TENANT_BLOCKED_SYSTEM_TOOL_NAMES.has(name)) return false;
   const pathValue = String(tool.path || "").trim();
   if (pathValue === "/system/tools" || pathValue === "/system/tools/call") return false;
   return true;
@@ -928,6 +938,61 @@ function normalizePlatformEndpointCallArgs(row, args = {}, auth = null) {
   };
 }
 
+function assertRuntimePreviewObjectField(payload = {}, fieldName = "") {
+  if (!Object.prototype.hasOwnProperty.call(payload, fieldName) || payload[fieldName] == null) return;
+  const value = payload[fieldName];
+  if (typeof value === "object" && !Array.isArray(value)) return;
+  const err = new Error(`runtime_endpoint_preview ${fieldName} must be an object when provided.`);
+  err.status = 400;
+  err.code = "runtime_endpoint_preview_invalid_object_field";
+  err.details = { field: fieldName };
+  throw err;
+}
+
+function assertRuntimePreviewQueryIsStrict(query = {}) {
+  const blockedKeys = new Set(["url", "uri", "endpoint", "host", "hostname", "base_url", "base_uri"]);
+  for (const [rawKey, rawValue] of Object.entries(query || {})) {
+    const key = String(rawKey || "").trim().toLowerCase();
+    const value = String(rawValue || "").trim().toLowerCase();
+    if (blockedKeys.has(key) || /^https?:\/\//i.test(value) || value.includes("169.254.169.254") || value.includes("metadata.google.internal")) {
+      const err = new Error("runtime_endpoint_preview query contains an unsupported provider-target override.");
+      err.status = 400;
+      err.code = "runtime_endpoint_preview_query_not_allowed";
+      err.details = { key: rawKey };
+      throw err;
+    }
+  }
+}
+
+function assertRuntimePreviewProviderBody(payload = {}) {
+  const parentActionKey = String(payload.parent_action_key || "").trim();
+  const endpointKey = String(payload.endpoint_key || "").trim();
+  if (parentActionKey !== "github_api_mcp") return;
+  const body = payload.body && typeof payload.body === "object" && !Array.isArray(payload.body) ? payload.body : {};
+  if (/create_or_update|put_contents|file_contents/i.test(endpointKey) && !String(body.content || "").trim()) {
+    const err = new Error("GitHub content write preview requires body.content.");
+    err.status = 400;
+    err.code = "runtime_endpoint_preview_missing_required_body_field";
+    err.details = { parent_action_key: parentActionKey, endpoint_key: endpointKey, missing: ["body.content"] };
+    throw err;
+  }
+  if (/delete_file/i.test(endpointKey) && !String(body.sha || "").trim()) {
+    const err = new Error("GitHub delete file preview requires body.sha.");
+    err.status = 400;
+    err.code = "runtime_endpoint_preview_missing_required_body_field";
+    err.details = { parent_action_key: parentActionKey, endpoint_key: endpointKey, missing: ["body.sha"] };
+    throw err;
+  }
+}
+
+function assertRuntimeEndpointPreviewPayload(payload = {}) {
+  for (const fieldName of ["path_params", "query", "body", "headers", "auth_context"]) {
+    assertRuntimePreviewObjectField(payload, fieldName);
+  }
+  assertRuntimePreviewQueryIsStrict(payload.query || {});
+  assertRuntimePreviewProviderBody(payload);
+}
+
 function encodeGithubPathPart(value = "") {
   return encodeURIComponent(String(value || "").trim());
 }
@@ -1039,6 +1104,13 @@ async function executeGithubReadOnlyRecipe(operationKey = "", args = {}) {
 }
 
 async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null, deps = {}) {
+  if (!isAdminPrincipal(auth) && TENANT_BLOCKED_SYSTEM_TOOL_NAMES.has(String(name || "").trim())) {
+    const err = new Error("Tenant system tools cannot dispatch admin-only or state-changing platform routes.");
+    err.status = 403;
+    err.code = "tenant_system_tool_route_not_allowed";
+    throw err;
+  }
+
   const scopeClasses = platformEndpointToolScopeClassesForPrincipal(auth);
   const tenantClause = platformEndpointToolTenantClauseForPrincipal(auth, "x");
   const [rows] = await getPool().query(
@@ -1112,7 +1184,7 @@ function principalTenantId(auth) {
 
 function toolsForPrincipal(auth) {
   if (isAdminPrincipal(auth)) return SYSTEM_LAYER_TOOLS;
-  return SYSTEM_LAYER_TOOLS.filter((tool) => tool.requires_admin !== true);
+  return SYSTEM_LAYER_TOOLS.filter((tool) => tool.requires_admin !== true && !TENANT_BLOCKED_SYSTEM_TOOL_NAMES.has(tool.name));
 }
 
 function assertAdminToolAccess(name, auth) {
@@ -1980,6 +2052,7 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
       }, deps);
     }
     case "runtime_endpoint_preview": {
+      assertRuntimeEndpointPreviewPayload(args || {});
       const guarded = derivePrincipalExecutionContext({ ...(args || {}), dry_run: true }, auth);
       return await callRuntimeEndpointViaFacade({
         ...guarded.payload,

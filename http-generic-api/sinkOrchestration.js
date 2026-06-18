@@ -12,7 +12,7 @@ export async function persistOversizedArtifact(input = {}, deps = {}) {
     throw new Error("persistOversizedArtifact requires deps.buildArtifactFileName");
   }
 
-  const { drive } = await getGoogleClients();
+  const { drive } = await getGoogleClients({ action_key: "google_drive_api" });
   const artifact_file_name = buildArtifactFileName({
     brand_name: input.brand_name || input.target_key || "unknown_brand",
     endpoint_key: input.endpoint_key,

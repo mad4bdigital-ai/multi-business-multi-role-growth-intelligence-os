@@ -214,6 +214,10 @@ Migrations `277` through `283` implement the Session Insight capability-envelope
 
 Agents must not treat migrations `277` through `283` as production target-write authorization. Migration `284_sprint68_session_insight_backlog_target_write_executor.sql` is the first write-enablement layer and is limited to internal SQL backlog target writes after the capability-envelope approval/readback/remaining-scope chain is complete. It may set `target_write_allowed`, `target_write_executed`, and `promotion_allowed` only inside `session_insight_backlog_target_writes`; provider calls, credential payload reads, external writes, raw transcripts, and secrets remain forbidden.
 
+### Governed migration preflight and idempotency
+
+Governed migrations may be applied only through the authorized runner after a `pass` preflight and typed confirmation. Never bypass a `warn` or `fail` preflight with direct SQL. Re-runnable schema-alignment operations must use `information_schema`-guarded dynamic SQL so already-aligned columns become no-op reads, while missing or incompatible contracts fail closed. Production completion requires migration-ledger evidence, same-cycle schema/view readback, and release readiness.
+
 ### Runtime policy preflight governance
 
 `execution_policies` is the active transitional runtime preflight authority. Agents must treat it as required runtime policy evidence until a target-rule resolver bridge proves parity with `platform_engine_policy_rules`.
@@ -231,7 +235,7 @@ Current required runtime policy seeds cover:
 - Brand Core requirement for writing/content/SEO/publish/strategy flows
 - shared reconciliation continuation for resumable governed operations
 - chunked tool response continuation: when any governed tool response includes `response_chunked=true`, `page.has_more=true`, or `page.next_cursor`, agents must call `response_chunk_read` with the returned `chunk_id` and cursor until exhausted before switching to local slices, secondary search, connector reads, or external fallback surfaces; chunk cache TTL is size-aware, may be controlled with `response_options.chunk_ttl_ms` or `response_options.chunk_ttl_minutes`, and is extended after each successful chunk read so long continuations do not expire mid-read
-- local connector tunnel provisioning continuation: when `connector.mad4b.com` returns HTTP 530/1033, self-repair must first try no-secret DB device alias resolution (for example `Essam` -> `essam-pc`) before declaring a missing tunnel token. If no active alias/config has `cf_token` and `CLOUDFLARE_TUNNEL_TOKEN` is absent, agents must return/use the no-secret `connector_tunnel_provisioning_required` checkpoint and retry self-repair only after tunnel token provisioning; do not classify recovered without same-cycle connector health validation.
+- local connector transient recovery and provisioning continuation: treat HTTP 530/Cloudflare 1033 as retryable first. Perform three total health attempts with short exponential backoff, stop early on pass or authorization-gated reachability, and call self-repair only after retry exhaustion. The self-repair route must repeat this bounded policy internally and include no-secret `retry_evidence`. It must then try no-secret DB device alias resolution (for example `Essam` -> `essam-pc`) before declaring a missing tunnel token. If no active alias/config has `cf_token` and `CLOUDFLARE_TUNNEL_TOKEN` is absent, return/use the no-secret `connector_tunnel_provisioning_required` checkpoint and retry self-repair only after tunnel token provisioning; do not classify recovered without same-cycle connector health validation.
 - admin branch reconcile continuation: use `admin_branch_reconcile` before stale-branch overrides. Adapter v1 is dry-run/plan-only: it classifies branch drift, returns no-secret continuation evidence, and blocks apply until explicit review/confirmation surfaces exist; diverged/ahead/protected branches must use manual rebase/PR workflow, never force-push.
 - repository intelligence V2 tenant scope: `tenant_repo_pr_reconciliation_sweep` is the tenant-facing read-only wrapper over `governed_resource_run` and `repo.pr.reconciliation_sweep`. It requires an active `platform_resource_authority_bindings` row for the tenant/workspace/user scope and GitHub repo URI, must block before provider calls when the binding is missing, and must keep `apply_allowed=false`, `mutations_executed=false`, and `secrets_included=false`. Admin-only lifecycle tools are `platform_resource_authority_binding_create`, `platform_resource_authority_binding_list`, `platform_resource_authority_binding_revoke`, and `tenant_repository_intelligence_v2_readiness_smoke`; V2 grants only `permission_level=read_only` and `allowed_modes=["read_only"]`. When a public descriptor name does not map one-to-one to its runtime export, the descriptor must declare an explicit `handler_name`; compatibility aliases remain supported but do not replace the descriptor mapping. `tenant_repository_intelligence_v2_readiness_smoke` must execute create/list/sweep/revoke through the governed descriptor dispatcher, force tenant scope from auth, verify missing-binding rejection before provider access, preserve read-only/no-mutation/no-secret guarantees, clean up its temporary binding, and fail release readiness when any public entrypoint is not directly callable.
 
@@ -891,6 +895,21 @@ If auth fails:
 - platform bootstrap auth failures point to service account, ADC, sharing, scope, or deployment configuration
 - do not switch a platform-owned bootstrap file to user refresh-token auth just to make a probe pass
 
+### Passive auth lifecycle and Google action context
+
+The execution boundary must separate authorization metadata from credential materialization.
+
+1. Resolve principal, tenant/workspace, brand, business type, business activity, applicable profiles, action, endpoint, and SQL scope contract.
+2. Build a metadata-only auth contract for schema, policy, authority, dry-run, and preflight validation.
+3. For `dry_run=true` or `preflight_only=true` (boolean or string), do not read secrets, mint tokens, construct authenticated provider clients, or call providers. Evidence must report `materialized=false`, `provider_call_made=false`, and `secret_read_performed=false`.
+4. Only after all guards pass for live execution may the runtime resolve the credential binding, read the secret, mint a token, create a scoped client, and dispatch the provider call.
+
+Google client acquisition must always include an explicit SQL-authoritative action context. Sheets-only registry and sink operations use `google_sheets_api`; Drive file operations and `activation_drive_probe` use `google_drive_api`. Actionless `getGoogleClients()` calls and implicit Drive capabilities in registry snapshots are forbidden.
+
+Google token and client cache identity must include action key, credential scope, user, tenant, connection, app key, and OAuth config reference. Inflight token deduplication applies only to an identical context key; different principals or connections must resolve independently. Missing SQL scope contracts fail closed with `auth_scope_contract_missing`.
+
+Path resolution defaults to SQL/MySQL authority. Google Sheets path resolution is available only when `DATA_SOURCE=sheets` or `DATA_SOURCE=google_sheets` is explicitly configured.
+
 ## 9. Documentation trust model
 High trust:
 - canonicals
@@ -1050,11 +1069,23 @@ Apply requires the same-cycle base SHA, branch SHA, evidence fingerprint, exact 
 
 ### Governed repository lifecycle and dispatch-binding integrity
 
-Repository lifecycle automation uses `githubRepositoryLifecycle.js` as the shared application service for Admin CLI fallback and virtual Admin tools. Use `github_pr_ci_gate` for one bounded merge-readiness decision, `github_pr_finalize` for capability-gated CI/freshness/merge/ancestry/cleanup, `github_branch_delete` only after actual-default-branch protection, expected-SHA validation, open-PR rejection, and proof that the branch has zero commits not already present in the default branch, and `repo_patch_batch_apply` for one atomic multi-file commit pinned to an expected base SHA.
+Repository lifecycle automation uses `githubRepositoryLifecycle.js` as the shared application service for Admin CLI fallback and virtual Admin tools. Use `github_pr_ci_gate` for one bounded merge-readiness decision, `github_pr_finalize` for capability-gated CI/freshness/merge/ancestry/cleanup, `github_branch_delete` only after actual-default-branch protection, expected-SHA validation, open-PR rejection, and proof that the branch has zero commits not already present in the default branch, `repo_patch_batch_apply` for one atomic multi-file commit pinned to an expected base SHA, and `repo_existing_blob_commit_apply` when a governed work branch must reuse one or more Git blob SHAs already present in the repository without transferring large file content. The existing-blob tool requires a capability envelope, an exact expected branch-head SHA, a non-protected existing branch, a no-force ref update, and same-cycle path-to-blob readback.
 
 Every active-ready endpoint must resolve through an active export and `platform_tool_dispatch_bindings` row to a callable surface. Mutation bindings require a capability key; all bindings require a readback policy; compound operations require an explicit partial-success policy. Use `platform_tool_binding_integrity_audit` or `v_platform_tool_dispatch_integrity` to detect drift. Endpoint readiness alone is not callable evidence.
 
 Local connector repair uses composite health. A healthy tunnel with a failed Node health probe is `degraded_local_service`; an unhealthy tunnel is `degraded_tunnel`; a reachable `401/403` health surface is `authorization_gated`. Passing or authorization-gated probes must not generate a repair installer.
+
+### Secret-bearing local connector installer delivery
+
+Local connector installer bundles embed live Cloudflare tunnel and connector backend credentials. They are credential-bearing artifacts, not ordinary downloadable assets.
+
+- `GET /admin/cli/local-connector/install-bundle` requires the backend API key and an admin principal.
+- The default JSON mode returns only an authenticated download handoff and must exit before reading `cf_token` or `connector_secret`.
+- Installer content may be generated only when `format=bat` is explicitly requested on the authenticated route.
+- `POST /admin/cli/local-connector/self-repair` returns diagnosis plus the same authenticated download handoff; it must not generate or upload installer content in its JSON response.
+- Secret-bearing installers must never receive public or `anyone-reader` Drive permissions and must not be copied to shared/public storage.
+- Audit evidence may record delivery mode, user/device scope, and `public_storage_allowed=false`, but never raw credential values or script content.
+- Any future signed-download design must be separately reviewed for expiry, one-time use, replay protection, principal binding, and same-cycle readback before replacing the authenticated direct-download contract.
 
 ### Capability report selection
 
@@ -1067,3 +1098,5 @@ The platform uses `operationalAlertService.js` and the SQL-primary `operational_
 Admin reads use `activation_operational_attention_read_api`; tenant reads use `tenant_activation_operational_attention_read_api` and derive tenant scope from signed membership. Synchronization uses `activation_operational_attention_sync_api`, performs no provider call or external send, and must return a same-cycle readback. Lifecycle changes use `activation_operational_alert_lifecycle_api`.
 
 A complete administrative final result requires `all_known_issues_visible=true`, no degraded required sources, and `all_matching_problems_returned_in_page=true`. Otherwise `final_result_complete` must remain false and the response must disclose the missing keys, degraded sources, or next cursor.
+
+Operational alert reconciliation is recovery-aware. Skill approvals are grouped by agent, skill, and effective tenant/brand scope rather than raw grant ID. Execution failures are separated by operation and failure reason, and a later success resolves only the same recovery fingerprint. Fallback-backed or route-resolved executions must not remain critical. Malformed source rows become bounded data-quality findings, and pending notifications must be reconciled after alert resolution and before current high/critical items are queued.

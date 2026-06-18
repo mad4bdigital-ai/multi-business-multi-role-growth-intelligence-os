@@ -1240,6 +1240,10 @@ Direct instructions must not reinterpret a closed or stale pull request as branc
 
 The recipe must never target a protected/default branch, force-update a ref, use a generic deletion fallback, return secrets, or delete before a synchronous no-secret intent audit succeeds. It must write completion or failure audit evidence after the provider result and must not report success before same-cycle missing-ref readback and completion audit succeed.
 
+## Existing Git Blob Commit Authority
+
+Direct instructions may invoke `repo_existing_blob_commit_apply` only for an existing non-protected work branch and only after capability-envelope approval. The request must bind exact repository scope, branch, expected head SHA, commit message, and unique `{path, blob_sha}` changes. Runtime must reject stale heads, invalid modes, duplicate or unsafe paths, missing branches, protected/default branches, and any ref update that would require force. Success requires a no-force ref update plus same-cycle verification that every requested path resolves to the requested blob SHA. Blob content must not be transported or returned.
+
 ## Capability Report Selection Boundary
 
 Capability contract verification and live operational verification are separate authority surfaces. `platform_capability_contract_report` may inspect declared schema/tool contracts and classify proposed versus implemented surfaces, but it must not return live counts or claim historical CI/deployment truth. `platform_capability_live_report` may query current MySQL-primary maturity, gap, envelope, certification, and source-resolution state with bounded freshness, but it must not infer contractual completeness or restate historical report numbers. A combined conclusion requires an explicit later comparison step; neither tool may silently call or merge the other.
@@ -1264,3 +1268,15 @@ Replay rules:
 - readback failure must not be reclassified as successful execution
 
 Mutation recipes in `planned`, disabled, expired, mismatched, incomplete-evidence, or unauthorized states must block before token resolution and provider dispatch. Force-push and repository-engine migration apply are always forbidden.
+
+## Operational Alert P0 Reconciliation Enforcement
+
+For unified operational alert synchronization:
+
+- derive skill-approval identity from agent, skill, and effective tenant/brand scope; `grant_id` is evidence, not alert identity
+- do not merge execution failures with different operation keys or normalized failure reasons
+- do not keep a failure open when a later verified success matches the same recovery fingerprint
+- do not classify fallback-backed or route-resolved execution as an unrecovered critical failure
+- do not promote malformed source rows or lifecycle-inconsistent completed tasks into the high/critical notification queue
+- resolve or skip stale pending notifications before current eligible notifications are queued
+- preserve no-secret evidence, tenant scope, source health, same-cycle readback, and explicit lifecycle state

@@ -187,6 +187,23 @@ assert(commentSeparatedStatements[0].startsWith("UPDATE"), "must treat UPDATE as
 assert(commentSeparatedStatements[1].startsWith("INSERT INTO"), "must split after comments before INSERT INTO");
 assert(commentSeparatedStatements[2].startsWith("INSERT IGNORE INTO"), "must split after block comments before INSERT IGNORE INTO");
 
+const proceduralStatements = splitSqlStatements(`
+UPDATE execution_enablement_requests SET request_status = 'expired' WHERE request_status = 'pending_approval';
+CREATE TEMPORARY TABLE tmp_statement_splitter_guard AS SELECT 1 AS ok;
+SET @statement_splitter_sql := 'SELECT 1 AS prepared_ok';
+PREPARE statement_splitter_stmt FROM @statement_splitter_sql;
+EXECUTE statement_splitter_stmt;
+DEALLOCATE PREPARE statement_splitter_stmt;
+DROP TEMPORARY TABLE tmp_statement_splitter_guard;
+`);
+assert.equal(proceduralStatements.length, 7, "must split MariaDB temporary-table and prepared-statement migration commands");
+assert(proceduralStatements[1].startsWith("CREATE TEMPORARY TABLE"), "must split CREATE TEMPORARY TABLE from the preceding UPDATE");
+assert(proceduralStatements[2].startsWith("SET @statement_splitter_sql"), "must split SET user-variable statements");
+assert(proceduralStatements[3].startsWith("PREPARE statement_splitter_stmt"), "must split PREPARE statements");
+assert(proceduralStatements[4].startsWith("EXECUTE statement_splitter_stmt"), "must split EXECUTE statements");
+assert(proceduralStatements[5].startsWith("DEALLOCATE PREPARE statement_splitter_stmt"), "must split DEALLOCATE PREPARE statements");
+assert(proceduralStatements[6].startsWith("DROP TEMPORARY TABLE"), "must split DROP TEMPORARY TABLE statements");
+
 const passSql = "-- leading migration comment\nCREATE TABLE IF NOT EXISTS cms_sites (site_id varchar(36) PRIMARY KEY); INSERT IGNORE INTO admin_platform_endpoint_tools (tool_key) VALUES ('safe_tool');";
 const passPreflight = assessMigrationSqlPreflight("safe.sql", passSql);
 assert.equal(passPreflight.counts.statements, splitSqlStatements(passSql).length, "preflight must use the same statement splitter as apply");
@@ -269,6 +286,62 @@ const tagsWideningPreflight = assessMigrationSqlPreflight(
 assert.equal(tagsWideningPreflight.status, "pass", "admin tool registry tags widening to TEXT should pass as a safe non-destructive ALTER");
 assert.equal(tagsWideningPreflight.counts.alter_table, 1, "must count tags widening ALTER TABLE");
 assert.equal(tagsWideningPreflight.counts.alter_table_idempotent, 1, "must count approved tags widening as idempotent/safe ALTER");
+
+const approvalHoldCollationMigrationName = "1013_sprint69_approval_hold_identity_collation_alignment.sql";
+const approvalHoldCollationMigration = readFileSync(
+  new URL(`migrations/${approvalHoldCollationMigrationName}`, import.meta.url),
+  "utf8"
+);
+const approvalHoldCollationPreflight = assessMigrationSqlPreflight(
+  approvalHoldCollationMigrationName,
+  approvalHoldCollationMigration
+);
+assert.equal(approvalHoldCollationPreflight.status, "pass", "migration 1013 idempotent collation alignment must pass preflight");
+assert.equal(approvalHoldCollationPreflight.risk_count, 0, "migration 1013 dynamic ALTER contracts must not create top-level ALTER warnings");
+assert.equal(approvalHoldCollationPreflight.counts.alter_table, 0, "migration 1013 ALTERs must remain guarded dynamic SQL rather than top-level statements");
+const approvalHoldCollationStatements = splitSqlStatements(approvalHoldCollationMigration);
+assert.equal(approvalHoldCollationStatements.length, 26, "migration 1013 must split into 26 independently executable statements");
+assert.equal(approvalHoldCollationPreflight.counts.statements, 26, "migration 1013 preflight and apply must share the 26-statement boundary contract");
+assert(approvalHoldCollationStatements[0].startsWith("UPDATE execution_enablement_requests"), "migration 1013 first executable statement must remain the bounded orphan cleanup UPDATE");
+assert(approvalHoldCollationStatements[1].startsWith("CREATE TEMPORARY TABLE tmp_approval_hold_identity_orphans"), "migration 1013 temporary orphan table must be a separate statement");
+assert(approvalHoldCollationStatements.at(-2).startsWith("CREATE OR REPLACE VIEW v_approval_hold_identity_collation_readiness"), "migration 1013 readiness view must be independently executable");
+assert(approvalHoldCollationStatements.at(-1).startsWith("INSERT INTO execution_policies"), "migration 1013 policy seed must be the final independent statement");
+assert.equal(
+  approvalHoldCollationMigration.split("COLLATE utf8mb4_unicode_ci AS hold_id").length - 1,
+  9,
+  "all nine migration 1013 orphan UNION projections must normalize hold_id to utf8mb4_unicode_ci"
+);
+
+const approvalHoldDynamicAlterContracts = [
+  "ALTER TABLE local_gateway_tool_call_log MODIFY approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL",
+  "ALTER TABLE repository_advisory_comment_plans MODIFY approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL",
+  "ALTER TABLE ticket_workflow_links MODIFY approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL",
+  "ALTER TABLE approval_holds MODIFY hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL",
+];
+for (const contract of approvalHoldDynamicAlterContracts) {
+  assert(approvalHoldCollationMigration.includes(`ELSE '${contract}'`), `migration 1013 must retain the guarded dynamic contract: ${contract}`);
+}
+assert.equal(
+  approvalHoldCollationMigration.split("ELSE 'ALTER TABLE ").length - 1,
+  4,
+  "migration 1013 must retain exactly four guarded dynamic ALTER contracts"
+);
+assert.equal(
+  approvalHoldCollationMigration.split("FROM information_schema.columns").length - 1,
+  4,
+  "each migration 1013 dynamic ALTER contract must be selected through information_schema"
+);
+assert.equal(
+  approvalHoldCollationMigration.split("\nPREPARE align_").length - 1,
+  4,
+  "each migration 1013 dynamic ALTER contract must execute through its bounded prepared statement"
+);
+
+const approvalHoldDirectAlterPreflight = assessMigrationSqlPreflight(
+  approvalHoldCollationMigrationName,
+  "ALTER TABLE approval_holds MODIFY hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL;"
+);
+assert.equal(approvalHoldDirectAlterPreflight.status, "warn", "a direct migration 1013 ALTER must still require manual idempotency review");
 
 const warnPreflight = assessMigrationSqlPreflight(
   "warn.sql",

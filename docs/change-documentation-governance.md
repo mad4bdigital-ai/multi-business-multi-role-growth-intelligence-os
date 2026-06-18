@@ -1,6 +1,6 @@
 # Repo and SQL Change Documentation Governance
 
-> Change-governance contract for `1013_sprint69_approval_hold_identity_collation_alignment.sql`: review the exact four altered `varchar(36)` identity columns, preservation of indexes/defaults/nullability, exclusion of 64/128-character contracts, expired-orphan-only repair, active-orphan fail-closed preflight, rollback SQL, compatibility join, readiness view, blocking policy, focused regression tests, and governed production apply/readback. Merge requires green CI and exact-SHA gating; apply requires the governed migration runner, typed confirmation, same-cycle view readback, and release readiness. No provider calls, credential payload reads, external sends/writes, or secrets are permitted.
+> Change-governance contract for `1013_sprint69_approval_hold_identity_collation_alignment.sql`: review the exact four altered `varchar(36)` identity columns, `information_schema`-guarded idempotent dynamic SQL, preservation of indexes/defaults/nullability, exclusion of 64/128-character contracts, expired-orphan-only repair, active-orphan fail-closed preflight, rollback SQL, compatibility join, readiness view, blocking policy, focused regression tests, and governed production apply/readback. Merge requires green CI and exact-SHA gating; apply requires the governed migration runner, typed confirmation, same-cycle view readback, and release readiness. No provider calls, credential payload reads, external sends/writes, or secrets are permitted.
 
 > Change-governance contract for `314_sprint69_dynamic_audit_runtime_closure.sql`: review the scheduler lifecycle, MySQL advisory-lock concurrency, additive schema/view changes, idempotent evidence writes, bounded result payloads, checkpoint transaction boundaries, query/index impact, migration rollback approach, test coverage, and production readback. The change must remain no-trigger and no-secret, must not claim out-of-band Drive observation or exhaustive repo coverage, and must not infer deployment parity. Merge requires green CI and documented rollout; apply requires the governed migration runner and typed confirmation.
 
@@ -180,6 +180,38 @@ Do not start any backup or restore operation merely because documentation or rep
 
 Stop before backup planning if that policy is not yet approved.
 
+## Passive authentication lifecycle docs rule
+
+When execution, preview, dry-run, preflight, provider-client construction, token caching, or credential-resolution behavior changes, the same PR must document and test the operation ordering and authority boundaries.
+
+Required evidence:
+
+- preview and preflight build metadata-only auth contracts before secret lookup;
+- `dry_run` and `preflight_only`, including accepted string forms, cannot mint tokens or create authenticated provider clients;
+- principal, tenant, brand, business type, business activity, applicable profiles, action, endpoint, and SQL scope contract resolve before live credential materialization;
+- Google action keys are explicit at every client-acquisition site, with Sheets and Drive capabilities kept separate;
+- token and client cache identity includes credential scope and principal/connection dimensions;
+- same-context inflight requests deduplicate, while different contexts resolve independently;
+- SQL remains the default runtime authority and any Sheets authority mode is explicitly configured;
+- missing scope, credential binding, or action context fails closed with a stable structured code;
+- tests cover no-secret preview evidence, cache isolation, concurrency, explicit action bindings, and absence of actionless provider clients.
+
+## Credential-bearing artifact delivery docs rule
+
+When a route generates or distributes an artifact containing credentials, tokens, private keys, signed assertions, connection secrets, or executable configuration that embeds them, the same PR must document and test the complete delivery lifecycle.
+
+Required evidence:
+
+- the OpenAPI contract distinguishes metadata-only responses from credential-materializing download responses;
+- authentication and admin/tenant authorization requirements are explicit;
+- default metadata or preview modes exit before secret lookup or token minting;
+- shared/public object storage and public-link permissions are forbidden unless a separately approved encrypted, expiring, principal-bound delivery design exists;
+- responses and audit logs omit raw artifact content and secret values;
+- tests assert secret-read ordering, public-sharing prohibition, and the exact number of artifact-generation call sites;
+- rollout notes describe revocation, replay, expiry, and incident-response implications.
+
+For local connector installers, the approved contract is authenticated direct download only. JSON install-bundle metadata and self-repair responses must not generate installer content. The `format=bat` download remains protected by backend-key authentication and an admin-principal guard.
+
 ## Support Ticket External Delivery certification docs rule
 
 When a change adds or modifies Support Ticket external delivery routes, provider adapter contracts, send-mode policies, or completion certification behavior, the same PR must update:
@@ -228,6 +260,17 @@ Legacy surface backlog closure may be used only for explicit historical ranges/p
 Route classifier remediation must document route class semantics before changing OpenAPI scoring: `http_route` remains OpenAPI-required, while `admin_tool_registry_route`, `tenant_tool_registry_route`, `system_tool_dispatch_route`, and `registry_only_surface` are evidence-only exemptions with reasons. External Delivery admin controls in `955_sprint68_external_delivery_admin_control_surface.sql` use `admin_platform_endpoint_tools` rows and must be classified as registry-governed controls rather than missing standalone OpenAPI paths. Schema completion migrations such as `286_sprint68_platform_schema_contract_completion_registry.sql` may contain route literals inside endpoint `schema_json`; those literals must be classified as `registry_only_surface` when they are endpoint-native synthetic contract evidence rather than Express route declarations.
 
 Session Insight batch remediation must include exact migration filenames across all required docs: `273_sprint68_session_insight_capability_envelope_request_gate.sql`, `275_sprint68_session_insight_capability_envelope_dispatch_dry_run.sql`, `278_sprint68_session_insight_capability_envelope_actual_request_preflight.sql`, `279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql`, `280_sprint68_session_insight_capability_envelope_approval_gate.sql`, `281_sprint68_session_insight_capability_envelope_dispatch_readback.sql`, `282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql`, `283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql`, and `284_sprint68_session_insight_backlog_target_write_executor.sql`. These are governed no-hidden-execution stages: dry-run/review/preflight/request/approval/readback/gate/completion/internal SQL target write with rollback, not provider execution or external send.
+## Sprint 69 daily database lifecycle snapshot change governance
+
+Changes to `318_sprint69_database_lifecycle_daily_snapshot_runtime.sql`, `databaseLifecycleDailyRuntime.js`, `databaseTableLifecycle.js`, or the lifecycle scheduler integration require:
+
+- one transaction covering snapshot persistence plus `last_readiness_at` and `last_snapshot_id` update;
+- same-cycle schedule readback before commit, with rollback and a stable error code on mismatch;
+- deterministic tests for due-window, duplicate suppression, successful commit, update failure, and readback mismatch;
+- explicit evidence-only boundaries: no retention action execution, archive, delete, drop, truncate, compaction, provider call, credential read, external write, or secret return;
+- daily cron `0 3 * * *` UTC and weekly review-only cron `0 3 * * 1` UTC unless a separately approved governance change updates them;
+- governed migration preflight, checksum-matched ledger evidence, approval/readback for schedule and binding, and live post-deploy verification.
+
 ## Sprint 69 database lifecycle registry upsert change governance
 
 Changes to `316_sprint69_database_lifecycle_registry_upsert_admin_tool.sql`, `database-table-lifecycle-registry-upsert.mjs`, or the `database_table_lifecycle_registry_upsert` Admin alias require: explicit no-provider/no-credential/no-secret/no-external-write markers; separate confirmation tokens for missing-only apply and existing-row refresh; transaction rollback; same-cycle `remaining_missing_count=0` readback; focused regression coverage; governed migration authorization; and rollout evidence. The surface must remain metadata-only and must not drop, truncate, delete, archive, compact, or mutate business-table contents. It does not add a public API route and `secrets_included=false`.
@@ -247,3 +290,8 @@ Changes to `316_sprint69_database_lifecycle_registry_upsert_admin_tool.sql`, `da
 ## Capability Assurance Graph change surface
 
 Changes to 314_sprint69_capability_assurance_graph.sql, capability assurance views, reconciliation tooling, or resource-binding semantics require synchronized updates to canonicals, tests, OpenAPI/tool exports where applicable, and AI_Agent_Knowledge_Guide.md before merge.
+### Local Connector Transient Retry Policy
+
+`1015_sprint69_local_connector_transient_retry_policy.sql` registers the blocking `Cloudflare 1033 Retry Before Repair` execution policy and updates the governed `local_connector_self_repair` tool description. The route performs three total bounded health attempts, stops on pass or authorization-gated reachability, records no-secret `retry_evidence`, and forbids installer generation when a retry recovers.
+
+Safety contract: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`.

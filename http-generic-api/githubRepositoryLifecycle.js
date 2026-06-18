@@ -602,3 +602,219 @@ export async function applyGithubRepositoryChangeSet(options = {}) {
     secrets_included: false,
   };
 }
+
+async function readGithubBlobShaAtPath({ owner, repo, treeSha, filePath, token, fetchImpl }) {
+  const parts = validateChangePath(filePath).split("/");
+  let currentTreeSha = normalizeSha(treeSha);
+  if (!currentTreeSha) {
+    throw lifecycleError(502, "github_existing_blob_readback_tree_missing", "Created Git tree SHA is missing or invalid.", {
+      path: filePath,
+      tree_sha: treeSha || null,
+      secrets_included: false,
+    });
+  }
+  for (let index = 0; index < parts.length; index += 1) {
+    const treeResponse = await githubLifecycleRequest({
+      owner,
+      repo,
+      apiPath: "/git/trees/" + encodeURIComponent(currentTreeSha),
+      token,
+      fetchImpl,
+    });
+    const entries = Array.isArray(treeResponse.payload?.tree) ? treeResponse.payload.tree : [];
+    const entry = entries.find((candidate) => candidate?.path === parts[index]);
+    if (!entry) {
+      throw lifecycleError(502, "github_existing_blob_readback_path_missing", "Committed path is missing from Git tree readback.", {
+        path: filePath,
+        missing_segment: parts[index],
+        tree_sha: currentTreeSha,
+        secrets_included: false,
+      });
+    }
+    const entrySha = normalizeSha(entry.sha);
+    const finalSegment = index === parts.length - 1;
+    if (finalSegment) {
+      if (entry.type !== "blob" || !entrySha) {
+        throw lifecycleError(502, "github_existing_blob_readback_type_mismatch", "Committed path does not resolve to a valid Git blob.", {
+          path: filePath,
+          entry_type: entry.type || null,
+          entry_sha: entry.sha || null,
+          secrets_included: false,
+        });
+      }
+      return entrySha;
+    }
+    if (entry.type !== "tree" || !entrySha) {
+      throw lifecycleError(502, "github_existing_blob_readback_tree_mismatch", "Intermediate committed path segment is not a valid Git tree.", {
+        path: filePath,
+        segment: parts[index],
+        entry_type: entry.type || null,
+        entry_sha: entry.sha || null,
+        secrets_included: false,
+      });
+    }
+    currentTreeSha = entrySha;
+  }
+  return "";
+}
+
+export async function applyGithubExistingBlobChangeSet(options = {}) {
+  const { owner, repo, defaultBranch, token } = await lifecycleContext(options);
+  const branch = normalizeBranch(options.branch);
+  const expectedHeadSha = normalizeSha(options.expected_head_sha || options.expectedHeadSha);
+  const commitMessage = String(options.commit_message || options.commitMessage || "").trim();
+  const changes = Array.isArray(options.changes) ? options.changes : [];
+  if (!branch || branch === defaultBranch || PROTECTED_BRANCHES.has(branch)) {
+    throw lifecycleError(403, "github_existing_blob_branch_blocked", "A non-protected existing work branch is required.", {
+      branch,
+      default_branch: defaultBranch,
+    });
+  }
+  if (!expectedHeadSha) {
+    throw lifecycleError(400, "github_existing_blob_expected_head_required", "expected_head_sha must be a 40-character SHA.");
+  }
+  if (commitMessage.length < 5) {
+    throw lifecycleError(400, "github_existing_blob_message_required", "commit_message must be at least 5 characters.");
+  }
+  if (!changes.length || changes.length > 50) {
+    throw lifecycleError(400, "github_existing_blob_items_invalid", "changes must contain between 1 and 50 items.");
+  }
+
+  const seenPaths = new Set();
+  const treeEntries = changes.map((source) => {
+    const filePath = validateChangePath(source.path);
+    if (seenPaths.has(filePath)) {
+      throw lifecycleError(400, "github_existing_blob_duplicate_path", "Each change path must be unique.", { path: filePath });
+    }
+    seenPaths.add(filePath);
+    const blobSha = normalizeSha(source.blob_sha || source.blobSha);
+    if (!blobSha) {
+      throw lifecycleError(400, "github_existing_blob_sha_invalid", "Each change must include a valid 40-character blob_sha.", { path: filePath });
+    }
+    const mode = String(source.mode || "100644");
+    if (!new Set(["100644", "100755"]).has(mode)) {
+      throw lifecycleError(400, "github_existing_blob_mode_invalid", "mode must be 100644 or 100755.", { path: filePath, mode });
+    }
+    return { path: filePath, mode, type: "blob", sha: blobSha };
+  });
+
+  const refPath = "/git/ref/heads/" + encodeBranch(branch);
+  const branchRef = await githubLifecycleRequest({ owner, repo, apiPath: refPath, token, fetchImpl: options.fetchImpl, allowNotFound: true });
+  if (branchRef.status === 404) {
+    throw lifecycleError(404, "github_existing_blob_branch_missing", "Target work branch does not exist.", { branch });
+  }
+  const currentHeadSha = normalizeSha(branchRef.payload?.object?.sha);
+  if (currentHeadSha !== expectedHeadSha) {
+    throw lifecycleError(409, "github_existing_blob_head_mismatch", "Branch head changed before existing-blob commit preparation.", {
+      branch,
+      expected_head_sha: expectedHeadSha,
+      current_head_sha: currentHeadSha || null,
+    });
+  }
+
+  const baseCommit = await githubLifecycleRequest({
+    owner,
+    repo,
+    apiPath: "/git/commits/" + encodeURIComponent(expectedHeadSha),
+    token,
+    fetchImpl: options.fetchImpl,
+  });
+  const baseTreeSha = normalizeSha(baseCommit.payload?.tree?.sha);
+  if (!baseTreeSha) {
+    throw lifecycleError(502, "github_existing_blob_base_tree_missing", "Branch head commit does not expose a valid base tree SHA.", {
+      branch,
+      expected_head_sha: expectedHeadSha,
+    });
+  }
+
+  const newTree = await githubLifecycleRequest({
+    owner,
+    repo,
+    apiPath: "/git/trees",
+    method: "POST",
+    body: { base_tree: baseTreeSha, tree: treeEntries },
+    token,
+    fetchImpl: options.fetchImpl,
+  });
+  const newTreeSha = normalizeSha(newTree.payload?.sha);
+  if (!newTreeSha) {
+    throw lifecycleError(502, "github_existing_blob_tree_create_failed", "GitHub did not return a valid tree SHA.", { branch });
+  }
+
+  const newCommit = await githubLifecycleRequest({
+    owner,
+    repo,
+    apiPath: "/git/commits",
+    method: "POST",
+    body: { message: commitMessage, tree: newTreeSha, parents: [expectedHeadSha] },
+    token,
+    fetchImpl: options.fetchImpl,
+  });
+  const newCommitSha = normalizeSha(newCommit.payload?.sha);
+  if (!newCommitSha) {
+    throw lifecycleError(502, "github_existing_blob_commit_create_failed", "GitHub did not return a valid commit SHA.", { branch });
+  }
+
+  const preUpdateRef = await githubLifecycleRequest({ owner, repo, apiPath: refPath, token, fetchImpl: options.fetchImpl });
+  const preUpdateHeadSha = normalizeSha(preUpdateRef.payload?.object?.sha);
+  if (preUpdateHeadSha !== expectedHeadSha) {
+    throw lifecycleError(409, "github_existing_blob_head_moved", "Branch head changed after tree creation and before ref update.", {
+      branch,
+      expected_head_sha: expectedHeadSha,
+      current_head_sha: preUpdateHeadSha || null,
+    });
+  }
+
+  await githubLifecycleRequest({
+    owner,
+    repo,
+    apiPath: "/git/refs/heads/" + encodeBranch(branch),
+    method: "PATCH",
+    body: { sha: newCommitSha, force: false },
+    token,
+    fetchImpl: options.fetchImpl,
+  });
+  const refReadback = await githubLifecycleRequest({ owner, repo, apiPath: refPath, token, fetchImpl: options.fetchImpl });
+  const readbackHeadSha = normalizeSha(refReadback.payload?.object?.sha);
+  if (readbackHeadSha !== newCommitSha) {
+    throw lifecycleError(502, "github_existing_blob_ref_readback_failed", "Branch head readback did not match the created commit.", {
+      branch,
+      expected_commit_sha: newCommitSha,
+      readback_sha: readbackHeadSha || null,
+    });
+  }
+
+  const items = [];
+  for (const entry of treeEntries) {
+    const readbackBlobSha = await readGithubBlobShaAtPath({
+      owner,
+      repo,
+      treeSha: newTreeSha,
+      filePath: entry.path,
+      token,
+      fetchImpl: options.fetchImpl,
+    });
+    if (readbackBlobSha !== entry.sha) {
+      throw lifecycleError(502, "github_existing_blob_path_readback_failed", "Committed path blob SHA did not match the requested blob SHA.", {
+        path: entry.path,
+        expected_blob_sha: entry.sha,
+        readback_blob_sha: readbackBlobSha || null,
+      });
+    }
+    items.push({ path: entry.path, mode: entry.mode, blob_sha: entry.sha, readback_blob_sha: readbackBlobSha, readback_verified: true });
+  }
+
+  return {
+    ok: true,
+    branch,
+    previous_head_sha: expectedHeadSha,
+    commit_sha: newCommitSha,
+    tree_sha: newTreeSha,
+    change_count: items.length,
+    items,
+    force_used: false,
+    ref_readback_verified: true,
+    path_readback_verified: true,
+    secrets_included: false,
+  };
+}
