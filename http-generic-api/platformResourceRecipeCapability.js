@@ -1928,6 +1928,44 @@ async function executeRepositoryPrReconciliationReadOnly(operationKey = "", args
   };
 }
 
+export async function executeRepositoryPrReconciliationReadOnlyForAdminReadiness(
+  operationKey = "",
+  args = {},
+  { adminAuthorized = false, executeReadOnly = executeRepositoryPrReconciliationReadOnly } = {}
+) {
+  if (adminAuthorized !== true) {
+    const err = new Error("Repository Governance V6 readiness executor is admin-only.");
+    err.status = 403;
+    err.code = "repository_governance_v6_readiness_admin_required";
+    throw err;
+  }
+  if (operationKey !== "repo_pr_reconciliation_sweep") {
+    const err = new Error(`Unsupported Repository Governance V6 readiness operation: ${operationKey}`);
+    err.status = 400;
+    err.code = "repository_governance_v6_readiness_operation_unsupported";
+    throw err;
+  }
+  const binding = args.authority_binding || {};
+  if (binding.source_system_id || binding.source_installation_id) {
+    return executeReadOnly(operationKey, args);
+  }
+  const authoritySource = asString(binding.authority_source).toLowerCase();
+  if (!["admin_grant", "platform_managed", "system_seed"].includes(authoritySource)) {
+    const err = new Error("Repository Governance V6 readiness requires a connected provider or governed platform authority.");
+    err.status = 403;
+    err.code = "repository_governance_v6_readiness_provider_binding_invalid";
+    throw err;
+  }
+  const { scope: _tenantScope, ...platformBinding } = binding;
+  return executeReadOnly(operationKey, {
+    ...args,
+    authority_binding: {
+      ...platformBinding,
+      readiness_admin_platform_compat: true,
+    },
+  });
+}
+
 function jsonPreview(value = {}, maxChars = 24000) {
   const text = stableJson(value);
   return text.length > maxChars ? `${text.slice(0, maxChars)}\n...truncated` : text;
