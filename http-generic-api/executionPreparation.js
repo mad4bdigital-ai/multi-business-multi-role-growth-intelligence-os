@@ -6,6 +6,45 @@ import { resolveExecutionAuthorityManifestContext } from "./executionAuthorityMa
 import { enforceExecutionAuthorityManifestGuard } from "./executionAuthorityManifestGuard.js";
 
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const AUTH_VALIDATION_PLACEHOLDER = "__schema_validation_auth_placeholder__";
+
+function isPassiveExecutionRequested(requestPayload = {}) {
+  return requestPayload.dry_run === true ||
+    String(requestPayload.dry_run || "").trim().toLowerCase() === "true";
+}
+
+function buildSchemaValidationAuthContract(authContract = {}) {
+  const contract = {
+    ...authContract,
+    custom_headers: { ...(authContract.custom_headers || {}) }
+  };
+
+  if (contract.mode === "oauth_gpt_action") {
+    contract.mode = "bearer_token";
+    contract.header_name = "Authorization";
+  }
+
+  if (["bearer_token", "github_app", "google_oauth2", "google_ads_oauth2"].includes(contract.mode)) {
+    contract.secret = AUTH_VALIDATION_PLACEHOLDER;
+  } else if (contract.mode === "basic_auth") {
+    contract.username = contract.username || "schema-validation-user";
+    contract.secret = AUTH_VALIDATION_PLACEHOLDER;
+  } else if (contract.mode === "api_key_query") {
+    contract.param_name = contract.param_name || "api_key";
+    contract.secret = AUTH_VALIDATION_PLACEHOLDER;
+  } else if (contract.mode === "api_key_header") {
+    contract.header_name = contract.header_name || "x-api-key";
+    contract.secret = AUTH_VALIDATION_PLACEHOLDER;
+  }
+
+  return contract;
+}
+
+function buildStaticAuthValidationHeaders(action = {}) {
+  const headerName = String(action.api_key_header_name || "").trim();
+  if (!headerName || headerName.toLowerCase() === "authorization") return {};
+  return { [headerName]: AUTH_VALIDATION_PLACEHOLDER };
+}
 
 export async function prepareExecutionRequest(input = {}, deps = {}) {
   const {
