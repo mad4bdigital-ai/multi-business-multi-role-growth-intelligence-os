@@ -9392,7 +9392,7 @@ paths:
           status_code: 409
           shared_reconciliation_checkpoint: true
           secrets_included: false
-      description: "CALL IMMEDIATELY when connector.mad4b.com returns error 1033 or HTTP 530 — do NOT just report the error. Reads device config (cf_token, connector_secret) from local_connector_user_configs in DB, checks Cloudflare tunnel health via API, generates a pre-filled Windows .bat installer (cloudflared + NSSM Node service), uploads to Google Drive, and returns a diagnosis object + download link. The user downloads the .bat and runs as Administrator — both services are installed and configured to auto-restart. Defaults to admin user + mohammedlap device."
+      description: "CALL IMMEDIATELY when connector.mad4b.com returns error 1033 or HTTP 530 — do NOT just report the error. Reads device config (cf_token, connector_secret) from local_connector_user_configs in DB, checks Cloudflare tunnel health via API, returns a diagnosis object plus an authenticated admin-only download handoff. The JSON response does not generate or upload installer content. The user downloads the .bat and runs as Administrator — both services are installed and configured to auto-restart. Defaults to admin user + mohammedlap device."
       requestBody:
         required: false
         content:
