@@ -2,7 +2,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { buildSchemaIntelligenceMaps } from "./platform-work-map-schema-intelligence.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -253,7 +253,7 @@ function parseArgs(argv = process.argv.slice(2)) {
   };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   const args = parseArgs();
   const result = syncWorkMaps({ outDir: args.outDir, mode: args.mode });
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
