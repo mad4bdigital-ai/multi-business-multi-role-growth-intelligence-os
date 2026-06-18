@@ -109,11 +109,20 @@ All intermediate evidence construction and status-string normalization are priva
   2. Platform Google identity using service account ADC / `GOOGLE_APPLICATION_CREDENTIALS` / `GOOGLE_SA_JSON`.
   3. Platform refresh-token credentials via `GOOGLE_REFRESH_TOKEN` + `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`.
 - **Fallback rule:** If caller requests user/tenant auth and `allow_platform_fallback=false`, missing scoped credentials must throw a scoped auth error rather than using platform identity.
-- **Cache:** 55-minute TTL keyed by action plus effective OAuth ref.
+- **Cache identity:** 55-minute TTL keyed by action key, credential scope, user, tenant, connection, app key, and effective OAuth ref. Different principals or connections must never share token entries.
+- **Inflight behavior:** `runGoogleTokenResolutionOnce()` deduplicates only requests with the same complete context key and removes the inflight promise after completion; different context keys resolve independently.
 - **Returns:** access token string, or `""` only when no allowed credential path is configured.
 
+#### `buildGoogleTokenCacheKey(options)`
+- **Purpose:** Produce the no-secret token cache identity from governed action and principal/connection context.
+- **Security:** The key contains identifiers and references only, never raw tokens, client secrets, refresh tokens, or credential payloads.
+
+#### `runGoogleTokenResolutionOnce(key, resolver)`
+- **Purpose:** Share one inflight token-resolution promise for an identical governed context.
+- **Boundary:** It is not a global lock; requests for different users, tenants, connections, actions, or OAuth refs execute independently.
+
 ### Internal (not exported)
-Global token fetch, member-scoped token fetch, OAuth ref parsing, and cache helpers.
+Global token fetch, member-scoped token fetch, and OAuth ref parsing helpers.
 
 ---
 
