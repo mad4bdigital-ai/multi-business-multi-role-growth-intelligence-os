@@ -1,7 +1,7 @@
 {
   "ok": true,
   "schema_version": "surface-contract-discovery-v3",
-  "migration_surface_count": 438,
+  "migration_surface_count": 439,
   "reported_count": 80,
   "openapi_operation_count": 478,
   "openapi_path_count": 424,
@@ -534,20 +534,20 @@
     "closed_migration_count": 399
   },
   "coverage_summary": {
-    "migrations_with_surfaces": 438,
-    "docs_complete_count": 436,
+    "migrations_with_surfaces": 439,
+    "docs_complete_count": 437,
     "docs_gap_count": 2,
     "docs_completion_percent": 99.54,
     "surface_totals": {
       "plugins": 12,
-      "tools": 2034,
+      "tools": 2036,
       "views": 398,
       "policies": 159,
       "routes": 564
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 371,
+      "tools": 372,
       "views": 160,
       "policies": 101,
       "routes": 237
@@ -563,7 +563,7 @@
       "high": 1,
       "medium": 1,
       "low": 0,
-      "none": 436
+      "none": 437
     },
     "high_risk_missing_docs": [
       "1013_sprint69_operational_alerting_control_plane.sql"
@@ -572,12 +572,12 @@
       "1014_sprint69_approval_hold_collation_reconciliation_rule.sql"
     ],
     "safety_marker_counts": {
-      "no_provider_call": 436,
-      "no_credential_payload_read": 435,
-      "no_raw_secrets": 435,
-      "no_external_send": 435,
-      "no_external_write": 435,
-      "secrets_included_false": 437
+      "no_provider_call": 437,
+      "no_credential_payload_read": 436,
+      "no_raw_secrets": 436,
+      "no_external_send": 436,
+      "no_external_write": 436,
+      "secrets_included_false": 438
     },
     "safety_marker_gap_migrations": 1,
     "route_coverage": {
@@ -16829,6 +16829,66 @@
         },
         "surface_count": 2,
         "safety_marker_count": 5
+      }
+    },
+    {
+      "migration_file": "1015_sprint69_local_connector_transient_retry_policy.sql",
+      "legacy_backlog_closed": false,
+      "safety_attestation": null,
+      "surfaces": {
+        "routes": [],
+        "route_classifications": [],
+        "views": [],
+        "policies": [],
+        "plugins": [],
+        "tools": [
+          "admin_platform_endpoint_tools",
+          "stop_on_authorization_gated"
+        ],
+        "safety": {
+          "no_provider_call": true,
+          "no_credential_payload_read": true,
+          "no_raw_secrets": true,
+          "no_external_send": true,
+          "no_external_write": true,
+          "secrets_included_false": true
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": true,
+        "deployment_parity_checklist.md": true,
+        "docs/ai-docs-agent-governance.md": true,
+        "docs/auto-docs-agent/README.md": true,
+        "docs/change-documentation-governance.md": true
+      },
+      "missing_docs": [],
+      "documentation_complete": true,
+      "coverage": {
+        "gap_severity": "none",
+        "requires_docs_review": false,
+        "route_coverage": {
+          "route_count": 0,
+          "total_route_count": 0,
+          "openapi_required_route_count": 0,
+          "exempted_route_count": 0,
+          "route_class_counts": {
+            "http_route": 0,
+            "admin_tool_registry_route": 0,
+            "tenant_tool_registry_route": 0,
+            "system_tool_dispatch_route": 0,
+            "registry_only_surface": 0,
+            "false_positive_route_like_string": 0,
+            "legacy_closure_route_reviewed": 0
+          },
+          "documented_count": 0,
+          "missing_count": 0,
+          "documented_routes": [],
+          "missing_routes": [],
+          "exempted_routes": [],
+          "route_classifications": []
+        },
+        "surface_count": 2,
+        "safety_marker_count": 6
       }
     },
     {
