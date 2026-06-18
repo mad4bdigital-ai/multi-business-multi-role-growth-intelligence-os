@@ -229,35 +229,84 @@ function buildState() {
   return { queue, manifest, attestations, manual, added };
 }
 
-function main() {
-  const write = process.argv.includes("--write");
-  const check = process.argv.includes("--check");
-  const state = buildState();
+function generatedMismatches(state) {
   const block = renderGeneratedBlock(state.attestations);
   const expectedManifest = `${JSON.stringify(state.manifest, null, 2)}\n`;
   const mismatches = [];
+  if (!fs.existsSync(ATTESTATION_PATH) || fs.readFileSync(ATTESTATION_PATH, "utf8") !== expectedManifest) {
+    mismatches.push(path.relative(REPO_ROOT, ATTESTATION_PATH));
+  }
+  for (const target of DOC_TARGETS) {
+    const filePath = path.join(REPO_ROOT, target);
+    const content = fs.readFileSync(filePath, "utf8");
+    if (content !== upsertGeneratedBlock(content, block)) mismatches.push(target);
+  }
+  return mismatches;
+}
+
+function writeGeneratedState(state) {
+  const block = renderGeneratedBlock(state.attestations);
+  fs.mkdirSync(path.dirname(ATTESTATION_PATH), { recursive: true });
+  fs.writeFileSync(ATTESTATION_PATH, `${JSON.stringify(state.manifest, null, 2)}\n`);
+  for (const target of DOC_TARGETS) {
+    const filePath = path.join(REPO_ROOT, target);
+    const content = fs.readFileSync(filePath, "utf8");
+    fs.writeFileSync(filePath, upsertGeneratedBlock(content, block));
+  }
+}
+
+export function convergeGeneratedState({
+  maxPasses = 5,
+  build = buildState,
+  writeState = writeGeneratedState,
+  runDiscovery = () => runGenerator("scripts/surface-contract-discovery.mjs", ["--write"]),
+  runTriage = () => runGenerator("scripts/surface-contract-gap-triage.mjs", ["--write"]),
+  diffState = generatedMismatches,
+} = {}) {
+  let state = build();
+  const passes = [];
+  const added = new Set();
+  for (let pass = 1; pass <= maxPasses; pass += 1) {
+    for (const migration of state.added || []) added.add(migration);
+    const pendingBefore = diffState(state);
+    writeState(state);
+    runDiscovery();
+    runTriage();
+    const nextState = build();
+    for (const migration of nextState.added || []) added.add(migration);
+    const pendingAfter = diffState(nextState);
+    passes.push({
+      pass,
+      pending_before: pendingBefore.length,
+      pending_after: pendingAfter.length,
+      attestation_count: nextState.attestations?.length || 0,
+      manual_review_count: nextState.manual?.length || 0,
+    });
+    state = nextState;
+    if (pendingAfter.length === 0) {
+      return { converged: true, state, passes, added: [...added].sort() };
+    }
+  }
+  return { converged: false, state, passes, added: [...added].sort() };
+}
+
+function main() {
+  const write = process.argv.includes("--write");
+  const check = process.argv.includes("--check");
+  let state = buildState();
+  let generation = { converged: true, passes: [], added: state.added || [] };
 
   if (write) {
-    fs.mkdirSync(path.dirname(ATTESTATION_PATH), { recursive: true });
-    fs.writeFileSync(ATTESTATION_PATH, expectedManifest);
-    for (const target of DOC_TARGETS) {
-      const filePath = path.join(REPO_ROOT, target);
-      const content = fs.readFileSync(filePath, "utf8");
-      fs.writeFileSync(filePath, upsertGeneratedBlock(content, block));
+    generation = convergeGeneratedState();
+    state = generation.state;
+    if (!generation.converged) {
+      console.error(`surface-contract-auto-remediator: generated state did not converge after ${generation.passes.length} passes`);
+      process.exitCode = 1;
     }
-    runGenerator("scripts/surface-contract-discovery.mjs", ["--write"]);
-    runGenerator("scripts/surface-contract-gap-triage.mjs", ["--write"]);
   }
 
   if (check) {
-    if (!fs.existsSync(ATTESTATION_PATH) || fs.readFileSync(ATTESTATION_PATH, "utf8") !== expectedManifest) {
-      mismatches.push(path.relative(REPO_ROOT, ATTESTATION_PATH));
-    }
-    for (const target of DOC_TARGETS) {
-      const filePath = path.join(REPO_ROOT, target);
-      const content = fs.readFileSync(filePath, "utf8");
-      if (content !== upsertGeneratedBlock(content, block)) mismatches.push(target);
-    }
+    const mismatches = generatedMismatches(state);
     if (mismatches.length) {
       console.error(`surface-contract-auto-remediator: generated outputs are stale: ${mismatches.join(", ")}`);
       process.exitCode = 1;
@@ -265,19 +314,25 @@ function main() {
   }
 
   const refreshedQueue = write ? readJson(QUEUE_PATH, { total_items: 0 }) : state.queue;
-  const autoMergeEligible = state.manual.length === 0 && Number(refreshedQueue.total_items || 0) === 0;
+  const autoMergeEligible = generation.converged
+    && state.manual.length === 0
+    && Number(refreshedQueue.total_items || 0) === 0;
   writeGithubOutput({
     auto_merge_eligible: autoMergeEligible ? "true" : "false",
     manual_review_count: state.manual.length,
     remaining_queue_items: Number(refreshedQueue.total_items || 0),
+    generation_pass_count: generation.passes.length,
   });
   console.log(JSON.stringify({
     ok: autoMergeEligible,
     schema_version: state.manifest.schema_version,
     write,
     check,
+    converged: generation.converged,
+    generation_pass_count: generation.passes.length,
+    generation_passes: generation.passes,
     attestation_count: state.attestations.length,
-    added_or_refreshed: state.added,
+    added_or_refreshed: generation.added,
     manual_review_count: state.manual.length,
     manual_review_items: state.manual,
     remaining_queue_items: Number(refreshedQueue.total_items || 0),
