@@ -1,13 +1,19 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 99.54,
+  "docs_completion_percent": 99.32,
   "docs_complete_count": 437,
-  "docs_gap_count": 2,
-  "queue_items": 4,
-  "blocking_new_item_count": 3,
+  "docs_gap_count": 3,
+  "queue_items": 5,
+  "blocking_new_item_count": 4,
   "gate_ok": false,
   "top_actionable": [
+    {
+      "migration_file": "1016_sprint69_tenant_safe_tool_route_rebinding.sql",
+      "queue_class": "critical_review",
+      "score": 1224,
+      "next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption"
+    },
     {
       "migration_file": "1013_sprint69_operational_alerting_control_plane.sql",
       "queue_class": "critical_review",
@@ -21,16 +27,16 @@
       "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
-  "openapi_missing_sql_route_count": 0,
+  "openapi_missing_sql_route_count": 1,
   "openapi_exempt_sql_route_count": 563,
-  "total_sql_route_like_count": 564,
-  "safety_marker_gap_migrations": 0,
+  "total_sql_route_like_count": 568,
+  "safety_marker_gap_migrations": 1,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 3,
-    "warning_new_item_count": 3
+    "blocking_new_item_count": 4,
+    "warning_new_item_count": 4
   },
   "safety": {
     "executes_provider_calls": false,
