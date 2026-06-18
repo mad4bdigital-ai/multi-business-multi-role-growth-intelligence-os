@@ -277,7 +277,7 @@ async function saJsonToAccessToken(saJson, scopes) {
 }
 
 async function fetchGlobalGoogleToken(options = {}) {
-  const key = cacheKey(options);
+  const key = buildGoogleTokenCacheKey(options);
   const existing = globalTokenInflight.get(key);
   if (existing) return existing;
 
@@ -364,14 +364,14 @@ async function fetchGlobalGoogleToken(options = {}) {
 }
 
 export function getGoogleAccessTokenSync(options = {}) {
-  const hit = cache.get(cacheKey(options));
+  const hit = cache.get(buildGoogleTokenCacheKey(options));
   if (hit?.token && hit.expiresAt > Date.now() + 60000) return hit.token;
   getGoogleAccessToken(options).catch(() => {});
   return hit?.token || "";
 }
 
 export async function getGoogleAccessToken(options = {}) {
-  const key = cacheKey(options);
+  const key = buildGoogleTokenCacheKey(options);
   const hit = cache.get(key);
   if (hit?.token && hit.expiresAt > Date.now() + 60000) return hit.token;
 
