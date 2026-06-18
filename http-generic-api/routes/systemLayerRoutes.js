@@ -1367,7 +1367,7 @@ function withProbeTimeout(promise, label) {
 
 async function activationDriveProbe() {
   try {
-    const { drive } = await getGoogleClientsForSpreadsheet(ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID);
+    const { drive } = await getGoogleClients({ action_key: "google_drive_api" });
     const response = await withProbeTimeout(
       drive.files.list({
         pageSize: 1,
