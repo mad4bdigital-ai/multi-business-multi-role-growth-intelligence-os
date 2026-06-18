@@ -131,6 +131,75 @@ assert.match(capabilitySource, /const compatible = !tenantScoped/);
 assert.match(capabilitySource, /source_installation_id/);
 assert.doesNotMatch(capabilitySource, /scopeClauses\.join\(" OR "\)/);
 
+await assert.rejects(
+  () => executeRepositoryPrReconciliationReadOnlyForAdminReadiness(
+    "repo_pr_reconciliation_sweep",
+    {},
+    { executeReadOnly: async () => ({ ok: true }) }
+  ),
+  (error) => error?.code === "repository_governance_v6_readiness_admin_required"
+);
+await assert.rejects(
+  () => executeRepositoryPrReconciliationReadOnlyForAdminReadiness(
+    "repo_pr_mutation_apply",
+    {},
+    { adminAuthorized: true, executeReadOnly: async () => ({ ok: true }) }
+  ),
+  (error) => error?.code === "repository_governance_v6_readiness_operation_unsupported"
+);
+await assert.rejects(
+  () => executeRepositoryPrReconciliationReadOnlyForAdminReadiness(
+    "repo_pr_reconciliation_sweep",
+    { authority_binding: { authority_source: "tenant_user", scope: { tenant_id: "tenant-a" } } },
+    { adminAuthorized: true, executeReadOnly: async () => ({ ok: true }) }
+  ),
+  (error) => error?.code === "repository_governance_v6_readiness_provider_binding_invalid"
+);
+let readinessExecution = null;
+const readinessResult = await executeRepositoryPrReconciliationReadOnlyForAdminReadiness(
+  "repo_pr_reconciliation_sweep",
+  {
+    authority_binding: {
+      binding_id: "binding-a",
+      authority_source: "admin_grant",
+      scope: { tenant_id: "tenant-a", workspace_id: "workspace-a" },
+    },
+  },
+  {
+    adminAuthorized: true,
+    executeReadOnly: async (operationKey, args) => {
+      readinessExecution = { operationKey, args };
+      return { ok: true, mutations_executed: false, secrets_included: false };
+    },
+  }
+);
+assert.equal(readinessResult.ok, true);
+assert.equal(readinessResult.mutations_executed, false);
+assert.equal(readinessResult.secrets_included, false);
+assert.equal(readinessExecution.operationKey, "repo_pr_reconciliation_sweep");
+assert.equal(readinessExecution.args.authority_binding.scope, undefined);
+assert.equal(readinessExecution.args.authority_binding.readiness_admin_platform_compat, true);
+
+let connectedExecution = null;
+await executeRepositoryPrReconciliationReadOnlyForAdminReadiness(
+  "repo_pr_reconciliation_sweep",
+  {
+    authority_binding: {
+      authority_source: "tenant_connection",
+      source_system_id: "system-a",
+      scope: { tenant_id: "tenant-a" },
+    },
+  },
+  {
+    adminAuthorized: true,
+    executeReadOnly: async (operationKey, args) => {
+      connectedExecution = { operationKey, args };
+      return { ok: true, mutations_executed: false, secrets_included: false };
+    },
+  }
+);
+assert.deepEqual(connectedExecution.args.authority_binding.scope, { tenant_id: "tenant-a" });
+
 const authSource = fs.readFileSync(new URL("./githubAppAuth.js", import.meta.url), "utf8");
 assert.match(authSource, /const cachedInstallationTokens = new Map\(\)/);
 assert.match(authSource, /const cacheKey = `\$\{appId\}:\$\{installationId\}`/);
