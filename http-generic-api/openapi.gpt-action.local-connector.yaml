@@ -197,7 +197,7 @@ paths:
       tags: [connector]
       operationId: connectorAgentRuntime
       summary: Optional local/API-provider/managed multi-agent runtime
-      description: "Inspects or explicitly operates the local agent runtime, or records selection of a governed API model provider such as OpenRouter, platform managed, or dedicated managed runtime. Settings updates, installation, and runs enforce separate approval fields. Provider API credentials are never copied to the local device."
+      description: "Inspects or explicitly operates the local agent runtime, or records OpenRouter, platform managed, or dedicated managed runtime selection. Settings updates, installs, and runs require separate approvals. Provider API credentials are never copied to the local device."
       security:
         - connectorBearerAuth: []
       requestBody:

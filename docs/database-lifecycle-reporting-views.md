@@ -100,6 +100,13 @@ node scripts/database-lifecycle-report-snapshot.mjs `
 Snapshot writeback records report evidence only. It does not archive, delete,
 drop, truncate, compact, read secrets, or execute lifecycle cleanup.
 
+When `--apply` succeeds, the runner also attempts a bounded `execution_log`
+evidence row using the provided `--trace-id`. The execution-log write is
+reported separately from the snapshot write result; if the evidence surface is
+unavailable, the snapshot result remains visible with `execution_log.error`.
+The evidence summary preserves `no_drop`, `no_delete`, `no_archive_execution`,
+`no_compaction_execution`, and `secrets_included=false`.
+
 ## Snapshot schedule readiness
 
 Migration `183_sprint66_database_lifecycle_snapshot_schedule_readiness.sql`
