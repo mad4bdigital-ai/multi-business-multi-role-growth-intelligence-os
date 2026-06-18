@@ -19,12 +19,15 @@ for (const expected of [
 }
 
 assert(
-  route.includes("disabled: true") &&
-    route.includes("rotated: true") &&
-    route.includes("secrets_included: false"),
+  route.includes("hasConnectorLocalApiKeyColumn(pool)") &&
+    route.includes("localApiKeyColumnSupported") &&
+    route.includes("secretAssignments"),
+  "uninstall must clear the optional local API key through the schema compatibility guard"
+);
+assert(
+  route.includes("disabled: true") && route.includes("rotated: true") && route.includes("secrets_included: false"),
   "uninstall response must report disable+rotation without returning secrets"
 );
-
 assert.doesNotMatch(
   route,
   /connector_secret\s*:\s*|cf_token\s*:\s*|connector_local_api_key\s*:\s*/,
