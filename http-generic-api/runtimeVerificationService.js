@@ -1,6 +1,11 @@
 import crypto, { randomUUID } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { getPool } from "./db.js";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(__dirname, "..");
 const DEFAULT_RESPONSE_BUDGET = Object.freeze({ max_response_bytes: 100000, max_items: 50, max_depth: 3, overflow_policy: "manifest_only" });
 const SENSITIVE_KEY_PATTERN = /(secret|credential|token|password|private_key|cipher|api_key|authorization|cookie|set-cookie)/i;
 const REQUIRED_TABLES = Object.freeze(["runtime_verification_workflow_registry", "runtime_verification_runs", "runtime_verification_steps", "runtime_verification_evidence_chunks", "runtime_verification_gaps", "runtime_deployment_parity_status", "runtime_ci_check_classification_registry", "runtime_gap_remediation_registry"]);
