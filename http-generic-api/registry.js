@@ -1441,7 +1441,7 @@ export async function deleteActionsRegistryRow(input = {}) {
 }
 
 export async function fetchFromGoogleSheets() {
-  const { sheets, drive } = await getGoogleClients();
+  const { sheets } = await getGoogleClients({ action_key: "google_sheets_api" });
   const [
     brandRows,
     hostingAccounts,
