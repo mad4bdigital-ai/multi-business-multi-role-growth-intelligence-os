@@ -3104,16 +3104,6 @@ export function buildAdminCliRoutes(deps) {
   return router;
 }
 
-function sanitizeDriveUploadError(err) {
-  const status = err?.response?.status || err?.status || err?.code || null;
-  const message = String(err?.message || "Drive upload failed").slice(0, 300);
-  return {
-    code: "drive_upload_failed",
-    ...(status ? { status } : {}),
-    message,
-  };
-}
-
 function generateConnectorInstallerBat(tunnelToken, backendKey) {
   const bk = backendKey || "";
   return `@echo off
