@@ -2871,7 +2871,7 @@ export function buildAdminCliRoutes(deps) {
         }
       }
 
-      const publicHealthProbe = await probeLocalConnectorPublicHealth({
+      const publicHealthProbe = await probeLocalConnectorPublicHealthWithRetry({
         tunnelUrl: tunnelUrl || "https://connector.mad4b.com",
         timeoutMs: 8000,
       });
