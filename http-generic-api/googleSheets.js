@@ -236,6 +236,7 @@ export function buildGoogleClientContextKey(options = {}, action = {}) {
 export async function getGoogleClients(options = {}) {
   const action = await resolveGoogleRuntimeAction(options);
   const actionKey = String(action.action_key || normalizeGoogleActionKey(options)).trim();
+  const clientContextKey = buildGoogleClientContextKey(options, action);
   const token = await getGoogleAccessToken({ ...options, action });
   if (!token) {
     throw Object.assign(
