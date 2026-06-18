@@ -367,14 +367,7 @@ async function fetchGlobalGoogleToken(options = {}) {
       console.warn("[googleAuth] Could not obtain a Google access token." + (last?.message ? ` Last error: ${last.message}` : "") + ` Sources attempted: ${sourceSummary}`);
     }
     return "";
-  })();
-
-  globalTokenInflight.set(key, task);
-  try {
-    return await task;
-  } finally {
-    if (globalTokenInflight.get(key) === task) globalTokenInflight.delete(key);
-  }
+  });
 }
 
 export function getGoogleAccessTokenSync(options = {}) {
