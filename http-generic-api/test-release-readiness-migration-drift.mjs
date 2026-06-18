@@ -302,7 +302,7 @@ assert.equal(approvalHoldCollationPreflight.counts.alter_table, 0, "migration 10
 const approvalHoldCollationStatements = splitSqlStatements(approvalHoldCollationMigration);
 assert.equal(approvalHoldCollationStatements.length, 27, "migration 1013 must split into 27 independently executable statements");
 assert.equal(approvalHoldCollationPreflight.counts.statements, 27, "migration 1013 preflight and apply must share the 27-statement boundary contract");
-assert(approvalHoldCollationStatements[0].startsWith("UPDATE execution_enablement_requests"), "migration 1013 first statement must remain the bounded orphan cleanup UPDATE");
+assert(approvalHoldCollationStatements[0].includes("UPDATE execution_enablement_requests"), "migration 1013 first statement must retain the bounded orphan cleanup UPDATE after its header comments");
 assert(approvalHoldCollationStatements[1].startsWith("CREATE TEMPORARY TABLE tmp_approval_hold_identity_orphans"), "migration 1013 temporary orphan table must be a separate statement");
 assert(approvalHoldCollationStatements.at(-2).startsWith("CREATE OR REPLACE VIEW v_approval_hold_identity_collation_readiness"), "migration 1013 readiness view must be independently executable");
 assert(approvalHoldCollationStatements.at(-1).startsWith("INSERT INTO execution_policies"), "migration 1013 policy seed must be the final independent statement");
