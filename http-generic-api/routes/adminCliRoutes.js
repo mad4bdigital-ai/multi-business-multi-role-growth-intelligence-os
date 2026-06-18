@@ -2972,37 +2972,10 @@ export function buildAdminCliRoutes(deps) {
         });
       }
 
-      const batContent = generateConnectorInstallerBat(tunnelToken, backendKey);
-      const filename   = `repair-connector-${resolvedDeviceId}-${new Date().toISOString().slice(0,10)}.bat`;
-      let driveResult  = null;
-      let driveUploadStatus = typeof deps.getGoogleClients === "function" ? "attempted" : "not_configured";
-      let driveError = null;
-      if (typeof deps.getGoogleClients === "function") {
-        try {
-          const { drive } = await deps.getGoogleClients();
-          const created = await drive.files.create({
-            requestBody: { name: filename, mimeType: "application/octet-stream" },
-            media: { mimeType: "application/octet-stream", body: batContent },
-            fields: "id,webViewLink",
-          });
-          if (created?.data?.id) {
-            await drive.permissions.create({
-              fileId: created.data.id,
-              requestBody: { role: "reader", type: "anyone" },
-            });
-            driveResult = {
-              drive_file_id: created.data.id,
-              drive_link: `https://drive.google.com/uc?export=download&id=${created.data.id}`,
-              view_link: created.data.webViewLink,
-            };
-          }
-        } catch (driveErr) {
-          driveUploadStatus = "failed";
-          driveError = sanitizeDriveUploadError(driveErr);
-          console.warn("[self-repair] Drive upload failed:", driveErr.message);
-        }
-      }
-      if (driveResult) driveUploadStatus = "uploaded";
+      const filename = `repair-connector-${resolvedDeviceId}-${new Date().toISOString().slice(0,10)}.bat`;
+      const driveResult = null;
+      const driveUploadStatus = "blocked_secret_bearing_artifact";
+      const driveError = null;
 
       writeAuditLogAsync({
         action: "admin_cli.local_connector_self_repair",
