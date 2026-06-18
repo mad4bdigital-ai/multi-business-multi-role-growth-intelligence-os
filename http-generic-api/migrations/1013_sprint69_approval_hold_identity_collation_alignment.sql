@@ -46,7 +46,7 @@ FROM execution_enablement_requests c
 LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
 WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
 UNION ALL
-SELECT 'growth_intelligence_actions', c.approval_hold_id
+SELECT 'growth_intelligence_actions', CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS hold_id
 FROM growth_intelligence_actions c
 LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
 WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
