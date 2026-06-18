@@ -55,12 +55,19 @@ assert(
     agentSource.includes('params.push(...authPredicate.params)'),
 );
 
+const provisionStart = installSource.indexOf('export async function provisionLocalConnectorInstall');
+const provisionEnd = installSource.indexOf('export function buildLocalConnectorInstallRoutes', provisionStart);
+const provisionSource = installSource.slice(provisionStart, provisionEnd);
+const responseStart = provisionSource.lastIndexOf('return {');
+const responseEnvelope = provisionSource.slice(responseStart);
+
 assert(
-  'legacy install route persists and emits connector_local_api_key',
-  installSource.includes('connector_local_api_key') &&
-    installSource.includes('let connectorLocalApiKey = existing?.connector_local_api_key || null;') &&
-    installSource.includes('CONNECTOR_LOCAL_API_KEY=${String(connectorLocalApiKey).trim()}') &&
-    installSource.includes('connectorLocalApiKey = connectorLocalApiKey || randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");') &&
-    installSource.includes('connectorLocalApiKey, tunnelUrl: runtimeUrl') &&
-    installSource.includes('connectorLocalApiKey, aliases: allAliases'),
+  'legacy install route persists connector_local_api_key but withholds it from provisioning responses',
+  provisionSource.includes('connector_local_api_key') &&
+    provisionSource.includes('let connectorLocalApiKey = existing?.connector_local_api_key || null;') &&
+    provisionSource.includes('connectorLocalApiKey = connectorLocalApiKey || randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");') &&
+    responseEnvelope.includes('connector_local_api_key_included: false') &&
+    responseEnvelope.includes('download_link_endpoint: "/local-connector/install/download-link"') &&
+    !/connector_local_api_key\s*:\s*connectorLocalApiKey/.test(responseEnvelope) &&
+    !responseEnvelope.includes('CONNECTOR_LOCAL_API_KEY=${String(connectorLocalApiKey).trim()}'),
 );
