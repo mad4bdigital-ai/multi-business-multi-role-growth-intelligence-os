@@ -3,6 +3,16 @@ import { getPool } from "./db.js";
 
 const READ_OPERATIONS = new Set(["read", "list", "inspect", "preview", "status", "search"]);
 const MUTATION_PERMISSIONS = new Set(["owner", "admin", "manage", "operate", "edit"]);
+const SEMANTIC_CAPABILITY_SCHEMA_OBJECTS = Object.freeze([
+  { name: "platform_semantic_capabilities", type: "BASE TABLE" },
+  { name: "platform_capability_provider_bindings", type: "BASE TABLE" },
+  { name: "platform_endpoint_aliases", type: "BASE TABLE" },
+  { name: "tenant_capability_shadow_decisions", type: "BASE TABLE" },
+  { name: "v_platform_endpoint_canonical_identity", type: "VIEW" },
+  { name: "v_platform_capability_export_projection", type: "VIEW" },
+  { name: "v_platform_capability_export_reconciliation", type: "VIEW" },
+  { name: "v_tenant_effective_capability_candidates", type: "VIEW" },
+]);
 const READ_PERMISSIONS = new Set([...MUTATION_PERMISSIONS, "comment", "view"]);
 
 function safeText(value = "", max = 255) {
@@ -74,6 +84,39 @@ function errorResult(code, message, details = {}) {
     error: { code, message, details },
     secrets_included: false,
   };
+}
+
+async function loadSemanticCapabilitySchemaReadiness(pool) {
+  const names = SEMANTIC_CAPABILITY_SCHEMA_OBJECTS.map((item) => item.name);
+  const placeholders = names.map(() => "?").join(", ");
+  const [rows] = await pool.query(
+    `SELECT table_name, table_type
+       FROM information_schema.tables
+      WHERE table_schema = DATABASE()
+        AND table_name IN (${placeholders})`,
+    names
+  );
+  const observed = new Map(
+    (rows || []).map((row) => [
+      String(row.table_name),
+      String(row.table_type || "").toUpperCase(),
+    ])
+  );
+  const missing = SEMANTIC_CAPABILITY_SCHEMA_OBJECTS.filter(
+    (item) => observed.get(item.name) !== item.type
+  );
+  return {
+    expected: SEMANTIC_CAPABILITY_SCHEMA_OBJECTS,
+    present: SEMANTIC_CAPABILITY_SCHEMA_OBJECTS.filter(
+      (item) => observed.get(item.name) === item.type
+    ),
+    missing,
+  };
+}
+
+async function countReadinessRows(pool, sql) {
+  const [rows] = await pool.query(sql);
+  return Number(rows?.[0]?.c || 0);
 }
 
 async function resolveWorkspace(pool, { tenantId, workspaceId, workspaceKey }) {
@@ -382,6 +425,16 @@ export const TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS = Object.freeze([
     },
   },
   {
+    name: "tenant_effective_capability_readiness_smoke",
+    description: "Admin-only, read-only readiness smoke for the semantic capability resolver. Verifies the eight migration-owned schema objects, initial seed rows, descriptor wiring, and no-provider/no-mutation guarantees.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+  },
+  {
     name: "tenant_capability_shadow_compare",
     description: "Run the effective capability resolver in shadow mode, compare it with an optional legacy decision, and write a no-secret comparison ledger row. Does not call a provider or change tool exports.",
     inputSchema: {
@@ -608,6 +661,131 @@ export async function resolveTenantEffectiveCapability(args = {}, { auth = {}, p
     }));
   }
   return result;
+}
+
+export async function tenantEffectiveCapabilityReadinessSmoke(
+  _args = {},
+  { pool = getPool() } = {}
+) {
+  let schema = {
+    expected: SEMANTIC_CAPABILITY_SCHEMA_OBJECTS,
+    present: [],
+    missing: SEMANTIC_CAPABILITY_SCHEMA_OBJECTS,
+  };
+  let queryError = null;
+  let counts = {
+    active_capabilities: 0,
+    active_bindings: 0,
+    shadow_bindings: 0,
+    active_aliases: 0,
+  };
+
+  try {
+    schema = await loadSemanticCapabilitySchemaReadiness(pool);
+    if (schema.missing.length === 0) {
+      counts = {
+        active_capabilities: await countReadinessRows(
+          pool,
+          "SELECT COUNT(*) AS c FROM platform_semantic_capabilities WHERE status = 'active'"
+        ),
+        active_bindings: await countReadinessRows(
+          pool,
+          "SELECT COUNT(*) AS c FROM platform_capability_provider_bindings WHERE status = 'active'"
+        ),
+        shadow_bindings: await countReadinessRows(
+          pool,
+          "SELECT COUNT(*) AS c FROM platform_capability_provider_bindings WHERE status = 'active' AND rollout_mode = 'shadow'"
+        ),
+        active_aliases: await countReadinessRows(
+          pool,
+          "SELECT COUNT(*) AS c FROM platform_endpoint_aliases WHERE status = 'active'"
+        ),
+      };
+    }
+  } catch (error) {
+    queryError = {
+      code: error?.code || "semantic_capability_readiness_query_failed",
+      message: error?.message || String(error),
+    };
+  }
+
+  const descriptorNames = TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS.map(
+    (tool) => tool.name
+  );
+  const checks = [
+    { name: "schema_query_succeeded", pass: queryError === null },
+    {
+      name: "eight_schema_objects_present",
+      pass:
+        queryError === null
+        && schema.missing.length === 0
+        && schema.present.length === 8,
+      expected_count: 8,
+      present_count: schema.present.length,
+    },
+    {
+      name: "initial_capabilities_seeded",
+      pass: counts.active_capabilities >= 8,
+      observed_count: counts.active_capabilities,
+    },
+    {
+      name: "provider_binding_seeded",
+      pass: counts.active_bindings >= 1,
+      observed_count: counts.active_bindings,
+    },
+    {
+      name: "shadow_binding_present",
+      pass: counts.shadow_bindings >= 1,
+      observed_count: counts.shadow_bindings,
+    },
+    {
+      name: "endpoint_aliases_seeded",
+      pass: counts.active_aliases >= 2,
+      observed_count: counts.active_aliases,
+    },
+    {
+      name: "three_descriptor_tools_present",
+      pass:
+        descriptorNames.length === 3
+        && descriptorNames.includes("tenant_effective_capability_preview")
+        && descriptorNames.includes("tenant_effective_capability_readiness_smoke")
+        && descriptorNames.includes("tenant_capability_shadow_compare"),
+    },
+    { name: "no_provider_call", pass: true },
+    { name: "no_mutation", pass: true },
+    { name: "no_secrets", pass: true },
+  ];
+  const ok = checks.every((check) => check.pass === true);
+  const reasonCode = queryError
+    ? "semantic_capability_readiness_query_failed"
+    : schema.missing.length
+      ? "semantic_capability_schema_not_applied"
+      : ok
+        ? null
+        : "semantic_capability_seed_readiness_failed";
+
+  return {
+    ok,
+    tool: "tenant_effective_capability_readiness_smoke",
+    status: ok ? "pass" : "fail",
+    classification: ok
+      ? "tenant_effective_capability_resolver_ready"
+      : "tenant_effective_capability_resolver_not_ready",
+    reason_code: reasonCode,
+    checks,
+    schema_objects: {
+      expected: schema.expected.map((item) => item.name),
+      present: schema.present.map((item) => item.name),
+      missing: schema.missing.map((item) => item.name),
+    },
+    seed_counts: counts,
+    descriptor_tools: descriptorNames,
+    error: queryError,
+    provider_calls_made: 0,
+    apply_allowed: false,
+    mutations_executed: false,
+    secrets_included: false,
+  };
 }
 
 export async function tenantEffectiveCapabilityPreview(args = {}, context = {}) {

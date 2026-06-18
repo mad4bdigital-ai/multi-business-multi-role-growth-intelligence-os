@@ -73,6 +73,12 @@ Tool exports are derived projections. An export is eligible only when the comple
 
 Shadow comparisons may write no-secret decision evidence to `tenant_capability_shadow_decisions`. They must not store credentials, tokens, authorization headers, provider request bodies, or provider responses. Runtime responses must state `secrets_included=false`.
 
+### Readiness contract
+
+The system-layer descriptor source must declare `tenant_effective_capability_readiness_smoke`. The smoke is admin-only and read-only. It must verify the four migration-owned tables, four migration-owned views, initial semantic capability seeds, at least one provider binding, at least one shadow binding, endpoint aliases, descriptor wiring, and explicit no-provider/no-mutation/no-secret guarantees.
+
+When Migration `311_sprint69_semantic_capability_effective_resolution.sql` has not been authorized and applied, the smoke must fail with `semantic_capability_schema_not_applied`. It must not create missing objects, self-authorize the migration, call a provider, or write a shadow decision.
+
 ### Initial pilot
 
 `content.article.create_draft` may bind to `wordpress_rest` through `wordpress_api/wordpress_create_post` in `shadow` mode. Its adapter must force `status=draft` and reject caller overrides for provider routing or credentials. This pilot does not authorize publishing or provider execution.

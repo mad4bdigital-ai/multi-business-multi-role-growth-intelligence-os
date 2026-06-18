@@ -203,6 +203,11 @@ Rollback is non-destructive:
 - A generic runtime endpoint dispatcher is not exposed through these descriptors.
 - Shadow comparison writes only a bounded no-secret decision record.
 
+## Readiness smoke
+
+The system-layer descriptor source exposes `tenant_effective_capability_readiness_smoke` as an admin-only, read-only diagnostic. It checks the four migration-owned tables, four migration-owned views, initial capability and alias seeds, descriptor wiring, and explicit no-provider/no-mutation/no-secret guarantees.
+
+If Migration `311_sprint69_semantic_capability_effective_resolution.sql` is not authorized and applied, the smoke returns `semantic_capability_schema_not_applied`. It does not create schema objects, write shadow decisions, call providers, or bypass the governed migration authorization registry.
 ## Governed migration authorization boundary
 
 `311_sprint69_semantic_capability_effective_resolution.sql` intentionally does not authorize itself and must not be added to the legacy bootstrap allowlist. The governed migration runner checks `governed_migration_authorization_registry` before reading or applying the file.
