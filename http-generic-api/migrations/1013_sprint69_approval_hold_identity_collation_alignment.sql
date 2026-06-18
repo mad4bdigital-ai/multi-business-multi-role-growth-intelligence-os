@@ -71,7 +71,7 @@ FROM repository_mutation_runs_v6 c
 LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
 WHERE h.hold_id IS NULL
 UNION ALL
-SELECT 'tenant_ssh_cli_approval_requests', c.hold_id
+SELECT 'tenant_ssh_cli_approval_requests', CONVERT(c.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS hold_id
 FROM tenant_ssh_cli_approval_requests c
 LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
 WHERE h.hold_id IS NULL
