@@ -527,4 +527,47 @@ const baseInput = {
   );
 }
 
+{
+  for (const passiveFlags of [
+    { preflight_only: true },
+    { preflight_only: "true" },
+    { dry_run: "true" }
+  ]) {
+    const authResolutionCalls = [];
+    let tokenMintCalls = 0;
+    const deps = {
+      ...makeDeps(),
+      normalizeAuthContract(args = {}) {
+        authResolutionCalls.push(args.resolve_credentials);
+        return {
+          mode: "none",
+          materialized: args.resolve_credentials !== false
+        };
+      },
+      async mintGoogleAccessTokenForEndpoint() {
+        tokenMintCalls += 1;
+        return "token";
+      }
+    };
+
+    await prepareExecutionRequest(
+      {
+        ...baseInput,
+        requestPayload: {
+          ...baseInput.requestPayload,
+          ...passiveFlags
+        }
+      },
+      deps
+    );
+
+    assert.deepEqual(
+      authResolutionCalls,
+      [false],
+      `passive request ${JSON.stringify(passiveFlags)} must not materialize credentials`
+    );
+    assert.equal(tokenMintCalls, 0);
+  }
+}
+
 console.log("execution preparation path resolver tests passed");
