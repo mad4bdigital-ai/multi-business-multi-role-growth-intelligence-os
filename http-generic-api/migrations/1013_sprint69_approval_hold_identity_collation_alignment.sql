@@ -92,72 +92,85 @@ EXECUTE approval_hold_orphan_stmt;
 DEALLOCATE PREPARE approval_hold_orphan_stmt;
 DROP TEMPORARY TABLE tmp_approval_hold_identity_orphans;
 
--- Align only the four mismatched varchar(36) identity columns. Each ALTER is
--- selected only when information_schema proves the exact target contract is not
--- already present, making the migration safe to retry without weakening preflight.
-SET @align_local_gateway_approval_hold_sql := IF(
-  (SELECT COUNT(*) FROM information_schema.columns
-    WHERE table_schema = DATABASE()
-      AND table_name = 'local_gateway_tool_call_log'
-      AND column_name = 'approval_hold_id'
-      AND column_type = 'varchar(36)'
-      AND character_set_name = 'utf8mb4'
-      AND collation_name = 'utf8mb4_unicode_ci'
-      AND is_nullable = 'YES') = 1,
-  'SELECT 1 AS local_gateway_approval_hold_already_aligned',
-  'ALTER TABLE local_gateway_tool_call_log MODIFY approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL'
+-- Align only the four mismatched varchar(36) identity columns. Other table defaults
+-- and differently-sized identity contracts remain unchanged.
+-- Each ALTER is selected through information_schema so an already-aligned rerun
+-- becomes a read-only SELECT.
+SET @align_local_gateway_approval_hold_sql := (
+  SELECT CASE
+    WHEN COUNT(*) = 1
+     AND MAX(character_set_name = 'utf8mb4') = 1
+     AND MAX(collation_name = 'utf8mb4_unicode_ci') = 1
+     AND MAX(column_type = 'varchar(36)') = 1
+     AND MAX(is_nullable = 'YES') = 1
+    THEN 'SELECT 1 AS local_gateway_tool_call_log_approval_hold_id_already_aligned'
+    ELSE 'ALTER TABLE local_gateway_tool_call_log MODIFY approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL'
+  END
+  FROM information_schema.columns
+  WHERE table_schema = DATABASE()
+    AND table_name = 'local_gateway_tool_call_log'
+    AND column_name = 'approval_hold_id'
 );
 PREPARE align_local_gateway_approval_hold_stmt FROM @align_local_gateway_approval_hold_sql;
 EXECUTE align_local_gateway_approval_hold_stmt;
 DEALLOCATE PREPARE align_local_gateway_approval_hold_stmt;
 
-SET @align_repository_advisory_approval_hold_sql := IF(
-  (SELECT COUNT(*) FROM information_schema.columns
-    WHERE table_schema = DATABASE()
-      AND table_name = 'repository_advisory_comment_plans'
-      AND column_name = 'approval_hold_id'
-      AND column_type = 'varchar(36)'
-      AND character_set_name = 'utf8mb4'
-      AND collation_name = 'utf8mb4_unicode_ci'
-      AND is_nullable = 'YES') = 1,
-  'SELECT 1 AS repository_advisory_approval_hold_already_aligned',
-  'ALTER TABLE repository_advisory_comment_plans MODIFY approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL'
+SET @align_repository_advisory_approval_hold_sql := (
+  SELECT CASE
+    WHEN COUNT(*) = 1
+     AND MAX(character_set_name = 'utf8mb4') = 1
+     AND MAX(collation_name = 'utf8mb4_unicode_ci') = 1
+     AND MAX(column_type = 'varchar(36)') = 1
+     AND MAX(is_nullable = 'YES') = 1
+    THEN 'SELECT 1 AS repository_advisory_comment_plans_approval_hold_id_already_aligned'
+    ELSE 'ALTER TABLE repository_advisory_comment_plans MODIFY approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL'
+  END
+  FROM information_schema.columns
+  WHERE table_schema = DATABASE()
+    AND table_name = 'repository_advisory_comment_plans'
+    AND column_name = 'approval_hold_id'
 );
 PREPARE align_repository_advisory_approval_hold_stmt FROM @align_repository_advisory_approval_hold_sql;
 EXECUTE align_repository_advisory_approval_hold_stmt;
 DEALLOCATE PREPARE align_repository_advisory_approval_hold_stmt;
 
-SET @align_ticket_workflow_approval_hold_sql := IF(
-  (SELECT COUNT(*) FROM information_schema.columns
-    WHERE table_schema = DATABASE()
-      AND table_name = 'ticket_workflow_links'
-      AND column_name = 'approval_hold_id'
-      AND column_type = 'varchar(36)'
-      AND character_set_name = 'utf8mb4'
-      AND collation_name = 'utf8mb4_unicode_ci'
-      AND is_nullable = 'YES') = 1,
-  'SELECT 1 AS ticket_workflow_approval_hold_already_aligned',
-  'ALTER TABLE ticket_workflow_links MODIFY approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL'
+SET @align_ticket_workflow_approval_hold_sql := (
+  SELECT CASE
+    WHEN COUNT(*) = 1
+     AND MAX(character_set_name = 'utf8mb4') = 1
+     AND MAX(collation_name = 'utf8mb4_unicode_ci') = 1
+     AND MAX(column_type = 'varchar(36)') = 1
+     AND MAX(is_nullable = 'YES') = 1
+    THEN 'SELECT 1 AS ticket_workflow_links_approval_hold_id_already_aligned'
+    ELSE 'ALTER TABLE ticket_workflow_links MODIFY approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL'
+  END
+  FROM information_schema.columns
+  WHERE table_schema = DATABASE()
+    AND table_name = 'ticket_workflow_links'
+    AND column_name = 'approval_hold_id'
 );
 PREPARE align_ticket_workflow_approval_hold_stmt FROM @align_ticket_workflow_approval_hold_sql;
 EXECUTE align_ticket_workflow_approval_hold_stmt;
 DEALLOCATE PREPARE align_ticket_workflow_approval_hold_stmt;
 
-SET @align_approval_holds_parent_sql := IF(
-  (SELECT COUNT(*) FROM information_schema.columns
-    WHERE table_schema = DATABASE()
-      AND table_name = 'approval_holds'
-      AND column_name = 'hold_id'
-      AND column_type = 'varchar(36)'
-      AND character_set_name = 'utf8mb4'
-      AND collation_name = 'utf8mb4_unicode_ci'
-      AND is_nullable = 'NO') = 1,
-  'SELECT 1 AS approval_holds_parent_already_aligned',
-  'ALTER TABLE approval_holds MODIFY hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL'
+SET @align_approval_holds_hold_id_sql := (
+  SELECT CASE
+    WHEN COUNT(*) = 1
+     AND MAX(character_set_name = 'utf8mb4') = 1
+     AND MAX(collation_name = 'utf8mb4_unicode_ci') = 1
+     AND MAX(column_type = 'varchar(36)') = 1
+     AND MAX(is_nullable = 'NO') = 1
+    THEN 'SELECT 1 AS approval_holds_hold_id_already_aligned'
+    ELSE 'ALTER TABLE approval_holds MODIFY hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL'
+  END
+  FROM information_schema.columns
+  WHERE table_schema = DATABASE()
+    AND table_name = 'approval_holds'
+    AND column_name = 'hold_id'
 );
-PREPARE align_approval_holds_parent_stmt FROM @align_approval_holds_parent_sql;
-EXECUTE align_approval_holds_parent_stmt;
-DEALLOCATE PREPARE align_approval_holds_parent_stmt;
+PREPARE align_approval_holds_hold_id_stmt FROM @align_approval_holds_hold_id_sql;
+EXECUTE align_approval_holds_hold_id_stmt;
+DEALLOCATE PREPARE align_approval_holds_hold_id_stmt;
 
 CREATE OR REPLACE VIEW v_approval_hold_identity_collation_readiness AS
 SELECT
