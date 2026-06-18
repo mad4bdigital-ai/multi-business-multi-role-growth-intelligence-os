@@ -9383,7 +9383,7 @@ paths:
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: repairLocalConnector
       x-openai-isConsequential: false
-      summary: Self-repair the admin local connector
+      summary: Diagnose local connector health and return a secure installer handoff
       x-runtime-governance:
         local_connector_tunnel_provisioning_continuation:
           policy: local_connector_tunnel_provisioning_continuation_contract
