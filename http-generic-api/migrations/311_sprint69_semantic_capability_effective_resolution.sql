@@ -324,7 +324,8 @@ LEFT JOIN `user_app_connections` uac
   ON uac.`connection_id` = wal.`connection_id`
  AND uac.`tenant_id` = w.`tenant_id`
 LEFT JOIN `app_action_grants` aag
-  ON aag.`workspace_id` = w.`workspace_id`
+  ON CONVERT(aag.`workspace_id` USING utf8mb4) COLLATE utf8mb4_unicode_ci
+   = CONVERT(w.`workspace_id` USING utf8mb4) COLLATE utf8mb4_unicode_ci
  AND aag.`connection_id` = uac.`connection_id`
  AND aag.`app_key` = b.`app_key`
  AND aag.`action_key` = b.`parent_action_key`
