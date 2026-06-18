@@ -848,15 +848,16 @@ async function buildSystemToolsListResponse(auth, query = {}) {
   };
 }
 
-function chunkSystemLayerResponse(body, source = {}) {
+async function chunkSystemLayerResponse(body, source = {}) {
   const responseOptions = source?.response_options && typeof source.response_options === "object" ? source.response_options : {};
-  return maybeChunkToolResponseBody(body, {
+  return await maybeChunkToolResponseBody(body, {
     response_options: {
       max_chars: Number(responseOptions.max_chars || source?.max_chars || 30000),
       cursor: Number(responseOptions.cursor || source?.cursor || 0),
       chunk_ttl_ms: Number(responseOptions.chunk_ttl_ms || source?.chunk_ttl_ms || 0) || undefined,
       chunk_ttl_minutes: Number(responseOptions.chunk_ttl_minutes || source?.chunk_ttl_minutes || 0) || undefined,
     },
+    source_tool_key: source?.source_tool_key || "system_layer_response",
   });
 }
 
