@@ -208,6 +208,7 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "256_sprint68_dynamic_audit_pipeline_readiness.sql",
   "314_sprint69_dynamic_audit_runtime_closure.sql",
   "316_sprint69_database_lifecycle_registry_upsert_admin_tool.sql",
+  "318_sprint69_database_lifecycle_daily_snapshot_runtime.sql",
   "233_sprint68_general_mode_choice_governance.sql",
   "244_sprint68_cms_grant_dedupe_and_null_guard.sql",
   "240_sprint68_live_checkout_cleanup_tool.sql",
