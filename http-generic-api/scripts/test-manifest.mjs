@@ -16,6 +16,7 @@ export const testCommands = [
   "node test-agent-delegation-opt-in.mjs",
   "node test-optional-manual-agent-delegation-tools.mjs",
   "node test-dynamic-capability-resolution-graph.mjs",
+  "node test-semantic-capability-effective-resolution.mjs",
   "node test-dynamic-capability-simulation-suite.mjs",
   "node test-tool-bus-collision-audit-and-preview.mjs",
   "node test-dr-certification-and-toolbus-gated.mjs",
@@ -327,7 +328,8 @@ export const testCommands = [
   "node test-activation-positive-surface-fixtures.mjs",
   "node test-activation-hard-evidence.mjs",
   "node test-tenant-growth-dashboard.mjs",
-  "node test-activation-awareness-completeness.mjs", "node test-operational-alerting-control-plane.mjs",
+  "node test-activation-awareness-completeness.mjs",
+  "node test-operational-alerting-control-plane.mjs",
   "node test-session-archive-service.mjs",
   "node test-gpt-session-archive-monitoring.mjs",
   "node test-gpt-session-conversation-ref.mjs",
@@ -476,5 +478,8 @@ export const testCommands = [
   "node test-platform-routes.mjs",
   "node test-test-manifest-runner.mjs",
   "node test-platform-engine-validator-runner.mjs",
-  "node test-growth-intelligence-admin-decisions.mjs"
+  "node test-growth-intelligence-admin-decisions.mjs",
+  "node test-growth-intelligence-action-collation.mjs",
+  "node test-approval-hold-identity-collation-alignment.mjs",
+  "node test-approval-hold-identity-release-readiness.mjs"
 ];

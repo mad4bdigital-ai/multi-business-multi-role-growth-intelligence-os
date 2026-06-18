@@ -1,17 +1,17 @@
 {
   "ok": true,
   "schema_version": "surface-contract-gap-queue-v1",
-  "total_items": 7,
+  "total_items": 2,
   "class_counts": {
-    "critical_review": 2,
-    "high_review": 4,
-    "medium_review": 1,
-    "low_review": 0
+    "critical_review": 1,
+    "high_review": 0,
+    "medium_review": 0,
+    "low_review": 1
   },
   "top_items": [
     {
-      "migration_file": "1011_sprint69_governed_repository_engine_v6.sql",
-      "score": 1171,
+      "migration_file": "1013_sprint69_operational_alerting_control_plane.sql",
+      "score": 837,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -24,18 +24,16 @@
       ],
       "missing_openapi_routes": [],
       "safety_marker_gaps": [
-        "no_provider_call",
         "no_credential_payload_read",
         "no_raw_secrets",
-        "no_external_send",
         "no_external_write"
       ],
       "surface_counts": {
         "plugins": 0,
-        "tools": 23,
-        "views": 0,
-        "policies": 2,
-        "routes": 1
+        "tools": 8,
+        "views": 4,
+        "policies": 0,
+        "routes": 4
       },
       "remediation": [
         {
@@ -54,174 +52,14 @@
           "action_key": "verify_tool_registry_binding",
           "owner_hint": "runtime-registry-review",
           "targets": [
-            "action_specific_apply_gated",
-            "admin_only_tools",
-            "app_integration_tool_bindings",
-            "bind_tool_github_tenant_repository_mutation_apply_v6",
-            "expected_readback_json",
-            "github_pull_request",
-            "negative_gate_and_readback",
-            "negative_gate_passed_positive_apply_pending",
-            "policy_gate",
-            "required_gates_json",
-            "requires_dispatch_allowed",
-            "requires_readback",
-            "requires_ready_for_dispatch",
-            "requires_same_cycle_readback",
-            "runtime_dispatch_certification_registry",
-            "same_cycle_readback",
-            "system_layer_tool_descriptor_source_registry",
-            "tenant_exported_tools",
-            "tenant_platform_endpoint_tools",
-            "tenant_platform_tool",
-            "tenant_repository_governance_v6_readiness_smoke",
-            "tenant_repository_mutation_readback_v6",
-            "unknown_provider_outcome_requires_readback"
-          ],
-          "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
-        },
-        {
-          "action_key": "verify_policy_seed_readiness",
-          "owner_hint": "runtime-policy-review",
-          "targets": [
-            "governed_repository_engine_v6_policy_v1",
-            "governed_repository_mutation_plan_v6_policy_v1"
-          ],
-          "reason": "Policy surfaces need active/blocking/valid-JSON readiness evidence."
-        },
-        {
-          "action_key": "add_explicit_safety_markers",
-          "owner_hint": "safety-contract-review",
-          "targets": [
-            "no_provider_call",
-            "no_credential_payload_read",
-            "no_raw_secrets",
-            "no_external_send",
-            "no_external_write"
-          ],
-          "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
-        }
-      ],
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "315_sprint69_capability_vault_record_tool_export.sql",
-      "score": 831,
-      "queue_class": "critical_review",
-      "gap_severity": "high",
-      "documentation_complete": false,
-      "missing_docs": [
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [],
-      "surface_counts": {
-        "plugins": 0,
-        "tools": 11,
-        "views": 0,
-        "policies": 0,
-        "routes": 1
-      },
-      "remediation": [
-        {
-          "action_key": "document_surface_contract",
-          "owner_hint": "docs-agent/human-review",
-          "targets": [
-            "docs/auto-docs-agent/README.md",
-            "docs/change-documentation-governance.md"
-          ],
-          "reason": "Migration surfaces are not mentioned in all required documentation targets."
-        },
-        {
-          "action_key": "verify_tool_registry_binding",
-          "owner_hint": "runtime-registry-review",
-          "targets": [
-            "admin_platform_endpoint_tool",
-            "capability_vault_record_only_same_cycle_v1",
-            "capability_vault_record_only_transaction_rollback_v1",
-            "capability_vault_repo_ingestion_record",
-            "confirm_record_only",
-            "confirm_record_only_required",
-            "grants_dispatch_or_apply",
-            "platform_capability_vault_record_only",
-            "platform_capability_vault_repo_ingestion_record",
-            "ptdb_capability_vault_repo_ingestion_record",
-            "same_cycle_readback"
-          ],
-          "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
-        }
-      ],
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "20260615_tenant_growth_dashboard_product.sql",
-      "score": 662,
-      "queue_class": "high_review",
-      "gap_severity": "medium",
-      "documentation_complete": false,
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write",
-        "secrets_included_false"
-      ],
-      "surface_counts": {
-        "plugins": 0,
-        "tools": 6,
-        "views": 3,
-        "policies": 0,
-        "routes": 0
-      },
-      "remediation": [
-        {
-          "action_key": "document_surface_contract",
-          "owner_hint": "docs-agent/human-review",
-          "targets": [
-            "Updating Registry Patch Index.md",
-            "deployment_parity_checklist.md",
-            "docs/ai-docs-agent-governance.md",
-            "docs/auto-docs-agent/README.md",
-            "docs/change-documentation-governance.md"
-          ],
-          "reason": "Migration surfaces are not mentioned in all required documentation targets."
-        },
-        {
-          "action_key": "verify_tool_registry_binding",
-          "owner_hint": "runtime-registry-review",
-          "targets": [
-            "agent_readiness_interpretation",
-            "brand_readiness",
-            "data_readiness",
-            "growth_readiness_interpretation",
-            "integration_readiness_interpretation",
-            "skill_readiness_interpretation"
+            "alert_readiness",
+            "capability_envelope_lifecycle_tool_gap",
+            "deployment_response_and_readback",
+            "git_readback",
+            "policy_envelope_readback",
+            "pr_checks_manual_dispatch",
+            "runtime_readback",
+            "safety_gate_worked"
           ],
           "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
         },
@@ -231,7 +69,8 @@
           "targets": [
             "v_activation_agent_catalog",
             "v_activation_agent_skill_grants",
-            "v_activation_pending_tasks"
+            "v_activation_pending_tasks",
+            "v_operational_alerts_open"
           ],
           "reason": "Readback views should have parity/readiness documentation and smoke evidence."
         },
@@ -239,85 +78,8 @@
           "action_key": "add_explicit_safety_markers",
           "owner_hint": "safety-contract-review",
           "targets": [
-            "no_provider_call",
             "no_credential_payload_read",
             "no_raw_secrets",
-            "no_external_send",
-            "no_external_write",
-            "secrets_included_false"
-          ],
-          "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
-        }
-      ],
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "316_sprint69_safe_branch_cleanup_support.sql",
-      "score": 607,
-      "queue_class": "high_review",
-      "gap_severity": "medium",
-      "documentation_complete": false,
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write"
-      ],
-      "surface_counts": {
-        "plugins": 0,
-        "tools": 3,
-        "views": 0,
-        "policies": 0,
-        "routes": 0
-      },
-      "remediation": [
-        {
-          "action_key": "document_surface_contract",
-          "owner_hint": "docs-agent/human-review",
-          "targets": [
-            "Updating Registry Patch Index.md",
-            "deployment_parity_checklist.md",
-            "docs/ai-docs-agent-governance.md",
-            "docs/auto-docs-agent/README.md",
-            "docs/change-documentation-governance.md"
-          ],
-          "reason": "Migration surfaces are not mentioned in all required documentation targets."
-        },
-        {
-          "action_key": "verify_tool_registry_binding",
-          "owner_hint": "runtime-registry-review",
-          "targets": [
-            "actual_default_branch_expected_sha_open_pr_no_unique_commits_predelete_sha_absence_readback",
-            "requires_predelete_sha_readback",
-            "requires_same_cycle_absence_readback"
-          ],
-          "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
-        },
-        {
-          "action_key": "add_explicit_safety_markers",
-          "owner_hint": "safety-contract-review",
-          "targets": [
-            "no_provider_call",
-            "no_credential_payload_read",
-            "no_raw_secrets",
-            "no_external_send",
             "no_external_write"
           ],
           "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
@@ -334,104 +96,14 @@
       }
     },
     {
-      "migration_file": "314_sprint69_capability_assurance_graph.sql",
-      "score": 540,
-      "queue_class": "high_review",
+      "migration_file": "1013_sprint69_approval_hold_identity_collation_alignment.sql",
+      "score": 177,
+      "queue_class": "low_review",
       "gap_severity": "none",
       "documentation_complete": true,
       "missing_docs": [],
       "missing_openapi_routes": [],
       "safety_marker_gaps": [
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write"
-      ],
-      "surface_counts": {
-        "plugins": 0,
-        "tools": 10,
-        "views": 8,
-        "policies": 1,
-        "routes": 1
-      },
-      "remediation": [
-        {
-          "action_key": "verify_tool_registry_binding",
-          "owner_hint": "runtime-registry-review",
-          "targets": [
-            "admin_platform_endpoint_tools",
-            "blocks_dispatch",
-            "capability_envelope_decision",
-            "idx_ppc_dispatch_apply",
-            "ready_for_dispatch",
-            "requires_readback",
-            "runtime_dispatch",
-            "runtime_dispatch_certification_registry",
-            "tenant_platform_endpoint_tools",
-            "v_platform_capability_readiness_vector"
-          ],
-          "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
-        },
-        {
-          "action_key": "verify_policy_seed_readiness",
-          "owner_hint": "runtime-policy-review",
-          "targets": [
-            "platform_secret_promotion_policy_v1"
-          ],
-          "reason": "Policy surfaces need active/blocking/valid-JSON readiness evidence."
-        },
-        {
-          "action_key": "verify_readback_view",
-          "owner_hint": "db-readback-review",
-          "targets": [
-            "v_effective_platform_resource_authority_bindings",
-            "v_platform_bindings_current",
-            "v_platform_capabilities_current",
-            "v_platform_capability_assurance_gaps",
-            "v_platform_capability_assurance_summary",
-            "v_platform_capability_readiness_vector",
-            "v_platform_exports_current",
-            "v_platform_secret_promotion_monitoring"
-          ],
-          "reason": "Readback views should have parity/readiness documentation and smoke evidence."
-        },
-        {
-          "action_key": "add_explicit_safety_markers",
-          "owner_hint": "safety-contract-review",
-          "targets": [
-            "no_credential_payload_read",
-            "no_raw_secrets",
-            "no_external_send",
-            "no_external_write"
-          ],
-          "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
-        }
-      ],
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "1012_sprint69_sql_only_runtime_auth_schema.sql",
-      "score": 515,
-      "queue_class": "high_review",
-      "gap_severity": "medium",
-      "documentation_complete": false,
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [
         "no_provider_call",
         "no_credential_payload_read",
         "no_raw_secrets",
@@ -440,106 +112,43 @@
       ],
       "surface_counts": {
         "plugins": 0,
-        "tools": 1,
-        "views": 2,
-        "policies": 0,
-        "routes": 0
-      },
-      "remediation": [
-        {
-          "action_key": "document_surface_contract",
-          "owner_hint": "docs-agent/human-review",
-          "targets": [
-            "Updating Registry Patch Index.md",
-            "deployment_parity_checklist.md",
-            "docs/ai-docs-agent-governance.md",
-            "docs/auto-docs-agent/README.md",
-            "docs/change-documentation-governance.md"
-          ],
-          "reason": "Migration surfaces are not mentioned in all required documentation targets."
-        },
-        {
-          "action_key": "verify_tool_registry_binding",
-          "owner_hint": "runtime-registry-review",
-          "targets": [
-            "v_sql_only_runtime_contract_readiness"
-          ],
-          "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
-        },
-        {
-          "action_key": "verify_readback_view",
-          "owner_hint": "db-readback-review",
-          "targets": [
-            "v_sql_only_runtime_contract_readiness",
-            "v_var_name"
-          ],
-          "reason": "Readback views should have parity/readiness documentation and smoke evidence."
-        },
-        {
-          "action_key": "add_explicit_safety_markers",
-          "owner_hint": "safety-contract-review",
-          "targets": [
-            "no_provider_call",
-            "no_credential_payload_read",
-            "no_raw_secrets",
-            "no_external_send",
-            "no_external_write"
-          ],
-          "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
-        }
-      ],
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "317_sprint69_superseded_orphan_branch_cleanup.sql",
-      "score": 354,
-      "queue_class": "medium_review",
-      "gap_severity": "low",
-      "documentation_complete": false,
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [],
-      "surface_counts": {
-        "plugins": 0,
-        "tools": 0,
+        "tools": 5,
         "views": 1,
         "policies": 0,
         "routes": 0
       },
       "remediation": [
         {
-          "action_key": "document_surface_contract",
-          "owner_hint": "docs-agent/human-review",
+          "action_key": "verify_tool_registry_binding",
+          "owner_hint": "runtime-registry-review",
           "targets": [
-            "Updating Registry Patch Index.md",
-            "deployment_parity_checklist.md",
-            "docs/ai-docs-agent-governance.md",
-            "docs/auto-docs-agent/README.md",
-            "docs/change-documentation-governance.md"
+            "ads_provider_profile_onboarding_requests",
+            "execution_enablement_requests",
+            "local_gateway_tool_call_log",
+            "tenant_ssh_cli_approval_requests",
+            "v_approval_hold_identity_collation_readiness"
           ],
-          "reason": "Migration surfaces are not mentioned in all required documentation targets."
+          "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
         },
         {
           "action_key": "verify_readback_view",
           "owner_hint": "db-readback-review",
           "targets": [
-            "v_superseded_branch_cleanup_policy_readback"
+            "v_approval_hold_identity_collation_readiness"
           ],
           "reason": "Readback views should have parity/readiness documentation and smoke evidence."
+        },
+        {
+          "action_key": "add_explicit_safety_markers",
+          "owner_hint": "safety-contract-review",
+          "targets": [
+            "no_provider_call",
+            "no_credential_payload_read",
+            "no_raw_secrets",
+            "no_external_send",
+            "no_external_write"
+          ],
+          "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
         }
       ],
       "safety": {

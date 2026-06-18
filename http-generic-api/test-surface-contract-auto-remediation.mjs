@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   buildAttestation,
+  convergeGeneratedState,
   isAutoEligible,
   renderGeneratedBlock,
   upsertGeneratedBlock,
@@ -50,6 +51,51 @@ assert.deepEqual(
   ["verify_readback_view", "verify_tool_registry_binding"],
   "runtime reviews should remain explicit evidence requirements",
 );
+
+const descriptiveGrantSql = `
+INSERT INTO example_registry (description)
+VALUES ('This binding does not grant provider-write authority by itself.')
+ON DUPLICATE KEY UPDATE description = VALUES(description);
+`;
+const descriptiveGrant = buildAttestation({ item: safeItem, source: descriptiveGrantSql });
+assert.equal(descriptiveGrant.eligible, true, "descriptive grant text followed by ON DUPLICATE must not be treated as a GRANT statement");
+
+const descriptiveExecuteSql = `
+-- This route cannot execute or install source assets.
+INSERT INTO example_registry (description)
+VALUES ('No source execution or external send.')
+ON DUPLICATE KEY UPDATE description = VALUES(description);
+`;
+const descriptiveExecute = buildAttestation({ item: safeItem, source: descriptiveExecuteSql });
+assert.equal(descriptiveExecute.eligible, true, "descriptive execute text must not be treated as an EXECUTE statement");
+
+const actualGrant = buildAttestation({ item: safeItem, source: "GRANT SELECT ON example.* TO 'reader'@'%';" });
+assert.equal(actualGrant.eligible, false, "actual GRANT statements must remain manual review only");
+assert(actualGrant.reasons.includes("forbidden_sql_pattern_detected"));
+
+const actualExecute = buildAttestation({ item: safeItem, source: "EXECUTE prepared_statement;" });
+assert.equal(actualExecute.eligible, false, "actual EXECUTE statements must remain manual review only");
+assert(actualExecute.reasons.includes("forbidden_sql_pattern_detected"));
+
+const convergenceStates = [
+  { id: "first", added: ["first.sql"], attestations: [{ migration_file: "first.sql" }], manual: [] },
+  { id: "second", added: ["second.sql"], attestations: [{ migration_file: "first.sql" }, { migration_file: "second.sql" }], manual: [] },
+  { id: "final", added: [], attestations: [{ migration_file: "first.sql" }, { migration_file: "second.sql" }], manual: [] },
+];
+let convergenceBuildCount = 0;
+const convergenceWrites = [];
+const convergence = convergeGeneratedState({
+  maxPasses: 4,
+  build: () => convergenceStates[Math.min(convergenceBuildCount++, convergenceStates.length - 1)],
+  writeState: (state) => convergenceWrites.push(state.id),
+  runDiscovery: () => {},
+  runTriage: () => {},
+  diffState: (state) => state.id === "final" ? [] : ["pending"],
+});
+assert.equal(convergence.converged, true, "generated state should converge within the bounded pass limit");
+assert.equal(convergence.passes.length, 2, "two-stage generated queues should settle in two write passes");
+assert.deepEqual(convergenceWrites, ["first", "second"]);
+assert.deepEqual(convergence.added, ["first.sql", "second.sql"]);
 
 const destructive = buildAttestation({ item: safeItem, source: "DELETE FROM execution_policies;" });
 assert.equal(destructive.eligible, false, "destructive SQL must never be auto attested");

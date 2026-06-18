@@ -33,8 +33,10 @@ import {
   planGovernedResource,
   resolveGovernedResource,
   runGovernedResource,
+  executeRepositoryPrReconciliationReadOnlyForAdminReadiness,
 } from "../platformResourceRecipeCapability.js";
 import {
+  REPOSITORY_PR_RECONCILE_RECIPE_KEY,
   TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
   createRepositoryAuthorityBinding,
   listRepositoryAuthorityBindings,
@@ -64,6 +66,12 @@ import {
   tenantRepositoryMutationReadbackV6,
 } from "../repositoryGovernanceV6.js";
 import * as RepositoryGovernanceV6Runtime from "../repositoryGovernanceV6.js";
+import {
+  TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
+  tenantEffectiveCapabilityPreview,
+  tenantEffectiveCapabilityReadinessSmoke,
+  tenantCapabilityShadowCompare,
+} from "../tenantEffectiveCapabilityResolver.js";
 import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
 
 const SYSTEM_LAYER_TOOLS = [
@@ -178,6 +186,7 @@ const SYSTEM_LAYER_TOOLS = [
   // be added to SYSTEM_LAYER_DESCRIPTOR_SOURCES below; list + dispatch wiring remains automatic.
   ...TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
   ...TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
+  ...TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
   {
     name: "system_layer_descriptor_readiness",
     description: "Admin-only read-only diagnostic for descriptor-backed system-layer tool sources. Verifies every descriptor has a runtime handler and no secrets are included.",
@@ -420,6 +429,17 @@ const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
     readiness_tool: "tenant_repository_governance_v6_readiness_smoke",
     readiness_args: { limit: 1 },
   },
+  {
+    source_key: "tenant_effective_capability_resolver_v1",
+    tools: TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
+    handlers: {
+      tenantEffectiveCapabilityPreview,
+      tenantEffectiveCapabilityReadinessSmoke,
+      tenantCapabilityShadowCompare,
+    },
+    readiness_tool: "tenant_effective_capability_readiness_smoke",
+    readiness_args: {},
+  },
 ];
 
 function snakeToolNameToCamelHandlerName(name = "") {
@@ -458,6 +478,23 @@ function descriptorHandlerRegistry() {
 
 const SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY = descriptorHandlerRegistry();
 
+async function runRepositoryGovernanceV6ReadinessResource(args = {}) {
+  const recipeKey = String(args.recipe_key || "").trim();
+  const mode = String(args.mode || "").trim();
+  if (recipeKey !== REPOSITORY_PR_RECONCILE_RECIPE_KEY || mode !== "read_only") {
+    const err = new Error("Repository Governance V6 readiness only permits the read-only PR reconciliation recipe.");
+    err.status = 403;
+    err.code = "repository_governance_v6_readiness_scope_blocked";
+    throw err;
+  }
+  return runGovernedResource(args, {
+    executeGithubReadOnly: (operationKey, githubArgs = {}) =>
+      executeRepositoryPrReconciliationReadOnlyForAdminReadiness(operationKey, githubArgs, {
+        adminAuthorized: true,
+      }),
+  });
+}
+
 async function callDescriptorSystemToolIfAvailable(name, args = {}, auth = null, deps = {}) {
   const entry = SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.get(name);
   if (!entry) return { handled: false };
@@ -478,9 +515,14 @@ async function callDescriptorSystemToolIfAvailable(name, args = {}, auth = null,
     }
     return child.result;
   };
+  const readinessRunGovernedResource =
+    name === "tenant_repository_governance_v6_readiness_smoke" && isAdminPrincipal(auth)
+      ? runRepositoryGovernanceV6ReadinessResource
+      : null;
   const result = await entry.handler(args, {
     auth,
     runGovernedResource,
+    readinessRunGovernedResource,
     req: deps.req,
     executionFacade: deps.executionFacade,
     dispatchSystemTool,

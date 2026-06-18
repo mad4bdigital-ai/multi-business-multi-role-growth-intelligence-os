@@ -147,7 +147,8 @@ for (const row of ownershipPlan.upsert_rows) {
     expectedOwnerEngineByTable.get(row.table_name),
     `unexpected lifecycle owner for ${row.table_name}`,
   );
-}assert(ownershipPlan.upsert_rows.every(({ usage_status }) => usage_status !== "runtime_unclassified"));
+}
+assert(ownershipPlan.upsert_rows.every(({ usage_status }) => usage_status !== "runtime_unclassified"));
 assert(
   !ownershipPlan.buckets.unlinked.includes("database_lifecycle_report_snapshots"),
   "explicit database lifecycle family ownership must not be reported as unlinked",

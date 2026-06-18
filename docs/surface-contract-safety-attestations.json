@@ -2,11 +2,11 @@
   "ok": true,
   "schema_version": "surface-contract-safety-attestations-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
-  "item_count": 7,
+  "item_count": 15,
   "items": [
     {
       "migration_file": "1003_sprint68_supervisor_chain_runtime_guards.sql",
-      "migration_sha256": "28c43240dc2fd79c97a01839be797e25a1edba0acd1343d5e9ae2263bd766a38",
+      "migration_sha256": "45a76d8242bcb32cdc278d7f2514cdca8e3970471606c751c6a9f44736dd2b2d",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_static_contract",
       "queue_class_at_attestation": "high_review",
@@ -48,15 +48,193 @@
       }
     },
     {
-      "migration_file": "308_sprint69_activation_guidance_intelligence.sql",
-      "migration_sha256": "1d0470a31953553094d220c08e5944af7af7b74d379757885d1cd0be108b92d0",
+      "migration_file": "1011_sprint69_governed_repository_engine_v6.sql",
+      "migration_sha256": "8fe33021bbfe938e765ebcbea1e4ae309b62a2a20e31300c1fd1ded81a11d347",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_static_contract",
       "queue_class_at_attestation": "critical_review",
       "gap_severity_at_attestation": "high",
       "preflight_status": "pass",
       "preflight_risk_count": 0,
-      "statement_count": 4,
+      "statement_count": 10,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 23,
+        "views": 0,
+        "policies": 2,
+        "routes": 1
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_policy_seed_readiness",
+          "targets": [
+            "governed_repository_engine_v6_policy_v1",
+            "governed_repository_mutation_plan_v6_policy_v1"
+          ]
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "action_specific_apply_gated",
+            "admin_only_tools",
+            "app_integration_tool_bindings",
+            "bind_tool_github_tenant_repository_mutation_apply_v6",
+            "expected_readback_json",
+            "github_pull_request",
+            "negative_gate_and_readback",
+            "negative_gate_passed_positive_apply_pending",
+            "policy_gate",
+            "required_gates_json",
+            "requires_dispatch_allowed",
+            "requires_readback",
+            "requires_ready_for_dispatch",
+            "requires_same_cycle_readback",
+            "runtime_dispatch_certification_registry",
+            "same_cycle_readback",
+            "system_layer_tool_descriptor_source_registry",
+            "tenant_exported_tools",
+            "tenant_platform_endpoint_tools",
+            "tenant_platform_tool",
+            "tenant_repository_governance_v6_readiness_smoke",
+            "tenant_repository_mutation_readback_v6",
+            "unknown_provider_outcome_requires_readback"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "1012_sprint69_sql_only_runtime_auth_schema.sql",
+      "migration_sha256": "4b416fd2645cd3ae9afc9a9e49c493f25692a86dbfc6a6a5998ce8827288dc94",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "high_review",
+      "gap_severity_at_attestation": "medium",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 13,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 1,
+        "views": 2,
+        "policies": 0,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_readback_view",
+          "targets": [
+            "v_sql_only_runtime_contract_readiness",
+            "v_var_name"
+          ]
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "v_sql_only_runtime_contract_readiness"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "20260615_tenant_growth_dashboard_product.sql",
+      "migration_sha256": "c4a2a2d19c1d0cb1270597df810b03bce6f30e5800df782b627b25b2a5edba59",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "high_review",
+      "gap_severity_at_attestation": "medium",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 13,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 6,
+        "views": 3,
+        "policies": 0,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_readback_view",
+          "targets": [
+            "v_activation_agent_catalog",
+            "v_activation_agent_skill_grants",
+            "v_activation_pending_tasks"
+          ]
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "agent_readiness_interpretation",
+            "brand_readiness",
+            "data_readiness",
+            "growth_readiness_interpretation",
+            "integration_readiness_interpretation",
+            "skill_readiness_interpretation"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "308_sprint69_activation_guidance_intelligence.sql",
+      "migration_sha256": "dde33c80a6a38b9968c76f30b12e6091b5ac794c707080c8f57d78c589df5077",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "high_review",
+      "gap_severity_at_attestation": "high",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 5,
       "surface_counts": {
         "plugins": 0,
         "tools": 0,
@@ -85,14 +263,14 @@
     },
     {
       "migration_file": "308_sprint69_dynamic_governed_migration_reconciliation.sql",
-      "migration_sha256": "e1799dc231eb8c68370992ebb037f4ffe0bd7daf94585fc49c5c7e5dcdaa62bd",
+      "migration_sha256": "0635ebaa25216ae9e2da27b4ba08da697f14e36a73e289d3e7985878f8022fb4",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_static_contract",
       "queue_class_at_attestation": "high_review",
       "gap_severity_at_attestation": "medium",
       "preflight_status": "pass",
       "preflight_risk_count": 0,
-      "statement_count": 6,
+      "statement_count": 7,
       "surface_counts": {
         "plugins": 0,
         "tools": 5,
@@ -132,14 +310,14 @@
     },
     {
       "migration_file": "309_sprint69_activation_guidance_invocation_registry.sql",
-      "migration_sha256": "a45fa6295d9e97e44747e768df8c4cdb13bdefb007e46ece3fc3a86b083feacc",
+      "migration_sha256": "1d74f06f2c6003a4a4ca78bbbe1972a2cb47ddcddeace35df847a8c4442ec28a",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_static_contract",
       "queue_class_at_attestation": "high_review",
       "gap_severity_at_attestation": "medium",
       "preflight_status": "pass",
       "preflight_risk_count": 0,
-      "statement_count": 2,
+      "statement_count": 3,
       "surface_counts": {
         "plugins": 0,
         "tools": 5,
@@ -179,14 +357,14 @@
     },
     {
       "migration_file": "310_sprint69_activation_awareness_completeness_control_plane.sql",
-      "migration_sha256": "e322afa461a4c9514466e5bb9eac8089d13cfbfc97501204c52736e99d09ddc4",
+      "migration_sha256": "65646875dd99fdbf99643fe84b75a52ca2055673f1f9cd7d0d2cbd0ae4595f33",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_static_contract",
       "queue_class_at_attestation": "critical_review",
       "gap_severity_at_attestation": "high",
       "preflight_status": "pass",
       "preflight_risk_count": 0,
-      "statement_count": 14,
+      "statement_count": 15,
       "surface_counts": {
         "plugins": 0,
         "tools": 0,
@@ -225,14 +403,14 @@
     },
     {
       "migration_file": "311_sprint69_platform_tool_dispatch_binding_integrity.sql",
-      "migration_sha256": "7bb6d1a934d3504682303894b8bf1b95ed2d2e383c629a2838ecf1f4f7911216",
+      "migration_sha256": "cd92ff1bfe26f8c1aa25a00ae022217d8d39f0c2d1be35d37c03e3f8a75c7feb",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_static_contract",
       "queue_class_at_attestation": "critical_review",
       "gap_severity_at_attestation": "medium",
       "preflight_status": "pass",
       "preflight_risk_count": 0,
-      "statement_count": 5,
+      "statement_count": 6,
       "surface_counts": {
         "plugins": 0,
         "tools": 19,
@@ -291,15 +469,288 @@
       }
     },
     {
+      "migration_file": "311_sprint69_semantic_capability_effective_resolution.sql",
+      "migration_sha256": "44a590fbb86caaf1283ac60850b07d1ebace378367abf749c4c986a6bdb1ace4",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "critical_review",
+      "gap_severity_at_attestation": "medium",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 11,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 10,
+        "views": 4,
+        "policies": 0,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_readback_view",
+          "targets": [
+            "v_platform_capability_export_projection",
+            "v_platform_capability_export_reconciliation",
+            "v_platform_endpoint_canonical_identity",
+            "v_tenant_effective_capability_candidates"
+          ]
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "connection_not_validated",
+            "effective_decision",
+            "execution_readiness",
+            "idx_capability_binding_lookup",
+            "legacy_decision",
+            "platform_endpoint_tool_exports",
+            "requires_readback",
+            "tenant_capability_shadow_decisions",
+            "workspace_validated_primary",
+            "workspace_validated_single"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
       "migration_file": "311_sprint69_superseded_closed_pr_branch_cleanup.sql",
-      "migration_sha256": "54418be96fb9ac1818de8159641b97e0c196f9b883c6a4a1b9172bd13c6706f2",
+      "migration_sha256": "d0aa47f17b4862018e5cb12e9c03a01566e26c606817a0e1618c324622dcb203",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_static_contract",
       "queue_class_at_attestation": "medium_review",
       "gap_severity_at_attestation": "low",
       "preflight_status": "pass",
       "preflight_risk_count": 0,
+      "statement_count": 4,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 0,
+        "views": 1,
+        "policies": 0,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_readback_view",
+          "targets": [
+            "v_superseded_branch_cleanup_policy_readback"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "314_sprint69_capability_assurance_graph.sql",
+      "migration_sha256": "7c9b9e5e64cf30e6196dec0a3d25d54e44c9166a7703f9ea77b6c3f5a0a2ed30",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "high_review",
+      "gap_severity_at_attestation": "none",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 31,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 10,
+        "views": 8,
+        "policies": 1,
+        "routes": 1
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_policy_seed_readiness",
+          "targets": [
+            "platform_secret_promotion_policy_v1"
+          ]
+        },
+        {
+          "action_key": "verify_readback_view",
+          "targets": [
+            "v_effective_platform_resource_authority_bindings",
+            "v_platform_bindings_current",
+            "v_platform_capabilities_current",
+            "v_platform_capability_assurance_gaps",
+            "v_platform_capability_assurance_summary",
+            "v_platform_capability_readiness_vector",
+            "v_platform_exports_current",
+            "v_platform_secret_promotion_monitoring"
+          ]
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "admin_platform_endpoint_tools",
+            "blocks_dispatch",
+            "capability_envelope_decision",
+            "idx_ppc_dispatch_apply",
+            "ready_for_dispatch",
+            "requires_readback",
+            "runtime_dispatch",
+            "runtime_dispatch_certification_registry",
+            "tenant_platform_endpoint_tools",
+            "v_platform_capability_readiness_vector"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "315_sprint69_capability_vault_record_tool_export.sql",
+      "migration_sha256": "91d22441a35cab9e753a17a89a02d2dcb6931aff157a424efcbdbbfbbb3ab3b2",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "critical_review",
+      "gap_severity_at_attestation": "high",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
       "statement_count": 3,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 11,
+        "views": 0,
+        "policies": 0,
+        "routes": 1
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "admin_platform_endpoint_tool",
+            "capability_vault_record_only_same_cycle_v1",
+            "capability_vault_record_only_transaction_rollback_v1",
+            "capability_vault_repo_ingestion_record",
+            "confirm_record_only",
+            "confirm_record_only_required",
+            "grants_dispatch_or_apply",
+            "platform_capability_vault_record_only",
+            "platform_capability_vault_repo_ingestion_record",
+            "ptdb_capability_vault_repo_ingestion_record",
+            "same_cycle_readback"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "316_sprint69_safe_branch_cleanup_support.sql",
+      "migration_sha256": "eafc937a5b0b1c37e84d26416cfb551a8aae3badbd5c08785a5012f4b6bf0cdb",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "high_review",
+      "gap_severity_at_attestation": "medium",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 4,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 3,
+        "views": 0,
+        "policies": 0,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "actual_default_branch_expected_sha_open_pr_no_unique_commits_predelete_sha_absence_readback",
+            "requires_predelete_sha_readback",
+            "requires_same_cycle_absence_readback"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "317_sprint69_superseded_orphan_branch_cleanup.sql",
+      "migration_sha256": "9572f0ff01ab6f5a713b3763fa51dbbc6197ea772cd492c63125b973ffc8ee1d",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "medium_review",
+      "gap_severity_at_attestation": "low",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 4,
       "surface_counts": {
         "plugins": 0,
         "tools": 0,

@@ -188,6 +188,7 @@ const REQUIRED_RUNTIME_POLICY_SEEDS = [
   { check_key: "platform_task_quality_gate", policy_group: "Task Governance", policy_key: "platform_task_quality_gate_policy_v1", required_blocking: true, required_scope_tokens: ["platform_task_creation", "pending_task"], required_affects_layer_tokens: ["platform_pending_tasks", "platform_orchestration_recommendations"] },
   { check_key: "tenant_proactive_guidance", policy_group: "Tenant Experience Governance", policy_key: "tenant_proactive_guidance_policy_v1", required_blocking: true, required_scope_tokens: ["tenant_gpt", "tenant_activation"], required_affects_layer_tokens: ["tenant_gpt_operating_guide", "tenant_capability_registry"] },
   { check_key: "validation_semantics", policy_group: "Runtime Validation Governance", policy_key: "validation_semantics_policy_v1", required_blocking: true, required_scope_tokens: ["connection_status", "validation_status"], required_affects_layer_tokens: ["credential_intake_connection_status", "tenant_gpt_guidance"] },
+  { check_key: "approval_hold_identity_collation", policy_group: "schema_governance", policy_key: "approval_hold_identity_collation_v1", required_blocking: true, required_scope_tokens: ["approval_hold_identity_joins"], required_affects_layer_tokens: ["approval_hold_governance_and_growth_intelligence"] },
   { check_key: "platform_schema_blocker_classification", policy_group: "Schema Governance", policy_key: "platform_schema_blocker_classification_policy_v1", required_blocking: true, required_scope_tokens: ["schema_error", "collation_error"], required_affects_layer_tokens: ["database_collation_policy_registry", "releaseReadiness"] },
   { check_key: "intelligence_policy_rules_required", policy_group: "Intelligence Governance", policy_key: "intelligence_policy_rules_required_policy_v1", required_blocking: true, required_scope_tokens: ["intelligence_engine_activation", "release_readiness"], required_affects_layer_tokens: ["intelligence_engines", "intelligence_policy_rules", "platform_engine_policy_rules"] },
   { check_key: "model_never_executes_tools", policy_group: "Agent Runtime Governance", policy_key: "model_never_executes_tools_policy_v1", required_blocking: true, required_scope_tokens: ["agent_loop", "model_tool_loop", "tool_use"], required_affects_layer_tokens: ["agentLoopRunner", "agentRuntime", "platformEngineRegistry"] },
@@ -1612,6 +1613,76 @@ function listMissingTokens(text = "", tokens = []) {
   return (tokens || []).filter((token) => !source.includes(token));
 }
 
+async function checkApprovalHoldIdentityCollationReadiness() {
+  const pool = getPool();
+  const [[viewRow]] = await pool.query(
+    "SELECT COUNT(*) AS cnt FROM information_schema.views WHERE table_schema = DATABASE() AND table_name = 'v_approval_hold_identity_collation_readiness'"
+  );
+  if (!Number(viewRow?.cnt || 0)) {
+    return {
+      status: "fail",
+      detail: "Approval Hold identity collation readiness view is missing.",
+      reason_code: "approval_hold_identity_collation_view_missing",
+      secrets_included: false,
+    };
+  }
+
+  const [[row]] = await pool.query(
+    `SELECT expected_column_count, present_column_count, ready_column_count,
+            collation_mismatch_count, orphan_reference_count, readiness_status,
+            provider_calls, credential_payload_reads, external_sends, external_writes,
+            secrets_included
+       FROM v_approval_hold_identity_collation_readiness
+      LIMIT 1`
+  );
+
+  const expected = Number(row?.expected_column_count || 0);
+  const present = Number(row?.present_column_count || 0);
+  const ready = Number(row?.ready_column_count || 0);
+  const mismatches = Number(row?.collation_mismatch_count || 0);
+  const orphans = Number(row?.orphan_reference_count || 0);
+  const safetyReady = Number(row?.provider_calls || 0) === 0
+    && Number(row?.credential_payload_reads || 0) === 0
+    && Number(row?.external_sends || 0) === 0
+    && Number(row?.external_writes || 0) === 0
+    && Number(row?.secrets_included || 0) === 0;
+  const passed = row?.readiness_status === "ready"
+    && expected === 10
+    && present === 10
+    && ready === 10
+    && mismatches === 0
+    && orphans === 0
+    && safetyReady;
+
+  return {
+    status: passed ? "pass" : "fail",
+    detail: passed
+      ? "Approval Hold identity keys are aligned and orphan-free."
+      : "Approval Hold identity collation readiness is blocked.",
+    reason_code: passed ? null : "approval_hold_identity_collation_blocked",
+    expected_column_count: expected,
+    present_column_count: present,
+    ready_column_count: ready,
+    collation_mismatch_count: mismatches,
+    orphan_reference_count: orphans,
+    safety_ready: safetyReady,
+    secrets_included: false,
+  };
+}
+
+async function checkApprovalHoldIdentityCollationReadinessSafe() {
+  try {
+    return await checkApprovalHoldIdentityCollationReadiness();
+  } catch (err) {
+    return {
+      status: "fail",
+      detail: err?.message || "Approval Hold identity collation readiness check failed.",
+      reason_code: "approval_hold_identity_collation_check_failed",
+      secrets_included: false,
+    };
+  }
+}
+
 async function checkRuntimePolicySeedReadiness() {
   const pool = getPool();
   const [[tableRow]] = await pool.query(
@@ -2170,6 +2241,12 @@ export async function runReleaseReadiness({ persist = false } = {}) {
   report.migration_drift = await checkDynamicMigrationDriftSafe();
   if (report.migration_drift.status === "warn" && report.overall === "pass") report.overall = "warn";
   if (report.migration_drift.status === "fail") report.overall = "fail";
+
+  // Approval Hold identity readiness — fail closed when the migration/view is missing,
+  // any varchar(36) join key drifts from utf8mb4_unicode_ci, or an active orphan exists.
+  report.approval_hold_identity_collation_readiness = await checkApprovalHoldIdentityCollationReadinessSafe();
+  if (report.approval_hold_identity_collation_readiness.status === "warn" && report.overall === "pass") report.overall = "warn";
+  if (report.approval_hold_identity_collation_readiness.status === "fail") report.overall = "fail";
 
   // Runtime policy seed readiness — verifies the live DB has the policy rows
   // required by governedExecutionPreflight. This catches missing seed rows that

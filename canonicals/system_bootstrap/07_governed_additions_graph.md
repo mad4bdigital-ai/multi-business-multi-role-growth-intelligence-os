@@ -216,4 +216,4 @@ Initial activation posture:
 - label, close-superseded, non-force fast-forward, rebuild-fresh, bounded patch, and merge-ready recipes remain `planned` until separately certified
 - `repo.branch.rebuild_fresh` and `repo.file.patch_apply` remain adapter-disabled in V6 until bounded conflict/patch and rollback contracts exist
 
-The readiness smoke must verify public descriptor callability, provider binding, temporary-binding revocation, plan/run ledger presence, active/planned recipe gates, no-secret output, and zero repository mutations.
+The readiness smoke must verify public descriptor callability, provider binding, temporary-binding revocation, plan/run ledger presence, active/planned recipe gates, no-secret output, and zero repository mutations. Its platform-managed compatibility lane is internal, admin-only, restricted to `repo.pr.reconciliation_sweep` in `read_only` mode, and must not be accepted from public tool arguments or weaken tenant provider-binding requirements.
