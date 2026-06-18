@@ -1066,22 +1066,29 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     );
   }
 
-  const installPowerShell = buildInstallPowerShell({ cfToken: tunnelToken, connectorSecret, connectorLocalApiKey, tunnelUrl: runtimeUrl, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
-  const connectorEnv = buildConnectorEnv({ connectorSecret, connectorLocalApiKey, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
-  const startConnectorBat = buildStartConnectorBat();
-  const installScript = buildInstallScript({ cfToken: tunnelToken, connectorSecret, connectorLocalApiKey, tunnelUrl: runtimeUrl, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
-
   return {
     ok: true,
     config_id: finalConfigId,
     device_id,
+    installed: true,
+    reprovisioned: Boolean(!existing || reprovision),
+    existing_config_reused: Boolean(existing && !reprovision),
     tunnel_url: tunnelUrl,
     public_gateway_url: LOCAL_GATEWAY_URL,
     device_runtime_url: runtimeUrl,
     admin_recovery_url: ADMIN_RECOVERY_URL,
-    connector_secret: connectorSecret,
     cf_tunnel_id: tunnelId,
     credential_source: provisioningCredentials.source,
+    secrets_included: false,
+    connector_secret_included: false,
+    connector_local_api_key_included: false,
+    install: {
+      download_link_available: true,
+      download_link_endpoint: "/local-connector/install/download-link",
+      installer_download_endpoint: "/local-connector/install/download",
+      reprovision_supported: true,
+      reprovision_requires_explicit_flag: true,
+    },
     app_routes: await loadLocalAppRoutes(pool, finalConfigId),
     installation: {
       aliases: allAliases.map((a) => a.alias),
@@ -1091,23 +1098,14 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
         app_aliases: Object.keys(requestedPermissionGrants.apps),
         shell_aliases: requestedPermissionGrants.shell_aliases.map((entry) => entry.alias),
       },
-      install_bat: installScript,
-      install_ps1: installPowerShell,
-      files: {
-        ".env": connectorEnv,
-        "start-connector.bat": startConnectorBat,
-        "install-local-connector.ps1": installPowerShell,
-        "install.bat": installScript,
-      },
       local_runtime: {
         port: CONNECTOR_PORT,
         env_file: ".env",
         start_command: "start-connector.bat",
-        tunnel_command: `cloudflared service install ${tunnelToken}`,
       },
       steps: [
-        "1. Put server.mjs and install-local-connector.ps1 in the local-connector folder.",
-        "2. Run install-local-connector.ps1 as Administrator — writes .env, installs cloudflared, starts server.mjs.",
+        "1. Request a short-lived installer through /local-connector/install/download-link.",
+        "2. Download and run the generated installer as Administrator.",
         "3. On later boots run start-connector.bat or configure it as a Windows startup task.",
         `4. Test: GET /local-connector/health?user_id=${resolvedUserId}&tenant_id=${resolvedTenantId}&device_id=${device_id}`,
       ],
@@ -1565,22 +1563,38 @@ export function buildLocalConnectorInstallRoutes(deps) {
       const { user_id, tenant_id, device_id } = req.body || {};
       const isUserAuthUninstall = req.auth?.mode === "user_jwt" || req.auth?.mode === "api_credential";
       if (!device_id) {
-        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "device_id is required." } });
+        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "device_id is required." }, secrets_included: false });
       }
       if (!isUserAuthUninstall && (!user_id || !tenant_id)) {
-        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "user_id and tenant_id are required for admin/service calls." } });
+        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "user_id and tenant_id are required for admin/service calls." }, secrets_included: false });
       }
       const principal = await resolveRequestedLocalPrincipal(req, { user_id, tenant_id });
-      const [result] = await getPool().query(
-        "UPDATE `local_connector_user_configs` SET is_enabled = 0 WHERE user_id = ? AND tenant_id = ? AND device_id = ?",
+      const pool = getPool();
+      const localApiKeyColumnSupported = await hasConnectorLocalApiKeyColumn(pool);
+      const secretAssignments = [
+        "is_enabled = 0",
+        "cf_token = NULL",
+        "connector_secret = NULL",
+        ...(localApiKeyColumnSupported ? ["connector_local_api_key = NULL"] : []),
+        "updated_at = NOW()",
+      ];
+      const [result] = await pool.query(
+        `UPDATE \`local_connector_user_configs\`
+            SET ${secretAssignments.join(", ")}
+          WHERE user_id = ? AND tenant_id = ? AND device_id = ?`,
         [principal.userId, principal.tenantId, device_id]
       );
-      if (result.affectedRows === 0) return res.status(404).json({ ok: false, error: { code: "config_not_found" } });
-      return res.status(200).json({ ok: true, message: "Local connector disabled for this device." });
+      if (result.affectedRows === 0) return res.status(404).json({ ok: false, error: { code: "config_not_found" }, secrets_included: false });
+      return res.status(200).json({
+        ok: true,
+        disabled: true,
+        rotated: true,
+        message: "Local connector disabled and stored connector credentials cleared for this device.",
+        secrets_included: false,
+      });
     } catch (err) {
-      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "uninstall_failed", message: err.message } });
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "uninstall_failed", message: err.message }, secrets_included: false });
     }
   });
-
   return router;
 }
