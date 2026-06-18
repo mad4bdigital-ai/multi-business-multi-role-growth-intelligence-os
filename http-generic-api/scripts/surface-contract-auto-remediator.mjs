@@ -11,6 +11,7 @@ const REPO_ROOT = path.resolve(API_ROOT, "..");
 const MIGRATIONS_DIR = path.join(API_ROOT, "migrations");
 const QUEUE_PATH = path.join(REPO_ROOT, "docs", "surface-contract-gap-queue.json");
 const ATTESTATION_PATH = path.join(REPO_ROOT, "docs", "surface-contract-safety-attestations.json");
+const MANUAL_ATTESTATION_PATH = path.join(REPO_ROOT, "docs", "surface-contract-manual-safety-attestations.json");
 const DOC_TARGETS = [
   "Updating Registry Patch Index.md",
   "deployment_parity_checklist.md",
@@ -77,11 +78,79 @@ export function isAutoEligible(item = {}) {
     && actions.every((action) => ALLOWED_REMEDIATION_ACTIONS.has(action));
 }
 
+function forbiddenPatternsFor(source = "") {
+  return FORBIDDEN_SQL_PATTERNS
+    .filter((pattern) => pattern.test(source))
+    .map((pattern) => pattern.source)
+    .sort();
+}
+
+function preflightRiskCounts(preflight = {}) {
+  return (preflight.risks || []).reduce((counts, risk) => {
+    counts[risk.code] = (counts[risk.code] || 0) + 1;
+    return counts;
+  }, {});
+}
+
+function sameJson(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+export function validateManualAttestation({ item = {}, source = "" }) {
+  const preflight = assessMigrationSqlPreflight(item.migration_file || "unknown.sql", source);
+  const actualForbiddenPatterns = forbiddenPatternsFor(source);
+  const acceptedForbiddenPatterns = [...(item.accepted_forbidden_patterns || [])].sort();
+  const actualRiskCounts = preflightRiskCounts(preflight);
+  const acceptedRiskCounts = Object.fromEntries(
+    Object.entries(item.accepted_preflight_risks || {}).sort(([left], [right]) => left.localeCompare(right)),
+  );
+  const sortedActualRiskCounts = Object.fromEntries(
+    Object.entries(actualRiskCounts).sort(([left], [right]) => left.localeCompare(right)),
+  );
+  const requiredFragments = item.required_sql_fragments || [];
+  const reasons = [];
+  if (!item.migration_file || !item.migration_sha256) reasons.push("manual_attestation_identity_missing");
+  if (sha256(source) !== item.migration_sha256) reasons.push("manual_attestation_checksum_mismatch");
+  if (item.attestation_status !== "verified_static_no_external_side_effects") reasons.push("manual_attestation_status_invalid");
+  if (item.evidence_mode !== "checksum_bound_human_review") reasons.push("manual_attestation_evidence_mode_invalid");
+  if (item.review_status !== "approved_checksum_bound_internal_sql") reasons.push("manual_attestation_review_status_invalid");
+  if (item.execution_authorized !== false) reasons.push("manual_attestation_must_not_authorize_execution");
+  if (typeof item.reviewed_by !== "string" || item.reviewed_by.length < 8) reasons.push("manual_attestation_reviewer_missing");
+  if (!Number.isFinite(Date.parse(item.reviewed_at || ""))) reasons.push("manual_attestation_reviewed_at_invalid");
+  if (typeof item.rationale !== "string" || item.rationale.length < 80) reasons.push("manual_attestation_rationale_too_short");
+  if (!SAFETY_MARKERS.every((marker) => item.safety_markers?.[marker] === true)) reasons.push("manual_attestation_safety_markers_incomplete");
+  if (!allFalseSafety(item)) reasons.push("manual_attestation_remediation_safety_invalid");
+  if (item.preflight_status !== preflight.status) reasons.push("manual_attestation_preflight_status_mismatch");
+  if (Number(item.preflight_risk_count) !== Number(preflight.risk_count || 0)) reasons.push("manual_attestation_preflight_risk_count_mismatch");
+  if (Number(item.statement_count) !== Number(preflight.counts?.statements || 0)) reasons.push("manual_attestation_statement_count_mismatch");
+  if (!sameJson(acceptedRiskCounts, sortedActualRiskCounts)) reasons.push("manual_attestation_preflight_risks_mismatch");
+  if (!sameJson(acceptedForbiddenPatterns, actualForbiddenPatterns)) reasons.push("manual_attestation_forbidden_patterns_mismatch");
+  if (!requiredFragments.length || requiredFragments.some((fragment) => !source.includes(fragment))) reasons.push("manual_attestation_required_sql_fragment_missing");
+  if (item.migration_effects?.internal_database_write !== true
+    || item.migration_effects?.external_write !== false
+    || item.migration_effects?.provider_call !== false
+    || item.migration_effects?.credential_payload_read !== false
+    || item.migration_effects?.secrets_included !== false) {
+    reasons.push("manual_attestation_migration_effects_invalid");
+  }
+  return {
+    valid: reasons.length === 0,
+    reasons,
+    actual: {
+      migration_sha256: sha256(source),
+      preflight_status: preflight.status,
+      preflight_risk_count: Number(preflight.risk_count || 0),
+      statement_count: Number(preflight.counts?.statements || 0),
+      preflight_risks: sortedActualRiskCounts,
+      forbidden_patterns: actualForbiddenPatterns,
+    },
+    attestation: reasons.length === 0 ? { ...item } : null,
+  };
+}
+
 export function buildAttestation({ item, source }) {
   const preflight = assessMigrationSqlPreflight(item.migration_file, source);
-  const forbiddenPatterns = FORBIDDEN_SQL_PATTERNS
-    .filter((pattern) => pattern.test(source))
-    .map((pattern) => pattern.source);
+  const forbiddenPatterns = forbiddenPatternsFor(source);
   const eligible = isAutoEligible(item)
     && preflight.status === "pass"
     && Number(preflight.risk_count || 0) === 0
@@ -152,7 +221,8 @@ export function renderGeneratedBlock(attestations = []) {
     const runtimeReviews = item.runtime_reviews?.length
       ? item.runtime_reviews.map((entry) => entry.action_key).join(", ")
       : "none";
-    return `- \`${item.migration_file}\` — SHA-256 \`${item.migration_sha256}\`; surfaces: ${surfaces}; static preflight: ${item.preflight_status}/${item.preflight_risk_count}; runtime reviews: ${runtimeReviews}.`;
+    const reviewEvidence = item.evidence_mode === "checksum_bound_human_review" ? `; evidence: human review by ${item.reviewed_by}` : "";
+    return `- \`${item.migration_file}\` — SHA-256 \`${item.migration_sha256}\`; surfaces: ${surfaces}; static preflight: ${item.preflight_status}/${item.preflight_risk_count}; runtime reviews: ${runtimeReviews}${reviewEvidence}.`;
   });
   return `${BEGIN_MARKER}\n## Automated Surface Contract Attestations\n\n> Generated by \`surface-contract-auto-remediator.mjs\`. Each attestation is bound to the migration SHA-256 and becomes invalid automatically when SQL changes. This block documents static no-provider/no-secret/no-external-side-effect evidence only; it does not authorize execution, provider calls, credential access, database writes, deployment, or external sends.\n\n${rows.length ? rows.join("\n") : "- none"}\n${END_MARKER}`;
 }
@@ -189,7 +259,21 @@ function writeGithubOutput(values = {}) {
 function buildState() {
   const queue = readJson(QUEUE_PATH, { top_items: [], schema_version: "unknown" });
   const existing = readJson(ATTESTATION_PATH, { items: [] });
-  const byMigration = new Map((existing.items || []).filter(validExistingAttestation).map((item) => [item.migration_file, item]));
+  const manualRegistry = readJson(MANUAL_ATTESTATION_PATH, { items: [], schema_version: "unknown" });
+  const manualByMigration = new Map();
+  const manualValidationByMigration = new Map();
+  const manualItems = manualRegistry.schema_version === "surface-contract-manual-safety-attestations-v1" ? (manualRegistry.items || []) : [];
+  for (const item of manualItems) {
+    const migrationPath = path.join(MIGRATIONS_DIR, path.basename(item.migration_file || ""));
+    const source = fs.existsSync(migrationPath) ? fs.readFileSync(migrationPath, "utf8") : "";
+    const validation = validateManualAttestation({ item, source });
+    manualValidationByMigration.set(item.migration_file, validation);
+    if (validation.valid) manualByMigration.set(item.migration_file, validation.attestation);
+  }
+  const byMigration = new Map([
+    ...(existing.items || []).filter(validExistingAttestation).map((item) => [item.migration_file, item]),
+    ...manualByMigration.entries(),
+  ]);
   const manual = [];
   const added = [];
 
@@ -202,7 +286,17 @@ function buildState() {
     const source = fs.readFileSync(migrationPath, "utf8");
     const result = buildAttestation({ item, source });
     if (!result.eligible) {
-      manual.push(result);
+      const manualAttestation = manualByMigration.get(item.migration_file);
+      if (manualAttestation) {
+        byMigration.set(item.migration_file, manualAttestation);
+        added.push(item.migration_file);
+        continue;
+      }
+      const manualValidation = manualValidationByMigration.get(item.migration_file);
+      manual.push({
+        ...result,
+        ...(manualValidation ? { manual_attestation_reasons: manualValidation.reasons } : {}),
+      });
       continue;
     }
     byMigration.set(item.migration_file, result.attestation);
