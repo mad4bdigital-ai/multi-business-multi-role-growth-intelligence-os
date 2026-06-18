@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { assessMigrationSqlPreflight, splitSqlStatements } from "./releaseReadiness.js";
 
 const migrationPath = new URL(
   "./migrations/1013_sprint69_approval_hold_identity_collation_alignment.sql",
@@ -25,6 +26,21 @@ assert(sql.includes("SIGNAL SQLSTATE ''45000''"));
 assert(sql.includes("Active Approval Hold identity orphans remain"));
 assert(sql.includes("CREATE TEMPORARY TABLE tmp_approval_hold_identity_orphans"));
 assert(sql.includes("DROP TEMPORARY TABLE tmp_approval_hold_identity_orphans"));
+
+const preflight = assessMigrationSqlPreflight(
+  "1013_sprint69_approval_hold_identity_collation_alignment.sql",
+  sql
+);
+assert.equal(preflight.status, "pass");
+assert.equal(preflight.risk_count, 0);
+assert.equal(preflight.counts.alter_table, 0);
+assert.equal(preflight.counts.destructive, 0);
+assert.equal(preflight.counts.statements, splitSqlStatements(sql).length);
+assert.equal((sql.match(/FROM information_schema\.columns/g) || []).length, 4);
+assert.equal((sql.match(/^PREPARE align_/gm) || []).length, 4);
+assert.equal((sql.match(/^EXECUTE align_/gm) || []).length, 4);
+assert.equal((sql.match(/^DEALLOCATE PREPARE align_/gm) || []).length, 4);
+assert(!/^ALTER TABLE\b/gm.test(sql));
 
 const expectedAlterations = [
   "ALTER TABLE local_gateway_tool_call_log",
