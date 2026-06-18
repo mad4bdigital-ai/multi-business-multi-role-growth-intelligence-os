@@ -243,6 +243,9 @@ async function _buildAuthContract({
       credential_scope
     });
     contract.credential_resolution_source = "deferred_until_authorized_execution";
+    contract.materialized = false;
+    contract.provider_call_made = false;
+    contract.secret_read_performed = false;
 
     if (mode === "basic_auth") {
       contract.header_name = "Authorization";
