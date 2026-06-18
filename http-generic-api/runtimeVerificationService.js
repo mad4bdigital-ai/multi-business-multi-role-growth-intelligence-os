@@ -216,7 +216,7 @@ export async function createRuntimeVerificationRun(input = {}, actor = {}) {
   const blockingGapCount = Number(gapRows[0]?.count || 0);
   const productionParity = blockingGapCount === 0 ? "verified" : "degraded";
   const runStatus = blockingGapCount === 0 ? "verified" : "degraded";
-  const summary = { migration_tables: missingRuntimeTables.length ? "fail" : "pass", activation_summary: activationStepPass ? "pass" : "fail", deployment_commit_parity: commitParity.matches ? "pass" : "fail", runtime_code_routes: "pass", evidence_manifest: "pass", production_parity: productionParity, blocking_gap_count: blockingGapCount, expected_commit_sha: expectedCommitSha, deployed_commit_sha: deployedCommitSha, secrets_included: false };
+  const summary = { migration_tables: missingRuntimeTables.length ? "fail" : "pass", activation_summary: activationStepPass ? "pass" : "fail", deployment_commit_parity: commitParity.matches ? "pass" : "fail", runtime_code_routes: "pass", evidence_manifest: "pass", production_parity: productionParity, blocking_gap_count: blockingGapCount, expected_commit_sha: expectedCommitSha, deployed_commit_sha: deployedCommitSha, deployed_commit_source: deployedCommitEvidence.source, secrets_included: false };
 
   await execute("UPDATE runtime_verification_runs SET run_status = ?, production_parity = ?, summary_json = ?, completed_at = UTC_TIMESTAMP() WHERE run_id = ?", [runStatus, productionParity, JSON.stringify(summary), runId]);
   await execute(
