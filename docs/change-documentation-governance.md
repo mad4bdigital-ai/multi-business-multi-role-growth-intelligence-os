@@ -180,6 +180,22 @@ Do not start any backup or restore operation merely because documentation or rep
 
 Stop before backup planning if that policy is not yet approved.
 
+## Credential-bearing artifact delivery docs rule
+
+When a route generates or distributes an artifact containing credentials, tokens, private keys, signed assertions, connection secrets, or executable configuration that embeds them, the same PR must document and test the complete delivery lifecycle.
+
+Required evidence:
+
+- the OpenAPI contract distinguishes metadata-only responses from credential-materializing download responses;
+- authentication and admin/tenant authorization requirements are explicit;
+- default metadata or preview modes exit before secret lookup or token minting;
+- shared/public object storage and public-link permissions are forbidden unless a separately approved encrypted, expiring, principal-bound delivery design exists;
+- responses and audit logs omit raw artifact content and secret values;
+- tests assert secret-read ordering, public-sharing prohibition, and the exact number of artifact-generation call sites;
+- rollout notes describe revocation, replay, expiry, and incident-response implications.
+
+For local connector installers, the approved contract is authenticated direct download only. JSON install-bundle metadata and self-repair responses must not generate installer content. The `format=bat` download remains protected by backend-key authentication and an admin-principal guard.
+
 ## Support Ticket External Delivery certification docs rule
 
 When a change adds or modifies Support Ticket external delivery routes, provider adapter contracts, send-mode policies, or completion certification behavior, the same PR must update:
