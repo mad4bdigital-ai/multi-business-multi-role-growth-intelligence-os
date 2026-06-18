@@ -3001,14 +3001,28 @@ export function buildAdminCliRoutes(deps) {
         },
         repair: {
           required: true,
-          installer_generated: true,
-          action: "Run the installer as Administrator on the Windows device. It installs cloudflared and the Node.js connector as auto-restart Windows services (via NSSM).",
+          installer_generated: false,
+          artifact_delivery: "authenticated_direct_download_only",
+          action: "Use the authenticated admin-only download endpoint, then run the installer as Administrator on the Windows device.",
           filename,
+          public_storage_allowed: false,
           drive: driveResult,
           drive_upload_status: driveUploadStatus,
           drive_error: driveError,
           script_content_omitted: true,
           script_content_reason: "installer contains live tunnel and backend credentials",
+          secure_download: {
+            method: "GET",
+            path: "/admin/cli/local-connector/install-bundle",
+            query: {
+              user_id: resolvedUserId,
+              device_id: resolvedDeviceId,
+              format: "bat"
+            },
+            requires_backend_api_key: true,
+            requires_admin_principal: true
+          },
+          secrets_included: false
         },
       });
     } catch (err) {
