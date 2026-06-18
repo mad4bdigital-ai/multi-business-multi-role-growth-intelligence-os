@@ -38,9 +38,27 @@ try {
   assert("local connector JSON responses explain omitted installer secrets",
     adminCliSource.includes("script_content_omitted: true"),
     "responses should make the omission explicit");
-  assert("local connector JSON responses expose sanitized Drive handoff status",
-    adminCliSource.includes("drive_upload_status") && adminCliSource.includes("sanitizeDriveUploadError"),
-    "responses should distinguish uploaded, failed, and unconfigured Drive handoffs without exposing installer content");
+  const installerGenerationCallCount = (adminCliSource.match(/const batContent = generateConnectorInstallerBat/g) || []).length;
+  assert("local connector secret-bearing installers are never made public",
+    !adminCliSource.includes('requestBody: { role: "reader", type: "anyone" }') &&
+    adminCliSource.includes("public_storage_allowed: false") &&
+    adminCliSource.includes("blocked_secret_bearing_artifact"),
+    "secret-bearing installer routes must not create public Drive permissions");
+  assert("local connector JSON metadata exits before credential materialization",
+    adminCliSource.indexOf('if (format !== "bat")') !== -1 &&
+    adminCliSource.indexOf('if (format !== "bat")') < adminCliSource.indexOf("SELECT cf_token, connector_secret") &&
+    adminCliSource.includes("credential_materialized: false"),
+    "default JSON mode must return secure handoff metadata before reading connector credentials");
+  assert("local connector self-repair does not generate installer content",
+    installerGenerationCallCount === 1 &&
+    adminCliSource.includes("installer_generated: false") &&
+    adminCliSource.includes('artifact_delivery: "authenticated_direct_download_only"'),
+    "only the authenticated format=bat route may generate a secret-bearing installer");
+  assert("local connector secure download requires admin authentication",
+    adminCliSource.includes("requires_backend_api_key: true") &&
+    adminCliSource.includes("requires_admin_principal: true") &&
+    adminCliSource.includes('format: "bat"'),
+    "secure download handoffs must retain backend-key and admin-principal requirements");
   assert("local connector missing tunnel token returns continuation handoff",
     adminCliSource.includes("buildLocalConnectorTunnelProvisioningContinuationEvidence") &&
     adminCliSource.includes("connector_tunnel_provisioning_required") &&

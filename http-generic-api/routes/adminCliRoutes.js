@@ -2642,6 +2642,25 @@ export function buildAdminCliRoutes(deps) {
       const userId   = String(req.query.user_id   || "").trim() || "00000000-0000-4000-a000-000000000002";
       const deviceId = String(req.query.device_id || "").trim() || "mohammedlap";
 
+      if (format !== "bat") {
+        return res.status(200).json({
+          ok: true,
+          artifact_delivery: "authenticated_direct_download_only",
+          script_content_omitted: true,
+          script_content_reason: "installer contains live tunnel and backend credentials",
+          credential_materialized: false,
+          public_storage_allowed: false,
+          secure_download: {
+            method: "GET",
+            path: "/admin/cli/local-connector/install-bundle",
+            query: { user_id: userId, device_id: deviceId, format: "bat" },
+            requires_backend_api_key: true,
+            requires_admin_principal: true
+          },
+          secrets_included: false
+        });
+      }
+
       // 1. Look up device config from DB
       let tunnelToken    = "";
       let backendKey     = "";
@@ -2695,70 +2714,23 @@ export function buildAdminCliRoutes(deps) {
       const batContent = generateConnectorInstallerBat(tunnelToken, backendKey);
       const filename   = `install-connector-${new Date().toISOString().slice(0,10)}.bat`;
 
-      if (format === "bat") {
-        res.setHeader("Content-Type", "application/octet-stream");
-        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-        return res.send(batContent);
-      }
-
-      // Upload to Drive so GPT can share a link
-      let driveResult = null;
-      let driveUploadStatus = typeof deps.getGoogleClients === "function" ? "attempted" : "not_configured";
-      let driveError = null;
-      if (typeof deps.getGoogleClients === "function") {
-        try {
-          const { drive } = await deps.getGoogleClients();
-          const created = await drive.files.create({
-            requestBody: { name: filename, mimeType: "application/octet-stream" },
-            media: { mimeType: "application/octet-stream", body: batContent },
-            fields: "id,webViewLink",
-          });
-          if (created?.data?.id) {
-            await drive.permissions.create({
-              fileId: created.data.id,
-              requestBody: { role: "reader", type: "anyone" },
-            });
-            driveResult = {
-              drive_file_id: created.data.id,
-              drive_link: `https://drive.google.com/uc?export=download&id=${created.data.id}`,
-              view_link: created.data.webViewLink,
-            };
-          }
-        } catch (driveErr) {
-          driveUploadStatus = "failed";
-          driveError = sanitizeDriveUploadError(driveErr);
-          console.warn("[install-bundle] Drive upload failed:", driveErr.message);
-        }
-      }
-      if (driveResult) driveUploadStatus = "uploaded";
-
       writeAuditLogAsync({
         action: "admin_cli.local_connector_install_bundle",
         resource_type: "install_bundle",
         resource_id: filename,
         payload: {
-          drive_uploaded: !!driveResult,
-          drive_upload_status: driveUploadStatus,
+          delivery_mode: "authenticated_direct_download",
+          public_storage_allowed: false,
           config_source: configSource,
           device_id: resolvedDevice,
-          user_id: userId
+          user_id: userId,
+          secrets_included: false
         },
       });
 
-      return res.status(200).json({
-        ok: true,
-        filename,
-        config_source: configSource,
-        device_id: resolvedDevice,
-        instructions: driveResult
-          ? "Download the generated installer from drive.drive_link and run it as Administrator from the repo root. cloudflared and the Node.js connector service (via NSSM) will be installed automatically if missing. Both services auto-restart on failure and reboot."
-          : "Drive upload was unavailable. Use the direct admin-only format=bat download path outside Custom GPT to retrieve the installer, then run it as Administrator from the repo root.",
-        script_content_omitted: true,
-        script_content_reason: "installer contains live tunnel and backend credentials",
-        drive_upload_status: driveUploadStatus,
-        drive_error: driveError,
-        drive: driveResult,
-      });
+      res.setHeader("Content-Type", "application/octet-stream");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      return res.send(batContent);
     } catch (err) {
       return res.status(err.status || 500).json({
         ok: false,
@@ -2771,8 +2743,8 @@ export function buildAdminCliRoutes(deps) {
   // Single-shot self-repair for the admin's local connector.
   // 1. Reads device config from DB (user_id + device_id, defaults to admin / mohammedlap).
   // 2. Checks CF tunnel health via Cloudflare API.
-  // 3. Generates and uploads install bundle.
-  // 4. Returns diagnosis + Drive download link so GPT can hand it directly to user.
+  // 3. Returns diagnosis and an authenticated admin-only download handoff.
+  // 4. Never uploads the secret-bearing installer to shared or public storage.
   // GPT should call this whenever connector.mad4b.com returns 1033.
   router.post("/local-connector/self-repair", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
     try {
@@ -2979,37 +2951,10 @@ export function buildAdminCliRoutes(deps) {
         });
       }
 
-      const batContent = generateConnectorInstallerBat(tunnelToken, backendKey);
-      const filename   = `repair-connector-${resolvedDeviceId}-${new Date().toISOString().slice(0,10)}.bat`;
-      let driveResult  = null;
-      let driveUploadStatus = typeof deps.getGoogleClients === "function" ? "attempted" : "not_configured";
-      let driveError = null;
-      if (typeof deps.getGoogleClients === "function") {
-        try {
-          const { drive } = await deps.getGoogleClients();
-          const created = await drive.files.create({
-            requestBody: { name: filename, mimeType: "application/octet-stream" },
-            media: { mimeType: "application/octet-stream", body: batContent },
-            fields: "id,webViewLink",
-          });
-          if (created?.data?.id) {
-            await drive.permissions.create({
-              fileId: created.data.id,
-              requestBody: { role: "reader", type: "anyone" },
-            });
-            driveResult = {
-              drive_file_id: created.data.id,
-              drive_link: `https://drive.google.com/uc?export=download&id=${created.data.id}`,
-              view_link: created.data.webViewLink,
-            };
-          }
-        } catch (driveErr) {
-          driveUploadStatus = "failed";
-          driveError = sanitizeDriveUploadError(driveErr);
-          console.warn("[self-repair] Drive upload failed:", driveErr.message);
-        }
-      }
-      if (driveResult) driveUploadStatus = "uploaded";
+      const filename = `repair-connector-${resolvedDeviceId}-${new Date().toISOString().slice(0,10)}.bat`;
+      const driveResult = null;
+      const driveUploadStatus = "blocked_secret_bearing_artifact";
+      const driveError = null;
 
       writeAuditLogAsync({
         action: "admin_cli.local_connector_self_repair",
@@ -3056,14 +3001,28 @@ export function buildAdminCliRoutes(deps) {
         },
         repair: {
           required: true,
-          installer_generated: true,
-          action: "Run the installer as Administrator on the Windows device. It installs cloudflared and the Node.js connector as auto-restart Windows services (via NSSM).",
+          installer_generated: false,
+          artifact_delivery: "authenticated_direct_download_only",
+          action: "Use the authenticated admin-only download endpoint, then run the installer as Administrator on the Windows device.",
           filename,
+          public_storage_allowed: false,
           drive: driveResult,
           drive_upload_status: driveUploadStatus,
           drive_error: driveError,
           script_content_omitted: true,
           script_content_reason: "installer contains live tunnel and backend credentials",
+          secure_download: {
+            method: "GET",
+            path: "/admin/cli/local-connector/install-bundle",
+            query: {
+              user_id: resolvedUserId,
+              device_id: resolvedDeviceId,
+              format: "bat"
+            },
+            requires_backend_api_key: true,
+            requires_admin_principal: true
+          },
+          secrets_included: false
         },
       });
     } catch (err) {
@@ -3143,16 +3102,6 @@ export function buildAdminCliRoutes(deps) {
   });
 
   return router;
-}
-
-function sanitizeDriveUploadError(err) {
-  const status = err?.response?.status || err?.status || err?.code || null;
-  const message = String(err?.message || "Drive upload failed").slice(0, 300);
-  return {
-    code: "drive_upload_failed",
-    ...(status ? { status } : {}),
-    message,
-  };
 }
 
 function generateConnectorInstallerBat(tunnelToken, backendKey) {
