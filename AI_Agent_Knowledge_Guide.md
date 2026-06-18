@@ -214,6 +214,10 @@ Migrations `277` through `283` implement the Session Insight capability-envelope
 
 Agents must not treat migrations `277` through `283` as production target-write authorization. Migration `284_sprint68_session_insight_backlog_target_write_executor.sql` is the first write-enablement layer and is limited to internal SQL backlog target writes after the capability-envelope approval/readback/remaining-scope chain is complete. It may set `target_write_allowed`, `target_write_executed`, and `promotion_allowed` only inside `session_insight_backlog_target_writes`; provider calls, credential payload reads, external writes, raw transcripts, and secrets remain forbidden.
 
+### Governed migration preflight and idempotency
+
+Governed migrations may be applied only through the authorized runner after a `pass` preflight and typed confirmation. Never bypass a `warn` or `fail` preflight with direct SQL. Re-runnable schema-alignment operations must use `information_schema`-guarded dynamic SQL so already-aligned columns become no-op reads, while missing or incompatible contracts fail closed. Production completion requires migration-ledger evidence, same-cycle schema/view readback, and release readiness.
+
 ### Runtime policy preflight governance
 
 `execution_policies` is the active transitional runtime preflight authority. Agents must treat it as required runtime policy evidence until a target-rule resolver bridge proves parity with `platform_engine_policy_rules`.
