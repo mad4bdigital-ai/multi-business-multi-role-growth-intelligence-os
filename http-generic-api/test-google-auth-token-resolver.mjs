@@ -6,7 +6,13 @@ import assert from "node:assert/strict";
 
 process.env.GOOGLE_AUTH_DISABLE_PREWARM = "true";
 
-const { getGoogleAuthCredentialSourcesForEnv } = await import("./googleAuthTokenResolver.js");
+const {
+  getGoogleAuthCredentialSourcesForEnv,
+  buildGoogleTokenCacheKey,
+  runGoogleTokenResolutionOnce
+} = await import("./googleAuthTokenResolver.js");
+const { buildGoogleClientContextKey } = await import("./googleSheets.js");
+const { normalizeAuthContract } = await import("./authCredentialResolution.js");
 
 let passed = 0;
 
