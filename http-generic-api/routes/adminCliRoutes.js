@@ -2642,6 +2642,25 @@ export function buildAdminCliRoutes(deps) {
       const userId   = String(req.query.user_id   || "").trim() || "00000000-0000-4000-a000-000000000002";
       const deviceId = String(req.query.device_id || "").trim() || "mohammedlap";
 
+      if (format !== "bat") {
+        return res.status(200).json({
+          ok: true,
+          artifact_delivery: "authenticated_direct_download_only",
+          script_content_omitted: true,
+          script_content_reason: "installer contains live tunnel and backend credentials",
+          credential_materialized: false,
+          public_storage_allowed: false,
+          secure_download: {
+            method: "GET",
+            path: "/admin/cli/local-connector/install-bundle",
+            query: { user_id: userId, device_id: deviceId, format: "bat" },
+            requires_backend_api_key: true,
+            requires_admin_principal: true
+          },
+          secrets_included: false
+        });
+      }
+
       // 1. Look up device config from DB
       let tunnelToken    = "";
       let backendKey     = "";
