@@ -162,7 +162,7 @@
     },
     {
       "migration_file": "311_sprint69_semantic_capability_effective_resolution.sql",
-      "score": 383,
+      "score": 371,
       "queue_class": "medium_review",
       "gap_severity": "none",
       "documentation_complete": true,
@@ -173,8 +173,7 @@
         "no_credential_payload_read",
         "no_raw_secrets",
         "no_external_send",
-        "no_external_write",
-        "secrets_included_false"
+        "no_external_write"
       ],
       "surface_counts": {
         "plugins": 0,
@@ -220,8 +219,7 @@
             "no_credential_payload_read",
             "no_raw_secrets",
             "no_external_send",
-            "no_external_write",
-            "secrets_included_false"
+            "no_external_write"
           ],
           "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
         }

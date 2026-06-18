@@ -98,7 +98,7 @@
     },
     {
       "migration_file": "311_sprint69_semantic_capability_effective_resolution.sql",
-      "score": 383,
+      "score": 371,
       "queue_class": "medium_review",
       "triage_class": "safety_marker_review",
       "gate_scope": "legacy_baseline_candidate",
@@ -110,8 +110,7 @@
         "no_credential_payload_read",
         "no_raw_secrets",
         "no_external_send",
-        "no_external_write",
-        "secrets_included_false"
+        "no_external_write"
       ],
       "remediation_action_keys": [
         "verify_tool_registry_binding",

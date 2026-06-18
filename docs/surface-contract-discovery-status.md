@@ -38,7 +38,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 - SQL route coverage in OpenAPI: 1/1 (100.00%)
 - SQL route-like literals exempted from OpenAPI scoring: 563/564
 - SQL routes missing OpenAPI path coverage: 0
-- Migrations without explicit `secrets_included=false` marker: 1
+- Migrations without explicit `secrets_included=false` marker: 0
 
 ### Surface Totals
 
@@ -69,7 +69,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | no_raw_secrets | 436 |
 | no_external_send | 436 |
 | no_external_write | 436 |
-| secrets_included_false | 438 |
+| secrets_included_false | 439 |
 
 ### Route Classification Coverage
 
@@ -98,7 +98,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 |---|---:|---:|---:|---:|---:|---:|---|
 | `1013_sprint69_operational_alerting_control_plane.sql` | critical_review | 837 | high | 5 | 0 | 3 | document_surface_contract, verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
 | `1014_sprint69_approval_hold_collation_reconciliation_rule.sql` | high_review | 466 | medium | 5 | 0 | 1 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
-| `311_sprint69_semantic_capability_effective_resolution.sql` | medium_review | 383 | none | 0 | 0 | 6 | verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
+| `311_sprint69_semantic_capability_effective_resolution.sql` | medium_review | 371 | none | 0 | 0 | 5 | verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
 | `1013_sprint69_approval_hold_identity_collation_alignment.sql` | low_review | 177 | none | 0 | 0 | 5 | verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
 
 
@@ -765,7 +765,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Routes: none
 - Route classifications: none
 - OpenAPI route gaps: none
-- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
 ### `311_sprint69_platform_tool_dispatch_binding_integrity.sql`
 

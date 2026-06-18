@@ -49,9 +49,9 @@
       "no_raw_secrets": 436,
       "no_external_send": 436,
       "no_external_write": 436,
-      "secrets_included_false": 438
+      "secrets_included_false": 439
     },
-    "safety_marker_gap_migrations": 1,
+    "safety_marker_gap_migrations": 0,
     "route_coverage": {
       "sql_route_count": 1,
       "total_sql_route_like_count": 564,
