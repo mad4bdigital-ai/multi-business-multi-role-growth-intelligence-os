@@ -4,8 +4,8 @@
 
 ## Summary
 
-- Total queue items: 4
-- Critical review: 1
+- Total queue items: 5
+- Critical review: 2
 - High review: 1
 - Medium review: 1
 - Low review: 1
@@ -13,7 +13,22 @@
 
 ## Top Queue Items
 
-### 1. `1013_sprint69_operational_alerting_control_plane.sql`
+### 1. `1016_sprint69_tenant_safe_tool_route_rebinding.sql`
+
+- Queue class: critical_review
+- Score: 1224
+- Gap severity: high
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: `/local/tools`
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+- Surface counts: plugins=0, tools=3, views=0, policies=0, routes=4
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `review_openapi_contract` → api-contract-review; targets: `/local/tools`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `local_gateway_tools_list`, `me_scope_grants_list`, `tenant_platform_endpoint_tools`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+
+### 2. `1013_sprint69_operational_alerting_control_plane.sql`
 
 - Queue class: critical_review
 - Score: 837
@@ -28,7 +43,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_activation_agent_catalog`, `v_activation_agent_skill_grants`, `v_activation_pending_tasks`, `v_operational_alerts_open`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_write`
 
-### 2. `1014_sprint69_approval_hold_collation_reconciliation_rule.sql`
+### 3. `1014_sprint69_approval_hold_collation_reconciliation_rule.sql`
 
 - Queue class: high_review
 - Score: 466
@@ -42,7 +57,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `migration_preflight_pass`, `post_apply_schema_readback`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_external_send`
 
-### 3. `311_sprint69_semantic_capability_effective_resolution.sql`
+### 4. `311_sprint69_semantic_capability_effective_resolution.sql`
 
 - Queue class: medium_review
 - Score: 371
@@ -56,7 +71,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_platform_capability_export_projection`, `v_platform_capability_export_reconciliation`, `v_platform_endpoint_canonical_identity`, `v_tenant_effective_capability_candidates`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 4. `1013_sprint69_approval_hold_identity_collation_alignment.sql`
+### 5. `1013_sprint69_approval_hold_identity_collation_alignment.sql`
 
 - Queue class: low_review
 - Score: 177

@@ -254,7 +254,6 @@ export function buildConnectApiRoutes(deps = {}) {
       if (tx) tx.release();
     }
   });
-
   // POST /connect/api/credential-intake/sessions — create a short-lived secure secret-entry link.
   router.post("/connect/api/credential-intake/sessions", async (req, res, next) => {
     try {

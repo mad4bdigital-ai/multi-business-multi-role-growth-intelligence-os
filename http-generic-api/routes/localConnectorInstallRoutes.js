@@ -1596,6 +1596,5 @@ export function buildLocalConnectorInstallRoutes(deps) {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "uninstall_failed", message: err.message }, secrets_included: false });
     }
   });
-
   return router;
 }

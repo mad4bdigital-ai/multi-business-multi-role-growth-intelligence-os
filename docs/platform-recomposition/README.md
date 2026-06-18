@@ -35,6 +35,7 @@ This directory preserves the design evidence, clean-room overlays, and promotion
 | `local-gateway-tools-design-2026-05-18.md` | historical design | Gateway registry and routing design snapshot. |
 | `local-connector-autoreconnect-and-desktop-manager-2026-05-18.md` | evolving implementation record | Local connector rollout history and remaining operational follow-ups. |
 | `tenant-execution-surface-containment-2026-06-18.md` | active containment record | Tenant discovery/dispatch denylist, strict runtime preview validation, and canonical Repository Intelligence descriptors. |
+| `connect-device-containment-2026-06-18.md` | active containment record | Transactional integration-policy updates, metadata-only connector provisioning, uninstall credential rotation, and tenant-safe route drift guards. |
 | `../growth-intelligence-platform-architecture.md` | active architecture | Defines the first value-producing Tenant/Brand Growth Intelligence workflow and authority boundaries. |
 | `../sequential-plan-orchestration-architecture.md` | active architecture | Defines durable plan compilation, atomic sequential execution, approval stops, checkpoints, and resume behavior. |
 | `../growth-intelligence-operational-runbook.md` | active runbook | Defines baseline, warning/failure response, pilot checks, and recovery evidence. |
