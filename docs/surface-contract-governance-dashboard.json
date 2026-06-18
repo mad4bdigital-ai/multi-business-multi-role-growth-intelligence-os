@@ -6,22 +6,22 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 437,
-    "docs_complete_count": 435,
+    "migrations_with_surfaces": 438,
+    "docs_complete_count": 436,
     "docs_gap_count": 2,
     "docs_completion_percent": 99.54,
     "surface_totals": {
       "plugins": 12,
       "tools": 2034,
       "views": 398,
-      "policies": 158,
+      "policies": 159,
       "routes": 564
     },
     "migrations_by_surface_type": {
       "plugins": 9,
       "tools": 371,
       "views": 160,
-      "policies": 100,
+      "policies": 101,
       "routes": 237
     },
     "missing_doc_target_counts": {
@@ -35,7 +35,7 @@
       "high": 1,
       "medium": 1,
       "low": 0,
-      "none": 435
+      "none": 436
     },
     "high_risk_missing_docs": [
       "1013_sprint69_operational_alerting_control_plane.sql"
@@ -44,12 +44,12 @@
       "1014_sprint69_approval_hold_collation_reconciliation_rule.sql"
     ],
     "safety_marker_counts": {
-      "no_provider_call": 435,
-      "no_credential_payload_read": 434,
-      "no_raw_secrets": 434,
-      "no_external_send": 434,
-      "no_external_write": 434,
-      "secrets_included_false": 436
+      "no_provider_call": 436,
+      "no_credential_payload_read": 435,
+      "no_raw_secrets": 435,
+      "no_external_send": 435,
+      "no_external_write": 435,
+      "secrets_included_false": 437
     },
     "safety_marker_gap_migrations": 1,
     "route_coverage": {
