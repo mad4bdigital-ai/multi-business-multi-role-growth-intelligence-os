@@ -1601,3 +1601,4 @@ Documents and aligns PR #1270 / migration `906_sprint68_ticket_external_delivery
 
 - http-generic-api/migrations/314_sprint69_capability_assurance_graph.sql adds the canonical capability graph, invocation evidence links, capability-specific resource bindings, generic certifications, provenance, debt, closure threads, and hash-only secret movement evidence.
 - Apply remains envelope-gated, additive, no-provider-call, and no-plaintext-secret.
+- Local connector recovery enforces `cloudflare_1033_retry_before_repair_v1`: three total bounded health attempts, early stop on pass or authorization-gated reachability, and installer generation only after retry exhaustion. Migration `318_sprint69_local_connector_transient_retry_policy.sql` registers the blocking SQL policy and updates the governed tool description.
