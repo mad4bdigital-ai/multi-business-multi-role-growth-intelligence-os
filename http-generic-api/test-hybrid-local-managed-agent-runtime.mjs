@@ -5,7 +5,7 @@ import { buildCallModel } from "./modelAdapterRouter.js";
 const localRuntime = readFileSync(new URL("../local-connector/local-agent-runtime.mjs", import.meta.url), "utf8");
 const connector = readFileSync(new URL("../local-connector/server.mjs", import.meta.url), "utf8");
 const proxy = readFileSync(new URL("./routes/connectorProxyRoutes.js", import.meta.url), "utf8");
-const migration = readFileSync(new URL("./migrations/1016_sprint69_hybrid_local_managed_agent_runtime.sql", import.meta.url), "utf8");
+const migration = readFileSync(new URL("./migrations/1017_sprint69_hybrid_local_managed_agent_runtime.sql", import.meta.url), "utf8");
 const localOpenApi = readFileSync(new URL("./openapi.gpt-action.local-connector.yaml", import.meta.url), "utf8");
 const platformOpenApi = readFileSync(new URL("./openapi.yaml", import.meta.url), "utf8");
 
