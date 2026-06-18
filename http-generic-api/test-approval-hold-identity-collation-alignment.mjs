@@ -41,6 +41,16 @@ const applySql = sql.split("-- Align only the four mismatched varchar(36) identi
 assert(applySql, "missing apply-section marker");
 assert.equal((applySql.match(/MODIFY approval_hold_id VARCHAR\(36\)/g) || []).length, 3);
 assert.equal((applySql.match(/MODIFY hold_id VARCHAR\(36\)/g) || []).length, 1);
+assert.equal((applySql.match(/FROM information_schema\.columns/g) || []).length, 4);
+assert.equal((applySql.match(/PREPARE align_/g) || []).length, 4);
+assert.equal((applySql.match(/EXECUTE align_/g) || []).length, 4);
+assert.equal((applySql.match(/DEALLOCATE PREPARE align_/g) || []).length, 4);
+const preflight = assessMigrationSqlPreflight(
+  "1013_sprint69_approval_hold_identity_collation_alignment.sql",
+  sql
+);
+assert.equal(preflight.status, "pass");
+assert.equal(preflight.risk_count, 0);
 assert(!sql.includes("VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"));
 assert(!sql.includes("VARCHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"));
 assert(sql.includes("CREATE OR REPLACE VIEW v_approval_hold_identity_collation_readiness"));
