@@ -14,6 +14,7 @@ const JSON_OUTPUT_PATH = path.join(REPO_ROOT, "docs", "surface-contract-discover
 const GAP_QUEUE_PATH = path.join(REPO_ROOT, "docs", "surface-contract-gap-queue.md");
 const GAP_QUEUE_JSON_PATH = path.join(REPO_ROOT, "docs", "surface-contract-gap-queue.json");
 const SAFETY_ATTESTATION_PATH = path.join(REPO_ROOT, "docs", "surface-contract-safety-attestations.json");
+const CHECKSUM_CANONICALIZATION = "utf8_lf_v1";
 const DOC_TARGETS = [
   "Updating Registry Patch Index.md",
   "deployment_parity_checklist.md",
@@ -58,8 +59,12 @@ function readFileIfExists(filePath) {
   return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
 }
 
+function canonicalizeChecksumText(value = "") {
+  return String(value || "").replace(/\r\n?/g, "\n");
+}
+
 function sha256(value = "") {
-  return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
+  return createHash("sha256").update(canonicalizeChecksumText(value), "utf8").digest("hex");
 }
 
 function collectSafetyAttestations() {
@@ -77,6 +82,7 @@ function resolveSafetyAttestation(fileName, source, attestations) {
   const item = attestations.get(fileName);
   if (!item) return null;
   if (item.attestation_status !== "verified_static_no_external_side_effects") return null;
+  if (item.checksum_canonicalization && item.checksum_canonicalization !== CHECKSUM_CANONICALIZATION) return null;
   if (item.migration_sha256 !== sha256(source)) return null;
   if (!SAFETY_MARKERS.every((marker) => item.safety_markers?.[marker] === true)) return null;
   return item;
@@ -455,6 +461,7 @@ export function discoverSurfaces({ limit = 80 } = {}) {
           attestation_status: safetyAttestation.attestation_status,
           evidence_mode: safetyAttestation.evidence_mode,
           migration_sha256: safetyAttestation.migration_sha256,
+          checksum_canonicalization: safetyAttestation.checksum_canonicalization || CHECKSUM_CANONICALIZATION,
         } : null,
         surfaces,
         docs,
