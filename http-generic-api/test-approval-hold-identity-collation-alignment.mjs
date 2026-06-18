@@ -49,9 +49,9 @@ for (const guard of [
 ]) {
   assert(applySql.includes(guard), `missing idempotent guard: ${guard}`);
 }
-assert.equal((applySql.match(/PREPARE align_/g) || []).length, 4);
-assert.equal((applySql.match(/EXECUTE align_/g) || []).length, 4);
-assert.equal((applySql.match(/DEALLOCATE PREPARE align_/g) || []).length, 4);
+assert.equal((applySql.match(/(?:^|\n)PREPARE align_/g) || []).length, 4);
+assert.equal((applySql.match(/(?:^|\n)EXECUTE align_/g) || []).length, 4);
+assert.equal((applySql.match(/(?:^|\n)DEALLOCATE PREPARE align_/g) || []).length, 4);
 const preflight = assessMigrationSqlPreflight(
   "1013_sprint69_approval_hold_identity_collation_alignment.sql",
   sql
