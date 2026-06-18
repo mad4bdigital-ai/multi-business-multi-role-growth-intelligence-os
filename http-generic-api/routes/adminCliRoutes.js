@@ -8,7 +8,7 @@ import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.j
 import { evaluateRepositoryMutationPreflight, evaluateRepositoryPublishPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import { createContinuationCheckpoint, planContinuationResume } from "../sharedReconciliationEngine.js";
 import { closeGithubPullRequest, deleteGithubBranchRef, githubBranchDeleteConfirmation } from "../githubRepositoryLifecycle.js";
-import { classifyLocalConnectorCompositeHealth, probeLocalConnectorPublicHealth } from "../localConnectorCompositeHealth.js";
+import { classifyLocalConnectorCompositeHealth, probeLocalConnectorPublicHealthWithRetry } from "../localConnectorCompositeHealth.js";
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 120000;
 const MAX_COMMAND_TIMEOUT_MS = 600000;
