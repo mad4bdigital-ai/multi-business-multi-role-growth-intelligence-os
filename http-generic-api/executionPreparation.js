@@ -8,9 +8,12 @@ import { enforceExecutionAuthorityManifestGuard } from "./executionAuthorityMani
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const AUTH_VALIDATION_PLACEHOLDER = "__schema_validation_auth_placeholder__";
 
+function isTrueFlag(value) {
+  return value === true || String(value || "").trim().toLowerCase() === "true";
+}
+
 function isPassiveExecutionRequested(requestPayload = {}) {
-  return requestPayload.dry_run === true ||
-    String(requestPayload.dry_run || "").trim().toLowerCase() === "true";
+  return isTrueFlag(requestPayload.dry_run) || isTrueFlag(requestPayload.preflight_only);
 }
 
 function buildSchemaValidationAuthContract(authContract = {}) {
