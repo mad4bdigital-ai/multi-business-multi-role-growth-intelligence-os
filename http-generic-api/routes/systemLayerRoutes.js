@@ -474,6 +474,23 @@ function descriptorHandlerRegistry() {
 
 const SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY = descriptorHandlerRegistry();
 
+async function runRepositoryGovernanceV6ReadinessResource(args = {}) {
+  const recipeKey = String(args.recipe_key || "").trim();
+  const mode = String(args.mode || "").trim();
+  if (recipeKey !== REPOSITORY_PR_RECONCILE_RECIPE_KEY || mode !== "read_only") {
+    const err = new Error("Repository Governance V6 readiness only permits the read-only PR reconciliation recipe.");
+    err.status = 403;
+    err.code = "repository_governance_v6_readiness_scope_blocked";
+    throw err;
+  }
+  return runGovernedResource(args, {
+    executeGithubReadOnly: (operationKey, githubArgs = {}) =>
+      executeRepositoryPrReconciliationReadOnlyForAdminReadiness(operationKey, githubArgs, {
+        adminAuthorized: true,
+      }),
+  });
+}
+
 async function callDescriptorSystemToolIfAvailable(name, args = {}, auth = null, deps = {}) {
   const entry = SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.get(name);
   if (!entry) return { handled: false };
