@@ -581,6 +581,22 @@ function mapGithubRunForGhJson(run, fields = []) {
   return Object.fromEntries(fields.map((field) => [field, mapped[field] ?? run[field] ?? null]));
 }
 
+function mapGithubWorkflowForGhJson(workflow, fields = []) {
+  const mapped = {
+    id: workflow.id,
+    name: workflow.name,
+    path: workflow.path,
+    state: workflow.state,
+  };
+  if (!fields.length) return mapped;
+  return Object.fromEntries(fields.map((field) => [field, mapped[field] ?? workflow[field] ?? null]));
+}
+
+function formatGithubWorkflowList(workflows = [], fields = []) {
+  if (fields.length) return JSON.stringify(workflows.map((workflow) => mapGithubWorkflowForGhJson(workflow, fields)), null, 2);
+  return `${workflows.map((workflow) => `${workflow.name}\t${workflow.state}\t${workflow.id}`).join("\n")}${workflows.length ? "\n" : ""}`;
+}
+
 function mapGithubPullForGhJson(pr, fields = []) {
   const checkRuns = Array.isArray(pr._state_check_rollup) ? pr._state_check_rollup : [];
   const mapped = {
@@ -824,6 +840,7 @@ function buildGithubFallbackUnsupportedError(args = []) {
       "pr list",
       "pr diff <number> --name-only",
       "pr edit <number> --add-label superseded",
+      "workflow list",
       "workflow run <workflow> --ref <ref>",
       "api <workflow-dispatch-path> -X POST -f ref=<ref>",
       "run list",
@@ -1495,6 +1512,47 @@ async function executeGitHubRestFallbackCore(args = []) {
       stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n",
       exit_code: result.ok ? 0 : 2,
       fallback: "github_rest",
+    };
+  }
+
+  if (resource === "workflow" && ["list", "ls"].includes(command)) {
+    if (hasCliFlag(args, ["--jq", "-q", "--template", "-t"])) {
+      const err = new Error("workflow list REST fallback does not support --jq or --template formatting. Use --json id,name,path,state or the default tabular output.");
+      err.status = 501;
+      err.code = "github_workflow_list_format_unsupported";
+      throw err;
+    }
+    const limit = Math.max(1, Math.min(1000, Number(parseCliFlag(args, ["--limit", "-L"]) || 50)));
+    const includeDisabled = hasCliFlag(args, ["--all", "-a"]);
+    const workflows = [];
+    let page = 1;
+    let totalCount = null;
+    while (workflows.length < limit) {
+      const payload = await githubRestJson({ owner, repo, apiPath: `/actions/workflows?per_page=100&page=${page}`, token });
+      const pageRows = Array.isArray(payload?.workflows) ? payload.workflows : [];
+      if (totalCount === null) totalCount = Number(payload?.total_count || pageRows.length);
+      for (const workflow of pageRows) {
+        if (includeDisabled || workflow.state === "active") workflows.push(workflow);
+        if (workflows.length >= limit) break;
+      }
+      if (!pageRows.length || pageRows.length < 100 || page * 100 >= totalCount) break;
+      page += 1;
+    }
+    const selected = workflows.slice(0, limit);
+    return {
+      stdout: formatGithubWorkflowList(selected, fields),
+      stderr: "gh CLI is not installed on host; repaired missing capability and used GitHub REST fallback for workflow list.\n",
+      exit_code: 0,
+      fallback: "github_rest",
+      capability_repair: {
+        policy: "repair_missing_capability_before_fallback",
+        repaired: true,
+        operation: "workflow list",
+        max_repair_attempts_before_fallback: 3,
+        repair_attempt_count: 3,
+        repair_attempts: buildGithubFallbackRepairAttempts({ args, mapped: true }),
+        continuation: buildGithubFallbackContinuationEvidence({ args, mapped: true }),
+      },
     };
   }
 
