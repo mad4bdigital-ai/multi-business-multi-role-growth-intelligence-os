@@ -306,6 +306,11 @@ assert(approvalHoldCollationStatements[0].startsWith("UPDATE execution_enablemen
 assert(approvalHoldCollationStatements[1].startsWith("CREATE TEMPORARY TABLE tmp_approval_hold_identity_orphans"), "migration 1013 temporary orphan table must be a separate statement");
 assert(approvalHoldCollationStatements.at(-2).startsWith("CREATE OR REPLACE VIEW v_approval_hold_identity_collation_readiness"), "migration 1013 readiness view must be independently executable");
 assert(approvalHoldCollationStatements.at(-1).startsWith("INSERT INTO execution_policies"), "migration 1013 policy seed must be the final independent statement");
+assert.equal(
+  approvalHoldCollationMigration.split("COLLATE utf8mb4_unicode_ci AS hold_id").length - 1,
+  9,
+  "all nine migration 1013 orphan UNION projections must normalize hold_id to utf8mb4_unicode_ci"
+);
 
 const approvalHoldDynamicAlterContracts = [
   "ALTER TABLE local_gateway_tool_call_log MODIFY approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL",
