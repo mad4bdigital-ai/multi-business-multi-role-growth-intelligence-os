@@ -195,6 +195,7 @@ export function buildConnectApiRoutes(deps = {}) {
 
   // POST /connect/api/integration-policy — update per-app managed/dedicated source modes.
   router.post("/connect/api/integration-policy", async (req, res, next) => {
+    let tx = null;
     try {
       const integrationModes = req.body?.integration_modes || {};
       if (!integrationModes || typeof integrationModes !== "object" || Array.isArray(integrationModes) || !Object.keys(integrationModes).length) {
@@ -207,29 +208,53 @@ export function buildConnectApiRoutes(deps = {}) {
         });
       }
 
+      tx = typeof pool.getConnection === "function" ? await pool.getConnection() : null;
+      if (tx) await tx.beginTransaction();
+      const db = tx || pool;
+      const [connectionRows] = await db.query(
+        `SELECT * FROM \`tenant_connections\` WHERE tenant_id = ? ORDER BY updated_at DESC LIMIT 1`,
+        [req.auth.tenant_id]
+      );
       const result = await upsertTenantIntegrationPolicies({
         tenantId: req.auth.tenant_id,
         userId: req.auth.user_id,
         integrationModes,
         source: "connect_api_policy_update",
+        db,
       });
-      const [connectionRows] = await pool.query(
-        `SELECT * FROM \`tenant_connections\` WHERE tenant_id = ? ORDER BY updated_at DESC LIMIT 1`,
-        [req.auth.tenant_id]
-      );
-      const readiness = await assessHybridIntegrationReadiness({
-        tenantId: req.auth.tenant_id,
-        userId: req.auth.user_id,
-        connection: connectionRows?.[0] || null,
-      });
+      if (tx) {
+        await tx.commit();
+        tx.release();
+      }
+      tx = null;
+      let readiness = null;
+      let readinessError = null;
+      try {
+        readiness = await assessHybridIntegrationReadiness({
+          tenantId: req.auth.tenant_id,
+          userId: req.auth.user_id,
+          connection: connectionRows?.[0] || null,
+        });
+      } catch (err) {
+        readinessError = {
+          code: err?.code || "hybrid_integration_readiness_unavailable",
+          message: err?.message || "Hybrid integration readiness is unavailable after policy update.",
+        };
+      }
       return res.json({
         ok: true,
         update: result,
         hybrid_integration_catalog: hybridIntegrationCatalog(),
         hybrid_integration_readiness: readiness,
+        readiness_unavailable: readinessError,
       });
     } catch (err) {
+      if (tx) {
+        try { await tx.rollback(); } catch {}
+      }
       next(err);
+    } finally {
+      if (tx) tx.release();
     }
   });
 
