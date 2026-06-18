@@ -2720,36 +2720,10 @@ export function buildAdminCliRoutes(deps) {
         return res.send(batContent);
       }
 
-      // Upload to Drive so GPT can share a link
-      let driveResult = null;
-      let driveUploadStatus = typeof deps.getGoogleClients === "function" ? "attempted" : "not_configured";
-      let driveError = null;
-      if (typeof deps.getGoogleClients === "function") {
-        try {
-          const { drive } = await deps.getGoogleClients();
-          const created = await drive.files.create({
-            requestBody: { name: filename, mimeType: "application/octet-stream" },
-            media: { mimeType: "application/octet-stream", body: batContent },
-            fields: "id,webViewLink",
-          });
-          if (created?.data?.id) {
-            await drive.permissions.create({
-              fileId: created.data.id,
-              requestBody: { role: "reader", type: "anyone" },
-            });
-            driveResult = {
-              drive_file_id: created.data.id,
-              drive_link: `https://drive.google.com/uc?export=download&id=${created.data.id}`,
-              view_link: created.data.webViewLink,
-            };
-          }
-        } catch (driveErr) {
-          driveUploadStatus = "failed";
-          driveError = sanitizeDriveUploadError(driveErr);
-          console.warn("[install-bundle] Drive upload failed:", driveErr.message);
-        }
-      }
-      if (driveResult) driveUploadStatus = "uploaded";
+      // Secret-bearing installers are never copied to shared or public storage.
+      const driveResult = null;
+      const driveUploadStatus = "blocked_secret_bearing_artifact";
+      const driveError = null;
 
       writeAuditLogAsync({
         action: "admin_cli.local_connector_install_bundle",
