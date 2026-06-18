@@ -130,3 +130,16 @@ directly dispatched. Registering a module without backend validation logic is fo
 - `api_key_ref` selects between `HOSTINGER_CLOUD_PLAN_01_API_KEY` and `HOSTINGER_SHARED_MANAGER_01_API_KEY`
 - `DELETE` on DNS records is a destructive operation — requires explicit intent
 - all DNS operations require admin principal auth (`is_admin = true`)
+## Cloudflare 1033 Retry-Before-Repair Rule
+
+Cloudflare error `1033` and HTTP `530` are transient-retry candidates, not immediate proof that the local connector requires reinstall or tunnel reprovisioning.
+
+- perform three total public health attempts: the initial attempt plus two retries
+- use short exponential backoff bounded by the runtime policy
+- stop immediately when health passes or when the endpoint is reachable but authorization-gated
+- call or continue `local_connector_self_repair` only after retryable evidence is exhausted
+- the self-repair route must repeat the bounded attempts internally before generating installer assets
+- return and audit no-secret `retry_evidence` with attempt count, statuses, delays, recovery-on-retry, and exhaustion state
+- recovered classification requires same-cycle passing health evidence; installer generation is forbidden when a retry succeeds
+
+The SQL runtime authority is `execution_policies` row `Local Connector Recovery Governance / Cloudflare 1033 Retry Before Repair`, registered by `1015_sprint69_local_connector_transient_retry_policy.sql`.

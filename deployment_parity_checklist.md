@@ -293,3 +293,8 @@ Use this checklist for PR #1270 and migration `906_sprint68_ticket_external_deli
 - [ ] Canonical capability tables and assurance views pass readback.
 - [ ] platform_capability_assurance_reconcile is registered and dry-run succeeds.
 - [ ] Deployment SHA matches the CI-certified merge SHA before production apply.
+### Local Connector Transient Retry Policy
+
+`1015_sprint69_local_connector_transient_retry_policy.sql` registers the blocking `Cloudflare 1033 Retry Before Repair` execution policy and updates the governed `local_connector_self_repair` tool description. The route performs three total bounded health attempts, stops on pass or authorization-gated reachability, records no-secret `retry_evidence`, and forbids installer generation when a retry recovers.
+
+Safety contract: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`.
