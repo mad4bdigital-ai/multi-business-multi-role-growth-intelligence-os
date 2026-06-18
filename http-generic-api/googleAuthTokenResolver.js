@@ -208,7 +208,7 @@ function allowPlatformFallback(options = {}) {
   return boolOption(ctx.allow_platform_fallback ?? options.allow_platform_fallback, true);
 }
 
-function cacheKey(options = {}) {
+export function buildGoogleTokenCacheKey(options = {}) {
   const action = options.action || {};
   const ctx = options.auth_context && typeof options.auth_context === "object"
     ? options.auth_context
