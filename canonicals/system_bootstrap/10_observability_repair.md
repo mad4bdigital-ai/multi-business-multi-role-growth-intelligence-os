@@ -950,6 +950,12 @@ Required behavior:
 - keep severity, verification, and lifecycle as separate dimensions
 - preserve Known Issues until an explicit governed lifecycle decision resolves or ignores them
 - auto-resolve only non-manual alerts that disappear after a successful synchronization
+- deduplicate skill-approval evidence by `agent_id + skill_id + effective tenant/brand scope`, never by `grant_id`
+- fingerprint execution failures by operation, normalized failure reason, resource/target identity, and tenant/workspace scope
+- suppress or resolve a failure only when a later success matches the same recovery fingerprint
+- downgrade fallback-backed or route-resolved failures from critical severity while preserving the degraded evidence
+- classify malformed source rows as bounded data-quality findings rather than verified critical operational failures
+- reconcile pending outbox rows after lifecycle resolution and before queuing current high/critical notifications
 - queue high and critical notifications through `operational_alert_notification_outbox`; external delivery remains separately governed
 - preserve tenant isolation and keep platform Known Issues admin-only
 - support cursor/offset pagination with explicit `has_more` and `next_cursor`

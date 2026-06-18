@@ -1268,3 +1268,15 @@ Replay rules:
 - readback failure must not be reclassified as successful execution
 
 Mutation recipes in `planned`, disabled, expired, mismatched, incomplete-evidence, or unauthorized states must block before token resolution and provider dispatch. Force-push and repository-engine migration apply are always forbidden.
+
+## Operational Alert P0 Reconciliation Enforcement
+
+For unified operational alert synchronization:
+
+- derive skill-approval identity from agent, skill, and effective tenant/brand scope; `grant_id` is evidence, not alert identity
+- do not merge execution failures with different operation keys or normalized failure reasons
+- do not keep a failure open when a later verified success matches the same recovery fingerprint
+- do not classify fallback-backed or route-resolved execution as an unrecovered critical failure
+- do not promote malformed source rows or lifecycle-inconsistent completed tasks into the high/critical notification queue
+- resolve or skip stale pending notifications before current eligible notifications are queued
+- preserve no-secret evidence, tenant scope, source health, same-cycle readback, and explicit lifecycle state

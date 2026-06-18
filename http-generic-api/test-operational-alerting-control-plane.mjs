@@ -81,6 +81,82 @@ function testStableKeysAndExecutionGrouping() {
   assert.equal(grouped[0].execution_trace_id_writeback, "trace-2");
 }
 
+function testP0ReconciliationSemantics() {
+  const duplicateGrants = Array.from({ length: 19 }, (_, index) => ({
+    grant_id: `grant-${index + 1}`,
+    tenant_id: null,
+    brand_key: null,
+    agent_id: "agent-1",
+    agent_name: "agent_one",
+    agent_display_name: "Agent One",
+    skill_id: "skill-1",
+    skill_key: "api.wordpress_write",
+    skill_display_name: "WordPress Write",
+    requires_approval: 1,
+    granted_at: `2026-05-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`,
+  }));
+  const groupedGrants = _testingOperationalAlerts.groupSkillApprovalRows(duplicateGrants);
+  assert.equal(groupedGrants.length, 1, "duplicate active grants must collapse to one effective approval decision");
+  assert.equal(groupedGrants[0].active_grant_count, 19);
+  assert.equal(groupedGrants[0].effective_key, "global|global|agent-1|skill-1");
+
+  const executionRows = [
+    {
+      id: 10,
+      entry_type: "sync_execution",
+      execution_status: "failed",
+      failure_reason: "external_credential_connection_not_found",
+      output_summary: "github_get_contents failed: external_credential_connection_not_found",
+      created_at: "2026-06-12T17:14:09.000Z",
+    },
+    {
+      id: 11,
+      entry_type: "sync_execution",
+      execution_status: "success",
+      output_summary: "github_get_contents completed with status success (200)",
+      created_at: "2026-06-12T17:14:17.000Z",
+    },
+    {
+      id: 12,
+      entry_type: "sync_execution",
+      execution_status: "failed",
+      failure_reason: "endpoint_not_found",
+      output_summary: "posts_create failed: endpoint_not_found",
+      created_at: "2026-06-13T19:51:38.000Z",
+    },
+    {
+      id: 13,
+      entry_type: "sync_execution",
+      execution_status: "failed",
+      failure_reason: "parent_action_not_found",
+      output_summary: "unknown_endpoint_smoke failed: parent_action_not_found",
+      created_at: "2026-06-13T20:00:00.000Z",
+    },
+  ];
+  const executionAlerts = _testingOperationalAlerts.mapExecutionAlerts(executionRows);
+  assert.equal(executionAlerts.length, 1, "a later success must resolve only the matching operation fingerprint");
+  assert.equal(executionAlerts[0].evidence.operation_key, "posts_create");
+  assert.equal(executionAlerts[0].evidence.failure_reason, "endpoint_not_found");
+  assert.match(executionAlerts[0].source_record_id, /^execution:[a-f0-9]{64}$/, "execution source identity must fit the SQL column");
+
+  assert.equal(
+    _testingOperationalAlerts.executionSeverity("failed", { route_status: "resolved", recovery_status: "fallback_summary_used" }),
+    "high",
+    "fallback-backed resolved executions must not remain critical"
+  );
+  assert.equal(
+    _testingOperationalAlerts.notificationEligible({
+      severity: "high",
+      lifecycle_status: "open",
+      verification_state: "observed",
+      source_record_id: "task-1",
+      reason_code: "task_state_inconsistent",
+    }),
+    false,
+    "observed data-quality mismatches must not enter the notification outbox"
+  );
+}
+
 function testDedupeAndLifecyclePrecedence() {
   const live = _testingOperationalAlerts.candidate({
     alertKey: "alert.test",
@@ -148,6 +224,7 @@ function testRepositoryContracts() {
   const routes = read("./routes/activationAwarenessRoutes.js");
   const awareness = read("./activationAwarenessService.js");
   const migration = read("./migrations/1013_sprint69_operational_alerting_control_plane.sql");
+  const reconciliationMigration = read("./migrations/1015_sprint69_operational_alerting_p0_reconciliation.sql");
   const openapi = read("./openapi.yaml");
   const memory = read("../memory_schema.json");
   const auditCanonical = read("../canonicals/system_bootstrap/03_audit_logging_schema.md");
@@ -160,6 +237,14 @@ function testRepositoryContracts() {
   assert.match(service, /operational_alert_notification_outbox/);
   assert.match(service, /resolution_skipped_due_to_degraded_sources/);
   assert.match(service, /truncated_sources/);
+  assert.match(service, /groupSkillApprovalRows/);
+  assert.match(service, /notification_skipped_count/);
+  assert.match(openapi, /notification_skipped_count/);
+  assert.match(service, /alert_reconciled_before_delivery/);
+  assert.match(reconciliationMigration, /active_effective_scope_key/);
+  assert.match(reconciliationMigration, /uq_agent_skill_grants_active_effective_scope/);
+  assert.match(reconciliationMigration, /p0_reconciliation_required/);
+  assert.match(reconciliationMigration, /no later success for the same operation fingerprint/);
   assert.match(routes, /\/activation\/operational-attention/);
   assert.match(routes, /\/tenant\/activation\/operational-attention/);
   assert.match(routes, /operational-attention\/:alertId\/lifecycle/);
@@ -199,6 +284,7 @@ async function main() {
   testKnownIssueCoverage();
   testSensitiveEvidenceStripping();
   testStableKeysAndExecutionGrouping();
+  testP0ReconciliationSemantics();
   testDedupeAndLifecyclePrecedence();
   testSummaryAndRouteInputs();
   testRepositoryContracts();
