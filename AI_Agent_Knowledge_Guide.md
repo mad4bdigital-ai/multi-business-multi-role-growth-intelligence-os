@@ -895,6 +895,21 @@ If auth fails:
 - platform bootstrap auth failures point to service account, ADC, sharing, scope, or deployment configuration
 - do not switch a platform-owned bootstrap file to user refresh-token auth just to make a probe pass
 
+### Passive auth lifecycle and Google action context
+
+The execution boundary must separate authorization metadata from credential materialization.
+
+1. Resolve principal, tenant/workspace, brand, business type, business activity, applicable profiles, action, endpoint, and SQL scope contract.
+2. Build a metadata-only auth contract for schema, policy, authority, dry-run, and preflight validation.
+3. For `dry_run=true` or `preflight_only=true` (boolean or string), do not read secrets, mint tokens, construct authenticated provider clients, or call providers. Evidence must report `materialized=false`, `provider_call_made=false`, and `secret_read_performed=false`.
+4. Only after all guards pass for live execution may the runtime resolve the credential binding, read the secret, mint a token, create a scoped client, and dispatch the provider call.
+
+Google client acquisition must always include an explicit SQL-authoritative action context. Sheets-only registry and sink operations use `google_sheets_api`; Drive file operations and `activation_drive_probe` use `google_drive_api`. Actionless `getGoogleClients()` calls and implicit Drive capabilities in registry snapshots are forbidden.
+
+Google token and client cache identity must include action key, credential scope, user, tenant, connection, app key, and OAuth config reference. Inflight token deduplication applies only to an identical context key; different principals or connections must resolve independently. Missing SQL scope contracts fail closed with `auth_scope_contract_missing`.
+
+Path resolution defaults to SQL/MySQL authority. Google Sheets path resolution is available only when `DATA_SOURCE=sheets` or `DATA_SOURCE=google_sheets` is explicitly configured.
+
 ## 9. Documentation trust model
 High trust:
 - canonicals

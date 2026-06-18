@@ -446,7 +446,7 @@ export async function ensureSiteMigrationRouteWorkflowRows(deps = {}) {
     fallbackColumns: deps.WORKFLOW_REGISTRY_CANONICAL_COLUMNS
   });
 
-  const { sheets } = await deps.getGoogleClients();
+  const { sheets } = await deps.getGoogleClients({ action_key: "google_sheets_api" });
   const taskRoutes = await deps.loadTaskRoutesRegistry(sheets, {
     include_candidate_inspection: true
   });
@@ -690,7 +690,7 @@ export function buildAiResolverRegistryReadiness(args = {}) {
 }
 
 export async function ensureAiResolverRouteWorkflowRows(deps = {}) {
-  const { sheets } = await deps.getGoogleClients();
+  const { sheets } = await deps.getGoogleClients({ action_key: "google_sheets_api" });
   const taskRoutes = await deps.loadTaskRoutesRegistry(sheets, {
     include_candidate_inspection: true
   });

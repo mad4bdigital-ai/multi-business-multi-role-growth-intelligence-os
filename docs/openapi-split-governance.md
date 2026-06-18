@@ -27,6 +27,16 @@ Tenant operation aliases must be unique in the canonical source. In particular:
 
 Virtual Admin tools such as `growth_intelligence_pilot_run` are exposed through the existing `POST /gpt/tools/call` dispatcher and do not add independent split-schema paths. Their tool name, description, and input schema come from the Admin tool catalog at runtime. Changes must update the canonical `http-generic-api/openapi.yaml` dispatcher description, keep the generated auth-dispatcher operation stable, and preserve `callAdminTool` request/response compatibility. The split generator must not create a dedicated public endpoint for a virtual tool. Growth Intelligence insight/action decisions, readiness refresh, and V5 plan-bound approval-hold operations remain catalog-backed virtual tools behind the stable dispatcher; their schemas must preserve no-execution/no-provider-write boundaries and typed-confirmation requirements.
 
+## Auth lifecycle and provider action parity
+
+The canonical dispatcher descriptions in `openapi.yaml` must remain aligned with runtime action selection and passive credential behavior.
+
+- `POST /system/tools/call` and `POST /admin/system/tools/call` remain stable dispatcher operations; provider probes do not add split-only routes.
+- `activation_drive_probe` must resolve the SQL-authoritative `google_drive_api` action and scope contract explicitly. It must not inherit a Sheets action or an actionless client default.
+- Split schemas may expose the dispatcher operation, but they must not duplicate provider action keys, credential scope rules, or token-cache behavior as an independent authority.
+- Preview, dry-run, and preflight descriptions must not imply a provider call or credential materialization when the runtime returns no-secret evidence.
+- Any split schema regeneration must preserve operation IDs, security schemes, and request compatibility after canonical auth-lifecycle documentation changes.
+
 ## Enforcement
 
 The DB execution policy is:
