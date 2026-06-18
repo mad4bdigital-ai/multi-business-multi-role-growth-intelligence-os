@@ -556,13 +556,20 @@ export async function runDynamicAuditCycle(options = {}, dependencies = {}) {
       { pool }
     );
     const checkpoint = await writeCheckpoint(connection, config, commitSha);
+    const lifecycleSnapshot = await runDatabaseLifecycleDailySnapshotCycle({
+      actor_id: "dynamic_audit_scheduler",
+      apply: true,
+      confirm: DATABASE_LIFECYCLE_DAILY_SNAPSHOT_CONFIRMATION,
+      notes: "Internal runtime daily lifecycle evidence snapshot only.",
+      trace_id: runId,
+    }, { pool });
     const readiness = await readDynamicReadiness(connection);
     result = {
-      ok: Boolean(bridge.ok && rollup.ok),
+      ok: Boolean(bridge.ok && rollup.ok && lifecycleSnapshot.ok),
       run_id: runId,
       mode: options.mode || "scheduled",
       commit_sha: commitSha,
-      stages: { bridge, drive, release, repo, rollup, checkpoint },
+      stages: { bridge, drive, release, repo, rollup, checkpoint, lifecycle_snapshot: lifecycleSnapshot },
       readiness,
       raw_payload_stored: false,
       secrets_included: false,
