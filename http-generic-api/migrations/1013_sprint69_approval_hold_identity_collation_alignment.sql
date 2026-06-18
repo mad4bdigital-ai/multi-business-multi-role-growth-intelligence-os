@@ -56,7 +56,7 @@ FROM local_gateway_tool_call_log c
 LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
 WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
 UNION ALL
-SELECT 'repository_advisory_comment_plans', c.approval_hold_id
+SELECT 'repository_advisory_comment_plans', CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS hold_id
 FROM repository_advisory_comment_plans c
 LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
 WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
