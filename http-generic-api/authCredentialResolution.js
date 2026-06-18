@@ -221,7 +221,8 @@ async function _buildAuthContract({
   tenant_id = "",
   auth_context = null,
   credential_scope = "",
-  allow_platform_fallback = undefined
+  allow_platform_fallback = undefined,
+  resolve_credentials = true
 }) {
   const mode = inferAuthMode({ action, brand });
   const contract = {
@@ -233,6 +234,38 @@ async function _buildAuthContract({
     header_name: "",
     custom_headers: {}
   };
+
+  if (resolve_credentials === false) {
+    const strategy = getParentAuthStrategy(action, endpoint);
+    contract.credential_scope = resolveRequestedCredentialScope({
+      strategy,
+      auth_context,
+      credential_scope
+    });
+    contract.credential_resolution_source = "deferred_until_authorized_execution";
+    contract.materialized = false;
+    contract.provider_call_made = false;
+    contract.secret_read_performed = false;
+
+    if (mode === "basic_auth") {
+      contract.header_name = "Authorization";
+      contract.username = String(brand?.username || "").trim();
+    } else if (mode === "api_key_query") {
+      contract.param_name = action.api_key_param_name || "api_key";
+    } else if (mode === "api_key_header") {
+      contract.header_name = action.api_key_header_name || "x-api-key";
+    } else if ([
+      "google_oauth2",
+      "google_ads_oauth2",
+      "oauth_gpt_action",
+      "github_app",
+      "bearer_token"
+    ].includes(mode)) {
+      contract.header_name = "Authorization";
+    }
+
+    return contract;
+  }
 
   if (mode === "basic_auth") {
     const scoped = await resolveScopedConnection({ action, endpoint, mode, user_id, tenant_id, auth_context, credential_scope, allow_platform_fallback });
@@ -347,11 +380,13 @@ async function _buildAuthContract({
 }
 
 // Async public entry point — adds credential_resolution_status to every contract.
-export async function normalizeAuthContract(args) {
+export async function normalizeAuthContract(args = {}) {
   const contract = await _buildAuthContract(args);
   const hasSecret = Boolean(contract.secret);
   const hasCustomHeaders = contract.custom_headers && typeof contract.custom_headers === "object" && Object.keys(contract.custom_headers).length > 0;
-  contract.credential_resolution_status = (hasSecret || hasCustomHeaders) ? "resolved" : "empty_secret";
+  contract.credential_resolution_status = args.resolve_credentials === false
+    ? "deferred_until_authorized_execution"
+    : ((hasSecret || hasCustomHeaders) ? "resolved" : "empty_secret");
   return contract;
 }
 

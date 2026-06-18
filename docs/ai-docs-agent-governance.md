@@ -165,6 +165,12 @@ docs/ai-docs-agent-governance.md
 
 - `1009_sprint69_optional_manual_agent_delegation_tools.sql` registers explicit, admin-governed manual delegation creation/dispatch/contract tools. Migration execution performs no provider call, credential read, external send/write, or secret return; runtime delegation remains opt-in and confirmation/authorization governed.
 - `1010_sprint69_disable_legacy_agent_chain_dispatch_tool.sql` disables the ambiguous legacy dispatch surface and directs callers to `agent_chain_event_dispatch_manual`. It is a guarded registry update only and performs no provider call, credential read, external send/write, or secret return.
+## Sprint 69 daily database lifecycle snapshot documentation contract
+
+- Generated documentation for `318_sprint69_database_lifecycle_daily_snapshot_runtime.sql` must identify the daily schedule as evidence-only at `03:00 UTC` and the weekly schedule as review-only.
+- The runtime contract requires one transaction for snapshot write plus `last_readiness_at`/`last_snapshot_id` update, followed by same-cycle readback. Readback mismatch must roll back and expose a stable error code.
+- Documentation must never imply automatic retention actions, archive, delete, drop, truncate, compaction, provider calls, credential reads, external writes, or secret return. `will_execute=0` remains the retention-action safety boundary and `secrets_included=false`.
+
 ## Sprint 69 database lifecycle registry upsert documentation contract
 
 - `316_sprint69_database_lifecycle_registry_upsert_admin_tool.sql` must remain documented as an Admin registry surface, not a new public Express endpoint. `/admin/control` is registry-governed and OpenAPI-exempt for this tool registration.
@@ -178,3 +184,8 @@ docs/ai-docs-agent-governance.md
 ## Capability Assurance Graph documentation contract
 
 Migration 314_sprint69_capability_assurance_graph.sql is documented by docs/platform-capability-assurance-graph.md. Auto-docs must preserve the separation between capability requirements, invocation envelopes, resource authority, evidence, certification, debt, and closure state.
+### Local Connector Transient Retry Policy
+
+`1015_sprint69_local_connector_transient_retry_policy.sql` registers the blocking `Cloudflare 1033 Retry Before Repair` execution policy and updates the governed `local_connector_self_repair` tool description. The route performs three total bounded health attempts, stops on pass or authorization-gated reachability, records no-secret `retry_evidence`, and forbids installer generation when a retry recovers.
+
+Safety contract: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`.

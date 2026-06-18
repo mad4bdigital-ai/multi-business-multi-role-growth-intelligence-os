@@ -268,6 +268,13 @@ Use this checklist for PR #1270 and migration `906_sprint68_ticket_external_deli
 
 - `1009_sprint69_optional_manual_agent_delegation_tools.sql` registers explicit, admin-governed manual delegation creation/dispatch/contract tools. Migration execution performs no provider call, credential read, external send/write, or secret return; runtime delegation remains opt-in and confirmation/authorization governed.
 - `1010_sprint69_disable_legacy_agent_chain_dispatch_tool.sql` disables the ambiguous legacy dispatch surface and directs callers to `agent_chain_event_dispatch_manual`. It is a guarded registry update only and performs no provider call, credential read, external send/write, or secret return.
+## Sprint 69 daily database lifecycle snapshot deployment parity
+
+- Confirm migration `318_sprint69_database_lifecycle_daily_snapshot_runtime.sql` is authorized, preflighted, checksum-matched, and applied only through the governed migration runner.
+- Confirm the daily schedule is approved and active with cron `0 3 * * *`, UTC, limit 1000, and the daily binding remains evidence-only with `will_execute=0` for retention actions.
+- Trigger one due daily cycle and require atomic readback: the snapshot row exists, `last_snapshot_id` matches it, `last_readiness_at` is populated, and `schedule_readback.verified=true`.
+- Confirm the weekly schedule remains `0 3 * * 1` and its binding is `manual_review`/dry-run only. No archive, delete, drop, truncate, compaction, provider call, credential read, external write, or secret return is permitted.
+
 ## Sprint 69 database lifecycle registry upsert deployment parity
 
 - Confirm migration `316_sprint69_database_lifecycle_registry_upsert_admin_tool.sql` is authorized, preflighted, and applied only through the governed migration runner.
@@ -286,3 +293,8 @@ Use this checklist for PR #1270 and migration `906_sprint68_ticket_external_deli
 - [ ] Canonical capability tables and assurance views pass readback.
 - [ ] platform_capability_assurance_reconcile is registered and dry-run succeeds.
 - [ ] Deployment SHA matches the CI-certified merge SHA before production apply.
+### Local Connector Transient Retry Policy
+
+`1015_sprint69_local_connector_transient_retry_policy.sql` registers the blocking `Cloudflare 1033 Retry Before Repair` execution policy and updates the governed `local_connector_self_repair` tool description. The route performs three total bounded health attempts, stops on pass or authorization-gated reachability, records no-secret `retry_evidence`, and forbids installer generation when a retry recovers.
+
+Safety contract: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`.

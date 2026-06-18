@@ -3,6 +3,7 @@ import { getGoogleAccessToken } from "./googleAuthTokenResolver.js";
 import { REGISTRY_SPREADSHEET_ID } from "./config.js";
 import { headerMap } from "./sheetHelpers.js";
 import { READ_POLICIES } from "./registryReadPolicies.js";
+import { getPool } from "./db.js";
 
 function requireEnv(name) {
   const value = process.env[name];
@@ -15,9 +16,10 @@ function requireEnv(name) {
   return value;
 }
 
-// --- Singleton & Caching (PR-1) ---
-let globalClientsPromise = null;
-let _clientsToken = null;
+// --- Action-scoped client and registry caching ---
+const googleClientCache = new Map();
+const googleRuntimeActionCache = new Map();
+const GOOGLE_RUNTIME_ACTION_CACHE_TTL_MS = 60 * 1000;
 
 const CACHE_TTL_MS = 60 * 1000; // 60 seconds
 const DEFAULT_CHUNK_ROW_COUNT = 50;
@@ -167,38 +169,109 @@ function sheetRange(sheetName, a1Tail) {
 
 // --- Exported Methods ---
 
-export async function getGoogleClients() {
-  requireEnv("REGISTRY_SPREADSHEET_ID");
-  const token = await getGoogleAccessToken();
-  if (!token) throw Object.assign(new Error("Google access token unavailable — check SA credentials."), { code: "google_token_missing", status: 500 });
-  if (token !== _clientsToken) {
-    _clientsToken = token;
-    globalClientsPromise = null;
-  }
-  if (!globalClientsPromise) {
-    globalClientsPromise = Promise.resolve().then(() => {
-      const auth = new google.auth.OAuth2();
-      auth.setCredentials({ access_token: token });
-      return {
-        sheets: google.sheets({ version: "v4", auth }),
-        drive: google.drive({ version: "v3", auth })
-      };
-    });
-  }
-  return await globalClientsPromise;
+function normalizeGoogleActionKey(options = {}) {
+  return String(
+    options.action_key ||
+    options.action?.action_key ||
+    "google_sheets_api"
+  ).trim();
 }
 
-export async function getGoogleClientsForSpreadsheet(spreadsheetId) {
-  requireEnv("REGISTRY_SPREADSHEET_ID");
-  if (!String(spreadsheetId || "").trim()) {
+export async function resolveGoogleRuntimeAction(options = {}) {
+  const providedAction = options.action && typeof options.action === "object"
+    ? options.action
+    : null;
+  if (providedAction?.runtime_binding_profile) return providedAction;
+
+  const actionKey = normalizeGoogleActionKey(options);
+  const cached = googleRuntimeActionCache.get(actionKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.action;
+
+  const [rows] = await getPool().execute(
+    `SELECT action_key, status, module_binding, connector_family,
+            api_key_mode, secret_store_ref, oauth_config_ref,
+            oauth_client_id_ref, oauth_client_secret_ref,
+            oauth_secret_storage_type, oauth_binding_status,
+            runtime_binding_profile, required_variable_contracts
+       FROM actions
+      WHERE action_key = ? AND status = 'active'
+      LIMIT 1`,
+    [actionKey]
+  );
+  const action = rows?.[0] || null;
+  if (!action) {
+    const err = new Error(`Active Google runtime action contract not found: ${actionKey}`);
+    err.code = "google_runtime_action_contract_missing";
+    err.status = 500;
+    err.details = {
+      action_key: actionKey,
+      required_surface: "actions.runtime_binding_profile"
+    };
+    throw err;
+  }
+
+  googleRuntimeActionCache.set(actionKey, {
+    action,
+    expiresAt: Date.now() + GOOGLE_RUNTIME_ACTION_CACHE_TTL_MS
+  });
+  return action;
+}
+
+export function buildGoogleClientContextKey(options = {}, action = {}) {
+  const ctx = options.auth_context && typeof options.auth_context === "object"
+    ? options.auth_context
+    : {};
+  return [
+    "google-client",
+    String(action.action_key || normalizeGoogleActionKey(options)).trim(),
+    String(ctx.credential_scope || options.credential_scope || "platform").trim().toLowerCase(),
+    String(ctx.user_id || options.user_id || "").trim(),
+    String(ctx.tenant_id || options.tenant_id || "").trim(),
+    String(ctx.connection_id || options.connection_id || "").trim(),
+    String(ctx.app_key || options.app_key || "").trim(),
+    String(options.oauth_config_ref || action.oauth_config_ref || "").trim()
+  ].join(":");
+}
+
+export async function getGoogleClients(options = {}) {
+  const action = await resolveGoogleRuntimeAction(options);
+  const actionKey = String(action.action_key || normalizeGoogleActionKey(options)).trim();
+  const clientContextKey = buildGoogleClientContextKey(options, action);
+  const token = await getGoogleAccessToken({ ...options, action });
+  if (!token) {
+    throw Object.assign(
+      new Error("Google access token unavailable — check governed credential binding."),
+      { code: "google_token_missing", status: 500, details: { action_key: actionKey } }
+    );
+  }
+
+  const cached = googleClientCache.get(clientContextKey);
+  if (cached?.token === token && cached.clients) return cached.clients;
+
+  const auth = new google.auth.OAuth2();
+  auth.setCredentials({ access_token: token });
+  const clients = {
+    sheets: google.sheets({ version: "v4", auth }),
+    drive: google.drive({ version: "v3", auth })
+  };
+  googleClientCache.set(clientContextKey, { token, clients });
+  return clients;
+}
+
+export async function getGoogleClientsForSpreadsheet(spreadsheetId, options = {}) {
+  const normalizedSpreadsheetId = String(spreadsheetId || "").trim();
+  if (!normalizedSpreadsheetId) {
     const err = new Error("Missing required spreadsheet id for governed sink.");
     err.code = "missing_env";
     err.status = 500;
     throw err;
   }
-  const baseClients = await getGoogleClients();
+  const baseClients = await getGoogleClients({
+    action_key: "google_sheets_api",
+    ...options
+  });
   return {
-    spreadsheetId: String(spreadsheetId || "").trim(),
+    spreadsheetId: normalizedSpreadsheetId,
     sheets: baseClients.sheets,
     drive: baseClients.drive
   };

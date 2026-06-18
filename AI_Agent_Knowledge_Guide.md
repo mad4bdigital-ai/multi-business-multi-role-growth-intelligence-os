@@ -895,6 +895,21 @@ If auth fails:
 - platform bootstrap auth failures point to service account, ADC, sharing, scope, or deployment configuration
 - do not switch a platform-owned bootstrap file to user refresh-token auth just to make a probe pass
 
+### Passive auth lifecycle and Google action context
+
+The execution boundary must separate authorization metadata from credential materialization.
+
+1. Resolve principal, tenant/workspace, brand, business type, business activity, applicable profiles, action, endpoint, and SQL scope contract.
+2. Build a metadata-only auth contract for schema, policy, authority, dry-run, and preflight validation.
+3. For `dry_run=true` or `preflight_only=true` (boolean or string), do not read secrets, mint tokens, construct authenticated provider clients, or call providers. Evidence must report `materialized=false`, `provider_call_made=false`, and `secret_read_performed=false`.
+4. Only after all guards pass for live execution may the runtime resolve the credential binding, read the secret, mint a token, create a scoped client, and dispatch the provider call.
+
+Google client acquisition must always include an explicit SQL-authoritative action context. Sheets-only registry and sink operations use `google_sheets_api`; Drive file operations and `activation_drive_probe` use `google_drive_api`. Actionless `getGoogleClients()` calls and implicit Drive capabilities in registry snapshots are forbidden.
+
+Google token and client cache identity must include action key, credential scope, user, tenant, connection, app key, and OAuth config reference. Inflight token deduplication applies only to an identical context key; different principals or connections must resolve independently. Missing SQL scope contracts fail closed with `auth_scope_contract_missing`.
+
+Path resolution defaults to SQL/MySQL authority. Google Sheets path resolution is available only when `DATA_SOURCE=sheets` or `DATA_SOURCE=google_sheets` is explicitly configured.
+
 ## 9. Documentation trust model
 High trust:
 - canonicals
@@ -1054,7 +1069,7 @@ Apply requires the same-cycle base SHA, branch SHA, evidence fingerprint, exact 
 
 ### Governed repository lifecycle and dispatch-binding integrity
 
-Repository lifecycle automation uses `githubRepositoryLifecycle.js` as the shared application service for Admin CLI fallback and virtual Admin tools. Use `github_pr_ci_gate` for one bounded merge-readiness decision, `github_pr_finalize` for capability-gated CI/freshness/merge/ancestry/cleanup, `github_branch_delete` only after actual-default-branch protection, expected-SHA validation, open-PR rejection, and proof that the branch has zero commits not already present in the default branch, and `repo_patch_batch_apply` for one atomic multi-file commit pinned to an expected base SHA.
+Repository lifecycle automation uses `githubRepositoryLifecycle.js` as the shared application service for Admin CLI fallback and virtual Admin tools. Use `github_pr_ci_gate` for one bounded merge-readiness decision, `github_pr_finalize` for capability-gated CI/freshness/merge/ancestry/cleanup, `github_branch_delete` only after actual-default-branch protection, expected-SHA validation, open-PR rejection, and proof that the branch has zero commits not already present in the default branch, `repo_patch_batch_apply` for one atomic multi-file commit pinned to an expected base SHA, and `repo_existing_blob_commit_apply` when a governed work branch must reuse one or more Git blob SHAs already present in the repository without transferring large file content. The existing-blob tool requires a capability envelope, an exact expected branch-head SHA, a non-protected existing branch, a no-force ref update, and same-cycle path-to-blob readback.
 
 Every active-ready endpoint must resolve through an active export and `platform_tool_dispatch_bindings` row to a callable surface. Mutation bindings require a capability key; all bindings require a readback policy; compound operations require an explicit partial-success policy. Use `platform_tool_binding_integrity_audit` or `v_platform_tool_dispatch_integrity` to detect drift. Endpoint readiness alone is not callable evidence.
 
@@ -1083,3 +1098,5 @@ The platform uses `operationalAlertService.js` and the SQL-primary `operational_
 Admin reads use `activation_operational_attention_read_api`; tenant reads use `tenant_activation_operational_attention_read_api` and derive tenant scope from signed membership. Synchronization uses `activation_operational_attention_sync_api`, performs no provider call or external send, and must return a same-cycle readback. Lifecycle changes use `activation_operational_alert_lifecycle_api`.
 
 A complete administrative final result requires `all_known_issues_visible=true`, no degraded required sources, and `all_matching_problems_returned_in_page=true`. Otherwise `final_result_complete` must remain false and the response must disclose the missing keys, degraded sources, or next cursor.
+
+Operational alert reconciliation is recovery-aware. Skill approvals are grouped by agent, skill, and effective tenant/brand scope rather than raw grant ID. Execution failures are separated by operation and failure reason, and a later success resolves only the same recovery fingerprint. Fallback-backed or route-resolved executions must not remain critical. Malformed source rows become bounded data-quality findings, and pending notifications must be reconciled after alert resolution and before current high/critical items are queued.

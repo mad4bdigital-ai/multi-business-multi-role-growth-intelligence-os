@@ -6,6 +6,9 @@ const SEVERITY_WEIGHT = Object.freeze({ critical: 5, high: 4, medium: 3, low: 2,
 const VERIFICATION_WEIGHT = Object.freeze({ verified: 4, observed: 3, unverified: 2, not_reproduced: 1 });
 const OPEN_LIFECYCLE_STATES = Object.freeze(["open", "acknowledged", "investigating"]);
 const ALLOWED_LIFECYCLE_STATES = new Set(["open", "acknowledged", "investigating", "resolved", "ignored"]);
+const ALERT_EXECUTION_STATUSES = new Set(["failed", "degraded", "blocked", "blocked_with_choice_required", "success_with_warnings", "passed_with_follow_up"]);
+const SUCCESS_EXECUTION_STATUSES = new Set(["success", "succeeded", "completed", "pass", "passed"]);
+const RECOVERY_STATUS_PATTERN = /(recovered|fallback.*used|resolved|succeeded|completed)/i;
 const SOURCE_ROW_CAPS = Object.freeze({
   execution_log: 1000,
   connected_systems: 500,
@@ -190,22 +193,59 @@ function userTenantPredicate(subject, alias = "") {
       };
 }
 
+function executionOperationKey(row = {}) {
+  const explicit = row.action_key || row.endpoint_key || row.tool_key || row.parent_action_key;
+  if (explicit) return String(explicit);
+  const summary = String(row.output_summary || "").trim();
+  const match = summary.match(/^([A-Za-z0-9_.:-]+)\s+(?:failed|completed|succeeded)\b/i);
+  return match?.[1]
+    || row.workflow_key
+    || row.workflow_id
+    || row.app_key
+    || row.entry_type
+    || "execution";
+}
+
+function executionRecoveryKey(row = {}) {
+  return [
+    row.tenant_id || "global",
+    row.workspace_id || "no_workspace",
+    row.entry_type || "execution",
+    row.app_key || "no_app",
+    row.workflow_key || row.workflow_id || "no_workflow",
+    executionOperationKey(row),
+    row.target_type || "no_target_type",
+    row.target_id || "no_target",
+    row.resource_type || "no_resource_type",
+    row.resource_id || "no_resource",
+  ].join("|");
+}
+
+function isExpectedNegativeExecution(row = {}) {
+  const operation = executionOperationKey(row).toLowerCase();
+  const failureReason = String(row.failure_reason || "").toLowerCase();
+  return operation === "unknown_endpoint_smoke"
+    && ["parent_action_not_found", "endpoint_not_found", "invalid_request"].includes(failureReason);
+}
+
 function groupExecutionRows(rows = []) {
   const groups = new Map();
   for (const row of rows) {
+    const status = String(row.execution_status || "unknown").toLowerCase();
+    if (!ALERT_EXECUTION_STATUSES.has(status) || isExpectedNegativeExecution(row)) continue;
     const key = [
-      row.tenant_id || "global",
-      row.workspace_id || "no_workspace",
-      row.execution_status || "unknown",
-      row.entry_type || "execution",
-      row.app_key || "no_app",
-      row.workflow_key || row.workflow_id || "no_workflow",
+      executionRecoveryKey(row),
+      status,
+      row.failure_reason || "no_failure_reason",
       row.route_status || "no_route_status",
     ].join("|");
     const existing = groups.get(key);
     if (!existing) {
       groups.set(key, {
         ...row,
+        execution_status: status,
+        operation_key: executionOperationKey(row),
+        recovery_key: executionRecoveryKey(row),
         occurrence_count: 1,
         first_seen_at: row.created_at,
         last_seen_at: row.created_at,
@@ -216,65 +256,146 @@ function groupExecutionRows(rows = []) {
     existing.occurrence_count += 1;
     if (new Date(row.created_at) < new Date(existing.first_seen_at)) existing.first_seen_at = row.created_at;
     if (new Date(row.created_at) >= new Date(existing.last_seen_at)) {
-      existing.last_seen_at = row.created_at;
-      existing.latest_id = row.id;
-      existing.execution_trace_id_writeback = row.execution_trace_id_writeback;
-      existing.recovery_status = row.recovery_status;
-      existing.recovery_notes = row.recovery_notes;
+      Object.assign(existing, row, {
+        execution_status: status,
+        operation_key: executionOperationKey(row),
+        recovery_key: executionRecoveryKey(row),
+        occurrence_count: existing.occurrence_count,
+        first_seen_at: existing.first_seen_at,
+        last_seen_at: row.created_at,
+        latest_id: row.id,
+      });
     }
   }
   return [...groups.values()];
 }
 
-function executionSeverity(status) {
-  if (["failed", "blocked", "blocked_with_choice_required"].includes(status)) return "critical";
-  if (["degraded", "success_with_warnings", "passed_with_follow_up"].includes(status)) return "high";
+function executionSeverity(status, row = {}) {
+  const normalized = String(status || "").toLowerCase();
+  const recovered = row.route_status === "resolved"
+    || RECOVERY_STATUS_PATTERN.test(String(row.recovery_status || ""));
+  if (["failed", "blocked", "blocked_with_choice_required"].includes(normalized)) {
+    return recovered ? "high" : "critical";
+  }
+  if (["degraded", "success_with_warnings", "passed_with_follow_up"].includes(normalized)) return "high";
   return "medium";
 }
 
 function mapExecutionAlerts(rows = []) {
-  return groupExecutionRows(rows).map((row) => {
-    const status = row.execution_status || "unknown";
-    const identity = row.workflow_key || row.workflow_id || row.app_key || row.entry_type || "execution";
-    return candidate({
-      sourceType: "execution_log",
-      sourceRef: `execution-log://${row.latest_id}`,
-      sourceRecordId: [status, row.entry_type, row.app_key, row.workflow_key || row.workflow_id, row.route_status].filter(Boolean).join(":"),
-      tenantId: row.tenant_id,
-      userId: row.user_id,
-      workspaceId: row.workspace_id,
-      containerKey: row.workspace_id ? `workspace:${row.workspace_id}` : null,
-      category: "execution",
-      severity: executionSeverity(status),
-      title: `${identity} execution is ${status}`,
-      summary: row.recovery_notes || `Observed ${row.occurrence_count} matching execution result(s) in the selected lookback window.`,
-      reasonCode: `execution_${status}`,
-      verificationState: "verified",
-      evidenceType: "execution_log",
-      evidenceRef: `execution-log://${row.latest_id}`,
-      executionLogId: row.latest_id,
-      traceId: row.execution_trace_id_writeback,
-      occurrenceCount: row.occurrence_count,
-      firstSeenAt: row.first_seen_at,
-      lastSeenAt: row.last_seen_at,
-      recommendedActionKey: status === "blocked_with_choice_required" ? "execution.review_choice" : "execution.review_failure",
-      requiresConfirmation: status === "blocked_with_choice_required",
-      evidence: {
-        entry_type: row.entry_type,
-        execution_class: row.execution_class,
-        execution_status: status,
-        recovery_status: row.recovery_status,
-        route_status: row.route_status,
-        brand_key: row.brand_key,
-        app_key: row.app_key,
-        agent_key: row.agent_key,
-        skill_key: row.skill_key,
-        workflow_key: row.workflow_key,
-        engine_key: row.engine_key,
-        logic_key: row.logic_key,
-      },
+  const latestSuccessByKey = new Map();
+  for (const row of rows) {
+    const status = String(row.execution_status || "").toLowerCase();
+    if (!SUCCESS_EXECUTION_STATUSES.has(status)) continue;
+    const key = executionRecoveryKey(row);
+    const current = latestSuccessByKey.get(key);
+    if (!current || new Date(row.created_at) > new Date(current.created_at)) latestSuccessByKey.set(key, row);
+  }
+  return groupExecutionRows(rows)
+    .filter((row) => {
+      const laterSuccess = latestSuccessByKey.get(row.recovery_key);
+      return !laterSuccess || new Date(laterSuccess.created_at) <= new Date(row.last_seen_at);
+    })
+    .map((row) => {
+      const status = row.execution_status || "unknown";
+      const identity = row.operation_key || row.workflow_key || row.workflow_id || row.app_key || row.entry_type || "execution";
+      return candidate({
+        sourceType: "execution_log",
+        sourceRef: `execution-log://` + row.latest_id,
+        sourceRecordId: `execution:${sha256([row.recovery_key, status, row.failure_reason || "no_failure_reason", row.route_status || "no_route_status"].join("|"))}`,
+        tenantId: row.tenant_id,
+        userId: row.user_id,
+        workspaceId: row.workspace_id,
+        containerKey: row.workspace_id ? `workspace:` + row.workspace_id : null,
+        category: "execution",
+        severity: executionSeverity(status, row),
+        title: `${identity} execution is ${status}`,
+        summary: row.recovery_notes || row.failure_reason || `Observed ${row.occurrence_count} matching execution result(s) in the selected lookback window.`,
+        reasonCode: `execution_${status}`,
+        verificationState: "verified",
+        evidenceType: "execution_log",
+        evidenceRef: `execution-log://` + row.latest_id,
+        executionLogId: row.latest_id,
+        traceId: row.execution_trace_id_writeback,
+        occurrenceCount: row.occurrence_count,
+        firstSeenAt: row.first_seen_at,
+        lastSeenAt: row.last_seen_at,
+        recommendedActionKey: status === "blocked_with_choice_required" ? "execution.review_choice" : "execution.review_failure",
+        requiresConfirmation: status === "blocked_with_choice_required",
+        evidence: {
+          entry_type: row.entry_type,
+          operation_key: row.operation_key,
+          failure_reason: row.failure_reason,
+          execution_class: row.execution_class,
+          execution_status: status,
+          recovery_status: row.recovery_status,
+          route_status: row.route_status,
+          brand_key: row.brand_key,
+          app_key: row.app_key,
+          agent_key: row.agent_key,
+          skill_key: row.skill_key,
+          workflow_key: row.workflow_key,
+          engine_key: row.engine_key,
+          logic_key: row.logic_key,
+          target_type: row.target_type,
+          target_id: row.target_id,
+          resource_type: row.resource_type,
+          resource_id: row.resource_id,
+        },
+      });
     });
-  });
+}
+
+function groupSkillApprovalRows(rows = []) {
+  const groups = new Map();
+  for (const row of rows) {
+    if (!row.agent_id || !row.skill_id) continue;
+    const effectiveKey = [
+      row.tenant_id || "global",
+      row.brand_key || "global",
+      row.agent_id,
+      row.skill_id,
+    ].join("|");
+    const current = groups.get(effectiveKey);
+    if (!current) {
+      groups.set(effectiveKey, {
+        ...row,
+        effective_key: effectiveKey,
+        active_grant_count: 1,
+        grant_ids: row.grant_id ? [row.grant_id] : [],
+        first_granted_at: row.granted_at,
+        last_granted_at: row.granted_at,
+      });
+      continue;
+    }
+    current.active_grant_count += 1;
+    if (row.grant_id && current.grant_ids.length < 50) current.grant_ids.push(row.grant_id);
+    if (new Date(row.granted_at) < new Date(current.first_granted_at)) current.first_granted_at = row.granted_at;
+    if (new Date(row.granted_at) >= new Date(current.last_granted_at)) {
+      Object.assign(current, row, {
+        effective_key: effectiveKey,
+        active_grant_count: current.active_grant_count,
+        grant_ids: current.grant_ids,
+        first_granted_at: current.first_granted_at,
+        last_granted_at: row.granted_at,
+      });
+    }
+  }
+  return [...groups.values()];
+}
+
+function parseConfigJson(value) {
+  if (!value) return {};
+  if (typeof value === "object") return value;
+  try { return JSON.parse(value); } catch { return {}; }
+}
+
+function notificationEligible(item = {}) {
+  if (!["critical", "high"].includes(item.severity)) return false;
+  if (!OPEN_LIFECYCLE_STATES.includes(item.lifecycle_status)) return false;
+  if (item.verification_state !== "verified") return false;
+  if (!item.source_record_id) return false;
+  if (["source_data_quality", "task_state_inconsistent"].includes(item.reason_code)) return false;
+  return true;
 }
 
 function mapPersistedAlert(row) {
@@ -362,11 +483,13 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
               e.recovery_notes, e.route_status, e.execution_trace_id_writeback,
               e.tenant_id, e.workspace_id, e.user_id, e.brand_key, e.app_key,
               e.agent_key, e.skill_key, e.workflow_id, e.workflow_key,
-              e.engine_key, e.logic_key, e.created_at
+              e.engine_key, e.logic_key, e.parent_action_key, e.endpoint_key,
+              e.action_key, e.tool_key, e.resource_type, e.resource_id,
+              e.target_type, e.target_id, e.failure_reason, e.output_summary, e.created_at
          FROM execution_log e
         WHERE ${tenantExecution.sql}
           AND e.created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
-          AND e.execution_status IN ('failed','degraded','blocked','blocked_with_choice_required','success_with_warnings','passed_with_follow_up')
+          AND e.execution_status IN ('failed','degraded','blocked','blocked_with_choice_required','success_with_warnings','passed_with_follow_up','success','succeeded','completed','pass','passed')
         ORDER BY e.created_at DESC
         LIMIT 1000`,
       [...tenantExecution.params, boundedLookback]
@@ -374,7 +497,7 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
     safeRows(
       "connected_systems",
       `SELECT system_id, tenant_id, system_key, display_name, provider_family,
-              connector_family, status, updated_at
+              connector_family, status, config_json, updated_at
          FROM connected_systems
         WHERE ${tenant.sql} AND status IN ('pending','error')
         ORDER BY FIELD(status,'error','pending'), updated_at DESC
@@ -487,42 +610,70 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
   alerts.push(...mapExecutionAlerts(bySource.get("execution_log")?.rows || []));
 
   for (const row of bySource.get("connected_systems")?.rows || []) {
+    const config = parseConfigJson(row.config_json);
+    const executionReadiness = String(config.execution_readiness || "").toLowerCase();
+    if (row.status === "pending" && executionReadiness === "ready") continue;
+    const gated = row.status === "pending" && executionReadiness === "gated";
     alerts.push(candidate({
       sourceType: "connected_systems",
-      sourceRef: `connected-system://${row.system_id}`,
+      sourceRef: `connected-system://` + row.system_id,
       sourceRecordId: row.system_id,
       tenantId: row.tenant_id,
       category: "connector",
       severity: row.status === "error" ? "high" : "medium",
-      title: `${row.display_name || row.system_key} connector is ${row.status}`,
-      reasonCode: `connector_${row.status}`,
+      title: `${row.display_name || row.system_key} connector is ${gated ? "gated" : row.status}`,
+      reasonCode: row.status === "error" ? "connector_error" : gated ? "connector_gated" : "connector_pending",
       verificationState: "verified",
-      evidence: row,
+      evidence: { ...row, execution_readiness: executionReadiness || null },
       firstSeenAt: row.updated_at,
       lastSeenAt: row.updated_at,
-      recommendedActionKey: row.status === "error" ? "connector.reconnect_or_review" : "connector.complete_setup",
+      recommendedActionKey: row.status === "error" ? "connector.reconnect_or_review" : gated ? "connector.review_gate" : "connector.complete_setup",
       requiresConfirmation: row.status === "error",
     }));
   }
 
+  let malformedTaskCount = 0;
   for (const row of bySource.get("v_activation_pending_tasks")?.rows || []) {
+    if (!row.task_id || !String(row.title || "").trim()) {
+      malformedTaskCount += 1;
+      continue;
+    }
     const blocked = row.task_status === "blocked" || row.blocker_level === "hard";
+    const stateInconsistent = /\bcompleted\b/i.test(String(row.title || ""))
+      && !["completed", "resolved", "closed"].includes(String(row.task_status || "").toLowerCase());
     alerts.push(candidate({
       sourceType: "v_activation_pending_tasks",
-      sourceRef: `task://${row.task_id}`,
+      sourceRef: `task://` + row.task_id,
       sourceRecordId: row.task_id,
       tenantId: row.tenant_id,
       userId: row.user_id,
-      category: "task",
-      severity: blocked || row.priority === "critical" ? "critical" : "high",
+      category: stateInconsistent ? "data_quality" : "task",
+      severity: stateInconsistent ? "medium" : blocked || row.priority === "critical" ? "critical" : "high",
       title: row.title,
-      summary: blocked ? "Task is blocked and requires review." : "High-priority task requires attention.",
-      reasonCode: blocked ? "task_blocked" : "high_priority_task",
-      verificationState: "verified",
+      summary: stateInconsistent
+        ? "Task title indicates completion while the lifecycle row remains pending."
+        : blocked ? "Task is blocked and requires review." : "High-priority task requires attention.",
+      reasonCode: stateInconsistent ? "task_state_inconsistent" : blocked ? "task_blocked" : "high_priority_task",
+      verificationState: stateInconsistent ? "observed" : "verified",
       evidence: row,
       firstSeenAt: row.updated_at,
       lastSeenAt: row.updated_at,
-      recommendedActionKey: blocked ? "task.review_blocker" : "task.review_priority",
+      recommendedActionKey: stateInconsistent ? "task.reconcile_state" : blocked ? "task.review_blocker" : "task.review_priority",
+    }));
+  }
+  if (malformedTaskCount > 0) {
+    alerts.push(candidate({
+      sourceType: "source_data_quality",
+      sourceRef: "source://v_activation_pending_tasks",
+      sourceRecordId: "v_activation_pending_tasks:malformed_rows",
+      category: "data_quality",
+      severity: "medium",
+      title: "Pending task source contains malformed rows",
+      summary: `Omitted ${malformedTaskCount} row(s) without a stable task ID or title.`,
+      reasonCode: "source_data_quality",
+      verificationState: "observed",
+      evidence: { source: "v_activation_pending_tasks", malformed_row_count: malformedTaskCount },
+      recommendedActionKey: "source.repair_malformed_rows",
     }));
   }
 
@@ -545,21 +696,24 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
     }));
   }
 
-  for (const row of bySource.get("v_activation_agent_skill_grants")?.rows || []) {
+  for (const row of groupSkillApprovalRows(bySource.get("v_activation_agent_skill_grants")?.rows || [])) {
     alerts.push(candidate({
       sourceType: "v_activation_agent_skill_grants",
-      sourceRef: `skill-grant://${row.grant_id}`,
-      sourceRecordId: row.grant_id,
+      sourceRef: `skill-approval://` + sha256(row.effective_key),
+      sourceRecordId: row.effective_key,
       tenantId: row.tenant_id,
       category: "skill_approval",
       severity: "medium",
       title: `${row.skill_display_name || row.skill_key || row.skill_id} requires approval`,
-      summary: `${row.agent_display_name || row.agent_name || row.agent_id} is waiting for skill approval.`,
+      summary: `${row.agent_display_name || row.agent_name || row.agent_id} is waiting for one scoped skill approval decision.`,
       reasonCode: "skill_requires_approval",
       verificationState: "verified",
-      evidence: row,
-      firstSeenAt: row.granted_at,
-      lastSeenAt: row.granted_at,
+      evidence: {
+        ...row,
+        duplicate_grant_count: Math.max(safeNumber(row.active_grant_count) - 1, 0),
+      },
+      firstSeenAt: row.first_granted_at,
+      lastSeenAt: row.last_granted_at,
       recommendedActionKey: "skill.review_approval",
       requiresConfirmation: true,
     }));
@@ -863,13 +1017,14 @@ export async function synchronizeOperationalAlerts({
 } = {}) {
   const subject = resolveSubject(sessionContext || {}, explicitSubject);
   const collected = await collectOperationalAlertCandidates({ subject, lookbackHours, includePersisted: false });
-  const degradedSources = collected.source_health.filter((source) => !source.ok);
   const incompleteSources = collected.source_health.filter((source) => !source.ok || source.truncated);
   const runId = randomUUID();
   const connection = await getPool().getConnection();
+  const persistedCandidates = [];
   let upserted = 0;
   let queued = 0;
   let resolved = 0;
+  let notificationsSkipped = 0;
   let resolutionSkipped = false;
   try {
     await connection.beginTransaction();
@@ -882,25 +1037,17 @@ export async function synchronizeOperationalAlerts({
     );
     for (const item of collected.alerts) {
       const row = await upsertAlert(connection, item, runId);
+      persistedCandidates.push({ item, row });
       upserted += 1;
-      if (["critical", "high"].includes(item.severity) && OPEN_LIFECYCLE_STATES.includes(row.lifecycle_status)) {
-        const notificationKey = `${item.alert_key}:${item.severity}:open`;
-        const [result] = await connection.query(
-          `INSERT IGNORE INTO operational_alert_notification_outbox
-            (notification_id, notification_key, alert_id, tenant_id, user_id, channel,
-             recipient_scope, delivery_status, payload_summary_json, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, 'in_app', 'authorized_subject', 'pending', ?, NOW(), NOW())`,
-          [randomUUID(), notificationKey, row.alert_id, item.tenant_id, item.user_id, JSON.stringify({ title: item.title, severity: item.severity, reason_code: item.reason_code })]
-        );
-        queued += safeNumber(result?.affectedRows);
-      }
     }
     if (incompleteSources.length === 0) {
       const staleWhere = subject.is_admin ? "1 = 1" : "tenant_id = ?";
       const staleParams = subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__"];
       const [staleResult] = await connection.query(
         `UPDATE operational_alerts
-            SET lifecycle_status = 'resolved', resolved_at = NOW(), resolution_note = 'Source no longer emitted the alert during the latest successful synchronization.'
+            SET lifecycle_status = 'resolved', resolved_at = NOW(),
+                resolution_note = 'Source no longer emitted the alert during the latest successful synchronization.',
+                updated_at = CURRENT_TIMESTAMP
           WHERE ${staleWhere}
             AND manual_known_issue = 0
             AND lifecycle_status IN ('open','acknowledged','investigating')
@@ -911,6 +1058,47 @@ export async function synchronizeOperationalAlerts({
     } else {
       resolutionSkipped = true;
     }
+
+    const outboxScope = subject.is_admin ? "1 = 1" : "a.tenant_id = ?";
+    const outboxParams = subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__"];
+    const [skipResult] = await connection.query(
+      `UPDATE operational_alert_notification_outbox o
+          JOIN operational_alerts a ON a.alert_id = o.alert_id
+          SET o.delivery_status = 'skipped',
+              o.error_code = 'alert_reconciled_before_delivery',
+              o.error_message = 'The alert was resolved, superseded, downgraded, or not re-emitted before delivery.',
+              o.updated_at = CURRENT_TIMESTAMP
+        WHERE o.delivery_status = 'pending'
+          AND ${outboxScope}
+          AND (
+            a.lifecycle_status NOT IN ('open','acknowledged','investigating')
+            OR a.severity NOT IN ('critical','high')
+            OR COALESCE(a.last_sync_run_id, '') <> ?
+            OR a.verification_state <> 'verified'
+            OR o.notification_key <> CONCAT(a.alert_key, ':', a.severity, ':open')
+          )`,
+      [...outboxParams, runId]
+    );
+    notificationsSkipped = safeNumber(skipResult?.affectedRows);
+
+    for (const { item, row } of persistedCandidates) {
+      if (!notificationEligible({ ...item, lifecycle_status: row.lifecycle_status })) continue;
+      const notificationKey = `${item.alert_key}:${item.severity}:open`;
+      const [result] = await connection.query(
+        `INSERT INTO operational_alert_notification_outbox
+          (notification_id, notification_key, alert_id, tenant_id, user_id, channel,
+           recipient_scope, delivery_status, payload_summary_json, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'in_app', 'authorized_subject', 'pending', ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE
+           alert_id = VALUES(alert_id), tenant_id = VALUES(tenant_id), user_id = VALUES(user_id),
+           payload_summary_json = VALUES(payload_summary_json),
+           delivery_status = IF(delivery_status IN ('skipped','failed'), 'pending', delivery_status),
+           error_code = NULL, error_message = NULL, updated_at = CURRENT_TIMESTAMP`,
+        [randomUUID(), notificationKey, row.alert_id, item.tenant_id, item.user_id, JSON.stringify({ title: item.title, severity: item.severity, reason_code: item.reason_code })]
+      );
+      if (safeNumber(result?.affectedRows) > 0) queued += 1;
+    }
+
     await connection.query(
       `UPDATE operational_alert_sync_runs
           SET sync_status = ?, upserted_count = ?, resolved_count = ?, notification_queued_count = ?,
@@ -949,6 +1137,7 @@ export async function synchronizeOperationalAlerts({
     upserted_count: upserted,
     resolved_count: resolved,
     notification_queued_count: queued,
+    notification_skipped_count: notificationsSkipped,
     degraded_sources: incompleteSources,
     resolution_skipped_due_to_degraded_sources: resolutionSkipped,
     readback,
@@ -1017,6 +1206,11 @@ export const _testingOperationalAlerts = {
   candidate,
   mergeCandidates,
   groupExecutionRows,
+  mapExecutionAlerts,
+  executionOperationKey,
+  executionRecoveryKey,
+  groupSkillApprovalRows,
+  notificationEligible,
   summarize,
   executionSeverity,
 };

@@ -1,7 +1,7 @@
 {
   "ok": true,
   "schema_version": "surface-contract-discovery-v3",
-  "migration_surface_count": 437,
+  "migration_surface_count": 439,
   "reported_count": 80,
   "openapi_operation_count": 478,
   "openapi_path_count": 424,
@@ -534,22 +534,22 @@
     "closed_migration_count": 399
   },
   "coverage_summary": {
-    "migrations_with_surfaces": 437,
-    "docs_complete_count": 435,
+    "migrations_with_surfaces": 439,
+    "docs_complete_count": 437,
     "docs_gap_count": 2,
     "docs_completion_percent": 99.54,
     "surface_totals": {
       "plugins": 12,
-      "tools": 2034,
+      "tools": 2036,
       "views": 398,
-      "policies": 158,
+      "policies": 159,
       "routes": 564
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 371,
+      "tools": 372,
       "views": 160,
-      "policies": 100,
+      "policies": 101,
       "routes": 237
     },
     "missing_doc_target_counts": {
@@ -563,7 +563,7 @@
       "high": 1,
       "medium": 1,
       "low": 0,
-      "none": 435
+      "none": 437
     },
     "high_risk_missing_docs": [
       "1013_sprint69_operational_alerting_control_plane.sql"
@@ -572,14 +572,14 @@
       "1014_sprint69_approval_hold_collation_reconciliation_rule.sql"
     ],
     "safety_marker_counts": {
-      "no_provider_call": 435,
-      "no_credential_payload_read": 434,
-      "no_raw_secrets": 434,
-      "no_external_send": 434,
-      "no_external_write": 434,
-      "secrets_included_false": 436
+      "no_provider_call": 437,
+      "no_credential_payload_read": 436,
+      "no_raw_secrets": 436,
+      "no_external_send": 436,
+      "no_external_write": 436,
+      "secrets_included_false": 439
     },
-    "safety_marker_gap_migrations": 1,
+    "safety_marker_gap_migrations": 0,
     "route_coverage": {
       "sql_route_count": 1,
       "total_sql_route_like_count": 564,
@@ -763,7 +763,7 @@
       },
       {
         "migration_file": "311_sprint69_semantic_capability_effective_resolution.sql",
-        "score": 384,
+        "score": 371,
         "queue_class": "medium_review",
         "gap_severity": "none",
         "documentation_complete": true,
@@ -774,8 +774,7 @@
           "no_credential_payload_read",
           "no_raw_secrets",
           "no_external_send",
-          "no_external_write",
-          "secrets_included_false"
+          "no_external_write"
         ],
         "surface_counts": {
           "plugins": 0,
@@ -821,8 +820,7 @@
               "no_credential_payload_read",
               "no_raw_secrets",
               "no_external_send",
-              "no_external_write",
-              "secrets_included_false"
+              "no_external_write"
             ],
             "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
           }
@@ -2839,6 +2837,65 @@
       }
     },
     {
+      "migration_file": "318_sprint69_database_lifecycle_daily_snapshot_runtime.sql",
+      "legacy_backlog_closed": false,
+      "safety_attestation": null,
+      "surfaces": {
+        "routes": [],
+        "route_classifications": [],
+        "views": [],
+        "policies": [
+          "database_lifecycle_report_snapshot_schedule_policy_v1"
+        ],
+        "plugins": [],
+        "tools": [],
+        "safety": {
+          "no_provider_call": true,
+          "no_credential_payload_read": true,
+          "no_raw_secrets": true,
+          "no_external_send": true,
+          "no_external_write": true,
+          "secrets_included_false": true
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": true,
+        "deployment_parity_checklist.md": true,
+        "docs/ai-docs-agent-governance.md": true,
+        "docs/auto-docs-agent/README.md": true,
+        "docs/change-documentation-governance.md": true
+      },
+      "missing_docs": [],
+      "documentation_complete": true,
+      "coverage": {
+        "gap_severity": "none",
+        "requires_docs_review": false,
+        "route_coverage": {
+          "route_count": 0,
+          "total_route_count": 0,
+          "openapi_required_route_count": 0,
+          "exempted_route_count": 0,
+          "route_class_counts": {
+            "http_route": 0,
+            "admin_tool_registry_route": 0,
+            "tenant_tool_registry_route": 0,
+            "system_tool_dispatch_route": 0,
+            "registry_only_surface": 0,
+            "false_positive_route_like_string": 0,
+            "legacy_closure_route_reviewed": 0
+          },
+          "documented_count": 0,
+          "missing_count": 0,
+          "documented_routes": [],
+          "missing_routes": [],
+          "exempted_routes": [],
+          "route_classifications": []
+        },
+        "surface_count": 1,
+        "safety_marker_count": 6
+      }
+    },
+    {
       "migration_file": "317_sprint69_superseded_orphan_branch_cleanup.sql",
       "legacy_backlog_closed": false,
       "safety_attestation": {
@@ -3535,7 +3592,7 @@
           "no_raw_secrets": false,
           "no_external_send": false,
           "no_external_write": false,
-          "secrets_included_false": false
+          "secrets_included_false": true
         }
       },
       "docs": {
@@ -3572,7 +3629,7 @@
           "route_classifications": []
         },
         "surface_count": 14,
-        "safety_marker_count": 0
+        "safety_marker_count": 1
       }
     },
     {
@@ -8110,117 +8167,6 @@
         },
         "surface_count": 15,
         "safety_marker_count": 1
-      }
-    },
-    {
-      "migration_file": "270_sprint68_dynamic_capability_tool_bus_kernel.sql",
-      "legacy_backlog_closed": true,
-      "safety_attestation": null,
-      "surfaces": {
-        "routes": [
-          "/gpt/tools/call",
-          "/system/tools/call"
-        ],
-        "route_classifications": [
-          {
-            "route": "/gpt/tools/call",
-            "route_class": "legacy_closure_route_reviewed",
-            "openapi_required": false,
-            "reason": "Route-like literal belongs to 270_sprint68_dynamic_capability_tool_bus_kernel.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
-          },
-          {
-            "route": "/system/tools/call",
-            "route_class": "system_tool_dispatch_route",
-            "openapi_required": false,
-            "reason": "System-tool dispatch endpoints are documented by the fixed dispatcher contract and should not create per-tool OpenAPI gaps."
-          }
-        ],
-        "views": [
-          "v_platform_exports_current_v2"
-        ],
-        "policies": [],
-        "plugins": [],
-        "tools": [
-          "admin_platform_endpoint_tools",
-          "admin_platform_tool",
-          "direct_system_tool_call_preserves_principal_and_brand_target_fields",
-          "kernel_dispatch_registered_policy_guarded",
-          "platform_endpoint_tool_export",
-          "platform_endpoint_tool_exports",
-          "system_tool_bus",
-          "tenant_platform_endpoint_tools",
-          "tenant_platform_tool"
-        ],
-        "safety": {
-          "no_provider_call": false,
-          "no_credential_payload_read": false,
-          "no_raw_secrets": false,
-          "no_external_send": false,
-          "no_external_write": false,
-          "secrets_included_false": false
-        }
-      },
-      "docs": {
-        "Updating Registry Patch Index.md": true,
-        "deployment_parity_checklist.md": true,
-        "docs/ai-docs-agent-governance.md": true,
-        "docs/auto-docs-agent/README.md": true,
-        "docs/change-documentation-governance.md": true
-      },
-      "missing_docs": [],
-      "documentation_complete": true,
-      "coverage": {
-        "gap_severity": "none",
-        "requires_docs_review": false,
-        "route_coverage": {
-          "route_count": 0,
-          "total_route_count": 2,
-          "openapi_required_route_count": 0,
-          "exempted_route_count": 2,
-          "route_class_counts": {
-            "http_route": 0,
-            "admin_tool_registry_route": 0,
-            "tenant_tool_registry_route": 0,
-            "system_tool_dispatch_route": 1,
-            "registry_only_surface": 0,
-            "false_positive_route_like_string": 0,
-            "legacy_closure_route_reviewed": 1
-          },
-          "documented_count": 0,
-          "missing_count": 0,
-          "documented_routes": [],
-          "missing_routes": [],
-          "exempted_routes": [
-            {
-              "route": "/gpt/tools/call",
-              "route_class": "legacy_closure_route_reviewed",
-              "openapi_required": false,
-              "reason": "Route-like literal belongs to 270_sprint68_dynamic_capability_tool_bus_kernel.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
-            },
-            {
-              "route": "/system/tools/call",
-              "route_class": "system_tool_dispatch_route",
-              "openapi_required": false,
-              "reason": "System-tool dispatch endpoints are documented by the fixed dispatcher contract and should not create per-tool OpenAPI gaps."
-            }
-          ],
-          "route_classifications": [
-            {
-              "route": "/gpt/tools/call",
-              "route_class": "legacy_closure_route_reviewed",
-              "openapi_required": false,
-              "reason": "Route-like literal belongs to 270_sprint68_dynamic_capability_tool_bus_kernel.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
-            },
-            {
-              "route": "/system/tools/call",
-              "route_class": "system_tool_dispatch_route",
-              "openapi_required": false,
-              "reason": "System-tool dispatch endpoints are documented by the fixed dispatcher contract and should not create per-tool OpenAPI gaps."
-            }
-          ]
-        },
-        "surface_count": 12,
-        "safety_marker_count": 0
       }
     }
   ],
@@ -16881,6 +16827,66 @@
         },
         "surface_count": 2,
         "safety_marker_count": 5
+      }
+    },
+    {
+      "migration_file": "1015_sprint69_local_connector_transient_retry_policy.sql",
+      "legacy_backlog_closed": false,
+      "safety_attestation": null,
+      "surfaces": {
+        "routes": [],
+        "route_classifications": [],
+        "views": [],
+        "policies": [],
+        "plugins": [],
+        "tools": [
+          "admin_platform_endpoint_tools",
+          "stop_on_authorization_gated"
+        ],
+        "safety": {
+          "no_provider_call": true,
+          "no_credential_payload_read": true,
+          "no_raw_secrets": true,
+          "no_external_send": true,
+          "no_external_write": true,
+          "secrets_included_false": true
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": true,
+        "deployment_parity_checklist.md": true,
+        "docs/ai-docs-agent-governance.md": true,
+        "docs/auto-docs-agent/README.md": true,
+        "docs/change-documentation-governance.md": true
+      },
+      "missing_docs": [],
+      "documentation_complete": true,
+      "coverage": {
+        "gap_severity": "none",
+        "requires_docs_review": false,
+        "route_coverage": {
+          "route_count": 0,
+          "total_route_count": 0,
+          "openapi_required_route_count": 0,
+          "exempted_route_count": 0,
+          "route_class_counts": {
+            "http_route": 0,
+            "admin_tool_registry_route": 0,
+            "tenant_tool_registry_route": 0,
+            "system_tool_dispatch_route": 0,
+            "registry_only_surface": 0,
+            "false_positive_route_like_string": 0,
+            "legacy_closure_route_reviewed": 0
+          },
+          "documented_count": 0,
+          "missing_count": 0,
+          "documented_routes": [],
+          "missing_routes": [],
+          "exempted_routes": [],
+          "route_classifications": []
+        },
+        "surface_count": 2,
+        "safety_marker_count": 6
       }
     },
     {
@@ -45476,7 +45482,7 @@
           "no_raw_secrets": false,
           "no_external_send": false,
           "no_external_write": false,
-          "secrets_included_false": false
+          "secrets_included_false": true
         }
       },
       "docs": {
@@ -45513,7 +45519,7 @@
           "route_classifications": []
         },
         "surface_count": 14,
-        "safety_marker_count": 0
+        "safety_marker_count": 1
       }
     },
     {
@@ -46132,6 +46138,65 @@
           "v_superseded_branch_cleanup_policy_readback"
         ],
         "policies": [],
+        "plugins": [],
+        "tools": [],
+        "safety": {
+          "no_provider_call": true,
+          "no_credential_payload_read": true,
+          "no_raw_secrets": true,
+          "no_external_send": true,
+          "no_external_write": true,
+          "secrets_included_false": true
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": true,
+        "deployment_parity_checklist.md": true,
+        "docs/ai-docs-agent-governance.md": true,
+        "docs/auto-docs-agent/README.md": true,
+        "docs/change-documentation-governance.md": true
+      },
+      "missing_docs": [],
+      "documentation_complete": true,
+      "coverage": {
+        "gap_severity": "none",
+        "requires_docs_review": false,
+        "route_coverage": {
+          "route_count": 0,
+          "total_route_count": 0,
+          "openapi_required_route_count": 0,
+          "exempted_route_count": 0,
+          "route_class_counts": {
+            "http_route": 0,
+            "admin_tool_registry_route": 0,
+            "tenant_tool_registry_route": 0,
+            "system_tool_dispatch_route": 0,
+            "registry_only_surface": 0,
+            "false_positive_route_like_string": 0,
+            "legacy_closure_route_reviewed": 0
+          },
+          "documented_count": 0,
+          "missing_count": 0,
+          "documented_routes": [],
+          "missing_routes": [],
+          "exempted_routes": [],
+          "route_classifications": []
+        },
+        "surface_count": 1,
+        "safety_marker_count": 6
+      }
+    },
+    {
+      "migration_file": "318_sprint69_database_lifecycle_daily_snapshot_runtime.sql",
+      "legacy_backlog_closed": false,
+      "safety_attestation": null,
+      "surfaces": {
+        "routes": [],
+        "route_classifications": [],
+        "views": [],
+        "policies": [
+          "database_lifecycle_report_snapshot_schedule_policy_v1"
+        ],
         "plugins": [],
         "tools": [],
         "safety": {

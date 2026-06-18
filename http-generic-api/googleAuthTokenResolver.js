@@ -38,7 +38,8 @@ export function getGoogleScopesFromAction(action = {}) {
 }
 
 const cache = new Map();
-let fetchingGlobal = false, warned = false, logged = false;
+const globalTokenInflight = new Map();
+let warned = false, logged = false;
 
 function normalizeAuthMode(value = "") {
   return String(value || "").trim().toLowerCase();
@@ -207,13 +208,22 @@ function allowPlatformFallback(options = {}) {
   return boolOption(ctx.allow_platform_fallback ?? options.allow_platform_fallback, true);
 }
 
-function cacheKey(options = {}) {
+export function buildGoogleTokenCacheKey(options = {}) {
   const action = options.action || {};
+  const ctx = options.auth_context && typeof options.auth_context === "object"
+    ? options.auth_context
+    : {};
   const oauthRef = effectiveOauthConfigRef(options);
-  const ref = parseOauthConfigRef(oauthRef);
-  return isUserScopedGoogleRefMode(ref.mode)
-    ? `ref:${action.action_key || ""}:${oauthRef}`
-    : `global:${action.action_key || ""}`;
+  return [
+    "google",
+    String(action.action_key || "").trim(),
+    String(ctx.credential_scope || options.credential_scope || "platform").trim().toLowerCase(),
+    String(ctx.user_id || options.user_id || "").trim(),
+    String(ctx.tenant_id || options.tenant_id || "").trim(),
+    String(ctx.connection_id || options.connection_id || "").trim(),
+    String(ctx.app_key || options.app_key || defaultGoogleAppKey(action)).trim(),
+    String(oauthRef || "").trim()
+  ].join(":");
 }
 
 async function getMemberScopedToken(options = {}) {
@@ -266,10 +276,26 @@ async function saJsonToAccessToken(saJson, scopes) {
   return data.access_token;
 }
 
-async function fetchGlobalGoogleToken(options = {}) {
-  if (fetchingGlobal) return "";
-  fetchingGlobal = true;
+export async function runGoogleTokenResolutionOnce(key, resolver) {
+  const normalizedKey = String(key || "").trim();
+  if (!normalizedKey) throw new Error("Google token resolution requires a non-empty cache key.");
+  if (typeof resolver !== "function") throw new TypeError("Google token resolution requires a resolver function.");
+
+  const existing = globalTokenInflight.get(normalizedKey);
+  if (existing) return existing;
+
+  const task = Promise.resolve().then(resolver);
+  globalTokenInflight.set(normalizedKey, task);
   try {
+    return await task;
+  } finally {
+    if (globalTokenInflight.get(normalizedKey) === task) globalTokenInflight.delete(normalizedKey);
+  }
+}
+
+async function fetchGlobalGoogleToken(options = {}) {
+  const key = buildGoogleTokenCacheKey(options);
+  return runGoogleTokenResolutionOnce(key, async () => {
     const scopes = getGoogleScopesFromAction(options.action || {});
     const credFile = process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GOOGLE_CREDENTIALS_PATH;
     const saJson = parseSaJson(process.env.GOOGLE_SA_JSON) || loadSaFile(credFile);
@@ -341,20 +367,18 @@ async function fetchGlobalGoogleToken(options = {}) {
       console.warn("[googleAuth] Could not obtain a Google access token." + (last?.message ? ` Last error: ${last.message}` : "") + ` Sources attempted: ${sourceSummary}`);
     }
     return "";
-  } finally {
-    fetchingGlobal = false;
-  }
+  });
 }
 
 export function getGoogleAccessTokenSync(options = {}) {
-  const hit = cache.get(cacheKey(options));
+  const hit = cache.get(buildGoogleTokenCacheKey(options));
   if (hit?.token && hit.expiresAt > Date.now() + 60000) return hit.token;
   getGoogleAccessToken(options).catch(() => {});
   return hit?.token || "";
 }
 
 export async function getGoogleAccessToken(options = {}) {
-  const key = cacheKey(options);
+  const key = buildGoogleTokenCacheKey(options);
   const hit = cache.get(key);
   if (hit?.token && hit.expiresAt > Date.now() + 60000) return hit.token;
 

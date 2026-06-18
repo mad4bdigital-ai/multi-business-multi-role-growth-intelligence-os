@@ -2,6 +2,26 @@ function normalizedStatus(value = "") {
   return String(value || "").trim().toLowerCase();
 }
 
+function boundedInteger(value, fallback, min, max) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(Math.trunc(parsed), min), max);
+}
+
+export const DEFAULT_LOCAL_CONNECTOR_HEALTH_RETRY_POLICY = Object.freeze({
+  policy_key: "cloudflare_1033_retry_before_repair_v1",
+  max_attempts: 3,
+  base_delay_ms: 750,
+  max_delay_ms: 2000,
+  retryable_http_statuses: Object.freeze([502, 503, 504, 530]),
+});
+
+export function isRetryableLocalConnectorHealthProbe(probe = {}, policy = DEFAULT_LOCAL_CONNECTOR_HEALTH_RETRY_POLICY) {
+  if (probe?.status === "transport_error") return true;
+  if (probe?.status !== "http_error") return false;
+  return (policy.retryable_http_statuses || []).includes(Number(probe?.http_status));
+}
+
 export async function probeLocalConnectorPublicHealth({ tunnelUrl, fetchImpl = fetch, timeoutMs = 8000 } = {}) {
   const baseUrl = String(tunnelUrl || "").trim().replace(/\/$/, "");
   if (!baseUrl) {
@@ -57,6 +77,64 @@ export async function probeLocalConnectorPublicHealth({ tunnelUrl, fetchImpl = f
       secrets_included: false,
     };
   }
+}
+
+export async function probeLocalConnectorPublicHealthWithRetry({
+  tunnelUrl,
+  fetchImpl = fetch,
+  timeoutMs = 8000,
+  maxAttempts = DEFAULT_LOCAL_CONNECTOR_HEALTH_RETRY_POLICY.max_attempts,
+  baseDelayMs = DEFAULT_LOCAL_CONNECTOR_HEALTH_RETRY_POLICY.base_delay_ms,
+  maxDelayMs = DEFAULT_LOCAL_CONNECTOR_HEALTH_RETRY_POLICY.max_delay_ms,
+  sleepImpl = (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs)),
+} = {}) {
+  const policy = {
+    ...DEFAULT_LOCAL_CONNECTOR_HEALTH_RETRY_POLICY,
+    max_attempts: boundedInteger(maxAttempts, DEFAULT_LOCAL_CONNECTOR_HEALTH_RETRY_POLICY.max_attempts, 1, 5),
+    base_delay_ms: boundedInteger(baseDelayMs, DEFAULT_LOCAL_CONNECTOR_HEALTH_RETRY_POLICY.base_delay_ms, 0, 5000),
+    max_delay_ms: boundedInteger(maxDelayMs, DEFAULT_LOCAL_CONNECTOR_HEALTH_RETRY_POLICY.max_delay_ms, 0, 10000),
+  };
+  const attempts = [];
+  let finalProbe = null;
+
+  for (let attempt = 1; attempt <= policy.max_attempts; attempt += 1) {
+    finalProbe = await probeLocalConnectorPublicHealth({ tunnelUrl, fetchImpl, timeoutMs });
+    const retryable = isRetryableLocalConnectorHealthProbe(finalProbe, policy);
+    const attemptEvidence = {
+      attempt,
+      status: finalProbe.status,
+      http_status: finalProbe.http_status ?? null,
+      error_code: finalProbe.error_code || null,
+      retryable,
+    };
+    attempts.push(attemptEvidence);
+
+    if (!retryable || attempt >= policy.max_attempts) break;
+
+    const delayMs = Math.min(policy.max_delay_ms, policy.base_delay_ms * (2 ** (attempt - 1)));
+    attemptEvidence.delay_before_next_ms = delayMs;
+    await sleepImpl(delayMs);
+  }
+
+  const retryableFinal = isRetryableLocalConnectorHealthProbe(finalProbe, policy);
+  return {
+    ...(finalProbe || {
+      status: "not_attempted",
+      http_status: null,
+      reason: "health_probe_not_executed",
+      secrets_included: false,
+    }),
+    retry_evidence: {
+      policy_key: policy.policy_key,
+      attempt_count: attempts.length,
+      max_attempts: policy.max_attempts,
+      recovered_on_retry: attempts.length > 1 && !retryableFinal,
+      retry_exhausted: attempts.length >= policy.max_attempts && retryableFinal,
+      retryable_http_statuses: [...policy.retryable_http_statuses],
+      attempts,
+      secrets_included: false,
+    },
+  };
 }
 
 export function classifyLocalConnectorCompositeHealth({ tunnelStatus, publicProbe } = {}) {

@@ -1587,6 +1587,12 @@ Documents and aligns PR #1270 / migration `906_sprint68_ticket_external_delivery
 
 - `1009_sprint69_optional_manual_agent_delegation_tools.sql` registers explicit, admin-governed manual delegation creation/dispatch/contract tools. Migration execution performs no provider call, credential read, external send/write, or secret return; runtime delegation remains opt-in and confirmation/authorization governed.
 - `1010_sprint69_disable_legacy_agent_chain_dispatch_tool.sql` disables the ambiguous legacy dispatch surface and directs callers to `agent_chain_event_dispatch_manual`. It is a guarded registry update only and performs no provider call, credential read, external send/write, or secret return.
+## Sprint 69 daily database lifecycle evidence snapshot runtime
+
+- `318_sprint69_database_lifecycle_daily_snapshot_runtime.sql` adds the `database_lifecycle_snapshot_daily` schedule at `0 3 * * *` UTC and an internal-runtime binding for evidence-only snapshot creation.
+- Snapshot persistence and the schedule fields `last_readiness_at` and `last_snapshot_id` are committed in one transaction. A same-cycle `FOR UPDATE` readback must match the written snapshot or the transaction rolls back with a stable error code.
+- The existing weekly schedule remains `0 3 * * 1` UTC and becomes human review-only. Daily runtime never executes retention actions, archive, delete, drop, truncate, compaction, provider calls, credential reads, external writes, or secret return; `secrets_included=false`.
+
 ## Sprint 69 database lifecycle registry upsert Admin tool
 
 - `316_sprint69_database_lifecycle_registry_upsert_admin_tool.sql` registers the bounded `database_table_lifecycle_registry_upsert` Admin tool through `/admin/control` and persists its governed migration authorization metadata.
@@ -1601,3 +1607,4 @@ Documents and aligns PR #1270 / migration `906_sprint68_ticket_external_delivery
 
 - http-generic-api/migrations/314_sprint69_capability_assurance_graph.sql adds the canonical capability graph, invocation evidence links, capability-specific resource bindings, generic certifications, provenance, debt, closure threads, and hash-only secret movement evidence.
 - Apply remains envelope-gated, additive, no-provider-call, and no-plaintext-secret.
+- Local connector recovery enforces `cloudflare_1033_retry_before_repair_v1`: three total bounded health attempts, early stop on pass or authorization-gated reachability, and installer generation only after retry exhaustion. Migration `1015_sprint69_local_connector_transient_retry_policy.sql` registers the blocking SQL policy and updates the governed tool description.

@@ -936,6 +936,10 @@ When a closed pull-request branch or an explicit orphan branch has been replaced
 
 Before apply, closed-PR mode must verify closed state, the `superseded` label, and absence of an open PR. Orphan mode must verify `allow_orphan_branch=true`, zero matching PRs in any state, and byte-equivalent Git blobs for every non-generated changed file against the current default branch. Both modes must verify default-branch ancestry for every replacement commit, complete changed-file coverage, policy limits, fresh base/branch SHAs, a matching evidence fingerprint, capability-envelope approval, typed confirmation, and an explicit reason. Before deleting the named Git ref, the recipe must write a synchronous no-secret intent audit. After the provider result it must write completion or failure audit evidence; successful completion also requires same-cycle missing-ref readback and returns `secrets_included=false`. Any stale, incomplete, protected, force, or fallback condition must remain blocked.
 
+## Existing Git Blob Commit Repair Rule
+
+`repo_existing_blob_commit_apply` may repair a governed non-protected work branch by reusing one or more Git blob SHAs that already exist in the same repository. It must require an approved GitHub capability envelope, an exact `expected_head_sha`, unique validated repository paths, valid blob SHAs, and an existing work branch. The recipe must create a new tree and single-parent commit from the verified branch head, re-read the branch head before updating the ref, use `force=false`, and verify both the resulting branch head and each committed path-to-blob mapping in the new tree. It must never upload or download blob content, target a protected/default branch, create a missing branch, or report success without same-cycle readback.
+
 ## Operational Alerting Control Plane
 
 `system_bootstrap` must expose a unified alert readback that combines persisted alert lifecycle rows with live SQL evidence from execution, connector, task, agent, skill-approval, freshness, signal, readiness, and telemetry surfaces.
@@ -946,6 +950,12 @@ Required behavior:
 - keep severity, verification, and lifecycle as separate dimensions
 - preserve Known Issues until an explicit governed lifecycle decision resolves or ignores them
 - auto-resolve only non-manual alerts that disappear after a successful synchronization
+- deduplicate skill-approval evidence by `agent_id + skill_id + effective tenant/brand scope`, never by `grant_id`
+- fingerprint execution failures by operation, normalized failure reason, resource/target identity, and tenant/workspace scope
+- suppress or resolve a failure only when a later success matches the same recovery fingerprint
+- downgrade fallback-backed or route-resolved failures from critical severity while preserving the degraded evidence
+- classify malformed source rows as bounded data-quality findings rather than verified critical operational failures
+- reconcile pending outbox rows after lifecycle resolution and before queuing current high/critical notifications
 - queue high and critical notifications through `operational_alert_notification_outbox`; external delivery remains separately governed
 - preserve tenant isolation and keep platform Known Issues admin-only
 - support cursor/offset pagination with explicit `has_more` and `next_cursor`
