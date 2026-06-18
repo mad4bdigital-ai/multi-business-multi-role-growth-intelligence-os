@@ -180,6 +180,6 @@ docs/ai-docs-agent-governance.md
 Migration 314_sprint69_capability_assurance_graph.sql is documented by docs/platform-capability-assurance-graph.md. Auto-docs must preserve the separation between capability requirements, invocation envelopes, resource authority, evidence, certification, debt, and closure state.
 ### Local Connector Transient Retry Policy
 
-`318_sprint69_local_connector_transient_retry_policy.sql` registers the blocking `Cloudflare 1033 Retry Before Repair` execution policy and updates the governed `local_connector_self_repair` tool description. The route performs three total bounded health attempts, stops on pass or authorization-gated reachability, records no-secret `retry_evidence`, and forbids installer generation when a retry recovers.
+`1015_sprint69_local_connector_transient_retry_policy.sql` registers the blocking `Cloudflare 1033 Retry Before Repair` execution policy and updates the governed `local_connector_self_repair` tool description. The route performs three total bounded health attempts, stops on pass or authorization-gated reachability, records no-secret `retry_evidence`, and forbids installer generation when a retry recovers.
 
 Safety contract: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`.
