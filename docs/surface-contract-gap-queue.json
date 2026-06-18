@@ -162,7 +162,7 @@
     },
     {
       "migration_file": "311_sprint69_semantic_capability_effective_resolution.sql",
-      "score": 384,
+      "score": 383,
       "queue_class": "medium_review",
       "gap_severity": "none",
       "documentation_complete": true,
