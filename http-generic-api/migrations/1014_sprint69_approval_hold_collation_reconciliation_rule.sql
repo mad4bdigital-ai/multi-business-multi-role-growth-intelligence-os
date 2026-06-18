@@ -19,7 +19,7 @@ VALUES
      'required_schema_state', 'incomplete',
      'approved_live_reconciliation', true,
      'approved_exact_alter_contract', 'approval_hold_identity_collation_v1',
-     'expected_alter_count', 4
+     'expected_dynamic_alter_contract_count', 4
    ),
    'governed_migration_apply',
    'high',
