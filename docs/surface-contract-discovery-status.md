@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 434
+- Migrations with detected surfaces: 435
 - Migrations reported here: 80
 - OpenAPI operations detected: 474
 - OpenAPI paths detected: 420
@@ -32,7 +32,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 427/434 (98.39%)
+- Documentation complete migrations: 428/435 (98.39%)
 - Documentation gap migrations: 7
 - Gap severity: high=2, medium=4, low=1
 - SQL route coverage in OpenAPI: 1/1 (100.00%)
@@ -45,8 +45,8 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 12 | 9 |
-| tools | 2019 | 368 |
-| views | 393 | 158 |
+| tools | 2024 | 369 |
+| views | 394 | 159 |
 | policies | 158 | 100 |
 | routes | 560 | 236 |
 
@@ -69,7 +69,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | no_raw_secrets | 428 |
 | no_external_send | 428 |
 | no_external_write | 428 |
-| secrets_included_false | 432 |
+| secrets_included_false | 433 |
 
 ### Route Classification Coverage
 
@@ -88,11 +88,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 8
+- Total queue items: 9
 - Critical review: 3
 - High review: 4
 - Medium review: 1
-- Low review: 0
+- Low review: 1
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
@@ -104,6 +104,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `314_sprint69_capability_assurance_graph.sql` | high_review | 540 | none | 0 | 0 | 4 | verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
 | `1012_sprint69_sql_only_runtime_auth_schema.sql` | high_review | 515 | medium | 5 | 0 | 5 | document_surface_contract, verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
 | `317_sprint69_superseded_orphan_branch_cleanup.sql` | medium_review | 354 | low | 5 | 0 | 0 | document_surface_contract, verify_readback_view |
+| `1013_sprint69_approval_hold_identity_collation_alignment.sql` | low_review | 177 | none | 0 | 0 | 5 | verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
 
 
 ## Latest Surface Coverage
