@@ -1439,7 +1439,7 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
   }
 
   if (callerType === "admin" && toolKey === "response_chunk_read") {
-    return { status: 200, body: readCachedToolResponseChunk(args) };
+    return { status: 200, body: await readCachedToolResponseChunk(args) };
   }
 
   if (callerType === "admin" && toolKey === "admin_tool_catalog_search") {
