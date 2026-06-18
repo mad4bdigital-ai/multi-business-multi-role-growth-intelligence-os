@@ -98,7 +98,12 @@ function pass(label) {
 {
   const action = {
     action_key: "google_drive_api",
-    oauth_config_ref: "ref:user_app_connection:google_drive"
+    oauth_config_ref: "ref:user_app_connection:google_drive",
+    runtime_binding_profile: JSON.stringify({
+      auth_strategy: {
+        required_scopes: ["https://www.googleapis.com/auth/drive.metadata.readonly"]
+      }
+    })
   };
   const baseOptions = {
     action,
