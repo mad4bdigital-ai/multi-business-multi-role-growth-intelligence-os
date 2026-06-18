@@ -7,6 +7,7 @@ import {
   resolveRepositoryPrincipalScopeV6,
 } from "./repositoryGovernanceV6.js";
 import { buildBindingContext } from "./scripts/capability-resolution-envelope-create.mjs";
+import { executeRepositoryPrReconciliationReadOnlyForAdminReadiness } from "./platformResourceRecipeCapability.js";
 
 const releaseReadinessSource = fs.readFileSync(new URL("./releaseReadiness.js", import.meta.url), "utf8");
 assert.match(releaseReadinessSource, /function safeJsonArray/);
