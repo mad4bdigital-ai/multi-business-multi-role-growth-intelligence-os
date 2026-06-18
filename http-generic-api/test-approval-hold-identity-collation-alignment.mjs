@@ -41,6 +41,23 @@ const applySql = sql.split("-- Align only the four mismatched varchar(36) identi
 assert(applySql, "missing apply-section marker");
 assert.equal((applySql.match(/MODIFY approval_hold_id VARCHAR\(36\)/g) || []).length, 3);
 assert.equal((applySql.match(/MODIFY hold_id VARCHAR\(36\)/g) || []).length, 1);
+for (const guard of [
+  "@align_local_gateway_approval_hold_sql",
+  "@align_repository_advisory_approval_hold_sql",
+  "@align_ticket_workflow_approval_hold_sql",
+  "@align_approval_holds_parent_sql",
+]) {
+  assert(applySql.includes(guard), `missing idempotent guard: ${guard}`);
+}
+assert.equal((applySql.match(/(?:^|\n)PREPARE align_/g) || []).length, 4);
+assert.equal((applySql.match(/(?:^|\n)EXECUTE align_/g) || []).length, 4);
+assert.equal((applySql.match(/(?:^|\n)DEALLOCATE PREPARE align_/g) || []).length, 4);
+const preflight = assessMigrationSqlPreflight(
+  "1013_sprint69_approval_hold_identity_collation_alignment.sql",
+  sql
+);
+assert.equal(preflight.status, "pass");
+assert.equal(preflight.risk_count, 0);
 assert(!sql.includes("VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"));
 assert(!sql.includes("VARCHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"));
 assert(sql.includes("CREATE OR REPLACE VIEW v_approval_hold_identity_collation_readiness"));
