@@ -86,6 +86,19 @@ for (const viewName of [
   assert(docs.includes(`\`${viewName}\``), `${viewName} must be documented`);
 }
 
+for (const expectedJoin of [
+  "CONVERT(wal.`workspace_id` USING utf8mb4) COLLATE utf8mb4_unicode_ci",
+  "CONVERT(w.`workspace_id` USING utf8mb4) COLLATE utf8mb4_unicode_ci",
+  "CONVERT(wal.`tenant_id` USING utf8mb4) COLLATE utf8mb4_unicode_ci",
+  "CONVERT(w.`tenant_id` USING utf8mb4) COLLATE utf8mb4_unicode_ci",
+  "CONVERT(aag.`workspace_id` USING utf8mb4) COLLATE utf8mb4_unicode_ci",
+]) {
+  assert(migration.includes(expectedJoin), `mixed-collation join must normalize ${expectedJoin}`);
+}
+assert(!migration.includes("wal.`workspace_id` = w.`workspace_id`"));
+assert(!migration.includes("wal.`tenant_id` = w.`tenant_id`"));
+assert(!migration.includes("aag.`workspace_id` = w.`workspace_id`"));
+
 for (const capabilityKey of [
   "content.article.create_draft",
   "content.article.publish",

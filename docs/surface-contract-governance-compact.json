@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 99.77,
+  "docs_completion_percent": 99.54,
   "docs_complete_count": 435,
-  "docs_gap_count": 1,
-  "queue_items": 2,
-  "blocking_new_item_count": 2,
+  "docs_gap_count": 2,
+  "queue_items": 4,
+  "blocking_new_item_count": 3,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -13,18 +13,24 @@
       "queue_class": "critical_review",
       "score": 837,
       "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
+      "migration_file": "1014_sprint69_approval_hold_collation_reconciliation_rule.sql",
+      "queue_class": "high_review",
+      "score": 466,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
   "openapi_missing_sql_route_count": 0,
   "openapi_exempt_sql_route_count": 563,
   "total_sql_route_like_count": 564,
-  "safety_marker_gap_migrations": 0,
+  "safety_marker_gap_migrations": 1,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 2,
-    "warning_new_item_count": 2
+    "blocking_new_item_count": 3,
+    "warning_new_item_count": 3
   },
   "safety": {
     "executes_provider_calls": false,
