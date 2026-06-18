@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { getPool } from "./db.js";
 import {
+  DATABASE_LIFECYCLE_DAILY_SNAPSHOT_CONFIRMATION,
+  runDatabaseLifecycleDailySnapshotCycle,
+} from "./databaseLifecycleDailyRuntime.js";
+import {
   AUDIT_BRIDGE_CONFIRMATION,
   runAuditLogEventBusBridge,
 } from "./scripts/audit-log-event-bus-bridge.mjs";
