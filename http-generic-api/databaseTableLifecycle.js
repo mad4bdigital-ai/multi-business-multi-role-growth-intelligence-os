@@ -880,9 +880,10 @@ export async function writeDatabaseLifecycleReportSnapshot(snapshot = {}, deps =
 }
 
 export async function writeDatabaseLifecycleSchedulerSnapshot(snapshot = {}, options = {}, deps = {}) {
-  const pool = deps.pool || getPool();
-  const connection = deps.connection || deps.conn || await pool.getConnection();
-  const ownsConnection = !(deps.connection || deps.conn);
+  const providedConnection = deps.connection || deps.conn || null;
+  const pool = deps.pool || (providedConnection ? null : getPool());
+  const connection = providedConnection || await pool.getConnection();
+  const ownsConnection = !providedConnection;
   const scheduleKey = text(options.schedule_key || options.scheduleKey || DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_KEY);
   let transactionStarted = false;
   try {
