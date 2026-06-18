@@ -791,7 +791,7 @@ components:
     OperationalAlertSyncResponse:
       type: object
       additionalProperties: false
-      required: [ok, sync_run_id, sync_status, candidate_count, upserted_count, resolved_count, notification_queued_count, degraded_sources, resolution_skipped_due_to_degraded_sources, readback, secrets_included]
+      required: [ok, sync_run_id, sync_status, candidate_count, upserted_count, resolved_count, notification_queued_count, notification_skipped_count, degraded_sources, resolution_skipped_due_to_degraded_sources, readback, secrets_included]
       properties:
         ok: { type: boolean }
         sync_run_id: { type: string }
@@ -800,6 +800,7 @@ components:
         upserted_count: { type: integer, minimum: 0 }
         resolved_count: { type: integer, minimum: 0 }
         notification_queued_count: { type: integer, minimum: 0 }
+        notification_skipped_count: { type: integer, minimum: 0 }
         degraded_sources: { type: array, items: { $ref: '#/components/schemas/OperationalAlertSourceHealth' } }
         resolution_skipped_due_to_degraded_sources: { type: boolean }
         readback: { $ref: '#/components/schemas/OperationalAlertReadResponse' }
@@ -5253,7 +5254,7 @@ paths:
       operationId: synchronizeActivationOperationalAttention
       x-openai-isConsequential: true
       summary: Synchronize operational alerts from SQL evidence
-      description: Evaluates governed SQL evidence sources, upserts lifecycle rows, resolves disappeared automatic alerts, queues in-app notifications, and returns same-cycle readback. Performs no provider call or external send.
+      description: Evaluates governed SQL evidence sources, upserts lifecycle rows, resolves or supersedes stale alerts, reconciles pending notifications before queuing current eligible in-app notifications, and returns same-cycle readback. Performs no provider call or external send.
       requestBody:
         required: false
         content:
