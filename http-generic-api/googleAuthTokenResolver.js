@@ -276,12 +276,26 @@ async function saJsonToAccessToken(saJson, scopes) {
   return data.access_token;
 }
 
-async function fetchGlobalGoogleToken(options = {}) {
-  const key = buildGoogleTokenCacheKey(options);
-  const existing = globalTokenInflight.get(key);
+export async function runGoogleTokenResolutionOnce(key, resolver) {
+  const normalizedKey = String(key || "").trim();
+  if (!normalizedKey) throw new Error("Google token resolution requires a non-empty cache key.");
+  if (typeof resolver !== "function") throw new TypeError("Google token resolution requires a resolver function.");
+
+  const existing = globalTokenInflight.get(normalizedKey);
   if (existing) return existing;
 
-  const task = (async () => {
+  const task = Promise.resolve().then(resolver);
+  globalTokenInflight.set(normalizedKey, task);
+  try {
+    return await task;
+  } finally {
+    if (globalTokenInflight.get(normalizedKey) === task) globalTokenInflight.delete(normalizedKey);
+  }
+}
+
+async function fetchGlobalGoogleToken(options = {}) {
+  const key = buildGoogleTokenCacheKey(options);
+  return runGoogleTokenResolutionOnce(key, async () => {
     const scopes = getGoogleScopesFromAction(options.action || {});
     const credFile = process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GOOGLE_CREDENTIALS_PATH;
     const saJson = parseSaJson(process.env.GOOGLE_SA_JSON) || loadSaFile(credFile);
