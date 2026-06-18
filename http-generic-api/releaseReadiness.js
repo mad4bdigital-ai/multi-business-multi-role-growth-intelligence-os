@@ -555,7 +555,7 @@ export function splitSqlStatements(sql = "") {
   return String(sql || "")
     .split(statementBoundary)
     .map((statement) => statement.trim())
-    .filter(Boolean);
+    .filter((statement) => stripSqlComments(statement).trim().length > 0);
 }
 
 function stripSqlComments(sql = "") {
