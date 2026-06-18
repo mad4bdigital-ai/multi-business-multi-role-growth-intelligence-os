@@ -1,4 +1,4 @@
-﻿# GPT Admin Assistant Knowledge Guide
+# GPT Admin Assistant Knowledge Guide
 
 ## Purpose
 
