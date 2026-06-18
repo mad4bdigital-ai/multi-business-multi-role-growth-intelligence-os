@@ -222,11 +222,8 @@ export function buildConnectApiRoutes(deps = {}) {
         source: "connect_api_policy_update",
         db,
       });
-      if (tx) {
-        await tx.commit();
-        tx.release();
-      }
-      tx = null;
+      if (tx) await tx.commit();
+
       let readiness = null;
       let readinessError = null;
       try {
