@@ -234,6 +234,7 @@ export const testCommands = [
   "node test-tenant-evolution-checkpoint-routes.mjs",
   "node test-tenant-platform-plugin-openapi.mjs",
   "node test-tenant-tool-surface-guard.mjs",
+  "node test-runtime-endpoint-preview-strictness.mjs",
   "node test-openapi-split-governance.mjs",
   "node test-openapi-split-regeneration-parity.mjs",
   "node test-openapi-route-coverage.mjs",
