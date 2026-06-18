@@ -9336,32 +9336,46 @@ paths:
           description: json returns a no-secret handoff; bat returns the authenticated binary installer.
       responses:
         "200":
-          description: Installer uploaded, drive link returned
+          description: Metadata-only secure handoff or authenticated installer attachment
           content:
             application/json:
               schema:
                 type: object
-                additionalProperties: true
-                required: [ok, drive]
+                additionalProperties: false
+                required: [ok, artifact_delivery, script_content_omitted, credential_materialized, public_storage_allowed, secure_download, secrets_included]
                 properties:
-                  ok: { type: boolean }
-                  drive_upload_status: { type: string, enum: [uploaded, failed, not_configured, attempted] }
-                  drive_error:
-                    oneOf:
-                      - type: object
-                        additionalProperties: true
-                      - type: "null"
-                  drive:
-                    oneOf:
-                      - type: object
-                        additionalProperties: true
+                  ok: { type: boolean, const: true }
+                  artifact_delivery: { type: string, const: authenticated_direct_download_only }
+                  script_content_omitted: { type: boolean, const: true }
+                  script_content_reason: { type: string }
+                  credential_materialized: { type: boolean, const: false }
+                  public_storage_allowed: { type: boolean, const: false }
+                  secure_download:
+                    type: object
+                    additionalProperties: false
+                    required: [method, path, query, requires_backend_api_key, requires_admin_principal]
+                    properties:
+                      method: { type: string, const: GET }
+                      path: { type: string, const: /admin/cli/local-connector/install-bundle }
+                      query:
+                        type: object
+                        additionalProperties: false
+                        required: [user_id, device_id, format]
                         properties:
-                          file_id: { type: string }
-                          drive_link: { type: string }
-                          filename: { type: string }
-                      - type: "null"
+                          user_id: { type: string }
+                          device_id: { type: string }
+                          format: { type: string, const: bat }
+                      requires_backend_api_key: { type: boolean, const: true }
+                      requires_admin_principal: { type: boolean, const: true }
+                  secrets_included: { type: boolean, const: false }
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
         "401": { $ref: "#/components/responses/Unauthorized" }
-        "500": { description: Install bundle generation failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
 
   /admin/cli/local-connector/self-repair:
     post:
