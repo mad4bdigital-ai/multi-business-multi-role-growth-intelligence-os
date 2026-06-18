@@ -2743,9 +2743,9 @@ export function buildAdminCliRoutes(deps) {
   // Single-shot self-repair for the admin's local connector.
   // 1. Reads device config from DB (user_id + device_id, defaults to admin / mohammedlap).
   // 2. Checks CF tunnel health via Cloudflare API.
-  // 3. Returns diagnosis and an authenticated admin-only download handoff.
-  // 4. Never uploads the secret-bearing installer to shared or public storage.
-  // GPT should call this whenever connector.mad4b.com returns 1033.
+  // 3. Retries transient Cloudflare 1033/HTTP 530 health failures up to three total attempts and returns retry evidence.
+  // 4. After retry exhaustion, returns diagnosis and an authenticated admin-only download handoff.
+  // 5. Never generates installer content in this JSON route or uploads the secret-bearing installer to shared or public storage.
   router.post("/local-connector/self-repair", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
     try {
       const userId   = String(req.body?.user_id   || "").trim() || "00000000-0000-4000-a000-000000000002";
