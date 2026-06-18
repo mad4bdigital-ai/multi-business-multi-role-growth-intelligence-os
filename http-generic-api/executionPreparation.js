@@ -6,6 +6,48 @@ import { resolveExecutionAuthorityManifestContext } from "./executionAuthorityMa
 import { enforceExecutionAuthorityManifestGuard } from "./executionAuthorityManifestGuard.js";
 
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const AUTH_VALIDATION_PLACEHOLDER = "__schema_validation_auth_placeholder__";
+
+function isTrueFlag(value) {
+  return value === true || String(value || "").trim().toLowerCase() === "true";
+}
+
+function isPassiveExecutionRequested(requestPayload = {}) {
+  return isTrueFlag(requestPayload.dry_run) || isTrueFlag(requestPayload.preflight_only);
+}
+
+function buildSchemaValidationAuthContract(authContract = {}) {
+  const contract = {
+    ...authContract,
+    custom_headers: { ...(authContract.custom_headers || {}) }
+  };
+
+  if (contract.mode === "oauth_gpt_action") {
+    contract.mode = "bearer_token";
+    contract.header_name = "Authorization";
+  }
+
+  if (["bearer_token", "github_app", "google_oauth2", "google_ads_oauth2"].includes(contract.mode)) {
+    contract.secret = AUTH_VALIDATION_PLACEHOLDER;
+  } else if (contract.mode === "basic_auth") {
+    contract.username = contract.username || "schema-validation-user";
+    contract.secret = AUTH_VALIDATION_PLACEHOLDER;
+  } else if (contract.mode === "api_key_query") {
+    contract.param_name = contract.param_name || "api_key";
+    contract.secret = AUTH_VALIDATION_PLACEHOLDER;
+  } else if (contract.mode === "api_key_header") {
+    contract.header_name = contract.header_name || "x-api-key";
+    contract.secret = AUTH_VALIDATION_PLACEHOLDER;
+  }
+
+  return contract;
+}
+
+function buildStaticAuthValidationHeaders(action = {}) {
+  const headerName = String(action.api_key_header_name || "").trim();
+  if (!headerName || headerName.toLowerCase() === "authorization") return {};
+  return { [headerName]: AUTH_VALIDATION_PLACEHOLDER };
+}
 
 export async function prepareExecutionRequest(input = {}, deps = {}) {
   const {
@@ -76,7 +118,7 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
     requestPayload.target_key || brand?.target_key || ""
   ).trim();
 
-  const authContract = await normalizeAuthContract({
+  const authResolutionArgs = {
     action,
     endpoint,
     brand,
@@ -101,6 +143,11 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
     allow_platform_fallback: Object.prototype.hasOwnProperty.call(requestBody, "allow_platform_fallback")
       ? requestBody.allow_platform_fallback
       : requestBody.auth_context?.allow_platform_fallback
+  };
+  const passiveExecutionRequested = isPassiveExecutionRequested(requestBody);
+  let authContract = await normalizeAuthContract({
+    ...authResolutionArgs,
+    resolve_credentials: false
   });
 
   if (String(action.action_key || "").trim() === "hostinger_api") {
@@ -119,6 +166,7 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
   debugLog("INFERRED_AUTH_MODE:", authContract.mode);
   enforceSupportedAuthMode(policies, authContract.mode);
 
+  let delegatedGoogleAuthRequired = false;
   if (authContract.mode === "oauth_gpt_action") {
     const handling = policyValue(
       policies,
@@ -126,7 +174,6 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
       "OAuth GPT Action Transport Handling",
       "NATIVE_ONLY"
     );
-
     const allowDelegatedGoogleOAuth = String(
       policyValue(
         policies,
@@ -135,7 +182,6 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
         "TRUE"
       )
     ).trim().toUpperCase() === "TRUE";
-
     const delegatedGoogleEndpoint =
       isDelegatedTransportTarget(endpoint) &&
       isGoogleApiHost(resolvedProviderDomain);
@@ -148,54 +194,13 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
       err.status = 403;
       throw err;
     }
-
-    try {
-      authContract.mode = "bearer_token";
-      authContract.header_name = "Authorization";
-      authContract.secret = await mintGoogleAccessTokenForEndpoint({
-        drive,
-        policies,
-        action,
-        endpoint
-      });
-    } catch (err) {
-      debugLog("DELEGATED_GOOGLE_OAUTH_FALLBACK:", {
-        action_key: action.action_key,
-        endpoint_key: endpoint.endpoint_key,
-        provider_domain: resolvedProviderDomain,
-        message: err?.message || String(err)
-      });
-      const authErr = new Error("Delegated Google OAuth token mint failed.");
-      authErr.code = "auth_resolution_failed";
-      authErr.status = err?.status || 500;
-      throw authErr;
-    }
+    delegatedGoogleAuthRequired = true;
   } else if (
     authContract.mode === "none" &&
     isDelegatedTransportTarget(endpoint) &&
     isGoogleApiHost(resolvedProviderDomain)
   ) {
-    try {
-      authContract.mode = "bearer_token";
-      authContract.header_name = "Authorization";
-      authContract.secret = await mintGoogleAccessTokenForEndpoint({
-        drive,
-        policies,
-        action,
-        endpoint
-      });
-    } catch (err) {
-      debugLog("DELEGATED_GOOGLE_OAUTH_FALLBACK:", {
-        action_key: action.action_key,
-        endpoint_key: endpoint.endpoint_key,
-        provider_domain: resolvedProviderDomain,
-        message: err?.message || String(err)
-      });
-      const authErr = new Error("Delegated Google OAuth token mint failed.");
-      authErr.code = "auth_resolution_failed";
-      authErr.status = err?.status || 500;
-      throw authErr;
-    }
+    delegatedGoogleAuthRequired = true;
   }
 
   ensureWritePermissions(brand, resolvedMethodPath.method);
@@ -394,16 +399,33 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
   }
 
   debugLog("NORMALIZED_QUERY:", query);
+  const callerAuthTrust = policyValue(
+    policies,
+    "HTTP Execution Governance",
+    "Caller Authorization Header Trust",
+    "FALSE"
+  );
+  if (
+    String(callerAuthTrust).toUpperCase() === "FALSE" &&
+    (requestPayload.headers?.Authorization || requestPayload.headers?.authorization)
+  ) {
+    const err = new Error("Caller-supplied Authorization is not trusted by policy.");
+    err.code = "forbidden_header";
+    err.status = 403;
+    throw err;
+  }
+
+  const schemaValidationAuthContract = buildSchemaValidationAuthContract(authContract);
   const schemaValidationInput = injectAuthForSchemaValidation(
     query,
     callerHeaders,
-    authContract
+    schemaValidationAuthContract
   );
 
   const queryWithAuth = schemaValidationInput.query;
   const headersWithAuthForValidation = {
     ...schemaValidationInput.headers,
-    ...getAdditionalStaticAuthHeaders(action, authContract)
+    ...buildStaticAuthValidationHeaders(action)
   };
 
   const schemaValidationErrors = [
@@ -419,17 +441,6 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
   const target_module = String(endpoint?.module_binding || "").trim();
   const target_workflow = String(action?.action_key || "").trim();
   const brand_name = String(brand?.brand_name || requestPayload.brand || "").trim();
-
-  const callerAuthTrust = policyValue(policies, "HTTP Execution Governance", "Caller Authorization Header Trust", "FALSE");
-  if (
-    String(callerAuthTrust).toUpperCase() === "FALSE" &&
-    (requestPayload.headers?.Authorization || requestPayload.headers?.authorization)
-  ) {
-    const err = new Error("Caller-supplied Authorization is not trusted by policy.");
-    err.code = "forbidden_header";
-    err.status = 403;
-    throw err;
-  }
 
   if (schemaValidationErrors.length) {
     const responsePayload = {
@@ -540,17 +551,52 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
     return { ok: false, response: { status: 200, body: responsePayload } };
   }
 
-  const finalQuery = queryWithAuth;
+  if (!passiveExecutionRequested) {
+    authContract = await normalizeAuthContract(authResolutionArgs);
+
+    if (delegatedGoogleAuthRequired) {
+      try {
+        authContract.mode = "bearer_token";
+        authContract.header_name = "Authorization";
+        authContract.secret = await mintGoogleAccessTokenForEndpoint({
+          policies,
+          action,
+          endpoint
+        });
+        authContract.credential_resolution_status = "resolved";
+        authContract.credential_resolution_source = "delegated_google_oauth_after_authorization";
+      } catch (err) {
+        debugLog("DELEGATED_GOOGLE_OAUTH_FALLBACK:", {
+          action_key: action.action_key,
+          endpoint_key: endpoint.endpoint_key,
+          provider_domain: resolvedProviderDomain,
+          message: err?.message || String(err)
+        });
+        const authErr = new Error("Delegated Google OAuth token mint failed.");
+        authErr.code = "auth_resolution_failed";
+        authErr.status = err?.status || 500;
+        throw authErr;
+      }
+    }
+  }
+
+  const outboundAuthInput = passiveExecutionRequested
+    ? { query: { ...(query || {}) }, headers: { ...(callerHeaders || {}) } }
+    : injectAuthForSchemaValidation(query, callerHeaders, authContract);
+  const finalQuery = outboundAuthInput.query;
   let finalHeaders = {
     Accept: "application/json",
     ...(brand ? jsonParseSafe(brand.default_headers_json, {}) : {}),
-    ...callerHeaders
+    ...outboundAuthInput.headers
   };
-  finalHeaders = injectAuthIntoHeaders(finalHeaders, authContract);
-  finalHeaders = {
-    ...finalHeaders,
-    ...getAdditionalStaticAuthHeaders(action, authContract)
-  };
+
+  if (!passiveExecutionRequested) {
+    finalHeaders = injectAuthIntoHeaders(finalHeaders, authContract);
+    finalHeaders = {
+      ...finalHeaders,
+      ...getAdditionalStaticAuthHeaders(action, authContract)
+    };
+  }
 
   if (body !== undefined && !finalHeaders["Content-Type"] && !finalHeaders["content-type"]) {
     finalHeaders["Content-Type"] = "application/json";

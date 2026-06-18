@@ -808,7 +808,7 @@ export function evaluateWritebackSmokeSuite(args = {}) {
 }
 
 export async function persistOversizedArtifact(input = {}) {
-  const { drive } = await getGoogleClients();
+  const { drive } = await getGoogleClients({ action_key: "google_drive_api" });
   const artifact_file_name = buildArtifactFileName({
     brand_name: input.brand_name || input.target_key || "unknown_brand",
     endpoint_key: input.endpoint_key,

@@ -960,7 +960,7 @@ export async function verifyJsonAssetAppendReadback(
 export async function writeExecutionLogUnifiedRow(row) {
   if (DATA_SOURCE_MODE === "sql") return null;
 
-  const { sheets } = await getGoogleClients();
+  const { sheets } = await getGoogleClients({ action_key: "google_sheets_api" });
 
   const live = await readLiveSheetShape(
     EXECUTION_LOG_UNIFIED_SPREADSHEET_ID,
@@ -1060,7 +1060,7 @@ export async function writeExecutionLogUnifiedRow(row) {
 }
 
 export async function writeJsonAssetRegistryRow(row) {
-  const { sheets } = await getGoogleClients();
+  const { sheets } = await getGoogleClients({ action_key: "google_sheets_api" });
 
   const live = await readLiveSheetShape(
     JSON_ASSET_REGISTRY_SPREADSHEET_ID,

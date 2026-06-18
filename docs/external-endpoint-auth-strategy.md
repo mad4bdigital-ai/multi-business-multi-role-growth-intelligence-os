@@ -200,6 +200,17 @@ Expected result: runtime uses the user's active `cloudflare` connection or retur
 
 Expected result: runtime uses the user's Google OAuth connection. If none exists, it must not use the platform service account.
 
+## Passive preview and preflight lifecycle
+
+External endpoint execution separates contract validation from credential materialization:
+
+1. Resolve principal, tenant/workspace, brand, business type, business activity, applicable profiles, action, endpoint, and SQL auth/scope contract.
+2. Build a metadata-only auth contract for schema, route, policy, authority, dry-run, and preflight checks.
+3. When `dry_run=true` or `preflight_only=true` (boolean or string), return without secret lookup, token mint, authenticated client construction, or provider dispatch. The contract reports `materialized=false`, `provider_call_made=false`, and `secret_read_performed=false`.
+4. Live execution may resolve and decrypt the selected credential only after all guards pass.
+
+For Google integrations, every client acquisition must carry an explicit action key. Sheets operations use `google_sheets_api`; Drive operations and activation probes use `google_drive_api`. Token and client cache identity includes action, credential scope, user, tenant, connection, app key, and OAuth reference. Missing SQL scope contracts fail closed with `auth_scope_contract_missing`.
+
 ## Migration
 
 The DB reconciliation migration is:

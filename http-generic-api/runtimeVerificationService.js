@@ -1,6 +1,11 @@
 import crypto, { randomUUID } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { getPool } from "./db.js";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(__dirname, "..");
 const DEFAULT_RESPONSE_BUDGET = Object.freeze({ max_response_bytes: 100000, max_items: 50, max_depth: 3, overflow_policy: "manifest_only" });
 const SENSITIVE_KEY_PATTERN = /(secret|credential|token|password|private_key|cipher|api_key|authorization|cookie|set-cookie)/i;
 const REQUIRED_TABLES = Object.freeze(["runtime_verification_workflow_registry", "runtime_verification_runs", "runtime_verification_steps", "runtime_verification_evidence_chunks", "runtime_verification_gaps", "runtime_deployment_parity_status", "runtime_ci_check_classification_registry", "runtime_gap_remediation_registry"]);
@@ -38,8 +43,70 @@ function resolveExpectedCommit(input = {}) {
   return String(input.expected_commit_sha || process.env.EXPECTED_GIT_COMMIT || process.env.EXPECTED_COMMIT_SHA || "unknown").trim();
 }
 
-function resolveDeployedCommit(input = {}) {
-  return String(input.deployed_commit_sha || input.runtime_commit_sha || process.env.GIT_COMMIT || process.env.GITHUB_SHA || process.env.COMMIT_SHA || process.env.RENDER_GIT_COMMIT || "unknown").trim();
+function normalizeCommitSha(value) {
+  const sha = String(value || "").trim().toLowerCase();
+  return /^[0-9a-f]{40}$/.test(sha) ? sha : "";
+}
+
+function resolveGitDirectory(repoRoot, readFileSync) {
+  const dotGitPath = path.join(repoRoot, ".git");
+  try {
+    readFileSync(path.join(dotGitPath, "HEAD"), "utf8");
+    return dotGitPath;
+  } catch {
+  }
+  try {
+    const pointer = String(readFileSync(dotGitPath, "utf8")).trim();
+    const match = pointer.match(/^gitdir:\s*(.+)$/i);
+    return match ? path.resolve(repoRoot, match[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function readCheckoutCommitSha({ repoRoot = REPO_ROOT, readFileSync = fs.readFileSync } = {}) {
+  const gitDirectory = resolveGitDirectory(repoRoot, readFileSync);
+  if (!gitDirectory) return "";
+  try {
+    const head = String(readFileSync(path.join(gitDirectory, "HEAD"), "utf8")).trim();
+    const detachedSha = normalizeCommitSha(head);
+    if (detachedSha) return detachedSha;
+
+    const refMatch = head.match(/^ref:\s*(.+)$/i);
+    if (!refMatch) return "";
+    const refName = refMatch[1].trim();
+    try {
+      const looseRefSha = normalizeCommitSha(readFileSync(path.join(gitDirectory, refName), "utf8"));
+      if (looseRefSha) return looseRefSha;
+    } catch {
+    }
+
+    try {
+      const packedRefs = String(readFileSync(path.join(gitDirectory, "packed-refs"), "utf8"));
+      const packedLine = packedRefs
+        .split(/\r?\n/)
+        .find((line) => line && !line.startsWith("#") && !line.startsWith("^") && line.endsWith(` ${refName}`));
+      return normalizeCommitSha(packedLine?.split(/\s+/)[0]);
+    } catch {
+      return "";
+    }
+  } catch {
+    return "";
+  }
+}
+
+export function resolveDeployedCommitEvidence({ env = process.env, checkoutCommitReader = readCheckoutCommitSha } = {}) {
+  for (const key of ["GIT_COMMIT", "GITHUB_SHA", "COMMIT_SHA", "RENDER_GIT_COMMIT"]) {
+    const sha = normalizeCommitSha(env?.[key]);
+    if (sha) return { sha, source: `env:${key}` };
+  }
+  const checkoutSha = normalizeCommitSha(checkoutCommitReader());
+  if (checkoutSha) return { sha: checkoutSha, source: "checkout_git_head" };
+  return { sha: "unknown", source: "unavailable" };
+}
+
+export function resolveDeployedCommit(options = {}) {
+  return resolveDeployedCommitEvidence(options).sha;
 }
 
 export function classifyCommitParity(expectedCommitSha, deployedCommitSha) {
@@ -112,7 +179,8 @@ export async function createRuntimeVerificationRun(input = {}, actor = {}) {
   const runId = randomUUID();
   const environmentKey = String(input.environment_key || input.environment || "production").trim() || "production";
   const expectedCommitSha = resolveExpectedCommit(input);
-  const deployedCommitSha = resolveDeployedCommit(input);
+  const deployedCommitEvidence = resolveDeployedCommitEvidence();
+  const deployedCommitSha = deployedCommitEvidence.sha;
   const budget = { ...DEFAULT_RESPONSE_BUDGET, ...(input.response_budget || {}) };
   const createdBy = actor.user_id || actor.email || actor.mode || "runtime_verification_route";
 
@@ -136,7 +204,7 @@ export async function createRuntimeVerificationRun(input = {}, actor = {}) {
   if (!activationStepPass) await insertGap(runId, { gap_key: activationBytes > budget.max_response_bytes ? "activation_summary_too_large" : "activation_summary_degraded", severity: "high", classification: activationBytes > budget.max_response_bytes ? "response_budget_exceeded" : "activation_registry_tables_missing", remediation: "Use summary/evidence pagination and ensure activation registry tables exist.", evidence_ref: "runtime_verification_steps:activation_summary_probe" });
 
   const commitParity = classifyCommitParity(expectedCommitSha, deployedCommitSha);
-  await insertStep(runId, { step_key: "deployment_commit_parity", step_status: commitParity.matches ? "pass" : "fail", classification: commitParity.classification, detail_json: { expected_commit_sha: expectedCommitSha, deployed_commit_sha: deployedCommitSha } });
+  await insertStep(runId, { step_key: "deployment_commit_parity", step_status: commitParity.matches ? "pass" : "fail", classification: commitParity.classification, detail_json: { expected_commit_sha: expectedCommitSha, deployed_commit_sha: deployedCommitSha, deployed_commit_source: deployedCommitEvidence.source } });
   if (!commitParity.matches) await insertGap(runId, { gap_key: commitParity.classification, severity: "critical", classification: "deployment_parity_mismatch", remediation: "Provide independent expected and deployed commit evidence, redeploy or reconcile when needed, then rerun verification.", evidence_ref: "runtime_verification_steps:deployment_commit_parity" });
 
   await insertStep(runId, { step_key: "runtime_code_routes_installed", step_status: "pass", classification: "runtime_verification_routes_installed", detail_json: { routes: ["POST /runtime/verification-runs", "GET /runtime/verification-runs/:runId", "GET /runtime/verification-runs/:runId/evidence", "GET /runtime/parity/:environmentKey"] } });
@@ -148,7 +216,7 @@ export async function createRuntimeVerificationRun(input = {}, actor = {}) {
   const blockingGapCount = Number(gapRows[0]?.count || 0);
   const productionParity = blockingGapCount === 0 ? "verified" : "degraded";
   const runStatus = blockingGapCount === 0 ? "verified" : "degraded";
-  const summary = { migration_tables: missingRuntimeTables.length ? "fail" : "pass", activation_summary: activationStepPass ? "pass" : "fail", deployment_commit_parity: commitParity.matches ? "pass" : "fail", runtime_code_routes: "pass", evidence_manifest: "pass", production_parity: productionParity, blocking_gap_count: blockingGapCount, expected_commit_sha: expectedCommitSha, deployed_commit_sha: deployedCommitSha, secrets_included: false };
+  const summary = { migration_tables: missingRuntimeTables.length ? "fail" : "pass", activation_summary: activationStepPass ? "pass" : "fail", deployment_commit_parity: commitParity.matches ? "pass" : "fail", runtime_code_routes: "pass", evidence_manifest: "pass", production_parity: productionParity, blocking_gap_count: blockingGapCount, expected_commit_sha: expectedCommitSha, deployed_commit_sha: deployedCommitSha, deployed_commit_source: deployedCommitEvidence.source, secrets_included: false };
 
   await execute("UPDATE runtime_verification_runs SET run_status = ?, production_parity = ?, summary_json = ?, completed_at = UTC_TIMESTAMP() WHERE run_id = ?", [runStatus, productionParity, JSON.stringify(summary), runId]);
   await execute(

@@ -20,7 +20,6 @@ export async function resolveExecutionRequest(reqBody = {}, deps = {}) {
     validateTopLevelRoutingFields,
     getRegistry,
     reloadRegistry,
-    getGoogleClients,
     getRequiredHttpExecutionPolicyKeys,
     requirePolicySet,
     policyValue,
@@ -149,11 +148,6 @@ export async function resolveExecutionRequest(reqBody = {}, deps = {}) {
   }
   const registry = forceRefresh ? await reloadRegistry() : await getRegistry();
   const { brandRows, hostingAccounts, actionRows, endpointRows, policies } = registry;
-  let drive = null;
-  try {
-    const clients = await getGoogleClients();
-    drive = clients.drive;
-  } catch (_) {}
 
   const requiredHttpExecutionPolicyKeys =
     getRequiredHttpExecutionPolicyKeys(policies);
@@ -393,7 +387,6 @@ export async function resolveExecutionRequest(reqBody = {}, deps = {}) {
     provider_domain,
     parent_action_key,
     endpoint_key,
-    drive,
     hostingAccounts,
     policies,
     callerHeaders,

@@ -22,7 +22,7 @@ import {
   resolveCapabilityExecutionEnvelope,
 } from "../capabilityResolutionEnvelopeGuard.js";
 import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBranchFastForwardToBase } from "../adminBranchReconciliationAdapter.js";
-import { applyGithubRepositoryChangeSet, deleteGithubBranchRef, finalizeGithubPullRequest, getGithubPullRequestCiGate } from "../githubRepositoryLifecycle.js";
+import { applyGithubExistingBlobChangeSet, applyGithubRepositoryChangeSet, deleteGithubBranchRef, finalizeGithubPullRequest, getGithubPullRequestCiGate } from "../githubRepositoryLifecycle.js";
 import { runGithubSupersededBranchCleanup } from "../githubSupersededBranchCleanup.js";
 import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveReport } from "../platformCapabilityReports.js";
 import { runGrowthIntelligencePilotAdmin } from "../growthIntelligenceAdminTool.js";
@@ -463,6 +463,43 @@ const VIRTUAL_ADMIN_TOOLS = [
             additionalProperties: false,
           },
         },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "repo_existing_blob_commit_apply",
+    displayName: "Repository Existing Blob Commit Apply",
+    description: "Create one commit on an existing non-protected work branch by reusing Git blob SHAs already present in the repository. Requires expected-head validation, capability approval, no-force ref update, and same-cycle path/blob readback without uploading file content.",
+    method: "VIRTUAL",
+    path: "internal://repo-existing-blob-commit-apply",
+    tags: ["repo", "github", "mutation", "existing_blob", "capability_envelope", "no_force", "readback"],
+    inputSchema: {
+      type: "object",
+      required: ["branch", "expected_head_sha", "commit_message", "changes", "capability_envelope_id"],
+      properties: {
+        branch: { type: "string" },
+        expected_head_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        commit_message: { type: "string", minLength: 5, maxLength: 200 },
+        capability_envelope_id: { type: "string" },
+        changes: {
+          type: "array",
+          minItems: 1,
+          maxItems: 50,
+          items: {
+            type: "object",
+            required: ["path", "blob_sha"],
+            properties: {
+              path: { type: "string" },
+              blob_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+              mode: { type: "string", enum: ["100644", "100755"], default: "100644" },
+            },
+            additionalProperties: false,
+          },
+        },
+        owner: { type: "string" },
+        repo: { type: "string" },
+        default_branch: { type: "string", default: "main" },
       },
       additionalProperties: false,
     },
@@ -1431,6 +1468,29 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       return {
         status: err?.status || 500,
         body: { ok: false, error: { code: err?.code || "repo_patch_batch_apply_failed", message: err?.message || "Repository batch patch failed.", details: err?.details } },
+      };
+    }
+  }
+
+  if (callerType === "admin" && toolKey === "repo_existing_blob_commit_apply") {
+    try {
+      const firstPath = Array.isArray(args?.changes) && args.changes[0]?.path ? args.changes[0].path : "existing-blob-change-set";
+      await requireRepoPatchCapabilityEnvelope({
+        args,
+        ctx: { auth: req?.auth },
+        owner: args?.owner || "",
+        repo: args?.repo || "",
+        branch: args?.branch || "",
+        defaultBranch: args?.default_branch || "main",
+        filePath: firstPath,
+        action: "repo_existing_blob_commit_apply",
+      });
+      const result = await applyGithubExistingBlobChangeSet(args || {});
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "repo_existing_blob_commit_apply_failed", message: err?.message || "Repository existing-blob commit failed.", details: err?.details } },
       };
     }
   }

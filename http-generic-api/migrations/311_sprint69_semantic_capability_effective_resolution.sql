@@ -3,6 +3,8 @@
 -- Additive, shadow-first foundation. This migration does not expose a new
 -- provider mutation surface and does not modify existing tenant tool exports.
 -- Existing tools remain authoritative until a later governed cutover.
+-- Safety: no_provider_call; no_credential_payload_read; no_raw_secrets.
+-- Safety: no_external_send; no_external_write; secrets_included=false.
 
 CREATE TABLE IF NOT EXISTS `platform_semantic_capabilities` (
   `capability_key` VARCHAR(191) NOT NULL,
@@ -314,15 +316,18 @@ LEFT JOIN `platform_endpoint_aliases` a
  AND a.`alias_endpoint_key` = b.`endpoint_key`
  AND a.`status` = 'active'
 LEFT JOIN `workspace_app_links` wal
-  ON wal.`workspace_id` = w.`workspace_id`
- AND wal.`tenant_id` = w.`tenant_id`
+  ON CONVERT(wal.`workspace_id` USING utf8mb4) COLLATE utf8mb4_unicode_ci
+   = CONVERT(w.`workspace_id` USING utf8mb4) COLLATE utf8mb4_unicode_ci
+ AND CONVERT(wal.`tenant_id` USING utf8mb4) COLLATE utf8mb4_unicode_ci
+   = CONVERT(w.`tenant_id` USING utf8mb4) COLLATE utf8mb4_unicode_ci
  AND wal.`app_key` = b.`app_key`
  AND wal.`status` = 'active'
 LEFT JOIN `user_app_connections` uac
   ON uac.`connection_id` = wal.`connection_id`
  AND uac.`tenant_id` = w.`tenant_id`
 LEFT JOIN `app_action_grants` aag
-  ON aag.`workspace_id` = w.`workspace_id`
+  ON CONVERT(aag.`workspace_id` USING utf8mb4) COLLATE utf8mb4_unicode_ci
+   = CONVERT(w.`workspace_id` USING utf8mb4) COLLATE utf8mb4_unicode_ci
  AND aag.`connection_id` = uac.`connection_id`
  AND aag.`app_key` = b.`app_key`
  AND aag.`action_key` = b.`parent_action_key`

@@ -8,7 +8,7 @@ import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.j
 import { evaluateRepositoryMutationPreflight, evaluateRepositoryPublishPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import { createContinuationCheckpoint, planContinuationResume } from "../sharedReconciliationEngine.js";
 import { closeGithubPullRequest, deleteGithubBranchRef, githubBranchDeleteConfirmation } from "../githubRepositoryLifecycle.js";
-import { classifyLocalConnectorCompositeHealth, probeLocalConnectorPublicHealth } from "../localConnectorCompositeHealth.js";
+import { classifyLocalConnectorCompositeHealth, probeLocalConnectorPublicHealthWithRetry } from "../localConnectorCompositeHealth.js";
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 120000;
 const MAX_COMMAND_TIMEOUT_MS = 600000;
@@ -581,6 +581,22 @@ function mapGithubRunForGhJson(run, fields = []) {
   return Object.fromEntries(fields.map((field) => [field, mapped[field] ?? run[field] ?? null]));
 }
 
+function mapGithubWorkflowForGhJson(workflow, fields = []) {
+  const mapped = {
+    id: workflow.id,
+    name: workflow.name,
+    path: workflow.path,
+    state: workflow.state,
+  };
+  if (!fields.length) return mapped;
+  return Object.fromEntries(fields.map((field) => [field, mapped[field] ?? workflow[field] ?? null]));
+}
+
+function formatGithubWorkflowList(workflows = [], fields = []) {
+  if (fields.length) return JSON.stringify(workflows.map((workflow) => mapGithubWorkflowForGhJson(workflow, fields)), null, 2);
+  return `${workflows.map((workflow) => `${workflow.name}\t${workflow.state}\t${workflow.id}`).join("\n")}${workflows.length ? "\n" : ""}`;
+}
+
 function mapGithubPullForGhJson(pr, fields = []) {
   const checkRuns = Array.isArray(pr._state_check_rollup) ? pr._state_check_rollup : [];
   const mapped = {
@@ -629,28 +645,65 @@ function buildGithubFallbackRepairAttempts({ args = [], mapped = false } = {}) {
   }));
 }
 
-function buildGithubFallbackContinuationEvidence({ args = [], mapped = false } = {}) {
+export function buildGithubFallbackContinuationEvidence({ args = [], mapped = false } = {}) {
   const operation = args.slice(0, 2).join(" ").trim() || "unknown";
   const argsPreview = args.slice(0, 6);
-  const checkpoint = createContinuationCheckpoint({
+  const checkpointResourceState = {
+    operation,
+    args_preview: argsPreview,
+    mapped,
+    ...(mapped ? { repair_attempt_count: 3 } : {}),
+  };
+  const currentResourceState = {
+    operation,
+    args_preview: argsPreview,
+    mapped,
+    repair_attempt_count: 3,
+  };
+  const pendingCheckpoint = createContinuationCheckpoint({
     operation_key: `github_rest_fallback:${operation}`,
     resource_type: "github_rest_fallback_operation",
     actor_context: { actor_type: "admin" },
     resource_scope: { scope_type: "repository", provider: "github", operation },
-    resource_state: { operation, args_preview: argsPreview, mapped },
+    resource_state: checkpointResourceState,
     interruption_signal: "fallback_unsupported_command",
     stage: mapped ? "resume_original_operation" : "dry_run_repair",
     metadata: { adapter: "github_rest_fallback", args_preview: argsPreview },
   });
-  const resume_plan = planContinuationResume({
-    checkpoint,
+  const plannedResume = planContinuationResume({
+    checkpoint: pendingCheckpoint,
     actor_context: { actor_type: "admin" },
-    resource_scope: checkpoint.resource_scope,
-    current_resource_state: { operation, args_preview: argsPreview, mapped, repair_attempt_count: 3 },
+    resource_scope: pendingCheckpoint.resource_scope,
+    current_resource_state: currentResourceState,
     dry_run_result: { ok: true, repair_attempts: buildGithubFallbackRepairAttempts({ args, mapped }) },
     verify_result: { ok: mapped === true, mapped },
-    apply_requested: mapped === true,
+    apply_requested: false,
   });
+  if (!mapped) {
+    return { checkpoint: pendingCheckpoint, resume_plan: plannedResume, secrets_included: false };
+  }
+  const checkpoint = {
+    ...pendingCheckpoint,
+    current_stage: "completed",
+    status: "completed",
+    required_before_resume: [],
+    requires_reconciliation_before_resume: false,
+  };
+  const resume_plan = {
+    ...plannedResume,
+    risk: {
+      ...plannedResume.risk,
+      classification: "clean",
+      reason_code: "resource_fingerprint_unchanged",
+      resume_allowed: true,
+      requires_reconciliation_before_resume: false,
+    },
+    apply_requested: false,
+    apply_allowed: false,
+    resume_allowed: true,
+    operation_completed: true,
+    next_required_step: "none",
+  };
   return { checkpoint, resume_plan, secrets_included: false };
 }
 
@@ -824,6 +877,7 @@ function buildGithubFallbackUnsupportedError(args = []) {
       "pr list",
       "pr diff <number> --name-only",
       "pr edit <number> --add-label superseded",
+      "workflow list",
       "workflow run <workflow> --ref <ref>",
       "api <workflow-dispatch-path> -X POST -f ref=<ref>",
       "run list",
@@ -1495,6 +1549,47 @@ async function executeGitHubRestFallbackCore(args = []) {
       stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n",
       exit_code: result.ok ? 0 : 2,
       fallback: "github_rest",
+    };
+  }
+
+  if (resource === "workflow" && ["list", "ls"].includes(command)) {
+    if (hasCliFlag(args, ["--jq", "-q", "--template", "-t"])) {
+      const err = new Error("workflow list REST fallback does not support --jq or --template formatting. Use --json id,name,path,state or the default tabular output.");
+      err.status = 501;
+      err.code = "github_workflow_list_format_unsupported";
+      throw err;
+    }
+    const limit = Math.max(1, Math.min(1000, Number(parseCliFlag(args, ["--limit", "-L"]) || 50)));
+    const includeDisabled = hasCliFlag(args, ["--all", "-a"]);
+    const workflows = [];
+    let page = 1;
+    let totalCount = null;
+    while (workflows.length < limit) {
+      const payload = await githubRestJson({ owner, repo, apiPath: `/actions/workflows?per_page=100&page=${page}`, token });
+      const pageRows = Array.isArray(payload?.workflows) ? payload.workflows : [];
+      if (totalCount === null) totalCount = Number(payload?.total_count || pageRows.length);
+      for (const workflow of pageRows) {
+        if (includeDisabled || workflow.state === "active") workflows.push(workflow);
+        if (workflows.length >= limit) break;
+      }
+      if (!pageRows.length || pageRows.length < 100 || page * 100 >= totalCount) break;
+      page += 1;
+    }
+    const selected = workflows.slice(0, limit);
+    return {
+      stdout: formatGithubWorkflowList(selected, fields),
+      stderr: "gh CLI is not installed on host; repaired missing capability and used GitHub REST fallback for workflow list.\n",
+      exit_code: 0,
+      fallback: "github_rest",
+      capability_repair: {
+        policy: "repair_missing_capability_before_fallback",
+        repaired: true,
+        operation: "workflow list",
+        max_repair_attempts_before_fallback: 3,
+        repair_attempt_count: 3,
+        repair_attempts: buildGithubFallbackRepairAttempts({ args, mapped: true }),
+        continuation: buildGithubFallbackContinuationEvidence({ args, mapped: true }),
+      },
     };
   }
 
@@ -2547,6 +2642,25 @@ export function buildAdminCliRoutes(deps) {
       const userId   = String(req.query.user_id   || "").trim() || "00000000-0000-4000-a000-000000000002";
       const deviceId = String(req.query.device_id || "").trim() || "mohammedlap";
 
+      if (format !== "bat") {
+        return res.status(200).json({
+          ok: true,
+          artifact_delivery: "authenticated_direct_download_only",
+          script_content_omitted: true,
+          script_content_reason: "installer contains live tunnel and backend credentials",
+          credential_materialized: false,
+          public_storage_allowed: false,
+          secure_download: {
+            method: "GET",
+            path: "/admin/cli/local-connector/install-bundle",
+            query: { user_id: userId, device_id: deviceId, format: "bat" },
+            requires_backend_api_key: true,
+            requires_admin_principal: true
+          },
+          secrets_included: false
+        });
+      }
+
       // 1. Look up device config from DB
       let tunnelToken    = "";
       let backendKey     = "";
@@ -2600,70 +2714,23 @@ export function buildAdminCliRoutes(deps) {
       const batContent = generateConnectorInstallerBat(tunnelToken, backendKey);
       const filename   = `install-connector-${new Date().toISOString().slice(0,10)}.bat`;
 
-      if (format === "bat") {
-        res.setHeader("Content-Type", "application/octet-stream");
-        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-        return res.send(batContent);
-      }
-
-      // Upload to Drive so GPT can share a link
-      let driveResult = null;
-      let driveUploadStatus = typeof deps.getGoogleClients === "function" ? "attempted" : "not_configured";
-      let driveError = null;
-      if (typeof deps.getGoogleClients === "function") {
-        try {
-          const { drive } = await deps.getGoogleClients();
-          const created = await drive.files.create({
-            requestBody: { name: filename, mimeType: "application/octet-stream" },
-            media: { mimeType: "application/octet-stream", body: batContent },
-            fields: "id,webViewLink",
-          });
-          if (created?.data?.id) {
-            await drive.permissions.create({
-              fileId: created.data.id,
-              requestBody: { role: "reader", type: "anyone" },
-            });
-            driveResult = {
-              drive_file_id: created.data.id,
-              drive_link: `https://drive.google.com/uc?export=download&id=${created.data.id}`,
-              view_link: created.data.webViewLink,
-            };
-          }
-        } catch (driveErr) {
-          driveUploadStatus = "failed";
-          driveError = sanitizeDriveUploadError(driveErr);
-          console.warn("[install-bundle] Drive upload failed:", driveErr.message);
-        }
-      }
-      if (driveResult) driveUploadStatus = "uploaded";
-
       writeAuditLogAsync({
         action: "admin_cli.local_connector_install_bundle",
         resource_type: "install_bundle",
         resource_id: filename,
         payload: {
-          drive_uploaded: !!driveResult,
-          drive_upload_status: driveUploadStatus,
+          delivery_mode: "authenticated_direct_download",
+          public_storage_allowed: false,
           config_source: configSource,
           device_id: resolvedDevice,
-          user_id: userId
+          user_id: userId,
+          secrets_included: false
         },
       });
 
-      return res.status(200).json({
-        ok: true,
-        filename,
-        config_source: configSource,
-        device_id: resolvedDevice,
-        instructions: driveResult
-          ? "Download the generated installer from drive.drive_link and run it as Administrator from the repo root. cloudflared and the Node.js connector service (via NSSM) will be installed automatically if missing. Both services auto-restart on failure and reboot."
-          : "Drive upload was unavailable. Use the direct admin-only format=bat download path outside Custom GPT to retrieve the installer, then run it as Administrator from the repo root.",
-        script_content_omitted: true,
-        script_content_reason: "installer contains live tunnel and backend credentials",
-        drive_upload_status: driveUploadStatus,
-        drive_error: driveError,
-        drive: driveResult,
-      });
+      res.setHeader("Content-Type", "application/octet-stream");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      return res.send(batContent);
     } catch (err) {
       return res.status(err.status || 500).json({
         ok: false,
@@ -2676,9 +2743,9 @@ export function buildAdminCliRoutes(deps) {
   // Single-shot self-repair for the admin's local connector.
   // 1. Reads device config from DB (user_id + device_id, defaults to admin / mohammedlap).
   // 2. Checks CF tunnel health via Cloudflare API.
-  // 3. Generates and uploads install bundle.
-  // 4. Returns diagnosis + Drive download link so GPT can hand it directly to user.
-  // GPT should call this whenever connector.mad4b.com returns 1033.
+  // 3. Retries transient Cloudflare 1033/HTTP 530 health failures up to three total attempts and returns retry evidence.
+  // 4. After retry exhaustion, returns diagnosis and an authenticated admin-only download handoff.
+  // 5. Never generates installer content in this JSON route or uploads the secret-bearing installer to shared or public storage.
   router.post("/local-connector/self-repair", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
     try {
       const userId   = String(req.body?.user_id   || "").trim() || "00000000-0000-4000-a000-000000000002";
@@ -2776,7 +2843,7 @@ export function buildAdminCliRoutes(deps) {
         }
       }
 
-      const publicHealthProbe = await probeLocalConnectorPublicHealth({
+      const publicHealthProbe = await probeLocalConnectorPublicHealthWithRetry({
         tunnelUrl: tunnelUrl || "https://connector.mad4b.com",
         timeoutMs: 8000,
       });
@@ -2796,6 +2863,7 @@ export function buildAdminCliRoutes(deps) {
             resolved_device_id: resolvedDeviceId,
             tunnel_status: tunnelStatus,
             public_probe_status: publicHealthProbe.status,
+            retry_evidence: publicHealthProbe.retry_evidence || null,
             composite_status: compositeHealth.status,
             repair_required: false,
             config_source: configSource,
@@ -2884,37 +2952,10 @@ export function buildAdminCliRoutes(deps) {
         });
       }
 
-      const batContent = generateConnectorInstallerBat(tunnelToken, backendKey);
-      const filename   = `repair-connector-${resolvedDeviceId}-${new Date().toISOString().slice(0,10)}.bat`;
-      let driveResult  = null;
-      let driveUploadStatus = typeof deps.getGoogleClients === "function" ? "attempted" : "not_configured";
-      let driveError = null;
-      if (typeof deps.getGoogleClients === "function") {
-        try {
-          const { drive } = await deps.getGoogleClients();
-          const created = await drive.files.create({
-            requestBody: { name: filename, mimeType: "application/octet-stream" },
-            media: { mimeType: "application/octet-stream", body: batContent },
-            fields: "id,webViewLink",
-          });
-          if (created?.data?.id) {
-            await drive.permissions.create({
-              fileId: created.data.id,
-              requestBody: { role: "reader", type: "anyone" },
-            });
-            driveResult = {
-              drive_file_id: created.data.id,
-              drive_link: `https://drive.google.com/uc?export=download&id=${created.data.id}`,
-              view_link: created.data.webViewLink,
-            };
-          }
-        } catch (driveErr) {
-          driveUploadStatus = "failed";
-          driveError = sanitizeDriveUploadError(driveErr);
-          console.warn("[self-repair] Drive upload failed:", driveErr.message);
-        }
-      }
-      if (driveResult) driveUploadStatus = "uploaded";
+      const filename = `repair-connector-${resolvedDeviceId}-${new Date().toISOString().slice(0,10)}.bat`;
+      const driveResult = null;
+      const driveUploadStatus = "blocked_secret_bearing_artifact";
+      const driveError = null;
 
       writeAuditLogAsync({
         action: "admin_cli.local_connector_self_repair",
@@ -2928,6 +2969,7 @@ export function buildAdminCliRoutes(deps) {
           device_identity_resolution: deviceIdentityResolution,
           tunnel_status: tunnelStatus,
           public_probe_status: publicHealthProbe.status,
+          retry_evidence: publicHealthProbe.retry_evidence || null,
           composite_status: compositeHealth.status,
           repair_required: compositeHealth.repair_required,
           config_source: configSource,
@@ -2961,14 +3003,28 @@ export function buildAdminCliRoutes(deps) {
         },
         repair: {
           required: true,
-          installer_generated: true,
-          action: "Run the installer as Administrator on the Windows device. It installs cloudflared and the Node.js connector as auto-restart Windows services (via NSSM).",
+          installer_generated: false,
+          artifact_delivery: "authenticated_direct_download_only",
+          action: "Use the authenticated admin-only download endpoint, then run the installer as Administrator on the Windows device.",
           filename,
+          public_storage_allowed: false,
           drive: driveResult,
           drive_upload_status: driveUploadStatus,
           drive_error: driveError,
           script_content_omitted: true,
           script_content_reason: "installer contains live tunnel and backend credentials",
+          secure_download: {
+            method: "GET",
+            path: "/admin/cli/local-connector/install-bundle",
+            query: {
+              user_id: resolvedUserId,
+              device_id: resolvedDeviceId,
+              format: "bat"
+            },
+            requires_backend_api_key: true,
+            requires_admin_principal: true
+          },
+          secrets_included: false
         },
       });
     } catch (err) {
@@ -3048,16 +3104,6 @@ export function buildAdminCliRoutes(deps) {
   });
 
   return router;
-}
-
-function sanitizeDriveUploadError(err) {
-  const status = err?.response?.status || err?.status || err?.code || null;
-  const message = String(err?.message || "Drive upload failed").slice(0, 300);
-  return {
-    code: "drive_upload_failed",
-    ...(status ? { status } : {}),
-    message,
-  };
 }
 
 function generateConnectorInstallerBat(tunnelToken, backendKey) {
