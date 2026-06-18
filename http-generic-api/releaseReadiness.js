@@ -588,6 +588,21 @@ function hasTopLevelSqlKeyword(sql = "", keyword = "") {
   return false;
 }
 
+const APPROVED_APPROVAL_HOLD_COLLATION_ALTERS = new Set([
+  "approval_holds.hold_id",
+  "local_gateway_tool_call_log.approval_hold_id",
+  "repository_advisory_comment_plans.approval_hold_id",
+  "ticket_workflow_links.approval_hold_id",
+]);
+
+function isApprovedApprovalHoldCollationAlter(filename = "", normalized = "") {
+  if (String(filename) !== "1013_sprint69_approval_hold_identity_collation_alignment.sql") return false;
+  const match = String(normalized).match(
+    /^ALTER\s+TABLE\s+`?([A-Za-z0-9_]+)`?\s+MODIFY(?:\s+COLUMN)?\s+`?([A-Za-z0-9_]+)`?\s+VARCHAR\(36\)\s+CHARACTER\s+SET\s+utf8mb4\s+COLLATE\s+utf8mb4_unicode_ci\s+(?:NULL\s+DEFAULT\s+NULL|NOT\s+NULL)\s*;?$/i
+  );
+  return Boolean(match && APPROVED_APPROVAL_HOLD_COLLATION_ALTERS.has(`${match[1]}.${match[2]}`));
+}
+
 export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
   const statements = splitSqlStatements(sqlText);
   const risks = [];
