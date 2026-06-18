@@ -43,8 +43,70 @@ function resolveExpectedCommit(input = {}) {
   return String(input.expected_commit_sha || process.env.EXPECTED_GIT_COMMIT || process.env.EXPECTED_COMMIT_SHA || "unknown").trim();
 }
 
-function resolveDeployedCommit(input = {}) {
-  return String(input.deployed_commit_sha || input.runtime_commit_sha || process.env.GIT_COMMIT || process.env.GITHUB_SHA || process.env.COMMIT_SHA || process.env.RENDER_GIT_COMMIT || "unknown").trim();
+function normalizeCommitSha(value) {
+  const sha = String(value || "").trim().toLowerCase();
+  return /^[0-9a-f]{40}$/.test(sha) ? sha : "";
+}
+
+function resolveGitDirectory(repoRoot, readFileSync) {
+  const dotGitPath = path.join(repoRoot, ".git");
+  try {
+    readFileSync(path.join(dotGitPath, "HEAD"), "utf8");
+    return dotGitPath;
+  } catch {
+  }
+  try {
+    const pointer = String(readFileSync(dotGitPath, "utf8")).trim();
+    const match = pointer.match(/^gitdir:\s*(.+)$/i);
+    return match ? path.resolve(repoRoot, match[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function readCheckoutCommitSha({ repoRoot = REPO_ROOT, readFileSync = fs.readFileSync } = {}) {
+  const gitDirectory = resolveGitDirectory(repoRoot, readFileSync);
+  if (!gitDirectory) return "";
+  try {
+    const head = String(readFileSync(path.join(gitDirectory, "HEAD"), "utf8")).trim();
+    const detachedSha = normalizeCommitSha(head);
+    if (detachedSha) return detachedSha;
+
+    const refMatch = head.match(/^ref:\s*(.+)$/i);
+    if (!refMatch) return "";
+    const refName = refMatch[1].trim();
+    try {
+      const looseRefSha = normalizeCommitSha(readFileSync(path.join(gitDirectory, refName), "utf8"));
+      if (looseRefSha) return looseRefSha;
+    } catch {
+    }
+
+    try {
+      const packedRefs = String(readFileSync(path.join(gitDirectory, "packed-refs"), "utf8"));
+      const packedLine = packedRefs
+        .split(/\r?\n/)
+        .find((line) => line && !line.startsWith("#") && !line.startsWith("^") && line.endsWith(` ${refName}`));
+      return normalizeCommitSha(packedLine?.split(/\s+/)[0]);
+    } catch {
+      return "";
+    }
+  } catch {
+    return "";
+  }
+}
+
+export function resolveDeployedCommitEvidence({ env = process.env, checkoutCommitReader = readCheckoutCommitSha } = {}) {
+  for (const key of ["GIT_COMMIT", "GITHUB_SHA", "COMMIT_SHA", "RENDER_GIT_COMMIT"]) {
+    const sha = normalizeCommitSha(env?.[key]);
+    if (sha) return { sha, source: `env:${key}` };
+  }
+  const checkoutSha = normalizeCommitSha(checkoutCommitReader());
+  if (checkoutSha) return { sha: checkoutSha, source: "checkout_git_head" };
+  return { sha: "unknown", source: "unavailable" };
+}
+
+export function resolveDeployedCommit(options = {}) {
+  return resolveDeployedCommitEvidence(options).sha;
 }
 
 export function classifyCommitParity(expectedCommitSha, deployedCommitSha) {
