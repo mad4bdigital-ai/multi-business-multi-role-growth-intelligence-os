@@ -4,7 +4,7 @@ import {
   OVERSIZED_ARTIFACTS_DRIVE_FOLDER_ID,
 } from "../config.js";
 import { getPool } from "../db.js";
-import { getGoogleClientsForSpreadsheet } from "../googleSheets.js";
+import { getGoogleClients } from "../googleSheets.js";
 import { runGovernedActivation } from "../governedActivationRunner.js";
 import {
   ACTIVATION_GITHUB_BOOTSTRAP_CONFIG_KEY,
