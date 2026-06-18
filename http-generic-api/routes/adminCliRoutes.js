@@ -2714,44 +2714,23 @@ export function buildAdminCliRoutes(deps) {
       const batContent = generateConnectorInstallerBat(tunnelToken, backendKey);
       const filename   = `install-connector-${new Date().toISOString().slice(0,10)}.bat`;
 
-      if (format === "bat") {
-        res.setHeader("Content-Type", "application/octet-stream");
-        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-        return res.send(batContent);
-      }
-
-      // Secret-bearing installers are never copied to shared or public storage.
-      const driveResult = null;
-      const driveUploadStatus = "blocked_secret_bearing_artifact";
-      const driveError = null;
-
       writeAuditLogAsync({
         action: "admin_cli.local_connector_install_bundle",
         resource_type: "install_bundle",
         resource_id: filename,
         payload: {
-          drive_uploaded: !!driveResult,
-          drive_upload_status: driveUploadStatus,
+          delivery_mode: "authenticated_direct_download",
+          public_storage_allowed: false,
           config_source: configSource,
           device_id: resolvedDevice,
-          user_id: userId
+          user_id: userId,
+          secrets_included: false
         },
       });
 
-      return res.status(200).json({
-        ok: true,
-        filename,
-        config_source: configSource,
-        device_id: resolvedDevice,
-        instructions: driveResult
-          ? "Download the generated installer from drive.drive_link and run it as Administrator from the repo root. cloudflared and the Node.js connector service (via NSSM) will be installed automatically if missing. Both services auto-restart on failure and reboot."
-          : "Drive upload was unavailable. Use the direct admin-only format=bat download path outside Custom GPT to retrieve the installer, then run it as Administrator from the repo root.",
-        script_content_omitted: true,
-        script_content_reason: "installer contains live tunnel and backend credentials",
-        drive_upload_status: driveUploadStatus,
-        drive_error: driveError,
-        drive: driveResult,
-      });
+      res.setHeader("Content-Type", "application/octet-stream");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      return res.send(batContent);
     } catch (err) {
       return res.status(err.status || 500).json({
         ok: false,
