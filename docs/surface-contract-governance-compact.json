@@ -4,7 +4,7 @@
   "docs_completion_percent": 99.54,
   "docs_complete_count": 435,
   "docs_gap_count": 2,
-  "queue_items": 3,
+  "queue_items": 4,
   "blocking_new_item_count": 3,
   "gate_ok": false,
   "top_actionable": [
@@ -24,7 +24,7 @@
   "openapi_missing_sql_route_count": 0,
   "openapi_exempt_sql_route_count": 563,
   "total_sql_route_like_count": 564,
-  "safety_marker_gap_migrations": 0,
+  "safety_marker_gap_migrations": 1,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
