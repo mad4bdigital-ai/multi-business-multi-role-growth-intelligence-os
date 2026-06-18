@@ -142,4 +142,4 @@ Cloudflare error `1033` and HTTP `530` are transient-retry candidates, not immed
 - return and audit no-secret `retry_evidence` with attempt count, statuses, delays, recovery-on-retry, and exhaustion state
 - recovered classification requires same-cycle passing health evidence; installer generation is forbidden when a retry succeeds
 
-The SQL runtime authority is `execution_policies` row `Local Connector Recovery Governance / Cloudflare 1033 Retry Before Repair`, registered by `318_sprint69_local_connector_transient_retry_policy.sql`.
+The SQL runtime authority is `execution_policies` row `Local Connector Recovery Governance / Cloudflare 1033 Retry Before Repair`, registered by `1015_sprint69_local_connector_transient_retry_policy.sql`.
