@@ -130,6 +130,7 @@ const sheetData = {
 
 function makeDeps() {
   return {
+    DATA_SOURCE: "sheets",
     REGISTRY_SPREADSHEET_ID: "registry-sheet-id",
     debugLog() {},
     async getGoogleClientsForSpreadsheet() {
