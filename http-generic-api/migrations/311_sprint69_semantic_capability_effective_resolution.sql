@@ -3,6 +3,8 @@
 -- Additive, shadow-first foundation. This migration does not expose a new
 -- provider mutation surface and does not modify existing tenant tool exports.
 -- Existing tools remain authoritative until a later governed cutover.
+-- Safety: no_provider_call; no_credential_payload_read; no_raw_secrets.
+-- Safety: no_external_send; no_external_write; secrets_included=false.
 
 CREATE TABLE IF NOT EXISTS `platform_semantic_capabilities` (
   `capability_key` VARCHAR(191) NOT NULL,
