@@ -57,7 +57,7 @@ VALUES
    'authorized', 'governed_admin_bootstrap', 'governed_migration_runner_authorization_v1',
    'medium', 1, 1, 0, 1,
    'Exact Approval Hold identity collation repair; apply only through the explicit reconciliation rule and governed runner.',
-   JSON_OBJECT('scope', 'approval_hold_identity_collation_v1', 'expected_alter_count', 4, 'secrets_included', false)),
+   JSON_OBJECT('scope', 'approval_hold_identity_collation_v1', 'expected_dynamic_alter_contract_count', 4, 'secrets_included', false)),
   ('1014_sprint69_approval_hold_collation_reconciliation_rule.sql',
    'authorized', 'migration_seed', 'governed_migration_runner_authorization_v1',
    'low', 1, 1, 1, 1,
