@@ -95,7 +95,10 @@ export function buildTenantActivationOverlayRoutes({ requireBackendApiKey } = {}
       });
       const maxChars = Math.min(Math.max(Number(req.query.max_response_chars || 40000), 5000), 150000);
       const transportBody = responseBytes > maxChars
-        ? maybeChunkToolResponseBody(responseBody, { response_options: { max_chars: maxChars } })
+        ? await maybeChunkToolResponseBody(responseBody, {
+            response_options: { max_chars: maxChars },
+            source_tool_key: "tenant_activation_session_context",
+          })
         : responseBody;
       return res.status(200).json(transportBody);
     } catch (error) {
