@@ -45,7 +45,7 @@
 ### 3. `311_sprint69_semantic_capability_effective_resolution.sql`
 
 - Queue class: medium_review
-- Score: 384
+- Score: 383
 - Gap severity: none
 - Missing docs: none
 - Missing OpenAPI routes: none
