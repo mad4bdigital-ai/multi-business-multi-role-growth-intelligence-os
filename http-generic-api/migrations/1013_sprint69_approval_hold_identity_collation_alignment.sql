@@ -36,47 +36,47 @@ WHERE r.approval_hold_id IS NOT NULL
 
 -- Fail closed if any Approval Hold reference remains orphaned.
 CREATE TEMPORARY TABLE tmp_approval_hold_identity_orphans AS
-SELECT 'ads_provider_profile_onboarding_requests' AS source_table, c.approval_hold_id AS hold_id
+SELECT 'ads_provider_profile_onboarding_requests' AS source_table, CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS hold_id
 FROM ads_provider_profile_onboarding_requests c
 LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
 WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
 UNION ALL
-SELECT 'execution_enablement_requests', c.approval_hold_id
+SELECT 'execution_enablement_requests', CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS hold_id
 FROM execution_enablement_requests c
 LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
 WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
 UNION ALL
-SELECT 'growth_intelligence_actions', c.approval_hold_id
+SELECT 'growth_intelligence_actions', CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS hold_id
 FROM growth_intelligence_actions c
 LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
 WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
 UNION ALL
-SELECT 'local_gateway_tool_call_log', c.approval_hold_id
+SELECT 'local_gateway_tool_call_log', CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS hold_id
 FROM local_gateway_tool_call_log c
 LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
 WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
 UNION ALL
-SELECT 'repository_advisory_comment_plans', c.approval_hold_id
+SELECT 'repository_advisory_comment_plans', CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS hold_id
 FROM repository_advisory_comment_plans c
 LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
 WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
 UNION ALL
-SELECT 'repository_mutation_plans_v6', c.approval_hold_id
+SELECT 'repository_mutation_plans_v6', CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS hold_id
 FROM repository_mutation_plans_v6 c
 LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
 WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
 UNION ALL
-SELECT 'repository_mutation_runs_v6', c.approval_hold_id
+SELECT 'repository_mutation_runs_v6', CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS hold_id
 FROM repository_mutation_runs_v6 c
 LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
 WHERE h.hold_id IS NULL
 UNION ALL
-SELECT 'tenant_ssh_cli_approval_requests', c.hold_id
+SELECT 'tenant_ssh_cli_approval_requests', CONVERT(c.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS hold_id
 FROM tenant_ssh_cli_approval_requests c
 LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
 WHERE h.hold_id IS NULL
 UNION ALL
-SELECT 'ticket_workflow_links', c.approval_hold_id
+SELECT 'ticket_workflow_links', CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS hold_id
 FROM ticket_workflow_links c
 LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
 WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL;
