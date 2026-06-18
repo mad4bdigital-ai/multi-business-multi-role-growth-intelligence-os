@@ -41,7 +41,7 @@ FROM ads_provider_profile_onboarding_requests c
 LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
 WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
 UNION ALL
-SELECT 'execution_enablement_requests', c.approval_hold_id
+SELECT 'execution_enablement_requests', CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS hold_id
 FROM execution_enablement_requests c
 LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
 WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
