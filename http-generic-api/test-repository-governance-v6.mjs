@@ -7,6 +7,7 @@ import {
   resolveRepositoryPrincipalScopeV6,
 } from "./repositoryGovernanceV6.js";
 import { buildBindingContext } from "./scripts/capability-resolution-envelope-create.mjs";
+import { executeRepositoryPrReconciliationReadOnlyForAdminReadiness } from "./platformResourceRecipeCapability.js";
 
 const releaseReadinessSource = fs.readFileSync(new URL("./releaseReadiness.js", import.meta.url), "utf8");
 assert.match(releaseReadinessSource, /function safeJsonArray/);
@@ -18,7 +19,9 @@ assert.match(systemLayerSource, /export function systemLayerDescriptorReadiness/
 assert.doesNotMatch(systemLayerSource, /\.\.\.TENANT_REPOSITORY_GOVERNANCE_V6_SYSTEM_TOOLS,\n  \{/);
 const governanceSource = fs.readFileSync(new URL("./repositoryGovernanceV6.js", import.meta.url), "utf8");
 assert.match(governanceSource, /repository_governance_v6_authorization_gated/);
-assert.match(governanceSource, /findUsableRepositoryProviderBinding/);
+assert.match(governanceSource, /findRepositoryGovernanceV6ReadinessBinding/);
+assert.match(governanceSource, /readinessRunGovernedResource/);
+assert.doesNotMatch(governanceSource, /findUsableRepositoryProviderBinding/);
 assert.match(governanceSource, /"repo\.pr\.comment_advisory": "repo\.pr\.comment_advisory\.apply"/);
 assert.match(releaseReadinessSource, /systemLayerModule\.systemLayerDescriptorReadiness/);
 assert.match(releaseReadinessSource, /!authorization_gated && Number\(evidenceRows/);
@@ -128,6 +131,75 @@ assert.match(capabilitySource, /const compatible = !tenantScoped/);
 assert.match(capabilitySource, /source_installation_id/);
 assert.doesNotMatch(capabilitySource, /scopeClauses\.join\(" OR "\)/);
 
+await assert.rejects(
+  () => executeRepositoryPrReconciliationReadOnlyForAdminReadiness(
+    "repo_pr_reconciliation_sweep",
+    {},
+    { executeReadOnly: async () => ({ ok: true }) }
+  ),
+  (error) => error?.code === "repository_governance_v6_readiness_admin_required"
+);
+await assert.rejects(
+  () => executeRepositoryPrReconciliationReadOnlyForAdminReadiness(
+    "repo_pr_mutation_apply",
+    {},
+    { adminAuthorized: true, executeReadOnly: async () => ({ ok: true }) }
+  ),
+  (error) => error?.code === "repository_governance_v6_readiness_operation_unsupported"
+);
+await assert.rejects(
+  () => executeRepositoryPrReconciliationReadOnlyForAdminReadiness(
+    "repo_pr_reconciliation_sweep",
+    { authority_binding: { authority_source: "tenant_user", scope: { tenant_id: "tenant-a" } } },
+    { adminAuthorized: true, executeReadOnly: async () => ({ ok: true }) }
+  ),
+  (error) => error?.code === "repository_governance_v6_readiness_provider_binding_invalid"
+);
+let readinessExecution = null;
+const readinessResult = await executeRepositoryPrReconciliationReadOnlyForAdminReadiness(
+  "repo_pr_reconciliation_sweep",
+  {
+    authority_binding: {
+      binding_id: "binding-a",
+      authority_source: "admin_grant",
+      scope: { tenant_id: "tenant-a", workspace_id: "workspace-a" },
+    },
+  },
+  {
+    adminAuthorized: true,
+    executeReadOnly: async (operationKey, args) => {
+      readinessExecution = { operationKey, args };
+      return { ok: true, mutations_executed: false, secrets_included: false };
+    },
+  }
+);
+assert.equal(readinessResult.ok, true);
+assert.equal(readinessResult.mutations_executed, false);
+assert.equal(readinessResult.secrets_included, false);
+assert.equal(readinessExecution.operationKey, "repo_pr_reconciliation_sweep");
+assert.equal(readinessExecution.args.authority_binding.scope, undefined);
+assert.equal(readinessExecution.args.authority_binding.readiness_admin_platform_compat, true);
+
+let connectedExecution = null;
+await executeRepositoryPrReconciliationReadOnlyForAdminReadiness(
+  "repo_pr_reconciliation_sweep",
+  {
+    authority_binding: {
+      authority_source: "tenant_connection",
+      source_system_id: "system-a",
+      scope: { tenant_id: "tenant-a" },
+    },
+  },
+  {
+    adminAuthorized: true,
+    executeReadOnly: async (operationKey, args) => {
+      connectedExecution = { operationKey, args };
+      return { ok: true, mutations_executed: false, secrets_included: false };
+    },
+  }
+);
+assert.deepEqual(connectedExecution.args.authority_binding.scope, { tenant_id: "tenant-a" });
+
 const authSource = fs.readFileSync(new URL("./githubAppAuth.js", import.meta.url), "utf8");
 assert.match(authSource, /const cachedInstallationTokens = new Map\(\)/);
 assert.match(authSource, /const cacheKey = `\$\{appId\}:\$\{installationId\}`/);
@@ -177,6 +249,11 @@ for (const handler of [
   "tenantRepositoryMutationApplyV6",
   "tenantRepositoryMutationReadbackV6",
 ]) assert.match(routesSource, new RegExp(handler));
+assert.match(routesSource, /runRepositoryGovernanceV6ReadinessResource/);
+assert.match(routesSource, /recipeKey !== REPOSITORY_PR_RECONCILE_RECIPE_KEY \|\| mode !== "read_only"/);
+assert.match(routesSource, /name === "tenant_repository_governance_v6_readiness_smoke" && isAdminPrincipal\(auth\)/);
+assert.match(routesSource, /readinessRunGovernedResource/);
+assert.doesNotMatch(routesSource, /readinessRunGovernedResource: args/);
 
 const migrationSource = fs.readFileSync(new URL("./migrations/1011_sprint69_governed_repository_engine_v6.sql", import.meta.url), "utf8");
 for (const token of [
