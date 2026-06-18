@@ -60,6 +60,8 @@ User intent should resolve to a semantic capability before provider-specific act
 
 Tool exports are projections, not independent authority. A visible legacy tool must not execute when the effective chain is blocked. Equal highest-ranked connections and multiple active canonical endpoint rows are blocking ambiguity states. Tenant principals may not override tenant/user identity, and resolver output must never include credentials or tokens.
 
+The semantic capability descriptor source must expose an admin-only, read-only `tenant_effective_capability_readiness_smoke`. It verifies migration-owned schema objects, initial seeds, descriptor wiring, and no-provider/no-mutation/no-secret guarantees. A missing authorized migration must remain an explicit `semantic_capability_schema_not_applied` failure; the smoke must never self-authorize or repair production schema.
+
 `shadow` bindings resolve and compare only; they cannot call providers or activate exports. `canary` and `active` bindings require same-cycle policy, authority, certification, approval, audit, and readback validation. The initial `content.article.create_draft` WordPress binding remains draft-only and shadow-only until separately promoted.
 
 See `docs/semantic-capability-effective-resolution.md` and the semantic capability canonical pages in `system_bootstrap`, `direct_instructions_registry_patch`, `module_loader`, and `prompt_router`.
