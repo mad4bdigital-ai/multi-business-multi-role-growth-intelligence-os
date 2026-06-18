@@ -51,6 +51,11 @@ assert.deepEqual(
   computeTicketSlaStatus({ status: "in_review", sla_status: "on_track", triage_due_at: "2026-06-08T12:00:00.000Z" }, now),
   { status: "on_track", reason: "due_dates_on_track" }
 );
+assert.deepEqual(
+  computeTicketSlaStatus({ status: "in_review", sla_status: "breached" }, now),
+  { status: "on_track", reason: "no_due_dates" },
+  "open tickets without due dates must not preserve stale stored SLA breach state"
+);
 assert.equal(computeTicketSlaStatus({ status: "closed", sla_status: "on_track", triage_due_at: "2026-06-08T09:00:00.000Z" }, now).reason, "ticket_not_open");
 
 assert(service.includes("INSERT INTO approval_holds"), "approval hold service must create approval_holds rows");
