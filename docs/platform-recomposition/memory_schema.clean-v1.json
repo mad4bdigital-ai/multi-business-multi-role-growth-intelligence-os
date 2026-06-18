@@ -218,6 +218,9 @@
         "notification_outbox",
         "evidence_authority",
         "known_issue_visibility_policy",
+        "dedupe_authority",
+        "recovery_resolution_policy",
+        "notification_reconciliation_policy",
         "completeness_contract",
         "secret_policy"
       ],
@@ -228,6 +231,9 @@
         "notification_outbox": { "const": "operational_alert_notification_outbox" },
         "evidence_authority": { "const": "sql_runtime_evidence_sources_plus_operational_alert_lifecycle" },
         "known_issue_visibility_policy": { "const": "platform_admin_only" },
+        "dedupe_authority": { "const": "effective_resource_identity_not_raw_record_id" },
+        "recovery_resolution_policy": { "const": "later_success_must_match_operation_fingerprint" },
+        "notification_reconciliation_policy": { "const": "resolve_and_revalidate_before_queue" },
         "lifecycle_states": {
           "type": "array",
           "items": { "type": "string", "enum": ["open", "acknowledged", "investigating", "resolved", "ignored"] },
