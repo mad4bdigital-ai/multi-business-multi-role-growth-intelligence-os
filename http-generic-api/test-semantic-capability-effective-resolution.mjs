@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
+const { tenantEffectiveCapabilityReadinessSmoke } = await import(
+  "./tenantEffectiveCapabilityResolver.js"
+);
+
 const migration = fs.readFileSync(
   new URL("./migrations/311_sprint69_semantic_capability_effective_resolution.sql", import.meta.url),
   "utf8"
@@ -157,6 +161,7 @@ for (const status of [
 
 for (const toolName of [
   "tenant_effective_capability_preview",
+  "tenant_effective_capability_readiness_smoke",
   "tenant_capability_shadow_compare",
 ]) {
   assert(resolver.includes(`name: "${toolName}"`), `${toolName} descriptor must exist`);
@@ -173,7 +178,15 @@ assert.equal(
   "semantic capability descriptor source must be registered exactly once"
 );
 assert(systemLayer.includes("tenantEffectiveCapabilityPreview"), "preview handler must be wired");
+assert(
+  systemLayer.includes("tenantEffectiveCapabilityReadinessSmoke"),
+  "readiness handler must be wired"
+);
 assert(systemLayer.includes("tenantCapabilityShadowCompare"), "shadow handler must be wired");
+assert(
+  systemLayer.includes('readiness_tool: "tenant_effective_capability_readiness_smoke"'),
+  "semantic capability descriptor source must declare its readiness tool"
+);
 assert(
   systemLayer.includes("...TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS"),
   "capability descriptors must appear in the system-layer tool catalog"
@@ -214,6 +227,80 @@ assert(
   resolver.includes("secrets_included: false"),
   "resolver responses must explicitly state that secrets are not included"
 );
+
+const expectedSchemaObjects = [
+  ["platform_semantic_capabilities", "BASE TABLE"],
+  ["platform_capability_provider_bindings", "BASE TABLE"],
+  ["platform_endpoint_aliases", "BASE TABLE"],
+  ["tenant_capability_shadow_decisions", "BASE TABLE"],
+  ["v_platform_endpoint_canonical_identity", "VIEW"],
+  ["v_platform_capability_export_projection", "VIEW"],
+  ["v_platform_capability_export_reconciliation", "VIEW"],
+  ["v_tenant_effective_capability_candidates", "VIEW"],
+];
+
+{
+  const queries = [];
+  const pool = {
+    async query(sql) {
+      queries.push(String(sql));
+      if (String(sql).includes("information_schema.tables")) {
+        return [
+          expectedSchemaObjects.map(([table_name, table_type]) => ({
+            table_name,
+            table_type,
+          })),
+        ];
+      }
+      if (String(sql).includes("platform_semantic_capabilities")) return [[{ c: 8 }]];
+      if (
+        String(sql).includes("platform_capability_provider_bindings")
+        && String(sql).includes("rollout_mode = 'shadow'")
+      ) return [[{ c: 1 }]];
+      if (String(sql).includes("platform_capability_provider_bindings")) return [[{ c: 1 }]];
+      if (String(sql).includes("platform_endpoint_aliases")) return [[{ c: 2 }]];
+      throw new Error(`Unexpected readiness query: ${sql}`);
+    },
+  };
+  const result = await tenantEffectiveCapabilityReadinessSmoke({}, { pool });
+  assert.equal(result.ok, true);
+  assert.equal(result.status, "pass");
+  assert.equal(result.schema_objects.present.length, 8);
+  assert.equal(result.provider_calls_made, 0);
+  assert.equal(result.mutations_executed, false);
+  assert.equal(result.secrets_included, false);
+  assert.equal(
+    queries.some((sql) => /^\s*(INSERT|UPDATE|DELETE|REPLACE|ALTER|CREATE|DROP)\b/i.test(sql)),
+    false,
+    "readiness smoke must remain read-only"
+  );
+}
+
+{
+  const pool = {
+    async query(sql) {
+      if (String(sql).includes("information_schema.tables")) {
+        return [
+          expectedSchemaObjects.slice(0, 7).map(([table_name, table_type]) => ({
+            table_name,
+            table_type,
+          })),
+        ];
+      }
+      throw new Error(`Seed queries must not run while schema is incomplete: ${sql}`);
+    },
+  };
+  const result = await tenantEffectiveCapabilityReadinessSmoke({}, { pool });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, "fail");
+  assert.equal(result.reason_code, "semantic_capability_schema_not_applied");
+  assert.deepEqual(result.schema_objects.missing, [
+    "v_tenant_effective_capability_candidates",
+  ]);
+  assert.equal(result.provider_calls_made, 0);
+  assert.equal(result.mutations_executed, false);
+  assert.equal(result.secrets_included, false);
+}
 
 for (const destructiveSql of [
   /^\s*DROP\s+TABLE\b/mi,
