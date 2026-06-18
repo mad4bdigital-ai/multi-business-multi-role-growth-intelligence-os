@@ -88,6 +88,12 @@ Do not use Hostinger SSH for routine repository updates, fast-forwards, restarts
 
 The live SQL policy is `platform_runtime_config.hostinger_deployment_policy`. Its normal strategy is `github_main_auto_deploy`, with `ssh_normal_updates_allowed=false` and `ssh_break_glass_only=true`.
 
+### Dynamic Audit runtime
+
+Migration `314_sprint69_dynamic_audit_runtime_closure.sql` promotes the Dynamic Audit foundation into an internal SQL-primary scheduler. `dynamicAuditRuntime.js` runs only after the HTTP server is listening, resolves cadence and limits from `platform_runtime_config`, and uses MySQL advisory locks to prevent overlapping cycles. Each cycle bridges `audit_log`, mirrors SQL-recorded Drive and release-readiness evidence, persists changed-file repo audit inventory, rolls events into DB/asset/checkpoint surfaces, writes bounded checkpoints, and records scheduler results.
+
+Dynamic Audit evidence is summary-only and no-secret. Direct DB calls without table/mutation metadata remain explicitly unresolved. Google Drive coverage includes platform-recorded uploads, session artifacts, and workspace assets; it does not imply observation of out-of-band Drive edits. Repo changed-file inventory is not exhaustive full-repo validation. Checkpoints may preserve runtime `main_commit_sha`, but must not infer `deployed_commit_sha`. Continuous/active classification requires fresh scheduler success and readiness thresholds to pass.
+
 ### Runtime and model chain
 
 Deployment claims require runtime evidence. The API `prestart` lifecycle generates
