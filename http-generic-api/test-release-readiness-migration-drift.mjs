@@ -279,22 +279,40 @@ const approvalHoldCollationPreflight = assessMigrationSqlPreflight(
   approvalHoldCollationMigrationName,
   approvalHoldCollationMigration
 );
-assert.equal(approvalHoldCollationPreflight.status, "pass", "migration 1013 exact approved collation alignment must pass preflight");
-assert.equal(approvalHoldCollationPreflight.risk_count, 0, "migration 1013 approved ALTERs must not retain manual-review warnings");
-assert.equal(approvalHoldCollationPreflight.counts.alter_table, 4, "migration 1013 must retain exactly four ALTER TABLE statements");
-assert.equal(approvalHoldCollationPreflight.counts.alter_table_idempotent, 4, "all four migration 1013 ALTERs must match the bounded allowlist");
+assert.equal(approvalHoldCollationPreflight.status, "pass", "migration 1013 idempotent collation alignment must pass preflight");
+assert.equal(approvalHoldCollationPreflight.risk_count, 0, "migration 1013 dynamic ALTER contracts must not create top-level ALTER warnings");
+assert.equal(approvalHoldCollationPreflight.counts.alter_table, 0, "migration 1013 ALTERs must remain guarded dynamic SQL rather than top-level statements");
 
-const approvalHoldCollationWrongFilePreflight = assessMigrationSqlPreflight(
-  "other-migration.sql",
+const approvalHoldDynamicAlterContracts = [
+  "ALTER TABLE local_gateway_tool_call_log MODIFY approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL",
+  "ALTER TABLE repository_advisory_comment_plans MODIFY approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL",
+  "ALTER TABLE ticket_workflow_links MODIFY approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL",
+  "ALTER TABLE approval_holds MODIFY hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL",
+];
+for (const contract of approvalHoldDynamicAlterContracts) {
+  assert(approvalHoldCollationMigration.includes(`ELSE '${contract}'`), `migration 1013 must retain the guarded dynamic contract: ${contract}`);
+}
+assert.equal(
+  approvalHoldCollationMigration.split("ELSE 'ALTER TABLE ").length - 1,
+  4,
+  "migration 1013 must retain exactly four guarded dynamic ALTER contracts"
+);
+assert.equal(
+  approvalHoldCollationMigration.split("FROM information_schema.columns").length - 1,
+  4,
+  "each migration 1013 dynamic ALTER contract must be selected through information_schema"
+);
+assert.equal(
+  approvalHoldCollationMigration.split("PREPARE align_").length - 1,
+  4,
+  "each migration 1013 dynamic ALTER contract must execute through its bounded prepared statement"
+);
+
+const approvalHoldDirectAlterPreflight = assessMigrationSqlPreflight(
+  approvalHoldCollationMigrationName,
   "ALTER TABLE approval_holds MODIFY hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL;"
 );
-assert.equal(approvalHoldCollationWrongFilePreflight.status, "warn", "the collation ALTER exception must remain filename-scoped");
-
-const approvalHoldCollationWrongColumnPreflight = assessMigrationSqlPreflight(
-  approvalHoldCollationMigrationName,
-  "ALTER TABLE approval_holds MODIFY tenant_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL;"
-);
-assert.equal(approvalHoldCollationWrongColumnPreflight.status, "warn", "the collation ALTER exception must remain column-scoped");
+assert.equal(approvalHoldDirectAlterPreflight.status, "warn", "a direct migration 1013 ALTER must still require manual idempotency review");
 
 const warnPreflight = assessMigrationSqlPreflight(
   "warn.sql",
