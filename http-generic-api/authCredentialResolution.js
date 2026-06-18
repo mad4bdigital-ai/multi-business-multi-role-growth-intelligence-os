@@ -221,7 +221,8 @@ async function _buildAuthContract({
   tenant_id = "",
   auth_context = null,
   credential_scope = "",
-  allow_platform_fallback = undefined
+  allow_platform_fallback = undefined,
+  resolve_credentials = true
 }) {
   const mode = inferAuthMode({ action, brand });
   const contract = {
@@ -233,6 +234,35 @@ async function _buildAuthContract({
     header_name: "",
     custom_headers: {}
   };
+
+  if (resolve_credentials === false) {
+    const strategy = getParentAuthStrategy(action, endpoint);
+    contract.credential_scope = resolveRequestedCredentialScope({
+      strategy,
+      auth_context,
+      credential_scope
+    });
+    contract.credential_resolution_source = "deferred_until_authorized_execution";
+
+    if (mode === "basic_auth") {
+      contract.header_name = "Authorization";
+      contract.username = String(brand?.username || "").trim();
+    } else if (mode === "api_key_query") {
+      contract.param_name = action.api_key_param_name || "api_key";
+    } else if (mode === "api_key_header") {
+      contract.header_name = action.api_key_header_name || "x-api-key";
+    } else if ([
+      "google_oauth2",
+      "google_ads_oauth2",
+      "oauth_gpt_action",
+      "github_app",
+      "bearer_token"
+    ].includes(mode)) {
+      contract.header_name = "Authorization";
+    }
+
+    return contract;
+  }
 
   if (mode === "basic_auth") {
     const scoped = await resolveScopedConnection({ action, endpoint, mode, user_id, tenant_id, auth_context, credential_scope, allow_platform_fallback });
