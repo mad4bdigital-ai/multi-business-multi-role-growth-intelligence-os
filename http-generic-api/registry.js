@@ -1693,7 +1693,7 @@ export async function ensureSiteMigrationRouteWorkflowRows() {
     fallbackColumns: WORKFLOW_REGISTRY_CANONICAL_COLUMNS
   });
 
-  const { sheets } = await getGoogleClients();
+  const { sheets } = await getGoogleClients({ action_key: "google_sheets_api" });
 
   const taskRoutes = await loadTaskRoutesRegistry(sheets, {
     include_candidate_inspection: true
