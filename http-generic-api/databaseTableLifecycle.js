@@ -879,6 +879,67 @@ export async function writeDatabaseLifecycleReportSnapshot(snapshot = {}, deps =
   return { snapshot_id: snapshot.snapshot_id, snapshot_key: snapshot.snapshot_key };
 }
 
+export async function writeDatabaseLifecycleSchedulerSnapshot(snapshot = {}, options = {}, deps = {}) {
+  const pool = deps.pool || getPool();
+  const connection = deps.connection || deps.conn || await pool.getConnection();
+  const ownsConnection = !(deps.connection || deps.conn);
+  const scheduleKey = text(options.schedule_key || options.scheduleKey || DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_KEY);
+  let transactionStarted = false;
+  try {
+    await connection.beginTransaction();
+    transactionStarted = true;
+    const snapshotWrite = await writeDatabaseLifecycleReportSnapshot(snapshot, { connection });
+    const [updateResult] = await connection.query(
+      `UPDATE database_lifecycle_report_snapshot_schedules
+          SET last_readiness_at=UTC_TIMESTAMP(),
+              last_snapshot_id=?,
+              updated_at=UTC_TIMESTAMP()
+        WHERE schedule_key=?`,
+      [snapshot.snapshot_id, scheduleKey]
+    );
+    if (Number(updateResult?.affectedRows || 0) !== 1) {
+      const error = new Error(`Lifecycle snapshot schedule ${scheduleKey} was not updated.`);
+      error.code = "DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_UPDATE_FAILED";
+      throw error;
+    }
+    const [rows] = await connection.query(
+      `SELECT schedule_key,last_readiness_at,last_snapshot_id,updated_at
+         FROM database_lifecycle_report_snapshot_schedules
+        WHERE schedule_key=?
+        FOR UPDATE`,
+      [scheduleKey]
+    );
+    const row = rows?.[0] || null;
+    const verified = Boolean(row?.last_readiness_at)
+      && text(row?.last_snapshot_id) === text(snapshot.snapshot_id)
+      && text(row?.schedule_key) === scheduleKey;
+    if (!verified) {
+      const error = new Error(`Lifecycle snapshot schedule readback failed for ${scheduleKey}.`);
+      error.code = "DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_READBACK_FAILED";
+      error.readback = row;
+      throw error;
+    }
+    await connection.commit();
+    transactionStarted = false;
+    return {
+      ...snapshotWrite,
+      schedule_key: scheduleKey,
+      schedule_readback: {
+        schedule_key: row.schedule_key,
+        last_snapshot_id: row.last_snapshot_id,
+        last_readiness_at: row.last_readiness_at,
+        updated_at: row.updated_at,
+        verified: true,
+      },
+    };
+  } catch (error) {
+    if (transactionStarted) await connection.rollback().catch(() => {});
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
 export async function listDatabaseLifecycleReportSnapshots({ report_type = "", limit = 50 } = {}, deps = {}) {
   const pool = deps.pool || getPool();
   const where = [];
