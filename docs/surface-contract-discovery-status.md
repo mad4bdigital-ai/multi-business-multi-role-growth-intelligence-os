@@ -88,9 +88,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 3
+- Total queue items: 4
 - Critical review: 1
-- High review: 0
+- High review: 1
 - Medium review: 1
 - Low review: 1
 
