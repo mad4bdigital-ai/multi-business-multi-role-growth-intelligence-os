@@ -4,8 +4,8 @@
 - Queue schema: surface-contract-gap-queue-v1
 - Triage schema: surface-contract-gap-triage-v1
 - Gate schema: surface-contract-new-gap-gate-v1
-- Queue items: 3
-- Triaged items: 3
+- Queue items: 4
+- Triaged items: 4
 - Gate candidates: 2
 - New-gap gate: fail
 - Blocking new items: 3
