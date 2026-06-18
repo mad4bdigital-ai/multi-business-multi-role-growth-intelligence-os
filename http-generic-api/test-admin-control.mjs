@@ -82,6 +82,21 @@ try {
     adminCliSource.includes("mergeable_state") &&
     adminCliSource.includes("Resolve conflicts or recreate the branch"),
     "dirty PRs should produce actionable 409 diagnostics before attempting merge");
+  assert("github REST fallback supports gh workflow list after capability repair",
+    adminCliSource.includes('resource === "workflow" && ["list", "ls"].includes(command)') &&
+    adminCliSource.includes("/actions/workflows?per_page=100&page=") &&
+    adminCliSource.includes("formatGithubWorkflowList") &&
+    adminCliSource.includes('operation: "workflow list"') &&
+    adminCliSource.includes("repaired missing capability and used GitHub REST fallback for workflow list"),
+    "workflow list fallback should support active-only/default output, --all, --limit, and --json without gh CLI");
+  assert("github workflow list fallback maps official JSON fields",
+    adminCliSource.includes("id: workflow.id") &&
+    adminCliSource.includes("name: workflow.name") &&
+    adminCliSource.includes("path: workflow.path") &&
+    adminCliSource.includes("state: workflow.state") &&
+    adminCliSource.includes('workflow.state === "active"'),
+    "workflow list fallback must expose id/name/path/state and hide disabled workflows unless --all is present");
+
   assert("github REST fallback supports gh pr list after capability repair",
     adminCliSource.includes('resource === "pr" && command === "list"') &&
     adminCliSource.includes("/pulls?") &&
