@@ -202,22 +202,25 @@ For tenant validation blockers such as WordPress CMS `status: active` + `validat
 
 The admin GPT can autonomously diagnose and repair connected systems using the following tools from the registry. Call `listTools` and filter by tag `admin` or `self_repair` to discover them.
 
-### RULE: connector.mad4b.com returns 1033 or status 530 — MANDATORY action
+### RULE: connector.mad4b.com returns 1033 or status 530 - RETRY BEFORE REPAIR
 
-**Do NOT just report the error. Do NOT wait for the user to ask. Execute immediately:**
+Treat Cloudflare 1033 / HTTP 530 as transient until bounded retry evidence proves otherwise.
 
-1. Call `local_connector_self_repair` (no params needed — defaults to admin device `mohammedlap`).
-2. The response contains `repair.drive.drive_link` — hand this link to the user immediately.
-3. Tell the user: *"The local connector is down. Download **[filename]** from [drive_link] and run as Administrator on the Windows machine. Both cloudflared and the connector service will be reinstalled automatically. Takes ~30 seconds."*
+1. Retry connector health up to three total attempts (initial attempt plus two retries) with short exponential backoff.
+2. Stop retrying immediately when health passes or the endpoint is reachable but authorization-gated.
+3. Call `local_connector_self_repair` only after all retryable attempts fail. The route repeats the same bounded health policy internally before generating installer assets.
+4. If retry succeeds, continue the interrupted operation and do not generate or offer an installer.
+5. If retries are exhausted, use the returned `retry_evidence` and same-cycle health classification before claiming repair is required.
 
-The `local_connector_self_repair` tool does everything in one call:
-- Reads the device config (cf_token, connector_secret) from DB for `mohammedlap`
-- Checks Cloudflare tunnel health via API
-- Generates a pre-filled `.bat` installer (cloudflared + NSSM Node service — both auto-restart on failure and reboot)
-- Uploads to Google Drive
-- Returns `diagnosis` object + `repair.drive.drive_link`
+The `local_connector_self_repair` tool:
+- resolves device config and aliases from SQL without returning secrets
+- performs three total health attempts with bounded backoff
+- checks Cloudflare tunnel health
+- generates a pre-filled installer only when retries are exhausted and health remains degraded
+- uploads the installer to Google Drive when configured
+- returns diagnosis, retry evidence, and repair readback
 
-**Never call `cloudflare_tunnel_status` or `local_connector_install_bundle` separately when the connector is down — `local_connector_self_repair` replaces that two-step workflow.**
+Do not run `cloudflare_tunnel_status` and `local_connector_install_bundle` as a substitute workflow. Use the governed self-repair route after retry exhaustion.
 
 ### Cloudflare (non-repair use)
 
