@@ -6,6 +6,7 @@ import {
   isAutoEligible,
   renderGeneratedBlock,
   upsertGeneratedBlock,
+  validateManualAttestation,
 } from "./scripts/surface-contract-auto-remediator.mjs";
 
 const safeItem = {
@@ -76,6 +77,30 @@ assert(actualGrant.reasons.includes("forbidden_sql_pattern_detected"));
 const actualExecute = buildAttestation({ item: safeItem, source: "EXECUTE prepared_statement;" });
 assert.equal(actualExecute.eligible, false, "actual EXECUTE statements must remain manual review only");
 assert(actualExecute.reasons.includes("forbidden_sql_pattern_detected"));
+
+const manualManifest = JSON.parse(readFileSync("../docs/surface-contract-manual-safety-attestations.json", "utf8"));
+assert.equal(manualManifest.schema_version, "surface-contract-manual-safety-attestations-v1");
+assert.equal(manualManifest.item_count, manualManifest.items.length);
+const manualItem = manualManifest.items.find((item) => item.migration_file === "1013_sprint69_approval_hold_identity_collation_alignment.sql");
+assert(manualItem, "manual registry should include the guarded approval-hold collation migration");
+const manualSource = readFileSync(`migrations/${manualItem.migration_file}`, "utf8");
+const manualValidation = validateManualAttestation({ item: manualItem, source: manualSource });
+assert.equal(manualValidation.valid, true, `manual attestation should validate: ${manualValidation.reasons.join(", ")}`);
+assert.equal(manualValidation.actual.preflight_risk_count, 4);
+assert.equal(manualValidation.actual.forbidden_patterns.length, 2);
+assert.equal(manualValidation.attestation.execution_authorized, false);
+
+const checksumDrift = validateManualAttestation({ item: manualItem, source: `${manualSource}\n-- drift` });
+assert.equal(checksumDrift.valid, false, "manual attestations must fail closed on checksum drift");
+assert(checksumDrift.reasons.includes("manual_attestation_checksum_mismatch"));
+
+const missingReviewer = validateManualAttestation({ item: { ...manualItem, reviewed_by: "" }, source: manualSource });
+assert.equal(missingReviewer.valid, false, "manual attestations require an explicit reviewer");
+assert(missingReviewer.reasons.includes("manual_attestation_reviewer_missing"));
+
+const incompleteRiskReview = validateManualAttestation({ item: { ...manualItem, accepted_preflight_risks: {} }, source: manualSource });
+assert.equal(incompleteRiskReview.valid, false, "manual attestations must enumerate every preflight risk");
+assert(incompleteRiskReview.reasons.includes("manual_attestation_preflight_risks_mismatch"));
 
 const convergenceStates = [
   { id: "first", added: ["first.sql"], attestations: [{ migration_file: "first.sql" }], manual: [] },
