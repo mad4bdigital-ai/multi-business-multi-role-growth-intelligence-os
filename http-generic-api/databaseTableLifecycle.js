@@ -763,7 +763,7 @@ export async function runDatabaseLifecycleSchedulerSnapshot(input = {}, deps = {
     trace_id: args.trace_id,
   });
   const write_result = gate.allowed && blockers.length === 0
-    ? await writeDatabaseLifecycleReportSnapshot(snapshot, { pool })
+    ? await writeDatabaseLifecycleSchedulerSnapshot(snapshot, { schedule_key: args.schedule_key }, { pool })
     : null;
   const ok = blockers.length === 0;
   if (args.summary_only) {
