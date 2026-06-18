@@ -2891,6 +2891,7 @@ export function buildAdminCliRoutes(deps) {
             resolved_device_id: resolvedDeviceId,
             tunnel_status: tunnelStatus,
             public_probe_status: publicHealthProbe.status,
+            retry_evidence: publicHealthProbe.retry_evidence || null,
             composite_status: compositeHealth.status,
             repair_required: false,
             config_source: configSource,
