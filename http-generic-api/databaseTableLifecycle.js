@@ -819,8 +819,8 @@ export function assertDatabaseLifecycleReportSnapshotAllowed({ apply = false, co
 }
 
 export async function writeDatabaseLifecycleReportSnapshot(snapshot = {}, deps = {}) {
-  const pool = deps.pool || getPool();
-  await pool.query(
+  const executor = deps.connection || deps.conn || deps.pool || getPool();
+  await executor.query(
     `INSERT INTO database_lifecycle_report_snapshots (
        snapshot_id, snapshot_key, report_type, engine_key, source_plan_type,
        table_count, approval_required_count, high_risk_count, archive_candidate_count,
