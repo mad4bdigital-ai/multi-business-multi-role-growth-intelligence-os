@@ -1,0 +1,323 @@
+openapi: 3.1.0
+info:
+  title: Dynamic Container Authority Contract Fragment
+  version: 0.2.0-design-freeze
+  description: Proposed additive documentation-only contracts. No route registration or execution authority.
+paths:
+  /container-context-resolutions:
+    post:
+      operationId: createContainerContextResolution
+      summary: Resolve effective container authority without provider execution
+      tags: [container-authority]
+      security: [{ backendBearerAuth: [] }, { userBearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContainerContextResolutionRequest' }
+      responses:
+        '201':
+          description: Resolution created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContainerContextResolution' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /container-context-resolutions/{resolutionId}:
+    get:
+      operationId: getContainerContextResolution
+      summary: Read one no-secret effective-context resolution
+      tags: [container-authority]
+      security: [{ backendBearerAuth: [] }, { userBearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ResolutionId' }]
+      responses:
+        '200':
+          description: Resolution found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContainerContextResolution' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /container-relationships:
+    post:
+      operationId: createContainerRelationship
+      summary: Create a governed containment, sharing, delegation, or reference relationship
+      tags: [container-authority]
+      security: [{ backendBearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContainerRelationshipCreateRequest' }
+      responses:
+        '201': { description: Relationship created }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /container-role-assignments:
+    post:
+      operationId: createContainerRoleAssignment
+      summary: Assign a role template or validated inline role to a principal
+      tags: [container-authority]
+      security: [{ backendBearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContainerRoleAssignmentRequest' }
+      responses:
+        '201': { description: Role assignment created }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /container-resource-bindings:
+    post:
+      operationId: createContainerResourceBinding
+      summary: Bind, restrict, share, or delegate a resource dimension
+      tags: [container-authority]
+      security: [{ backendBearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContainerResourceBindingRequest' }
+      responses:
+        '201': { description: Resource binding created }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /container-overrides:
+    post:
+      operationId: createContainerOverride
+      summary: Request a scoped exception to a blocked or restricted resolution
+      tags: [container-authority, approvals]
+      security: [{ backendBearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContainerOverrideRequest' }
+      responses:
+        '201':
+          description: Override request recorded; target action not executed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContainerOverride' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /container-overrides/{overrideId}/approvals:
+    post:
+      operationId: createContainerOverrideApproval
+      summary: Record one distinct-principal approval for a container override
+      tags: [container-authority, approvals]
+      security: [{ backendBearerAuth: [] }]
+      parameters:
+        - name: overrideId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [decision, decisionNote]
+              properties:
+                decision: { type: string, enum: [approved, rejected] }
+                decisionNote: { type: string, minLength: 10, maxLength: 512 }
+      responses:
+        '201': { description: Approval recorded; target action not executed }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+components:
+  securitySchemes:
+    backendBearerAuth: { type: http, scheme: bearer }
+    userBearerAuth: { type: http, scheme: bearer }
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 8, maxLength: 128 }
+    IfMatch:
+      name: If-Match
+      in: header
+      required: false
+      schema: { type: string, maxLength: 128 }
+    ResolutionId:
+      name: resolutionId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    PrincipalRef:
+      type: object
+      additionalProperties: false
+      required: [type, id]
+      properties:
+        type: { type: string, enum: [user, agent, service] }
+        id: { type: string, minLength: 1, maxLength: 128 }
+    DimensionRequest:
+      type: object
+      additionalProperties: false
+      required: [dimension, resourceType, resourceRef, operation]
+      properties:
+        dimension: { type: string, minLength: 1, maxLength: 128 }
+        resourceType: { type: string, minLength: 1, maxLength: 128 }
+        resourceRef: { type: string, minLength: 1, maxLength: 255 }
+        operation: { type: string, minLength: 1, maxLength: 191 }
+    ContainerContextResolutionRequest:
+      type: object
+      additionalProperties: false
+      required: [principal, tenantId, targetContainerId, dimensionRequests, mode]
+      properties:
+        principal: { $ref: '#/components/schemas/PrincipalRef' }
+        tenantId: { type: string, format: uuid }
+        targetContainerId: { type: string, format: uuid }
+        dimensionRequests:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { $ref: '#/components/schemas/DimensionRequest' }
+        mode: { type: string, enum: [preview, shadow, enforce] }
+        expectedAuthorityEpoch: { type: integer, minimum: 0 }
+        expectedRegistrySnapshotHash: { type: string, pattern: '^[0-9a-f]{64}$' }
+    ContainerContextResolution:
+      type: object
+      additionalProperties: false
+      required: [resolutionId, decision, targetContainerId, authorityEpoch, containerPaths, blockingCodes, resolutionSha256, providerCallMade, credentialPayloadRead, secretsIncluded]
+      properties:
+        resolutionId: { type: string, format: uuid }
+        decision: { type: string, enum: [allow, restrict, deny, ambiguous, requires_override] }
+        targetContainerId: { type: string, format: uuid }
+        authorityEpoch: { type: integer, minimum: 0 }
+        containerPaths: { type: array, items: { type: object, additionalProperties: true } }
+        effectiveClassifications: { type: object, additionalProperties: true }
+        effectiveRoles: { type: array, items: { type: object, additionalProperties: true } }
+        effectiveBindings: { type: array, items: { type: object, additionalProperties: true } }
+        appliedDenies: { type: array, items: { type: object, additionalProperties: true } }
+        appliedDelegations: { type: array, items: { type: object, additionalProperties: true } }
+        blockingCodes: { type: array, items: { type: string } }
+        resolutionSha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        expiresAt: { type: string, format: date-time }
+        providerCallMade: { const: false }
+        credentialPayloadRead: { const: false }
+        secretsIncluded: { const: false }
+    ContainerRelationshipCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [tenantId, fromContainerId, toContainerId, relationshipType]
+      properties:
+        tenantId: { type: string, format: uuid }
+        fromContainerId: { type: string, format: uuid }
+        toContainerId: { type: string, format: uuid }
+        relationshipType: { type: string, minLength: 1, maxLength: 120 }
+        priority: { type: integer, minimum: -100000, maximum: 100000, default: 0 }
+        conditions: { type: object, additionalProperties: true }
+        validUntil: { type: string, format: date-time }
+    ContainerRoleAssignmentRequest:
+      type: object
+      additionalProperties: false
+      required: [containerId, principal, inheritanceMode]
+      properties:
+        containerId: { type: string, format: uuid }
+        principal: { $ref: '#/components/schemas/PrincipalRef' }
+        roleTemplateKey: { type: string, maxLength: 128 }
+        inlinePermissions: { type: array, maxItems: 100, items: { type: object, additionalProperties: true } }
+        inheritanceMode: { type: string, enum: [local_only, inherit_down] }
+        validUntil: { type: string, format: date-time }
+      oneOf: [{ required: [roleTemplateKey] }, { required: [inlinePermissions] }]
+    ContainerResourceBindingRequest:
+      type: object
+      additionalProperties: false
+      required: [containerId, dimension, resourceType, resourceRef, effect, inheritanceMode]
+      properties:
+        containerId: { type: string, format: uuid }
+        dimension: { type: string, maxLength: 128 }
+        resourceType: { type: string, maxLength: 128 }
+        resourceRef: { type: string, maxLength: 255 }
+        effect: { type: string, enum: [allow, deny, restrict, require, share, delegate] }
+        permissionKey: { type: string, maxLength: 128 }
+        operations: { type: array, maxItems: 100, items: { type: string } }
+        capabilityKeys: { type: array, maxItems: 100, items: { type: string } }
+        inheritanceMode: { type: string, enum: [local_only, inherit_down, explicit_share, block_inheritance] }
+        conditions: { type: object, additionalProperties: true }
+        validUntil: { type: string, format: date-time }
+    ContainerOverrideRequest:
+      type: object
+      additionalProperties: false
+      required: [originalResolutionId, targetContainerId, dimension, resourceType, resourceRef, operation, riskClass, reason]
+      properties:
+        originalResolutionId: { type: string, format: uuid }
+        targetContainerId: { type: string, format: uuid }
+        dimension: { type: string, maxLength: 128 }
+        resourceType: { type: string, maxLength: 128 }
+        resourceRef: { type: string, maxLength: 255 }
+        operation: { type: string, maxLength: 191 }
+        riskClass: { type: string, enum: [read_only, standard, high, critical, destructive, credential_touching, deployment_affecting] }
+        reason: { type: string, minLength: 20, maxLength: 1000 }
+        requestedTtlMinutes: { type: integer, minimum: 1, maximum: 60 }
+    ContainerOverride:
+      type: object
+      additionalProperties: false
+      required: [overrideId, status, requiredApprovalCount, maximumTtlMinutes, secretsIncluded]
+      properties:
+        overrideId: { type: string, format: uuid }
+        capabilityEnvelopeId: { type: string, format: uuid }
+        status: { type: string, enum: [pending, ready_requires_approval, ready, rejected, expired, consumed, stale] }
+        requiredApprovalCount: { type: integer, minimum: 1, maximum: 2 }
+        approvalCount: { type: integer, minimum: 0, maximum: 2 }
+        maximumTtlMinutes: { type: integer, enum: [15, 60] }
+        expiresAt: { type: string, format: date-time }
+        secretsIncluded: { const: false }
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: array, items: { type: object, additionalProperties: true } }
+            requestId: { type: string }
+  responses:
+    BadRequest: { description: Invalid request, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Unauthorized: { description: Missing or invalid authentication, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Forbidden: { description: Authenticated but not authorized, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    NotFound: { description: Resource not found, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Conflict: { description: Cycle, stale epoch, stale snapshot, duplicate, replay, or unresolved conflict, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Unprocessable: { description: Semantically invalid classification, relationship, role, binding, or override, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    TooManyRequests:
+      description: Resolution rate or complexity limit exceeded
+      headers: { Retry-After: { schema: { type: integer, minimum: 1 } } }
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unavailable: { description: Required authority dependency temporarily unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
