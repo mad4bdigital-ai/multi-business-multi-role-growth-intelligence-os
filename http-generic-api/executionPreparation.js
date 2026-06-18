@@ -115,7 +115,7 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
     requestPayload.target_key || brand?.target_key || ""
   ).trim();
 
-  const authContract = await normalizeAuthContract({
+  const authResolutionArgs = {
     action,
     endpoint,
     brand,
@@ -140,6 +140,11 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
     allow_platform_fallback: Object.prototype.hasOwnProperty.call(requestBody, "allow_platform_fallback")
       ? requestBody.allow_platform_fallback
       : requestBody.auth_context?.allow_platform_fallback
+  };
+  const passiveExecutionRequested = isPassiveExecutionRequested(requestBody);
+  let authContract = await normalizeAuthContract({
+    ...authResolutionArgs,
+    resolve_credentials: false
   });
 
   if (String(action.action_key || "").trim() === "hostinger_api") {
