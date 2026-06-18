@@ -148,11 +148,6 @@ export async function resolveExecutionRequest(reqBody = {}, deps = {}) {
   }
   const registry = forceRefresh ? await reloadRegistry() : await getRegistry();
   const { brandRows, hostingAccounts, actionRows, endpointRows, policies } = registry;
-  let drive = null;
-  try {
-    const clients = await getGoogleClients();
-    drive = clients.drive;
-  } catch (_) {}
 
   const requiredHttpExecutionPolicyKeys =
     getRequiredHttpExecutionPolicyKeys(policies);
