@@ -59,7 +59,7 @@ The admin GPT can generate a pre-filled installer and hand you a Drive download 
 
 ### Diagnosing tunnel errors
 
-Cloudflare error **1033** means cloudflared is configured but not running. Fix:
+Cloudflare error **1033** is often transient. Retry connector health up to three total attempts with short backoff. Only if all attempts fail should you treat cloudflared or the connector service as down and proceed with repair:
 ```powershell
 # Check service status
 Get-Service cloudflared

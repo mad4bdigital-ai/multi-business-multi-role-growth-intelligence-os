@@ -75,3 +75,16 @@ Current registered modules:
 - With `reprovision=true`: rotate the Cloudflare tunnel and `connector_secret`, update the DB row, and return a new bundle.
 - After reprovisioning, `CONNECTOR_LOCAL_API_KEY` on Cloud Run must be updated to the new `connector_secret` if Cloud Run proxies requests through the platform-side orchestrator.
 - Shell allowlist seeding during install must be idempotent — re-running install must not create duplicate allowlist entries.
+## Cloudflare 1033 Retry-Before-Repair Rule
+
+Cloudflare error `1033` and HTTP `530` are transient-retry candidates, not immediate proof that the local connector requires reinstall or tunnel reprovisioning.
+
+- perform three total public health attempts: the initial attempt plus two retries
+- use short exponential backoff bounded by the runtime policy
+- stop immediately when health passes or when the endpoint is reachable but authorization-gated
+- call or continue `local_connector_self_repair` only after retryable evidence is exhausted
+- the self-repair route must repeat the bounded attempts internally before generating installer assets
+- return and audit no-secret `retry_evidence` with attempt count, statuses, delays, recovery-on-retry, and exhaustion state
+- recovered classification requires same-cycle passing health evidence; installer generation is forbidden when a retry succeeds
+
+The SQL runtime authority is `execution_policies` row `Local Connector Recovery Governance / Cloudflare 1033 Retry Before Repair`, registered by `1015_sprint69_local_connector_transient_retry_policy.sql`.

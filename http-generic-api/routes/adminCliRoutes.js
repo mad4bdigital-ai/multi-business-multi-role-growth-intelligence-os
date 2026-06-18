@@ -8,7 +8,7 @@ import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.j
 import { evaluateRepositoryMutationPreflight, evaluateRepositoryPublishPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import { createContinuationCheckpoint, planContinuationResume } from "../sharedReconciliationEngine.js";
 import { closeGithubPullRequest, deleteGithubBranchRef, githubBranchDeleteConfirmation } from "../githubRepositoryLifecycle.js";
-import { classifyLocalConnectorCompositeHealth, probeLocalConnectorPublicHealth } from "../localConnectorCompositeHealth.js";
+import { classifyLocalConnectorCompositeHealth, probeLocalConnectorPublicHealthWithRetry } from "../localConnectorCompositeHealth.js";
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 120000;
 const MAX_COMMAND_TIMEOUT_MS = 600000;
@@ -2743,9 +2743,9 @@ export function buildAdminCliRoutes(deps) {
   // Single-shot self-repair for the admin's local connector.
   // 1. Reads device config from DB (user_id + device_id, defaults to admin / mohammedlap).
   // 2. Checks CF tunnel health via Cloudflare API.
-  // 3. Returns diagnosis and an authenticated admin-only download handoff.
-  // 4. Never uploads the secret-bearing installer to shared or public storage.
-  // GPT should call this whenever connector.mad4b.com returns 1033.
+  // 3. Retries transient Cloudflare 1033/HTTP 530 health failures up to three total attempts and returns retry evidence.
+  // 4. After retry exhaustion, returns diagnosis and an authenticated admin-only download handoff.
+  // 5. Never generates installer content in this JSON route or uploads the secret-bearing installer to shared or public storage.
   router.post("/local-connector/self-repair", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
     try {
       const userId   = String(req.body?.user_id   || "").trim() || "00000000-0000-4000-a000-000000000002";
@@ -2843,7 +2843,7 @@ export function buildAdminCliRoutes(deps) {
         }
       }
 
-      const publicHealthProbe = await probeLocalConnectorPublicHealth({
+      const publicHealthProbe = await probeLocalConnectorPublicHealthWithRetry({
         tunnelUrl: tunnelUrl || "https://connector.mad4b.com",
         timeoutMs: 8000,
       });
@@ -2863,6 +2863,7 @@ export function buildAdminCliRoutes(deps) {
             resolved_device_id: resolvedDeviceId,
             tunnel_status: tunnelStatus,
             public_probe_status: publicHealthProbe.status,
+            retry_evidence: publicHealthProbe.retry_evidence || null,
             composite_status: compositeHealth.status,
             repair_required: false,
             config_source: configSource,
@@ -2968,6 +2969,7 @@ export function buildAdminCliRoutes(deps) {
           device_identity_resolution: deviceIdentityResolution,
           tunnel_status: tunnelStatus,
           public_probe_status: publicHealthProbe.status,
+          retry_evidence: publicHealthProbe.retry_evidence || null,
           composite_status: compositeHealth.status,
           repair_required: compositeHealth.repair_required,
           config_source: configSource,
