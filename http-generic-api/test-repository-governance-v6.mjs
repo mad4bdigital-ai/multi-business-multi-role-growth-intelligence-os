@@ -249,6 +249,11 @@ for (const handler of [
   "tenantRepositoryMutationApplyV6",
   "tenantRepositoryMutationReadbackV6",
 ]) assert.match(routesSource, new RegExp(handler));
+assert.match(routesSource, /runRepositoryGovernanceV6ReadinessResource/);
+assert.match(routesSource, /recipeKey !== REPOSITORY_PR_RECONCILE_RECIPE_KEY \|\| mode !== "read_only"/);
+assert.match(routesSource, /name === "tenant_repository_governance_v6_readiness_smoke" && isAdminPrincipal\(auth\)/);
+assert.match(routesSource, /readinessRunGovernedResource/);
+assert.doesNotMatch(routesSource, /readinessRunGovernedResource: args/);
 
 const migrationSource = fs.readFileSync(new URL("./migrations/1011_sprint69_governed_repository_engine_v6.sql", import.meta.url), "utf8");
 for (const token of [
