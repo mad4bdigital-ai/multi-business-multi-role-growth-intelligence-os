@@ -270,6 +270,32 @@ assert.equal(tagsWideningPreflight.status, "pass", "admin tool registry tags wid
 assert.equal(tagsWideningPreflight.counts.alter_table, 1, "must count tags widening ALTER TABLE");
 assert.equal(tagsWideningPreflight.counts.alter_table_idempotent, 1, "must count approved tags widening as idempotent/safe ALTER");
 
+const approvalHoldCollationMigrationName = "1013_sprint69_approval_hold_identity_collation_alignment.sql";
+const approvalHoldCollationMigration = readFileSync(
+  new URL(`migrations/${approvalHoldCollationMigrationName}`, import.meta.url),
+  "utf8"
+);
+const approvalHoldCollationPreflight = assessMigrationSqlPreflight(
+  approvalHoldCollationMigrationName,
+  approvalHoldCollationMigration
+);
+assert.equal(approvalHoldCollationPreflight.status, "pass", "migration 1013 exact approved collation alignment must pass preflight");
+assert.equal(approvalHoldCollationPreflight.risk_count, 0, "migration 1013 approved ALTERs must not retain manual-review warnings");
+assert.equal(approvalHoldCollationPreflight.counts.alter_table, 4, "migration 1013 must retain exactly four ALTER TABLE statements");
+assert.equal(approvalHoldCollationPreflight.counts.alter_table_idempotent, 4, "all four migration 1013 ALTERs must match the bounded allowlist");
+
+const approvalHoldCollationWrongFilePreflight = assessMigrationSqlPreflight(
+  "other-migration.sql",
+  "ALTER TABLE approval_holds MODIFY hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL;"
+);
+assert.equal(approvalHoldCollationWrongFilePreflight.status, "warn", "the collation ALTER exception must remain filename-scoped");
+
+const approvalHoldCollationWrongColumnPreflight = assessMigrationSqlPreflight(
+  approvalHoldCollationMigrationName,
+  "ALTER TABLE approval_holds MODIFY tenant_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL;"
+);
+assert.equal(approvalHoldCollationWrongColumnPreflight.status, "warn", "the collation ALTER exception must remain column-scoped");
+
 const warnPreflight = assessMigrationSqlPreflight(
   "warn.sql",
   "CREATE TABLE cms_sites (site_id varchar(36) PRIMARY KEY); INSERT INTO admin_platform_endpoint_tools (tool_key) VALUES ('unsafe_tool');"
