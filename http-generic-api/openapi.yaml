@@ -9327,8 +9327,13 @@ paths:
         - name: device_id
           in: query
           required: false
-          schema: { type: string }
+          schema: { type: string, minLength: 1, maxLength: 128, default: mohammedlap }
           description: Device ID (hostname) to load config for. Defaults to mohammedlap.
+        - name: format
+          in: query
+          required: false
+          schema: { type: string, enum: [json, bat], default: json }
+          description: json returns a no-secret handoff; bat returns the authenticated binary installer.
       responses:
         "200":
           description: Installer uploaded, drive link returned
