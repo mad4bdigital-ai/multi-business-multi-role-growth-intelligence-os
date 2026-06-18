@@ -9409,46 +9409,64 @@ paths:
                   description: Device hostname to repair. Defaults to mohammedlap.
       responses:
         "200":
-          description: Self-repair result with diagnosis and drive link
+          description: Diagnosis and no-secret authenticated repair handoff
           content:
             application/json:
               schema:
                 type: object
-                additionalProperties: true
+                additionalProperties: false
                 required: [ok, diagnosis, repair]
                 properties:
-                  ok: { type: boolean }
+                  ok: { type: boolean, const: true }
                   diagnosis:
                     type: object
                     additionalProperties: true
+                    required: [secrets_included]
                     properties:
                       device_id: { type: string }
                       tunnel_url: { type: string }
                       cf_tunnel_id: { type: string }
                       cf_tunnel_status: { type: string }
-                      config_source: { type: string, enum: [db, env, env_fallback] }
+                      config_source: { type: string, enum: [db, db_alias, env, env_fallback] }
+                      secrets_included: { type: boolean, const: false }
                   repair:
                     type: object
                     additionalProperties: true
+                    required: [required, installer_generated, artifact_delivery, public_storage_allowed, secure_download, secrets_included]
                     properties:
+                      required: { type: boolean }
+                      installer_generated: { type: boolean, const: false }
+                      artifact_delivery: { type: string, const: authenticated_direct_download_only }
                       action: { type: string }
-                      drive_upload_status: { type: string, enum: [uploaded, failed, not_configured, attempted] }
-                      drive_error:
-                        oneOf:
-                          - type: object
-                            additionalProperties: true
-                          - type: "null"
-                      drive:
-                        oneOf:
-                          - type: object
-                            additionalProperties: true
+                      filename: { type: string }
+                      public_storage_allowed: { type: boolean, const: false }
+                      drive_upload_status: { type: string, const: blocked_secret_bearing_artifact }
+                      drive_error: { type: "null" }
+                      drive: { type: "null" }
+                      script_content_omitted: { type: boolean, const: true }
+                      script_content_reason: { type: string }
+                      secure_download:
+                        type: object
+                        additionalProperties: false
+                        required: [method, path, query, requires_backend_api_key, requires_admin_principal]
+                        properties:
+                          method: { type: string, const: GET }
+                          path: { type: string, const: /admin/cli/local-connector/install-bundle }
+                          query:
+                            type: object
+                            additionalProperties: false
+                            required: [user_id, device_id, format]
                             properties:
-                              file_id: { type: string }
-                              drive_link: { type: string }
-                              filename: { type: string }
-                          - type: "null"
+                              user_id: { type: string }
+                              device_id: { type: string }
+                              format: { type: string, const: bat }
+                          requires_backend_api_key: { type: boolean, const: true }
+                          requires_admin_principal: { type: boolean, const: true }
+                      secrets_included: { type: boolean, const: false }
         "401": { $ref: "#/components/responses/Unauthorized" }
-        "500": { description: Self-repair failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
 
   /admin/cli/dns:
     get:
