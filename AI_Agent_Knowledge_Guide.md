@@ -1060,6 +1060,18 @@ Every active-ready endpoint must resolve through an active export and `platform_
 
 Local connector repair uses composite health. A healthy tunnel with a failed Node health probe is `degraded_local_service`; an unhealthy tunnel is `degraded_tunnel`; a reachable `401/403` health surface is `authorization_gated`. Passing or authorization-gated probes must not generate a repair installer.
 
+### Secret-bearing local connector installer delivery
+
+Local connector installer bundles embed live Cloudflare tunnel and connector backend credentials. They are credential-bearing artifacts, not ordinary downloadable assets.
+
+- `GET /admin/cli/local-connector/install-bundle` requires the backend API key and an admin principal.
+- The default JSON mode returns only an authenticated download handoff and must exit before reading `cf_token` or `connector_secret`.
+- Installer content may be generated only when `format=bat` is explicitly requested on the authenticated route.
+- `POST /admin/cli/local-connector/self-repair` returns diagnosis plus the same authenticated download handoff; it must not generate or upload installer content in its JSON response.
+- Secret-bearing installers must never receive public or `anyone-reader` Drive permissions and must not be copied to shared/public storage.
+- Audit evidence may record delivery mode, user/device scope, and `public_storage_allowed=false`, but never raw credential values or script content.
+- Any future signed-download design must be separately reviewed for expiry, one-time use, replay protection, principal binding, and same-cycle readback before replacing the authenticated direct-download contract.
+
 ### Capability report selection
 
 Capability reporting is intentionally split into two independent admin tools. Use `platform_capability_contract_report` to classify declared contract surfaces as implemented, partial, or proposed-not-implemented. It must not include live capability counts, live gap distributions, or claims about historical CI/deployment state. Use `platform_capability_live_report` to read a freshness-bounded MySQL-primary snapshot of capability maturity, gaps, envelopes, certifications, and source resolutions. It must include `observed_at` and `expires_at`, and must not include contractual conclusions or historical claims. Do not merge the two outputs into a single status unless the user explicitly requests a separate comparison step.
