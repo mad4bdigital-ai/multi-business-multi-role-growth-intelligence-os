@@ -16,9 +16,10 @@ function requireEnv(name) {
   return value;
 }
 
-// --- Singleton & Caching (PR-1) ---
-let globalClientsPromise = null;
-let _clientsToken = null;
+// --- Action-scoped client and registry caching ---
+const googleClientCache = new Map();
+const googleRuntimeActionCache = new Map();
+const GOOGLE_RUNTIME_ACTION_CACHE_TTL_MS = 60 * 1000;
 
 const CACHE_TTL_MS = 60 * 1000; // 60 seconds
 const DEFAULT_CHUNK_ROW_COUNT = 50;
