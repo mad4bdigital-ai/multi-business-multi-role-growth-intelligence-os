@@ -681,6 +681,8 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
         counts.alter_table_idempotent += 1;
       } else if (/^ALTER\s+TABLE\s+`?admin_platform_endpoint_tools`?\s+MODIFY\s+COLUMN\s+`?tags`?\s+TEXT\b/i.test(normalized)) {
         counts.alter_table_idempotent += 1;
+      } else if (isApprovedApprovalHoldCollationAlter(filename, normalized)) {
+        counts.alter_table_idempotent += 1;
       } else {
         risks.push({ severity: "warn", code: "alter_table_requires_manual_idempotency_review", statement: normalized.slice(0, 140) });
       }
