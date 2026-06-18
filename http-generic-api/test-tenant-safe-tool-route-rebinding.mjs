@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const migration = readFileSync("migrations/1017_sprint69_tenant_safe_tool_route_rebinding.sql", "utf8");
+const migration = readFileSync("migrations/1016_sprint69_tenant_safe_tool_route_rebinding.sql", "utf8");
 
 for (const tool of [
   "local_gateway_tools_list",
