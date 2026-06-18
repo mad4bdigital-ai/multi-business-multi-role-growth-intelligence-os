@@ -245,7 +245,7 @@ export async function getGoogleClients(options = {}) {
     );
   }
 
-  const cached = googleClientCache.get(actionKey);
+  const cached = googleClientCache.get(clientContextKey);
   if (cached?.token === token && cached.clients) return cached.clients;
 
   const auth = new google.auth.OAuth2();
