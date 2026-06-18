@@ -237,9 +237,21 @@ const TENANT_BLOCKED_TOOL_PATH_PREFIXES = [
   "/gpt/tools/call",
 ];
 
+const TENANT_BLOCKED_TOOL_NAMES = new Set([
+  "runtime_endpoint_call",
+  "github_api_mcp__create_or_update_file_contents",
+  "github_api_mcp__github_create_or_update_file",
+  "github_api_mcp__github_put_contents",
+  "github_api_mcp__github_delete_file",
+]);
+
 function isTenantBlockedToolPath(httpPath = "") {
   const path = String(httpPath || "").trim();
   return TENANT_BLOCKED_TOOL_PATH_PREFIXES.some((prefix) => path === prefix.slice(0, -1) || path.startsWith(prefix));
+}
+
+function isTenantBlockedToolName(toolName = "") {
+  return TENANT_BLOCKED_TOOL_NAMES.has(String(toolName || "").trim());
 }
 
 const REPO_INSPECT_DENY_SEGMENTS = new Set([
@@ -1255,7 +1267,7 @@ async function fetchTools(callerType) {
     }
   );
   const visibleRows = callerType === "tenant"
-    ? rows.filter((r) => !isTenantBlockedToolPath(r.http_path))
+    ? rows.filter((r) => !isTenantBlockedToolPath(r.http_path) && !isTenantBlockedToolName(r.tool_key))
     : rows;
   const dbTools = visibleRows.map((r) => ({
     name: r.tool_key,
@@ -1599,14 +1611,14 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
   }
 
   const { http_method: method, http_path: pathTemplate } = rows[0];
-  if (callerType === "tenant" && isTenantBlockedToolPath(pathTemplate)) {
+  if (callerType === "tenant" && (isTenantBlockedToolPath(pathTemplate) || isTenantBlockedToolName(toolKey))) {
     return {
       status: 403,
       body: {
         ok: false,
         error: {
           code: "tenant_tool_route_not_allowed",
-          message: "Tenant GPT tools cannot dispatch to admin-only connector workaround routes. Use tenant-safe local gateway/connect status tools instead.",
+          message: "Tenant GPT tools cannot dispatch admin-only or state-changing platform routes. Use tenant-safe local gateway/connect status tools instead.",
           details: { tool_key: toolKey, http_path: pathTemplate },
         },
       },
