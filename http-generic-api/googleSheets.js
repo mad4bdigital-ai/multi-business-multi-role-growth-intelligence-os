@@ -3,6 +3,7 @@ import { getGoogleAccessToken } from "./googleAuthTokenResolver.js";
 import { REGISTRY_SPREADSHEET_ID } from "./config.js";
 import { headerMap } from "./sheetHelpers.js";
 import { READ_POLICIES } from "./registryReadPolicies.js";
+import { getPool } from "./db.js";
 
 function requireEnv(name) {
   const value = process.env[name];
