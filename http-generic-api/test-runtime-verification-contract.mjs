@@ -1,8 +1,14 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { classifyCiCheckRun, classifyCommitParity } from "./runtimeVerificationService.js";
+import {
+  classifyCiCheckRun,
+  classifyCommitParity,
+  readCheckoutCommitSha,
+  resolveDeployedCommitEvidence,
+} from "./runtimeVerificationService.js";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 async function read(relativePath) {
@@ -60,5 +66,31 @@ assert.deepEqual(classifyCommitParity("abc123", "unknown"), {
   matches: false,
   classification: "deployment_commit_unknown",
 });
+
+const checkoutSha = "a".repeat(40);
+const environmentSha = "b".repeat(40);
+const temporaryRepo = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-parity-checkout-"));
+try {
+  await fs.mkdir(path.join(temporaryRepo, ".git"));
+  await fs.writeFile(path.join(temporaryRepo, ".git", "HEAD"), `${checkoutSha}\n`, "utf8");
+  assert.equal(readCheckoutCommitSha({ repoRoot: temporaryRepo }), checkoutSha);
+  assert.deepEqual(
+    resolveDeployedCommitEvidence({ env: {}, checkoutCommitReader: () => checkoutSha }),
+    { sha: checkoutSha, source: "checkout_git_head" }
+  );
+  assert.deepEqual(
+    resolveDeployedCommitEvidence({ env: { GIT_COMMIT: environmentSha }, checkoutCommitReader: () => checkoutSha }),
+    { sha: environmentSha, source: "env:GIT_COMMIT" }
+  );
+  assert.deepEqual(
+    resolveDeployedCommitEvidence({ env: { GIT_COMMIT: "invalid" }, checkoutCommitReader: () => checkoutSha }),
+    { sha: checkoutSha, source: "checkout_git_head" }
+  );
+} finally {
+  await fs.rm(temporaryRepo, { recursive: true, force: true });
+}
+
+assert.doesNotMatch(service, /input\.(?:deployed_commit_sha|runtime_commit_sha)/, "deployed parity evidence must not trust caller-supplied commit fields");
+assert.match(service, /checkout_git_head/, "runtime verification must disclose checkout Git HEAD as the deployed commit source");
 
 console.log("runtime verification contract tests passed");
