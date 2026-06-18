@@ -36,7 +36,7 @@ WHERE r.approval_hold_id IS NOT NULL
 
 -- Fail closed if any Approval Hold reference remains orphaned.
 CREATE TEMPORARY TABLE tmp_approval_hold_identity_orphans AS
-SELECT 'ads_provider_profile_onboarding_requests' AS source_table, c.approval_hold_id AS hold_id
+SELECT 'ads_provider_profile_onboarding_requests' AS source_table, CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS hold_id
 FROM ads_provider_profile_onboarding_requests c
 LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
 WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
