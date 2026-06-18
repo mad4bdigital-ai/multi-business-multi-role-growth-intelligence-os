@@ -38,7 +38,8 @@ export function getGoogleScopesFromAction(action = {}) {
 }
 
 const cache = new Map();
-let fetchingGlobal = false, warned = false, logged = false;
+const globalTokenInflight = new Map();
+let warned = false, logged = false;
 
 function normalizeAuthMode(value = "") {
   return String(value || "").trim().toLowerCase();
