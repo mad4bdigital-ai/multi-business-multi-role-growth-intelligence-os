@@ -179,7 +179,8 @@ export async function createRuntimeVerificationRun(input = {}, actor = {}) {
   const runId = randomUUID();
   const environmentKey = String(input.environment_key || input.environment || "production").trim() || "production";
   const expectedCommitSha = resolveExpectedCommit(input);
-  const deployedCommitSha = resolveDeployedCommit(input);
+  const deployedCommitEvidence = resolveDeployedCommitEvidence();
+  const deployedCommitSha = deployedCommitEvidence.sha;
   const budget = { ...DEFAULT_RESPONSE_BUDGET, ...(input.response_budget || {}) };
   const createdBy = actor.user_id || actor.email || actor.mode || "runtime_verification_route";
 
