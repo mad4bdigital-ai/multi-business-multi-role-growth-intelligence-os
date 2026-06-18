@@ -2773,7 +2773,7 @@ export function buildAdminCliRoutes(deps) {
   // 2. Checks CF tunnel health via Cloudflare API.
   // 3. Generates and uploads install bundle.
   // 4. Returns diagnosis + Drive download link so GPT can hand it directly to user.
-  // GPT should call this whenever connector.mad4b.com returns 1033.
+  // Retry transient Cloudflare 1033/HTTP 530 health failures before repair. This route repeats bounded retries internally before generating repair assets.
   router.post("/local-connector/self-repair", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
     try {
       const userId   = String(req.body?.user_id   || "").trim() || "00000000-0000-4000-a000-000000000002";
