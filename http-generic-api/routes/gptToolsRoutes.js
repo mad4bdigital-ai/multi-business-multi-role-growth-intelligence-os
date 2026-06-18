@@ -15,6 +15,12 @@ import {
   recordGrantUse,
 } from "../scopeGrantsService.js";
 import { cachedSqlRead, sqlCacheKey, toolCacheTtl } from "../sqlCache.js";
+import {
+  GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY,
+  extendGovernedToolResponseChunkExpiry,
+  loadGovernedToolResponseChunk,
+  persistGovernedToolResponseChunk,
+} from "../governedToolResponseChunkStore.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import {
   capabilityEnvelopeError,
