@@ -314,8 +314,10 @@ LEFT JOIN `platform_endpoint_aliases` a
  AND a.`alias_endpoint_key` = b.`endpoint_key`
  AND a.`status` = 'active'
 LEFT JOIN `workspace_app_links` wal
-  ON wal.`workspace_id` = w.`workspace_id`
- AND wal.`tenant_id` = w.`tenant_id`
+  ON CONVERT(wal.`workspace_id` USING utf8mb4) COLLATE utf8mb4_unicode_ci
+   = CONVERT(w.`workspace_id` USING utf8mb4) COLLATE utf8mb4_unicode_ci
+ AND CONVERT(wal.`tenant_id` USING utf8mb4) COLLATE utf8mb4_unicode_ci
+   = CONVERT(w.`tenant_id` USING utf8mb4) COLLATE utf8mb4_unicode_ci
  AND wal.`app_key` = b.`app_key`
  AND wal.`status` = 'active'
 LEFT JOIN `user_app_connections` uac
