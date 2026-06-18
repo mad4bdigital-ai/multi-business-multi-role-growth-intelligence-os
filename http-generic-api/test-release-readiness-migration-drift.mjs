@@ -187,6 +187,23 @@ assert(commentSeparatedStatements[0].startsWith("UPDATE"), "must treat UPDATE as
 assert(commentSeparatedStatements[1].startsWith("INSERT INTO"), "must split after comments before INSERT INTO");
 assert(commentSeparatedStatements[2].startsWith("INSERT IGNORE INTO"), "must split after block comments before INSERT IGNORE INTO");
 
+const proceduralStatements = splitSqlStatements(`
+UPDATE execution_enablement_requests SET request_status = 'expired' WHERE request_status = 'pending_approval';
+CREATE TEMPORARY TABLE tmp_statement_splitter_guard AS SELECT 1 AS ok;
+SET @statement_splitter_sql := 'SELECT 1 AS prepared_ok';
+PREPARE statement_splitter_stmt FROM @statement_splitter_sql;
+EXECUTE statement_splitter_stmt;
+DEALLOCATE PREPARE statement_splitter_stmt;
+DROP TEMPORARY TABLE tmp_statement_splitter_guard;
+`);
+assert.equal(proceduralStatements.length, 7, "must split MariaDB temporary-table and prepared-statement migration commands");
+assert(proceduralStatements[1].startsWith("CREATE TEMPORARY TABLE"), "must split CREATE TEMPORARY TABLE from the preceding UPDATE");
+assert(proceduralStatements[2].startsWith("SET @statement_splitter_sql"), "must split SET user-variable statements");
+assert(proceduralStatements[3].startsWith("PREPARE statement_splitter_stmt"), "must split PREPARE statements");
+assert(proceduralStatements[4].startsWith("EXECUTE statement_splitter_stmt"), "must split EXECUTE statements");
+assert(proceduralStatements[5].startsWith("DEALLOCATE PREPARE statement_splitter_stmt"), "must split DEALLOCATE PREPARE statements");
+assert(proceduralStatements[6].startsWith("DROP TEMPORARY TABLE"), "must split DROP TEMPORARY TABLE statements");
+
 const passSql = "-- leading migration comment\nCREATE TABLE IF NOT EXISTS cms_sites (site_id varchar(36) PRIMARY KEY); INSERT IGNORE INTO admin_platform_endpoint_tools (tool_key) VALUES ('safe_tool');";
 const passPreflight = assessMigrationSqlPreflight("safe.sql", passSql);
 assert.equal(passPreflight.counts.statements, splitSqlStatements(passSql).length, "preflight must use the same statement splitter as apply");
