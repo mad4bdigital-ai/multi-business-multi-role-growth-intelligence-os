@@ -645,28 +645,65 @@ function buildGithubFallbackRepairAttempts({ args = [], mapped = false } = {}) {
   }));
 }
 
-function buildGithubFallbackContinuationEvidence({ args = [], mapped = false } = {}) {
+export function buildGithubFallbackContinuationEvidence({ args = [], mapped = false } = {}) {
   const operation = args.slice(0, 2).join(" ").trim() || "unknown";
   const argsPreview = args.slice(0, 6);
-  const checkpoint = createContinuationCheckpoint({
+  const checkpointResourceState = {
+    operation,
+    args_preview: argsPreview,
+    mapped,
+    ...(mapped ? { repair_attempt_count: 3 } : {}),
+  };
+  const currentResourceState = {
+    operation,
+    args_preview: argsPreview,
+    mapped,
+    repair_attempt_count: 3,
+  };
+  const pendingCheckpoint = createContinuationCheckpoint({
     operation_key: `github_rest_fallback:${operation}`,
     resource_type: "github_rest_fallback_operation",
     actor_context: { actor_type: "admin" },
     resource_scope: { scope_type: "repository", provider: "github", operation },
-    resource_state: { operation, args_preview: argsPreview, mapped },
+    resource_state: checkpointResourceState,
     interruption_signal: "fallback_unsupported_command",
     stage: mapped ? "resume_original_operation" : "dry_run_repair",
     metadata: { adapter: "github_rest_fallback", args_preview: argsPreview },
   });
-  const resume_plan = planContinuationResume({
-    checkpoint,
+  const plannedResume = planContinuationResume({
+    checkpoint: pendingCheckpoint,
     actor_context: { actor_type: "admin" },
-    resource_scope: checkpoint.resource_scope,
-    current_resource_state: { operation, args_preview: argsPreview, mapped, repair_attempt_count: 3 },
+    resource_scope: pendingCheckpoint.resource_scope,
+    current_resource_state: currentResourceState,
     dry_run_result: { ok: true, repair_attempts: buildGithubFallbackRepairAttempts({ args, mapped }) },
     verify_result: { ok: mapped === true, mapped },
-    apply_requested: mapped === true,
+    apply_requested: false,
   });
+  if (!mapped) {
+    return { checkpoint: pendingCheckpoint, resume_plan: plannedResume, secrets_included: false };
+  }
+  const checkpoint = {
+    ...pendingCheckpoint,
+    current_stage: "completed",
+    status: "completed",
+    required_before_resume: [],
+    requires_reconciliation_before_resume: false,
+  };
+  const resume_plan = {
+    ...plannedResume,
+    risk: {
+      ...plannedResume.risk,
+      classification: "clean",
+      reason_code: "resource_fingerprint_unchanged",
+      resume_allowed: true,
+      requires_reconciliation_before_resume: false,
+    },
+    apply_requested: false,
+    apply_allowed: false,
+    resume_allowed: true,
+    operation_completed: true,
+    next_required_step: "none",
+  };
   return { checkpoint, resume_plan, secrets_included: false };
 }
 
