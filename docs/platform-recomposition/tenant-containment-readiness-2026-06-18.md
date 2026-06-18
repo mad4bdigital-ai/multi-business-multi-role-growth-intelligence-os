@@ -29,7 +29,7 @@ especially these invariants from `threat-model.md` and `spec.md`:
 - Support ticket SLA reconciliation no longer preserves stale stored `breached`/`warning` state for open tickets that have no due dates; it recomputes those as `on_track` with reason `no_due_dates`.
 - `scripts/database-lifecycle-report-snapshot.mjs` now attempts bounded `execution_log` evidence after a successful apply snapshot write. Snapshot refresh remains no-drop/no-delete/no-archive-execution/no-compaction-execution/no-secret, and an `execution_log` failure is returned separately from the snapshot write result.
 - `runtime_endpoint_preview` now rejects non-object envelopes, provider-target query overrides, metadata targets, and GitHub content/delete previews missing required body fields.
-- Tenant-visible safe tools are rebound through migration `1017_sprint69_tenant_safe_tool_route_rebinding.sql` to non-admin paths:
+- Tenant-visible safe tools are rebound through migration `1016_sprint69_tenant_safe_tool_route_rebinding.sql` to non-admin paths:
   - `local_gateway_tools_list` -> `/local/tools`
   - `local_connector_devices` -> `/local-connector/devices`
   - `local_connector_health` -> `/local-connector/health`
