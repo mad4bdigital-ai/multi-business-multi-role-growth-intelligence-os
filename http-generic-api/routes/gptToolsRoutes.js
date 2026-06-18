@@ -2656,7 +2656,10 @@ export function buildGptToolsRoutes(deps) {
         page,
         tools: items,
       };
-      return res.status(200).json(maybeChunkToolResponseBody(body, { response_options: req.query || {} }));
+      return res.status(200).json(await maybeChunkToolResponseBody(body, {
+        response_options: req.query || {},
+        source_tool_key: "gpt_tools_list",
+      }));
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "tools_list_failed", message: err.message } });
     }
