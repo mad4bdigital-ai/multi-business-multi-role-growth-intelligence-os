@@ -85,6 +85,12 @@ Native Google Workspace Action Governance
 
 Google Sheets, Docs, and Drive remain legitimate **write targets** when the system writes user-facing artifacts (reports, dashboards, brand documents). Native action governance for write targets is unchanged: routes resolve through Registry Surfaces Catalog, validation flows through Validation & Repair Registry, and policy applies through Execution Policy Registry. These rules continue to govern write-target Google actions; they do not promote Google Workspace to a runtime read source.
 
+Governed Migration Idempotency and Preflight
+
+The governed migration runner may apply SQL only when authorization exists, the static preflight status is `pass`, typed confirmation matches, and same-cycle ledger/readback evidence is available. A `warn` or `fail` preflight must never be bypassed by direct DB execution.
+
+Schema-alignment changes that require `ALTER TABLE ... MODIFY` must use `information_schema`-guarded dynamic SQL. An already-aligned rerun must resolve to a read-only `SELECT`; a missing or incompatible column must fail closed through the attempted governed alteration or an explicit signal. Raw top-level `ALTER TABLE ... MODIFY` statements that trigger manual-idempotency warnings are not production-applicable until rewritten and covered by regression tests.
+
 Empowering GPT-Initiated Migration Repair
 
 When an admin GPT detects data-source drift, empty SQL tables, or Sheets/SQL parity issues, it must:
