@@ -2031,7 +2031,7 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
 
   switch (name) {
     case "response_chunk_read":
-      return readCachedToolResponseChunk(args);
+      return await readCachedToolResponseChunk(args);
     case "system_layer_descriptor_readiness":
       return {
         ok: true,
