@@ -27,8 +27,9 @@ assert(
 
 assert(
   returnEnvelope.includes('download_link_endpoint: "/local-connector/install/download-link"') &&
+    returnEnvelope.includes('installer_download_endpoint: "/local-connector/install/download"') &&
     returnEnvelope.includes("reprovision_requires_explicit_flag: true"),
-  "device install response must route installer generation through the governed download-link flow"
+  "device install response must route installer generation through governed download surfaces"
 );
 
 assert.doesNotMatch(
