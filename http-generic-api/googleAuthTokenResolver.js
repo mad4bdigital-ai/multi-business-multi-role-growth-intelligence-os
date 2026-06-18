@@ -277,9 +277,11 @@ async function saJsonToAccessToken(saJson, scopes) {
 }
 
 async function fetchGlobalGoogleToken(options = {}) {
-  if (fetchingGlobal) return "";
-  fetchingGlobal = true;
-  try {
+  const key = cacheKey(options);
+  const existing = globalTokenInflight.get(key);
+  if (existing) return existing;
+
+  const task = (async () => {
     const scopes = getGoogleScopesFromAction(options.action || {});
     const credFile = process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GOOGLE_CREDENTIALS_PATH;
     const saJson = parseSaJson(process.env.GOOGLE_SA_JSON) || loadSaFile(credFile);
@@ -351,8 +353,13 @@ async function fetchGlobalGoogleToken(options = {}) {
       console.warn("[googleAuth] Could not obtain a Google access token." + (last?.message ? ` Last error: ${last.message}` : "") + ` Sources attempted: ${sourceSummary}`);
     }
     return "";
+  })();
+
+  globalTokenInflight.set(key, task);
+  try {
+    return await task;
   } finally {
-    fetchingGlobal = false;
+    if (globalTokenInflight.get(key) === task) globalTokenInflight.delete(key);
   }
 }
 
