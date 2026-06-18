@@ -549,13 +549,13 @@ export function classifyMigrationDriftMissing(missing = {}, replacementSurfaces 
 }
 
 export function splitSqlStatements(sql = "") {
-  const boundaryStart = "(?:CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:TABLE|VIEW)|CREATE\\s+(?:UNIQUE\\s+)?INDEX|INSERT\\s+(?:IGNORE\\s+)?INTO|UPDATE\\s+`?[A-Za-z0-9_]+`?|ALTER\\s+TABLE|DROP\\s+TABLE|TRUNCATE\\s+TABLE|DELETE\\s+FROM)\\b";
+  const boundaryStart = "(?:CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:TEMPORARY\\s+)?(?:TABLE|VIEW)|CREATE\\s+(?:UNIQUE\\s+)?INDEX|INSERT\\s+(?:IGNORE\\s+)?INTO|UPDATE\\s+`?[A-Za-z0-9_]+`?|ALTER\\s+TABLE|SET\\s+@?[A-Za-z0-9_]+|PREPARE\\s+[A-Za-z0-9_]+|EXECUTE\\s+[A-Za-z0-9_]+|DEALLOCATE\\s+PREPARE\\s+[A-Za-z0-9_]+|DROP\\s+(?:TEMPORARY\\s+)?TABLE|TRUNCATE\\s+TABLE|DELETE\\s+FROM)\\b";
   const interStatementTrivia = "(?:\\s|--[^\\n]*(?:\\n|$)|/\\*[\\s\\S]*?\\*/)*";
   const statementBoundary = new RegExp(`;${interStatementTrivia}(?=${interStatementTrivia}(?:${boundaryStart})|$)`, "i");
   return String(sql || "")
     .split(statementBoundary)
     .map((statement) => statement.trim())
-    .filter(Boolean);
+    .filter((statement) => stripSqlComments(statement).trim().length > 0);
 }
 
 function stripSqlComments(sql = "") {
