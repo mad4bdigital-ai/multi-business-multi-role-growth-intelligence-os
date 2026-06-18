@@ -76,7 +76,7 @@ FROM tenant_ssh_cli_approval_requests c
 LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
 WHERE h.hold_id IS NULL
 UNION ALL
-SELECT 'ticket_workflow_links', c.approval_hold_id
+SELECT 'ticket_workflow_links', CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS hold_id
 FROM ticket_workflow_links c
 LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
 WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL;
