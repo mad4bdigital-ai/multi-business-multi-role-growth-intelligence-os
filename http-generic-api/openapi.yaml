@@ -9316,8 +9316,8 @@ paths:
       tags: [admin-control]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: getLocalConnectorInstallBundle
-      summary: Generate and upload local connector installer
-      description: "Generate a pre-filled Windows .bat installer for the local connector stack (cloudflared + Node.js service via NSSM). Reads cf_token and connector_secret from local_connector_user_configs in DB for the given user_id + device_id. Falls back to server env only if no DB row exists. Uploads to Google Drive, returns a shareable download link. User saves the .bat and runs as Administrator — cloudflared and NSSM are installed automatically if missing. Both services auto-restart on failure and reboot."
+      summary: Resolve or download a local connector installer
+      description: "Generate a pre-filled Windows .bat installer for the local connector stack (cloudflared + Node.js service via NSSM). Reads cf_token and connector_secret from local_connector_user_configs in DB for the given user_id + device_id. Falls back to server env only if no DB row exists. The default JSON mode returns metadata before credential lookup. The installer is generated only when format=bat is requested on the authenticated route and is never uploaded to shared or public storage. User saves the .bat and runs as Administrator — cloudflared and NSSM are installed automatically if missing. Both services auto-restart on failure and reboot."
       parameters:
         - name: user_id
           in: query
@@ -9327,36 +9327,55 @@ paths:
         - name: device_id
           in: query
           required: false
-          schema: { type: string }
+          schema: { type: string, minLength: 1, maxLength: 128, default: mohammedlap }
           description: Device ID (hostname) to load config for. Defaults to mohammedlap.
+        - name: format
+          in: query
+          required: false
+          schema: { type: string, enum: [json, bat], default: json }
+          description: json returns a no-secret handoff; bat returns the authenticated binary installer.
       responses:
         "200":
-          description: Installer uploaded, drive link returned
+          description: Metadata-only secure handoff or authenticated installer attachment
           content:
             application/json:
               schema:
                 type: object
-                additionalProperties: true
-                required: [ok, drive]
+                additionalProperties: false
+                required: [ok, artifact_delivery, script_content_omitted, credential_materialized, public_storage_allowed, secure_download, secrets_included]
                 properties:
-                  ok: { type: boolean }
-                  drive_upload_status: { type: string, enum: [uploaded, failed, not_configured, attempted] }
-                  drive_error:
-                    oneOf:
-                      - type: object
-                        additionalProperties: true
-                      - type: "null"
-                  drive:
-                    oneOf:
-                      - type: object
-                        additionalProperties: true
+                  ok: { type: boolean, const: true }
+                  artifact_delivery: { type: string, const: authenticated_direct_download_only }
+                  script_content_omitted: { type: boolean, const: true }
+                  script_content_reason: { type: string }
+                  credential_materialized: { type: boolean, const: false }
+                  public_storage_allowed: { type: boolean, const: false }
+                  secure_download:
+                    type: object
+                    additionalProperties: false
+                    required: [method, path, query, requires_backend_api_key, requires_admin_principal]
+                    properties:
+                      method: { type: string, const: GET }
+                      path: { type: string, const: /admin/cli/local-connector/install-bundle }
+                      query:
+                        type: object
+                        additionalProperties: false
+                        required: [user_id, device_id, format]
                         properties:
-                          file_id: { type: string }
-                          drive_link: { type: string }
-                          filename: { type: string }
-                      - type: "null"
+                          user_id: { type: string }
+                          device_id: { type: string }
+                          format: { type: string, const: bat }
+                      requires_backend_api_key: { type: boolean, const: true }
+                      requires_admin_principal: { type: boolean, const: true }
+                  secrets_included: { type: boolean, const: false }
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
         "401": { $ref: "#/components/responses/Unauthorized" }
-        "500": { description: Install bundle generation failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
 
   /admin/cli/local-connector/self-repair:
     post:
@@ -9364,7 +9383,7 @@ paths:
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: repairLocalConnector
       x-openai-isConsequential: false
-      summary: Self-repair the admin local connector
+      summary: Diagnose local connector health and return a secure installer handoff
       x-runtime-governance:
         local_connector_tunnel_provisioning_continuation:
           policy: local_connector_tunnel_provisioning_continuation_contract
@@ -9373,7 +9392,7 @@ paths:
           status_code: 409
           shared_reconciliation_checkpoint: true
           secrets_included: false
-      description: "CALL IMMEDIATELY when connector.mad4b.com returns error 1033 or HTTP 530 — do NOT just report the error. Reads device config (cf_token, connector_secret) from local_connector_user_configs in DB, checks Cloudflare tunnel health via API, generates a pre-filled Windows .bat installer (cloudflared + NSSM Node service), uploads to Google Drive, and returns a diagnosis object + download link. The user downloads the .bat and runs as Administrator — both services are installed and configured to auto-restart. Defaults to admin user + mohammedlap device."
+      description: "CALL IMMEDIATELY when connector.mad4b.com returns error 1033 or HTTP 530 — do NOT just report the error. Reads device config (cf_token, connector_secret) from local_connector_user_configs in DB, checks Cloudflare tunnel health via API, returns a diagnosis object plus an authenticated admin-only download handoff. The JSON response does not generate or upload installer content. The user downloads the .bat and runs as Administrator — both services are installed and configured to auto-restart. Defaults to admin user + mohammedlap device."
       requestBody:
         required: false
         content:
@@ -9390,46 +9409,64 @@ paths:
                   description: Device hostname to repair. Defaults to mohammedlap.
       responses:
         "200":
-          description: Self-repair result with diagnosis and drive link
+          description: Diagnosis and no-secret authenticated repair handoff
           content:
             application/json:
               schema:
                 type: object
-                additionalProperties: true
+                additionalProperties: false
                 required: [ok, diagnosis, repair]
                 properties:
-                  ok: { type: boolean }
+                  ok: { type: boolean, const: true }
                   diagnosis:
                     type: object
                     additionalProperties: true
+                    required: [secrets_included]
                     properties:
                       device_id: { type: string }
                       tunnel_url: { type: string }
                       cf_tunnel_id: { type: string }
                       cf_tunnel_status: { type: string }
-                      config_source: { type: string, enum: [db, env, env_fallback] }
+                      config_source: { type: string, enum: [db, db_alias, env, env_fallback] }
+                      secrets_included: { type: boolean, const: false }
                   repair:
                     type: object
                     additionalProperties: true
+                    required: [required, installer_generated, artifact_delivery, public_storage_allowed, secure_download, secrets_included]
                     properties:
+                      required: { type: boolean }
+                      installer_generated: { type: boolean, const: false }
+                      artifact_delivery: { type: string, const: authenticated_direct_download_only }
                       action: { type: string }
-                      drive_upload_status: { type: string, enum: [uploaded, failed, not_configured, attempted] }
-                      drive_error:
-                        oneOf:
-                          - type: object
-                            additionalProperties: true
-                          - type: "null"
-                      drive:
-                        oneOf:
-                          - type: object
-                            additionalProperties: true
+                      filename: { type: string }
+                      public_storage_allowed: { type: boolean, const: false }
+                      drive_upload_status: { type: string, const: blocked_secret_bearing_artifact }
+                      drive_error: { type: "null" }
+                      drive: { type: "null" }
+                      script_content_omitted: { type: boolean, const: true }
+                      script_content_reason: { type: string }
+                      secure_download:
+                        type: object
+                        additionalProperties: false
+                        required: [method, path, query, requires_backend_api_key, requires_admin_principal]
+                        properties:
+                          method: { type: string, const: GET }
+                          path: { type: string, const: /admin/cli/local-connector/install-bundle }
+                          query:
+                            type: object
+                            additionalProperties: false
+                            required: [user_id, device_id, format]
                             properties:
-                              file_id: { type: string }
-                              drive_link: { type: string }
-                              filename: { type: string }
-                          - type: "null"
+                              user_id: { type: string }
+                              device_id: { type: string }
+                              format: { type: string, const: bat }
+                          requires_backend_api_key: { type: boolean, const: true }
+                          requires_admin_principal: { type: boolean, const: true }
+                      secrets_included: { type: boolean, const: false }
         "401": { $ref: "#/components/responses/Unauthorized" }
-        "500": { description: Self-repair failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
 
   /admin/cli/dns:
     get:
