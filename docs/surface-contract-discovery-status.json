@@ -1,7 +1,7 @@
 {
   "ok": true,
   "schema_version": "surface-contract-discovery-v3",
-  "migration_surface_count": 439,
+  "migration_surface_count": 440,
   "reported_count": 80,
   "openapi_operation_count": 478,
   "openapi_path_count": 424,
@@ -534,39 +534,40 @@
     "closed_migration_count": 399
   },
   "coverage_summary": {
-    "migrations_with_surfaces": 439,
+    "migrations_with_surfaces": 440,
     "docs_complete_count": 437,
-    "docs_gap_count": 2,
-    "docs_completion_percent": 99.54,
+    "docs_gap_count": 3,
+    "docs_completion_percent": 99.32,
     "surface_totals": {
       "plugins": 12,
-      "tools": 2036,
+      "tools": 2039,
       "views": 398,
       "policies": 159,
-      "routes": 564
+      "routes": 568
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 372,
+      "tools": 373,
       "views": 160,
       "policies": 101,
-      "routes": 237
+      "routes": 238
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 2,
-      "deployment_parity_checklist.md": 2,
-      "docs/ai-docs-agent-governance.md": 2,
-      "docs/auto-docs-agent/README.md": 2,
-      "docs/change-documentation-governance.md": 2
+      "Updating Registry Patch Index.md": 3,
+      "deployment_parity_checklist.md": 3,
+      "docs/ai-docs-agent-governance.md": 3,
+      "docs/auto-docs-agent/README.md": 3,
+      "docs/change-documentation-governance.md": 3
     },
     "gap_severity_counts": {
-      "high": 1,
+      "high": 2,
       "medium": 1,
       "low": 0,
       "none": 437
     },
     "high_risk_missing_docs": [
-      "1013_sprint69_operational_alerting_control_plane.sql"
+      "1013_sprint69_operational_alerting_control_plane.sql",
+      "1016_sprint69_tenant_safe_tool_route_rebinding.sql"
     ],
     "medium_risk_missing_docs": [
       "1014_sprint69_approval_hold_collation_reconciliation_rule.sql"
@@ -579,13 +580,13 @@
       "no_external_write": 436,
       "secrets_included_false": 439
     },
-    "safety_marker_gap_migrations": 0,
+    "safety_marker_gap_migrations": 1,
     "route_coverage": {
-      "sql_route_count": 1,
-      "total_sql_route_like_count": 564,
+      "sql_route_count": 5,
+      "total_sql_route_like_count": 568,
       "openapi_exempt_sql_route_count": 563,
       "route_class_counts": {
-        "http_route": 1,
+        "http_route": 5,
         "admin_tool_registry_route": 120,
         "tenant_tool_registry_route": 35,
         "system_tool_dispatch_route": 13,
@@ -593,23 +594,116 @@
         "false_positive_route_like_string": 0,
         "legacy_closure_route_reviewed": 394
       },
-      "openapi_documented_sql_route_count": 1,
-      "openapi_missing_sql_route_count": 0,
-      "openapi_sql_route_coverage_percent": 100,
-      "route_openapi_gaps": []
+      "openapi_documented_sql_route_count": 4,
+      "openapi_missing_sql_route_count": 1,
+      "openapi_sql_route_coverage_percent": 80,
+      "route_openapi_gaps": [
+        {
+          "migration_file": "1016_sprint69_tenant_safe_tool_route_rebinding.sql",
+          "missing_routes": [
+            "/local/tools"
+          ]
+        }
+      ]
     }
   },
   "gap_queue": {
     "ok": true,
     "schema_version": "surface-contract-gap-queue-v1",
-    "total_items": 4,
+    "total_items": 5,
     "class_counts": {
-      "critical_review": 1,
+      "critical_review": 2,
       "high_review": 1,
       "medium_review": 1,
       "low_review": 1
     },
     "top_items": [
+      {
+        "migration_file": "1016_sprint69_tenant_safe_tool_route_rebinding.sql",
+        "score": 1224,
+        "queue_class": "critical_review",
+        "gap_severity": "high",
+        "documentation_complete": false,
+        "missing_docs": [
+          "Updating Registry Patch Index.md",
+          "deployment_parity_checklist.md",
+          "docs/ai-docs-agent-governance.md",
+          "docs/auto-docs-agent/README.md",
+          "docs/change-documentation-governance.md"
+        ],
+        "missing_openapi_routes": [
+          "/local/tools"
+        ],
+        "safety_marker_gaps": [
+          "no_provider_call",
+          "no_credential_payload_read",
+          "no_raw_secrets",
+          "no_external_send",
+          "no_external_write",
+          "secrets_included_false"
+        ],
+        "surface_counts": {
+          "plugins": 0,
+          "tools": 3,
+          "views": 0,
+          "policies": 0,
+          "routes": 4
+        },
+        "remediation": [
+          {
+            "action_key": "document_surface_contract",
+            "owner_hint": "docs-agent/human-review",
+            "targets": [
+              "Updating Registry Patch Index.md",
+              "deployment_parity_checklist.md",
+              "docs/ai-docs-agent-governance.md",
+              "docs/auto-docs-agent/README.md",
+              "docs/change-documentation-governance.md"
+            ],
+            "reason": "Migration surfaces are not mentioned in all required documentation targets."
+          },
+          {
+            "action_key": "review_openapi_contract",
+            "owner_hint": "api-contract-review",
+            "targets": [
+              "/local/tools"
+            ],
+            "reason": "SQL-declared route-like surfaces are not covered by an OpenAPI path."
+          },
+          {
+            "action_key": "verify_tool_registry_binding",
+            "owner_hint": "runtime-registry-review",
+            "targets": [
+              "local_gateway_tools_list",
+              "me_scope_grants_list",
+              "tenant_platform_endpoint_tools"
+            ],
+            "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
+          },
+          {
+            "action_key": "add_explicit_safety_markers",
+            "owner_hint": "safety-contract-review",
+            "targets": [
+              "no_provider_call",
+              "no_credential_payload_read",
+              "no_raw_secrets",
+              "no_external_send",
+              "no_external_write",
+              "secrets_included_false"
+            ],
+            "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
+          }
+        ],
+        "safety": {
+          "executes_provider_calls": false,
+          "reads_credentials": false,
+          "mutates_runtime": false,
+          "writes_database": false,
+          "external_sends": false,
+          "deploys": false,
+          "secrets_included": false
+        }
+      },
       {
         "migration_file": "1013_sprint69_operational_alerting_control_plane.sql",
         "score": 837,
@@ -16887,6 +16981,134 @@
         },
         "surface_count": 2,
         "safety_marker_count": 6
+      }
+    },
+    {
+      "migration_file": "1016_sprint69_tenant_safe_tool_route_rebinding.sql",
+      "legacy_backlog_closed": false,
+      "safety_attestation": null,
+      "surfaces": {
+        "routes": [
+          "/local-connector/devices",
+          "/local-connector/health",
+          "/local/tools",
+          "/me/scope-grants"
+        ],
+        "route_classifications": [
+          {
+            "route": "/local-connector/devices",
+            "route_class": "http_route",
+            "openapi_required": true,
+            "reason": "Route literal has no registry-only exemption and should be checked against OpenAPI path coverage."
+          },
+          {
+            "route": "/local-connector/health",
+            "route_class": "http_route",
+            "openapi_required": true,
+            "reason": "Route literal has no registry-only exemption and should be checked against OpenAPI path coverage."
+          },
+          {
+            "route": "/local/tools",
+            "route_class": "http_route",
+            "openapi_required": true,
+            "reason": "Route literal has no registry-only exemption and should be checked against OpenAPI path coverage."
+          },
+          {
+            "route": "/me/scope-grants",
+            "route_class": "http_route",
+            "openapi_required": true,
+            "reason": "Route literal has no registry-only exemption and should be checked against OpenAPI path coverage."
+          }
+        ],
+        "views": [],
+        "policies": [],
+        "plugins": [],
+        "tools": [
+          "local_gateway_tools_list",
+          "me_scope_grants_list",
+          "tenant_platform_endpoint_tools"
+        ],
+        "safety": {
+          "no_provider_call": false,
+          "no_credential_payload_read": false,
+          "no_raw_secrets": false,
+          "no_external_send": false,
+          "no_external_write": false,
+          "secrets_included_false": false
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": false,
+        "deployment_parity_checklist.md": false,
+        "docs/ai-docs-agent-governance.md": false,
+        "docs/auto-docs-agent/README.md": false,
+        "docs/change-documentation-governance.md": false
+      },
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "documentation_complete": false,
+      "coverage": {
+        "gap_severity": "high",
+        "requires_docs_review": true,
+        "route_coverage": {
+          "route_count": 4,
+          "total_route_count": 4,
+          "openapi_required_route_count": 4,
+          "exempted_route_count": 0,
+          "route_class_counts": {
+            "http_route": 4,
+            "admin_tool_registry_route": 0,
+            "tenant_tool_registry_route": 0,
+            "system_tool_dispatch_route": 0,
+            "registry_only_surface": 0,
+            "false_positive_route_like_string": 0,
+            "legacy_closure_route_reviewed": 0
+          },
+          "documented_count": 3,
+          "missing_count": 1,
+          "documented_routes": [
+            "/local-connector/devices",
+            "/local-connector/health",
+            "/me/scope-grants"
+          ],
+          "missing_routes": [
+            "/local/tools"
+          ],
+          "exempted_routes": [],
+          "route_classifications": [
+            {
+              "route": "/local-connector/devices",
+              "route_class": "http_route",
+              "openapi_required": true,
+              "reason": "Route literal has no registry-only exemption and should be checked against OpenAPI path coverage."
+            },
+            {
+              "route": "/local-connector/health",
+              "route_class": "http_route",
+              "openapi_required": true,
+              "reason": "Route literal has no registry-only exemption and should be checked against OpenAPI path coverage."
+            },
+            {
+              "route": "/local/tools",
+              "route_class": "http_route",
+              "openapi_required": true,
+              "reason": "Route literal has no registry-only exemption and should be checked against OpenAPI path coverage."
+            },
+            {
+              "route": "/me/scope-grants",
+              "route_class": "http_route",
+              "openapi_required": true,
+              "reason": "Route literal has no registry-only exemption and should be checked against OpenAPI path coverage."
+            }
+          ]
+        },
+        "surface_count": 7,
+        "safety_marker_count": 0
       }
     },
     {
