@@ -19,18 +19,6 @@ import {
 
 export const CONTAINER_AUTHORITY_RESOLVER_VERSION = "dynamic-container-authority-v1";
 const resolutionCache = new Map();
-const ROLE_RANK = Object.freeze({
-  container_viewer: 1,
-  viewer: 1,
-  member: 1,
-  container_operator: 2,
-  operator: 2,
-  editor: 2,
-  container_admin: 3,
-  admin: 3,
-  owner: 4,
-  platform_owner: 4
-});
 
 function parseObject(value, fallback = {}) {
   if (value && typeof value === "object") return value;
