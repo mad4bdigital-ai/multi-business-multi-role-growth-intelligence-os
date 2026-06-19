@@ -574,6 +574,17 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
       mismatchCodes:comparison.mismatchCodes,legacyEvidenceRef:input.legacyEvidenceRef,latencyMs:durationMs
     });
   }
+  if (input.idempotencyKey) {
+    await storeIdempotency({
+      scopeKey:idempotencyScope,
+      idempotencyKey:input.idempotencyKey,
+      requestSha256:idempotencyRequestSha256,
+      resultType:"container_resolution",
+      resultId:resolution.resolutionId,
+      response:resolution,
+      ttlMinutes:5
+    });
+  }
   return resolution;
 }
 
