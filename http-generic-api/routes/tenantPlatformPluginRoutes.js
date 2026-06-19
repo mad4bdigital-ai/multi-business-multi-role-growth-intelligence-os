@@ -4,8 +4,15 @@ import { getPool } from "../db.js";
 import { loadPlatformPluginCatalog } from "../platformPluginCatalog.js";
 import { resolvePlatformPluginExecution } from "../platformPluginResolver.js";
 import { installPlatformPluginForTenant } from "../platformPluginInstall.js";
+import { createCredentialIntakeSessionRecord } from "./credentialIntakeRoutes.js";
+import { writeAuditLogAsync } from "../auditLogger.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
+const TENANT_CONNECTION_MANAGER_ROLES = new Set(["owner", "admin"]);
+const TENANT_INTAKE_ALLOWED_FIELDS = new Set([
+  "plugin_key", "pluginKey", "purpose", "display_label", "displayLabel",
+  "expires_in_minutes", "expiresInMinutes",
+]);
 
 function verifyUserJwt(authHeader) {
   if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
