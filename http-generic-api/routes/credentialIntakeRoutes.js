@@ -750,58 +750,30 @@ export function buildCredentialIntakeRoutes(deps = {}) {
 
   router.post("/credential-intake/sessions", requireBackendApiKey, async (req, res) => {
     try {
-      const {
-        user_id,
-        tenant_id,
-        app_key,
-        auth_type,
-        display_label,
-        mcp_endpoint,
-        webhook_url,
-        api_base_url,
-        workspace_id,
-        credential_schema,
-        metadata,
-        expires_in_minutes,
-        created_by,
-      } = req.body || {};
-
-      if (!user_id || !tenant_id || !app_key || !auth_type) {
-        return res.status(400).json({ ok: false, error: { code: "missing_required_fields", message: "user_id, tenant_id, app_key, auth_type are required." } });
-      }
-      if (!ALLOWED_AUTH_TYPES.has(String(auth_type))) {
-        return res.status(400).json({ ok: false, error: { code: "unsupported_auth_type", message: "Unsupported auth_type." } });
-      }
-
-      const app = await loadApp(app_key);
-      if (!app) return res.status(404).json({ ok: false, error: { code: "app_not_found", message: `App ${app_key} was not found.` } });
-
-      const normalizedSchema = normalizeCredentialSchema(auth_type, credential_schema || null);
-      if (auth_type !== "oauth2" && !normalizedSchema.length) {
-        return res.status(400).json({ ok: false, error: { code: "empty_credential_schema", message: "No credential fields are available for this auth_type." } });
-      }
-
-      const sessionId = randomUUID();
-      const token = randomToken();
-      const tokenHash = sha256(token);
-      const ttl = clampTtlMinutes(expires_in_minutes);
-      const expiresAt = new Date(Date.now() + ttl * 60_000).toISOString().slice(0, 19).replace("T", " ");
-
-      await getPool().query(
-        `INSERT INTO credential_intake_sessions
-           (session_id, token_hash, user_id, tenant_id, app_key, auth_type, display_label,
-            mcp_endpoint, webhook_url, api_base_url, workspace_id, credential_schema_json,
-            metadata_json, status, expires_at, created_by)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?)`,
-        [sessionId, tokenHash, user_id, tenant_id, app_key, auth_type, display_label || null,
-         mcp_endpoint || null, webhook_url || null, api_base_url || null, workspace_id || null,
-         JSON.stringify({ fields: normalizedSchema }), JSON.stringify(metadata || {}), expiresAt, created_by || req?.auth?.user_id || null]
-      );
-
-      const intakeUrl = `${absoluteBaseUrl(req)}/credential-intake/${encodeURIComponent(token)}`;
-      return res.status(201).json({ ok: true, session_id: sessionId, intake_url: intakeUrl, expires_at: expiresAt, app_key, auth_type, field_count: normalizedSchema.length });
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await createCredentialIntakeSessionRecord({
+        request: req,
+        userId: input.user_id,
+        tenantId: input.tenant_id,
+        appKey: input.app_key,
+        authType: input.auth_type,
+        displayLabel: input.display_label || null,
+        mcpEndpoint: input.mcp_endpoint || null,
+        webhookUrl: input.webhook_url || null,
+        apiBaseUrl: input.api_base_url || null,
+        workspaceId: input.workspace_id || null,
+        credentialSchema: input.credential_schema || null,
+        metadata: input.metadata || {},
+        expiresInMinutes: input.expires_in_minutes,
+        createdBy: input.created_by || req?.auth?.user_id || null,
+      });
+      return res.status(201).json(result);
     } catch (err) {
-      return res.status(500).json({ ok: false, error: { code: "credential_intake_session_create_failed", message: err.message } });
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: { code: err.code || "credential_intake_session_create_failed", message: err.message },
+        secrets_included: false,
+      });
     }
   });
 
