@@ -301,3 +301,225 @@ export function resolveContainerDimensionCandidates(candidates = [], strategy = 
 
   return { strategy, decision: "blocked", blocked: true, ambiguous: false, code: "container_merge_strategy_unsupported", value: null, sourceIds: [] };
 }
+
+export function stableSha256(value) {
+  return createHash("sha256").update(stableSerialize(value)).digest("hex");
+}
+
+export function operationPatternMatches(pattern, operation) {
+  const normalizedPattern = String(pattern || "").trim().toLowerCase();
+  const normalizedOperation = String(operation || "").trim().toLowerCase();
+  if (!normalizedPattern || !normalizedOperation || normalizedPattern === "*") return false;
+  if (normalizedPattern === normalizedOperation) return true;
+  if (!normalizedPattern.endsWith(".*")) return false;
+  const prefix = normalizedPattern.slice(0, -1);
+  return normalizedOperation.startsWith(prefix) && normalizedOperation.length > prefix.length;
+}
+
+export function bindingMatchesDimensionRequest(binding = {}, request = {}) {
+  if (String(binding.dimension_key || binding.dimension || "") !== String(request.dimension || request.dimension_key || "")) return false;
+  if (String(binding.resource_type || "") !== String(request.resourceType || request.resource_type || "")) return false;
+  if (String(binding.resource_ref || "") !== String(request.resourceRef || request.resource_ref || "")) return false;
+  const patterns = parseStringArray(binding.operation_patterns_json ?? binding.operations);
+  if (!patterns.length) return true;
+  return patterns.some(pattern => operationPatternMatches(pattern, request.operation));
+}
+
+export function enumerateContainerPaths({ targetContainerId, relationships = [], relationshipTypes = [], limits = {} } = {}) {
+  const effectiveLimits = { ...DEFAULT_CONTAINER_RESOLUTION_LIMITS, ...(limits || {}) };
+  const relationshipTypeMap = rowsToMap(relationshipTypes, ["relationship_type_key", "relationshipTypeKey"]);
+  const ancestryTypes = new Set(
+    Array.from(relationshipTypeMap.values())
+      .filter(row => isActive(row) && Number(row.contributes_to_ancestry ?? row.contributesToAncestry) === 1)
+      .map(row => String(row.relationship_type_key || row.relationshipTypeKey))
+  );
+  const parentEdges = new Map();
+  let traversedRelationshipCount = 0;
+  for (const row of relationships) {
+    if (!isActive(row)) continue;
+    const typeKey = String(row.relationship_type_key || row.relationshipTypeKey || "");
+    if (!ancestryTypes.has(typeKey)) continue;
+    traversedRelationshipCount += 1;
+    if (traversedRelationshipCount > effectiveLimits.maxTraversedRelationships) {
+      return { ok: false, blocked: true, code: "container_resolution_limit_exceeded", paths: [], traversedRelationshipCount };
+    }
+    const childId = String(row.to_container_id || row.toContainerId || "");
+    const parentId = String(row.from_container_id || row.fromContainerId || "");
+    if (!parentEdges.has(childId)) parentEdges.set(childId, []);
+    parentEdges.get(childId).push({
+      relationshipId: String(row.relationship_id || row.relationshipId || ""),
+      parentId,
+      childId,
+      priority: Number(row.priority || 0)
+    });
+  }
+  for (const edges of parentEdges.values()) {
+    edges.sort((left, right) => left.parentId.localeCompare(right.parentId) || left.relationshipId.localeCompare(right.relationshipId));
+  }
+
+  const target = String(targetContainerId || "");
+  if (!target) return { ok: false, blocked: true, code: "container_not_found", paths: [] };
+  const stack = [{ nodeId: target, nodePath: [target], edgePath: [], depth: 0 }];
+  const paths = [];
+  const visitedContainers = new Set();
+  while (stack.length) {
+    const current = stack.pop();
+    current.nodePath.forEach(id => visitedContainers.add(id));
+    if (visitedContainers.size > effectiveLimits.maxVisitedContainers) {
+      return { ok: false, blocked: true, code: "container_resolution_limit_exceeded", paths: [], visitedCount: visitedContainers.size };
+    }
+    const parents = parentEdges.get(current.nodeId) || [];
+    if (!parents.length) {
+      paths.push({
+        rootContainerId: current.nodeId,
+        targetContainerId: target,
+        containerIds: [...current.nodePath].reverse(),
+        relationshipIds: [...current.edgePath].reverse(),
+        depth: current.depth
+      });
+      if (paths.length > effectiveLimits.maxPaths) {
+        return { ok: false, blocked: true, code: "container_resolution_limit_exceeded", paths: [], pathCount: paths.length };
+      }
+      continue;
+    }
+    if (current.depth >= effectiveLimits.maxDepth) {
+      return { ok: false, blocked: true, code: "container_resolution_limit_exceeded", paths: [], depth: current.depth };
+    }
+    for (let index = parents.length - 1; index >= 0; index -= 1) {
+      const edge = parents[index];
+      if (current.nodePath.includes(edge.parentId)) {
+        return {
+          ok: false,
+          blocked: true,
+          code: "container_cycle_detected",
+          paths: [],
+          cyclePath: [edge.parentId, ...current.nodePath.slice(0, current.nodePath.indexOf(edge.parentId) + 1).reverse()]
+        };
+      }
+      stack.push({
+        nodeId: edge.parentId,
+        nodePath: [...current.nodePath, edge.parentId],
+        edgePath: [...current.edgePath, edge.relationshipId],
+        depth: current.depth + 1
+      });
+    }
+  }
+
+  paths.sort((left, right) =>
+    left.rootContainerId.localeCompare(right.rootContainerId) ||
+    stableSerialize(left.relationshipIds).localeCompare(stableSerialize(right.relationshipIds))
+  );
+  return {
+    ok: true,
+    blocked: false,
+    code: null,
+    paths: paths.map(path => ({ ...path, pathHash: stableSha256(path) })),
+    pathCount: paths.length,
+    visitedCount: visitedContainers.size,
+    traversedRelationshipCount
+  };
+}
+
+export function buildContainerClosureRows({ tenantId, containers = [], relationships = [], relationshipTypes = [], authorityEpoch = 0, limits = {} } = {}) {
+  const rowsByKey = new Map();
+  for (const container of containers) {
+    if (!isActive(container) || String(container.tenant_id || "") !== String(tenantId || "")) continue;
+    const descendantId = String(container.container_id || container.containerId || "");
+    const result = enumerateContainerPaths({ targetContainerId: descendantId, relationships, relationshipTypes, limits });
+    if (!result.ok) return { ...result, rows: [] };
+    const selfKey = `${descendantId}|${descendantId}`;
+    rowsByKey.set(selfKey, {
+      tenant_id: tenantId,
+      ancestor_container_id: descendantId,
+      descendant_container_id: descendantId,
+      shortest_depth: 0,
+      longest_depth: 0,
+      path_count: 1,
+      path_hash: stableSha256({ ancestor: descendantId, descendant: descendantId, paths: [[]] }),
+      authority_epoch: authorityEpoch
+    });
+    const evidenceByAncestor = new Map();
+    for (const path of result.paths) {
+      path.containerIds.forEach((ancestorId, index) => {
+        if (!evidenceByAncestor.has(ancestorId)) evidenceByAncestor.set(ancestorId, []);
+        evidenceByAncestor.get(ancestorId).push({
+          depth: path.containerIds.length - 1 - index,
+          relationshipIds: path.relationshipIds.slice(index)
+        });
+      });
+    }
+    for (const [ancestorId, evidence] of evidenceByAncestor.entries()) {
+      if (ancestorId === descendantId) continue;
+      const depths = evidence.map(item => item.depth);
+      const sortedPaths = evidence.map(item => item.relationshipIds).sort((a, b) => stableSerialize(a).localeCompare(stableSerialize(b)));
+      rowsByKey.set(`${ancestorId}|${descendantId}`, {
+        tenant_id: tenantId,
+        ancestor_container_id: ancestorId,
+        descendant_container_id: descendantId,
+        shortest_depth: Math.min(...depths),
+        longest_depth: Math.max(...depths),
+        path_count: evidence.length,
+        path_hash: stableSha256({ ancestor: ancestorId, descendant: descendantId, paths: sortedPaths }),
+        authority_epoch: authorityEpoch
+      });
+    }
+  }
+  return { ok: true, blocked: false, code: null, rows: [...rowsByKey.values()] };
+}
+
+export function validateDelegationAgainstResolution({ delegation = {}, delegatorResolution = {} } = {}) {
+  if (!delegatorResolution || delegatorResolution.decision !== "allow") {
+    return { ok: false, code: "delegation_exceeds_delegator_authority" };
+  }
+  const request = {
+    dimension: delegation.dimension_key || delegation.dimension,
+    resourceType: delegation.resource_type || delegation.resourceType,
+    resourceRef: delegation.resource_ref || delegation.resourceRef,
+    operation: delegation.operation || parseStringArray(delegation.operation_patterns_json)[0]
+  };
+  if (!request.operation || request.operation === "*" || request.operation.endsWith(".*")) {
+    return { ok: false, code: "delegation_exceeds_delegator_authority" };
+  }
+  const grants = Array.isArray(delegatorResolution.effectiveBindings) ? delegatorResolution.effectiveBindings : [];
+  const matching = grants.some(binding =>
+    ["allow", "delegate"].includes(String(binding.effect || "").toLowerCase()) &&
+    bindingMatchesDimensionRequest(binding, request)
+  );
+  return matching
+    ? { ok: true, code: null }
+    : { ok: false, code: "delegation_exceeds_delegator_authority" };
+}
+
+export const CRITICAL_OVERRIDE_RISK_CLASSES = Object.freeze(new Set([
+  "critical",
+  "destructive",
+  "credential_touching",
+  "deployment_affecting"
+]));
+
+export function resolveOverridePolicy(riskClass = "standard", requestedTtlMinutes = null) {
+  const normalizedRisk = String(riskClass || "standard").trim().toLowerCase();
+  const critical = CRITICAL_OVERRIDE_RISK_CLASSES.has(normalizedRisk);
+  const maximumTtlMinutes = critical ? 15 : 60;
+  const requested = Number(requestedTtlMinutes || maximumTtlMinutes);
+  const ttlMinutes = Number.isFinite(requested) && requested > 0 ? Math.min(Math.floor(requested), maximumTtlMinutes) : maximumTtlMinutes;
+  return {
+    riskClass: normalizedRisk,
+    critical,
+    maximumTtlMinutes,
+    ttlMinutes,
+    requiredApprovalCount: critical ? 2 : 1,
+    selfApprovalAllowed: false
+  };
+}
+
+export function buildContainerResolutionCacheKey({ tenantId, principal, targetContainerId, dimensionRequests, authorityEpoch, resolverVersion = "container-authority-v1" } = {}) {
+  return stableSha256({
+    tenantId: String(tenantId || ""),
+    principal: { type: String(principal?.type || ""), id: String(principal?.id || "") },
+    targetContainerId: String(targetContainerId || ""),
+    dimensionRequests: Array.isArray(dimensionRequests) ? dimensionRequests : [],
+    authorityEpoch: Number(authorityEpoch || 0),
+    resolverVersion
+  });
+}
