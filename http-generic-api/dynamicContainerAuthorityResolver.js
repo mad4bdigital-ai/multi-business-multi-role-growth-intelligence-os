@@ -3,6 +3,7 @@ import {
   bindingMatchesDimensionRequest,
   buildContainerResolutionCacheKey,
   enumerateContainerPaths,
+  operationPatternMatches,
   resolveContainerDimensionCandidates,
   resolveRoleTemplateComposition,
   stableSha256,
