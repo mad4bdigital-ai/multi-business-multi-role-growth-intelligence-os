@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   detectContainmentCycle,
+  resolveRoleTemplateComposition,
   stableSha256,
   validateContainerRelationship,
   validateDelegationAgainstResolution,
