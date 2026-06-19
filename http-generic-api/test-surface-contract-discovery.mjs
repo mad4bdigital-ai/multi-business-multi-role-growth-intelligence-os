@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { buildPersistedDiscoveryReport, discoverSurfaces, isDirectExecution, renderGapQueueMarkdown, renderSurfaceContractMarkdown } from "./scripts/surface-contract-discovery.mjs";
-
+import { buildPersistedDiscoveryReport, detectSafetyMarkers, discoverSurfaces, isDirectExecution, renderGapQueueMarkdown, renderSurfaceContractMarkdown } from "./scripts/surface-contract-discovery.mjs";
 const scriptPath = path.resolve("scripts/surface-contract-discovery.mjs");
 assert.equal(
   isDirectExecution(pathToFileURL(scriptPath).href, scriptPath),
@@ -18,6 +17,41 @@ assert.equal(
 const discoverySource = fs.readFileSync(scriptPath, "utf8");
 assert(discoverySource.includes("fileURLToPath(importMetaUrl)"), "CLI entrypoint detection must use fileURLToPath for cross-platform paths");
 assert(!discoverySource.includes("file://${process.argv[1]}"), "CLI entrypoint detection must not concatenate file URLs manually");
+
+const standaloneMarkers = detectSafetyMarkers(`
+-- no_provider_call
+-- no_credential_payload_read
+-- no_raw_secrets
+/* no_external_send */
+* no_external_write
+-- secrets_included_false
+`);
+assert.deepEqual(standaloneMarkers, {
+  no_provider_call: true,
+  no_credential_payload_read: true,
+  no_raw_secrets: true,
+  no_external_send: true,
+  no_external_write: true,
+  secrets_included_false: true,
+}, "standalone SQL comment safety markers must be recognized exactly");
+
+const explicitBooleanMarkers = detectSafetyMarkers(`
+no_provider_call true
+no_external_write, true
+secrets_included=false
+`);
+assert.equal(explicitBooleanMarkers.no_provider_call, true, "explicit true provider marker must remain supported");
+assert.equal(explicitBooleanMarkers.no_external_write, true, "explicit true external-write marker must remain supported");
+assert.equal(explicitBooleanMarkers.secrets_included_false, true, "secrets_included=false must remain supported");
+
+const negativeMarkers = detectSafetyMarkers(`
+-- no_provider_call=false
+SELECT 'no_external_write';
+no_raw_secrets false
+`);
+assert.equal(negativeMarkers.no_provider_call, false, "false provider marker must not be accepted");
+assert.equal(negativeMarkers.no_external_write, false, "unattested token usage must not be accepted");
+assert.equal(negativeMarkers.no_raw_secrets, false, "false raw-secret marker must not be accepted");
 
 const report = discoverSurfaces({ limit: 200 });
 assert.equal(report.ok, true, "surface discovery report must be ok");
@@ -83,6 +117,25 @@ const migration910 = report.all_migrations.find((entry) => entry.migration_file 
 assert(migration910, "migration 910 must stay discoverable after deep coverage changes");
 assert.equal(migration910.documentation_complete, true, "migration 910 documentation coverage must remain complete");
 assert.equal(migration910.coverage.requires_docs_review, false, "migration 910 must not require docs review after completion");
+
+const migration1018 = report.all_migrations.find((entry) => entry.migration_file === "1018_sprint69_governed_response_chunk_schema_reconciliation.sql");
+assert(migration1018, "migration 1018 must remain discoverable after safety parser changes");
+assert.equal(migration1018.documentation_complete, true, "migration 1018 documentation coverage must remain complete");
+for (const marker of [
+  "no_provider_call",
+  "no_credential_payload_read",
+  "no_raw_secrets",
+  "no_external_send",
+  "no_external_write",
+  "secrets_included_false",
+]) {
+  assert.equal(migration1018.surfaces.safety[marker], true, `migration 1018 must expose ${marker}`);
+}
+assert.equal(
+  report.gap_queue.top_items.some((entry) => entry.migration_file === "1018_sprint69_governed_response_chunk_schema_reconciliation.sql"),
+  false,
+  "migration 1018 must leave the actionable gap queue after docs and safety closure"
+);
 
 const migration954 = report.all_migrations.find((entry) => entry.migration_file === "954_sprint68_compact_operational_views_and_github_resource_coverage.sql");
 assert(migration954, "migration 954 must be captured by all-migration coverage after auto-sync");
