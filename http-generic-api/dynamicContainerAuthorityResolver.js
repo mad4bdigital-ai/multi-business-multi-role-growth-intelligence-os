@@ -213,14 +213,16 @@ function resolveDimensionRequest(request, paths, state) {
   const allCandidates = [];
   const blockingCodes = new Set();
   const relationshipClasses = relationshipClassMap(state);
-  const incomingShares = state.relationships.filter(row =>
+  const sharingSupported = Number(dimension.supports_sharing || 0) === 1;
+  const delegationSupported = Number(dimension.supports_delegation || 0) === 1;
+  const incomingShares = sharingSupported ? state.relationships.filter(row =>
     String(row.to_container_id) === String(state.target.container_id)
       && relationshipClasses.get(String(row.relationship_type_key)) === "sharing"
-  );
-  const incomingDelegations = state.relationships.filter(row =>
+  ) : [];
+  const incomingDelegations = delegationSupported ? state.relationships.filter(row =>
     String(row.to_container_id) === String(state.target.container_id)
       && relationshipClasses.get(String(row.relationship_type_key)) === "delegation"
-  );
+  ) : [];
 
   for (const path of paths) {
     const candidates = state.bindings
@@ -240,19 +242,30 @@ function resolveDimensionRequest(request, paths, state) {
         String(binding.container_id) === String(delegation.from_container_id)
           && String(binding.effect) === "delegate"
           && binding.delegator_resolution_id
+          && String(binding.delegation_relationship_id || "") === String(delegation.relationship_id)
           && bindingMatchesDimensionRequest(binding, request)
       )) {
         candidates.push({ ...sourceBinding, sourceId:sourceBinding.binding_id, depth:Number.MAX_SAFE_INTEGER, priority:Number(delegation.priority || 0), pathHash:path.pathHash, relationshipId:delegation.relationship_id });
       }
     }
 
-    const result = resolveContainerDimensionCandidates(candidates, dimension.default_merge_strategy || "deny_wins");
+    const authorizationResult = resolveContainerDimensionCandidates(candidates, "deny_wins");
     if (!candidates.length) blockingCodes.add("resource_binding_missing");
-    if (result.blocked) blockingCodes.add(result.code || "resource_binding_conflict");
+    if (authorizationResult.blocked) blockingCodes.add(authorizationResult.code || "resource_binding_conflict");
     const hasShare = candidates.some(candidate => String(candidate.effect) === "share");
-    const hasExactDelegation = candidates.some(candidate => String(candidate.effect) === "delegate" && bindingMatchesDimensionRequest(candidate, request));
+    const hasExactDelegation = candidates.some(candidate =>
+      String(candidate.effect) === "delegate"
+        && candidate.delegator_resolution_id
+        && candidate.delegation_relationship_id
+        && bindingMatchesDimensionRequest(candidate, request)
+    );
     if (hasShare && !isReadOperation(request.operation) && !hasExactDelegation) blockingCodes.add("sharing_write_not_delegated");
-    pathResults.push({ pathHash:path.pathHash, result, candidateIds:candidates.map(candidate => candidate.binding_id) });
+    pathResults.push({
+      pathHash:path.pathHash,
+      result:authorizationResult,
+      declaredMergeStrategy:dimension.default_merge_strategy || "deny_wins",
+      candidateIds:candidates.map(candidate => candidate.binding_id)
+    });
     allCandidates.push(...candidates);
   }
 
@@ -260,7 +273,9 @@ function resolveDimensionRequest(request, paths, state) {
   if (request.dimension === "connections" && !uniqueCandidates.some(candidate => ["allow","delegate"].includes(String(candidate.effect)))) {
     blockingCodes.add("connection_not_bound_to_effective_context");
   }
-  const decision = blockingCodes.size ? "deny" : "allow";
+  const decision = blockingCodes.size
+    ? "deny"
+    : pathResults.some(path => path.result.decision === "restrict") ? "restrict" : "allow";
   return { request, dimension, decision, blockingCodes:[...blockingCodes], candidates:uniqueCandidates, pathResults };
 }
 
