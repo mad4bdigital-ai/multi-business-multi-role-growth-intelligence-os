@@ -545,8 +545,13 @@ export async function resolvePlatformPluginExecution({
     reason: allowed ? "resolved" : unique(denialReasons).join("|") || "not_allowed",
     mode: dispatchReady ? "dispatch_ready" : "preview_only",
     plugin_key: normalizedPluginKey,
-    requested_action_key: actionKey || null,
-    requested_tool_key: toolKey || null,
+    requested_action_key: normalizedActionKey,
+    requested_tool_key: normalizedToolKey,
+    selector: normalizedActionKey
+      ? { type: "action_key", value: normalizedActionKey }
+      : (normalizedToolKey ? { type: "tool_key", value: normalizedToolKey } : null),
+    canonical_policy: canonicalPolicy,
+    surface_resolution: surfaceExposure,
     plugin: {
       plugin_key: platformPlugin.plugin_key,
       display_name: platformPlugin.display_name,
