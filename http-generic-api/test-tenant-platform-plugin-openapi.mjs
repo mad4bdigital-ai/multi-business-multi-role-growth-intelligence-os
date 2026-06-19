@@ -7,6 +7,7 @@ assert(schema.includes("2.0.2-platform-plugins"), "Tenant GPT schema version mus
 assert(schema.includes("operationId: tenantPlatformPluginCatalog"), "tenant catalog operation must be exposed");
 assert(schema.includes("operationId: tenantPlatformPluginInstall"), "tenant install operation must be exposed");
 assert(schema.includes("operationId: tenantPlatformPluginResolve"), "tenant resolve operation must be exposed");
+assert(schema.includes("operationId: tenantPlatformPluginCredentialIntakeSessionCreate"), "tenant-safe credential intake operation must be exposed");
 assert(schema.includes("/tenant/platform/plugins/catalog"), "tenant catalog path must be present");
 assert(schema.includes("/tenant/platform/plugins/install"), "tenant install path must be present");
 assert(schema.includes("/tenant/platform/plugins/resolve"), "tenant resolve path must be present");
