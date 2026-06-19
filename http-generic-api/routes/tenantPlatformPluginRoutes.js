@@ -144,6 +144,7 @@ export function buildTenantPlatformPluginRoutes() {
         tenantId: req.auth.tenant_id,
         userId: req.auth.user_id,
         agentId: input.agent_id || input.agentId || null,
+        principalClass: "tenant",
         requestedCredentialScope: input.requested_credential_scope || input.requestedCredentialScope || null,
       });
       return res.status(200).json({
