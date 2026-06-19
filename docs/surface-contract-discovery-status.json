@@ -1,7 +1,7 @@
 {
   "ok": true,
   "schema_version": "surface-contract-discovery-v3",
-  "migration_surface_count": 441,
+  "migration_surface_count": 442,
   "reported_count": 80,
   "openapi_operation_count": 480,
   "openapi_path_count": 426,
@@ -536,34 +536,34 @@
     "closed_migration_count": 399
   },
   "coverage_summary": {
-    "migrations_with_surfaces": 441,
+    "migrations_with_surfaces": 442,
     "docs_complete_count": 437,
-    "docs_gap_count": 4,
-    "docs_completion_percent": 99.09,
+    "docs_gap_count": 5,
+    "docs_completion_percent": 98.87,
     "surface_totals": {
       "plugins": 12,
-      "tools": 2043,
-      "views": 398,
+      "tools": 2052,
+      "views": 399,
       "policies": 159,
       "routes": 569
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 374,
-      "views": 160,
+      "tools": 375,
+      "views": 161,
       "policies": 101,
       "routes": 239
     },
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 4,
       "deployment_parity_checklist.md": 4,
-      "docs/ai-docs-agent-governance.md": 4,
-      "docs/auto-docs-agent/README.md": 4,
-      "docs/change-documentation-governance.md": 4
+      "docs/ai-docs-agent-governance.md": 5,
+      "docs/auto-docs-agent/README.md": 5,
+      "docs/change-documentation-governance.md": 5
     },
     "gap_severity_counts": {
       "high": 3,
-      "medium": 1,
+      "medium": 2,
       "low": 0,
       "none": 437
     },
@@ -573,15 +573,16 @@
       "1017_sprint69_hybrid_local_managed_agent_runtime.sql"
     ],
     "medium_risk_missing_docs": [
-      "1014_sprint69_approval_hold_collation_reconciliation_rule.sql"
+      "1014_sprint69_approval_hold_collation_reconciliation_rule.sql",
+      "1018_sprint69_governed_response_chunk_schema_reconciliation.sql"
     ],
     "safety_marker_counts": {
-      "no_provider_call": 437,
+      "no_provider_call": 438,
       "no_credential_payload_read": 436,
       "no_raw_secrets": 436,
-      "no_external_send": 436,
+      "no_external_send": 437,
       "no_external_write": 436,
-      "secrets_included_false": 439
+      "secrets_included_false": 440
     },
     "safety_marker_gap_migrations": 2,
     "route_coverage": {
@@ -613,10 +614,10 @@
   "gap_queue": {
     "ok": true,
     "schema_version": "surface-contract-gap-queue-v1",
-    "total_items": 6,
+    "total_items": 7,
     "class_counts": {
       "critical_review": 3,
-      "high_review": 1,
+      "high_review": 2,
       "medium_review": 1,
       "low_review": 1
     },
@@ -856,6 +857,86 @@
               "no_external_send",
               "no_external_write",
               "secrets_included_false"
+            ],
+            "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
+          }
+        ],
+        "safety": {
+          "executes_provider_calls": false,
+          "reads_credentials": false,
+          "mutates_runtime": false,
+          "writes_database": false,
+          "external_sends": false,
+          "deploys": false,
+          "secrets_included": false
+        }
+      },
+      {
+        "migration_file": "1018_sprint69_governed_response_chunk_schema_reconciliation.sql",
+        "score": 586,
+        "queue_class": "high_review",
+        "gap_severity": "medium",
+        "documentation_complete": false,
+        "missing_docs": [
+          "docs/ai-docs-agent-governance.md",
+          "docs/auto-docs-agent/README.md",
+          "docs/change-documentation-governance.md"
+        ],
+        "missing_openapi_routes": [],
+        "safety_marker_gaps": [
+          "no_credential_payload_read",
+          "no_raw_secrets",
+          "no_external_write"
+        ],
+        "surface_counts": {
+          "plugins": 0,
+          "tools": 9,
+          "views": 1,
+          "policies": 0,
+          "routes": 0
+        },
+        "remediation": [
+          {
+            "action_key": "document_surface_contract",
+            "owner_hint": "docs-agent/human-review",
+            "targets": [
+              "docs/ai-docs-agent-governance.md",
+              "docs/auto-docs-agent/README.md",
+              "docs/change-documentation-governance.md"
+            ],
+            "reason": "Migration surfaces are not mentioned in all required documentation targets."
+          },
+          {
+            "action_key": "verify_tool_registry_binding",
+            "owner_hint": "runtime-registry-review",
+            "targets": [
+              "chk_governed_tool_response_chunks_no_secrets",
+              "chk_governed_tool_response_chunks_sha256",
+              "governed_migration_record_only",
+              "governed_tool_response_chunks",
+              "idx_governed_tool_response_chunks_expires_at",
+              "migration_preflight_pass",
+              "migration_reconcile_20260618_chunk_store_record_only",
+              "post_apply_schema_readback",
+              "v_governed_response_chunk_schema_readiness"
+            ],
+            "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
+          },
+          {
+            "action_key": "verify_readback_view",
+            "owner_hint": "db-readback-review",
+            "targets": [
+              "v_governed_response_chunk_schema_readiness"
+            ],
+            "reason": "Readback views should have parity/readiness documentation and smoke evidence."
+          },
+          {
+            "action_key": "add_explicit_safety_markers",
+            "owner_hint": "safety-contract-review",
+            "targets": [
+              "no_credential_payload_read",
+              "no_raw_secrets",
+              "no_external_write"
             ],
             "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
           }
@@ -17280,6 +17361,79 @@
         },
         "surface_count": 5,
         "safety_marker_count": 0
+      }
+    },
+    {
+      "migration_file": "1018_sprint69_governed_response_chunk_schema_reconciliation.sql",
+      "legacy_backlog_closed": false,
+      "safety_attestation": null,
+      "surfaces": {
+        "routes": [],
+        "route_classifications": [],
+        "views": [
+          "v_governed_response_chunk_schema_readiness"
+        ],
+        "policies": [],
+        "plugins": [],
+        "tools": [
+          "chk_governed_tool_response_chunks_no_secrets",
+          "chk_governed_tool_response_chunks_sha256",
+          "governed_migration_record_only",
+          "governed_tool_response_chunks",
+          "idx_governed_tool_response_chunks_expires_at",
+          "migration_preflight_pass",
+          "migration_reconcile_20260618_chunk_store_record_only",
+          "post_apply_schema_readback",
+          "v_governed_response_chunk_schema_readiness"
+        ],
+        "safety": {
+          "no_provider_call": true,
+          "no_credential_payload_read": false,
+          "no_raw_secrets": false,
+          "no_external_send": true,
+          "no_external_write": false,
+          "secrets_included_false": true
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": true,
+        "deployment_parity_checklist.md": true,
+        "docs/ai-docs-agent-governance.md": false,
+        "docs/auto-docs-agent/README.md": false,
+        "docs/change-documentation-governance.md": false
+      },
+      "missing_docs": [
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "documentation_complete": false,
+      "coverage": {
+        "gap_severity": "medium",
+        "requires_docs_review": true,
+        "route_coverage": {
+          "route_count": 0,
+          "total_route_count": 0,
+          "openapi_required_route_count": 0,
+          "exempted_route_count": 0,
+          "route_class_counts": {
+            "http_route": 0,
+            "admin_tool_registry_route": 0,
+            "tenant_tool_registry_route": 0,
+            "system_tool_dispatch_route": 0,
+            "registry_only_surface": 0,
+            "false_positive_route_like_string": 0,
+            "legacy_closure_route_reviewed": 0
+          },
+          "documented_count": 0,
+          "missing_count": 0,
+          "documented_routes": [],
+          "missing_routes": [],
+          "exempted_routes": [],
+          "route_classifications": []
+        },
+        "surface_count": 10,
+        "safety_marker_count": 3
       }
     },
     {
