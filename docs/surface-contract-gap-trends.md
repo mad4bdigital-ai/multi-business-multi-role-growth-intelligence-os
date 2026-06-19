@@ -3,10 +3,10 @@
 - Baseline items: 100
 - Current queue items: 7
 - Current triaged items: 7
-- Gate candidates: 5
+- Gate candidates: 4
 - Blocking new items: 6
 - Trend quality gate: fail
-- Docs completion: 98.87%
+- Docs completion: 99.1%
 - SQL route OpenAPI coverage: 80%
 - OpenAPI-exempt SQL route-like literals: 564/569
 - Safety marker gap migrations: 2

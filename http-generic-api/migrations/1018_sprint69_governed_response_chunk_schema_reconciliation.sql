@@ -1,8 +1,12 @@
 -- 1018_sprint69_governed_response_chunk_schema_reconciliation.sql
 -- Purpose: reconcile pre-existing governed_tool_response_chunks tables to the durable
 -- response-chunk contract and enable deny-by-default automatic reconciliation.
--- Safety: additive/idempotent; no provider calls; no credential reads; no external send;
--- no destructive DDL; no secrets; same-cycle readiness view and governed ledger evidence.
+-- Safety: additive/idempotent; no destructive DDL; same-cycle readiness view and governed ledger evidence.
+-- no_provider_call
+-- no_credential_payload_read
+-- no_raw_secrets
+-- no_external_send
+-- no_external_write
 -- secrets_included=false
 
 -- response_bytes must support large durable payloads. Already-aligned reruns are read-only.
