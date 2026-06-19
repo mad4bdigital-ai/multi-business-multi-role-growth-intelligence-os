@@ -495,6 +495,7 @@ export const testCommands = [
   "node test-release-readiness-migration-drift.mjs",
   "node test-platform-engines.mjs",
   "node test-platform-routes.mjs",
+  "node test-activation-drive-probe-action-context.mjs",
   "node test-test-manifest-runner.mjs",
   "node test-platform-engine-validator-runner.mjs",
   "node test-hybrid-local-managed-agent-runtime.mjs",
