@@ -363,8 +363,11 @@ section("dispatcher contracts");
       .join(", "));
 
   const tenantPostOps = collectOperations(tenantDoc).filter((op) => op.method === "post");
-  const tenantAllowedConsequentialOps = new Set(["tenantPlatformPluginInstall"]);
-  assert("tenant dispatcher POST operations are non-consequential except explicit install consent surfaces",
+  const tenantAllowedConsequentialOps = new Set([
+    "tenantPlatformPluginInstall",
+    "tenantPlatformPluginCredentialIntakeSessionCreate",
+  ]);
+  assert("tenant dispatcher POST operations are non-consequential except explicit install/intake consent surfaces",
     tenantPostOps.every((op) => op.operation["x-openai-isConsequential"] === false || tenantAllowedConsequentialOps.has(op.operation.operationId)),
     tenantPostOps
       .filter((op) => op.operation["x-openai-isConsequential"] !== false && !tenantAllowedConsequentialOps.has(op.operation.operationId))
