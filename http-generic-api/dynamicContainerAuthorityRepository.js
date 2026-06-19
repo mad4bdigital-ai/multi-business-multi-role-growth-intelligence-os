@@ -51,11 +51,8 @@ export async function loadContainerAuthorityState({ tenantId, targetContainerId,
       WHERE tenant_id=? AND principal_type=? AND principal_id=? AND status='active'
         AND (valid_from IS NULL OR valid_from<=UTC_TIMESTAMP())
         AND (valid_until IS NULL OR valid_until>UTC_TIMESTAMP())`, [tenantId, principalType, principalId]),
-    queryRows(executor, `SELECT p.* FROM container_role_template_permissions p
-      WHERE p.status='active' AND p.role_template_key IN (
-        SELECT DISTINCT role_template_key FROM container_role_assignments
-        WHERE tenant_id=? AND principal_type=? AND principal_id=? AND status='active' AND role_template_key IS NOT NULL
-      )`, [tenantId, principalType, principalId]),
+    queryRows(executor, "SELECT * FROM container_role_template_registry WHERE status='active'"),
+    queryRows(executor, "SELECT * FROM container_role_template_permissions WHERE status='active'"),
     queryRows(executor, "SELECT * FROM container_resource_dimension_registry WHERE status='active'"),
     queryRows(executor, `SELECT * FROM container_resource_bindings
       WHERE tenant_id=? AND status='active'
