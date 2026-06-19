@@ -713,7 +713,7 @@ function computeTicketSlaStatus(row = {}, now = new Date()) {
   if (![...OPEN_TICKET_STATUSES].includes(row.status)) return { status: row.sla_status || "on_track", reason: "ticket_not_open" };
   const dueFields = ["first_response_due_at", "triage_due_at", "resolution_due_at"];
   const dueDates = dueFields.map((field) => ({ field, value: row[field] ? new Date(row[field]) : null })).filter((entry) => entry.value && !Number.isNaN(entry.value.getTime()));
-  if (!dueDates.length) return { status: row.sla_status || "on_track", reason: "no_due_dates" };
+  if (!dueDates.length) return { status: "on_track", reason: "no_due_dates" };
   const breached = dueDates.find((entry) => entry.value.getTime() < now.getTime());
   if (breached) return { status: "breached", reason: `${breached.field}_past_due` };
   const soon = dueDates.find((entry) => entry.value.getTime() - now.getTime() <= 60 * 60 * 1000);
