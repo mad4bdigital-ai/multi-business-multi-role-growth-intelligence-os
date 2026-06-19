@@ -90,8 +90,18 @@ function validateSimpleSchema(value, schema) {
   if (!parsed.type) return true;
   if (parsed.type === "array") return Array.isArray(value);
   if (parsed.type === "object") return value && typeof value === "object" && !Array.isArray(value);
-  if (parsed.type === "string") return typeof value === "string";
-  if (parsed.type === "number" || parsed.type === "integer") return typeof value === "number" && Number.isFinite(value) && (parsed.type !== "integer" || Number.isInteger(value));
+  if (parsed.type === "string") {
+    if (typeof value !== "string") return false;
+    if (Number.isFinite(Number(parsed.minLength)) && value.length < Number(parsed.minLength)) return false;
+    if (Number.isFinite(Number(parsed.maxLength)) && value.length > Number(parsed.maxLength)) return false;
+    return true;
+  }
+  if (parsed.type === "number" || parsed.type === "integer") {
+    if (typeof value !== "number" || !Number.isFinite(value) || (parsed.type === "integer" && !Number.isInteger(value))) return false;
+    if (Number.isFinite(Number(parsed.minimum)) && value < Number(parsed.minimum)) return false;
+    if (Number.isFinite(Number(parsed.maximum)) && value > Number(parsed.maximum)) return false;
+    return true;
+  }
   if (parsed.type === "boolean") return typeof value === "boolean";
   return true;
 }
