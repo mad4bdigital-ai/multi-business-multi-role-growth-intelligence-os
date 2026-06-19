@@ -431,6 +431,7 @@ export async function resolvePlatformPluginExecution({
   tenantId = null,
   userId = null,
   agentId = null,
+  principalClass = "admin",
   requestedCredentialScope = null,
   allowExpiredSmokeCertificationForRecertification = false,
 } = {}) {
@@ -438,6 +439,15 @@ export async function resolvePlatformPluginExecution({
   if (!normalizedPluginKey) {
     const err = new Error("plugin_key is required.");
     err.code = "missing_plugin_key";
+    err.status = 400;
+    throw err;
+  }
+
+  const normalizedActionKey = compactString(actionKey || "", 191) || null;
+  const normalizedToolKey = compactString(toolKey || "", 191) || null;
+  if (normalizedActionKey && normalizedToolKey) {
+    const err = new Error("Exactly one capability selector may be provided.");
+    err.code = "ambiguous_capability_selector";
     err.status = 400;
     throw err;
   }
