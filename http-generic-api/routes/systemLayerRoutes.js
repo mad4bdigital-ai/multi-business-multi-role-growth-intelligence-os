@@ -1,11 +1,10 @@
 import { Router } from "express";
 import {
   ACTIVATION_BOOTSTRAP_CONFIG_SHEET,
-  ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
   OVERSIZED_ARTIFACTS_DRIVE_FOLDER_ID,
 } from "../config.js";
 import { getPool } from "../db.js";
-import { getGoogleClientsForSpreadsheet } from "../googleSheets.js";
+import { getGoogleClients } from "../googleSheets.js";
 import { runGovernedActivation } from "../governedActivationRunner.js";
 import {
   ACTIVATION_GITHUB_BOOTSTRAP_CONFIG_KEY,
@@ -1368,7 +1367,7 @@ function withProbeTimeout(promise, label) {
 
 async function activationDriveProbe() {
   try {
-    const { drive } = await getGoogleClientsForSpreadsheet(ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID);
+    const { drive } = await getGoogleClients({ action_key: "google_drive_api" });
     const response = await withProbeTimeout(
       drive.files.list({
         pageSize: 1,
