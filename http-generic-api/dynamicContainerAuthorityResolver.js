@@ -521,7 +521,17 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
     }
     const cacheKey = buildContainerResolutionCacheKey({ ...input, authorityEpoch:state.authorityEpoch,resolverVersion:CONTAINER_AUTHORITY_RESOLVER_VERSION });
     const cached = cacheGet(cacheKey,state.authorityEpoch,Date.now());
-    if (cached) { evidence = { ...cached }; cacheHit = true; break; }
+    if (cached) {
+      const cachedEpoch = await readEpoch(input.tenantId);
+      if (Number(cachedEpoch.authority_epoch) !== Number(state.authorityEpoch)) {
+        invalidateContainerAuthorityCache(input.tenantId);
+        if (attempt === 0 && input.mode !== "enforce") continue;
+        throw stableError("container_authority_epoch_changed","Authority changed after the cached decision was created.");
+      }
+      evidence = { ...cached };
+      cacheHit = true;
+      break;
+    }
 
     const pathResult = enumerateContainerPaths({ targetContainerId:input.targetContainerId,relationships:state.relationships,relationshipTypes:state.relationshipTypes });
     if (!pathResult.ok) throw stableError(pathResult.code || "container_resolution_limit_exceeded", "Container path resolution failed.", [pathResult]);
