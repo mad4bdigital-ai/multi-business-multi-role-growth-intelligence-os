@@ -1,10 +1,10 @@
 {
   "ok": true,
   "schema_version": "surface-contract-discovery-v3",
-  "migration_surface_count": 440,
+  "migration_surface_count": 441,
   "reported_count": 80,
-  "openapi_operation_count": 478,
-  "openapi_path_count": 424,
+  "openapi_operation_count": 480,
+  "openapi_path_count": 426,
   "openapi_operations": [
     "DELETE /admin/cli/dns",
     "DELETE /admin/scope-grants/{grant_id}",
@@ -287,6 +287,7 @@
     "POST /connected-systems",
     "POST /connector-agent/heartbeat",
     "POST /connector/dispatch",
+    "POST /connector/{device_id}/agent-runtime",
     "POST /connector/{device_id}/apps",
     "POST /connector/{device_id}/browser",
     "POST /connector/{device_id}/browser4",
@@ -329,6 +330,7 @@
     "POST /local-manager/device-link/approve",
     "POST /local-manager/device-link/poll",
     "POST /local-manager/device-link/start",
+    "POST /local-manager/device/agent-runtime",
     "POST /logic-definitions",
     "POST /logic-packs",
     "POST /logic-packs/{pack_id}/attach",
@@ -534,40 +536,41 @@
     "closed_migration_count": 399
   },
   "coverage_summary": {
-    "migrations_with_surfaces": 440,
+    "migrations_with_surfaces": 441,
     "docs_complete_count": 437,
-    "docs_gap_count": 3,
-    "docs_completion_percent": 99.32,
+    "docs_gap_count": 4,
+    "docs_completion_percent": 99.09,
     "surface_totals": {
       "plugins": 12,
-      "tools": 2039,
+      "tools": 2043,
       "views": 398,
       "policies": 159,
-      "routes": 568
+      "routes": 569
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 373,
+      "tools": 374,
       "views": 160,
       "policies": 101,
-      "routes": 238
+      "routes": 239
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 3,
-      "deployment_parity_checklist.md": 3,
-      "docs/ai-docs-agent-governance.md": 3,
-      "docs/auto-docs-agent/README.md": 3,
-      "docs/change-documentation-governance.md": 3
+      "Updating Registry Patch Index.md": 4,
+      "deployment_parity_checklist.md": 4,
+      "docs/ai-docs-agent-governance.md": 4,
+      "docs/auto-docs-agent/README.md": 4,
+      "docs/change-documentation-governance.md": 4
     },
     "gap_severity_counts": {
-      "high": 2,
+      "high": 3,
       "medium": 1,
       "low": 0,
       "none": 437
     },
     "high_risk_missing_docs": [
       "1013_sprint69_operational_alerting_control_plane.sql",
-      "1016_sprint69_tenant_safe_tool_route_rebinding.sql"
+      "1016_sprint69_tenant_safe_tool_route_rebinding.sql",
+      "1017_sprint69_hybrid_local_managed_agent_runtime.sql"
     ],
     "medium_risk_missing_docs": [
       "1014_sprint69_approval_hold_collation_reconciliation_rule.sql"
@@ -580,14 +583,14 @@
       "no_external_write": 436,
       "secrets_included_false": 439
     },
-    "safety_marker_gap_migrations": 1,
+    "safety_marker_gap_migrations": 2,
     "route_coverage": {
       "sql_route_count": 5,
-      "total_sql_route_like_count": 568,
-      "openapi_exempt_sql_route_count": 563,
+      "total_sql_route_like_count": 569,
+      "openapi_exempt_sql_route_count": 564,
       "route_class_counts": {
         "http_route": 5,
-        "admin_tool_registry_route": 120,
+        "admin_tool_registry_route": 121,
         "tenant_tool_registry_route": 35,
         "system_tool_dispatch_route": 13,
         "registry_only_surface": 1,
@@ -610,9 +613,9 @@
   "gap_queue": {
     "ok": true,
     "schema_version": "surface-contract-gap-queue-v1",
-    "total_items": 5,
+    "total_items": 6,
     "class_counts": {
-      "critical_review": 2,
+      "critical_review": 3,
       "high_review": 1,
       "medium_review": 1,
       "low_review": 1
@@ -791,8 +794,85 @@
         }
       },
       {
+        "migration_file": "1017_sprint69_hybrid_local_managed_agent_runtime.sql",
+        "score": 762,
+        "queue_class": "critical_review",
+        "gap_severity": "high",
+        "documentation_complete": false,
+        "missing_docs": [
+          "Updating Registry Patch Index.md",
+          "deployment_parity_checklist.md",
+          "docs/ai-docs-agent-governance.md",
+          "docs/auto-docs-agent/README.md",
+          "docs/change-documentation-governance.md"
+        ],
+        "missing_openapi_routes": [],
+        "safety_marker_gaps": [
+          "no_provider_call",
+          "no_credential_payload_read",
+          "no_raw_secrets",
+          "no_external_send",
+          "no_external_write",
+          "secrets_included_false"
+        ],
+        "surface_counts": {
+          "plugins": 0,
+          "tools": 4,
+          "views": 0,
+          "policies": 0,
+          "routes": 1
+        },
+        "remediation": [
+          {
+            "action_key": "document_surface_contract",
+            "owner_hint": "docs-agent/human-review",
+            "targets": [
+              "Updating Registry Patch Index.md",
+              "deployment_parity_checklist.md",
+              "docs/ai-docs-agent-governance.md",
+              "docs/auto-docs-agent/README.md",
+              "docs/change-documentation-governance.md"
+            ],
+            "reason": "Migration surfaces are not mentioned in all required documentation targets."
+          },
+          {
+            "action_key": "verify_tool_registry_binding",
+            "owner_hint": "runtime-registry-review",
+            "targets": [
+              "delegation_approved",
+              "installation_approved",
+              "model_installation_approved",
+              "settings_update_approved"
+            ],
+            "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
+          },
+          {
+            "action_key": "add_explicit_safety_markers",
+            "owner_hint": "safety-contract-review",
+            "targets": [
+              "no_provider_call",
+              "no_credential_payload_read",
+              "no_raw_secrets",
+              "no_external_send",
+              "no_external_write",
+              "secrets_included_false"
+            ],
+            "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
+          }
+        ],
+        "safety": {
+          "executes_provider_calls": false,
+          "reads_credentials": false,
+          "mutates_runtime": false,
+          "writes_database": false,
+          "external_sends": false,
+          "deploys": false,
+          "secrets_included": false
+        }
+      },
+      {
         "migration_file": "1014_sprint69_approval_hold_collation_reconciliation_rule.sql",
-        "score": 466,
+        "score": 465,
         "queue_class": "high_review",
         "gap_severity": "medium",
         "documentation_complete": false,
@@ -17108,6 +17188,97 @@
           ]
         },
         "surface_count": 7,
+        "safety_marker_count": 0
+      }
+    },
+    {
+      "migration_file": "1017_sprint69_hybrid_local_managed_agent_runtime.sql",
+      "legacy_backlog_closed": false,
+      "safety_attestation": null,
+      "surfaces": {
+        "routes": [
+          "/connector/{device_id}/agent-runtime"
+        ],
+        "route_classifications": [
+          {
+            "route": "/connector/{device_id}/agent-runtime",
+            "route_class": "admin_tool_registry_route",
+            "openapi_required": false,
+            "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+          }
+        ],
+        "views": [],
+        "policies": [],
+        "plugins": [],
+        "tools": [
+          "delegation_approved",
+          "installation_approved",
+          "model_installation_approved",
+          "settings_update_approved"
+        ],
+        "safety": {
+          "no_provider_call": false,
+          "no_credential_payload_read": false,
+          "no_raw_secrets": false,
+          "no_external_send": false,
+          "no_external_write": false,
+          "secrets_included_false": false
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": false,
+        "deployment_parity_checklist.md": false,
+        "docs/ai-docs-agent-governance.md": false,
+        "docs/auto-docs-agent/README.md": false,
+        "docs/change-documentation-governance.md": false
+      },
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "documentation_complete": false,
+      "coverage": {
+        "gap_severity": "high",
+        "requires_docs_review": true,
+        "route_coverage": {
+          "route_count": 0,
+          "total_route_count": 1,
+          "openapi_required_route_count": 0,
+          "exempted_route_count": 1,
+          "route_class_counts": {
+            "http_route": 0,
+            "admin_tool_registry_route": 1,
+            "tenant_tool_registry_route": 0,
+            "system_tool_dispatch_route": 0,
+            "registry_only_surface": 0,
+            "false_positive_route_like_string": 0,
+            "legacy_closure_route_reviewed": 0
+          },
+          "documented_count": 0,
+          "missing_count": 0,
+          "documented_routes": [],
+          "missing_routes": [],
+          "exempted_routes": [
+            {
+              "route": "/connector/{device_id}/agent-runtime",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            }
+          ],
+          "route_classifications": [
+            {
+              "route": "/connector/{device_id}/agent-runtime",
+              "route_class": "admin_tool_registry_route",
+              "openapi_required": false,
+              "reason": "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route."
+            }
+          ]
+        },
+        "surface_count": 5,
         "safety_marker_count": 0
       }
     },

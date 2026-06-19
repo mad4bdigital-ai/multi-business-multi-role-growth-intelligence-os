@@ -4,8 +4,8 @@
 
 ## Summary
 
-- Total queue items: 5
-- Critical review: 2
+- Total queue items: 6
+- Critical review: 3
 - High review: 1
 - Medium review: 1
 - Low review: 1
@@ -43,10 +43,24 @@
 - `verify_readback_view` → db-readback-review; targets: `v_activation_agent_catalog`, `v_activation_agent_skill_grants`, `v_activation_pending_tasks`, `v_operational_alerts_open`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_write`
 
-### 3. `1014_sprint69_approval_hold_collation_reconciliation_rule.sql`
+### 3. `1017_sprint69_hybrid_local_managed_agent_runtime.sql`
+
+- Queue class: critical_review
+- Score: 762
+- Gap severity: high
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+- Surface counts: plugins=0, tools=4, views=0, policies=0, routes=1
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `delegation_approved`, `installation_approved`, `model_installation_approved`, `settings_update_approved`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+
+### 4. `1014_sprint69_approval_hold_collation_reconciliation_rule.sql`
 
 - Queue class: high_review
-- Score: 466
+- Score: 465
 - Gap severity: medium
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -57,7 +71,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `migration_preflight_pass`, `post_apply_schema_readback`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_external_send`
 
-### 4. `311_sprint69_semantic_capability_effective_resolution.sql`
+### 5. `311_sprint69_semantic_capability_effective_resolution.sql`
 
 - Queue class: medium_review
 - Score: 371
@@ -71,7 +85,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_platform_capability_export_projection`, `v_platform_capability_export_reconciliation`, `v_platform_endpoint_canonical_identity`, `v_tenant_effective_capability_candidates`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 5. `1013_sprint69_approval_hold_identity_collation_alignment.sql`
+### 6. `1013_sprint69_approval_hold_identity_collation_alignment.sql`
 
 - Queue class: low_review
 - Score: 177
