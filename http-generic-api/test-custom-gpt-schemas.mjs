@@ -438,6 +438,7 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     "callTool",
     "tenantPlatformPluginCatalog",
     "tenantPlatformPluginInstall",
+    "tenantPlatformPluginCredentialIntakeSessionCreate",
     "tenantPlatformPluginResolve",
     "writeSessionTurn",
     "endSession",
