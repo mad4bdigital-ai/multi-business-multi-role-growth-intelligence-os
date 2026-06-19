@@ -168,6 +168,29 @@ function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections 
   };
 }
 
+function resolveSurfaceExposure({ binding, toolKey, principalClass = "admin" }) {
+  if (!toolKey) return { ok: true, reason: "action_surface", principal_class: principalClass };
+  const toolSurface = normalize(binding?.tool_surface || "");
+  const exposureScope = normalize(binding?.exposure_scope || "");
+  const adminOnly = toolSurface.includes("admin") || ["admin", "platform_admin", "platform"].includes(exposureScope);
+  if (normalize(principalClass) === "tenant" && adminOnly) {
+    return {
+      ok: false,
+      reason: "admin_tool_forbidden",
+      principal_class: "tenant",
+      tool_surface: binding?.tool_surface || null,
+      exposure_scope: binding?.exposure_scope || null,
+    };
+  }
+  return {
+    ok: true,
+    reason: adminOnly ? "admin_surface_allowed_for_admin_preview" : "surface_exposed",
+    principal_class: normalize(principalClass) || "admin",
+    tool_surface: binding?.tool_surface || null,
+    exposure_scope: binding?.exposure_scope || null,
+  };
+}
+
 function selectBinding({ actionBindings = [], toolBindings = [], actionKey = null, toolKey = null }) {
   if (actionKey) {
     return actionBindings.find((row) => String(row.action_key || "") === String(actionKey)) || null;
