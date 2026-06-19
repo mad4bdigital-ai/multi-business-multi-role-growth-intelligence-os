@@ -330,21 +330,41 @@ export async function addContainerOverrideApproval({ overrideId, approverPrincip
   }
 }
 
-export async function consumeContainerOverride({ overrideId, executionRef, resolution, actionKey, endpointKey, bindingRef = null, readbackRef = null }) {
+export async function consumeContainerOverride({
+  overrideId,executionRef,resolution,targetContainerId,dimensionKey,resourceType,resourceRef,operationKey,
+  actionKey,endpointKey,bindingRef = null,readbackRef
+}) {
   const connection = await getPool().getConnection();
   try {
+    if (!executionRef || !readbackRef || !actionKey || !endpointKey) {
+      throw Object.assign(new Error("Execution, action, endpoint, and same-cycle readback references are required."), { status:422, code:"override_scope_mismatch" });
+    }
     await connection.beginTransaction();
     const override = await readContainerOverrideForUpdate(connection, overrideId);
     if (!override) throw Object.assign(new Error("Container override was not found."), { status:404, code:"container_override_not_found" });
     if (override.status === "consumed") throw Object.assign(new Error("Container override already consumed."), { status:409, code:"override_already_consumed" });
     if (override.status !== "ready") throw Object.assign(new Error("Container override is not ready."), { status:409, code:"override_required" });
     if (new Date(override.expires_at).getTime() <= Date.now()) throw Object.assign(new Error("Container override expired."), { status:409, code:"override_expired" });
-    if (Number(override.authority_epoch) !== Number(resolution.authorityEpoch) || String(override.original_resolution_sha256) !== String(resolution.resolutionSha256)) {
+    const [epochRows] = await connection.query("SELECT authority_epoch FROM container_authority_epochs WHERE tenant_id=? LIMIT 1", [override.tenant_id]);
+    const currentEpoch = Number(epochRows[0]?.authority_epoch || 0);
+    const scopeMatches =
+      String(override.target_container_id) === String(targetContainerId || resolution?.targetContainerId || "")
+      && String(override.dimension_key) === String(dimensionKey || "")
+      && String(override.resource_type) === String(resourceType || "")
+      && String(override.resource_ref) === String(resourceRef || "")
+      && String(override.operation_key) === String(operationKey || "")
+      && String(override.container_path_hash) === String(resolution?.containerPathHash || "");
+    if (!scopeMatches) throw Object.assign(new Error("Container override scope does not match the execution."), { status:409, code:"override_scope_mismatch" });
+    if (currentEpoch !== Number(override.authority_epoch) || Number(override.authority_epoch) !== Number(resolution?.authorityEpoch) || String(override.original_resolution_sha256) !== String(resolution?.resolutionSha256)) {
       await connection.query("UPDATE container_override_requests SET status='stale' WHERE override_id=?", [overrideId]);
       throw Object.assign(new Error("Container override snapshot is stale."), { status:409, code:"override_snapshot_stale" });
     }
     const consumptionId = randomUUID();
-    const payload = { overrideId,executionRef,resolutionId:resolution.resolutionId,resolutionSha256:resolution.resolutionSha256,authorityEpoch:resolution.authorityEpoch,actionKey,endpointKey,bindingRef,readbackRef };
+    const payload = {
+      overrideId,executionRef,resolutionId:resolution.resolutionId,resolutionSha256:resolution.resolutionSha256,
+      authorityEpoch:resolution.authorityEpoch,targetContainerId,dimensionKey,resourceType,resourceRef,operationKey,
+      actionKey,endpointKey,bindingRef,readbackRef
+    };
     await connection.query(
       `INSERT INTO container_override_consumptions
         (consumption_id,override_id,execution_ref,resolution_id,resolution_sha256,authority_epoch,action_key,endpoint_key,binding_ref,readback_ref,consumption_sha256,secrets_included)
@@ -353,7 +373,7 @@ export async function consumeContainerOverride({ overrideId, executionRef, resol
     );
     await connection.query("UPDATE container_override_requests SET status='consumed',consumed_at=UTC_TIMESTAMP(),updated_at=UTC_TIMESTAMP() WHERE override_id=?", [overrideId]);
     await connection.commit();
-    return { ...payload, consumptionId, status:"consumed", secretsIncluded:false };
+    return { ...payload,consumptionId,status:"consumed",secretsIncluded:false };
   } catch (error) {
     await connection.rollback();
     throw error;
