@@ -8,6 +8,7 @@ import {
   markCapabilityEnvelopeReferenced,
   resolveCapabilityExecutionEnvelope,
 } from "../capabilityResolutionEnvelopeGuard.js";
+import { requireLocalManagerDevice } from "../services/localManagerDeviceLinkService.js";
 
 const ROUTE_TYPE_ORDER = [
   "vpn_private_ip",
@@ -792,6 +793,41 @@ export function buildConnectorProxyRoutes(deps) {
     });
   }
 
+  router.post("/local-manager/device/agent-runtime", async (req, res) => {
+    try {
+      const device = await requireLocalManagerDevice(req);
+      const action = String(req.body?.action || "capabilities");
+      if (!["capabilities", "recommend_models"].includes(action)) {
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: "invalid_device_runtime_read_action",
+            message: "Local Manager device runtime access supports read-only capability and recommendation actions.",
+          },
+          secrets_included: false,
+        });
+      }
+
+      req.auth = {
+        mode: "user_jwt",
+        user_id: device.user_id,
+        tenant_id: device.tenant_id,
+      };
+      req.body = { action };
+      req.query = {};
+      return await proxyToDevice(req, res, device.device_id, "/agent-runtime");
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: {
+          code: err.code || "device_runtime_read_failed",
+          message: err.message,
+        },
+        secrets_included: false,
+      });
+    }
+  });
+
   router.get("/connector/:device_id/diagnostics", requireBackendApiKey, async (req, res) => {
     try { await connectorRouteDiagnostics(req, res, req.params.device_id); }
     catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_diagnostics_failed", message: err.message } }); }
@@ -819,6 +855,11 @@ export function buildConnectorProxyRoutes(deps) {
 
   router.post("/connector/:device_id/dependencies", requireBackendApiKey, async (req, res) => {
     try { await proxyToDevice(req, res, req.params.device_id, "/dependencies"); }
+    catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
+  });
+
+  router.post("/connector/:device_id/agent-runtime", requireBackendApiKey, async (req, res) => {
+    try { await proxyToDevice(req, res, req.params.device_id, "/agent-runtime"); }
     catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
   });
 

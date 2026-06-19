@@ -3,7 +3,6 @@ using System.Drawing;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Security.Cryptography;
 using Microsoft.Win32;
 using System.Text;
 using System.Text.Json;
@@ -24,11 +23,7 @@ internal static class Program
     private const string RoutesUrl = BaseUrl + "/app/local-manager/routes?source=windows-app";
     private const string BackupsUrl = BaseUrl + "/app/local-manager/backups?source=windows-app";
     private const string SettingsUrl = BaseUrl + "/app/local-manager/settings?source=windows-app";
-    private const string DeviceLinkStartUrl = BaseUrl + "/local-manager/device-link/start";
-    private const string DeviceLinkPollUrl = BaseUrl + "/local-manager/device-link/poll";
-    private const string DeviceSessionUrl = BaseUrl + "/local-manager/device/session";
-    private const string DeviceControlsUrl = BaseUrl + "/local-manager/device/controls";
-    private const string DeviceRepairInstallerUrl = BaseUrl + "/local-connector/install/device-download-link"; private const string DesktopCommandsUrl = BaseUrl + "/local-manager/device/desktop-commands";
+    private const string DesktopCommandsUrl = BaseUrl + "/local-manager/device/desktop-commands";
     private const string N8nPublicUrl = "";
     private const string N8nCommandPath = @"D:\npm-global\n8n.cmd";
     private const string N8nUserFolder = @"D:\n8n-data";
@@ -52,11 +47,31 @@ internal static class Program
                 return;
             }
 
-            Application.Run(new MainForm());
+            RunMainFormWithSidecar();
             return;
         }
 
-        Application.Run(new MainForm());
+        RunMainFormWithSidecar();
+    }
+
+    private static void RunMainFormWithSidecar()
+    {
+        var deviceIdentityStore = new DeviceIdentityStore();
+        var deviceControlClient = new DeviceControlClient(BaseUrl);
+        var capabilityVerifier = new ConnectorCapabilityVerifier(deviceControlClient);
+        var runtimeClient = new LocalRuntimeClient(BaseUrl);
+        var dispatcher = new SidecarReadOnlyDispatcher(deviceIdentityStore, capabilityVerifier, runtimeClient);
+        var supervisor = new SidecarLifecycleSupervisor(new SidecarRpcServer(), dispatcher.DispatchAsync);
+        supervisor.Start();
+
+        try
+        {
+            Application.Run(new MainForm());
+        }
+        finally
+        {
+            supervisor.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
     }
 
     private static string ProgramInstallRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mad4B", "LocalManager");
@@ -150,9 +165,15 @@ internal static class Program
         private readonly ProgressBar _progress;
         private readonly TextBox _output;
         private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+        private readonly DeviceIdentityStore _deviceIdentityStore = new();
+        private readonly DeviceLinkClient _deviceLinkClient = new(BaseUrl);
+        private readonly DeviceControlClient _deviceControlClient = new(BaseUrl);
+        private readonly ConnectorCapabilityVerifier _connectorCapabilityVerifier;
+        private readonly SignedInstallerCoordinator _signedInstallerCoordinator = new(BaseUrl, UpdatesRoot);
 
         public MainForm()
         {
+            _connectorCapabilityVerifier = new ConnectorCapabilityVerifier(_deviceControlClient);
             Text = "Mad4B Local Manager";
             MinimumSize = new Size(900, 780);
             StartPosition = FormStartPosition.CenterScreen;
@@ -255,10 +276,8 @@ internal static class Program
             return button;
         }
 
-        private static string InstallRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mad4B", "LocalManager");
+        private static string InstallRoot => DeviceIdentityStore.DefaultInstallRoot;
         private static string UpdatesRoot => Path.Combine(InstallRoot, "updates");
-        private static string LinkStatusPath => Path.Combine(InstallRoot, "device-link-status.json");
-        private static string ProtectedTokenPath => Path.Combine(InstallRoot, "device-token.dpapi");
 
         private static string CurrentSemVer()
         {
@@ -286,21 +305,7 @@ internal static class Program
         private void SaveDeviceToken(string token, string? deviceId, string? status)
         {
             EnsureLocalFiles(_status);
-            var plaintext = Encoding.UTF8.GetBytes(token);
-            var entropy = Encoding.UTF8.GetBytes("mad4b-local-manager-device-token-v1");
-            var protectedBytes = ProtectedData.Protect(plaintext, entropy, DataProtectionScope.CurrentUser);
-            File.WriteAllBytes(ProtectedTokenPath, protectedBytes);
-            File.WriteAllText(LinkStatusPath, JsonSerializer.Serialize(new
-            {
-                linked = true,
-                linked_at = DateTimeOffset.UtcNow,
-                device_id = deviceId,
-                status,
-                token_persisted = true,
-                token_storage = "Windows DPAPI CurrentUser",
-                token_file = ProtectedTokenPath,
-                secrets_included = false
-            }, _json));
+            _deviceIdentityStore.Save(token, deviceId, status);
             _status.Text = "Device token saved with Windows DPAPI CurrentUser.";
         }
 
@@ -308,11 +313,9 @@ internal static class Program
         {
             try
             {
-                if (!File.Exists(ProtectedTokenPath)) return null;
-                var protectedBytes = File.ReadAllBytes(ProtectedTokenPath);
-                var entropy = Encoding.UTF8.GetBytes("mad4b-local-manager-device-token-v1");
-                var plaintext = ProtectedData.Unprotect(protectedBytes, entropy, DataProtectionScope.CurrentUser);
-                return Encoding.UTF8.GetString(plaintext);
+                var token = _deviceIdentityStore.Load(out var error);
+                if (showErrors && error is not null) _status.Text = "Could not read DPAPI token: " + error;
+                return token;
             }
             catch (Exception ex)
             {
@@ -324,7 +327,7 @@ internal static class Program
         private void ShowTokenStatus()
         {
             EnsureLocalFiles(_status);
-            var hasFile = File.Exists(ProtectedTokenPath);
+            var hasFile = _deviceIdentityStore.TokenFileExists;
             var token = LoadDeviceToken(false);
             _status.Text = token is not null
                 ? "Linked.\nDevice token is available from DPAPI for this Windows user."
@@ -344,8 +347,7 @@ internal static class Program
 
         private void ForgetDeviceToken()
         {
-            if (File.Exists(ProtectedTokenPath)) File.Delete(ProtectedTokenPath);
-            if (File.Exists(LinkStatusPath)) File.Delete(LinkStatusPath);
+            _deviceIdentityStore.Delete();
             _pairingCode.Text = "Pairing code: not started";
             _progress.Value = 0;
             _status.Text = "Device token removed from this Windows profile.";
@@ -361,22 +363,17 @@ internal static class Program
                 _status.Text = "Creating pairing code…";
                 _pairingCode.Text = "Pairing code: creating…";
                 _output.Text = "Waiting for pairing code…";
-                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                var payload = new
-                {
-                    device_id = Environment.MachineName,
-                    hostname = Environment.MachineName,
-                    platform = "windows",
-                    app_version = Application.ProductVersion
-                };
-                using var response = await client.PostAsync(DeviceLinkStartUrl, JsonContent(payload));
-                var text = await response.Content.ReadAsStringAsync();
-                var start = JsonSerializer.Deserialize<DeviceLinkStartResponse>(text, _json);
+                var response = await _deviceLinkClient.StartAsync(
+                    Environment.MachineName,
+                    Environment.MachineName,
+                    "windows",
+                    Application.ProductVersion);
+                var start = response.Payload;
                 if (!response.IsSuccessStatusCode || start?.Ok != true || string.IsNullOrWhiteSpace(start.UserCode) || string.IsNullOrWhiteSpace(start.PollToken))
                 {
                     _status.Text = "Could not create pairing code: " + (start?.Error?.Message ?? response.ReasonPhrase ?? "unknown error");
                     _pairingCode.Text = "Pairing code: failed";
-                    _output.Text = text;
+                    _output.Text = response.RawText;
                     return;
                 }
 
@@ -397,17 +394,14 @@ internal static class Program
 
         private async Task PollDeviceLinkAsync(string code, string pollToken, int intervalSeconds)
         {
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
             var started = DateTimeOffset.UtcNow;
             while (DateTimeOffset.UtcNow - started < TimeSpan.FromMinutes(10))
             {
                 await Task.Delay(TimeSpan.FromSeconds(intervalSeconds));
                 _status.Text = "Waiting for approval in browser…";
                 _progress.Value = Math.Min(90, _progress.Value + 5);
-                var payload = new { device_code = code, poll_token = pollToken };
-                using var response = await client.PostAsync(DeviceLinkPollUrl, JsonContent(payload));
-                var text = await response.Content.ReadAsStringAsync();
-                var poll = JsonSerializer.Deserialize<DeviceLinkPollResponse>(text, _json);
+                var response = await _deviceLinkClient.PollAsync(code, pollToken);
+                var poll = response.Payload;
                 if ((int)response.StatusCode == 202 || string.Equals(poll?.Status, "pending", StringComparison.OrdinalIgnoreCase)) continue;
                 if (response.IsSuccessStatusCode && poll?.Ok == true && !string.IsNullOrWhiteSpace(poll.DeviceAccessToken))
                 {
@@ -426,7 +420,7 @@ internal static class Program
                 }
 
                 _status.Text = "Pairing stopped: " + (poll?.Error?.Message ?? poll?.Status ?? response.ReasonPhrase ?? "unknown status");
-                _output.Text = text;
+                _output.Text = response.RawText;
                 return;
             }
             _status.Text = "Pairing timed out.\nStart a new code to try again.";
@@ -440,7 +434,17 @@ internal static class Program
                 _output.Text = "No linked device token.\r\nUse 'Link this device' first.";
                 return;
             }
-            await CallDeviceApiAsync(DeviceSessionUrl, token, "Device session");
+            try
+            {
+                _status.Text = "Loading Device session using DPAPI-protected device token…";
+                var response = await _deviceLinkClient.GetSessionAsync(token);
+                _status.Text = response.IsSuccessStatusCode ? "Device session loaded." : "Device session failed: " + response.StatusCode;
+                _output.Text = response.RawText;
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "Device session failed: " + ex.Message;
+            }
         }
 
         private async Task LoadDeviceControlsAsync(string section, string fallbackUrl)
@@ -452,22 +456,17 @@ internal static class Program
                 OpenUrl(fallbackUrl);
                 return;
             }
-            await CallDeviceApiAsync(DeviceControlsUrl + "?section=" + Uri.EscapeDataString(section), token, section);
+            await DisplayDeviceControlsAsync(section, token, section);
         }
 
-        private async Task CallDeviceApiAsync(string url, string token, string label)
+        private async Task DisplayDeviceControlsAsync(string section, string token, string label)
         {
             try
             {
                 _status.Text = "Loading " + label + " using DPAPI-protected device token…";
-                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                using var req = new HttpRequestMessage(HttpMethod.Get, url);
-                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-                req.Headers.Accept.ParseAdd("application/json");
-                using var response = await client.SendAsync(req);
-                var text = await response.Content.ReadAsStringAsync();
+                var response = await _deviceControlClient.GetAsync(section, token);
                 _status.Text = response.IsSuccessStatusCode ? label + " loaded." : label + " failed: " + response.StatusCode;
-                _output.Text = text;
+                _output.Text = response.RawText;
             }
             catch (Exception ex)
             {
@@ -489,42 +488,23 @@ internal static class Program
                 EnsureLocalFiles(_status);
                 _progress.Value = 0;
                 _status.Text = "Requesting device-scoped connector repair installer…";
-                using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-                using var req = new HttpRequestMessage(HttpMethod.Post, DeviceRepairInstallerUrl)
-                {
-                    Content = JsonContent(new { format = "bat", ttl_minutes = 30, app_managed = true, suppress_pause = true })
-                };
-                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-                req.Headers.Accept.ParseAdd("application/json");
-                using var response = await client.SendAsync(req);
-                var text = await response.Content.ReadAsStringAsync();
-                var link = JsonSerializer.Deserialize<DeviceInstallerLinkResponse>(text, _json);
+                var response = await _signedInstallerCoordinator.RequestRepairAsync(token);
+                var link = response.Link;
                 if (!response.IsSuccessStatusCode || link?.Ok != true || string.IsNullOrWhiteSpace(link.DownloadUrl))
                 {
                     _status.Text = "Repair link request failed: " + (link?.Error?.Message ?? response.ReasonPhrase ?? "unknown error");
-                    _output.Text = text;
+                    _output.Text = response.RawText;
                     return;
                 }
 
                 _progress.Value = 25;
-                var safeDeviceId = SafeFileSegment(link.CanonicalDeviceId ?? link.DeviceId ?? Environment.MachineName);
-                var target = Path.Combine(UpdatesRoot, $"install-local-connector-{safeDeviceId}.bat");
                 _status.Text = "Downloading signed repair installer…";
-                using (var installerResponse = await client.GetAsync(link.DownloadUrl, HttpCompletionOption.ResponseHeadersRead))
-                {
-                    installerResponse.EnsureSuccessStatusCode();
-                    await using var source = await installerResponse.Content.ReadAsStreamAsync();
-                    await using var destination = File.Create(target);
-                    await source.CopyToAsync(destination);
-                }
-
-                var fileInfo = new FileInfo(target);
-                if (!fileInfo.Exists || fileInfo.Length < 64) throw new InvalidOperationException("Downloaded installer file is missing or too small.");
+                var download = await _signedInstallerCoordinator.DownloadAsync(link, SignedInstallerKind.Repair);
                 _progress.Value = 75;
                 _output.Text = JsonSerializer.Serialize(new
                 {
                     repair_installer_downloaded = true,
-                    installer_path = target,
+                    installer_path = download.InstallerPath,
                     canonical_device_id = link.CanonicalDeviceId,
                     config_id = link.ConfigId,
                     run_as_admin_required = link.RunAsAdminRequired,
@@ -532,7 +512,7 @@ internal static class Program
                 }, _json);
 
                 await RunElevatedInstallerAndVerifyAsync(
-                    target,
+                    download,
                     "connector repair installer",
                     "Repair connector",
                     "This will repair and restart the local connector service. Approve the Windows UAC prompt to continue.",
@@ -683,53 +663,27 @@ internal static class Program
                 EnsureLocalFiles(_status);
                 _progress.Value = 0;
                 _status.Text = "Requesting capability installer from auth.mad4b.com…";
-                using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-                using var req = new HttpRequestMessage(HttpMethod.Post, DeviceRepairInstallerUrl)
-                {
-                    Content = JsonContent(new
-                    {
-                        format = "bat",
-                        ttl_minutes = 30,
-                        app_managed = true,
-                        suppress_pause = true,
-                        capabilities = requestedCapabilities,
-                        permission_grants = new
-                        {
-                            apps = selectedApps,
-                            allowed_paths = selectedPaths,
-                            shell_aliases = selectedHelpers
-                        }
-                    })
-                };
-                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-                req.Headers.Accept.ParseAdd("application/json");
-                using var response = await client.SendAsync(req);
-                var text = await response.Content.ReadAsStringAsync();
-                var link = JsonSerializer.Deserialize<DeviceInstallerLinkResponse>(text, _json);
+                var response = await _signedInstallerCoordinator.RequestCapabilitiesAsync(
+                    token,
+                    requestedCapabilities,
+                    selectedApps,
+                    selectedPaths,
+                    selectedHelpers);
+                var link = response.Link;
                 if (!response.IsSuccessStatusCode || link?.Ok != true || string.IsNullOrWhiteSpace(link.DownloadUrl))
                 {
                     _status.Text = "Capability installer request failed: " + (link?.Error?.Message ?? response.ReasonPhrase ?? "unknown error");
-                    _output.Text = text;
+                    _output.Text = response.RawText;
                     return;
                 }
 
                 _progress.Value = 25;
-                var safeDeviceId = SafeFileSegment(link.CanonicalDeviceId ?? link.DeviceId ?? Environment.MachineName);
-                var target = Path.Combine(UpdatesRoot, $"enable-connector-capabilities-{safeDeviceId}.bat");
-                using (var installerResponse = await client.GetAsync(link.DownloadUrl, HttpCompletionOption.ResponseHeadersRead))
-                {
-                    installerResponse.EnsureSuccessStatusCode();
-                    await using var source = await installerResponse.Content.ReadAsStreamAsync();
-                    await using var destination = File.Create(target);
-                    await source.CopyToAsync(destination);
-                }
-                var fileInfo = new FileInfo(target);
-                if (!fileInfo.Exists || fileInfo.Length < 64) throw new InvalidOperationException("Downloaded capability installer file is missing or too small.");
+                var download = await _signedInstallerCoordinator.DownloadAsync(link, SignedInstallerKind.Capabilities);
                 _progress.Value = 75;
                 _output.Text = JsonSerializer.Serialize(new
                 {
                     capability_installer_downloaded = true,
-                    installer_path = target,
+                    installer_path = download.InstallerPath,
                     capabilities = requestedCapabilities,
                     app_grants = selectedApps.Count,
                     allowed_paths = selectedPaths,
@@ -740,7 +694,7 @@ internal static class Program
                 }, _json);
 
                 await RunElevatedInstallerAndVerifyAsync(
-                    target,
+                    download,
                     "connector capability installer",
                     "Connector capabilities",
                     "This will update the local connector service configuration for the selected capabilities and permission grants. Approve the Windows UAC prompt to continue.",
@@ -753,7 +707,7 @@ internal static class Program
             }
         }
 
-        private async Task RunElevatedInstallerAndVerifyAsync(string installerPath, string installerLabel, string dialogTitle, string explanation, Func<Task>? refreshAfterInstall)
+        private async Task RunElevatedInstallerAndVerifyAsync(SignedInstallerDownload download, string installerLabel, string dialogTitle, string explanation, Func<Task>? refreshAfterInstall)
         {
             var result = MessageBox.Show(
                 $"{installerLabel} is ready.\n\n{explanation}\n\nLocal Manager will launch the correct installer, wait for it to finish when Windows exposes the process handle, then refresh device controls automatically.",
@@ -762,7 +716,7 @@ internal static class Program
                 MessageBoxIcon.Warning);
             if (result != DialogResult.OK)
             {
-                _status.Text = $"{installerLabel} downloaded: {installerPath}. Click the same button again when ready to apply it.";
+                _status.Text = $"{installerLabel} downloaded: {download.InstallerPath}. Click the same button again when ready to apply it.";
                 return;
             }
 
@@ -772,24 +726,14 @@ internal static class Program
             {
                 installer_launching = true,
                 installer_label = installerLabel,
-                installer_path = installerPath,
+                installer_path = download.InstallerPath,
                 uac_required = true,
                 token_plaintext_shown = false,
                 secrets_included = false
             }, _json);
 
-            Process? process = null;
-            try
-            {
-                process = Process.Start(new ProcessStartInfo
-                {
-                    FileName = installerPath,
-                    UseShellExecute = true,
-                    WorkingDirectory = Path.GetDirectoryName(installerPath) ?? UpdatesRoot,
-                    Verb = "runas"
-                });
-            }
-            catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
+            var runResult = await _signedInstallerCoordinator.RunElevatedAsync(download);
+            if (runResult == SignedInstallerRunResult.CancelledByUser)
             {
                 _status.Text = $"{installerLabel} was not applied because the UAC prompt was cancelled.";
                 _output.Text = JsonSerializer.Serialize(new
@@ -802,25 +746,10 @@ internal static class Program
                 }, _json);
                 return;
             }
-
-            if (process is null)
+            if (runResult == SignedInstallerRunResult.ProcessHandleUnavailable)
             {
                 _status.Text = $"Windows did not return a process handle for {installerLabel}.";
                 return;
-            }
-
-            _status.Text = $"{installerLabel} is running with elevation. Waiting for completion…";
-            try
-            {
-                await process.WaitForExitAsync();
-            }
-            catch
-            {
-                await Task.Delay(TimeSpan.FromSeconds(10));
-            }
-            finally
-            {
-                process.Dispose();
             }
 
             _progress.Value = Math.Max(_progress.Value, 92);
@@ -844,7 +773,9 @@ internal static class Program
                 _status.Text = label + ": no linked device token; use Device session after relinking.";
                 return;
             }
-            await CallDeviceApiAsync(DeviceControlsUrl + "?section=" + Uri.EscapeDataString(section), token, label);
+            var verification = await _connectorCapabilityVerifier.VerifyAsync(section, token);
+            _status.Text = label + " verified.";
+            _output.Text = verification.ControlEnvelope.GetRawText();
         }
 
         private sealed record InstalledAppChoice(string DisplayName, string ExecutablePath)
@@ -1068,14 +999,9 @@ internal static class Program
         {
             var token = LoadDeviceToken(false);
             if (string.IsNullOrWhiteSpace(token)) return N8nLocalProfile.Default();
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-            using var req = new HttpRequestMessage(HttpMethod.Get, DeviceControlsUrl + "?section=n8n");
-            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            req.Headers.Accept.ParseAdd("application/json");
-            using var response = await client.SendAsync(req);
-            var text = await response.Content.ReadAsStringAsync();
+            var response = await _deviceControlClient.GetAsync("n8n", token);
             if (!response.IsSuccessStatusCode) return N8nLocalProfile.Default();
-            using var doc = JsonDocument.Parse(text);
+            using var doc = JsonDocument.Parse(response.RawText);
             var root = doc.RootElement;
             var connector = root.TryGetProperty("n8n_connector", out var c) ? c : default;
             var profile = connector.ValueKind == JsonValueKind.Object && connector.TryGetProperty("profile", out var p) ? p : default;
@@ -1200,13 +1126,6 @@ internal static class Program
                 }
                 _progress.Value = 100;
                 _status.Text = $"Latest installer downloaded: {target}.\nLaunching update handoff…"; LaunchUpdaterAndRestart(target); return;
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = target,
-                    UseShellExecute = true,
-                    WorkingDirectory = Path.GetDirectoryName(target) ?? UpdatesRoot,
-                    Verb = "open"
-                });
             }
             catch (Exception ex)
             {
@@ -1598,49 +1517,4 @@ internal static class Program
         [JsonPropertyName("release_notes")] public string[]? ReleaseNotes { get; set; }
     }
 
-    private sealed class DeviceLinkError
-    {
-        [JsonPropertyName("code")] public string? Code { get; set; }
-        [JsonPropertyName("message")] public string? Message { get; set; }
-    }
-
-    private sealed class DeviceLinkStartResponse
-    {
-        [JsonPropertyName("ok")] public bool Ok { get; set; }
-        [JsonPropertyName("device_code")] public string? DeviceCode { get; set; }
-        [JsonPropertyName("user_code")] public string? UserCode { get; set; }
-        [JsonPropertyName("verification_uri")] public string? VerificationUri { get; set; }
-        [JsonPropertyName("verification_uri_complete")] public string? VerificationUriComplete { get; set; }
-        [JsonPropertyName("poll_token")] public string? PollToken { get; set; }
-        [JsonPropertyName("interval")] public int Interval { get; set; } = 3;
-        [JsonPropertyName("expires_in")] public int ExpiresIn { get; set; }
-        [JsonPropertyName("error")] public DeviceLinkError? Error { get; set; }
-    }
-
-    private sealed class DeviceLinkPollResponse
-    {
-        [JsonPropertyName("ok")] public bool Ok { get; set; }
-        [JsonPropertyName("status")] public string? Status { get; set; }
-        [JsonPropertyName("device_access_token")] public string? DeviceAccessToken { get; set; }
-        [JsonPropertyName("device")] public DeviceLinkDevice? Device { get; set; }
-        [JsonPropertyName("error")] public DeviceLinkError? Error { get; set; }
-    }
-
-    private sealed class DeviceLinkDevice
-    {
-        [JsonPropertyName("device_id")] public string? DeviceId { get; set; }
-    }
-
-    private sealed class DeviceInstallerLinkResponse
-    {
-        [JsonPropertyName("ok")] public bool Ok { get; set; }
-        [JsonPropertyName("device_id")] public string? DeviceId { get; set; }
-        [JsonPropertyName("canonical_device_id")] public string? CanonicalDeviceId { get; set; }
-        [JsonPropertyName("config_id")] public string? ConfigId { get; set; }
-        [JsonPropertyName("format")] public string? Format { get; set; }
-        [JsonPropertyName("ttl_minutes")] public int TtlMinutes { get; set; }
-        [JsonPropertyName("download_url")] public string? DownloadUrl { get; set; }
-        [JsonPropertyName("run_as_admin_required")] public bool RunAsAdminRequired { get; set; }
-        [JsonPropertyName("error")] public DeviceLinkError? Error { get; set; }
-    }
 }
