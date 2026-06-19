@@ -2,7 +2,18 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolvePlatformPluginExecution } from "./platformPluginResolver.js";
 
-function makePool({ withConnection = true, withSkill = true, tenantDedicated = false, withActionGrant = false, runtimeOnly = false, withSmokeCertification = true } = {}) {
+function makePool({
+  withConnection = true,
+  withSkill = true,
+  tenantDedicated = false,
+  withActionGrant = false,
+  runtimeOnly = false,
+  withSmokeCertification = true,
+  withToolBinding = false,
+  toolSurface = "admin_platform_tool",
+  toolExposureScope = "admin",
+  validationStatus = "validated",
+} = {}) {
   const calls = [];
   return {
     calls,
