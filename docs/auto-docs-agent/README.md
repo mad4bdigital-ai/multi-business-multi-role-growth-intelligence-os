@@ -6,6 +6,8 @@
 
 > Auto-docs coverage for `1004_sprint68_hostinger_ssh_executor_db_gate.sql`, `1004_sprint69_agent_governance_admin_tools.sql`, and `1005_sprint69_agent_skill_coverage_prompt_enrichment.sql` must retain: disabled-by-default target/expiry gating, admin-only Agent Governance exposure, read-only skill coverage behavior, canonical `/version` and `/deployment-info` manifest parity, focused regression tests, and post-change readback. These migrations do not perform provider calls, credential payload reads, raw-secret returns, external sends, or deployment execution; `secrets_included=false`.
 
+> Auto-docs coverage for `1018_sprint69_governed_response_chunk_schema_reconciliation.sql` must retain the additive `information_schema` guards, exact authorization and policy rules, readiness view, advisory-lock scheduler integration, original-migration record-only reconciliation, and idempotent second-cycle evidence. Generated notes must preserve `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`, and must not claim rollout completion without governed-runner, ledger/schema readback, deployed-SHA parity, and production smoke evidence.
+
 <!-- surface-contract-auto-remediation:start -->
 ## Automated Surface Contract Attestations
 
