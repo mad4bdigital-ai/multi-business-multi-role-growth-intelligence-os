@@ -171,12 +171,14 @@ export async function createContainerResourceBinding(input, { idempotencyKey, if
   if (replay) return { ...replay,idempotentReplay:true };
   let delegatorResolution = null;
   if (effect === "delegate") {
-    if (!operations.length || operations.some(operation => operation.endsWith(".*")) || !request.delegatorResolutionId || !request.delegatedByPrincipalType || !request.delegatedByPrincipalId) {
-      throw serviceError(422,"delegation_exceeds_delegator_authority","Delegation requires exact operations and delegator resolution identity.");
+    if (!operations.length || operations.some(operation => operation.endsWith(".*")) || !request.delegatorResolutionId || !request.delegationRelationshipId || !request.delegatedByPrincipalType || !request.delegatedByPrincipalId) {
+      throw serviceError(422,"delegation_exceeds_delegator_authority","Delegation requires exact operations, an explicit delegation relationship, and delegator resolution identity.");
     }
     delegatorResolution = await readContainerResolution(request.delegatorResolutionId,{ tenantId,principalId:request.delegatedByPrincipalId });
-    const delegationCheck = validateDelegationAgainstResolution({ delegation:{ dimension:request.dimension,resourceType:request.resourceType,resourceRef:request.resourceRef,operation:operations[0] },delegatorResolution });
-    if (!delegationCheck.ok) throw serviceError(403,delegationCheck.code,"Delegation exceeds the delegator effective authority.");
+    for (const operation of operations) {
+      const delegationCheck = validateDelegationAgainstResolution({ delegation:{ dimension:request.dimension,resourceType:request.resourceType,resourceRef:request.resourceRef,operation },delegatorResolution });
+      if (!delegationCheck.ok) throw serviceError(403,delegationCheck.code,"Delegation exceeds the delegator effective authority.",[{ operation }]);
+    }
   }
   const expectedEpoch = parseEpochTag(ifMatch);
   const mutation = await withContainerAuthorityMutation({
