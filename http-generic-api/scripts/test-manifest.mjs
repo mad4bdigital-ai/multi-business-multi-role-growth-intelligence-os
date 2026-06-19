@@ -17,6 +17,7 @@ export const testCommands = [
   "node test-optional-manual-agent-delegation-tools.mjs",
   "node test-dynamic-capability-resolution-graph.mjs",
   "node test-dynamic-container-authority-foundation.mjs",
+  "node test-dynamic-container-authority-runtime.mjs",
   "node test-semantic-capability-effective-resolution.mjs",
   "node test-dynamic-capability-simulation-suite.mjs",
   "node test-tool-bus-collision-audit-and-preview.mjs",
