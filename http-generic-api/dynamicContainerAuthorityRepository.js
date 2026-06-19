@@ -345,9 +345,27 @@ export async function consumeContainerOverride({
       throw Object.assign(new Error("Execution, action, endpoint, and same-cycle readback references are required."), { status:422, code:"override_scope_mismatch" });
     }
     await connection.beginTransaction();
-    const override = await readContainerOverrideForUpdate(connection, overrideId);
-    if (!override) throw Object.assign(new Error("Container override was not found."), { status:404, code:"container_override_not_found" });
-    if (override.status === "consumed") throw Object.assign(new Error("Container override already consumed."), { status:409, code:"override_already_consumed" });
+    const override = await readContainerOverrideForUpdate(connection,overrideId);
+    if (!override) throw Object.assign(new Error("Container override was not found."), { status:404,code:"container_override_not_found" });
+    const envelopeRows = await queryRows(connection,
+      `SELECT tenant_id,authority_status,envelope_status,dispatch_allowed,apply_allowed,blocking_gap_count,expires_at
+         FROM capability_resolution_envelope_ledger WHERE envelope_id=? LIMIT 1 FOR UPDATE`,
+      [override.capability_envelope_id]
+    );
+    const envelope = envelopeRows[0];
+    if (!envelope
+      || String(envelope.tenant_id || "") !== String(override.tenant_id)
+      || envelope.authority_status !== "passed"
+      || envelope.envelope_status !== "ready_for_dispatch"
+      || Number(envelope.dispatch_allowed || 0) !== 1
+      || Number(envelope.apply_allowed || 0) !== 1
+      || Number(envelope.blocking_gap_count || 0) > 0) {
+      throw Object.assign(new Error("Capability envelope is not ready for override consumption."), { status:409,code:"override_required" });
+    }
+    if (new Date(envelope.expires_at).getTime() <= Date.now()) {
+      throw Object.assign(new Error("Capability envelope expired."), { status:409,code:"override_expired" });
+    }
+    if (override.status === "consumed") throw Object.assign(new Error("Container override already consumed."), { status:409,code:"override_already_consumed" });
     if (override.status !== "ready") throw Object.assign(new Error("Container override is not ready."), { status:409, code:"override_required" });
     if (new Date(override.expires_at).getTime() <= Date.now()) throw Object.assign(new Error("Container override expired."), { status:409, code:"override_expired" });
     const [epochRows] = await connection.query("SELECT authority_epoch FROM container_authority_epochs WHERE tenant_id=? LIMIT 1", [override.tenant_id]);
