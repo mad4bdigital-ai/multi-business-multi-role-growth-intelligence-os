@@ -2201,7 +2201,7 @@ export function buildSystemLayerRoutes(deps) {
       is_admin: isAdminPrincipal(req.auth),
       tenant_id: principalTenantId(req.auth),
     };
-    return res.status(200).json(chunkSystemLayerResponse(body, req.query || {}));
+    return res.status(200).json(await chunkSystemLayerResponse(body, req.query || {}));
   });
 
   router.post("/system/tools/call", ...authenticated, async (req, res) => {
