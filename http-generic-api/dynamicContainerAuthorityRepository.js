@@ -299,8 +299,15 @@ export async function addContainerOverrideApproval({ overrideId, approverPrincip
       await connection.query("UPDATE container_override_requests SET status='expired' WHERE override_id=?", [overrideId]);
       throw Object.assign(new Error("Container override expired."), { status: 409, code: "override_expired" });
     }
-    if (String(override.requester_principal_type) === String(approverPrincipalType) && String(override.requester_principal_id) === String(approverPrincipalId)) {
-      throw Object.assign(new Error("Override requester cannot approve the same override."), { status: 403, code: "override_second_approver_required" });
+    const policyRows = await queryRows(connection,
+      "SELECT self_approval_allowed FROM container_override_policy_registry WHERE risk_class=? AND status='active' LIMIT 1",
+      [override.risk_class]
+    );
+    const selfApprovalAllowed = Number(policyRows[0]?.self_approval_allowed || 0) === 1;
+    const samePrincipal = String(override.requester_principal_type) === String(approverPrincipalType)
+      && String(override.requester_principal_id) === String(approverPrincipalId);
+    if (samePrincipal && !selfApprovalAllowed) {
+      throw Object.assign(new Error("Override requester cannot approve this risk class."), { status:403,code:"override_second_approver_required" });
     }
     const approvalId = randomUUID();
     const approvalSha256 = stableSha256({ overrideId,approverPrincipalType,approverPrincipalId,decision,decisionNote });
