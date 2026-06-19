@@ -97,6 +97,9 @@ export async function createContainerRelationship(input, { idempotencyKey, ifMat
         relationship:request,relationships:state.relationships,containers:state.containers,containerTypes:state.containerTypes,relationshipTypes:state.relationshipTypes
       });
       if (!validation.ok) throw serviceError(422,validation.errors[0]?.code || "container_relationship_not_allowed","Container relationship validation failed.",validation.errors);
+      if (Number(validation.relationshipType?.requires_approval || 0) === 1 && !request.approved_by) {
+        throw serviceError(403,"approval_required","This relationship type requires explicit approval evidence.");
+      }
       if (validation.relationshipType?.contributes_to_ancestry || validation.relationshipType?.relationship_class === "containment") {
         const cycle = detectContainmentCycle({ relationships:state.relationships,proposedRelationship:request,relationshipTypes:state.relationshipTypes });
         if (cycle.blocked) throw serviceError(409,cycle.code || "container_cycle_detected","Containment relationship would create an invalid graph.",[cycle]);
