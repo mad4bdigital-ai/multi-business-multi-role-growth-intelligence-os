@@ -85,6 +85,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-execution-preparation-schema-overlay.mjs`
 - `http-generic-api/test-expand-schema-logic.mjs`
 - `http-generic-api/test-github-tooling-schema-contracts.mjs`
+- `http-generic-api/test-governed-response-chunk-schema-reconciliation.mjs`
 - `http-generic-api/test-gpt-schema-db-coverage-guard.mjs`
 - `http-generic-api/test-gpt-schema-db-coverage-migration.mjs`
 - `http-generic-api/test-openapi-autofill-missing-routes.mjs`
