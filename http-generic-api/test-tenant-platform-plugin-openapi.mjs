@@ -11,7 +11,11 @@ assert(schema.includes("operationId: tenantPlatformPluginCredentialIntakeSession
 assert(schema.includes("/tenant/platform/plugins/catalog"), "tenant catalog path must be present");
 assert(schema.includes("/tenant/platform/plugins/install"), "tenant install path must be present");
 assert(schema.includes("/tenant/platform/plugins/resolve"), "tenant resolve path must be present");
-assert(schema.includes("x-openai-isConsequential: true"), "tenant install must be marked consequential");
+assert(schema.includes("/tenant/platform/plugins/credential-intake-sessions"), "tenant-safe credential intake path must be present");
+assert(schema.includes("canonical_capability_id"), "tenant intake response must expose canonical capability identity");
+assert(schema.includes("admin_tool_invoked"), "tenant intake response must prove raw admin tooling was not invoked");
+assert(schema.includes("Unknown fields, credentials, custom schemas, arbitrary metadata, tenant_id, and user_id are rejected"), "tenant intake must document strict identity and field isolation");
+assert(schema.includes("x-openai-isConsequential: true"), "tenant install and intake writes must be marked consequential");
 assert(schema.includes("Tenant/user IDs come from auth"), "schema must document auth-derived tenant/user context");
 assert(schema.includes("Do not include secrets"), "schema must document no-secret connection metadata");
 
