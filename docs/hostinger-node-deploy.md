@@ -168,3 +168,7 @@ Do not use GitHub Actions to deploy `connector.mad4b.com`; that hostname must st
 ## Rollback
 
 Rollback through Hostinger hPanel deployment history.
+
+## Durable response chunk rollout
+
+For changes that introduce `governed_tool_response_chunks`, deploy the merged code and migration file together but apply the additive migration only through the governed migration runner after dry-run preflight and typed confirmation. Restart or redeploy the Node process only after schema readback confirms the table and expiry index. Runtime parity is complete only when `/health.version` matches the merged SHA and a bounded smoke proves persistence before `chunk_id`, memory-cache eviction, MySQL recovery, integrity verification, TTL extension, and exact Unicode reconstruction. Never expose or persist raw credentials, authorization headers, or secret-bearing payloads during this smoke.

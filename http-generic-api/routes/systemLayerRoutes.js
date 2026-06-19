@@ -847,15 +847,16 @@ async function buildSystemToolsListResponse(auth, query = {}) {
   };
 }
 
-function chunkSystemLayerResponse(body, source = {}) {
+async function chunkSystemLayerResponse(body, source = {}) {
   const responseOptions = source?.response_options && typeof source.response_options === "object" ? source.response_options : {};
-  return maybeChunkToolResponseBody(body, {
+  return await maybeChunkToolResponseBody(body, {
     response_options: {
       max_chars: Number(responseOptions.max_chars || source?.max_chars || 30000),
       cursor: Number(responseOptions.cursor || source?.cursor || 0),
       chunk_ttl_ms: Number(responseOptions.chunk_ttl_ms || source?.chunk_ttl_ms || 0) || undefined,
       chunk_ttl_minutes: Number(responseOptions.chunk_ttl_minutes || source?.chunk_ttl_minutes || 0) || undefined,
     },
+    source_tool_key: source?.source_tool_key || "system_layer_response",
   });
 }
 
@@ -2029,7 +2030,7 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
 
   switch (name) {
     case "response_chunk_read":
-      return readCachedToolResponseChunk(args);
+      return await readCachedToolResponseChunk(args);
     case "system_layer_descriptor_readiness":
       return {
         ok: true,
@@ -2200,7 +2201,7 @@ export function buildSystemLayerRoutes(deps) {
       is_admin: isAdminPrincipal(req.auth),
       tenant_id: principalTenantId(req.auth),
     };
-    return res.status(200).json(chunkSystemLayerResponse(body, req.query || {}));
+    return res.status(200).json(await chunkSystemLayerResponse(body, req.query || {}));
   });
 
   router.post("/system/tools/call", ...authenticated, async (req, res) => {
@@ -2225,7 +2226,7 @@ export function buildSystemLayerRoutes(deps) {
         callSystemLayerTool(name, args, req.auth, { executionFacade, req }),
         deadline
       ]);
-      return res.status(200).json(chunkSystemLayerResponse({ ok: true, name, result, secrets_included: false }, args || {}));
+      return res.status(200).json(await chunkSystemLayerResponse({ ok: true, name, result, secrets_included: false }, args || {}));
     } catch (err) {
       return sendError(res, err, "system_tool_call_failed");
     }
@@ -2269,7 +2270,7 @@ export function buildSystemLayerRoutes(deps) {
 
   router.get("/admin/system/tools", ...adminOnly, async (req, res) => {
     const body = await buildSystemToolsListResponse(req.auth, req.query || {});
-    return res.status(200).json(chunkSystemLayerResponse(body, req.query || {}));
+    return res.status(200).json(await chunkSystemLayerResponse(body, req.query || {}));
   });
 
   router.post("/admin/system/tools/call", ...adminOnly, async (req, res) => {
@@ -2294,7 +2295,7 @@ export function buildSystemLayerRoutes(deps) {
         callSystemLayerTool(name, args, req.auth, { executionFacade }),
         deadline
       ]);
-      return res.status(200).json(chunkSystemLayerResponse({ ok: true, name, result, secrets_included: false }, args || {}));
+      return res.status(200).json(await chunkSystemLayerResponse({ ok: true, name, result, secrets_included: false }, args || {}));
     } catch (err) {
       return sendError(res, err, "system_tool_call_failed");
     }
