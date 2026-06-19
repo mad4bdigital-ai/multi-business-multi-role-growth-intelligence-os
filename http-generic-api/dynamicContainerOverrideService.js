@@ -84,6 +84,11 @@ export async function requestContainerOverride(input, { idempotencyKey, requeste
       && String(request.operation) === operationKey
   );
   if (!originalRequest) throw overrideError(422,"override_scope_mismatch","Override dimension, resource, or operation is outside the original resolution.");
+  const dimensionPolicy = await readDimensionOverridePolicy(dimensionKey);
+  if (!dimensionPolicy) throw overrideError(422,"resource_dimension_not_registered","Override dimension is not registered or active.");
+  if (Number(dimensionPolicy.override_allowed || 0) !== 1) {
+    throw overrideError(403,"override_scope_mismatch","This resource dimension cannot be overridden.",[{ dimension:dimensionKey }]);
+  }
   if (envelope.operation_intent && String(envelope.operation_intent) !== operationKey && String(envelope.capability_key) !== String(originalRequest.capabilityKey || "")) {
     throw overrideError(422,"override_scope_mismatch","Capability envelope operation/capability does not match the requested override.");
   }
