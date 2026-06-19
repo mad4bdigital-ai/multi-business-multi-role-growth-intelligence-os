@@ -810,31 +810,36 @@ export function buildCredentialIntakeRoutes(deps = {}) {
   router.post("/credential-intake/:token", async (req, res) => {
     noStoreHeaders(res);
     try {
-      const loaded = await loadPendingSession(req.params.token);
-      if (!loaded.ok) return res.status(loaded.status).type("text").send(loaded.error);
-      const session = loaded.session;
-      const schema = sessionSchema(session);
-      const { credentials, metadata, connection, displayLabel } = collectSubmission({ authType: session.auth_type, schema, body: req.body || {}, session });
+      const consumed = await atomicallyConsumeCredentialIntakeSession({
+        pool: getPool(),
+        tokenHash: sha256(req.params.token),
+        createConnection: async ({ connection: transaction, session }) => {
+          const schema = sessionSchema(session);
+          const {
+            credentials,
+            metadata,
+            connection: submittedConnection,
+            displayLabel,
+          } = collectSubmission({ authType: session.auth_type, schema, body: req.body || {}, session });
+          const connectionId = randomUUID();
+          await transaction.query(
+            `INSERT INTO user_app_connections
+               (connection_id, user_id, tenant_id, app_key, display_label, auth_type,
+                encrypted_credentials, account_label, account_metadata,
+                mcp_endpoint, webhook_url, api_base_url, is_primary, status, validation_status)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,'active','pending_validation')`,
+            [connectionId, session.user_id, session.tenant_id, session.app_key, displayLabel,
+             session.auth_type, encryptCredentials(credentials), displayLabel || submittedConnection.api_base_url || submittedConnection.mcp_endpoint || submittedConnection.webhook_url || null,
+             JSON.stringify({ ...metadata, intake_session_id: session.session_id, intake_type: "schema_driven_web_form" }),
+             submittedConnection.mcp_endpoint, submittedConnection.webhook_url, submittedConnection.api_base_url]
+          );
+          return { connectionId, schema, credentials, metadata, submittedConnection };
+        },
+      });
+      if (!consumed.ok) return res.status(consumed.status).type("text").send(consumed.error);
 
-      const connectionId = randomUUID();
-      await getPool().query(
-        `INSERT INTO user_app_connections
-           (connection_id, user_id, tenant_id, app_key, display_label, auth_type,
-            encrypted_credentials, account_label, account_metadata,
-            mcp_endpoint, webhook_url, api_base_url, is_primary, status, validation_status)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,'active','pending_validation')`,
-        [connectionId, session.user_id, session.tenant_id, session.app_key, displayLabel,
-         session.auth_type, encryptCredentials(credentials), displayLabel || connection.api_base_url || connection.mcp_endpoint || connection.webhook_url || null,
-         JSON.stringify({ ...metadata, intake_session_id: session.session_id, intake_type: "schema_driven_web_form" }),
-         connection.mcp_endpoint, connection.webhook_url, connection.api_base_url]
-      );
-
-      await getPool().query(
-        `UPDATE credential_intake_sessions
-            SET status = 'used', used_at = NOW(), connection_id = ?
-          WHERE session_id = ?`,
-        [connectionId, session.session_id]
-      );
+      const { session, connectionId } = consumed;
+      const { schema, credentials, metadata, submittedConnection } = consumed.created;
 
       writeAuditLogAsync({
         tenant_id: session.tenant_id,
