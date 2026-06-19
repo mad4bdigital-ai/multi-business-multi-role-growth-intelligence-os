@@ -31,6 +31,7 @@ const ACTIVE_SCHEMAS = {
       "callTool",
       "tenantPlatformPluginCatalog",
       "tenantPlatformPluginInstall",
+      "tenantPlatformPluginCredentialIntakeSessionCreate",
       "tenantPlatformPluginResolve",
       "writeSessionTurn",
       "endSession",
