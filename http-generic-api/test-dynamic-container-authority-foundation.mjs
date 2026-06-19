@@ -26,7 +26,7 @@ for (const table of [
   "container_resource_bindings",
   "container_authority_epochs"
 ]) {
-  assert.match(migration, new RegExp(`CREATE TABLE IF NOT EXISTS \\`${table}\\``), `${table} must be additive`);
+  assert.match(migration, new RegExp("CREATE TABLE IF NOT EXISTS `" + table + "`"), `${table} must be additive`);
 }
 assert.match(migration, /v_container_active_hierarchy/);
 assert.match(migration, /v_container_relationship_issues/);
