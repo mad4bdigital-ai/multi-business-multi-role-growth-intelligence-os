@@ -1608,3 +1608,9 @@ Documents and aligns PR #1270 / migration `906_sprint68_ticket_external_delivery
 - http-generic-api/migrations/314_sprint69_capability_assurance_graph.sql adds the canonical capability graph, invocation evidence links, capability-specific resource bindings, generic certifications, provenance, debt, closure threads, and hash-only secret movement evidence.
 - Apply remains envelope-gated, additive, no-provider-call, and no-plaintext-secret.
 - Local connector recovery enforces `cloudflare_1033_retry_before_repair_v1`: three total bounded health attempts, early stop on pass or authorization-gated reachability, and installer generation only after retry exhaustion. Migration `1015_sprint69_local_connector_transient_retry_policy.sql` registers the blocking SQL policy and updates the governed tool description.
+
+## Durable governed response chunk persistence
+
+- `20260618_governed_tool_response_chunks.sql` adds the durable MySQL authority for oversized governed tool-response continuation while preserving the existing in-process cache as a hot cache.
+- The migration is additive and idempotent, creates an expiry index, stores SHA-256 and UTF-8 byte length for integrity readback, and enforces `secrets_included=0`.
+- Apply requires governed-runner authorization, preflight, and typed confirmation. Runtime rollout must prove SQL persistence before `chunk_id`, cache-miss recovery, Unicode reconstruction, expiry handling, and no-secret enforcement.
