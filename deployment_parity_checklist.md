@@ -304,7 +304,7 @@ Safety contract: `no_provider_call`, `no_credential_payload_read`, `no_raw_secre
 ## Durable governed response chunk deployment parity
 
 - [x] PR 1805 CI is green at the exact merge SHA and the durable runtime code is merged.
-- [ ] `20260618_governed_tool_response_chunks.sql` and `1018_sprint69_governed_response_chunk_schema_reconciliation.sql` exist in the deployed checkout.
+- [ ] `20260618_governed_tool_response_chunks.sql` and `1018_sprint69_governed_response_chunk_schema_reconciliation.sql` exist in the deployed checkout, and the generated surface-governance report no longer lists migration `1018` as a blocking new item or safety-marker gap.
 - [ ] Bootstrap migration `1018` passes governed migration dry-run and is applied only through the governed runner with its typed confirmation.
 - [ ] Same-cycle schema readback reports `v_governed_response_chunk_schema_readiness.readiness_status='ready'`, `response_bytes BIGINT UNSIGNED`, cursor default `utf16_code_unit_cursor_v1`, millisecond `updated_at`, expiry index, and both integrity constraints.
 - [ ] The original `20260618` migration is reconciled as matching-checksum `record_only` after complete schema evidence; it must not replay table creation.
