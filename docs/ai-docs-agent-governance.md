@@ -6,6 +6,8 @@
 
 > Surface-contract note for `1004_sprint68_hostinger_ssh_executor_db_gate.sql`, `1004_sprint69_agent_governance_admin_tools.sql`, and `1005_sprint69_agent_skill_coverage_prompt_enrichment.sql`: documentation automation must preserve the disabled-by-default target/expiry gate, admin-only tool exposure, read-only skill coverage semantics, canonical deployment-manifest parity, and regression/readback evidence. Static migration text must continue to state no provider calls, no credential payload reads, no raw secrets, no external sends, no deployment execution, and `secrets_included=false`.
 
+> Automatic reconciliation contract for `1018_sprint69_governed_response_chunk_schema_reconciliation.sql`: generated documentation must preserve the `information_schema`-guarded additive DDL, exact migration authorization and policy rules, Dynamic Audit advisory-lock scheduling, readiness view `v_governed_response_chunk_schema_readiness`, record-only reconciliation of `20260618_governed_tool_response_chunks.sql`, and idempotent second-cycle behavior. It must explicitly retain `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`. Static documentation does not authorize production apply; rollout still requires governed-runner preflight, typed confirmation, ledger/schema readback, deployed-SHA parity, and bounded no-secret smoke evidence.
+
 <!-- surface-contract-auto-remediation:start -->
 ## Automated Surface Contract Attestations
 
