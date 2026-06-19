@@ -522,11 +522,19 @@ export async function resolvePlatformPluginExecution({
 
   const defaultGrants = parseJsonArray(rows.plugin.default_action_grants, []);
   const baseApprovalRequired = Boolean(
-    defaultGrants.find((grant) => grant?.action_key === actionKey)?.auto_approve === false ||
-    normalize(binding?.exposure_default || "") === "runtime_only"
+    normalizedToolKey ||
+    defaultGrants.find((grant) => grant?.action_key === normalizedActionKey)?.auto_approve === false ||
+    normalize(binding?.exposure_default || "") === "runtime_only" ||
+    normalize(binding?.binding_role || "") === "state_changing"
   );
   const actionGrant = baseApprovalRequired && allowed
-    ? await checkActionGrant({ pool, pluginKey: normalizedPluginKey, actionKey, agentId, credential })
+    ? await checkActionGrant({
+        pool,
+        pluginKey: normalizedPluginKey,
+        actionKey: normalizedActionKey || normalizedToolKey,
+        agentId,
+        credential,
+      })
     : { required: baseApprovalRequired, granted: !baseApprovalRequired, grant_id: null, reason: baseApprovalRequired ? "resolve_denials_before_action_grant" : "no_review_required_by_preview" };
   const approvalRequired = Boolean(baseApprovalRequired && !actionGrant.granted);
   const dispatchReady = Boolean(allowed && !approvalRequired);
