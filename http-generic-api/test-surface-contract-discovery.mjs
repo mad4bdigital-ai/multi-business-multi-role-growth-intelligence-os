@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { buildPersistedDiscoveryReport, detectSafetyMarkers, discoverSurfaces, isDirectExecution, renderGapQueueMarkdown, renderSurfaceContractMarkdown } from "./scripts/surface-contract-discovery.mjs";
+
 const scriptPath = path.resolve("scripts/surface-contract-discovery.mjs");
 assert.equal(
   isDirectExecution(pathToFileURL(scriptPath).href, scriptPath),
