@@ -96,9 +96,17 @@ function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections 
   const sourceMode = normalize(tenantPolicy?.source_mode || "");
   const fallbackAllowed = tenantPolicy ? Boolean(tenantPolicy.fallback_allowed) : true;
   const explicitRequestedScope = normalize(requestedScope || "");
-  const orderedScopes = explicitRequestedScope
-    ? unique([explicitRequestedScope, ...candidateScopes])
-    : candidateScopes;
+  if (explicitRequestedScope && !candidateScopes.includes(explicitRequestedScope)) {
+    return {
+      ok: false,
+      credential_source: null,
+      reason: "credential_scope_not_allowed",
+      requested_scope: explicitRequestedScope,
+      candidate_scopes: candidateScopes,
+    };
+  }
+  const orderedScopes = explicitRequestedScope ? [explicitRequestedScope] : candidateScopes;
+  let unusableConnection = null;
 
   for (const scope of orderedScopes) {
     if (scope === "none") {
