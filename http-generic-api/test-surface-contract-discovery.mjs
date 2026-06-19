@@ -19,6 +19,41 @@ const discoverySource = fs.readFileSync(scriptPath, "utf8");
 assert(discoverySource.includes("fileURLToPath(importMetaUrl)"), "CLI entrypoint detection must use fileURLToPath for cross-platform paths");
 assert(!discoverySource.includes("file://${process.argv[1]}"), "CLI entrypoint detection must not concatenate file URLs manually");
 
+const standaloneMarkers = detectSafetyMarkers(`
+-- no_provider_call
+-- no_credential_payload_read
+-- no_raw_secrets
+/* no_external_send */
+* no_external_write
+-- secrets_included_false
+`);
+assert.deepEqual(standaloneMarkers, {
+  no_provider_call: true,
+  no_credential_payload_read: true,
+  no_raw_secrets: true,
+  no_external_send: true,
+  no_external_write: true,
+  secrets_included_false: true,
+}, "standalone SQL comment safety markers must be recognized exactly");
+
+const explicitBooleanMarkers = detectSafetyMarkers(`
+no_provider_call true
+no_external_write, true
+secrets_included=false
+`);
+assert.equal(explicitBooleanMarkers.no_provider_call, true, "explicit true provider marker must remain supported");
+assert.equal(explicitBooleanMarkers.no_external_write, true, "explicit true external-write marker must remain supported");
+assert.equal(explicitBooleanMarkers.secrets_included_false, true, "secrets_included=false must remain supported");
+
+const negativeMarkers = detectSafetyMarkers(`
+-- no_provider_call=false
+SELECT 'no_external_write';
+no_raw_secrets false
+`);
+assert.equal(negativeMarkers.no_provider_call, false, "false provider marker must not be accepted");
+assert.equal(negativeMarkers.no_external_write, false, "unattested token usage must not be accepted");
+assert.equal(negativeMarkers.no_raw_secrets, false, "false raw-secret marker must not be accepted");
+
 const report = discoverSurfaces({ limit: 200 });
 assert.equal(report.ok, true, "surface discovery report must be ok");
 assert.equal(report.schema_version, "surface-contract-discovery-v3", "surface discovery must expose v3 actionable queue contract");
