@@ -191,6 +191,18 @@ export async function createContainerResourceBinding(input, { idempotencyKey, if
       if (!dimensions[0]) throw serviceError(422,"resource_dimension_not_registered","Resource dimension was not found or inactive.");
       if (effect === "share" && !dimensions[0].supports_sharing) throw serviceError(422,"container_relationship_not_allowed","Dimension does not support sharing.");
       if (effect === "delegate" && !dimensions[0].supports_delegation) throw serviceError(422,"container_relationship_not_allowed","Dimension does not support delegation.");
+      if (effect === "delegate") {
+        const [delegationRows] = await connection.query(
+          `SELECT relationship_id FROM container_relationships
+            WHERE relationship_id=? AND tenant_id=? AND from_container_id=? AND to_container_id=?
+              AND relationship_type_key='delegates' AND status='active'
+              AND (valid_from IS NULL OR valid_from<=UTC_TIMESTAMP())
+              AND (valid_until IS NULL OR valid_until>UTC_TIMESTAMP())
+            LIMIT 1`,
+          [request.delegationRelationshipId,tenantId,delegatorResolution.targetContainerId,request.containerId]
+        );
+        if (!delegationRows[0]) throw serviceError(422,"container_relationship_not_allowed","Delegation relationship does not match the delegator and target containers.");
+      }
       await connection.query(
         `INSERT INTO container_resource_bindings
           (binding_id,tenant_id,container_id,dimension_key,resource_type,resource_ref,effect,permission_key,operation_patterns_json,capability_keys_json,inheritance_mode,merge_priority,conditions_json,valid_from,valid_until,status,version,source_table,source_pk,delegated_by_principal_type,delegated_by_principal_id,delegator_resolution_id,created_by,approved_by,metadata_json)
