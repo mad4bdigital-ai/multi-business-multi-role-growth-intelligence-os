@@ -300,6 +300,30 @@ ON DUPLICATE KEY UPDATE
   authority_rank=VALUES(authority_rank),eligible_container_types_json=VALUES(eligible_container_types_json),
   default_scope_mode=VALUES(default_scope_mode),metadata_json=VALUES(metadata_json),updated_at=CURRENT_TIMESTAMP;
 
+INSERT INTO `container_role_template_permissions`
+  (`role_template_key`,`dimension_key`,`permission_key`,`effect`,`operation_patterns_json`,`conditions_json`,`merge_priority`,`status`)
+VALUES
+  ('container_viewer','knowledge','read','allow',JSON_ARRAY('read.*','get.*','list.*','search.*','preview.*','inspect.*','resolve.*','status.*','download.*'),NULL,10,'active'),
+  ('container_viewer','assets','read','allow',JSON_ARRAY('read.*','get.*','list.*','search.*','preview.*','inspect.*','status.*','download.*'),NULL,10,'active'),
+  ('container_viewer','profiles','read','allow',JSON_ARRAY('read.*','get.*','list.*','preview.*','inspect.*','resolve.*','status.*'),NULL,10,'active'),
+  ('container_viewer','rules','read','allow',JSON_ARRAY('read.*','get.*','list.*','preview.*','inspect.*','resolve.*','status.*'),NULL,10,'active'),
+  ('container_viewer','policies','read','allow',JSON_ARRAY('read.*','get.*','list.*','preview.*','inspect.*','resolve.*','status.*'),NULL,10,'active'),
+  ('container_viewer','tools','read','allow',JSON_ARRAY('read.*','get.*','list.*','catalog.*','preview.*','inspect.*','status.*'),NULL,10,'active'),
+  ('container_viewer','skills','read','allow',JSON_ARRAY('read.*','get.*','list.*','catalog.*','preview.*','inspect.*','status.*'),NULL,10,'active'),
+  ('container_viewer','workflows','read','allow',JSON_ARRAY('read.*','get.*','list.*','preview.*','inspect.*','resolve.*','status.*'),NULL,10,'active'),
+  ('container_viewer','actions','read','allow',JSON_ARRAY('read.*','get.*','list.*','catalog.*','preview.*','inspect.*','status.*'),NULL,10,'active'),
+  ('container_viewer','endpoints','read','allow',JSON_ARRAY('read.*','get.*','list.*','catalog.*','preview.*','inspect.*','status.*'),NULL,10,'active'),
+  ('container_viewer','connections','read','allow',JSON_ARRAY('read.*','get.*','list.*','metadata.*','preview.*','inspect.*','status.*'),NULL,10,'active'),
+  ('container_operator','workflows','operate','allow',JSON_ARRAY('execute.*','run.*','start.*','resume.*','cancel.*'),NULL,20,'active'),
+  ('container_operator','actions','operate','allow',JSON_ARRAY('execute.*','run.*','apply.*'),NULL,20,'active'),
+  ('container_operator','assets','write','allow',JSON_ARRAY('create.*','update.*','write.*','publish.*'),NULL,20,'active'),
+  ('container_admin','roles','manage','allow',JSON_ARRAY('create.*','update.*','revoke.*','assign.*'),NULL,30,'active'),
+  ('container_admin','policies','manage','allow',JSON_ARRAY('create.*','update.*','revoke.*','apply.*'),NULL,30,'active'),
+  ('container_admin','connections','manage_binding','allow',JSON_ARRAY('link.*','unlink.*','grant.*','revoke.*'),NULL,30,'active')
+ON DUPLICATE KEY UPDATE
+  operation_patterns_json=VALUES(operation_patterns_json),conditions_json=VALUES(conditions_json),
+  merge_priority=VALUES(merge_priority),status=VALUES(status),updated_at=CURRENT_TIMESTAMP;
+
 CREATE OR REPLACE VIEW `v_container_shadow_mismatch_summary` AS
 SELECT
   tenant_id,
