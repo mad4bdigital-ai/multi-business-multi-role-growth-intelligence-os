@@ -15,7 +15,9 @@ import {
   persistShadowComparison,
   readContainerAuthorityEpoch,
   readContainerRolloutPolicy,
-  recordContainerPerformanceSample
+  readIdempotentResult,
+  recordContainerPerformanceSample,
+  storeIdempotentResult
 } from "./dynamicContainerAuthorityRepository.js";
 
 export const CONTAINER_AUTHORITY_RESOLVER_VERSION = "dynamic-container-authority-v1";
