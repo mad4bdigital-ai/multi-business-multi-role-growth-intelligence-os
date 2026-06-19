@@ -4,18 +4,15 @@
 
 ## Summary
 
-- Triaged items: 5
-- Gate candidates: 3
-- New-gap gate: fail
-- Blocking new items: 4
+- Triaged items: 0
+- Gate candidates: 0
+- New-gap gate: pass
+- Blocking new items: 0
 
 ## Class counts
 
-- new_surface_immediate_review: 3
-- safety_marker_review: 2
+- none
 
 ## Immediate review candidates
 
-- `1016_sprint69_tenant_safe_tool_route_rebinding.sql` — critical_review, score 1224; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
-- `1013_sprint69_operational_alerting_control_plane.sql` — critical_review, score 837; next: add targeted patch-index, parity, and governance documentation
-- `1014_sprint69_approval_hold_collation_reconciliation_rule.sql` — high_review, score 466; next: add targeted patch-index, parity, and governance documentation
+- none
