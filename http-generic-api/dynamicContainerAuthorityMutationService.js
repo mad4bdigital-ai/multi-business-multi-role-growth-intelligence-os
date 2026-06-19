@@ -137,11 +137,17 @@ export async function createContainerRoleAssignment(input, { idempotencyKey, ifM
     tenantId,mutationType:"container_role_assignment_create",mutationRef:assignmentId,affectedContainerId:request.containerId,
     work:async (connection,currentEpoch) => {
       assertEpoch(expectedEpoch,currentEpoch);
-      const [containers] = await connection.query("SELECT container_id FROM containers WHERE container_id=? AND tenant_id=? AND status='active' LIMIT 1",[request.containerId,tenantId]);
+      const [containers] = await connection.query("SELECT container_id,container_type_key FROM containers WHERE container_id=? AND tenant_id=? AND status='active' LIMIT 1",[request.containerId,tenantId]);
       if (!containers[0]) throw serviceError(404,"container_not_found","Role target container was not found.");
       if (roleTemplateKey) {
-        const [templates] = await connection.query("SELECT role_template_key FROM container_role_template_registry WHERE role_template_key=? AND status='active' LIMIT 1",[roleTemplateKey]);
-        if (!templates[0]) throw serviceError(422,"role_template_not_registered","Role template was not found or inactive.");
+        const [templates] = await connection.query("SELECT * FROM container_role_template_registry WHERE status='active'");
+        const composition = resolveRoleTemplateComposition({ rootRoleTemplateKey:roleTemplateKey,roleTemplates:templates });
+        if (!composition.ok) throw serviceError(422,composition.code || "role_template_not_registered","Role template composition is invalid.",[composition]);
+        const rootTemplate = templates.find(template => String(template.role_template_key) === roleTemplateKey);
+        const eligibleTypes = parseJsonArray(rootTemplate?.eligible_container_types_json);
+        if (eligibleTypes.length > 0 && !eligibleTypes.includes(String(containers[0].container_type_key))) {
+          throw serviceError(422,"container_role_assignment_invalid","Role template is not eligible for the target container type.",[{ roleTemplateKey,containerType:containers[0].container_type_key }]);
+        }
       }
       await connection.query(
         `INSERT INTO container_role_assignments
