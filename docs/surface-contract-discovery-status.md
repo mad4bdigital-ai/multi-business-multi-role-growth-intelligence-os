@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 441
+- Migrations with detected surfaces: 442
 - Migrations reported here: 80
 - OpenAPI operations detected: 480
 - OpenAPI paths detected: 426
@@ -32,9 +32,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 437/441 (99.09%)
-- Documentation gap migrations: 4
-- Gap severity: high=3, medium=1, low=0
+- Documentation complete migrations: 437/442 (98.87%)
+- Documentation gap migrations: 5
+- Gap severity: high=3, medium=2, low=0
 - SQL route coverage in OpenAPI: 4/5 (80.00%)
 - SQL route-like literals exempted from OpenAPI scoring: 564/569
 - SQL routes missing OpenAPI path coverage: 1
@@ -45,8 +45,8 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 12 | 9 |
-| tools | 2043 | 374 |
-| views | 398 | 160 |
+| tools | 2052 | 375 |
+| views | 399 | 161 |
 | policies | 159 | 101 |
 | routes | 569 | 239 |
 
@@ -56,20 +56,20 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 |---|---:|
 | `Updating Registry Patch Index.md` | 4 |
 | `deployment_parity_checklist.md` | 4 |
-| `docs/ai-docs-agent-governance.md` | 4 |
-| `docs/auto-docs-agent/README.md` | 4 |
-| `docs/change-documentation-governance.md` | 4 |
+| `docs/ai-docs-agent-governance.md` | 5 |
+| `docs/auto-docs-agent/README.md` | 5 |
+| `docs/change-documentation-governance.md` | 5 |
 
 ### Safety Marker Coverage
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 437 |
+| no_provider_call | 438 |
 | no_credential_payload_read | 436 |
 | no_raw_secrets | 436 |
-| no_external_send | 436 |
+| no_external_send | 437 |
 | no_external_write | 436 |
-| secrets_included_false | 439 |
+| secrets_included_false | 440 |
 
 ### Route Classification Coverage
 
@@ -88,9 +88,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 6
+- Total queue items: 7
 - Critical review: 3
-- High review: 1
+- High review: 2
 - Medium review: 1
 - Low review: 1
 
@@ -99,6 +99,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `1016_sprint69_tenant_safe_tool_route_rebinding.sql` | critical_review | 1224 | high | 5 | 1 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `1013_sprint69_operational_alerting_control_plane.sql` | critical_review | 837 | high | 5 | 0 | 3 | document_surface_contract, verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
 | `1017_sprint69_hybrid_local_managed_agent_runtime.sql` | critical_review | 762 | high | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
+| `1018_sprint69_governed_response_chunk_schema_reconciliation.sql` | high_review | 586 | medium | 3 | 0 | 3 | document_surface_contract, verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
 | `1014_sprint69_approval_hold_collation_reconciliation_rule.sql` | high_review | 465 | medium | 5 | 0 | 1 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `311_sprint69_semantic_capability_effective_resolution.sql` | medium_review | 371 | none | 0 | 0 | 5 | verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
 | `1013_sprint69_approval_hold_identity_collation_alignment.sql` | low_review | 177 | none | 0 | 0 | 5 | verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |

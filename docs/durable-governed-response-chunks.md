@@ -49,13 +49,16 @@ No `chunk_id` is returned when durable persistence fails. The route returns a st
 - No provider credentials or raw authorization headers are persisted by this adapter.
 - The table uses `utf8mb4` for complete Unicode storage.
 
-## Migration
+## Migrations and automatic reconciliation
 
 ```text
 http-generic-api/migrations/20260618_governed_tool_response_chunks.sql
+http-generic-api/migrations/1018_sprint69_governed_response_chunk_schema_reconciliation.sql
 ```
 
-The migration is additive and creates one indexed table. Apply it only through the governed migration runner after dry-run preflight and typed confirmation.
+The original migration creates the durable table. Migration `1018` reconciles pre-existing tables to the current contract: `response_bytes BIGINT UNSIGNED`, `cursor_policy` default `utf16_code_unit_cursor_v1`, millisecond `updated_at`, expiry index, and no-secret/SHA constraints. Both remain additive and idempotent.
+
+After migration `1018` is bootstrapped once, `platform_runtime_config.governed_migration_reconciliation_scheduler` enables startup and interval reconciliation through the existing Dynamic Audit scheduler. The runtime adapter invokes `governed-migration-reconciler.mjs` under the scheduler's MySQL advisory lock. It cannot execute arbitrary SQL: each migration needs an exact active policy rule, DB authorization, passing static preflight, typed runner confirmation, ledger evidence, and schema readback.
 
 ## Validation
 Required checks before merge:

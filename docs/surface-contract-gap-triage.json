@@ -3,16 +3,17 @@
   "schema_version": "surface-contract-gap-triage-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
   "source_discovery_schema": "surface-contract-discovery-v3",
-  "total_triaged_items": 6,
+  "total_triaged_items": 7,
   "class_counts": {
-    "new_surface_immediate_review": 4,
+    "new_surface_immediate_review": 5,
     "safety_marker_review": 2
   },
-  "gate_candidate_count": 4,
+  "gate_candidate_count": 5,
   "gate_candidate_files": [
     "1016_sprint69_tenant_safe_tool_route_rebinding.sql",
     "1013_sprint69_operational_alerting_control_plane.sql",
     "1017_sprint69_hybrid_local_managed_agent_runtime.sql",
+    "1018_sprint69_governed_response_chunk_schema_reconciliation.sql",
     "1014_sprint69_approval_hold_collation_reconciliation_rule.sql"
   ],
   "items": [
@@ -138,6 +139,47 @@
       "owner_hints": [
         "docs-agent/human-review",
         "runtime-registry-review",
+        "safety-contract-review"
+      ],
+      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "1018_sprint69_governed_response_chunk_schema_reconciliation.sql",
+      "score": 586,
+      "queue_class": "high_review",
+      "triage_class": "new_surface_immediate_review",
+      "gate_scope": "new_gap_gate_candidate",
+      "gap_severity": "medium",
+      "missing_docs": [
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_write"
+      ],
+      "remediation_action_keys": [
+        "document_surface_contract",
+        "verify_tool_registry_binding",
+        "verify_readback_view",
+        "add_explicit_safety_markers"
+      ],
+      "owner_hints": [
+        "docs-agent/human-review",
+        "runtime-registry-review",
+        "db-readback-review",
         "safety-contract-review"
       ],
       "recommended_next_step": "add targeted patch-index, parity, and governance documentation",

@@ -51,6 +51,12 @@ Guard surfaces:
 - `v_database_collation_policy_status`
 - `database_schema_governance.unified_collation_required`
 
+## Automatic additive reconciliation
+
+Automatic schema repair is permitted only through the governed migration reconciliation engine. The internal scheduler may invoke `governed-migration-reconciler.mjs` under a MySQL advisory lock, but every mutation still requires an exact active rule, DB-backed authorization, static preflight `pass`, typed runner confirmation, and same-cycle ledger plus schema readback.
+
+The scheduler must fail closed when configuration is disabled, a rule or authorization is absent, preflight is not `pass`, or the migration is already recorded. It must not execute raw SQL, infer approval from a file name, widen a migration's resource pattern, retain raw output, or expose secrets. `information_schema`-guarded DDL remains mandatory for `ALTER TABLE ... MODIFY` reconciliation.
+
 ## Capability-vault skillpack runtime safety
 
 Tenant-private draft installs expose package and skill catalog assets before any

@@ -99,3 +99,9 @@ When an admin GPT detects data-source drift, empty SQL tables, or Sheets/SQL par
 3. Use governed write tools to seed/repair the SQL tables — never write directly to Sheets first and rely on the mirror to backflow
 4. Re-run the census to confirm repair
 5. Optionally call `governance_execution_log_sheets_recovery` to confirm mirror parity
+
+Automatic Governed Migration Reconciliation
+
+`governedMigrationReconciliationRuntime.js` may run from the internal Dynamic Audit scheduler only when `platform_runtime_config.governed_migration_reconciliation_scheduler` is active. It must execute under the scheduler MySQL advisory lock and delegate to `governed-migration-reconciler.mjs`; it must never execute raw migration SQL directly.
+
+Automatic mutation remains deny-by-default. Every migration requires an exact active `platform_engine_policy_rules` row, an authorized `governed_migration_authorization_registry` row, passing static preflight, runner typed confirmation, and same-cycle ledger/schema readback. Missing or disabled policy, authorization, config, or validation evidence must produce a skipped or blocked result. The scheduler may summarize results but must not store raw migration output or secrets.

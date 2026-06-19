@@ -171,4 +171,13 @@ Rollback through Hostinger hPanel deployment history.
 
 ## Durable response chunk rollout
 
-For changes that introduce `governed_tool_response_chunks`, deploy the merged code and migration file together but apply the additive migration only through the governed migration runner after dry-run preflight and typed confirmation. Restart or redeploy the Node process only after schema readback confirms the table and expiry index. Runtime parity is complete only when `/health.version` matches the merged SHA and a bounded smoke proves persistence before `chunk_id`, memory-cache eviction, MySQL recovery, integrity verification, TTL extension, and exact Unicode reconstruction. Never expose or persist raw credentials, authorization headers, or secret-bearing payloads during this smoke.
+For changes that introduce `governed_tool_response_chunks`, deploy the merged code and both migration files together:
+
+```text
+20260618_governed_tool_response_chunks.sql
+1018_sprint69_governed_response_chunk_schema_reconciliation.sql
+```
+
+Bootstrap migration `1018` once through the governed migration runner after static preflight and typed confirmation. Same-cycle readback must report `v_governed_response_chunk_schema_readiness.readiness_status='ready'`. After that bootstrap, `platform_runtime_config.governed_migration_reconciliation_scheduler` lets the internal Dynamic Audit scheduler reconcile only exact authorized migrations under its MySQL advisory lock. The runtime adapter delegates to `governed-migration-reconciler.mjs`; it cannot execute raw SQL or widen migration scope.
+
+Runtime parity is complete only when `/health.version` and `/version` match the merged SHA, the original `20260618` migration is ledgered as `record_only` without replay, a second automatic cycle is idempotent, and a bounded smoke proves persistence before `chunk_id`, memory-cache eviction, MySQL recovery, integrity verification, TTL extension, and exact Unicode reconstruction. Never expose or persist raw migration output, credentials, authorization headers, or secret-bearing payloads during bootstrap or smoke.

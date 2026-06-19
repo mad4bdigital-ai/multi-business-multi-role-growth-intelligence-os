@@ -5,6 +5,7 @@ import {
   DATABASE_LIFECYCLE_DAILY_SNAPSHOT_CONFIRMATION,
   runDatabaseLifecycleDailySnapshotCycle,
 } from "./databaseLifecycleDailyRuntime.js";
+import { runGovernedMigrationReconciliationRuntime } from "./governedMigrationReconciliationRuntime.js";
 import {
   AUDIT_BRIDGE_CONFIRMATION,
   runAuditLogEventBusBridge,
@@ -29,6 +30,9 @@ const DEFAULT_CONFIG = Object.freeze({
   checkpoint_batch_limit: 1000,
   checkpoint_min_events: 100,
   checkpoint_max_age_minutes: 30,
+  migration_reconciliation_enabled: false,
+  migration_reconciliation_apply: false,
+  migration_reconciliation_limit: 2000,
   run_on_startup: true,
 });
 
@@ -66,6 +70,7 @@ async function loadRuntimeConfig(connection) {
     "dynamic_audit_checkpoint_scope",
     "audit_log_event_bus_bridge_schedule",
     "audit_event_rollup_builder_schedule",
+    "governed_migration_reconciliation_scheduler",
   ];
   const [rows] = await connection.query(
     `SELECT config_key,config_json,status,note,updated_at
@@ -77,12 +82,22 @@ async function loadRuntimeConfig(connection) {
   const schedulerRow = byKey.get("dynamic_audit_scheduler");
   const bridgeRow = byKey.get("audit_log_event_bus_bridge_schedule");
   const rollupRow = byKey.get("audit_event_rollup_builder_schedule");
+  const migrationReconciliationRow = byKey.get("governed_migration_reconciliation_scheduler");
   const schedulerConfig = safeJsonParse(schedulerRow?.config_json, {});
+  const migrationReconciliationConfig = safeJsonParse(migrationReconciliationRow?.config_json, {});
   return {
     ...DEFAULT_CONFIG,
     ...safeJsonParse(bridgeRow?.config_json, {}),
     ...safeJsonParse(rollupRow?.config_json, {}),
     ...schedulerConfig,
+    migration_reconciliation_enabled:
+      migrationReconciliationRow?.status !== "disabled" &&
+      migrationReconciliationConfig.enabled === true,
+    migration_reconciliation_apply: migrationReconciliationConfig.apply === true,
+    migration_reconciliation_limit: Math.max(
+      1,
+      Math.min(Number(migrationReconciliationConfig.migration_limit || 2000), 2000)
+    ),
     enabled:
       schedulerRow?.status !== "disabled" &&
       schedulerConfig.enabled !== false &&
@@ -544,6 +559,17 @@ export async function runDynamicAuditCycle(options = {}, dependencies = {}) {
 
     runRecorded = await recordSchedulerStart(connection, runId, options.mode || "scheduled");
     const commitSha = await currentCommitSha();
+    const migrationReconciliation = config.migration_reconciliation_enabled
+      ? await runGovernedMigrationReconciliationRuntime({
+          apply: config.migration_reconciliation_apply === true,
+          limit: config.migration_reconciliation_limit,
+        })
+      : {
+          ok: true,
+          skipped: true,
+          reason: "runtime_config_disabled",
+          secrets_included: false,
+        };
     const bridge = await runAuditLogEventBusBridge(
       { apply: true, confirm: AUDIT_BRIDGE_CONFIRMATION, limit: config.batch_limit },
       { pool }
@@ -565,11 +591,20 @@ export async function runDynamicAuditCycle(options = {}, dependencies = {}) {
     }, { pool });
     const readiness = await readDynamicReadiness(connection);
     result = {
-      ok: Boolean(bridge.ok && rollup.ok && lifecycleSnapshot.ok),
+      ok: Boolean(migrationReconciliation.ok && bridge.ok && rollup.ok && lifecycleSnapshot.ok),
       run_id: runId,
       mode: options.mode || "scheduled",
       commit_sha: commitSha,
-      stages: { bridge, drive, release, repo, rollup, checkpoint, lifecycle_snapshot: lifecycleSnapshot },
+      stages: {
+        migration_reconciliation: migrationReconciliation,
+        bridge,
+        drive,
+        release,
+        repo,
+        rollup,
+        checkpoint,
+        lifecycle_snapshot: lifecycleSnapshot,
+      },
       readiness,
       raw_payload_stored: false,
       secrets_included: false,
