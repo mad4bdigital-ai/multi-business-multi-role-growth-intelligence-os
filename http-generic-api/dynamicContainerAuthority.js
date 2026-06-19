@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 export const DEFAULT_CONTAINER_RESOLUTION_LIMITS = Object.freeze({
   maxDepth: 16,
   maxPaths: 256,
