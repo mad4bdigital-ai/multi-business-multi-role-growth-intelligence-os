@@ -2226,7 +2226,7 @@ export function buildSystemLayerRoutes(deps) {
         callSystemLayerTool(name, args, req.auth, { executionFacade, req }),
         deadline
       ]);
-      return res.status(200).json(chunkSystemLayerResponse({ ok: true, name, result, secrets_included: false }, args || {}));
+      return res.status(200).json(await chunkSystemLayerResponse({ ok: true, name, result, secrets_included: false }, args || {}));
     } catch (err) {
       return sendError(res, err, "system_tool_call_failed");
     }
