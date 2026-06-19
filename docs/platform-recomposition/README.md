@@ -36,6 +36,7 @@ This directory preserves the design evidence, clean-room overlays, and promotion
 | `local-connector-autoreconnect-and-desktop-manager-2026-05-18.md` | evolving implementation record | Local connector rollout history and remaining operational follow-ups. |
 | `tenant-execution-surface-containment-2026-06-18.md` | active containment record | Tenant discovery/dispatch denylist, strict runtime preview validation, and canonical Repository Intelligence descriptors. |
 | `connect-device-containment-2026-06-18.md` | active containment record | Transactional integration-policy updates, metadata-only connector provisioning, uninstall credential rotation, and tenant-safe route drift guards. |
+| `tenant-containment-readiness-2026-06-18.md` | active containment readiness record | Readiness evidence for tenant-safe hybrid local and managed runtime boundaries. |
 | `support-ticket-sla-stale-status-2026-06-18.md` | active correction record | Prevents open tickets without due dates from preserving stale breached or warning SLA state. |
 | `../growth-intelligence-platform-architecture.md` | active architecture | Defines the first value-producing Tenant/Brand Growth Intelligence workflow and authority boundaries. |
 | `../sequential-plan-orchestration-architecture.md` | active architecture | Defines durable plan compilation, atomic sequential execution, approval stops, checkpoints, and resume behavior. |
