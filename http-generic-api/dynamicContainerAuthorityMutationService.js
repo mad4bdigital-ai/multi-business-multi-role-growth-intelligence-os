@@ -158,7 +158,8 @@ export async function createContainerResourceBinding(input, { idempotencyKey, if
     bindingId,tenantId,containerId:String(input.containerId || ""),dimension:String(input.dimension || ""),resourceType:String(input.resourceType || ""),resourceRef:String(input.resourceRef || ""),
     effect,permissionKey:input.permissionKey ? String(input.permissionKey) : null,operations,capabilityKeys:Array.isArray(input.capabilityKeys) ? input.capabilityKeys.map(String) : [],
     inheritanceMode:input.inheritanceMode || "local_only",conditions:input.conditions || {},validUntil:input.validUntil || null,
-    delegatedByPrincipalType:input.delegatedByPrincipalType || null,delegatedByPrincipalId:input.delegatedByPrincipalId || null,delegatorResolutionId:input.delegatorResolutionId || null
+    delegatedByPrincipalType:input.delegatedByPrincipalType || null,delegatedByPrincipalId:input.delegatedByPrincipalId || null,
+    delegatorResolutionId:input.delegatorResolutionId || null,delegationRelationshipId:input.delegationRelationshipId || null
   };
   if (!tenantId || !request.containerId || !request.dimension || !request.resourceType || !request.resourceRef || !new Set(["allow","deny","restrict","require","share","delegate"]).has(effect)) {
     throw serviceError(400,"container_resource_binding_invalid","Container, dimension, resource, and a supported effect are required.");
