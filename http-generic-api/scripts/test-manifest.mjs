@@ -250,6 +250,7 @@ export const testCommands = [
   "node test-local-connector-uninstall-rotates-secrets.mjs",
   "node test-local-connector-device-disable-rotate-script.mjs",
   "node test-tenant-safe-tool-route-rebinding.mjs",
+  "node test-support-ticket-sla-stale-status-guard.mjs",
   "node test-openapi-split-governance.mjs",
   "node test-openapi-split-regeneration-parity.mjs",
   "node test-openapi-route-coverage.mjs",
