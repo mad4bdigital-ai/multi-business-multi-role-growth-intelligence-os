@@ -75,12 +75,18 @@ function deriveCandidateCredentialScopes({ plugin, binding, tenantPolicy }) {
   return scopes;
 }
 
+function connectionIsUsable(row = {}) {
+  const status = normalize(row.status);
+  const validationStatus = normalize(row.validation_status);
+  return status === "active" && ["validated", "valid", "active", "healthy"].includes(validationStatus);
+}
+
 function pickConnectionForScope(scope, connections = []) {
   if (scope === "user_connection") {
-    return connections.find((row) => normalize(row.status) === "active" && row.user_id) || null;
+    return connections.find((row) => connectionIsUsable(row) && row.user_id) || null;
   }
   if (scope === "tenant_connection") {
-    return connections.find((row) => normalize(row.status) === "active") || null;
+    return connections.find((row) => connectionIsUsable(row)) || null;
   }
   return null;
 }
