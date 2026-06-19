@@ -55,3 +55,7 @@ CI enforcement is implemented by:
 ## Failure class
 
 Any split-only endpoint or operation, or duplicate split alias key inside a source operation, is classified as `degraded_contract` and must block schema/runtime contract changes.
+
+## Durable response chunk continuation
+
+The main OpenAPI source must describe durable continuation behavior for oversized system/admin tool responses: persistence completes before `chunk_id`, `response_chunk_read` may recover after in-process cache loss or restart, and existing cursor/page/continuation fields remain stable. Split schemas must derive this wording from `http-generic-api/openapi.yaml`; no split-only durable-chunk fields or examples are allowed. Route coverage and split-governance tests are required for changes to this contract.

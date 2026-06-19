@@ -8381,7 +8381,7 @@ paths:
       operationId: listSystemTools
       x-tenant-gpt-operationId: listTools
       summary: List MCP-style system tools visible to the current principal
-      description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read before fallback. Optional max_chars, chunk_ttl_ms, and chunk_ttl_minutes controls are backward compatible.
+      description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read before fallback. Chunk payloads are persisted to governed MySQL storage before chunk_id is returned, and response_chunk_read can recover after in-process cache loss or process restart. Optional max_chars, chunk_ttl_ms, and chunk_ttl_minutes controls are backward compatible.
       responses:
         "200":
           description: System layer tools
@@ -8533,7 +8533,7 @@ paths:
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: listAdminSystemTools
       summary: List MCP-style system layer tools
-      description: Lists fixed OpenAPI-compatible tools available through the admin system layer. This behaves like a small MCP tools/list facade over governed platform registries. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read before fallback. Optional max_chars, chunk_ttl_ms, and chunk_ttl_minutes controls are backward compatible.
+      description: Lists fixed OpenAPI-compatible tools available through the admin system layer. This behaves like a small MCP tools/list facade over governed platform registries. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read before fallback. Chunk payloads are persisted to governed MySQL storage before chunk_id is returned, and response_chunk_read can recover after in-process cache loss or process restart. Optional max_chars, chunk_ttl_ms, and chunk_ttl_minutes controls are backward compatible.
       responses:
         "200":
           description: System layer tools

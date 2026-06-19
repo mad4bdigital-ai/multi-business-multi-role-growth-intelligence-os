@@ -395,6 +395,7 @@ export const testCommands = [
   "node test-session-archive-smoke.mjs",
   "node test-session-summary-autosweep.mjs",
   "node test-gpt-tools-route-syntax-regression.mjs",
+  "node test-governed-tool-response-chunk-store.mjs",
   "node test-gpt-tools-response-chunking.mjs",
   "node test-google-sheets-chunking.mjs",
   "node test-sheets-range-drift.mjs",
