@@ -185,6 +185,34 @@ function classifyRoute(route, source = "") {
   };
 }
 
+function hasStandaloneSqlCommentMarker(source = "", marker = "") {
+  const token = String(marker || "");
+  if (!/^[a-z0-9_]+$/i.test(token)) return false;
+  const commentLine = new RegExp(
+    `(?:^|\\r?\\n)\\s*(?:--|#|\\/\\*+|\\*)\\s*${token}\\s*(?:\\*\\/)?\\s*(?=\\r?\\n|$)`,
+    "i"
+  );
+  return commentLine.test(String(source || ""));
+}
+
+export function detectSafetyMarkers(source = "") {
+  const body = String(source || "");
+  return {
+    no_provider_call: /no_provider_call['"`]?\s*,?\s*true|No provider calls?/i.test(body)
+      || hasStandaloneSqlCommentMarker(body, "no_provider_call"),
+    no_credential_payload_read: /no_credential_payload_read['"`]?\s*,?\s*true|credential payload reads?/i.test(body)
+      || hasStandaloneSqlCommentMarker(body, "no_credential_payload_read"),
+    no_raw_secrets: /no_raw_secrets['"`]?\s*,?\s*true|raw secrets?/i.test(body)
+      || hasStandaloneSqlCommentMarker(body, "no_raw_secrets"),
+    no_external_send: /no_external_send['"`]?\s*,?\s*true|No external send/i.test(body)
+      || hasStandaloneSqlCommentMarker(body, "no_external_send"),
+    no_external_write: /no_external_write['"`]?\s*,?\s*true|external writes?/i.test(body)
+      || hasStandaloneSqlCommentMarker(body, "no_external_write"),
+    secrets_included_false: /secrets_included['"`]?\s*,?\s*false|secrets_included\s*=\s*0|secrets_included=false/i.test(body)
+      || hasStandaloneSqlCommentMarker(body, "secrets_included_false"),
+  };
+}
+
 function extractSurfaces(source = "", fileName = "") {
   const routeMatches = [...source.matchAll(/['"`]((?:\/[A-Za-z0-9_{}:.-]+){2,})['"`]/g)].map((m) => m[1]);
   const routes = unique(routeMatches);
