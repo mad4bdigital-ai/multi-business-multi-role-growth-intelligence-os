@@ -472,10 +472,14 @@ export async function resolvePlatformPluginExecution({
   const binding = selectBinding({
     actionBindings: rows.actionBindings,
     toolBindings: rows.toolBindings,
-    actionKey,
-    toolKey,
+    actionKey: normalizedActionKey,
+    toolKey: normalizedToolKey,
   });
-  const bindingState = resolveBindingState({ binding, actionKey, toolKey });
+  const bindingState = resolveBindingState({ binding, actionKey: normalizedActionKey, toolKey: normalizedToolKey });
+  const surfaceExposure = resolveSurfaceExposure({ binding, toolKey: normalizedToolKey, principalClass });
+  const canonicalPolicy = normalizedToolKey
+    ? { ready: false, reason: "tool_canonical_policy_mapping_required", canonical_action_key: null }
+    : { ready: true, reason: normalizedActionKey ? "action_is_canonical_policy_key" : "no_selector_preview", canonical_action_key: normalizedActionKey };
   const credential = resolveCredentialDecision({
     plugin: rows.plugin,
     binding,
@@ -483,12 +487,17 @@ export async function resolvePlatformPluginExecution({
     connections: rows.connections,
     requestedScope: requestedCredentialScope,
   });
-  const requiredSkillKey = deriveRequiredSkill({ pluginKey: normalizedPluginKey, actionKey, toolKey, binding });
+  const requiredSkillKey = deriveRequiredSkill({
+    pluginKey: normalizedPluginKey,
+    actionKey: normalizedActionKey,
+    toolKey: normalizedToolKey,
+    binding,
+  });
   const skill = await checkSkillGrant({ pool, agentId, tenantId, requiredSkillKey });
   const smokeCertification = await checkSmokeCertification({
     pool,
     pluginKey: normalizedPluginKey,
-    actionKey,
+    actionKey: normalizedActionKey || normalizedToolKey,
     allowExpiredForRecertification: allowExpiredSmokeCertificationForRecertification === true,
   });
 
