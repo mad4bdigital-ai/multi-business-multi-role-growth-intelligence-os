@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { discoverSurfaces, isDirectExecution, renderGapQueueMarkdown, renderSurfaceContractMarkdown } from "./scripts/surface-contract-discovery.mjs";
+import { buildPersistedDiscoveryReport, discoverSurfaces, isDirectExecution, renderGapQueueMarkdown, renderSurfaceContractMarkdown } from "./scripts/surface-contract-discovery.mjs";
 
 const scriptPath = path.resolve("scripts/surface-contract-discovery.mjs");
 assert.equal(
@@ -35,6 +35,16 @@ assert.equal(report.safety.deploys, false, "surface discovery must not deploy");
 assert.equal(report.gap_queue.safety.secrets_included, false, "gap queue must not include secrets");
 assert.equal(report.gap_queue.safety.executes_provider_calls, false, "gap queue must not execute provider calls");
 assert.equal(report.gap_queue.safety.writes_database, false, "gap queue must not write database rows");
+
+const persistedReport = buildPersistedDiscoveryReport(report);
+const persistedJson = `${JSON.stringify(persistedReport, null, 2)}\n`;
+assert.equal(persistedReport.serialization_profile, "bounded_evidence_v1", "persisted discovery artifact must declare bounded serialization");
+assert.equal(persistedReport.all_migrations_detail_level, "compact_index_v1", "persisted all-migration evidence must declare compact detail level");
+assert.equal(persistedReport.all_migrations_count, report.all_migrations.length, "persisted discovery artifact must preserve the full migration count");
+assert.equal(persistedReport.all_migrations.length, report.all_migrations.length, "persisted compact index must preserve every migration row");
+assert(persistedReport.all_migrations.every((entry) => typeof entry.migration_file === "string" && typeof entry.documentation_complete === "boolean"), "persisted compact rows must preserve migration identity and documentation state");
+assert(persistedReport.all_migrations.every((entry) => entry.surfaces === undefined && entry.coverage === undefined), "persisted compact rows must not duplicate full surface and coverage payloads");
+assert(Buffer.byteLength(persistedJson) < 1_000_000, "bounded persisted discovery artifact must remain below the governed 1 MB repository patch limit");
 
 assert.equal(typeof report.coverage_summary.docs_completion_percent, "number", "coverage summary must expose docs completion percent");
 assert.equal(typeof report.coverage_summary.gap_severity_counts.high, "number", "coverage summary must count high-risk docs gaps");
