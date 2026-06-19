@@ -2270,7 +2270,7 @@ export function buildSystemLayerRoutes(deps) {
 
   router.get("/admin/system/tools", ...adminOnly, async (req, res) => {
     const body = await buildSystemToolsListResponse(req.auth, req.query || {});
-    return res.status(200).json(chunkSystemLayerResponse(body, req.query || {}));
+    return res.status(200).json(await chunkSystemLayerResponse(body, req.query || {}));
   });
 
   router.post("/admin/system/tools/call", ...adminOnly, async (req, res) => {
