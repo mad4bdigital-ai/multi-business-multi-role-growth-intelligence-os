@@ -16,7 +16,9 @@ assert.ok(config.includes("process.env.ACTIVATION_PROVIDER_PROBE_SPREADSHEET_ID"
 assert.ok(config.includes("process.env.ACTIVATION_BOOTSTRAP_SPREADSHEET_ID"));
 assert.ok(config.includes("Deprecated compatibility alias"));
 assert.ok(config.includes("export const ACTIVATION_BOOTSTRAP_SPREADSHEET_ID = ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID"));
-assert.ok(systemLayerRoutes.includes("ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID"));
+assert.ok(systemLayerRoutes.includes('getGoogleClients({ action_key: "google_drive_api" })'));
+assert.ok(!systemLayerRoutes.includes("getGoogleClientsForSpreadsheet("));
+assert.ok(!systemLayerRoutes.includes("ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID"));
 assert.ok(!systemLayerRoutes.includes("ACTIVATION_BOOTSTRAP_SPREADSHEET_ID"));
 assert.ok(activationRoutes.includes("activation_bootstrap_authority: \"db_runtime\""));
 assert.ok(activationRoutes.includes("legacy_activation_bootstrap_spreadsheet_id_alias"));
