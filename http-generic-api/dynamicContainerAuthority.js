@@ -263,12 +263,12 @@ export function resolveContainerDimensionCandidates(candidates = [], strategy = 
     return selectedResult(strategy, ordered, values);
   }
 
-  if (strategy === "minimum") {
+  if (strategy === "minimum" || strategy === "maximum") {
     const numeric = ordered.map(row => Number(row.value)).filter(Number.isFinite);
     if (!numeric.length) {
       return { strategy, decision: "blocked", blocked: true, ambiguous: false, code: "classification_conflict", value: null, sourceIds: [] };
     }
-    return selectedResult(strategy, ordered, Math.min(...numeric));
+    return selectedResult(strategy, ordered, strategy === "minimum" ? Math.min(...numeric) : Math.max(...numeric));
   }
 
   if (strategy === "nearest_replace" || strategy === "priority_replace") {
