@@ -151,14 +151,21 @@ function resolveRoles(paths, state, requests) {
 function resolveClassifications(paths, state) {
   const effective = {};
   const blockingCodes = new Set();
+  const containerById = new Map(state.containers.map(container => [String(container.container_id),container]));
   for (const type of state.classificationTypes) {
     const candidates = [];
+    const eligibleTypes = parseObject(type.eligible_container_types_json, []);
     for (const path of paths) {
       const depth = pathDepthMap(path);
       for (const assignment of state.classifications) {
         if (String(assignment.classification_type_key) !== String(type.classification_type_key)) continue;
         if (!depth.has(String(assignment.container_id))) continue;
         if (assignment.inheritance_mode === "local_only" && String(assignment.container_id) !== String(state.target.container_id)) continue;
+        const assignmentContainer = containerById.get(String(assignment.container_id));
+        if (!assignmentContainer || (Array.isArray(eligibleTypes) && eligibleTypes.length && !eligibleTypes.includes(String(assignmentContainer.container_type_key)))) {
+          blockingCodes.add("classification_invalid");
+          continue;
+        }
         const value = parseObject(assignment.value_json, assignment.value_json);
         if (!validateSimpleSchema(value, type.value_schema_json)) {
           blockingCodes.add("classification_invalid");
