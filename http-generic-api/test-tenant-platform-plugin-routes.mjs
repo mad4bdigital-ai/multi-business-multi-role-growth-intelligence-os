@@ -11,6 +11,68 @@ import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRo
 }
 
 {
+  const calls = [];
+  const pool = {
+    async query(sql, params = []) {
+      calls.push({ sql, params });
+      if (sql.includes("FROM `app_integrations`")) {
+        return [[{
+          app_key: "github",
+          display_name: "GitHub",
+          auth_type: "api_key",
+          category: "development",
+          status: "active",
+        }]];
+      }
+      if (sql.includes("INSERT INTO credential_intake_sessions")) return [{ affectedRows: 1 }];
+      throw new Error(`Unexpected query: ${sql}`);
+    },
+  };
+  const result = await createCredentialIntakeSessionRecord({
+    pool,
+    userId: "user-1",
+    tenantId: "tenant-1",
+    appKey: "github",
+    authType: "api_key",
+    metadata: { source: "tenant_safe_credential_intake", purpose: "connect repository" },
+    expiresInMinutes: 30,
+    createdBy: "user-1",
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.app_key, "github");
+  assert.equal(result.auth_type, "api_key");
+  assert.equal(result.secrets_included, false);
+  assert.match(result.intake_url, /^\/credential-intake\//);
+  const insert = calls.find((call) => call.sql.includes("INSERT INTO credential_intake_sessions"));
+  assert(insert, "credential intake session must be persisted");
+  assert.equal(insert.params[2], "user-1");
+  assert.equal(insert.params[3], "tenant-1");
+  assert.equal(insert.params[4], "github");
+  assert.equal(JSON.parse(insert.params[12]).source, "tenant_safe_credential_intake");
+}
+
+{
+  const pool = {
+    async query(sql) {
+      if (sql.includes("FROM `app_integrations`")) {
+        return [[{ app_key: "disabled_app", auth_type: "api_key", status: "disabled" }]];
+      }
+      throw new Error(`Unexpected query: ${sql}`);
+    },
+  };
+  await assert.rejects(
+    () => createCredentialIntakeSessionRecord({
+      pool,
+      userId: "user-1",
+      tenantId: "tenant-1",
+      appKey: "disabled_app",
+      authType: "api_key",
+    }),
+    (err) => err?.code === "app_not_active" && err?.status === 409,
+  );
+}
+
+{
   const routes = readFileSync("routes/tenantPlatformPluginRoutes.js", "utf8");
   assert(routes.includes("/tenant/platform/plugins/catalog"), "tenant catalog route must be mounted");
   assert(routes.includes("/tenant/platform/plugins/install"), "tenant install route must be mounted");
