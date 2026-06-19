@@ -289,14 +289,15 @@ ON DUPLICATE KEY UPDATE
   rollback_mode=VALUES(rollback_mode),metadata_json=VALUES(metadata_json),updated_at=CURRENT_TIMESTAMP;
 
 INSERT INTO `container_role_template_registry`
-  (`role_template_key`,`display_name`,`description`,`composition_json`,`default_scope_mode`,`status`,`metadata_json`)
+  (`role_template_key`,`display_name`,`description`,`composition_json`,`authority_rank`,`eligible_container_types_json`,`default_scope_mode`,`status`,`metadata_json`)
 VALUES
-  ('container_viewer','Container Viewer','Read-only visibility within one container scope.',JSON_ARRAY(),'inherit_down','active',JSON_OBJECT('implicit_override',false)),
-  ('container_operator','Container Operator','Bounded operational authority; policy and resource bindings still apply.',JSON_ARRAY('container_viewer'),'inherit_down','active',JSON_OBJECT('implicit_override',false)),
-  ('container_admin','Container Admin','Container administration without platform-owner bypass.',JSON_ARRAY('container_operator'),'inherit_down','active',JSON_OBJECT('implicit_override',false)),
-  ('platform_owner','Platform Owner','Platform owner role template. Normal resolution and explicit override governance remain mandatory.',JSON_ARRAY('container_admin'),'local_only','active',JSON_OBJECT('implicit_override',false,'override_required',true))
+  ('container_viewer','Container Viewer','Read-only visibility within one container scope.',JSON_ARRAY(),1,JSON_ARRAY('tenant','workspace','brand','activity','workflow'),'inherit_down','active',JSON_OBJECT('implicit_override',false)),
+  ('container_operator','Container Operator','Bounded operational authority; policy and resource bindings still apply.',JSON_ARRAY('container_viewer'),2,JSON_ARRAY('tenant','workspace','brand','activity','workflow'),'inherit_down','active',JSON_OBJECT('implicit_override',false)),
+  ('container_admin','Container Admin','Container administration without platform-owner bypass.',JSON_ARRAY('container_operator'),3,JSON_ARRAY('tenant','workspace','brand','activity','workflow'),'inherit_down','active',JSON_OBJECT('implicit_override',false)),
+  ('platform_owner','Platform Owner','Platform owner role template. Normal resolution and explicit override governance remain mandatory.',JSON_ARRAY('container_admin'),4,JSON_ARRAY('platform'),'local_only','active',JSON_OBJECT('implicit_override',false,'override_required',true))
 ON DUPLICATE KEY UPDATE
   display_name=VALUES(display_name),description=VALUES(description),composition_json=VALUES(composition_json),
+  authority_rank=VALUES(authority_rank),eligible_container_types_json=VALUES(eligible_container_types_json),
   default_scope_mode=VALUES(default_scope_mode),metadata_json=VALUES(metadata_json),updated_at=CURRENT_TIMESTAMP;
 
 CREATE OR REPLACE VIEW `v_container_shadow_mismatch_summary` AS
