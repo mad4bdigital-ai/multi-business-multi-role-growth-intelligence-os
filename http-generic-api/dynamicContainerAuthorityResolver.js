@@ -259,15 +259,19 @@ function resolveClassifications(paths, state) {
   return { effective, blockingCodes:[...blockingCodes] };
 }
 
-function candidateForPath(binding, path, targetContainerId) {
+function candidateForPath(binding, path, targetContainerId, inheritanceCeilingDepth = Number.MAX_SAFE_INTEGER) {
   const depth = pathDepthMap(path);
   const containerId = String(binding.container_id);
   if (!depth.has(containerId)) return null;
+  const bindingDepth = depth.get(containerId);
+  if (bindingDepth > inheritanceCeilingDepth) return null;
   if (binding.inheritance_mode === "local_only" && containerId !== String(targetContainerId)) return null;
+  if (binding.inheritance_mode === "explicit_share") return null;
+  if (["share","delegate"].includes(String(binding.effect || "").toLowerCase())) return null;
   return {
     ...binding,
     sourceId:binding.binding_id,
-    depth:depth.get(containerId),
+    depth:bindingDepth,
     priority:Number(binding.merge_priority || 0),
     pathHash:path.pathHash
   };
