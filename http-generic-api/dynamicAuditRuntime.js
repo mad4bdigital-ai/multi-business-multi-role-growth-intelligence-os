@@ -559,6 +559,17 @@ export async function runDynamicAuditCycle(options = {}, dependencies = {}) {
 
     runRecorded = await recordSchedulerStart(connection, runId, options.mode || "scheduled");
     const commitSha = await currentCommitSha();
+    const migrationReconciliation = config.migration_reconciliation_enabled
+      ? await runGovernedMigrationReconciliationRuntime({
+          apply: config.migration_reconciliation_apply === true,
+          limit: config.migration_reconciliation_limit,
+        })
+      : {
+          ok: true,
+          skipped: true,
+          reason: "runtime_config_disabled",
+          secrets_included: false,
+        };
     const bridge = await runAuditLogEventBusBridge(
       { apply: true, confirm: AUDIT_BRIDGE_CONFIRMATION, limit: config.batch_limit },
       { pool }
