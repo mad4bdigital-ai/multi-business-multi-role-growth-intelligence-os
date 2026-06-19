@@ -300,9 +300,14 @@ function resolveDimensionRequest(request, paths, state) {
   ) : [];
 
   for (const path of paths) {
-    const candidates = state.bindings
-      .filter(binding => bindingMatchesDimensionRequest(binding, request))
-      .map(binding => candidateForPath(binding, path, state.target.container_id))
+    const depth = pathDepthMap(path);
+    const matchingBindings = state.bindings.filter(binding => bindingMatchesDimensionRequest(binding,request));
+    const blockerDepths = matchingBindings
+      .filter(binding => binding.inheritance_mode === "block_inheritance" && depth.has(String(binding.container_id)))
+      .map(binding => depth.get(String(binding.container_id)));
+    const inheritanceCeilingDepth = blockerDepths.length ? Math.min(...blockerDepths) : Number.MAX_SAFE_INTEGER;
+    const candidates = matchingBindings
+      .map(binding => candidateForPath(binding,path,state.target.container_id,inheritanceCeilingDepth))
       .filter(Boolean);
 
     for (const share of incomingShares) {
