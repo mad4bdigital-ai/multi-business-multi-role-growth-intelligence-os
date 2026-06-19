@@ -151,7 +151,7 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
 
   router.post("/container-resource-bindings",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
     try {
-      assertAllowedKeys(req.body,new Set(["bindingId","tenantId","containerId","dimension","resourceType","resourceRef","effect","permissionKey","operations","capabilityKeys","inheritanceMode","mergePriority","conditions","validUntil","sourceTable","sourcePk","delegatedByPrincipalType","delegatedByPrincipalId","delegatorResolutionId","approvedBy","metadata"]));
+      assertAllowedKeys(req.body,new Set(["bindingId","tenantId","containerId","dimension","resourceType","resourceRef","effect","permissionKey","operations","capabilityKeys","inheritanceMode","mergePriority","conditions","validUntil","sourceTable","sourcePk","delegatedByPrincipalType","delegatedByPrincipalId","delegatorResolutionId","delegationRelationshipId","approvedBy","metadata"]));
       const result = await createContainerResourceBinding(req.body,{ idempotencyKey:req.headers["idempotency-key"],ifMatch:req.headers["if-match"],actorId:actorId(req) });
       return res.status(201).json(result);
     } catch (error) { return errorResponse(req,res,error); }
