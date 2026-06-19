@@ -99,6 +99,13 @@ The BAT wrapper is not the final authority for capability application. It downlo
 
 High-risk capabilities remain explicit local-consent surfaces. They must not be present in the base connector environment and must remain UAC-gated, signed-token-gated, and secret-safe.
 
+If MAD4B Local Desktop embeds a Hermes Surface workspace, these invariants
+remain owned by a native MAD4B sidecar. The Hermes renderer and Hermes runtime
+must not receive the DPAPI-protected device token, connector secret, or signed
+installer URL. Workspace requests must use a narrow typed IPC contract, and the
+sidecar must re-evaluate action-specific approvals before installer download,
+UAC launch, capability mutation, or local runtime dispatch.
+
 ## Shell and File Execution Invariants
 
 For governed shell execution via local connector:

@@ -549,6 +549,13 @@ Implementation status as of this doc update:
 - Signed installer generation reads `COALESCE(device_runtime_url, tunnel_url)`.
 - Resolved after this review: the active direct `POST /local-connector/install` route delegates to `provisionLocalConnectorInstall()`; regression coverage guards the shared provisioning path.
 
+Operational disable/rotate path:
+
+- `DELETE /local-connector/uninstall` disables the device row and clears stored connector credentials.
+- For record-specific operations such as disabling a reported active `ab` device, use `http-generic-api/scripts/local-connector-device-disable-rotate.mjs`.
+- The script defaults to dry-run. Apply requires `--confirm DISABLE_ROTATE_LOCAL_CONNECTOR_DEVICE`, clears `cf_token`, `connector_secret`, and `connector_local_api_key`, reads back credential presence booleans only, and attempts bounded `execution_log` evidence.
+- It must not print raw connector secrets, Cloudflare tokens, installer bodies, or local API keys.
+
 ## Autopilot customer-selectable route modes
 
 The platform should support all connection options, but the customer should not need programming or networking expertise. The desktop app/bootstrapper should present simple choices and then configure the technical route automatically.

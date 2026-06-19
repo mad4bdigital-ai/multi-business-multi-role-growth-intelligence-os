@@ -6,6 +6,7 @@ import {
   planDatabaseLifecycleRetentionReview,
   writeDatabaseLifecycleReportSnapshot,
 } from "../databaseTableLifecycle.js";
+import { writeExecutionEvidence } from "../executionEvidenceLogger.js";
 
 function parseArgs(argv) {
   const args = {
@@ -57,8 +58,51 @@ async function main() {
       apply: gate.allowed,
     });
     let write_result = null;
+    let execution_log = { trace_id: null, recorded: false, error: null };
     if (gate.allowed) {
       write_result = await writeDatabaseLifecycleReportSnapshot(snapshot, { pool });
+      if (snapshot.trace_id) {
+        execution_log.trace_id = snapshot.trace_id;
+        try {
+          await writeExecutionEvidence({
+            pool,
+            traceId: snapshot.trace_id,
+            entryType: "database_lifecycle_report_snapshot_refresh",
+            executionClass: "governed_operational_snapshot",
+            sourceLayer: "database_lifecycle_report_snapshot_runner",
+            executionMode: "apply",
+            decisionTrigger: "database_lifecycle_snapshot_refresh",
+            executionStatus: "success",
+            outputSummary: {
+              snapshot_id: snapshot.snapshot_id,
+              snapshot_key: snapshot.snapshot_key,
+              report_type: snapshot.report_type,
+              table_count: snapshot.table_count,
+              approval_required_count: snapshot.approval_required_count,
+              no_drop: true,
+              no_delete: true,
+              no_archive_execution: true,
+              no_compaction_execution: true,
+              secrets_included: false,
+            },
+            tenantId: snapshot.tenant_id || null,
+            actorId: snapshot.actor_id || null,
+            actorType: "codex_operator",
+            toolKey: "database_lifecycle_report_snapshot_refresh",
+            resourceType: "database_lifecycle_report_snapshot",
+            resourceId: snapshot.snapshot_id,
+            targetType: "database_lifecycle_report_snapshots",
+            targetId: snapshot.snapshot_key,
+            engineKey: snapshot.engine_key,
+            policyKeys: "database_lifecycle_report_snapshot_policy_v1",
+            runtimeEvidence: { script: "scripts/database-lifecycle-report-snapshot.mjs", snapshot_key: snapshot.snapshot_key, secrets_included: false },
+            skipSurfaceAuthority: true,
+          });
+          execution_log.recorded = true;
+        } catch (err) {
+          execution_log.error = { code: err.code || "execution_log_write_failed", message: err.message };
+        }
+      }
     }
     console.log(JSON.stringify({
       ok: true,
@@ -72,6 +116,7 @@ async function main() {
       secrets_included: false,
       snapshot,
       write_result,
+      execution_log,
     }, null, 2));
   } finally {
     await pool.end();
