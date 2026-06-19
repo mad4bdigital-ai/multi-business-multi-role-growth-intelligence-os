@@ -44,7 +44,19 @@ function makePool({
           notes: null,
         }]];
       }
-      if (sql.includes("FROM app_integration_tool_bindings")) return [[]];
+      if (sql.includes("FROM app_integration_tool_bindings")) {
+        return withToolBinding ? [[{
+          binding_id: "bind-credential-status-tool",
+          app_key: "github",
+          tool_key: "credential_effective_status",
+          tool_surface: toolSurface,
+          binding_role: "state_changing",
+          credential_source: "user_connection",
+          exposure_scope: toolExposureScope,
+          status: "active",
+          notes: null,
+        }]] : [[]];
+      }
       if (sql.includes("FROM tenant_integration_policies")) {
         return tenantDedicated ? [[{
           tenant_id: "tenant-1",
