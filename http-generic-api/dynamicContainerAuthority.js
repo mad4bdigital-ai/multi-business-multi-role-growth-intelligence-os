@@ -497,18 +497,26 @@ export const CRITICAL_OVERRIDE_RISK_CLASSES = Object.freeze(new Set([
   "deployment_affecting"
 ]));
 
+export const DUAL_APPROVAL_OVERRIDE_RISK_CLASSES = Object.freeze(new Set([
+  "destructive",
+  "credential_touching",
+  "deployment_affecting"
+]));
+
 export function resolveOverridePolicy(riskClass = "standard", requestedTtlMinutes = null) {
   const normalizedRisk = String(riskClass || "standard").trim().toLowerCase();
   const critical = CRITICAL_OVERRIDE_RISK_CLASSES.has(normalizedRisk);
+  const dualApprovalRequired = DUAL_APPROVAL_OVERRIDE_RISK_CLASSES.has(normalizedRisk);
   const maximumTtlMinutes = critical ? 15 : 60;
   const requested = Number(requestedTtlMinutes || maximumTtlMinutes);
   const ttlMinutes = Number.isFinite(requested) && requested > 0 ? Math.min(Math.floor(requested), maximumTtlMinutes) : maximumTtlMinutes;
   return {
     riskClass: normalizedRisk,
     critical,
+    dualApprovalRequired,
     maximumTtlMinutes,
     ttlMinutes,
-    requiredApprovalCount: critical ? 2 : 1,
+    requiredApprovalCount: dualApprovalRequired ? 2 : 1,
     selfApprovalAllowed: false
   };
 }
