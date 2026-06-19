@@ -84,6 +84,8 @@ CREATE TABLE IF NOT EXISTS `container_override_requests` (
   `capability_envelope_id` VARCHAR(36) NULL,
   `original_resolution_id` VARCHAR(36) NOT NULL,
   `original_resolution_sha256` CHAR(64) NOT NULL,
+  `original_decision` VARCHAR(64) NOT NULL,
+  `original_blocking_codes_json` LONGTEXT NOT NULL,
   `authority_epoch` BIGINT UNSIGNED NOT NULL,
   `registry_snapshot_hash` CHAR(64) NOT NULL,
   `tenant_id` VARCHAR(36) NOT NULL,
