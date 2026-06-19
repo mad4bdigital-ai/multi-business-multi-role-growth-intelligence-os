@@ -1,9 +1,9 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 98.87,
-  "docs_complete_count": 437,
-  "docs_gap_count": 5,
+  "docs_completion_percent": 99.1,
+  "docs_complete_count": 438,
+  "docs_gap_count": 4,
   "queue_items": 7,
   "blocking_new_item_count": 6,
   "gate_ok": false,
@@ -24,12 +24,6 @@
       "migration_file": "1017_sprint69_hybrid_local_managed_agent_runtime.sql",
       "queue_class": "critical_review",
       "score": 762,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "1018_sprint69_governed_response_chunk_schema_reconciliation.sql",
-      "queue_class": "high_review",
-      "score": 586,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {

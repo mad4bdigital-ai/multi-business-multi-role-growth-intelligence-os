@@ -6,8 +6,8 @@
 
 - Total queue items: 7
 - Critical review: 3
-- High review: 2
-- Medium review: 1
+- High review: 1
+- Medium review: 2
 - Low review: 1
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
@@ -57,22 +57,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `delegation_approved`, `installation_approved`, `model_installation_approved`, `settings_update_approved`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 4. `1018_sprint69_governed_response_chunk_schema_reconciliation.sql`
-
-- Queue class: high_review
-- Score: 586
-- Gap severity: medium
-- Missing docs: `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- Missing OpenAPI routes: none
-- Safety marker gaps: `no_credential_payload_read`, `no_raw_secrets`, `no_external_write`
-- Surface counts: plugins=0, tools=9, views=1, policies=0, routes=0
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `chk_governed_tool_response_chunks_no_secrets`, `chk_governed_tool_response_chunks_sha256`, `governed_migration_record_only`, `governed_tool_response_chunks`, `idx_governed_tool_response_chunks_expires_at`, `migration_preflight_pass`, `migration_reconcile_20260618_chunk_store_record_only`, `post_apply_schema_readback`, `v_governed_response_chunk_schema_readiness`
-- `verify_readback_view` → db-readback-review; targets: `v_governed_response_chunk_schema_readiness`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_write`
-
-### 5. `1014_sprint69_approval_hold_collation_reconciliation_rule.sql`
+### 4. `1014_sprint69_approval_hold_collation_reconciliation_rule.sql`
 
 - Queue class: high_review
 - Score: 465
@@ -86,7 +71,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `migration_preflight_pass`, `post_apply_schema_readback`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_external_send`
 
-### 6. `311_sprint69_semantic_capability_effective_resolution.sql`
+### 5. `311_sprint69_semantic_capability_effective_resolution.sql`
 
 - Queue class: medium_review
 - Score: 371
@@ -98,6 +83,20 @@
 - Remediation actions:
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `connection_not_validated`, `effective_decision`, `execution_readiness`, `idx_capability_binding_lookup`, `legacy_decision`, `platform_endpoint_tool_exports`, `requires_readback`, `tenant_capability_shadow_decisions`, `workspace_validated_primary`, `workspace_validated_single`
 - `verify_readback_view` → db-readback-review; targets: `v_platform_capability_export_projection`, `v_platform_capability_export_reconciliation`, `v_platform_endpoint_canonical_identity`, `v_tenant_effective_capability_candidates`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 6. `1018_sprint69_governed_response_chunk_schema_reconciliation.sql`
+
+- Queue class: medium_review
+- Score: 250
+- Gap severity: none
+- Missing docs: none
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=9, views=1, policies=0, routes=0
+- Remediation actions:
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `chk_governed_tool_response_chunks_no_secrets`, `chk_governed_tool_response_chunks_sha256`, `governed_migration_record_only`, `governed_tool_response_chunks`, `idx_governed_tool_response_chunks_expires_at`, `migration_preflight_pass`, `migration_reconcile_20260618_chunk_store_record_only`, `post_apply_schema_readback`, `v_governed_response_chunk_schema_readiness`
+- `verify_readback_view` → db-readback-review; targets: `v_governed_response_chunk_schema_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
 ### 7. `1013_sprint69_approval_hold_identity_collation_alignment.sql`
