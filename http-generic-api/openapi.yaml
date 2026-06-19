@@ -3403,6 +3403,28 @@ x-tenant-gpt-auth:
         - https://auth.mad4b.com/scopes/tenant.system-tools
 
 paths:
+  /container-context-resolutions:
+    $ref: './openapi/container-authority.yaml#/containerContextResolutions'
+  /container-context-resolutions/{resolutionId}:
+    $ref: './openapi/container-authority.yaml#/containerContextResolutionById'
+  /container-relationships:
+    $ref: './openapi/container-authority.yaml#/containerRelationships'
+  /container-role-assignments:
+    $ref: './openapi/container-authority.yaml#/containerRoleAssignments'
+  /container-resource-bindings:
+    $ref: './openapi/container-authority.yaml#/containerResourceBindings'
+  /container-overrides:
+    $ref: './openapi/container-authority.yaml#/containerOverrides'
+  /container-overrides/{overrideId}:
+    $ref: './openapi/container-authority.yaml#/containerOverrideById'
+  /container-overrides/{overrideId}/approvals:
+    $ref: './openapi/container-authority.yaml#/containerOverrideApprovals'
+  /container-authority/projections:
+    $ref: './openapi/container-authority.yaml#/containerAuthorityProjections'
+  /container-authority/shadow-summary:
+    $ref: './openapi/container-authority.yaml#/containerAuthorityShadowSummary'
+  /container-authority/rollout-readiness:
+    $ref: './openapi/container-authority.yaml#/containerAuthorityRolloutReadiness'
   /tenant/activation/guidance:
     get:
       tags: [activation-guidance]
