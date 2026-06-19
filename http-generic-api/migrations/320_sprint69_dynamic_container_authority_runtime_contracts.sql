@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS `container_effective_context_ledger` (
   `expires_at` DATETIME NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`resolution_id`),
-  UNIQUE KEY `uq_cecl_resolution_hash` (`tenant_id`,`resolution_sha256`),
+  KEY `idx_cecl_resolution_hash` (`tenant_id`,`resolution_sha256`),
   KEY `idx_cecl_tenant_target_created` (`tenant_id`,`target_container_id`,`created_at`),
   KEY `idx_cecl_principal_created` (`principal_type`,`principal_id`,`created_at`),
   KEY `idx_cecl_epoch_decision` (`tenant_id`,`authority_epoch`,`decision`),
