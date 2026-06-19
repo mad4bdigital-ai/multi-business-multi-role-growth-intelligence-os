@@ -268,7 +268,7 @@ VALUES
   ('read_only',60,1,0,1,'active',JSON_OBJECT('seed','migration_320')),
   ('standard',60,1,0,1,'active',JSON_OBJECT('seed','migration_320')),
   ('high',60,1,0,1,'active',JSON_OBJECT('seed','migration_320')),
-  ('critical',15,2,0,1,'active',JSON_OBJECT('seed','migration_320')),
+  ('critical',15,1,0,1,'active',JSON_OBJECT('seed','migration_320')),
   ('destructive',15,2,0,1,'active',JSON_OBJECT('seed','migration_320')),
   ('credential_touching',15,2,0,1,'active',JSON_OBJECT('seed','migration_320')),
   ('deployment_affecting',15,2,0,1,'active',JSON_OBJECT('seed','migration_320'))
