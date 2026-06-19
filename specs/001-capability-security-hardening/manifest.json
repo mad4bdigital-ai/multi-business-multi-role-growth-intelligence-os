@@ -1,0 +1,28 @@
+{
+  "package": "growth-intelligence-security-spec-kit",
+  "feature_branch": "001-capability-security-hardening",
+  "prepared": "2026-06-19",
+  "files": [
+    ".specify/memory/constitution.md",
+    "README.md",
+    "SPEC_KIT_OVERVIEW_AR.md",
+    "manifest.json",
+    "specs/001-capability-security-hardening/acceptance-matrix.md",
+    "specs/001-capability-security-hardening/checklists/release-readiness.md",
+    "specs/001-capability-security-hardening/checklists/requirements.md",
+    "specs/001-capability-security-hardening/checklists/security.md",
+    "specs/001-capability-security-hardening/contracts/capability-resolution.openapi.yaml",
+    "specs/001-capability-security-hardening/contracts/error-catalog.md",
+    "specs/001-capability-security-hardening/data-model.md",
+    "specs/001-capability-security-hardening/plan.md",
+    "specs/001-capability-security-hardening/quickstart.md",
+    "specs/001-capability-security-hardening/research.md",
+    "specs/001-capability-security-hardening/rollout.md",
+    "specs/001-capability-security-hardening/spec.md",
+    "specs/001-capability-security-hardening/tasks.md",
+    "specs/001-capability-security-hardening/threat-model.md",
+    "specs/001-capability-security-hardening/traceability.md"
+  ],
+  "status": "ready_for_review",
+  "production_mutation_authorized": false
+}
