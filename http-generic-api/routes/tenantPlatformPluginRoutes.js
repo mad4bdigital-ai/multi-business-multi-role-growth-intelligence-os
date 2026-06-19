@@ -166,6 +166,115 @@ export function buildTenantPlatformPluginRoutes() {
     } catch (err) { return errorResponse(res, err, "tenant_platform_plugin_install_failed"); }
   });
 
+  router.post("/tenant/platform/plugins/credential-intake-sessions", requireTenantUserJwt, async (req, res) => {
+    try {
+      if (!tenantCanManageConnections(req.auth.tenant_role)) {
+        return res.status(403).json({
+          ok: false,
+          error: { code: "tenant_connection_admin_required", message: "Tenant owner or admin role is required." },
+          tenant_facing: true,
+          secrets_included: false,
+        });
+      }
+
+      const input = req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {};
+      const unknownFields = tenantIntakeUnknownFields(input);
+      if (unknownFields.length) {
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: "tenant_intake_field_not_allowed",
+            message: "One or more fields are not allowed for tenant credential intake.",
+            details: unknownFields.map((field) => ({ field, issue: "not_allowed" })),
+          },
+          tenant_facing: true,
+          secrets_included: false,
+        });
+      }
+
+      const pluginKey = String(input.plugin_key || input.pluginKey || "").trim();
+      const purpose = String(input.purpose || "").trim().slice(0, 120);
+      if (!pluginKey || !purpose) {
+        return res.status(400).json({
+          ok: false,
+          error: { code: "tenant_intake_context_required", message: "plugin_key and purpose are required." },
+          tenant_facing: true,
+          secrets_included: false,
+        });
+      }
+
+      const policy = await loadTenantIntakePolicy({ tenantId: req.auth.tenant_id, pluginKey });
+      if (!policy) {
+        return res.status(403).json({
+          ok: false,
+          error: { code: "tenant_plugin_policy_required", message: "The requested integration is not enabled for this tenant." },
+          tenant_facing: true,
+          secrets_included: false,
+        });
+      }
+      if (String(policy.auth_type || "").toLowerCase() === "oauth2") {
+        return res.status(409).json({
+          ok: false,
+          error: { code: "oauth_authorization_required", message: "Use the integration OAuth authorization flow." },
+          tenant_facing: true,
+          secrets_included: false,
+        });
+      }
+
+      const result = await createCredentialIntakeSessionRecord({
+        request: req,
+        userId: req.auth.user_id,
+        tenantId: req.auth.tenant_id,
+        appKey: policy.app_key,
+        authType: policy.auth_type,
+        displayLabel: String(input.display_label || input.displayLabel || policy.display_name || "").trim().slice(0, 120) || null,
+        credentialSchema: null,
+        metadata: {
+          source: "tenant_safe_credential_intake",
+          purpose,
+          tenant_policy_source_mode: policy.source_mode,
+          requested_by_role: req.auth.tenant_role,
+          secrets_included: false,
+        },
+        expiresInMinutes: boundedInt(input.expires_in_minutes ?? input.expiresInMinutes, 30, 5, 30),
+        createdBy: req.auth.user_id,
+      });
+
+      writeAuditLogAsync({
+        tenant_id: req.auth.tenant_id,
+        actor_id: req.auth.user_id,
+        actor_type: "tenant_user",
+        action: "credential_intake.tenant_session_created",
+        resource_type: "credential_intake_session",
+        resource_id: result.session_id,
+        after_json: {
+          app_key: policy.app_key,
+          purpose,
+          auth_type: policy.auth_type,
+          expires_at: result.expires_at,
+          source: "tenant_safe_credential_intake",
+          secrets_included: false,
+        },
+        ip_address: req.ip || null,
+        user_agent: req.headers?.["user-agent"] || null,
+      });
+
+      return res.status(201).json({
+        ...result,
+        canonical_capability_id: "tenant.credential_intake.session.create",
+        auth_context: {
+          tenant_id: req.auth.tenant_id,
+          user_id: req.auth.user_id,
+          tenant_role: req.auth.tenant_role,
+          source: "user_jwt",
+        },
+        tenant_facing: true,
+        admin_tool_invoked: false,
+        secrets_included: false,
+      });
+    } catch (err) { return errorResponse(res, err, "tenant_credential_intake_session_create_failed"); }
+  });
+
   router.post("/tenant/platform/plugins/resolve", requireTenantUserJwt, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
