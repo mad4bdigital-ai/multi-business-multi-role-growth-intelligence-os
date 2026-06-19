@@ -338,7 +338,7 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "response_chunk_read",
     displayName: "Read Tool Response Chunk",
-    description: "Read the next chunk of a cached oversized tool response. Use when any governed tool returns response_chunked=true.",
+    description: "Read the next chunk of an oversized governed tool response. Reads the in-process cache first and recovers from durable MySQL storage after cache loss or process restart.",
     method: "VIRTUAL",
     path: "internal://response-chunk-read",
     tags: ["tooling", "pagination", "read_only"],
