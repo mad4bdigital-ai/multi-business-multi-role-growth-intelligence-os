@@ -108,6 +108,7 @@ import { buildOperationalConsoleRoutes } from "./operationalConsoleRoutes.js";
 import { buildActivationGuidanceRoutes } from "./activationGuidanceRoutes.js";
 import { buildGrowthIntelligenceRoutes } from "./growthIntelligenceRoutes.js";
 import { buildAgentGovernanceRoutes } from "./agentGovernanceRoutes.js";
+import { buildDynamicContainerAuthorityRoutes } from "./dynamicContainerAuthorityRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
