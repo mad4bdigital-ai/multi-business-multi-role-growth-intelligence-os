@@ -44,6 +44,16 @@ function assertNoSecret(value) {
   if (!result.ok) throw serviceError(422,"container_secret_field_forbidden","Secret-like fields are forbidden in container authority metadata.",result.violations);
 }
 
+function parseJsonArray(value) {
+  if (Array.isArray(value)) return value.map(String);
+  try {
+    const parsed = JSON.parse(String(value || "[]"));
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
 function assertEpoch(expectedEpoch, actualEpoch) {
   if (expectedEpoch !== null && Number(expectedEpoch) !== Number(actualEpoch)) {
     throw serviceError(409,"container_authority_epoch_changed","Authority epoch changed before mutation.",[{ expected:expectedEpoch,actual:actualEpoch }]);
