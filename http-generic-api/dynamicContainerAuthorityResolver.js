@@ -312,9 +312,12 @@ function resolveDimensionRequest(request, paths, state) {
 
     for (const share of incomingShares) {
       for (const sourceBinding of state.bindings.filter(binding =>
-        String(binding.container_id) === String(share.from_container_id) && bindingMatchesDimensionRequest(binding, request)
+        String(binding.container_id) === String(share.from_container_id)
+          && bindingMatchesDimensionRequest(binding,request)
+          && ["allow","share"].includes(String(binding.effect || "").toLowerCase())
+          && (binding.inheritance_mode === "explicit_share" || String(binding.effect || "").toLowerCase() === "share")
       )) {
-        candidates.push({ ...sourceBinding, effect:"share", sourceId:sourceBinding.binding_id, depth:Number.MAX_SAFE_INTEGER, priority:Number(share.priority || 0), pathHash:path.pathHash, relationshipId:share.relationship_id });
+        candidates.push({ ...sourceBinding,effect:"share",sourceId:sourceBinding.binding_id,depth:Number.MAX_SAFE_INTEGER,priority:Number(share.priority || 0),pathHash:path.pathHash,relationshipId:share.relationship_id });
       }
     }
     for (const delegation of incomingDelegations) {
