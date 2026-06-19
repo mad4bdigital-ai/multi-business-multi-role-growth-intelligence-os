@@ -189,7 +189,7 @@ flowchart LR
 | `governed_migration_authorization_registry` | table | Migration & lifecycle | 1 | - | - |
 | `governed_migration_ledger` | table | Migration & lifecycle | 1 | 16 | - |
 | `governed_research_plan_registry` | table | Tenancy & identity | 1 | - | - |
-| `governed_tool_response_chunks` | table | Developer & API | 2 | - | - |
+| `governed_tool_response_chunks` | table | Developer & API | 1 | - | - |
 | `gpt_session_conversation_refs` | table | Sessions & memory | 2 | 19 | `tenants`, `users` |
 | `gpt_session_turns` | table | Sessions & memory | 5 | 7 | - |
 | `graph_memory_usage_events` | table | Commercial & usage | 1 | 18 | `tenants`, `users` |
