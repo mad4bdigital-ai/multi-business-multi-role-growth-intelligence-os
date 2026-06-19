@@ -128,6 +128,10 @@ function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections 
           candidate_scopes: candidateScopes,
         };
       }
+      unusableConnection = connections.find((row) => {
+        if (scope === "user_connection" && !row.user_id) return false;
+        return normalize(row.status) === "active";
+      }) || unusableConnection;
       continue;
     }
     if (scope === "platform_managed") {
