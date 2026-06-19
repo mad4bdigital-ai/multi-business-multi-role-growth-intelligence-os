@@ -3,10 +3,10 @@
   "schema_version": "surface-contract-gap-triage-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
   "source_discovery_schema": "surface-contract-discovery-v3",
-  "total_triaged_items": 7,
+  "total_triaged_items": 5,
   "class_counts": {
     "new_surface_immediate_review": 4,
-    "safety_marker_review": 3
+    "safety_marker_review": 1
   },
   "gate_candidate_count": 4,
   "gate_candidate_files": [
@@ -196,80 +196,6 @@
       "queue_class": "medium_review",
       "triage_class": "safety_marker_review",
       "gate_scope": "legacy_baseline_candidate",
-      "gap_severity": "none",
-      "missing_docs": [],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write"
-      ],
-      "remediation_action_keys": [
-        "verify_tool_registry_binding",
-        "verify_readback_view",
-        "add_explicit_safety_markers"
-      ],
-      "owner_hints": [
-        "runtime-registry-review",
-        "db-readback-review",
-        "safety-contract-review"
-      ],
-      "recommended_next_step": "confirm registry binding/readback evidence before promotion",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "1018_sprint69_governed_response_chunk_schema_reconciliation.sql",
-      "score": 250,
-      "queue_class": "medium_review",
-      "triage_class": "safety_marker_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "none",
-      "missing_docs": [],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write"
-      ],
-      "remediation_action_keys": [
-        "verify_tool_registry_binding",
-        "verify_readback_view",
-        "add_explicit_safety_markers"
-      ],
-      "owner_hints": [
-        "runtime-registry-review",
-        "db-readback-review",
-        "safety-contract-review"
-      ],
-      "recommended_next_step": "confirm registry binding/readback evidence before promotion",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "1013_sprint69_approval_hold_identity_collation_alignment.sql",
-      "score": 177,
-      "queue_class": "low_review",
-      "triage_class": "safety_marker_review",
-      "gate_scope": "new_gap_gate_candidate",
       "gap_severity": "none",
       "missing_docs": [],
       "missing_openapi_routes": [],

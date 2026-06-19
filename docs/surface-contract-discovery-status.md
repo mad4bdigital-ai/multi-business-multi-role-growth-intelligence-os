@@ -64,11 +64,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 437 |
-| no_credential_payload_read | 436 |
-| no_raw_secrets | 436 |
-| no_external_send | 436 |
-| no_external_write | 436 |
+| no_provider_call | 439 |
+| no_credential_payload_read | 438 |
+| no_raw_secrets | 438 |
+| no_external_send | 438 |
+| no_external_write | 438 |
 | secrets_included_false | 440 |
 
 ### Route Classification Coverage
@@ -88,11 +88,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 7
+- Total queue items: 5
 - Critical review: 3
 - High review: 1
-- Medium review: 2
-- Low review: 1
+- Medium review: 1
+- Low review: 0
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
@@ -101,8 +101,6 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `1017_sprint69_hybrid_local_managed_agent_runtime.sql` | critical_review | 762 | high | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `1014_sprint69_approval_hold_collation_reconciliation_rule.sql` | high_review | 465 | medium | 5 | 0 | 1 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `311_sprint69_semantic_capability_effective_resolution.sql` | medium_review | 371 | none | 0 | 0 | 5 | verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
-| `1018_sprint69_governed_response_chunk_schema_reconciliation.sql` | medium_review | 250 | none | 0 | 0 | 5 | verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
-| `1013_sprint69_approval_hold_identity_collation_alignment.sql` | low_review | 177 | none | 0 | 0 | 5 | verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
 
 
 ## Latest Surface Coverage
