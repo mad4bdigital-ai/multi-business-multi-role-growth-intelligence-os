@@ -377,10 +377,10 @@ async function upsertProjectionRows(connection, plan, tenantId) {
   for (const row of bindings) {
     await connection.query(
       `INSERT INTO container_resource_bindings
-        (binding_id,tenant_id,container_id,dimension_key,resource_type,resource_ref,effect,permission_key,operation_patterns_json,capability_keys_json,inheritance_mode,merge_priority,conditions_json,valid_from,valid_until,status,version,source_table,source_pk,delegated_by_principal_type,delegated_by_principal_id,delegator_resolution_id,created_by,approved_by,metadata_json)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        (binding_id,tenant_id,container_id,dimension_key,resource_type,resource_ref,effect,permission_key,operation_patterns_json,capability_keys_json,inheritance_mode,merge_priority,conditions_json,valid_from,valid_until,status,version,source_table,source_pk,delegated_by_principal_type,delegated_by_principal_id,delegator_resolution_id,delegation_relationship_id,created_by,approved_by,metadata_json)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
        ON DUPLICATE KEY UPDATE effect=VALUES(effect),permission_key=VALUES(permission_key),operation_patterns_json=VALUES(operation_patterns_json),capability_keys_json=VALUES(capability_keys_json),inheritance_mode=VALUES(inheritance_mode),conditions_json=VALUES(conditions_json),valid_until=VALUES(valid_until),status=VALUES(status),metadata_json=VALUES(metadata_json),updated_at=UTC_TIMESTAMP()`,
-      [row.binding_id,row.tenant_id,row.container_id,row.dimension_key,row.resource_type,row.resource_ref,row.effect,row.permission_key,row.operation_patterns_json,row.capability_keys_json,row.inheritance_mode,row.merge_priority,row.conditions_json,row.valid_from,row.valid_until,row.status,row.version,row.source_table,row.source_pk,row.delegated_by_principal_type,row.delegated_by_principal_id,row.delegator_resolution_id,row.created_by,row.approved_by,row.metadata_json]
+      [row.binding_id,row.tenant_id,row.container_id,row.dimension_key,row.resource_type,row.resource_ref,row.effect,row.permission_key,row.operation_patterns_json,row.capability_keys_json,row.inheritance_mode,row.merge_priority,row.conditions_json,row.valid_from,row.valid_until,row.status,row.version,row.source_table,row.source_pk,row.delegated_by_principal_type,row.delegated_by_principal_id,row.delegator_resolution_id,row.delegation_relationship_id || null,row.created_by,row.approved_by,row.metadata_json]
     );
   }
   return { containerCount:containers.length,relationshipCount:relationships.length,roleAssignmentCount:assignments.length,resourceBindingCount:bindings.length };
