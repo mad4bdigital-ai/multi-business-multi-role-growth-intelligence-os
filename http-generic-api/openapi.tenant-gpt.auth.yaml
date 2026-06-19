@@ -1105,7 +1105,7 @@ paths:
         - platform-plugins
       operationId: tenantPlatformPluginCredentialIntakeSessionCreate
       summary: Create a tenant-safe credential intake session
-      description: Creates a short-lived single-use credential intake URL for an integration already enabled by tenant policy. Tenant and user identifiers come only from the signed JWT. Only tenant owners and admins may create sessions. Unknown fields, credentials, custom schemas, arbitrary metadata, tenant_id, and user_id are rejected.
+      description: Creates a short-lived single-use intake URL for a tenant-enabled integration. Identity comes only from the signed JWT. Owners/admins only. Unknown fields, credentials, custom schemas, arbitrary metadata, tenant_id, and user_id are rejected.
       requestBody:
         required: true
         content:
