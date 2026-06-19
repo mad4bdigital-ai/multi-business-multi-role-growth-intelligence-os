@@ -191,6 +191,34 @@ function classifyRoute(route, source = "") {
   };
 }
 
+function hasStandaloneSqlCommentMarker(source = "", marker = "") {
+  const token = String(marker || "");
+  if (!/^[a-z0-9_]+$/i.test(token)) return false;
+  const commentLine = new RegExp(
+    `(?:^|\\r?\\n)\\s*(?:--|#|\\/\\*+|\\*)\\s*${token}\\s*(?:\\*\\/)?\\s*(?=\\r?\\n|$)`,
+    "i"
+  );
+  return commentLine.test(String(source || ""));
+}
+
+export function detectSafetyMarkers(source = "") {
+  const body = String(source || "");
+  return {
+    no_provider_call: /no_provider_call['"`]?\s*,?\s*true|No provider calls?/i.test(body)
+      || hasStandaloneSqlCommentMarker(body, "no_provider_call"),
+    no_credential_payload_read: /no_credential_payload_read['"`]?\s*,?\s*true|credential payload reads?/i.test(body)
+      || hasStandaloneSqlCommentMarker(body, "no_credential_payload_read"),
+    no_raw_secrets: /no_raw_secrets['"`]?\s*,?\s*true|raw secrets?/i.test(body)
+      || hasStandaloneSqlCommentMarker(body, "no_raw_secrets"),
+    no_external_send: /no_external_send['"`]?\s*,?\s*true|No external send/i.test(body)
+      || hasStandaloneSqlCommentMarker(body, "no_external_send"),
+    no_external_write: /no_external_write['"`]?\s*,?\s*true|external writes?/i.test(body)
+      || hasStandaloneSqlCommentMarker(body, "no_external_write"),
+    secrets_included_false: /secrets_included['"`]?\s*,?\s*false|secrets_included\s*=\s*0|secrets_included=false/i.test(body)
+      || hasStandaloneSqlCommentMarker(body, "secrets_included_false"),
+  };
+}
+
 function extractSurfaces(source = "", fileName = "") {
   const routeMatches = [...source.matchAll(/['"`]((?:\/[A-Za-z0-9_{}:.-]+){2,})['"`]/g)].map((m) => m[1]);
   const routes = unique(routeMatches);
@@ -203,14 +231,7 @@ function extractSurfaces(source = "", fileName = "") {
   const policies = [...source.matchAll(/['"`]([A-Za-z0-9_]+_policy_v\d+)['"`]/g)].map((m) => m[1]);
   const plugins = [...source.matchAll(/['"`]([A-Za-z0-9_]+_orchestrator)['"`]/g)].map((m) => m[1]);
   const tools = [...source.matchAll(/['"`]([A-Za-z0-9_]+(?:_tool|_readback|_gate|_request|_approve|_decision|_execute|_list|_rollback|_certify|_record|_propose|_lookup|_validate|_blueprint|_dispatch|_preflight|_readiness)[A-Za-z0-9_]*)['"`]/g)].map((m) => m[1]);
-  const safety = {
-    no_provider_call: /no_provider_call['"`]?\s*,?\s*true|No provider calls?/i.test(source),
-    no_credential_payload_read: /no_credential_payload_read['"`]?\s*,?\s*true|credential payload reads?/i.test(source),
-    no_raw_secrets: /no_raw_secrets['"`]?\s*,?\s*true|raw secrets?/i.test(source),
-    no_external_send: /no_external_send['"`]?\s*,?\s*true|No external send/i.test(source),
-    no_external_write: /no_external_write['"`]?\s*,?\s*true|external writes?/i.test(source),
-    secrets_included_false: /secrets_included['"`]?\s*,?\s*false|secrets_included\s*=\s*0|secrets_included=false/i.test(source),
-  };
+  const safety = detectSafetyMarkers(source);
   return {
     routes,
     route_classifications: routeClassifications,
@@ -573,13 +594,13 @@ function writeGeneratedOutputs(report, markdown) {
   const gapQueueMarkdown = renderGapQueueMarkdown(report.gap_queue);
   fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
   fs.writeFileSync(OUTPUT_PATH, markdown);
-  fs.writeFileSync(JSON_OUTPUT_PATH, `${JSON.stringify(buildPersistedDiscoveryReport(report), null, 2)}\n`);
+  fs.writeFileSync(JSON_OUTPUT_PATH, `${JSON.stringify(buildPersistedDiscoveryReport(report))}\n`);
   fs.writeFileSync(GAP_QUEUE_PATH, gapQueueMarkdown);
   fs.writeFileSync(GAP_QUEUE_JSON_PATH, `${JSON.stringify(report.gap_queue, null, 2)}\n`);
 }
 
 function checkGeneratedOutputs(report, markdown) {
-  const expectedJson = `${JSON.stringify(buildPersistedDiscoveryReport(report), null, 2)}\n`;
+  const expectedJson = `${JSON.stringify(buildPersistedDiscoveryReport(report))}\n`;
   const expectedGapQueueJson = `${JSON.stringify(report.gap_queue, null, 2)}\n`;
   const expectedGapQueueMarkdown = renderGapQueueMarkdown(report.gap_queue);
   const currentMarkdown = readFileIfExists(OUTPUT_PATH);
