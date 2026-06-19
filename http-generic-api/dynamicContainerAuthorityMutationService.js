@@ -205,10 +205,10 @@ export async function createContainerResourceBinding(input, { idempotencyKey, if
       }
       await connection.query(
         `INSERT INTO container_resource_bindings
-          (binding_id,tenant_id,container_id,dimension_key,resource_type,resource_ref,effect,permission_key,operation_patterns_json,capability_keys_json,inheritance_mode,merge_priority,conditions_json,valid_from,valid_until,status,version,source_table,source_pk,delegated_by_principal_type,delegated_by_principal_id,delegator_resolution_id,created_by,approved_by,metadata_json)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(),?,'active',1,?,?,?,?,?,?,?,?)`,
+          (binding_id,tenant_id,container_id,dimension_key,resource_type,resource_ref,effect,permission_key,operation_patterns_json,capability_keys_json,inheritance_mode,merge_priority,conditions_json,valid_from,valid_until,status,version,source_table,source_pk,delegated_by_principal_type,delegated_by_principal_id,delegator_resolution_id,delegation_relationship_id,created_by,approved_by,metadata_json)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(),?,'active',1,?,?,?,?,?,?,?,?,?)`,
         [bindingId,tenantId,request.containerId,request.dimension,request.resourceType,request.resourceRef,effect,request.permissionKey,JSON.stringify(operations),JSON.stringify(request.capabilityKeys),request.inheritanceMode,Number(input.mergePriority || 0),JSON.stringify(request.conditions),request.validUntil,
-         input.sourceTable || null,input.sourcePk || null,request.delegatedByPrincipalType,request.delegatedByPrincipalId,request.delegatorResolutionId,actorId,input.approvedBy || null,JSON.stringify(input.metadata || {})]
+         input.sourceTable || null,input.sourcePk || null,request.delegatedByPrincipalType,request.delegatedByPrincipalId,request.delegatorResolutionId,request.delegationRelationshipId,actorId,input.approvedBy || null,JSON.stringify(input.metadata || {})]
       );
       return { bindingId,tenantId,containerId:request.containerId,dimension:request.dimension,resourceType:request.resourceType,resourceRef:request.resourceRef,effect,status:"active" };
     }
