@@ -521,6 +521,42 @@ export function resolveOverridePolicy(riskClass = "standard", requestedTtlMinute
   };
 }
 
+export function resolveRoleTemplateComposition({ rootRoleTemplateKey, roleTemplates = [], limits = {} } = {}) {
+  const effectiveLimits = { ...DEFAULT_CONTAINER_RESOLUTION_LIMITS, ...(limits || {}) };
+  const templateMap = rowsToMap(roleTemplates, ["role_template_key", "roleTemplateKey"]);
+  const rootKey = String(rootRoleTemplateKey || "");
+  if (!rootKey || !templateMap.has(rootKey) || !isActive(templateMap.get(rootKey))) {
+    return { ok:false,blocked:true,code:"role_template_not_registered",templateKeys:[] };
+  }
+  const visited = new Set();
+  const visiting = new Set();
+  const ordered = [];
+
+  function visit(key, depth, path) {
+    if (depth > effectiveLimits.maxDepth || visited.size > effectiveLimits.maxVisitedContainers) {
+      return { ok:false,blocked:true,code:"container_resolution_limit_exceeded",path };
+    }
+    if (visiting.has(key)) return { ok:false,blocked:true,code:"role_template_cycle_detected",path:[...path,key] };
+    if (visited.has(key)) return null;
+    const template = templateMap.get(key);
+    if (!template || !isActive(template)) return { ok:false,blocked:true,code:"role_template_not_registered",path:[...path,key] };
+    visiting.add(key);
+    const children = parseStringArray(template.composition_json ?? template.composition).sort();
+    for (const child of children) {
+      const failure = visit(child,depth+1,[...path,key]);
+      if (failure) return failure;
+    }
+    visiting.delete(key);
+    visited.add(key);
+    ordered.push(key);
+    return null;
+  }
+
+  const failure = visit(rootKey,0,[]);
+  if (failure) return { ...failure,templateKeys:[] };
+  return { ok:true,blocked:false,code:null,templateKeys:ordered };
+}
+
 export function buildContainerResolutionCacheKey({ tenantId, principal, targetContainerId, dimensionRequests, authorityEpoch, resolverVersion = "container-authority-v1" } = {}) {
   return stableSha256({
     tenantId: String(tenantId || ""),
