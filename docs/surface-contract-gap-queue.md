@@ -4,11 +4,11 @@
 
 ## Summary
 
-- Total queue items: 7
+- Total queue items: 5
 - Critical review: 3
 - High review: 1
-- Medium review: 2
-- Low review: 1
+- Medium review: 1
+- Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
@@ -83,33 +83,5 @@
 - Remediation actions:
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `connection_not_validated`, `effective_decision`, `execution_readiness`, `idx_capability_binding_lookup`, `legacy_decision`, `platform_endpoint_tool_exports`, `requires_readback`, `tenant_capability_shadow_decisions`, `workspace_validated_primary`, `workspace_validated_single`
 - `verify_readback_view` → db-readback-review; targets: `v_platform_capability_export_projection`, `v_platform_capability_export_reconciliation`, `v_platform_endpoint_canonical_identity`, `v_tenant_effective_capability_candidates`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-
-### 6. `1018_sprint69_governed_response_chunk_schema_reconciliation.sql`
-
-- Queue class: medium_review
-- Score: 250
-- Gap severity: none
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-- Surface counts: plugins=0, tools=9, views=1, policies=0, routes=0
-- Remediation actions:
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `chk_governed_tool_response_chunks_no_secrets`, `chk_governed_tool_response_chunks_sha256`, `governed_migration_record_only`, `governed_tool_response_chunks`, `idx_governed_tool_response_chunks_expires_at`, `migration_preflight_pass`, `migration_reconcile_20260618_chunk_store_record_only`, `post_apply_schema_readback`, `v_governed_response_chunk_schema_readiness`
-- `verify_readback_view` → db-readback-review; targets: `v_governed_response_chunk_schema_readiness`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-
-### 7. `1013_sprint69_approval_hold_identity_collation_alignment.sql`
-
-- Queue class: low_review
-- Score: 177
-- Gap severity: none
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-- Surface counts: plugins=0, tools=5, views=1, policies=0, routes=0
-- Remediation actions:
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `ads_provider_profile_onboarding_requests`, `execution_enablement_requests`, `local_gateway_tool_call_log`, `tenant_ssh_cli_approval_requests`, `v_approval_hold_identity_collation_readiness`
-- `verify_readback_view` → db-readback-review; targets: `v_approval_hold_identity_collation_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
