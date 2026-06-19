@@ -225,8 +225,8 @@ function noStoreHeaders(res) {
   );
 }
 
-async function loadApp(appKey) {
-  const [rows] = await getPool().query(
+async function loadApp(appKey, pool = getPool()) {
+  const [rows] = await pool.query(
     "SELECT app_key, display_name, description, auth_type, category, status FROM `app_integrations` WHERE app_key = ? LIMIT 1",
     [appKey]
   );
