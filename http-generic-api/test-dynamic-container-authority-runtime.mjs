@@ -355,4 +355,33 @@ assert.doesNotMatch(routeSource,/container-overrides\/:overrideId\/consume/);
 assert.doesNotMatch(resolverSource,/resolveCredential|materializeToken|buildAuthorizedClient|providerClient/i);
 assert.match(routeSource,/mode:principalContext\.isAdmin[^\n]+:\s*"preview"/);
 
+const rootOpenApi=YAML.parse(readFileSync("openapi.yaml","utf8"));
+const containerOpenApi=YAML.parse(readFileSync("openapi/container-authority.yaml","utf8"));
+const routeContracts=[
+  ["post","/container-context-resolutions","containerContextResolutions","createContainerContextResolution"],
+  ["get","/container-context-resolutions/{resolutionId}","containerContextResolutionById","getContainerContextResolution"],
+  ["post","/container-relationships","containerRelationships","createContainerRelationship"],
+  ["post","/container-role-assignments","containerRoleAssignments","createContainerRoleAssignment"],
+  ["post","/container-resource-bindings","containerResourceBindings","createContainerResourceBinding"],
+  ["post","/container-overrides","containerOverrides","createContainerOverride"],
+  ["get","/container-overrides/{overrideId}","containerOverrideById","getContainerOverride"],
+  ["post","/container-overrides/{overrideId}/approvals","containerOverrideApprovals","createContainerOverrideApproval"],
+  ["post","/container-authority/projections","containerAuthorityProjections","createContainerAuthorityProjection"],
+  ["get","/container-authority/shadow-summary","containerAuthorityShadowSummary","listContainerAuthorityShadowSummary"],
+  ["get","/container-authority/rollout-readiness","containerAuthorityRolloutReadiness","getContainerAuthorityRolloutReadiness"]
+];
+for(const [method,pathKey,fragmentKey,operationId] of routeContracts){
+  assert.equal(rootOpenApi.paths[pathKey].$ref,`./openapi/container-authority.yaml#/${fragmentKey}`);
+  const operation=containerOpenApi[fragmentKey][method];
+  assert(operation,`${method.toUpperCase()} ${pathKey} must exist in the OpenAPI fragment`);
+  assert.equal(operation.operationId,operationId);
+  assert(Array.isArray(operation.tags) && operation.tags.includes("container-authority"));
+  assert(Array.isArray(operation.security) && operation.security.length>0);
+  assert(operation.responses && Object.keys(operation.responses).length>0);
+  const expressPath=pathKey.replace(/\{([^}]+)\}/g,":$1");
+  assert(routeSource.includes(`router.${method}("${expressPath}"`),`${method.toUpperCase()} ${expressPath} must exist in Express routes`);
+}
+assert.equal(rootOpenApi.openapi,"3.1.0");
+assert.equal(containerOpenApi.schemas.ErrorResponse.properties.secretsIncluded.const,false);
+
 console.log("dynamic container authority runtime tests passed");
