@@ -265,9 +265,9 @@ CREATE TABLE IF NOT EXISTS `container_shadow_canary_registry` (
 INSERT INTO `container_override_policy_registry`
   (`risk_class`,`maximum_ttl_minutes`,`required_approval_count`,`self_approval_allowed`,`one_time_consumption_required`,`status`,`metadata_json`)
 VALUES
-  ('read_only',60,1,0,1,'active',JSON_OBJECT('seed','migration_320')),
-  ('standard',60,1,0,1,'active',JSON_OBJECT('seed','migration_320')),
-  ('high',60,1,0,1,'active',JSON_OBJECT('seed','migration_320')),
+  ('read_only',60,1,1,1,'active',JSON_OBJECT('seed','migration_320')),
+  ('standard',60,1,1,1,'active',JSON_OBJECT('seed','migration_320')),
+  ('high',60,1,1,1,'active',JSON_OBJECT('seed','migration_320')),
   ('critical',15,1,0,1,'active',JSON_OBJECT('seed','migration_320')),
   ('destructive',15,2,0,1,'active',JSON_OBJECT('seed','migration_320')),
   ('credential_touching',15,2,0,1,'active',JSON_OBJECT('seed','migration_320')),
