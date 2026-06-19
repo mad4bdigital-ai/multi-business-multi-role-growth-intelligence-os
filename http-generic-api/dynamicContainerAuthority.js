@@ -520,8 +520,8 @@ export function resolveOverridePolicy(riskClass = "standard", requestedTtlMinute
     dualApprovalRequired,
     maximumTtlMinutes,
     ttlMinutes,
-    requiredApprovalCount: dualApprovalRequired ? 2 : 1,
-    selfApprovalAllowed: false
+    requiredApprovalCount:dualApprovalRequired ? 2 : 1,
+    selfApprovalAllowed
   };
 }
 
