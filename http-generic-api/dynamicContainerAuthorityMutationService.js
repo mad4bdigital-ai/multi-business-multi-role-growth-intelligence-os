@@ -191,6 +191,9 @@ export async function createContainerResourceBinding(input, { idempotencyKey, if
   if (replay) return { ...replay,idempotentReplay:true };
   let delegatorResolution = null;
   if (effect === "delegate") {
+    if (!input.approvedBy) {
+      throw serviceError(403,"approval_required","Delegated resource bindings require explicit approval evidence.");
+    }
     if (!operations.length || operations.some(operation => operation.endsWith(".*")) || !request.delegatorResolutionId || !request.delegationRelationshipId || !request.delegatedByPrincipalType || !request.delegatedByPrincipalId) {
       throw serviceError(422,"delegation_exceeds_delegator_authority","Delegation requires exact operations, an explicit delegation relationship, and delegator resolution identity.");
     }
