@@ -5,6 +5,7 @@ import {
   DATABASE_LIFECYCLE_DAILY_SNAPSHOT_CONFIRMATION,
   runDatabaseLifecycleDailySnapshotCycle,
 } from "./databaseLifecycleDailyRuntime.js";
+import { runGovernedMigrationReconciliationRuntime } from "./governedMigrationReconciliationRuntime.js";
 import {
   AUDIT_BRIDGE_CONFIRMATION,
   runAuditLogEventBusBridge,
