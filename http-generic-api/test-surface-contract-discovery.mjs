@@ -99,6 +99,25 @@ assert(migration910, "migration 910 must stay discoverable after deep coverage c
 assert.equal(migration910.documentation_complete, true, "migration 910 documentation coverage must remain complete");
 assert.equal(migration910.coverage.requires_docs_review, false, "migration 910 must not require docs review after completion");
 
+const migration1018 = report.all_migrations.find((entry) => entry.migration_file === "1018_sprint69_governed_response_chunk_schema_reconciliation.sql");
+assert(migration1018, "migration 1018 must remain discoverable after safety parser changes");
+assert.equal(migration1018.documentation_complete, true, "migration 1018 documentation coverage must remain complete");
+for (const marker of [
+  "no_provider_call",
+  "no_credential_payload_read",
+  "no_raw_secrets",
+  "no_external_send",
+  "no_external_write",
+  "secrets_included_false",
+]) {
+  assert.equal(migration1018.surfaces.safety[marker], true, `migration 1018 must expose ${marker}`);
+}
+assert.equal(
+  report.gap_queue.top_items.some((entry) => entry.migration_file === "1018_sprint69_governed_response_chunk_schema_reconciliation.sql"),
+  false,
+  "migration 1018 must leave the actionable gap queue after docs and safety closure"
+);
+
 const migration954 = report.all_migrations.find((entry) => entry.migration_file === "954_sprint68_compact_operational_views_and_github_resource_coverage.sql");
 assert(migration954, "migration 954 must be captured by all-migration coverage after auto-sync");
 assert(migration954.surfaces.views.includes("v_release_readiness_compact"), "migration 954 compact readiness view must be detected");
