@@ -17082,6 +17082,92 @@ paths:
       security:
         - backendBearerAuth: []
 
+  /tenant/platform/plugins/credential-intake-sessions:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      operationId: tenantPlatformPluginCredentialIntakeSessionCreate
+      summary: Create a tenant-safe credential intake session
+      description: Creates a short-lived single-use credential intake URL for an integration already enabled by tenant policy. Tenant and user identifiers come only from the authenticated JWT. Only tenant owners and admins may create sessions. The request rejects unknown fields and never accepts credentials, custom schemas, arbitrary metadata, tenant_id, or user_id.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [plugin_key, purpose]
+              properties:
+                plugin_key:
+                  type: string
+                  minLength: 1
+                  maxLength: 180
+                purpose:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                display_label:
+                  type: string
+                  maxLength: 120
+                expires_in_minutes:
+                  type: integer
+                  minimum: 5
+                  maximum: 30
+                  default: 30
+            examples:
+              connectRepository:
+                value:
+                  plugin_key: github
+                  purpose: Connect the tenant repository
+                  display_label: Primary GitHub connection
+                  expires_in_minutes: 30
+      responses:
+        "201":
+          description: Tenant-bound credential intake session created
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, session_id, intake_url, expires_at, canonical_capability_id, tenant_facing, admin_tool_invoked, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  session_id: { type: string, format: uuid }
+                  intake_url:
+                    type: string
+                    format: uri
+                    description: Opaque short-lived single-use URL. Treat as sensitive and do not log it.
+                  expires_at: { type: string }
+                  app_key: { type: string }
+                  auth_type: { type: string }
+                  field_count: { type: integer, minimum: 0 }
+                  canonical_capability_id: { type: string, enum: [tenant.credential_intake.session.create] }
+                  tenant_facing: { type: boolean, enum: [true] }
+                  admin_tool_invoked: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400":
+          description: Invalid request, unknown field, or missing plugin/purpose
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: Active membership, tenant owner/admin role, or tenant plugin policy required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: Integration requires OAuth or is not in an intake-compatible state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Credential intake session creation failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+      security:
+        - backendBearerAuth: []
   /tenant/platform/plugins/resolve:
     post:
       x-openai-isConsequential: false
