@@ -387,10 +387,16 @@ function buildResolutionEvidence({ input, state, paths, roleResult, classificati
     expectedRegistrySnapshotHash:input.expectedRegistrySnapshotHash || null
   };
   const registrySnapshot = {
+    containerTypeVersions:state.containerTypes.map(row => [row.container_type_key,Number(row.version || 1)]).sort(),
     containerVersions:state.containers.map(row => [row.container_id,Number(row.version || 1)]).sort(),
+    relationshipTypeVersions:state.relationshipTypes.map(row => [row.relationship_type_key,Number(row.version || 1)]).sort(),
     relationshipVersions:state.relationships.map(row => [row.relationship_id,Number(row.version || 1)]).sort(),
+    classificationTypeVersions:state.classificationTypes.map(row => [row.classification_type_key,Number(row.version || 1)]).sort(),
     classificationVersions:state.classifications.map(row => [row.classification_id,Number(row.version || 1)]).sort(),
-    roleVersions:state.roleAssignments.map(row => [row.assignment_id,Number(row.version || 1)]).sort(),
+    roleTemplateVersions:(state.roleTemplates || []).map(row => [row.role_template_key,Number(row.version || 1),Number(row.authority_rank || 0),row.composition_json,row.eligible_container_types_json]).sort(),
+    rolePermissionVersions:(state.rolePermissions || []).map(row => [row.role_template_key,row.dimension_key,row.permission_key,row.effect,row.operation_patterns_json,Number(row.merge_priority || 0)]).sort(),
+    roleAssignmentVersions:state.roleAssignments.map(row => [row.assignment_id,Number(row.version || 1)]).sort(),
+    dimensionVersions:state.dimensions.map(row => [row.dimension_key,Number(row.version || 1),row.default_merge_strategy,Number(row.override_allowed || 0)]).sort(),
     bindingVersions:state.bindings.map(row => [row.binding_id,Number(row.version || 1)]).sort(),
     authorityEpoch:state.authorityEpoch,
     resolverVersion:CONTAINER_AUTHORITY_RESOLVER_VERSION
