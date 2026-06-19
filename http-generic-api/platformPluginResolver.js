@@ -502,10 +502,20 @@ export async function resolvePlatformPluginExecution({
   });
 
   const pluginStatusActive = ["active", "beta"].includes(normalize(rows.plugin.status));
-  const allowed = Boolean(pluginStatusActive && bindingState.ok && credential.ok && skill.granted && smokeCertification.certified);
+  const allowed = Boolean(
+    pluginStatusActive &&
+    bindingState.ok &&
+    surfaceExposure.ok &&
+    canonicalPolicy.ready &&
+    credential.ok &&
+    skill.granted &&
+    smokeCertification.certified
+  );
   const denialReasons = [];
   if (!pluginStatusActive) denialReasons.push("plugin_not_active");
   if (!bindingState.ok) denialReasons.push(bindingState.reason);
+  if (!surfaceExposure.ok) denialReasons.push(surfaceExposure.reason);
+  if (!canonicalPolicy.ready) denialReasons.push(canonicalPolicy.reason);
   if (!credential.ok) denialReasons.push(credential.reason);
   if (!skill.granted) denialReasons.push(skill.reason);
   if (!smokeCertification.certified) denialReasons.push(smokeCertification.reason);
