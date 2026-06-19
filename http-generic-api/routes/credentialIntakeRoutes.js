@@ -4,6 +4,7 @@ import { getPool } from "../db.js";
 import { encryptCredentials, encryptToken } from "../tokenEncryption.js";
 import { writeAuditLogAsync } from "../auditLogger.js";
 import { enqueueCredentialIntakeCompletedWebhook } from "../webhookDeliveryDispatcher.js";
+import { atomicallyConsumeCredentialIntakeSession } from "../credentialIntakeSingleUse.js";
 
 const TOKEN_BYTES = 32;
 const DEFAULT_TTL_MINUTES = 30;
