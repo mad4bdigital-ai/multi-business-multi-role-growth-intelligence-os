@@ -46,6 +46,31 @@ async function fetchActiveMembershipForTenant({ userId, tenantId = null }) {
   return rows[0] || null;
 }
 
+async function loadTenantIntakePolicy({ tenantId, pluginKey }) {
+  const [rows] = await getPool().query(
+    `SELECT p.tenant_id, p.app_key, p.source_mode, p.fallback_allowed,
+            p.required_for_device_install, p.status AS policy_status,
+            a.display_name, a.auth_type, a.status AS app_status
+       FROM tenant_integration_policies p
+       JOIN app_integrations a ON a.app_key = p.app_key
+      WHERE p.tenant_id = ?
+        AND p.app_key = ?
+        AND p.status = 'active'
+        AND a.status IN ('active', 'beta')
+      LIMIT 1`,
+    [tenantId, pluginKey]
+  );
+  return rows[0] || null;
+}
+
+function tenantCanManageConnections(role) {
+  return TENANT_CONNECTION_MANAGER_ROLES.has(String(role || "").trim().toLowerCase());
+}
+
+function tenantIntakeUnknownFields(input = {}) {
+  return Object.keys(input).filter((key) => !TENANT_INTAKE_ALLOWED_FIELDS.has(key));
+}
+
 async function requireTenantUserJwt(req, res, next) {
   const payload = req.auth?.mode === "user_jwt"
     ? req.auth
