@@ -30,6 +30,9 @@ const DEFAULT_CONFIG = Object.freeze({
   checkpoint_batch_limit: 1000,
   checkpoint_min_events: 100,
   checkpoint_max_age_minutes: 30,
+  migration_reconciliation_enabled: false,
+  migration_reconciliation_apply: false,
+  migration_reconciliation_limit: 2000,
   run_on_startup: true,
 });
 
