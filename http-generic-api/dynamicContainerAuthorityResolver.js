@@ -33,7 +33,7 @@ function stableError(code, message, details = []) {
   error.code = code;
   error.status = new Set(["container_not_found"]).has(code) ? 404
     : new Set(["container_cross_tenant_boundary","role_permission_insufficient"]).has(code) ? 403
-      : new Set(["container_cycle_detected","container_path_ambiguous","container_authority_epoch_changed"]).has(code) ? 409
+      : new Set(["container_cycle_detected","container_path_ambiguous","container_authority_epoch_changed","idempotency_key_conflict"]).has(code) ? 409
         : 422;
   error.details = details;
   return error;
