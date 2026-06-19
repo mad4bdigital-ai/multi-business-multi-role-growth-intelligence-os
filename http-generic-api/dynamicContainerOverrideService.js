@@ -99,6 +99,7 @@ export async function requestContainerOverride(input, { idempotencyKey, requeste
   const expiresAt = new Date(Date.now()+policy.ttlMinutes*60*1000).toISOString().slice(0,19).replace("T"," ");
   const payload = {
     overrideId,capabilityEnvelopeId,originalResolutionId,originalResolutionSha256:original.resolutionSha256,
+    originalDecision:original.decision,originalBlockingCodes:original.blockingCodes || [],
     authorityEpoch:original.authorityEpoch,registrySnapshotHash:original.registrySnapshotHash,tenantId:original.tenantId,
     requesterPrincipalType:principal.type,requesterPrincipalId:principal.id,targetContainerId,containerPathHash:original.containerPathHash,
     dimensionKey,resourceType,resourceRef,operationKey,riskClass:policy.riskClass,reason,
