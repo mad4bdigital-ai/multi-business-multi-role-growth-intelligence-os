@@ -250,6 +250,7 @@ CREATE TABLE IF NOT EXISTS `container_resource_bindings` (
   `delegated_by_principal_type` ENUM('user','agent','service','group') NULL,
   `delegated_by_principal_id` VARCHAR(191) NULL,
   `delegator_resolution_id` VARCHAR(36) NULL,
+  `delegation_relationship_id` VARCHAR(36) NULL,
   `created_by` VARCHAR(191) NULL,
   `approved_by` VARCHAR(191) NULL,
   `metadata_json` LONGTEXT NULL,
