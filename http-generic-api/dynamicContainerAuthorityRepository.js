@@ -34,7 +34,7 @@ export async function readContainerAuthorityEpoch(tenantId, executor = getPool()
 export async function loadContainerAuthorityState({ tenantId, targetContainerId, principal }, executor = getPool()) {
   const principalType = String(principal?.type || "");
   const principalId = String(principal?.id || "");
-  const [containers, containerTypes, relationships, relationshipTypes, classificationTypes, classifications, roleAssignments, rolePermissions, dimensions, bindings, epochRows] = await Promise.all([
+  const [containers, containerTypes, relationships, relationshipTypes, classificationTypes, classifications, roleAssignments, roleTemplates, rolePermissions, dimensions, bindings, epochRows] = await Promise.all([
     queryRows(executor, "SELECT * FROM containers WHERE tenant_id=? AND status='active'", [tenantId]),
     queryRows(executor, "SELECT * FROM container_type_registry WHERE status='active'"),
     queryRows(executor, `SELECT * FROM container_relationships
