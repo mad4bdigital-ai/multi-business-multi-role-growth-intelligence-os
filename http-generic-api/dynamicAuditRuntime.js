@@ -591,11 +591,20 @@ export async function runDynamicAuditCycle(options = {}, dependencies = {}) {
     }, { pool });
     const readiness = await readDynamicReadiness(connection);
     result = {
-      ok: Boolean(bridge.ok && rollup.ok && lifecycleSnapshot.ok),
+      ok: Boolean(migrationReconciliation.ok && bridge.ok && rollup.ok && lifecycleSnapshot.ok),
       run_id: runId,
       mode: options.mode || "scheduled",
       commit_sha: commitSha,
-      stages: { bridge, drive, release, repo, rollup, checkpoint, lifecycle_snapshot: lifecycleSnapshot },
+      stages: {
+        migration_reconciliation: migrationReconciliation,
+        bridge,
+        drive,
+        release,
+        repo,
+        rollup,
+        checkpoint,
+        lifecycle_snapshot: lifecycleSnapshot,
+      },
       readiness,
       raw_payload_stored: false,
       secrets_included: false,
