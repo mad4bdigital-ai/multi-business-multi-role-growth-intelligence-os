@@ -147,6 +147,18 @@ function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections 
     }
   }
 
+  if (unusableConnection) {
+    return {
+      ok: false,
+      credential_source: null,
+      connection_id: unusableConnection.connection_id || null,
+      connection_status: unusableConnection.status || null,
+      validation_status: unusableConnection.validation_status || null,
+      reason: "credential_not_usable",
+      candidate_scopes: candidateScopes,
+    };
+  }
+
   const dedicatedNoFallback = sourceMode === "dedicated" && !fallbackAllowed;
   return {
     ok: false,
