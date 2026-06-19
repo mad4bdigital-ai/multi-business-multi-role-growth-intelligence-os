@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { atomicallyConsumeCredentialIntakeSession } from "./credentialIntakeSingleUse.js";
+
+const routeSource = readFileSync("routes/credentialIntakeRoutes.js", "utf8");
+assert(routeSource.includes('atomicallyConsumeCredentialIntakeSession({'), "credential intake POST route must use the atomic single-use service");
+assert(routeSource.includes('tokenHash: sha256(req.params.token)'), "route must lock the hashed token rather than persist or query the raw token");
 
 function buildPool(initialSession) {
   const state = {
