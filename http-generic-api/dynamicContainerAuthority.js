@@ -245,10 +245,13 @@ export function resolveContainerDimensionCandidates(candidates = [], strategy = 
     const effectOrder = ["deny", "restrict", "require", "allow", "delegate", "share"];
     const selectedEffect = effectOrder.find(effect => ordered.some(row => String(row.effect || "").toLowerCase() === effect)) || "none";
     const selected = ordered.filter(row => String(row.effect || "").toLowerCase() === selectedEffect);
+    const blocked = selectedEffect === "deny" || selectedEffect === "require";
     return selectedResult(strategy, selected, selectedEffect, {
       decision: selectedEffect,
-      blocked: selectedEffect === "deny",
-      code: selectedEffect === "deny" ? "inherited_policy_restriction" : null
+      blocked,
+      code:selectedEffect === "deny"
+        ? "inherited_policy_restriction"
+        : selectedEffect === "require" ? "resource_requirement_unsatisfied" : null
     });
   }
 
