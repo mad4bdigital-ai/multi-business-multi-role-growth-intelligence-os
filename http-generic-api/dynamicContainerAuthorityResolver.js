@@ -487,6 +487,28 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
   const secretCheck = validateNoSecretMetadata(rawInput);
   if (!secretCheck.ok) throw stableError("container_secret_field_forbidden", "Secret-like fields are forbidden in container authority requests.", secretCheck.violations);
 
+  const idempotencyScope = `container-resolution:${input.tenantId}:${input.principal.type}:${input.principal.id}`;
+  const idempotencyRequestSha256 = stableSha256({
+    principal:input.principal,
+    tenantId:input.tenantId,
+    targetContainerId:input.targetContainerId,
+    dimensionRequests:input.dimensionRequests,
+    mode:input.mode,
+    expectedAuthorityEpoch:input.expectedAuthorityEpoch ?? null,
+    expectedRegistrySnapshotHash:input.expectedRegistrySnapshotHash,
+    legacyDecision:input.legacyDecision,
+    legacyEvidenceRef:input.legacyEvidenceRef
+  });
+  if (input.idempotencyKey) {
+    const existing = await readIdempotency(idempotencyScope,input.idempotencyKey);
+    if (existing) {
+      if (existing.request_sha256 !== idempotencyRequestSha256) {
+        throw stableError("idempotency_key_conflict", "Idempotency key was already used with a different container resolution request.");
+      }
+      return { ...existing.response,idempotentReplay:true };
+    }
+  }
+
   const startedAt = performance.now();
   let evidence;
   let cacheHit = false;
