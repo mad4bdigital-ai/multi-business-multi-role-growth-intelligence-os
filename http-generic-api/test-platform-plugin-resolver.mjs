@@ -238,9 +238,87 @@ function makePool({
 }
 
 {
+  const pool = makePool({ withToolBinding: true });
+  await assert.rejects(
+    () => resolvePlatformPluginExecution({
+      pool,
+      pluginKey: "github",
+      actionKey: "github.repo.read",
+      toolKey: "credential_effective_status",
+      tenantId: "tenant-1",
+      userId: "user-1",
+      agentId: "agent-1",
+      principalClass: "tenant",
+    }),
+    (err) => err?.code === "ambiguous_capability_selector" && err?.status === 400,
+  );
+}
+
+{
+  const pool = makePool({ withToolBinding: true });
+  const result = await resolvePlatformPluginExecution({
+    pool,
+    pluginKey: "github",
+    toolKey: "credential_effective_status",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    agentId: "agent-1",
+    principalClass: "tenant",
+  });
+  assert.equal(result.allowed, false);
+  assert.equal(result.mode, "preview_only");
+  assert(result.reason.includes("admin_tool_forbidden"));
+  assert(result.reason.includes("tool_canonical_policy_mapping_required"));
+  assert.equal(result.smoke_certification.required, true);
+  assert.notEqual(result.smoke_certification.reason, "no_action_requested");
+  assert.equal(result.execution.will_execute, false);
+}
+
+{
+  const pool = makePool({ withConnection: true, withSkill: true, tenantDedicated: true });
+  const result = await resolvePlatformPluginExecution({
+    pool,
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    agentId: "agent-1",
+    requestedCredentialScope: "none",
+  });
+  assert.equal(result.allowed, false);
+  assert.equal(result.credential_resolution.ok, false);
+  assert.equal(result.credential_resolution.reason, "credential_scope_not_allowed");
+  assert.equal(result.execution.will_execute, false);
+}
+
+{
+  const pool = makePool({
+    withConnection: true,
+    withSkill: true,
+    tenantDedicated: true,
+    validationStatus: "pending_validation",
+  });
+  const result = await resolvePlatformPluginExecution({
+    pool,
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    agentId: "agent-1",
+  });
+  assert.equal(result.allowed, false);
+  assert.equal(result.credential_resolution.ok, false);
+  assert.equal(result.credential_resolution.reason, "credential_not_usable");
+  assert.equal(result.execution.will_execute, false);
+}
+
+{
   const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
   assert(routes.includes("/platform/plugins/resolve"), "resolver route must be mounted");
   assert(routes.includes("resolvePlatformPluginExecution"), "resolver route must call resolver service");
+  assert(routes.includes('principalClass: "admin"'), "admin resolver must pass admin principal class");
+  const tenantRoutes = readFileSync("routes/tenantPlatformPluginRoutes.js", "utf8");
+  assert(tenantRoutes.includes('principalClass: "tenant"'), "tenant resolver must pass tenant principal class");
   const migration = readFileSync("migrations/120_sprint64_platform_plugin_resolver_tool.sql", "utf8");
   assert(migration.includes("platform_plugin_resolve"), "tool registry migration must register resolver tool");
   assert(migration.includes("preview_only"), "resolver tool must be tagged preview-only");
