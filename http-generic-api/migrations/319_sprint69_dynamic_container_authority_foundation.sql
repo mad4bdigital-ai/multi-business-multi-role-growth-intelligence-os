@@ -156,6 +156,8 @@ CREATE TABLE IF NOT EXISTS `container_role_template_registry` (
   `display_name` VARCHAR(255) NOT NULL,
   `description` TEXT NULL,
   `composition_json` LONGTEXT NULL,
+  `authority_rank` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+  `eligible_container_types_json` LONGTEXT NOT NULL,
   `default_scope_mode` ENUM('local_only','inherit_down') NOT NULL DEFAULT 'local_only',
   `status` ENUM('active','disabled','deprecated') NOT NULL DEFAULT 'active',
   `version` INT UNSIGNED NOT NULL DEFAULT 1,
