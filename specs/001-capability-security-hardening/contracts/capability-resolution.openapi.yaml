@@ -1,0 +1,398 @@
+openapi: 3.1.0
+info:
+  title: Governed Capability Resolution API
+  version: 1.0.0
+  description: >
+    Preview or execute a governed capability through one canonical authorization
+    and readiness pipeline. Secret material is never returned.
+servers:
+  - url: https://auth.mad4b.com
+paths:
+  /gpt/capability-decisions:
+    post:
+      operationId: createCapabilityDecision
+      summary: Resolve a governed capability decision
+      tags: [Capability Security]
+      security:
+        - bearerAuth: []
+        - backendApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CapabilityDecisionRequest'
+            examples:
+              previewAction:
+                value:
+                  mode: preview
+                  selector:
+                    actionKey: openrouter_provider_smoke
+                  target:
+                    resourceType: provider_binding
+                    resourceId: openrouter
+              previewTool:
+                value:
+                  mode: preview
+                  selector:
+                    toolKey: credential_effective_status
+                  target:
+                    resourceType: connection
+                    resourceId: con_123
+      responses:
+        '200':
+          description: Decision completed. A denied decision is represented in the response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapabilityDecisionResponse'
+        '400':
+          description: Invalid or ambiguous request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Authentication required or invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Caller cannot access the requested capability or resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Capability or public-safe target lookup failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: State conflict, stale approval, or unavailable device state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Semantically invalid target or capability arguments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limit exceeded
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Required runtime dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /gpt/credential-intake-sessions:
+    post:
+      operationId: createTenantCredentialIntakeSession
+      summary: Create a tenant-safe, subject-bound credential intake session
+      tags: [Credential Intake]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIntakeSessionRequest'
+      responses:
+        '201':
+          description: Intake session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateIntakeSessionResponse'
+        '400':
+          description: Invalid request or redirect
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Tenant or integration authorization denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Connection state prevents new intake
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    backendApiKey:
+      type: apiKey
+      in: header
+      name: x-api-key
+  schemas:
+    CapabilityDecisionRequest:
+      type: object
+      additionalProperties: false
+      required: [mode, selector]
+      properties:
+        mode:
+          type: string
+          enum: [preview, execute]
+        selector:
+          oneOf:
+            - $ref: '#/components/schemas/ActionSelector'
+            - $ref: '#/components/schemas/ToolSelector'
+            - $ref: '#/components/schemas/IntentSelector'
+        target:
+          $ref: '#/components/schemas/TargetResource'
+        deviceId:
+          type: string
+          minLength: 1
+          maxLength: 180
+        approvalId:
+          type: string
+          format: uuid
+        arguments:
+          type: object
+          additionalProperties: true
+        idempotencyKey:
+          type: string
+          minLength: 8
+          maxLength: 180
+    ActionSelector:
+      type: object
+      additionalProperties: false
+      required: [actionKey]
+      properties:
+        actionKey:
+          type: string
+          minLength: 1
+          maxLength: 180
+    ToolSelector:
+      type: object
+      additionalProperties: false
+      required: [toolKey]
+      properties:
+        toolKey:
+          type: string
+          minLength: 1
+          maxLength: 180
+    IntentSelector:
+      type: object
+      additionalProperties: false
+      required: [intentKey]
+      properties:
+        intentKey:
+          type: string
+          minLength: 1
+          maxLength: 180
+    TargetResource:
+      type: object
+      additionalProperties: false
+      required: [resourceType, resourceId]
+      properties:
+        resourceType:
+          type: string
+          minLength: 1
+          maxLength: 100
+        resourceId:
+          type: string
+          minLength: 1
+          maxLength: 250
+    CapabilityDecisionResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - decisionId
+        - requestId
+        - mode
+        - finalDecision
+        - dispatchReady
+        - willExecute
+        - gates
+        - policyVersion
+        - registryVersion
+      properties:
+        decisionId:
+          type: string
+          format: uuid
+        requestId:
+          type: string
+        mode:
+          type: string
+          enum: [preview, execute]
+        canonicalCapabilityId:
+          type: string
+          nullable: true
+        finalDecision:
+          type: string
+          enum: [allow, deny, error]
+        reasonCode:
+          type: string
+        dispatchReady:
+          type: boolean
+        willExecute:
+          type: boolean
+        executionOccurred:
+          type: boolean
+        credential:
+          $ref: '#/components/schemas/CredentialDecision'
+        readiness:
+          $ref: '#/components/schemas/ReadinessProjection'
+        gates:
+          type: array
+          items:
+            $ref: '#/components/schemas/GateResult'
+        policyVersion:
+          type: string
+        registryVersion:
+          type: string
+    CredentialDecision:
+      type: object
+      additionalProperties: false
+      required: [requirement, resolution, usability]
+      properties:
+        requirement:
+          type: string
+          enum: [required, not_required]
+        resolution:
+          type: string
+          enum: [resolved, missing, not_applicable, denied]
+        usability:
+          type: string
+          enum: [usable, unusable, not_applicable]
+        reasonCode:
+          type: string
+    GateResult:
+      type: object
+      additionalProperties: false
+      required: [gate, required, state, reasonCode]
+      properties:
+        gate:
+          type: string
+          enum:
+            - authentication
+            - principal_authorization
+            - tenant_membership
+            - surface_exposure
+            - resource_ownership
+            - skill
+            - credential
+            - device_trust
+            - smoke
+            - approval
+            - local_consent
+        required:
+          type: boolean
+        state:
+          type: string
+          enum: [pass, deny, not_applicable, not_evaluated]
+        reasonCode:
+          type: string
+    ReadinessProjection:
+      type: object
+      additionalProperties: false
+      properties:
+        workspace:
+          type: string
+          enum: [active, inactive, unknown]
+        deviceRegistration:
+          type: string
+          enum: [registered, not_registered, not_applicable, unknown]
+        deviceReachability:
+          type: string
+          enum: [online, offline, stale, not_verified, not_applicable]
+        connectorHealth:
+          type: string
+          enum: [healthy, degraded, unavailable, unknown, not_applicable]
+        credentialReadiness:
+          type: string
+          enum: [ready, missing, pending_validation, invalid, not_applicable]
+        executionReadiness:
+          type: string
+          enum: [ready, blocked, not_verified]
+    CreateIntakeSessionRequest:
+      type: object
+      additionalProperties: false
+      required: [integrationKey, connectionTargetId, purpose, redirectUri]
+      properties:
+        integrationKey:
+          type: string
+          minLength: 1
+          maxLength: 100
+        connectionTargetId:
+          type: string
+          minLength: 1
+          maxLength: 250
+        purpose:
+          type: string
+          minLength: 1
+          maxLength: 100
+        redirectUri:
+          type: string
+          format: uri
+    CreateIntakeSessionResponse:
+      type: object
+      additionalProperties: false
+      required: [sessionId, intakeUrl, expiresAt]
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        intakeUrl:
+          type: string
+          format: uri
+          description: Opaque, short-lived intake URL. Does not contain credential secret material.
+        expiresAt:
+          type: string
+          format: date-time
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            requestId:
+              type: string
