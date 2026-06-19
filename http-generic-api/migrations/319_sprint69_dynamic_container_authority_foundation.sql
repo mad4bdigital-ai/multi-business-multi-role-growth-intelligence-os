@@ -317,32 +317,33 @@ ON DUPLICATE KEY UPDATE
   metadata_json=VALUES(metadata_json),updated_at=CURRENT_TIMESTAMP;
 
 INSERT INTO `container_resource_dimension_registry`
-  (`dimension_key`,`display_name`,`resource_key_schema_json`,`supports_containment_inheritance`,`supports_sharing`,`supports_delegation`,`default_merge_strategy`,`default_share_access_mode`,`write_requires_delegation`,`credential_materialization_allowed`,`status`,`metadata_json`)
+  (`dimension_key`,`display_name`,`resource_key_schema_json`,`supports_containment_inheritance`,`supports_sharing`,`supports_delegation`,`default_merge_strategy`,`default_share_access_mode`,`write_requires_delegation`,`override_allowed`,`default_override_risk_class`,`credential_materialization_allowed`,`status`,`metadata_json`)
 VALUES
-  ('connections','Connections',JSON_OBJECT('type','string','maxLength',255),1,1,1,'nearest_replace','read_only',1,0,'active',JSON_OBJECT('secret_values_allowed',false)),
-  ('tools','Tools',JSON_OBJECT('type','string','maxLength',191),1,1,1,'union','read_only',1,0,'active',JSON_OBJECT('secret_values_allowed',false)),
-  ('skills','Skills',JSON_OBJECT('type','string','maxLength',191),1,1,1,'union','read_only',1,0,'active',JSON_OBJECT('secret_values_allowed',false)),
-  ('rules','Rules',JSON_OBJECT('type','string','maxLength',191),1,1,0,'deny_wins','read_only',1,0,'active',JSON_OBJECT('child_may_relax',false)),
-  ('policies','Policies',JSON_OBJECT('type','string','maxLength',191),1,1,0,'deny_wins','read_only',1,0,'active',JSON_OBJECT('child_may_relax',false)),
-  ('profiles','Profiles',JSON_OBJECT('type','string','maxLength',191),1,1,1,'nearest_replace','read_only',1,0,'active',JSON_OBJECT('secret_values_allowed',false)),
-  ('knowledge','Knowledge',JSON_OBJECT('type','string','maxLength',512),1,1,1,'union','read_only',1,0,'active',JSON_OBJECT('secret_values_allowed',false)),
-  ('logic','Logic',JSON_OBJECT('type','string','maxLength',191),1,1,1,'intersection','read_only',1,0,'active',JSON_OBJECT('secret_values_allowed',false)),
-  ('engines','Engines',JSON_OBJECT('type','string','maxLength',191),1,1,1,'intersection','read_only',1,0,'active',JSON_OBJECT('secret_values_allowed',false)),
-  ('workflows','Workflows',JSON_OBJECT('type','string','maxLength',191),1,1,1,'union','read_only',1,0,'active',JSON_OBJECT('secret_values_allowed',false)),
-  ('actions','Actions',JSON_OBJECT('type','string','maxLength',191),1,1,1,'intersection','read_only',1,0,'active',JSON_OBJECT('secret_values_allowed',false)),
-  ('endpoints','Endpoints',JSON_OBJECT('type','string','maxLength',191),1,1,1,'intersection','read_only',1,0,'active',JSON_OBJECT('secret_values_allowed',false)),
-  ('credentials','Credentials',JSON_OBJECT('type','string','maxLength',255),0,0,1,'nearest_replace','none',1,1,'active',JSON_OBJECT('binding_references_only',true,'raw_values_allowed',false)),
-  ('budgets','Budgets',JSON_OBJECT('type','number','minimum',0),1,0,1,'minimum','none',1,0,'active',JSON_OBJECT('most_restrictive_wins',true)),
-  ('quotas','Quotas',JSON_OBJECT('type','number','minimum',0),1,0,1,'minimum','none',1,0,'active',JSON_OBJECT('most_restrictive_wins',true)),
-  ('assets','Assets',JSON_OBJECT('type','string','maxLength',512),1,1,1,'union','read_only',1,0,'active',JSON_OBJECT('secret_values_allowed',false)),
-  ('agents','Agents',JSON_OBJECT('type','string','maxLength',191),1,1,1,'intersection','read_only',1,0,'active',JSON_OBJECT('secret_values_allowed',false)),
-  ('roles','Roles',JSON_OBJECT('type','string','maxLength',191),1,0,1,'intersection','none',1,0,'active',JSON_OBJECT('secret_values_allowed',false)),
-  ('brand_core','Brand Core',JSON_OBJECT('type','string','maxLength',255),1,0,1,'nearest_replace','none',1,0,'active',JSON_OBJECT('canonical_brand_key','brands.target_key','secret_values_allowed',false))
+  ('connections','Connections',JSON_OBJECT('type','string','maxLength',255),1,1,1,'nearest_replace','read_only',1,0,'credential_touching',0,'active',JSON_OBJECT('secret_values_allowed',false,'ownership_override_allowed',false)),
+  ('tools','Tools',JSON_OBJECT('type','string','maxLength',191),1,1,1,'union','read_only',1,1,'standard',0,'active',JSON_OBJECT('secret_values_allowed',false)),
+  ('skills','Skills',JSON_OBJECT('type','string','maxLength',191),1,1,1,'union','read_only',1,1,'standard',0,'active',JSON_OBJECT('secret_values_allowed',false)),
+  ('rules','Rules',JSON_OBJECT('type','string','maxLength',191),1,1,0,'deny_wins','read_only',1,1,'high',0,'active',JSON_OBJECT('child_may_relax',false)),
+  ('policies','Policies',JSON_OBJECT('type','string','maxLength',191),1,1,0,'deny_wins','read_only',1,1,'high',0,'active',JSON_OBJECT('child_may_relax',false)),
+  ('profiles','Profiles',JSON_OBJECT('type','string','maxLength',191),1,1,1,'nearest_replace','read_only',1,1,'standard',0,'active',JSON_OBJECT('secret_values_allowed',false)),
+  ('knowledge','Knowledge',JSON_OBJECT('type','string','maxLength',512),1,1,1,'union','read_only',1,1,'standard',0,'active',JSON_OBJECT('secret_values_allowed',false)),
+  ('logic','Logic',JSON_OBJECT('type','string','maxLength',191),1,1,1,'intersection','read_only',1,1,'high',0,'active',JSON_OBJECT('secret_values_allowed',false)),
+  ('engines','Engines',JSON_OBJECT('type','string','maxLength',191),1,1,1,'intersection','read_only',1,1,'high',0,'active',JSON_OBJECT('secret_values_allowed',false)),
+  ('workflows','Workflows',JSON_OBJECT('type','string','maxLength',191),1,1,1,'union','read_only',1,1,'high',0,'active',JSON_OBJECT('secret_values_allowed',false)),
+  ('actions','Actions',JSON_OBJECT('type','string','maxLength',191),1,1,1,'intersection','read_only',1,1,'high',0,'active',JSON_OBJECT('secret_values_allowed',false)),
+  ('endpoints','Endpoints',JSON_OBJECT('type','string','maxLength',191),1,1,1,'intersection','read_only',1,1,'high',0,'active',JSON_OBJECT('secret_values_allowed',false)),
+  ('credentials','Credentials',JSON_OBJECT('type','string','maxLength',255),0,0,1,'nearest_replace','none',1,0,'credential_touching',1,'active',JSON_OBJECT('binding_references_only',true,'raw_values_allowed',false,'ownership_override_allowed',false)),
+  ('budgets','Budgets',JSON_OBJECT('type','number','minimum',0),1,0,1,'minimum','none',1,1,'high',0,'active',JSON_OBJECT('most_restrictive_wins',true)),
+  ('quotas','Quotas',JSON_OBJECT('type','number','minimum',0),1,0,1,'minimum','none',1,1,'high',0,'active',JSON_OBJECT('most_restrictive_wins',true)),
+  ('assets','Assets',JSON_OBJECT('type','string','maxLength',512),1,1,1,'union','read_only',1,1,'standard',0,'active',JSON_OBJECT('secret_values_allowed',false)),
+  ('agents','Agents',JSON_OBJECT('type','string','maxLength',191),1,1,1,'intersection','read_only',1,1,'high',0,'active',JSON_OBJECT('secret_values_allowed',false)),
+  ('roles','Roles',JSON_OBJECT('type','string','maxLength',191),1,0,1,'intersection','none',1,1,'high',0,'active',JSON_OBJECT('secret_values_allowed',false)),
+  ('brand_core','Brand Core',JSON_OBJECT('type','string','maxLength',255),1,0,1,'nearest_replace','none',1,0,'high',0,'active',JSON_OBJECT('canonical_brand_key','brands.target_key','secret_values_allowed',false,'cross_brand_override_allowed',false))
 ON DUPLICATE KEY UPDATE
   display_name=VALUES(display_name),resource_key_schema_json=VALUES(resource_key_schema_json),
   supports_containment_inheritance=VALUES(supports_containment_inheritance),supports_sharing=VALUES(supports_sharing),
   supports_delegation=VALUES(supports_delegation),default_merge_strategy=VALUES(default_merge_strategy),
   default_share_access_mode=VALUES(default_share_access_mode),write_requires_delegation=VALUES(write_requires_delegation),
+  override_allowed=VALUES(override_allowed),default_override_risk_class=VALUES(default_override_risk_class),
   credential_materialization_allowed=VALUES(credential_materialization_allowed),metadata_json=VALUES(metadata_json),
   updated_at=CURRENT_TIMESTAMP;
 
