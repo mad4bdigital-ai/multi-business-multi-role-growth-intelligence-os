@@ -647,9 +647,97 @@ function renderDone(connectionId, autoPromotion = null) {
 }
 
 function absoluteBaseUrl(req) {
-  const proto = req.headers["x-forwarded-proto"] || req.protocol || "https";
-  const host = req.headers["x-forwarded-host"] || req.headers.host;
-  return `${proto}://${host}`;
+  const proto = req?.headers?.["x-forwarded-proto"] || req?.protocol || "https";
+  const host = req?.headers?.["x-forwarded-host"] || req?.headers?.host;
+  return host ? `${proto}://${host}` : "";
+}
+
+export async function createCredentialIntakeSessionRecord({
+  pool = getPool(),
+  request = null,
+  userId,
+  tenantId,
+  appKey,
+  authType,
+  displayLabel = null,
+  mcpEndpoint = null,
+  webhookUrl = null,
+  apiBaseUrl = null,
+  workspaceId = null,
+  credentialSchema = null,
+  metadata = {},
+  expiresInMinutes = DEFAULT_TTL_MINUTES,
+  createdBy = null,
+} = {}) {
+  const normalizedUserId = String(userId || "").trim();
+  const normalizedTenantId = String(tenantId || "").trim();
+  const normalizedAppKey = String(appKey || "").trim();
+  const normalizedAuthType = String(authType || "").trim();
+  if (!normalizedUserId || !normalizedTenantId || !normalizedAppKey || !normalizedAuthType) {
+    const err = new Error("user_id, tenant_id, app_key, auth_type are required.");
+    err.status = 400;
+    err.code = "missing_required_fields";
+    throw err;
+  }
+  if (!ALLOWED_AUTH_TYPES.has(normalizedAuthType)) {
+    const err = new Error("Unsupported auth_type.");
+    err.status = 400;
+    err.code = "unsupported_auth_type";
+    throw err;
+  }
+
+  const app = await loadApp(normalizedAppKey, pool);
+  if (!app) {
+    const err = new Error(`App ${normalizedAppKey} was not found.`);
+    err.status = 404;
+    err.code = "app_not_found";
+    throw err;
+  }
+  if (!["active", "beta"].includes(String(app.status || "").toLowerCase())) {
+    const err = new Error("App is not active or beta.");
+    err.status = 409;
+    err.code = "app_not_active";
+    throw err;
+  }
+
+  const normalizedSchema = normalizeCredentialSchema(normalizedAuthType, credentialSchema || null);
+  if (normalizedAuthType !== "oauth2" && !normalizedSchema.length) {
+    const err = new Error("No credential fields are available for this auth_type.");
+    err.status = 400;
+    err.code = "empty_credential_schema";
+    throw err;
+  }
+
+  const sessionId = randomUUID();
+  const token = randomToken();
+  const tokenHash = sha256(token);
+  const ttl = clampTtlMinutes(expiresInMinutes);
+  const expiresAt = new Date(Date.now() + ttl * 60_000).toISOString().slice(0, 19).replace("T", " ");
+  const safeMetadata = metadata && typeof metadata === "object" && !Array.isArray(metadata) ? metadata : {};
+
+  await pool.query(
+    `INSERT INTO credential_intake_sessions
+       (session_id, token_hash, user_id, tenant_id, app_key, auth_type, display_label,
+        mcp_endpoint, webhook_url, api_base_url, workspace_id, credential_schema_json,
+        metadata_json, status, expires_at, created_by)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?)`,
+    [sessionId, tokenHash, normalizedUserId, normalizedTenantId, normalizedAppKey, normalizedAuthType, displayLabel || null,
+     mcpEndpoint || null, webhookUrl || null, apiBaseUrl || null, workspaceId || null,
+     JSON.stringify({ fields: normalizedSchema }), JSON.stringify(safeMetadata), expiresAt, createdBy || normalizedUserId]
+  );
+
+  const path = `/credential-intake/${encodeURIComponent(token)}`;
+  const baseUrl = absoluteBaseUrl(request);
+  return {
+    ok: true,
+    session_id: sessionId,
+    intake_url: baseUrl ? `${baseUrl}${path}` : path,
+    expires_at: expiresAt,
+    app_key: normalizedAppKey,
+    auth_type: normalizedAuthType,
+    field_count: normalizedSchema.length,
+    secrets_included: false,
+  };
 }
 
 export function buildCredentialIntakeRoutes(deps = {}) {
