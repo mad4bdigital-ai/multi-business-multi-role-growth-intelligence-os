@@ -111,7 +111,7 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
       const principalContext = req.containerPrincipal;
       const input = {
         ...req.body,
-        principal:principalContext.principal,
+        principal:principalContext.isAdmin ? (req.body?.principal || principalContext.principal) : principalContext.principal,
         tenantId:principalContext.isAdmin ? String(req.body?.tenantId || "") : principalContext.tenantId,
         mode:principalContext.isAdmin ? String(req.body?.mode || "preview") : "preview",
         idempotencyKey,
