@@ -82,12 +82,22 @@ async function loadRuntimeConfig(connection) {
   const schedulerRow = byKey.get("dynamic_audit_scheduler");
   const bridgeRow = byKey.get("audit_log_event_bus_bridge_schedule");
   const rollupRow = byKey.get("audit_event_rollup_builder_schedule");
+  const migrationReconciliationRow = byKey.get("governed_migration_reconciliation_scheduler");
   const schedulerConfig = safeJsonParse(schedulerRow?.config_json, {});
+  const migrationReconciliationConfig = safeJsonParse(migrationReconciliationRow?.config_json, {});
   return {
     ...DEFAULT_CONFIG,
     ...safeJsonParse(bridgeRow?.config_json, {}),
     ...safeJsonParse(rollupRow?.config_json, {}),
     ...schedulerConfig,
+    migration_reconciliation_enabled:
+      migrationReconciliationRow?.status !== "disabled" &&
+      migrationReconciliationConfig.enabled === true,
+    migration_reconciliation_apply: migrationReconciliationConfig.apply === true,
+    migration_reconciliation_limit: Math.max(
+      1,
+      Math.min(Number(migrationReconciliationConfig.migration_limit || 2000), 2000)
+    ),
     enabled:
       schedulerRow?.status !== "disabled" &&
       schedulerConfig.enabled !== false &&
