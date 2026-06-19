@@ -94,7 +94,7 @@ export async function requestContainerOverride(input, { idempotencyKey, requeste
   }
   const reason = String(input.reason || "").trim();
   if (reason.length < 20 || reason.length > 1000) throw overrideError(400,"override_reason_invalid","Override reason must contain 20 to 1000 characters.");
-  const policy = resolveOverridePolicy(input.riskClass || envelope.risk_class || "standard",input.requestedTtlMinutes);
+  const policy = resolveOverridePolicy(input.riskClass || dimensionPolicy.default_override_risk_class || envelope.risk_class || "standard",input.requestedTtlMinutes);
   const overrideId = input.overrideId || randomUUID();
   const expiresAt = new Date(Date.now()+policy.ttlMinutes*60*1000).toISOString().slice(0,19).replace("T"," ");
   const payload = {
