@@ -76,7 +76,7 @@ function makePool({
           app_key: "github",
           auth_type: "oauth2",
           status: "active",
-          validation_status: "validated",
+          validation_status: validationStatus,
           last_validated_at: "2026-05-25T00:00:00.000Z",
           last_used_at: null,
           is_primary: 1,
