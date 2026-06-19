@@ -27,3 +27,9 @@ Required assurance surfaces include:
 When canonical tables are not yet promoted as primary authority, loader output must identify compatibility projection use and preserve source-table/source-key evidence.
 
 Secret-like fields, credential payloads, and plaintext secret values must not enter the loaded assurance context. Only governed references and hashes are allowed.
+
+## Dynamic Container Authority Loader Foundation
+
+The foundation loader may expose registry metadata only from `container_type_registry`, `containers`, `container_relationship_type_registry`, `container_relationships`, `container_classification_type_registry`, `container_classifications`, `container_role_template_registry`, `container_role_template_permissions`, `container_role_assignments`, `container_resource_dimension_registry`, `container_resource_bindings`, `container_authority_epochs`, and the bounded closure/read-model views.
+
+Foundation loading must remain read-only and no-secret. It must not select credentials, mint tokens, construct provider clients, or convert classifications, sharing edges, or role templates into execution authority. Any future effective-context loader must pin one tenant authority epoch, enforce traversal limits, include contributing path/source evidence, and return a blocked decision on ambiguity, cycle evidence, cross-tenant edges, or limit exhaustion.
