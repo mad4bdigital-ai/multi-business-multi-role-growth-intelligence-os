@@ -93,6 +93,8 @@ tags:
     description: Admin-governed AI Intelligence Runtime planning, policy, lifecycle, and decision evidence surfaces.
   - name: connected-execution
     description: DB-backed connected execution session, checkpoint, evidence, and resume-action metadata surfaces.
+  - name: container-authority
+    description: Dynamic multi-parent container authority previews, governed assignments, projections, shadow evidence, and explicit override governance.
 
 components:
   securitySchemes:
