@@ -449,7 +449,12 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   assert("tenant OpenAI schema does not expose direct connect routes",
     !Object.keys(tenantDoc.paths || {}).some((path) => path.startsWith("/connect")));
   assert("tenant OpenAI schema exposes tenant Platform Plugin routes only under /tenant/platform/plugins",
-    ["/tenant/platform/plugins/catalog", "/tenant/platform/plugins/install", "/tenant/platform/plugins/resolve"].every((path) => Boolean(tenantDoc.paths?.[path])));
+    [
+      "/tenant/platform/plugins/catalog",
+      "/tenant/platform/plugins/install",
+      "/tenant/platform/plugins/credential-intake-sessions",
+      "/tenant/platform/plugins/resolve",
+    ].every((path) => Boolean(tenantDoc.paths?.[path])));
   const tenantCallToolSchema = tenantDoc.paths?.["/system/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
   const tenantToolArgsSchema = tenantCallToolSchema?.properties?.tool_args;
   const tenantCallToolNameSchema = tenantCallToolSchema?.properties?.name || {};
