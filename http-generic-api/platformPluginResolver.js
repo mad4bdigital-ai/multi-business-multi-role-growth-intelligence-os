@@ -565,6 +565,8 @@ export async function resolvePlatformPluginExecution({
       binding_id: binding.binding_id,
       action_key: binding.action_key || null,
       tool_key: binding.tool_key || null,
+      tool_surface: binding.tool_surface || null,
+      exposure_scope: binding.exposure_scope || null,
       binding_role: binding.binding_role,
       credential_source: binding.credential_source,
       status: binding.status,
