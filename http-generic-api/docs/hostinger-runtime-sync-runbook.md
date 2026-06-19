@@ -116,4 +116,15 @@ The governed legacy cleanup policy permits at most 30 ahead commits. This is a b
 
 ## Durable response chunk runtime parity
 
-When a deployment includes `20260618_governed_tool_response_chunks.sql`, do not claim runtime parity from file sync alone. Apply the additive migration through the governed migration runner after preflight and typed confirmation, read back the table and expiry index, then restart or redeploy the Node process. The final smoke must create an oversized response, confirm durable persistence before `chunk_id`, evict the process-local cache entry, recover through MySQL, verify SHA-256 and UTF-8 byte length, confirm sliding expiry extension, and reconstruct Arabic/emoji JSON exactly. Record only bounded no-secret evidence and keep `secrets_included=false`.
+When a deployment includes durable response chunk changes, do not claim runtime parity from file sync alone. Confirm the deployed checkout contains both `20260618_governed_tool_response_chunks.sql` and `1018_sprint69_governed_response_chunk_schema_reconciliation.sql`, then bootstrap migration `1018` through the governed migration runner after preflight and typed confirmation.
+
+Required same-cycle evidence:
+
+- `v_governed_response_chunk_schema_readiness.readiness_status='ready'`;
+- the migration ledger records the exact checksum for `1018`;
+- the original `20260618` migration is reconciled as `record_only` after complete schema evidence;
+- `platform_runtime_config.governed_migration_reconciliation_scheduler` is active;
+- a scheduled Dynamic Audit cycle reports `migration_reconciliation.ok=true` under the shared MySQL advisory lock;
+- a second cycle executes no migration and creates no duplicate ledger evidence.
+
+The final smoke must create an oversized response, confirm durable persistence before `chunk_id`, evict the process-local cache entry, recover through MySQL, verify SHA-256 and UTF-8 byte length, confirm sliding expiry extension, and reconstruct Arabic/emoji JSON exactly. Record only bounded no-secret summaries; do not retain raw migration output, response payloads, credentials, or authorization headers.
