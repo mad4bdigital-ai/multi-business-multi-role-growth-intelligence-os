@@ -270,13 +270,13 @@ export async function withContainerAuthorityMutation({ tenantId, mutationType, m
 export async function createContainerOverrideRequestRecord(record, executor = getPool()) {
   await executor.query(
     `INSERT INTO container_override_requests
-      (override_id,capability_envelope_id,original_resolution_id,original_resolution_sha256,authority_epoch,registry_snapshot_hash,
+      (override_id,capability_envelope_id,original_resolution_id,original_resolution_sha256,original_decision,original_blocking_codes_json,authority_epoch,registry_snapshot_hash,
        tenant_id,requester_principal_type,requester_principal_id,target_container_id,container_path_hash,dimension_key,
        resource_type,resource_ref,operation_key,risk_class,reason,required_approval_count,approval_count,status,
        override_sha256,expires_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?)`,
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?)`,
     [record.overrideId,record.capabilityEnvelopeId || null,record.originalResolutionId,record.originalResolutionSha256,
-     record.authorityEpoch,record.registrySnapshotHash,record.tenantId,record.requesterPrincipalType,record.requesterPrincipalId,
+     record.originalDecision,JSON.stringify(record.originalBlockingCodes || []),record.authorityEpoch,record.registrySnapshotHash,record.tenantId,record.requesterPrincipalType,record.requesterPrincipalId,
      record.targetContainerId,record.containerPathHash,record.dimensionKey,record.resourceType,record.resourceRef,
      record.operationKey,record.riskClass,record.reason,record.requiredApprovalCount,record.status,record.overrideSha256,record.expiresAt]
   );
