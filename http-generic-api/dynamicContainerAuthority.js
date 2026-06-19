@@ -510,6 +510,7 @@ export function resolveOverridePolicy(riskClass = "standard", requestedTtlMinute
   const normalizedRisk = String(riskClass || "standard").trim().toLowerCase();
   const critical = CRITICAL_OVERRIDE_RISK_CLASSES.has(normalizedRisk);
   const dualApprovalRequired = DUAL_APPROVAL_OVERRIDE_RISK_CLASSES.has(normalizedRisk);
+  const selfApprovalAllowed = new Set(["read_only","standard","high"]).has(normalizedRisk);
   const maximumTtlMinutes = critical ? 15 : 60;
   const requested = Number(requestedTtlMinutes || maximumTtlMinutes);
   const ttlMinutes = Number.isFinite(requested) && requested > 0 ? Math.min(Math.floor(requested), maximumTtlMinutes) : maximumTtlMinutes;
