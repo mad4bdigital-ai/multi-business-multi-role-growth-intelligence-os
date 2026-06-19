@@ -103,37 +103,118 @@ function pathDepthMap(path) {
   return map;
 }
 
+function rolePermissionMatches(permission, request) {
+  if (String(permission.dimension_key || permission.dimension || "") !== String(request.dimension || "")) return false;
+  const patterns = parseObject(permission.operation_patterns_json ?? permission.operations, []);
+  if (!Array.isArray(patterns) || patterns.length === 0) return true;
+  return patterns.some(pattern => operationPatternMatches(pattern, request.operation));
+}
+
 function applicableRoleAssignments(path, state) {
   const depth = pathDepthMap(path);
-  return state.roleAssignments.filter(assignment => {
-    const assignmentContainer = String(assignment.container_id);
-    if (!depth.has(assignmentContainer)) return false;
-    if (assignment.inheritance_mode === "local_only" && assignmentContainer !== String(state.target.container_id)) return false;
-    return true;
-  }).map(assignment => ({
-    assignmentId: assignment.assignment_id,
-    containerId: assignment.container_id,
-    roleTemplateKey: assignment.role_template_key,
-    inlinePermissions: parseObject(assignment.inline_permissions_json, []),
-    inheritanceMode: assignment.inheritance_mode,
-    depth: depth.get(String(assignment.container_id)),
-    roleRank: ROLE_RANK[String(assignment.role_template_key || "").toLowerCase()] || 0
-  }));
+  const containerById = new Map(state.containers.map(container => [String(container.container_id),container]));
+  const templateByKey = new Map((state.roleTemplates || []).map(template => [String(template.role_template_key),template]));
+  const assignments = [];
+  const blockingCodes = new Set();
+
+  for (const assignment of state.roleAssignments) {
+    const assignmentContainerId = String(assignment.container_id);
+    if (!depth.has(assignmentContainerId)) continue;
+    if (assignment.inheritance_mode === "local_only" && assignmentContainerId !== String(state.target.container_id)) continue;
+    const assignmentContainer = containerById.get(assignmentContainerId);
+    if (!assignmentContainer) {
+      blockingCodes.add("role_assignment_invalid");
+      continue;
+    }
+
+    const inlinePermissions = parseObject(assignment.inline_permissions_json, []);
+    if (assignment.role_template_key) {
+      const roleTemplateKey = String(assignment.role_template_key);
+      const composition = resolveRoleTemplateComposition({ rootRoleTemplateKey:roleTemplateKey,roleTemplates:state.roleTemplates || [] });
+      if (!composition.ok) {
+        blockingCodes.add(composition.code || "role_template_not_registered");
+        continue;
+      }
+      const rootTemplate = templateByKey.get(roleTemplateKey);
+      const eligibleTypes = parseObject(rootTemplate?.eligible_container_types_json, []);
+      if (!rootTemplate || (Array.isArray(eligibleTypes) && eligibleTypes.length > 0 && !eligibleTypes.includes(String(assignmentContainer.container_type_key)))) {
+        blockingCodes.add("role_assignment_invalid");
+        continue;
+      }
+      const composedPermissions = (state.rolePermissions || [])
+        .filter(permission => composition.templateKeys.includes(String(permission.role_template_key)))
+        .map(permission => ({
+          source:"role_template",
+          roleTemplateKey:permission.role_template_key,
+          dimension:permission.dimension_key,
+          permissionKey:permission.permission_key,
+          effect:permission.effect,
+          operations:parseObject(permission.operation_patterns_json, []),
+          priority:Number(permission.merge_priority || 0)
+        }));
+      assignments.push({
+        assignmentId:assignment.assignment_id,
+        containerId:assignment.container_id,
+        roleTemplateKey,
+        composedRoleTemplateKeys:composition.templateKeys,
+        permissions:[...composedPermissions,...(Array.isArray(inlinePermissions) ? inlinePermissions : [])],
+        inheritanceMode:assignment.inheritance_mode,
+        depth:depth.get(assignmentContainerId),
+        roleRank:Number(rootTemplate.authority_rank || 0)
+      });
+      continue;
+    }
+
+    if (!Array.isArray(inlinePermissions) || inlinePermissions.length === 0) {
+      blockingCodes.add("role_assignment_invalid");
+      continue;
+    }
+    assignments.push({
+      assignmentId:assignment.assignment_id,
+      containerId:assignment.container_id,
+      roleTemplateKey:null,
+      composedRoleTemplateKeys:[],
+      permissions:inlinePermissions,
+      inheritanceMode:assignment.inheritance_mode,
+      depth:depth.get(assignmentContainerId),
+      roleRank:Number(assignment.metadata_json?.authority_rank || 1)
+    });
+  }
+  return { assignments,blockingCodes:[...blockingCodes] };
 }
 
 function resolveRoles(paths, state, requests) {
   const pathRoles = [];
   const blockingCodes = new Set();
   for (const path of paths) {
-    const assignments = applicableRoleAssignments(path, state);
+    const applicable = applicableRoleAssignments(path,state);
+    applicable.blockingCodes.forEach(code => blockingCodes.add(code));
+    const assignments = applicable.assignments;
     if (!assignments.length) blockingCodes.add("role_assignment_missing");
-    const minimumRank = assignments.length ? Math.min(...assignments.map(item => item.roleRank || 0)) : 0;
+
+    const rankByContainer = new Map();
+    for (const assignment of assignments) {
+      const current = rankByContainer.get(String(assignment.containerId)) || 0;
+      rankByContainer.set(String(assignment.containerId),Math.max(current,Number(assignment.roleRank || 0)));
+    }
+    const minimumRank = rankByContainer.size ? Math.min(...rankByContainer.values()) : 0;
     if (requests.some(request => !isReadOperation(request.operation)) && minimumRank < 2) blockingCodes.add("role_permission_insufficient");
-    pathRoles.push({ pathHash:path.pathHash, minimumRoleRank:minimumRank, assignments });
+
+    for (const request of requests) {
+      const matchingPermissions = assignments.flatMap(assignment =>
+        assignment.permissions
+          .filter(permission => rolePermissionMatches(permission,request))
+          .map(permission => ({ ...permission,assignmentId:assignment.assignmentId,containerId:assignment.containerId }))
+      );
+      if (matchingPermissions.some(permission => ["deny","restrict"].includes(String(permission.effect || "").toLowerCase()))) {
+        blockingCodes.add("role_permission_insufficient");
+      }
+    }
+    pathRoles.push({ pathHash:path.pathHash,minimumRoleRank:minimumRank,assignments });
   }
   return {
     pathRoles,
-    effectiveRoleRank: pathRoles.length ? Math.min(...pathRoles.map(item => item.minimumRoleRank)) : 0,
+    effectiveRoleRank:pathRoles.length ? Math.min(...pathRoles.map(item => item.minimumRoleRank)) : 0,
     blockingCodes:[...blockingCodes]
   };
 }
