@@ -464,6 +464,8 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
   const persistComparison = dependencies.persistComparison || persistShadowComparison;
   const recordPerformance = dependencies.recordPerformance || recordContainerPerformanceSample;
   const readPolicy = dependencies.readPolicy || readContainerRolloutPolicy;
+  const readIdempotency = dependencies.readIdempotency || readIdempotentResult;
+  const storeIdempotency = dependencies.storeIdempotency || storeIdempotentResult;
   const enforcementEnabled = dependencies.enforcementEnabled ?? String(process.env.DYNAMIC_CONTAINER_AUTHORITY_ENFORCEMENT || "false").toLowerCase() === "true";
 
   const input = {
