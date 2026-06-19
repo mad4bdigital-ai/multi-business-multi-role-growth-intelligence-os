@@ -4,6 +4,7 @@ import {
   buildContainerResolutionCacheKey,
   enumerateContainerPaths,
   resolveContainerDimensionCandidates,
+  resolveRoleTemplateComposition,
   stableSha256,
   validateNoSecretMetadata
 } from "./dynamicContainerAuthority.js";
