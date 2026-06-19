@@ -46,11 +46,11 @@
       "1014_sprint69_approval_hold_collation_reconciliation_rule.sql"
     ],
     "safety_marker_counts": {
-      "no_provider_call": 437,
-      "no_credential_payload_read": 436,
-      "no_raw_secrets": 436,
-      "no_external_send": 436,
-      "no_external_write": 436,
+      "no_provider_call": 439,
+      "no_credential_payload_read": 438,
+      "no_raw_secrets": 438,
+      "no_external_send": 438,
+      "no_external_write": 438,
       "secrets_included_false": 440
     },
     "safety_marker_gap_migrations": 2,
@@ -81,27 +81,27 @@
     }
   },
   "queue": {
-    "total_items": 7,
+    "total_items": 5,
     "class_counts": {
       "critical_review": 3,
       "high_review": 1,
-      "medium_review": 2,
-      "low_review": 1
+      "medium_review": 1,
+      "low_review": 0
     }
   },
   "triage": {
-    "total_items": 7,
+    "total_items": 5,
     "class_counts": {
       "new_surface_immediate_review": 4,
-      "safety_marker_review": 3
+      "safety_marker_review": 1
     },
     "gate_candidate_count": 4
   },
   "gate": {
     "ok": false,
     "mode": "future_only_all_new_gaps",
-    "new_item_count": 6,
-    "blocking_new_item_count": 6
+    "new_item_count": 4,
+    "blocking_new_item_count": 4
   },
   "top_immediate_items": [
     {
