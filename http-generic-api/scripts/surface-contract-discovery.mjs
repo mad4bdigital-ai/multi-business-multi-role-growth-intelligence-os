@@ -225,14 +225,7 @@ function extractSurfaces(source = "", fileName = "") {
   const policies = [...source.matchAll(/['"`]([A-Za-z0-9_]+_policy_v\d+)['"`]/g)].map((m) => m[1]);
   const plugins = [...source.matchAll(/['"`]([A-Za-z0-9_]+_orchestrator)['"`]/g)].map((m) => m[1]);
   const tools = [...source.matchAll(/['"`]([A-Za-z0-9_]+(?:_tool|_readback|_gate|_request|_approve|_decision|_execute|_list|_rollback|_certify|_record|_propose|_lookup|_validate|_blueprint|_dispatch|_preflight|_readiness)[A-Za-z0-9_]*)['"`]/g)].map((m) => m[1]);
-  const safety = {
-    no_provider_call: /no_provider_call['"`]?\s*,?\s*true|No provider calls?/i.test(source),
-    no_credential_payload_read: /no_credential_payload_read['"`]?\s*,?\s*true|credential payload reads?/i.test(source),
-    no_raw_secrets: /no_raw_secrets['"`]?\s*,?\s*true|raw secrets?/i.test(source),
-    no_external_send: /no_external_send['"`]?\s*,?\s*true|No external send/i.test(source),
-    no_external_write: /no_external_write['"`]?\s*,?\s*true|external writes?/i.test(source),
-    secrets_included_false: /secrets_included['"`]?\s*,?\s*false|secrets_included\s*=\s*0|secrets_included=false/i.test(source),
-  };
+  const safety = detectSafetyMarkers(source);
   return {
     routes,
     route_classifications: routeClassifications,
