@@ -131,6 +131,7 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
         tenantId: input.tenant_id || input.tenantId || null,
         userId: input.user_id || input.userId || null,
         agentId: input.agent_id || input.agentId || null,
+        principalClass: "admin",
         requestedCredentialScope: input.requested_credential_scope || input.requestedCredentialScope || null,
       });
       return res.status(200).json(result);
