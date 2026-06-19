@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT,
+  evictToolResponseChunkMemoryCache,
   inspectRepoReadOnly,
   maybeChunkToolResponseBody,
   paginateItems,
@@ -9,18 +10,59 @@ import {
   resolveToolResponseChunkTtlMs,
 } from "./routes/gptToolsRoutes.js";
 
+function createFakeChunkPool() {
+  const rows = new Map();
+  return {
+    rows,
+    async query(sql, params = []) {
+      if (sql.includes("INSERT INTO governed_tool_response_chunks")) {
+        const [chunkId, sourceToolKey, hash, bytes, serialized, cursorPolicy, redactionStatus, createdAtMs, expiresAt] = params;
+        rows.set(chunkId, {
+          chunk_id: chunkId,
+          source_tool_key: sourceToolKey,
+          response_sha256: hash,
+          response_bytes: bytes,
+          response_json: serialized,
+          cursor_policy: cursorPolicy,
+          redaction_status: redactionStatus,
+          secrets_included: 0,
+          created_at: new Date(createdAtMs),
+          expires_at: new Date(expiresAt),
+        });
+        return [{ affectedRows: 1 }];
+      }
+      if (sql.includes("FROM governed_tool_response_chunks") && sql.includes("WHERE chunk_id = ?")) {
+        const row = rows.get(params[0]);
+        return [[...(row ? [row] : [])]];
+      }
+      if (sql.includes("UPDATE governed_tool_response_chunks")) {
+        const [candidate, , chunkId] = params;
+        const row = rows.get(chunkId);
+        if (!row) return [{ affectedRows: 0 }];
+        if (new Date(candidate).getTime() > new Date(row.expires_at).getTime()) row.expires_at = new Date(candidate);
+        return [{ affectedRows: 1 }];
+      }
+      throw new Error(`Unexpected SQL in fake pool: ${sql.slice(0, 100)}`);
+    },
+  };
+}
+
 async function main() {
+  const now = Date.parse("2026-06-18T20:00:00.000Z");
+  const pool = createFakeChunkPool();
+  const deps = { pool, now };
   const largeBody = {
     ok: true,
     items: Array.from({ length: 200 }, (_, index) => ({
       id: index,
-      text: `tool-response-${index}-${"x".repeat(120)}`,
+      text: `استجابة-${index}-🌍-${"x".repeat(120)}`,
     })),
   };
 
-  const firstChunk = maybeChunkToolResponseBody(largeBody, {
+  const firstChunk = await maybeChunkToolResponseBody(largeBody, {
     response_options: { max_chars: 5000 },
-  });
+    source_tool_key: "test_response_chunking",
+  }, deps);
 
   assert.equal(CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT.policy, "chunk_read_before_alternative_surface");
   assert.equal(CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT.required_tool, "response_chunk_read");
@@ -40,22 +82,52 @@ async function main() {
   assert.ok(firstChunk.chunk.length <= 5000);
   assert.ok(firstChunk.cache.ttl_ms >= 15 * 60 * 1000);
   assert.ok(firstChunk.cache.expires_at);
+  assert.equal(firstChunk.cache.durable, true);
+  assert.equal(firstChunk.cache.cursor_policy, "utf16_code_unit_cursor_v1");
+  assert.match(firstChunk.cache.response_sha256, /^[0-9a-f]{64}$/);
+  assert.ok(pool.rows.has(firstChunk.chunk_id), "SQL persistence must complete before chunk_id is returned");
 
   const requestedTtl = resolveToolResponseChunkTtlMs({ response_options: { max_chars: 5000, chunk_ttl_minutes: 45 } }, JSON.stringify(largeBody).length);
   assert.ok(requestedTtl >= 45 * 60 * 1000);
 
-  const secondChunk = readCachedToolResponseChunk({
+  assert.equal(evictToolResponseChunkMemoryCache(firstChunk.chunk_id), true);
+  const recoveredFirstChunk = await readCachedToolResponseChunk({
     chunk_id: firstChunk.chunk_id,
-    cursor: firstChunk.page.next_cursor,
+    cursor: 0,
     max_chars: 5000,
-  });
+  }, { pool, now: now + 1000 });
+  assert.equal(recoveredFirstChunk.source, "governed_tool_response_chunk_store");
+  assert.equal(recoveredFirstChunk.chunk, firstChunk.chunk);
+  assert.equal(recoveredFirstChunk.cache.durable, true);
+
+  const secondChunk = await readCachedToolResponseChunk({
+    chunk_id: firstChunk.chunk_id,
+    cursor: recoveredFirstChunk.page.next_cursor,
+    max_chars: 5000,
+  }, { pool, now: now + 2000 });
 
   assert.equal(secondChunk.response_chunked, true);
   assert.equal(secondChunk.chunk_id, firstChunk.chunk_id);
-  assert.equal(secondChunk.page.cursor, firstChunk.page.next_cursor);
+  assert.equal(secondChunk.page.cursor, recoveredFirstChunk.page.next_cursor);
   assert.ok(secondChunk.chunk.length <= 5000);
-  assert.ok(secondChunk.cache.read_count >= 1);
+  assert.ok(secondChunk.cache.read_count >= 2);
   assert.equal(secondChunk.cache.extended_on_read, true);
+
+  let reconstructed = "";
+  let cursor = 0;
+  do {
+    const page = await readCachedToolResponseChunk({
+      chunk_id: firstChunk.chunk_id,
+      cursor,
+      max_chars: 5000,
+    }, { pool, now: now + 3000 + cursor });
+    reconstructed += page.chunk;
+    cursor = page.page.next_cursor;
+  } while (cursor !== null);
+  assert.equal(reconstructed, JSON.stringify(largeBody), "UTF-16 cursor slices must reconstruct Unicode JSON exactly");
+
+  const smallBody = { ok: true, value: "small" };
+  assert.deepEqual(await maybeChunkToolResponseBody(smallBody, { response_options: { max_chars: 5000 } }, deps), smallBody);
 
   const paged = paginateItems([
     { name: "alpha_tool", tags: ["repo"] },
@@ -94,22 +166,26 @@ async function main() {
 
   const systemLayerRoutes = readFileSync("routes/systemLayerRoutes.js", "utf8");
   assert.ok(systemLayerRoutes.includes("response_chunk_read"), "system layer must expose response_chunk_read for admin and tenant callers");
-  assert.ok(systemLayerRoutes.includes("chunkSystemLayerResponse"), "system layer list/call routes must chunk oversized responses");
+  assert.ok(systemLayerRoutes.includes("await readCachedToolResponseChunk(args)"), "system layer chunk reads must await durable recovery");
   assert.ok(systemLayerRoutes.includes("buildSystemToolsListResponse"), "system layer tools list must be bounded and page-aware");
   assert.ok(systemLayerRoutes.includes("bounded_paginated_chunkable"), "system layer tools list must advertise bounded chunkable mode");
   assert.ok(systemLayerRoutes.includes("chunk_ttl_minutes"), "system layer must expose controllable chunk TTL options");
 
-  const migrationName = "232_sprint68_chunked_tool_response_continuation_policy.sql";
-  const migration = readFileSync(`migrations/${migrationName}`, "utf8");
+  const continuationMigrationName = "232_sprint68_chunked_tool_response_continuation_policy.sql";
+  const continuationMigration = readFileSync(`migrations/${continuationMigrationName}`, "utf8");
+  const durableMigration = readFileSync("migrations/20260618_governed_tool_response_chunks.sql", "utf8");
   const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
   const readiness = readFileSync("releaseReadiness.js", "utf8");
-  assert.ok(migration.includes("Chunked Tool Response Continuation Contract"));
-  assert.ok(migration.includes("chunk_read_before_alternative_surface"));
-  assert.ok(migration.includes("response_chunk_read"));
-  assert.ok(migration.includes("only_then_use_secondary_search_slice_or_external_fallback"));
-  assert.ok(migration.includes("claim_file_too_large_without_attempting_response_chunk_read"));
-  assert.ok(runner.includes(migrationName), "governed migration runner must allow migration 232");
-  assert.ok(readiness.includes(migrationName), "release readiness must track migration 232");
+  assert.ok(continuationMigration.includes("Chunked Tool Response Continuation Contract"));
+  assert.ok(continuationMigration.includes("chunk_read_before_alternative_surface"));
+  assert.ok(continuationMigration.includes("response_chunk_read"));
+  assert.ok(continuationMigration.includes("only_then_use_secondary_search_slice_or_external_fallback"));
+  assert.ok(continuationMigration.includes("claim_file_too_large_without_attempting_response_chunk_read"));
+  assert.ok(runner.includes(continuationMigrationName), "governed migration runner must allow migration 232");
+  assert.ok(readiness.includes(continuationMigrationName), "release readiness must track migration 232");
+  assert.ok(durableMigration.includes("CREATE TABLE IF NOT EXISTS governed_tool_response_chunks"));
+  assert.ok(durableMigration.includes("utf8mb4"));
+  assert.ok(durableMigration.includes("expires_at"));
 }
 
 main().catch((err) => {

@@ -113,3 +113,7 @@ The deployment readback is bounded to no-secret fields from `execution_log` plus
 ## Superseded closed-PR branch cleanup bound
 
 The governed legacy cleanup policy permits at most 30 ahead commits. This is a bounded limit increase from 20 and does not relax closed-PR, `superseded` label, no-open-PR, replacement ancestry, changed-file coverage, fresh-SHA, capability-envelope, typed-confirmation, no-force, audit, or same-cycle absence-readback requirements.
+
+## Durable response chunk runtime parity
+
+When a deployment includes `20260618_governed_tool_response_chunks.sql`, do not claim runtime parity from file sync alone. Apply the additive migration through the governed migration runner after preflight and typed confirmation, read back the table and expiry index, then restart or redeploy the Node process. The final smoke must create an oversized response, confirm durable persistence before `chunk_id`, evict the process-local cache entry, recover through MySQL, verify SHA-256 and UTF-8 byte length, confirm sliding expiry extension, and reconstruct Arabic/emoji JSON exactly. Record only bounded no-secret evidence and keep `secrets_included=false`.

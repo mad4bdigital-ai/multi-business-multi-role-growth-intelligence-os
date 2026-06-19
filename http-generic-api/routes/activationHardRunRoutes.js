@@ -133,10 +133,11 @@ export function buildActivationHardRunRoutes({ requireBackendApiKey } = {}) {
 
       const shouldChunk = responseBody.response_projection?.semantic_chunk_fallback_required === true;
       const transportBody = shouldChunk
-        ? maybeChunkToolResponseBody(responseBody, {
+        ? await maybeChunkToolResponseBody(responseBody, {
             response_options: {
               max_chars: Number(req.body?.max_response_chars || 40000),
             },
+            source_tool_key: "activation_hard_run",
           })
         : responseBody;
       return res.status(statusCode).json(transportBody);

@@ -300,3 +300,12 @@ Use this checklist for PR #1270 and migration `906_sprint68_ticket_external_deli
 `1015_sprint69_local_connector_transient_retry_policy.sql` registers the blocking `Cloudflare 1033 Retry Before Repair` execution policy and updates the governed `local_connector_self_repair` tool description. The route performs three total bounded health attempts, stops on pass or authorization-gated reachability, records no-secret `retry_evidence`, and forbids installer generation when a retry recovers.
 
 Safety contract: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`.
+
+## Durable governed response chunk deployment parity
+
+- [ ] PR 1805 CI is green at the exact merge SHA.
+- [ ] `20260618_governed_tool_response_chunks.sql` exists in the deployed checkout and passes governed migration dry-run before apply.
+- [ ] Apply uses the typed confirmation required by `governed-migration-runner-v2`; no direct SQL execution is used for rollout.
+- [ ] Same-cycle schema readback confirms `governed_tool_response_chunks`, its expiry index, `utf8mb4`, and `secrets_included=0` enforcement.
+- [ ] Runtime smoke proves a chunk is persisted before `chunk_id`, the local cache entry is evicted, the next read recovers from MySQL, SHA-256/byte integrity passes, expiry extends, and Unicode JSON reconstructs exactly.
+- [ ] Production logs contain no raw response payloads, credentials, authorization headers, or secret-bearing chunk rows.

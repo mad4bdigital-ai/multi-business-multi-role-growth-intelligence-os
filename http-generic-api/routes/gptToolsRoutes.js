@@ -15,6 +15,12 @@ import {
   recordGrantUse,
 } from "../scopeGrantsService.js";
 import { cachedSqlRead, sqlCacheKey, toolCacheTtl } from "../sqlCache.js";
+import {
+  GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY,
+  extendGovernedToolResponseChunkExpiry,
+  loadGovernedToolResponseChunk,
+  persistGovernedToolResponseChunk,
+} from "../governedToolResponseChunkStore.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import {
   capabilityEnvelopeError,
@@ -332,7 +338,7 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "response_chunk_read",
     displayName: "Read Tool Response Chunk",
-    description: "Read the next chunk of a cached oversized tool response. Use when any governed tool returns response_chunked=true.",
+    description: "Read the next chunk of an oversized governed tool response. Reads the in-process cache first and recovers from durable MySQL storage after cache loss or process restart.",
     method: "VIRTUAL",
     path: "internal://response-chunk-read",
     tags: ["tooling", "pagination", "read_only"],
@@ -1132,6 +1138,11 @@ export function resolveToolResponseChunkTtlMs(options = {}, serializedLength = 0
   return clampNumber(requestedMs || dynamicMs, Math.max(DEFAULT_TOOL_RESPONSE_CHUNK_TTL_MS, dynamicMs), MIN_TOOL_RESPONSE_CHUNK_TTL_MS, MAX_TOOL_RESPONSE_CHUNK_TTL_MS);
 }
 
+function toolResponseChunkNow(deps = {}) {
+  const value = typeof deps.now === "function" ? deps.now() : (deps.now ?? Date.now());
+  return value instanceof Date ? value.getTime() : Number(value);
+}
+
 function cleanupToolResponseChunkCache(now = Date.now()) {
   for (const [chunkId, entry] of TOOL_RESPONSE_CHUNK_CACHE.entries()) {
     if (!entry?.expiresAt || entry.expiresAt <= now) TOOL_RESPONSE_CHUNK_CACHE.delete(chunkId);
@@ -1141,6 +1152,7 @@ function cleanupToolResponseChunkCache(now = Date.now()) {
 function buildToolResponseChunk({ serialized, chunkId, cursor, maxChars, source = "tool_response_cache" }) {
   const safeCursor = Math.min(Math.max(0, Number(cursor) || 0), serialized.length);
   const end = Math.min(safeCursor + maxChars, serialized.length);
+  const cacheEntry = TOOL_RESPONSE_CHUNK_CACHE.get(chunkId) || null;
   return {
     ok: true,
     response_chunked: true,
@@ -1166,39 +1178,53 @@ function buildToolResponseChunk({ serialized, chunkId, cursor, maxChars, source 
       returned_chars: end - safeCursor,
       total_chars: serialized.length,
     },
-    cache: TOOL_RESPONSE_CHUNK_CACHE.has(chunkId) ? {
-      ttl_ms: TOOL_RESPONSE_CHUNK_CACHE.get(chunkId)?.ttlMs || null,
-      expires_at: TOOL_RESPONSE_CHUNK_CACHE.get(chunkId)?.expiresAt ? new Date(TOOL_RESPONSE_CHUNK_CACHE.get(chunkId).expiresAt).toISOString() : null,
+    cache: cacheEntry ? {
+      ttl_ms: cacheEntry.ttlMs || null,
+      expires_at: cacheEntry.expiresAt ? new Date(cacheEntry.expiresAt).toISOString() : null,
       extended_on_read: true,
-      read_count: TOOL_RESPONSE_CHUNK_CACHE.get(chunkId)?.readCount || 0,
+      read_count: cacheEntry.readCount || 0,
+      durable: cacheEntry.durable === true,
+      cursor_policy: cacheEntry.cursorPolicy || GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY,
+      response_sha256: cacheEntry.responseSha256 || null,
       secrets_included: false,
     } : null,
     chunk: serialized.slice(safeCursor, end),
   };
 }
 
-function storeToolResponseForChunks(body, optionsSource = {}) {
-  cleanupToolResponseChunkCache();
+async function storeToolResponseForChunks(body, optionsSource = {}, deps = {}) {
+  const now = toolResponseChunkNow(deps);
+  cleanupToolResponseChunkCache(now);
   const serialized = JSON.stringify(body ?? {});
-  const now = Date.now();
   const ttlMs = resolveToolResponseChunkTtlMs(optionsSource, serialized.length);
   const chunkId = crypto.randomUUID();
+  const durable = await persistGovernedToolResponseChunk({
+    chunk_id: chunkId,
+    serialized,
+    ttl_ms: ttlMs,
+    source_tool_key: optionsSource?.source_tool_key || optionsSource?.tool_key || optionsSource?.name || null,
+    cursor_policy: GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY,
+    secrets_included: false,
+  }, deps);
   TOOL_RESPONSE_CHUNK_CACHE.set(chunkId, {
     serialized,
     createdAt: now,
     lastReadAt: now,
     ttlMs,
-    expiresAt: now + ttlMs,
+    expiresAt: new Date(durable.expires_at).getTime(),
     readCount: 0,
+    durable: true,
+    cursorPolicy: durable.cursor_policy,
+    responseSha256: durable.response_sha256,
   });
-  return { chunkId, serialized, ttlMs, expiresAt: now + ttlMs };
+  return { chunkId, serialized, ttlMs, expiresAt: new Date(durable.expires_at).getTime() };
 }
 
-export function maybeChunkToolResponseBody(body, optionsSource = {}) {
+export async function maybeChunkToolResponseBody(body, optionsSource = {}, deps = {}) {
   const options = normalizeResponseOptions(optionsSource?.response_options || optionsSource?._response || {});
   const serialized = JSON.stringify(body ?? {});
   if (serialized.length <= options.maxChars) return body;
-  const { chunkId } = storeToolResponseForChunks(body, optionsSource);
+  const { chunkId } = await storeToolResponseForChunks(body, optionsSource, deps);
   return buildToolResponseChunk({
     serialized,
     chunkId,
@@ -1208,7 +1234,11 @@ export function maybeChunkToolResponseBody(body, optionsSource = {}) {
   });
 }
 
-export function readCachedToolResponseChunk(args = {}) {
+export function evictToolResponseChunkMemoryCache(chunkId = "") {
+  return TOOL_RESPONSE_CHUNK_CACHE.delete(String(chunkId || "").trim());
+}
+
+export async function readCachedToolResponseChunk(args = {}, deps = {}) {
   const chunkId = String(args.chunk_id || "").trim();
   if (!chunkId) {
     const err = new Error("chunk_id is required.");
@@ -1216,28 +1246,45 @@ export function readCachedToolResponseChunk(args = {}) {
     err.code = "missing_chunk_id";
     throw err;
   }
-  cleanupToolResponseChunkCache();
-  const entry = TOOL_RESPONSE_CHUNK_CACHE.get(chunkId);
+  const now = toolResponseChunkNow(deps);
+  cleanupToolResponseChunkCache(now);
+  let entry = TOOL_RESPONSE_CHUNK_CACHE.get(chunkId);
+  let source = "tool_response_cache";
   if (!entry) {
-    const err = new Error("response chunk was not found or has expired.");
-    err.status = 404;
-    err.code = "response_chunk_not_found";
-    throw err;
+    const durable = await loadGovernedToolResponseChunk({ chunk_id: chunkId }, deps);
+    if (!durable) {
+      const err = new Error("response chunk was not found or has expired.");
+      err.status = 404;
+      err.code = "response_chunk_not_found";
+      throw err;
+    }
+    entry = {
+      serialized: durable.serialized,
+      createdAt: durable.created_at ? new Date(durable.created_at).getTime() : now,
+      lastReadAt: now,
+      ttlMs: Math.max(1, new Date(durable.expires_at).getTime() - now),
+      expiresAt: new Date(durable.expires_at).getTime(),
+      readCount: 0,
+      durable: true,
+      cursorPolicy: durable.cursor_policy,
+      responseSha256: durable.response_sha256,
+    };
+    source = "governed_tool_response_chunk_store";
   }
-  const now = Date.now();
   const options = normalizeResponseOptions(args);
   const ttlMs = resolveToolResponseChunkTtlMs(args, entry.serialized.length);
   entry.ttlMs = Math.max(Number(entry.ttlMs || 0), ttlMs);
   entry.lastReadAt = now;
   entry.readCount = Number(entry.readCount || 0) + 1;
   entry.expiresAt = now + entry.ttlMs;
+  await extendGovernedToolResponseChunkExpiry({ chunk_id: chunkId, ttl_ms: entry.ttlMs }, deps);
   TOOL_RESPONSE_CHUNK_CACHE.set(chunkId, entry);
   return buildToolResponseChunk({
     serialized: entry.serialized,
     chunkId,
     cursor: options.cursor,
     maxChars: options.maxChars,
-    source: "tool_response_cache",
+    source,
   });
 }
 
@@ -1353,7 +1400,10 @@ async function dispatchTool(callerType, toolKey, args, req) {
   const responseOptions = args && typeof args === "object" ? args : {};
   const resultForClient = {
     ...result,
-    body: maybeChunkToolResponseBody(result?.body, responseOptions),
+    body: await maybeChunkToolResponseBody(result?.body, {
+      ...responseOptions,
+      source_tool_key: toolKey,
+    }),
   };
   // Best-effort: archive the dispatch as a tool turn so admin GPT sessions get a
   // complete transcript without depending on the GPT calling writeSessionTurn.
@@ -1392,7 +1442,7 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
   }
 
   if (callerType === "admin" && toolKey === "response_chunk_read") {
-    return { status: 200, body: readCachedToolResponseChunk(args) };
+    return { status: 200, body: await readCachedToolResponseChunk(args) };
   }
 
   if (callerType === "admin" && toolKey === "admin_tool_catalog_search") {
@@ -2606,7 +2656,10 @@ export function buildGptToolsRoutes(deps) {
         page,
         tools: items,
       };
-      return res.status(200).json(maybeChunkToolResponseBody(body, { response_options: req.query || {} }));
+      return res.status(200).json(await maybeChunkToolResponseBody(body, {
+        response_options: req.query || {},
+        source_tool_key: "gpt_tools_list",
+      }));
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "tools_list_failed", message: err.message } });
     }
