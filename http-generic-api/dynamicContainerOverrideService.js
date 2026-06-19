@@ -35,6 +35,16 @@ async function readCapabilityEnvelope(envelopeId) {
   return rows[0] || null;
 }
 
+async function readDimensionOverridePolicy(dimensionKey) {
+  const [rows] = await getPool().query(
+    `SELECT dimension_key,override_allowed,default_override_risk_class
+       FROM container_resource_dimension_registry
+      WHERE dimension_key=? AND status='active' LIMIT 1`,
+    [dimensionKey]
+  );
+  return rows[0] || null;
+}
+
 export async function requestContainerOverride(input, { idempotencyKey, requesterPrincipal } = {}) {
   const secretCheck = validateNoSecretMetadata(input);
   if (!secretCheck.ok) throw overrideError(422,"container_secret_field_forbidden","Secret-like fields are forbidden in override requests.",secretCheck.violations);
