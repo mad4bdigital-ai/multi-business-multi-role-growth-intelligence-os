@@ -77,6 +77,12 @@ import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRo
   assert(routes.includes("/tenant/platform/plugins/catalog"), "tenant catalog route must be mounted");
   assert(routes.includes("/tenant/platform/plugins/install"), "tenant install route must be mounted");
   assert(routes.includes("/tenant/platform/plugins/resolve"), "tenant resolve route must be mounted");
+  assert(routes.includes("/tenant/platform/plugins/credential-intake-sessions"), "tenant-safe credential intake route must be mounted");
+  assert(routes.includes("tenant_connection_admin_required"), "tenant intake must require owner/admin role");
+  assert(routes.includes("tenant_intake_field_not_allowed"), "tenant intake must reject non-allowlisted fields");
+  assert(routes.includes("tenant_integration_policies"), "tenant intake must require active tenant plugin policy");
+  assert(routes.includes("createCredentialIntakeSessionRecord"), "tenant intake must use shared governed session helper");
+  assert(routes.includes("admin_tool_invoked: false"), "tenant intake must not claim raw admin tool dispatch");
   assert(routes.includes("requireTenantUserJwt"), "tenant routes must require user JWT");
   assert(routes.includes("tenantId: req.auth.tenant_id"), "tenant install/resolve must derive tenant_id from auth");
   assert(routes.includes("userId: req.auth.user_id"), "tenant install/resolve must derive user_id from auth");
