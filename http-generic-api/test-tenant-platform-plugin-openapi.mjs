@@ -15,6 +15,10 @@ assert(schema.includes("/tenant/platform/plugins/resolve"), "tenant resolve path
 assert(schema.includes("/tenant/platform/plugins/credential-intake-sessions"), "tenant-safe credential intake path must be present");
 assert(schema.includes("canonical_capability_id"), "tenant intake response must expose canonical capability identity");
 assert(schema.includes("admin_tool_invoked"), "tenant intake response must prove raw admin tooling was not invoked");
+assert(schema.includes("redirect_uri"), "tenant intake request must document the bounded redirect field");
+assert(mainSchema.includes("redirect_uri"), "main OpenAPI must document the bounded redirect field");
+assert(schema.includes("binding_context"), "tenant intake response must document immutable binding evidence");
+assert(schema.includes("authority_snapshot_version"), "tenant intake response must document authority snapshot evidence");
 assert(schema.includes("Unknown fields, credentials, custom schemas, arbitrary metadata, tenant_id, and user_id are rejected"), "tenant intake must document strict identity and field isolation");
 assert(schema.includes("x-openai-isConsequential: true"), "tenant install and intake writes must be marked consequential");
 assert(schema.includes("Tenant/user IDs come from auth"), "schema must document auth-derived tenant/user context");
