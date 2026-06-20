@@ -70,7 +70,7 @@
 ## Phase 5 — Credential-policy separation
 
 - [ ] **T046** Define credential requirement, resolution, and usability types. `[FR-022]`
-- [ ] **T047** Move credential lookup after authorization and ownership. `[FR-023]`
+- [x] **T047** Move credential lookup after authorization and ownership. `[FR-023]`
 - [ ] **T048** Ensure `not_required` has no effect on permission gates. `[FR-024]`
 - [ ] **T049** Enforce validated usable states for execution. `[FR-025]`
 - [ ] **T050** Enforce target authorization for platform-managed credentials. `[FR-027]`
