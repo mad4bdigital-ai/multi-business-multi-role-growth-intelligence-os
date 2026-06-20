@@ -7,6 +7,7 @@ import {
 } from "./gptToolsRoutes.js";
 import {
   buildLocalGatewayApprovalBinding,
+  localGatewayApprovalConsumptionState,
   localGatewayConsentStatus,
   validateLocalGatewayApprovalBinding,
 } from "../localGatewayApprovalPolicy.js";
