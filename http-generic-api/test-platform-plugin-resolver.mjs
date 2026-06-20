@@ -236,6 +236,7 @@ function makePool({
   assert.equal(result.allowed, false);
   assert(result.reason.includes("dedicated_connection_required"));
   assert.equal(result.credential_resolution.ok, false);
+  assert.equal(result.credential_resolution.denial_code, "DEDICATED_CONNECTION_REQUIRED");
   assert.equal(result.credential_resolution.requirement, "required");
   assert.equal(result.credential_resolution.resolution_state, "missing");
   assert.equal(result.credential_resolution.usability_state, "not_evaluated");
