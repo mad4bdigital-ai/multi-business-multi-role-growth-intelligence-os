@@ -96,6 +96,23 @@ function deriveCandidateCredentialScopes({ plugin, binding, tenantPolicy }) {
   return scopes;
 }
 
+function resolveCredentialRequirement({ plugin, binding, tenantPolicy, requestedScope = null }) {
+  const candidateScopes = deriveCandidateCredentialScopes({ plugin, binding, tenantPolicy });
+  const explicitRequestedScope = normalize(requestedScope || "");
+  const scopeAllowed = !explicitRequestedScope || candidateScopes.includes(explicitRequestedScope);
+  const effectiveScopes = explicitRequestedScope ? [explicitRequestedScope] : candidateScopes;
+  const notRequired = scopeAllowed && effectiveScopes.length > 0 && effectiveScopes.every((scope) => scope === "none");
+  return {
+    requirement: notRequired ? CredentialRequirement.NOT_REQUIRED : CredentialRequirement.REQUIRED,
+    requested_scope: explicitRequestedScope || null,
+    candidate_scopes: candidateScopes,
+    scope_allowed: scopeAllowed,
+    reason: !scopeAllowed
+      ? "credential_scope_not_allowed"
+      : (notRequired ? "credential_not_required_by_policy" : "credential_required_by_policy"),
+  };
+}
+
 function connectionIsUsable(row = {}) {
   const status = normalize(row.status);
   const validationStatus = normalize(row.validation_status);
