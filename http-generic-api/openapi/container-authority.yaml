@@ -634,3 +634,243 @@ containerAuthorityRolloutReadiness:
       '401': { $ref: '#/responses/Unauthorized' }
       '403': { $ref: '#/responses/Forbidden' }
       '500': { $ref: '#/responses/InternalError' }
+
+coWorkspaces:
+  get:
+    tags: [container-authority]
+    operationId: listMyCoWorkspaces
+    summary: List workspace containers available to the signed-in user
+    description: Returns workspaces reached through direct or inherited container role assignments. It does not expose other tenant workspaces.
+    security: [{ userJwtAuth: [] }]
+    parameters:
+      - name: limit
+        in: query
+        required: false
+        schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      - name: cursor
+        in: query
+        required: false
+        schema: { type: string }
+    responses:
+      '200': { description: Cursor-paginated co-workspaces, content: { application/json: { schema: { $ref: '#/schemas/CoWorkspaceListResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '500': { $ref: '#/responses/InternalError' }
+
+workspaceTeam:
+  get:
+    tags: [container-authority]
+    operationId: getWorkspaceContainerTeam
+    summary: List direct members of one workspace container team
+    security: [{ userJwtAuth: [] }]
+    parameters:
+      - name: workspaceId
+        in: path
+        required: true
+        description: Workspace container ID, workspace ID, workspace key, or canonical subject reference.
+        schema: { type: string, minLength: 1, maxLength: 191 }
+    responses:
+      '200': { description: Direct workspace team and caller management capability, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '500': { $ref: '#/responses/InternalError' }
+
+workspaceTeamMembers:
+  post:
+    tags: [container-authority]
+    operationId: addWorkspaceContainerTeamMember
+    summary: Add an existing user to a workspace container team
+    description: Requires effective container_admin authority. The service may create or reactivate a least-privilege tenant membership, then creates a direct container role assignment and advances the authority epoch.
+    security: [{ userJwtAuth: [] }]
+    parameters:
+      - name: workspaceId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 191 }
+      - { $ref: '#/parameters/IdempotencyKey' }
+      - { $ref: '#/parameters/IfMatch' }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/schemas/ContainerTeamMemberSetRequest' }
+          example: { email: teammate@example.com, role: editor, inheritanceMode: inherit_down }
+    responses:
+      '200': { description: Idempotent replay of an existing member mutation, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamMutationResponse' } } } }
+      '201': { description: Workspace team member added, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamMutationResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '422': { $ref: '#/responses/Unprocessable' }
+      '500': { $ref: '#/responses/InternalError' }
+
+workspaceTeamMemberById:
+  patch:
+    tags: [container-authority]
+    operationId: updateWorkspaceContainerTeamMember
+    summary: Update one direct workspace team assignment
+    description: Omitted fields retain their current values. Demoting the last effective container administrator is blocked.
+    security: [{ userJwtAuth: [] }]
+    parameters:
+      - name: workspaceId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 191 }
+      - name: userId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 36 }
+      - { $ref: '#/parameters/IfMatch' }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/schemas/ContainerTeamMemberUpdateRequest' }
+          example: { roleTemplateKey: container_operator }
+    responses:
+      '200': { description: Workspace team assignment updated, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamMutationResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '422': { $ref: '#/responses/Unprocessable' }
+      '500': { $ref: '#/responses/InternalError' }
+  delete:
+    tags: [container-authority]
+    operationId: removeWorkspaceContainerTeamMember
+    summary: Revoke one direct workspace team assignment
+    description: Tenant membership remains active so the user can continue participating in other co-workspaces. Removing the last effective container administrator is blocked.
+    security: [{ userJwtAuth: [] }]
+    parameters:
+      - name: workspaceId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 191 }
+      - name: userId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 36 }
+      - { $ref: '#/parameters/IfMatch' }
+    responses:
+      '200': { description: Workspace team assignment revoked, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamMutationResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '500': { $ref: '#/responses/InternalError' }
+
+brandTeam:
+  get:
+    tags: [container-authority]
+    operationId: getBrandContainerTeam
+    summary: List direct members of one brand container team
+    security: [{ userJwtAuth: [] }]
+    parameters:
+      - name: brandRef
+        in: path
+        required: true
+        description: Brand container ID, brands.target_key, or brand container key.
+        schema: { type: string, minLength: 1, maxLength: 255 }
+    responses:
+      '200': { description: Direct brand team and caller management capability, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '500': { $ref: '#/responses/InternalError' }
+
+brandTeamMembers:
+  post:
+    tags: [container-authority]
+    operationId: addBrandContainerTeamMember
+    summary: Add an existing workspace member to a brand container team
+    description: Requires effective container_admin authority. The target user must already have an active tenant membership; the service never creates cross-tenant Brand access implicitly.
+    security: [{ userJwtAuth: [] }]
+    parameters:
+      - name: brandRef
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 255 }
+      - { $ref: '#/parameters/IdempotencyKey' }
+      - { $ref: '#/parameters/IfMatch' }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/schemas/ContainerTeamMemberSetRequest' }
+          example: { userId: user_123, roleTemplateKey: container_viewer, inheritanceMode: inherit_down }
+    responses:
+      '200': { description: Idempotent replay of an existing member mutation, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamMutationResponse' } } } }
+      '201': { description: Brand team member added, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamMutationResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '422': { $ref: '#/responses/Unprocessable' }
+      '500': { $ref: '#/responses/InternalError' }
+
+brandTeamMemberById:
+  patch:
+    tags: [container-authority]
+    operationId: updateBrandContainerTeamMember
+    summary: Update one direct brand team assignment
+    description: Omitted fields retain their current values. The target identity is read only from the userId path parameter.
+    security: [{ userJwtAuth: [] }]
+    parameters:
+      - name: brandRef
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 255 }
+      - name: userId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 36 }
+      - { $ref: '#/parameters/IfMatch' }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/schemas/ContainerTeamMemberUpdateRequest' }
+          example: { inheritanceMode: local_only }
+    responses:
+      '200': { description: Brand team assignment updated, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamMutationResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '422': { $ref: '#/responses/Unprocessable' }
+      '500': { $ref: '#/responses/InternalError' }
+  delete:
+    tags: [container-authority]
+    operationId: removeBrandContainerTeamMember
+    summary: Revoke one direct brand team assignment
+    description: Revokes only Brand-container authority and never removes the user's tenant membership.
+    security: [{ userJwtAuth: [] }]
+    parameters:
+      - name: brandRef
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 255 }
+      - name: userId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 36 }
+      - { $ref: '#/parameters/IfMatch' }
+    responses:
+      '200': { description: Brand team assignment revoked, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamMutationResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '500': { $ref: '#/responses/InternalError' }
