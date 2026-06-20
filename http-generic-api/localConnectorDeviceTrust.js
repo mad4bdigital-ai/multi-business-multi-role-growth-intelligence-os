@@ -4,6 +4,12 @@ function text(value) {
   return String(value ?? "").trim();
 }
 
+function optionalIso(value) {
+  if (!value) return null;
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
+}
+
 function denial(code, message, evidence = {}) {
   return {
     ok: false,
