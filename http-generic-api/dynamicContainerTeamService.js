@@ -380,7 +380,7 @@ export async function setContainerTeamMember(input, options = {}, dependencies =
       await assertContainerTeamAccess(connection,{ tenantId:container.tenant_id,containerId:container.container_id,principalId },3);
       const targetUser = await resolveTargetUser(connection,{ userId:input.userId,email:input.email });
       const [existingRows] = await connection.query(
-        `SELECT assignment_id,role_template_key,inheritance_mode,valid_until FROM container_role_assignments
+        `SELECT assignment_id,role_template_key,inheritance_mode,valid_until,metadata_json FROM container_role_assignments
           WHERE tenant_id=? AND container_id=? AND principal_type='user' AND principal_id=? AND status='active'
           ORDER BY created_at,assignment_id FOR UPDATE`,
         [container.tenant_id,container.container_id,targetUser.user_id]
