@@ -14,6 +14,10 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - Operations: 481
 - Top-level tags: 34
 
+## Virtual Admin Tool Contract Notes
+
+- `response_chunk_durable_recovery_smoke` remains catalog-backed behind `/gpt/tools/call`; it adds no dedicated OpenAPI path or operation. The canonical dispatcher description documents typed confirmation, bounded no-raw-payload evidence, MySQL recovery after process-cache eviction, SHA-256/UTF-8/exact Unicode/cursor/TTL verification, and no provider call, credential read, external write, process restart, or secret return.
+
 ## Top Operation Tags
 
 - `platform-plugins`: 52

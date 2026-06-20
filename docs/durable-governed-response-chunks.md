@@ -60,13 +60,34 @@ The original migration creates the durable table. Migration `1018` reconciles pr
 
 After migration `1018` is bootstrapped once, `platform_runtime_config.governed_migration_reconciliation_scheduler` enables startup and interval reconciliation through the existing Dynamic Audit scheduler. The runtime adapter invokes `governed-migration-reconciler.mjs` under the scheduler's MySQL advisory lock. It cannot execute arbitrary SQL: each migration needs an exact active policy rule, DB authorization, passing static preflight, typed runner confirmation, ledger evidence, and schema readback.
 
+## Governed recovery smoke
+
+Admin tool `response_chunk_durable_recovery_smoke` performs one bounded, typed-confirmation smoke against the live durable chunk path. It:
+
+1. creates a deterministic Arabic and emoji payload larger than 5,000 UTF-16 code units;
+2. persists the complete response before returning `chunk_id`;
+3. verifies the durable row, SHA-256, UTF-8 byte length, cursor policy, and no-secret flag;
+4. evicts only that `chunk_id` from the process-local cache;
+5. reads every continuation page and requires the first recovery source to be `governed_tool_response_chunk_store`;
+6. reconstructs the serialized JSON exactly and verifies the first and last Unicode markers;
+7. verifies sliding TTL extension.
+
+Invocation requires:
+
+```text
+confirm=RUN_RESPONSE_CHUNK_DURABLE_RECOVERY_SMOKE
+```
+
+The tool returns bounded evidence only. It does not return the raw payload, call a provider, write externally, restart the process, or read credentials. The temporary row expires through the normal TTL cleanup path.
+
 ## Validation
 Required checks before merge:
 
 - unit test for persistence, load, integrity mismatch, expiry, DB outage, and secret policy
 - integration-style reconstruction of Arabic and emoji JSON after memory-cache eviction
+- typed-confirmation and negative-path coverage for the governed recovery smoke
 - syntax/import validation of every modified route
-- migration dry-run preflight
+- migration dry-run preflight when schema changes are present
 - PR CI gate
 
 ## Rollback
