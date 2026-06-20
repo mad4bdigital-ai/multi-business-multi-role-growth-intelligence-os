@@ -665,33 +665,40 @@ export function buildLocalGatewayToolsRoutes(deps) {
             });
           }
 
-          const approvalClaimed = await claimApprovedApprovalHold({
+          const approvalClaim = await claimApprovedApprovalHold({
             holdId: approvalHoldId,
             tenantId: req.auth?.tenant_id,
             callId,
             approvalBinding,
           });
-          if (!approvalClaimed) {
+          if (!approvalClaim.ok) {
+            const claimStatus = approvalClaim.code === "approval_hold_consumption_readback_failed" ? 502 : 409;
             await completeCallLog({
               callId,
               status: "denied",
-              httpStatus: 409,
-              errorCode: "approval_hold_already_consumed",
-              errorMessage: `Approval hold '${approvalHoldId}' was already consumed or changed before dispatch.`,
+              httpStatus: claimStatus,
+              errorCode: approvalClaim.code,
+              errorMessage: `Approval hold '${approvalHoldId}' could not be consumed with verified readback.`,
               startedAt,
             });
-            return res.status(409).json({
+            return res.status(claimStatus).json({
               ok: false,
               error: {
-                code: "approval_hold_already_consumed",
-                message: "The supplied approval hold has already been consumed. Create and approve a new hold before retrying.",
-                details: { approval_hold_id: approvalHoldId },
+                code: approvalClaim.code,
+                message: approvalClaim.code === "approval_hold_consumption_readback_failed"
+                  ? "The approval hold was claimed but same-cycle readback could not be verified. Dispatch was blocked."
+                  : "The supplied approval hold has already been consumed. Create and approve a new hold before retrying.",
+                details: {
+                  approval_hold_id: approvalHoldId,
+                  readback_verified: approvalClaim.readback_verified === true,
+                },
               },
               local_gateway: {
                 call_id: callId,
                 tool_key: row.tool_key,
                 approval_hold_id: approvalHoldId,
                 approval_consumed: false,
+                approval_consumption_readback_verified: approvalClaim.readback_verified === true,
               },
             });
           }
