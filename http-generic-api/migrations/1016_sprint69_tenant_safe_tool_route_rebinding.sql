@@ -1,6 +1,12 @@
 -- Idempotent tenant-safe route drift guard for GPT-visible tools.
 -- Reassert auth-derived read-only routes and fail closed if these rows drift
 -- to admin-only or raw connector proxy paths.
+-- no_provider_call
+-- no_credential_payload_read
+-- no_raw_secrets
+-- no_external_send
+-- no_external_write
+-- secrets_included=false
 
 UPDATE `tenant_platform_endpoint_tools`
    SET `http_method` = 'GET',

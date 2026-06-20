@@ -1854,6 +1854,31 @@ paths:
           github_ref_update_force: false
           requires_same_cycle_readback: true
           secrets_included: false
+        github_branch_merge_commit_create:
+          policy: capability_envelope_gated_multi_parent_merge_commit
+          virtual_tool: github_branch_merge_commit_create
+          adapter: runGithubBranchMergeCommitCreate
+          recipe_key: github.branch.create_multi_parent_merge_commit
+          requires_prior_dry_run_tool: admin_branch_reconcile
+          applies_only_when_classification: [diverged_no_overlap, diverged_same_files]
+          requires_expected_base_sha: true
+          requires_expected_branch_sha: true
+          requires_resolution_commit_sha: true
+          resolution_commit_sole_parent: expected_base_sha
+          resolution_commit_changed_files_must_match_branch_scope: true
+          resolution_commit_max_files: 50
+          requires_capability_envelope: true
+          requires_confirmation: CREATE_MERGE_COMMIT_<BRANCH_SLUG>
+          merge_commit_parent_order: [expected_branch_sha, expected_base_sha]
+          merge_commit_tree_source: validated_resolution_commit_tree
+          github_ref_update_force: false
+          protected_branch_update_allowed: false
+          requires_same_cycle_ref_readback: true
+          requires_same_cycle_parent_readback: true
+          requires_same_cycle_tree_readback: true
+          expected_readback_classification: ahead_only
+          expected_readback_behind_by: 0
+          secrets_included: false
         github_branch_fast_forward_smoke:
           policy: disposable_branch_smoke_with_cleanup
           virtual_tool: github_branch_fast_forward_smoke

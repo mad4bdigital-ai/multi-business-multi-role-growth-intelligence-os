@@ -8820,6 +8820,31 @@ paths:
           github_ref_update_force: false
           requires_same_cycle_readback: true
           secrets_included: false
+        github_branch_merge_commit_create:
+          policy: capability_envelope_gated_multi_parent_merge_commit
+          virtual_tool: github_branch_merge_commit_create
+          adapter: runGithubBranchMergeCommitCreate
+          recipe_key: github.branch.create_multi_parent_merge_commit
+          requires_prior_dry_run_tool: admin_branch_reconcile
+          applies_only_when_classification: [diverged_no_overlap, diverged_same_files]
+          requires_expected_base_sha: true
+          requires_expected_branch_sha: true
+          requires_resolution_commit_sha: true
+          resolution_commit_sole_parent: expected_base_sha
+          resolution_commit_changed_files_must_match_branch_scope: true
+          resolution_commit_max_files: 50
+          requires_capability_envelope: true
+          requires_confirmation: CREATE_MERGE_COMMIT_<BRANCH_SLUG>
+          merge_commit_parent_order: [expected_branch_sha, expected_base_sha]
+          merge_commit_tree_source: validated_resolution_commit_tree
+          github_ref_update_force: false
+          protected_branch_update_allowed: false
+          requires_same_cycle_ref_readback: true
+          requires_same_cycle_parent_readback: true
+          requires_same_cycle_tree_readback: true
+          expected_readback_classification: ahead_only
+          expected_readback_behind_by: 0
+          secrets_included: false
         github_branch_fast_forward_smoke:
           policy: disposable_branch_smoke_with_cleanup
           virtual_tool: github_branch_fast_forward_smoke
@@ -12509,6 +12534,43 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { description: No active tenant for this user, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "500": { description: Provisioning failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /local/tools:
+    get:
+      tags: [local-connector]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+        - userBearerAuth: []
+      operationId: listLocalGatewayTools
+      summary: List tenant-safe local gateway tools
+      description: "Returns local gateway tool descriptors available to the authenticated caller. Caller and tenant context are derived from the validated credential; include_planned defaults to false."
+      parameters:
+        - name: include_planned
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Local gateway tool catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, surface, public_host, caller_type, count, tools]
+                properties:
+                  ok: { type: boolean }
+                  surface: { type: string, enum: [local_gateway] }
+                  public_host: { type: string }
+                  caller_type: { type: string }
+                  count: { type: integer, minimum: 0 }
+                  tools:
+                    type: array
+                    items: { type: object, additionalProperties: true }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Authenticated caller is not allowed to list the requested tool scope, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "500": { description: Local gateway tool list failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /local-connector/health:
     get:
