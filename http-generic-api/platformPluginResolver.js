@@ -369,9 +369,9 @@ async function loadPluginRows({ pool, pluginKey, tenantId, userId }) {
     [pluginKey]
   );
   const plugin = pluginRows[0] || null;
-  if (!plugin) return { plugin: null, actionBindings: [], toolBindings: [], tenantPolicy: null, connections: [] };
+  if (!plugin) return { plugin: null, actionBindings: [], toolBindings: [], tenantPolicy: null };
 
-  const [actionBindings, toolBindings, tenantPolicies, connections] = await Promise.all([
+  const [actionBindings, toolBindings, tenantPolicies] = await Promise.all([
     safeQuery(
       pool,
       `SELECT binding_id, app_key, action_key, binding_role, credential_source, exposure_default, status, notes
