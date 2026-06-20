@@ -793,6 +793,14 @@ brandTeam:
         required: true
         description: Brand container ID, brands.target_key, or brand container key.
         schema: { type: string, minLength: 1, maxLength: 255 }
+      - name: limit
+        in: query
+        required: false
+        schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      - name: cursor
+        in: query
+        required: false
+        schema: { type: string }
     responses:
       '200': { description: Direct brand team and caller management capability, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamResponse' } } } }
       '400': { $ref: '#/responses/BadRequest' }
