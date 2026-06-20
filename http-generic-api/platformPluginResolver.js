@@ -81,6 +81,7 @@ function defaultScopesForAuthType(authType = "") {
 
 function deriveCandidateCredentialScopes({ plugin, binding, tenantPolicy }) {
   const fromBinding = credentialScopesForSource(bindingCredentialSource(binding));
+  if (fromBinding.length === 1 && fromBinding[0] === "none") return ["none"];
   const fallback = defaultScopesForAuthType(plugin?.auth_type);
   let scopes = unique(fromBinding.length ? fromBinding : fallback);
 
