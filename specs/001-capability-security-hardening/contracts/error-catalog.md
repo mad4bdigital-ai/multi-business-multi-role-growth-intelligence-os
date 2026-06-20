@@ -28,6 +28,10 @@
 | 409 | `APPROVAL_REPLAYED` | Approval has already been consumed |
 | 409 | `INTAKE_SESSION_REPLAYED` | Intake session has already been consumed |
 | 409 | `INTAKE_SESSION_EXPIRED` | Intake session expired |
+| 400 | `credential_intake_binding_context_required` | Intake creation lacks immutable subject/tenant/integration/target/purpose context |
+| 400 | `credential_intake_redirect_not_allowed` | Redirect is malformed, cross-origin without registration, non-HTTPS, or absent from the integration allowlist |
+| 410 | `credential_intake_binding_mismatch` | Persisted intake context no longer matches its immutable binding digest |
+| 410 | `credential_intake_authority_revoked` | Tenant membership, tenant state, integration policy, source mode, auth type, or app lifecycle changed after session creation |
 | 422 | `TARGET_NOT_SUPPORTED` | Target does not support the capability |
 | 422 | `COMMAND_NOT_ALLOWLISTED` | Local command is not registered |
 | 422 | `PATH_OUTSIDE_ALLOWED_ROOT` | File path escapes approved roots |
