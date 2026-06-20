@@ -3,7 +3,7 @@ import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "./activationBootstrapConfig.js";
 
 const PROTECTED_BRANCHES = new Set(["main", "master", "production", "prod"]);
-const DEFAULT_DISPOSABLE_BRANCH_PREFIXES = Object.freeze([
+export const DEFAULT_DISPOSABLE_BRANCH_PREFIXES = Object.freeze([
   "gpt/", "docs-agent/", "chore/", "docs/", "automation/", "feature/", "fix/", "hotfix/",
   "audit/", "surface-contract-auto/", "bugfix/", "ci/", "infra/", "refactor/", "security/",
   "perf/", "sync/", "platform/", "admin/", "task/", "work/", "migration/", "claude/",

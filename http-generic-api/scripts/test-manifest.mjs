@@ -445,6 +445,7 @@ export const testCommands = [
   "node test-repo-patch-apply.mjs",
   "node test-repo-patch-capability-envelope-requirement.mjs",
   "node test-github-repository-lifecycle.mjs",
+  "node test-github-branch-cleanup-sweep.mjs",
   "node test-local-connector-composite-health.mjs",
   "node test-platform-tool-dispatch-binding-integrity.mjs",
   "node test-runtime-profile-contract.mjs",
