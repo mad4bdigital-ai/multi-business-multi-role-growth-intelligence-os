@@ -311,6 +311,26 @@ schemas:
       - required: [email]
     description: Workspace add may create or reactivate a least-privilege tenant membership for an existing user. Brand add requires an existing active workspace or tenant membership.
 
+  ContainerTeamMemberUpdateRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      role:
+        type: string
+        enum: [viewer, member, editor, operator, owner, admin, container_viewer, container_operator, container_admin]
+      roleTemplateKey:
+        type: string
+        enum: [container_viewer, container_operator, container_admin]
+      inheritanceMode: { type: string, enum: [local_only, inherit_down] }
+      validUntil: { type: string, format: date-time }
+      metadata: { type: object, additionalProperties: true }
+    anyOf:
+      - required: [role]
+      - required: [roleTemplateKey]
+      - required: [inheritanceMode]
+      - required: [validUntil]
+      - required: [metadata]
+
   ContainerTeamMutationResponse:
     type: object
     additionalProperties: true
