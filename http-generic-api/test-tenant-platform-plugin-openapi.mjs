@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const schema = readFileSync("openapi.tenant-gpt.auth.yaml", "utf8");
+const mainSchema = readFileSync("openapi.yaml", "utf8");
 
 assert(schema.includes("2.0.2-platform-plugins"), "Tenant GPT schema version must mention platform plugins");
 assert(schema.includes("operationId: tenantPlatformPluginCatalog"), "tenant catalog operation must be exposed");
