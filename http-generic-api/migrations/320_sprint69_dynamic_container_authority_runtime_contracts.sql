@@ -331,12 +331,54 @@ SELECT
   COUNT(*) AS sample_count,
   SUM(comparison_status='match') AS match_count,
   SUM(comparison_status='mismatch') AS mismatch_count,
+  SUM(comparison_status='mismatch' AND mismatch_codes_json LIKE '%critical%') AS critical_mismatch_count,
   SUM(comparison_status='not_comparable') AS not_comparable_count,
   ROUND(100.0 * SUM(comparison_status='mismatch') / NULLIF(SUM(comparison_status IN ('match','mismatch')),0),4) AS mismatch_percent,
   ROUND(AVG(latency_ms),3) AS average_latency_ms,
   MAX(created_at) AS last_compared_at
 FROM container_shadow_comparisons
 GROUP BY tenant_id,capability_key;
+
+CREATE OR REPLACE VIEW `v_container_resolution_performance_summary` AS
+SELECT
+  mode,
+  COUNT(*) AS sample_count,
+  ROUND(AVG(duration_ms),3) AS average_latency_ms,
+  ROUND(MAX(CASE WHEN percentile_rank<=0.95 THEN duration_ms END),3) AS p95_latency_ms,
+  ROUND(MAX(CASE WHEN percentile_rank<=0.99 THEN duration_ms END),3) AS p99_latency_ms,
+  SUM(within_budget=1) AS within_budget_count,
+  MAX(created_at) AS last_sample_at
+FROM (
+  SELECT
+    mode,duration_ms,within_budget,created_at,
+    PERCENT_RANK() OVER (PARTITION BY mode ORDER BY duration_ms) AS percentile_rank
+  FROM container_resolution_performance_samples
+  WHERE mode IN ('preview','shadow')
+) ranked_samples
+GROUP BY mode;
+
+CREATE OR REPLACE VIEW `v_container_audit_coverage` AS
+SELECT
+  COUNT(*) AS comparison_sample_count,
+  SUM(CASE
+    WHEN l.resolution_id IS NOT NULL
+      AND l.mode='shadow'
+      AND l.provider_call_made=0
+      AND l.credential_payload_read=0
+      AND l.secrets_included=0
+      AND c.secrets_included=0
+    THEN 1 ELSE 0 END) AS audited_sample_count,
+  ROUND(100.0 * SUM(CASE
+    WHEN l.resolution_id IS NOT NULL
+      AND l.mode='shadow'
+      AND l.provider_call_made=0
+      AND l.credential_payload_read=0
+      AND l.secrets_included=0
+      AND c.secrets_included=0
+    THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0),4) AS audit_coverage_percent,
+  MAX(c.created_at) AS last_audited_at
+FROM container_shadow_comparisons c
+LEFT JOIN container_effective_context_ledger l ON l.resolution_id=c.resolution_id;
 
 CREATE OR REPLACE VIEW `v_container_override_readiness` AS
 SELECT
@@ -359,13 +401,26 @@ SELECT
   p.audit_coverage_required_percent,p.minimum_sample_count,
   COALESCE(SUM(s.sample_count),0) AS comparison_sample_count,
   COALESCE(SUM(s.mismatch_count),0) AS mismatch_count,
+  COALESCE(SUM(s.critical_mismatch_count),0) AS critical_mismatch_count,
   COALESCE(MAX(s.mismatch_percent),0) AS maximum_mismatch_percent,
+  COALESCE(MAX(perf.sample_count),0) AS performance_sample_count,
+  COALESCE(MAX(perf.p95_latency_ms),0) AS p95_latency_ms,
+  COALESCE(MAX(perf.p99_latency_ms),0) AS p99_latency_ms,
+  COALESCE(MAX(audit.comparison_sample_count),0) AS audit_sample_count,
+  COALESCE(MAX(audit.audited_sample_count),0) AS audited_sample_count,
+  COALESCE(MAX(audit.audit_coverage_percent),0) AS audit_coverage_percent,
   COALESCE((SELECT COUNT(*) FROM v_container_relationship_issues),0) AS relationship_issue_count,
   COALESCE((SELECT COUNT(*) FROM container_identity_projection_issues WHERE status IN ('open','held') AND severity IN ('high','critical')),0) AS high_risk_projection_issue_count,
-  CASE WHEN p.rollout_mode='shadow' THEN 0 ELSE 1 END AS enforcement_requested,
+  CASE WHEN p.rollout_mode IN ('disabled','shadow') THEN 0 ELSE 1 END AS enforcement_requested,
   CASE
+    WHEN p.rollout_mode='disabled' THEN 'disabled'
     WHEN COALESCE(SUM(s.sample_count),0)<p.minimum_sample_count THEN 'insufficient_samples'
+    WHEN COALESCE(MAX(perf.sample_count),0)<p.minimum_sample_count THEN 'insufficient_performance_samples'
     WHEN COALESCE(MAX(s.mismatch_percent),0)>p.mismatch_threshold_percent THEN 'mismatch_threshold_exceeded'
+    WHEN COALESCE(SUM(s.critical_mismatch_count),0)>p.critical_mismatch_threshold THEN 'critical_mismatch_threshold_exceeded'
+    WHEN COALESCE(MAX(perf.p95_latency_ms),0)>p.p95_budget_ms THEN 'p95_latency_budget_exceeded'
+    WHEN COALESCE(MAX(perf.p99_latency_ms),0)>p.p99_budget_ms THEN 'p99_latency_budget_exceeded'
+    WHEN COALESCE(MAX(audit.audit_coverage_percent),0)<p.audit_coverage_required_percent THEN 'audit_coverage_below_required'
     WHEN COALESCE((SELECT COUNT(*) FROM v_container_relationship_issues),0)>0 THEN 'relationship_issues_present'
     WHEN COALESCE((SELECT COUNT(*) FROM container_identity_projection_issues WHERE status IN ('open','held') AND severity IN ('high','critical')),0)>0 THEN 'projection_issues_present'
     ELSE 'ready_for_review'
@@ -373,6 +428,8 @@ SELECT
   0 AS secrets_included
 FROM container_rollout_policy_registry p
 LEFT JOIN v_container_shadow_mismatch_summary s ON 1=1
+LEFT JOIN v_container_resolution_performance_summary perf ON perf.mode='shadow'
+LEFT JOIN v_container_audit_coverage audit ON 1=1
 WHERE p.status='active'
 GROUP BY p.policy_key,p.rollout_mode,p.mismatch_threshold_percent,p.critical_mismatch_threshold,p.p95_budget_ms,p.p99_budget_ms,p.audit_coverage_required_percent,p.minimum_sample_count;
 
