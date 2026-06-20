@@ -231,6 +231,7 @@ function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections 
       connection_status: unusableConnection.status || null,
       validation_status: unusableConnection.validation_status || null,
       reason: "credential_not_usable",
+      denial_code: CredentialDenialCode.NOT_USABLE,
       candidate_scopes: candidateScopes,
     };
   }
