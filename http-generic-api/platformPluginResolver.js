@@ -244,6 +244,9 @@ function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections 
     usability_state: CredentialUsabilityState.NOT_EVALUATED,
     credential_source: null,
     reason: dedicatedNoFallback ? "dedicated_connection_required" : "credential_required",
+    denial_code: dedicatedNoFallback
+      ? CredentialDenialCode.DEDICATED_CONNECTION_REQUIRED
+      : CredentialDenialCode.REQUIRED,
     candidate_scopes: candidateScopes,
   };
 }
