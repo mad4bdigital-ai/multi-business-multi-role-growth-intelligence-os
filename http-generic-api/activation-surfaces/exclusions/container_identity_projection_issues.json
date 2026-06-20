@@ -1,0 +1,7 @@
+{
+  "surface_key": "container_identity_projection_issues",
+  "source_table": "container_identity_projection_issues",
+  "reason": "Excluded because it is an internal projection diagnostics queue. Aggregated rollout readiness is reviewed separately and raw issue rows are not activation-visible.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}
