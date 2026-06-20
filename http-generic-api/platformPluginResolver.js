@@ -615,7 +615,8 @@ export async function resolvePlatformPluginExecution({
   const credentialLookupRequired = Boolean(
     selectorRequested &&
     credentialRequirement.scope_allowed &&
-    credentialRequirement.requirement === CredentialRequirement.REQUIRED
+    credentialRequirement.requirement === CredentialRequirement.REQUIRED &&
+    credentialRequirement.candidate_scopes.some((scope) => ["user_connection", "tenant_connection"].includes(scope))
   );
   const credentialLookupAuthorized = Boolean(
     credentialLookupRequired &&
