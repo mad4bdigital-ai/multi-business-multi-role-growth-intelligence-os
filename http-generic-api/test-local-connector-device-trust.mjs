@@ -13,6 +13,7 @@ const trustedConfig = {
   tenant_id: "tenant-1",
   device_id: "device-1",
   is_enabled: 1,
+  lifecycle_state: "active",
   connector_secret: "not-returned-by-evaluator",
   last_health_at: new Date(now - 60_000).toISOString(),
 };
