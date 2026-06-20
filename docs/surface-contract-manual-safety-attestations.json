@@ -1,0 +1,97 @@
+{
+  "ok": true,
+  "schema_version": "surface-contract-manual-safety-attestations-v1",
+  "item_count": 1,
+  "items": [
+    {
+      "migration_file": "1013_sprint69_approval_hold_identity_collation_alignment.sql",
+      "migration_sha256": "2b9fdfcdc14d3f33d3041bb41cf66b407092e4304f09db79e5cbc2f85381ae9a",
+      "checksum_canonicalization": "utf8_lf_v1",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_human_review",
+      "review_status": "approved_checksum_bound_internal_sql",
+      "reviewed_by": "platform_admin:0e76b224-7671-47dd-ad68-014fb042df80",
+      "reviewed_at": "2026-06-18T14:32:00Z",
+      "rationale": "Human review confirmed that the current checksum-bound migration normalizes orphan projection collations and uses every PREPARE and EXECUTE statement only for the fail-closed orphan guard or one information_schema-selected idempotent internal collation alignment statement. Dynamic SQL can only return an already-aligned result, raise SQLSTATE 45000 for unresolved identity orphans, or apply one documented internal ALTER. This attestation grants no migration execution, deployment, provider-call, credential-read, external-write, or secret-return authority.",
+      "execution_authorized": false,
+      "queue_class_at_attestation": "low_review",
+      "gap_severity_at_attestation": "none",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 26,
+      "accepted_preflight_risks": {},
+      "accepted_forbidden_patterns": [
+        "\\bPREPARE\\s+[A-Za-z0-9_]+\\s+FROM\\b",
+        "^\\s*EXECUTE\\s+[A-Za-z0-9_]+\\b"
+      ],
+      "required_sql_fragments": [
+        "SET @approval_hold_orphan_guard := IF(",
+        "SET @align_local_gateway_approval_hold_sql := (",
+        "SET @align_repository_advisory_approval_hold_sql := (",
+        "SET @align_ticket_workflow_approval_hold_sql := (",
+        "SET @align_approval_holds_hold_id_sql := (",
+        "Active Approval Hold identity orphans remain; repair before collation alignment",
+        "CREATE OR REPLACE VIEW v_approval_hold_identity_collation_readiness AS"
+      ],
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 5,
+        "views": 1,
+        "policies": 0,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_readback_view",
+          "targets": [
+            "v_approval_hold_identity_collation_readiness"
+          ]
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "ads_provider_profile_onboarding_requests",
+            "execution_enablement_requests",
+            "local_gateway_tool_call_log",
+            "tenant_ssh_cli_approval_requests",
+            "v_approval_hold_identity_collation_readiness"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      },
+      "migration_effects": {
+        "internal_database_write": true,
+        "schema_mutation": true,
+        "external_write": false,
+        "provider_call": false,
+        "credential_payload_read": false,
+        "secrets_included": false
+      }
+    }
+  ],
+  "safety": {
+    "executes_provider_calls": false,
+    "reads_credentials": false,
+    "mutates_runtime": false,
+    "writes_database": false,
+    "external_sends": false,
+    "deploys": false,
+    "secrets_included": false
+  }
+}

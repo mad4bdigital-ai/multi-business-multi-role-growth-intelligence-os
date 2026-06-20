@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { detectSafetyMarkers, discoverSurfaces, isDirectExecution, renderGapQueueMarkdown, renderSurfaceContractMarkdown } from "./scripts/surface-contract-discovery.mjs";
+import { buildPersistedDiscoveryReport, detectSafetyMarkers, discoverSurfaces, isDirectExecution, renderGapQueueMarkdown, renderSurfaceContractMarkdown } from "./scripts/surface-contract-discovery.mjs";
 
 const scriptPath = path.resolve("scripts/surface-contract-discovery.mjs");
 assert.equal(
@@ -71,6 +71,26 @@ assert.equal(report.gap_queue.safety.secrets_included, false, "gap queue must no
 assert.equal(report.gap_queue.safety.executes_provider_calls, false, "gap queue must not execute provider calls");
 assert.equal(report.gap_queue.safety.writes_database, false, "gap queue must not write database rows");
 
+const persistedReport = buildPersistedDiscoveryReport(report);
+const persistedJson = `${JSON.stringify(persistedReport, null, 2)}\n`;
+assert.equal(persistedReport.serialization_profile, "bounded_evidence_v2", "persisted discovery artifact must declare bounded serialization v2");
+assert.equal(persistedReport.migration_index_detail_level, "compact_tuple_index_v2", "persisted migration evidence must declare tuple index detail level");
+assert.deepEqual(persistedReport.migration_index_columns, [
+  "migration_file",
+  "documentation_complete",
+  "gap_severity",
+  "attestation_sha256",
+  "attestation_evidence_mode",
+  "safety_marker_count",
+  "openapi_missing_route_count",
+]);
+assert.equal(persistedReport.all_migrations_count, report.all_migrations.length, "persisted discovery artifact must preserve the full migration count");
+assert.equal(persistedReport.all_migrations_index.length, report.all_migrations.length, "persisted tuple index must preserve every migration row");
+assert.equal(persistedReport.reported_migrations_index.length, report.migrations.length, "persisted tuple index must preserve every reported migration row");
+assert(persistedReport.all_migrations_index.every((entry) => Array.isArray(entry) && entry.length === 7 && typeof entry[0] === "string" && [0, 1].includes(entry[1])), "persisted tuple rows must preserve migration identity and documentation state");
+assert.equal(persistedReport.all_migrations, undefined, "persisted artifact must not duplicate full all_migrations objects");
+assert.equal(persistedReport.migrations, undefined, "persisted artifact must not duplicate full reported migration objects");
+assert(Buffer.byteLength(persistedJson) < 100_000, "bounded persisted discovery artifact must remain below 100 KB");
 assert.equal(typeof report.coverage_summary.docs_completion_percent, "number", "coverage summary must expose docs completion percent");
 assert.equal(typeof report.coverage_summary.gap_severity_counts.high, "number", "coverage summary must count high-risk docs gaps");
 assert.equal(typeof report.coverage_summary.surface_totals.routes, "number", "coverage summary must count route surfaces");
