@@ -166,6 +166,7 @@ export const testCommands = [
   "dotnet run --project ../apps/local-manager-sidecar-certification/Mad4B.LocalManager.SidecarCertification.csproj",
   "node test-platform-plugin-catalog.mjs",
   "node test-platform-plugin-resolver.mjs",
+  "node test-platform-plugin-target-authority.mjs",
   "node test-platform-plugin-policy.mjs",
   "node test-platform-plugin-contribution.mjs",
   "node test-platform-plugin-private-runtime.mjs",
