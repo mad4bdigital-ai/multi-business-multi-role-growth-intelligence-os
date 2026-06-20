@@ -326,6 +326,24 @@ function makePool({
 }
 
 {
+  const pool = makePool({ withConnection: true, withSkill: true, tenantDedicated: true });
+  const result = await resolvePlatformPluginExecution({
+    pool,
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    tenantId: "tenant-1",
+    userId: null,
+    agentId: "agent-1",
+    principalClass: "tenant",
+  });
+  assert.equal(result.allowed, false);
+  assert.equal(result.principal_scope.ok, false);
+  assert.equal(result.principal_scope.reason, "tenant_principal_scope_required");
+  assert.equal(result.credential_lookup.attempted, false);
+  assert.equal(pool.calls.some((call) => call.sql.includes("FROM user_app_connections")), false);
+}
+
+{
   const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
   assert(routes.includes("/platform/plugins/resolve"), "resolver route must be mounted");
   assert(routes.includes("resolvePlatformPluginExecution"), "resolver route must call resolver service");
