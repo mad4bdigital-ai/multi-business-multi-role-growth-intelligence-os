@@ -1,1 +1,20 @@
-{"staging":true,"secrets_included":false}
+{
+  "surface_key": "agent_surface_catalog",
+  "display_name": "Agent Surface Catalog",
+  "description": "Authorized catalog metadata for Hermes, OpenClaude, and OpenClaw runtime surfaces.",
+  "source_table": "agent_surface_catalog",
+  "covered_source_tables": ["agent_surface_catalog"],
+  "result_key_column": "surface_key",
+  "result_label_column": "display_name",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": ["active", "planned"],
+  "result_columns": ["surface_key", "display_name", "surface_role", "description", "supported_modes_json", "supported_channels_json", "capabilities_json", "high_risk_capabilities_json", "default_preferences_json", "platform_runtime_key", "status", "updated_at"],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 20,
+  "sort_order": 121,
+  "status": "active",
+  "notes": "Catalog metadata only. Provider credentials and runtime secret material are excluded."
+}

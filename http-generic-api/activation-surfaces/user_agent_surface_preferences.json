@@ -1,1 +1,20 @@
-{"staging":true,"secrets_included":false}
+{
+  "surface_key": "user_agent_surface_preferences",
+  "display_name": "User Agent Surface Preferences",
+  "description": "Authenticated-user preferences for Hermes, OpenClaude, and OpenClaw within one tenant.",
+  "source_table": "user_agent_surface_preferences",
+  "covered_source_tables": ["user_agent_surface_preferences"],
+  "result_key_column": "preference_id",
+  "result_label_column": "surface_key",
+  "tenant_column": "tenant_id",
+  "user_column": "user_id",
+  "status_column": "status",
+  "active_status_values": ["active"],
+  "result_columns": ["preference_id", "tenant_id", "user_id", "surface_key", "preferences_json", "status", "updated_at"],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 20,
+  "sort_order": 123,
+  "status": "active",
+  "notes": "Rows are both tenant- and user-scoped. Secret-like preference keys are rejected before persistence."
+}
