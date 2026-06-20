@@ -4,14 +4,14 @@
 - Queue schema: surface-contract-gap-queue-v1
 - Triage schema: surface-contract-gap-triage-v1
 - Gate schema: surface-contract-new-gap-gate-v1
-- Queue items: 0
-- Triaged items: 0
-- Gate candidates: 0
-- New-gap gate: pass
-- Blocking new items: 0
-- Docs completion: 100%
+- Queue items: 1
+- Triaged items: 1
+- Gate candidates: 1
+- New-gap gate: fail
+- Blocking new items: 1
+- Docs completion: 99.77%
 - SQL route OpenAPI coverage: 100%
 
 ## Top immediate items
 
-- none
+- `1019_sprint69_github_branch_cleanup_sweep.sql` — high_review, add targeted patch-index, parity, and governance documentation
