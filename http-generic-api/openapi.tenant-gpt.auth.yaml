@@ -1227,6 +1227,19 @@ paths:
                   field_count:
                     type: integer
                     minimum: 0
+                  binding_context:
+                    type: object
+                    additionalProperties: false
+                    required: [connection_target_ref, purpose, redirect_configured]
+                    properties:
+                      connection_target_ref:
+                        type: string
+                      purpose:
+                        type: string
+                      redirect_configured:
+                        type: boolean
+                      authority_snapshot_version:
+                        type: [string, "null"]
                   canonical_capability_id:
                     type: string
                     enum: [tenant.credential_intake.session.create]
