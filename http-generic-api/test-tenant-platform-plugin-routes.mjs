@@ -48,7 +48,13 @@ import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRo
   assert.equal(insert.params[2], "user-1");
   assert.equal(insert.params[3], "tenant-1");
   assert.equal(insert.params[4], "github");
-  assert.equal(JSON.parse(insert.params[12]).source, "tenant_safe_credential_intake");
+  assert.equal(insert.params[11], "app:github");
+  assert.equal(insert.params[12], "connect repository");
+  assert.match(insert.params[14], /^[a-f0-9]{64}$/);
+  assert.equal(insert.params[15], null);
+  assert.equal(JSON.parse(insert.params[18]).source, "tenant_safe_credential_intake");
+  assert.equal(result.binding_context.connection_target_ref, "app:github");
+  assert.equal(result.binding_context.purpose, "connect repository");
 }
 
 {
