@@ -63,12 +63,15 @@ function teamContext(req,containerType,paramName) {
 }
 
 function memberInput(req,containerType,paramName,{ includePathUser=false }={}) {
-  assertAllowedKeys(req.body,new Set(["userId","email","role","roleTemplateKey","inheritanceMode","validUntil","metadata"]));
+  const allowed=includePathUser
+    ? new Set(["role","roleTemplateKey","inheritanceMode","validUntil","metadata"])
+    : new Set(["userId","email","role","roleTemplateKey","inheritanceMode","validUntil","metadata"]);
+  assertAllowedKeys(req.body,allowed);
   return {
     containerType,
     containerRef:String(req.params[paramName] || ""),
     userId:includePathUser ? String(req.params.userId || "") : req.body?.userId,
-    email:req.body?.email,
+    email:includePathUser ? undefined : req.body?.email,
     role:req.body?.role,
     roleTemplateKey:req.body?.roleTemplateKey,
     inheritanceMode:req.body?.inheritanceMode,
