@@ -341,8 +341,10 @@ export async function setContainerTeamMember(input, options = {}, dependencies =
   const readIdempotency = dependencies.readIdempotency || readIdempotentResult;
   const storeIdempotency = dependencies.storeIdempotency || storeIdempotentResult;
   const containerType = normalizeContainerType(input.containerType);
-  const roleTemplateKey = normalizeRoleTemplate(input.roleTemplateKey || input.role);
-  const inheritanceMode = normalizeInheritanceMode(input.inheritanceMode,containerType);
+  const requestedRoleValue = input.roleTemplateKey ?? input.role;
+  const roleTemplateKey = requestedRoleValue ? normalizeRoleTemplate(requestedRoleValue) : options.partial ? null : normalizeRoleTemplate("container_viewer");
+  const inheritanceMode = input.inheritanceMode ? normalizeInheritanceMode(input.inheritanceMode,containerType) : options.partial ? null : normalizeInheritanceMode(null,containerType);
+  const validUntilSpecified = Object.prototype.hasOwnProperty.call(input,"validUntil");
   const principalId = String(options.actorUserId || "").trim();
   if (!principalId) throw serviceError(401,"user_jwt_required","A signed user principal is required.");
   const idempotencyKey = options.requireIdempotency ? requireIdempotencyKey(options.idempotencyKey) : String(options.idempotencyKey || "").trim() || null;
