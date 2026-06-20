@@ -324,6 +324,7 @@ async function resolveConnectState(userId, jwtTenantId = null) {
     devices,
     dedicatedIntegrationReadiness,
     hybridIntegrationReadiness,
+    agentSurfaceReadiness,
     activationGraphContext,
     onboarding,
   };
