@@ -130,13 +130,17 @@ function pickConnectionForScope(scope, connections = []) {
 }
 
 function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections = [], requestedScope = null }) {
-  const candidateScopes = deriveCandidateCredentialScopes({ plugin, binding, tenantPolicy });
+  const requirement = resolveCredentialRequirement({ plugin, binding, tenantPolicy, requestedScope });
+  const candidateScopes = requirement.candidate_scopes;
   const sourceMode = normalize(tenantPolicy?.source_mode || "");
   const fallbackAllowed = tenantPolicy ? Boolean(tenantPolicy.fallback_allowed) : true;
-  const explicitRequestedScope = normalize(requestedScope || "");
-  if (explicitRequestedScope && !candidateScopes.includes(explicitRequestedScope)) {
+  const explicitRequestedScope = requirement.requested_scope;
+  if (!requirement.scope_allowed) {
     return {
       ok: false,
+      requirement: requirement.requirement,
+      resolution_state: CredentialResolutionState.SCOPE_DENIED,
+      usability_state: CredentialUsabilityState.NOT_EVALUATED,
       credential_source: null,
       reason: "credential_scope_not_allowed",
       requested_scope: explicitRequestedScope,
@@ -148,16 +152,35 @@ function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections 
 
   for (const scope of orderedScopes) {
     if (scope === "none") {
-      return { ok: true, credential_source: "none", reason: "no_credentials_required", candidate_scopes: candidateScopes };
+      return {
+        ok: true,
+        requirement: CredentialRequirement.NOT_REQUIRED,
+        resolution_state: CredentialResolutionState.NOT_REQUIRED,
+        usability_state: CredentialUsabilityState.NOT_APPLICABLE,
+        credential_source: "none",
+        reason: "no_credentials_required",
+        candidate_scopes: candidateScopes,
+      };
     }
     if (scope === "device_connector") {
-      return { ok: true, credential_source: "device_connector", reason: "device_connector_required", candidate_scopes: candidateScopes };
+      return {
+        ok: true,
+        requirement: CredentialRequirement.REQUIRED,
+        resolution_state: CredentialResolutionState.RESOLVED,
+        usability_state: CredentialUsabilityState.NOT_APPLICABLE,
+        credential_source: "device_connector",
+        reason: "device_connector_required",
+        candidate_scopes: candidateScopes,
+      };
     }
     if (scope === "user_connection" || scope === "tenant_connection") {
       const connection = pickConnectionForScope(scope, connections);
       if (connection) {
         return {
           ok: true,
+          requirement: CredentialRequirement.REQUIRED,
+          resolution_state: CredentialResolutionState.RESOLVED,
+          usability_state: CredentialUsabilityState.USABLE,
           credential_source: scope,
           connection_id: connection.connection_id,
           connection_status: connection.status,
@@ -178,6 +201,9 @@ function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections 
       }
       return {
         ok: true,
+        requirement: CredentialRequirement.REQUIRED,
+        resolution_state: CredentialResolutionState.RESOLVED,
+        usability_state: CredentialUsabilityState.USABLE,
         credential_source: "platform_managed",
         reason: tenantPolicy ? "tenant_policy_allows_platform_credentials" : "platform_default",
         candidate_scopes: candidateScopes,
@@ -188,6 +214,9 @@ function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections 
   if (unusableConnection) {
     return {
       ok: false,
+      requirement: CredentialRequirement.REQUIRED,
+      resolution_state: CredentialResolutionState.RESOLVED,
+      usability_state: CredentialUsabilityState.UNUSABLE,
       credential_source: null,
       connection_id: unusableConnection.connection_id || null,
       connection_status: unusableConnection.status || null,
@@ -200,6 +229,9 @@ function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections 
   const dedicatedNoFallback = sourceMode === "dedicated" && !fallbackAllowed;
   return {
     ok: false,
+    requirement: CredentialRequirement.REQUIRED,
+    resolution_state: CredentialResolutionState.MISSING,
+    usability_state: CredentialUsabilityState.NOT_EVALUATED,
     credential_source: null,
     reason: dedicatedNoFallback ? "dedicated_connection_required" : "credential_required",
     candidate_scopes: candidateScopes,
