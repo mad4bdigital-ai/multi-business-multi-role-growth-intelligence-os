@@ -104,7 +104,7 @@ One immutable decision per request attempt.
 | `device_id` | string |
 | `tenant_id` | reference |
 | `owner_subject_id` | reference/null |
-| `registration_state` | registered/provisioned/archived/revoked |
+| `registration_state` | active/disabled/archived/revoked; legacy `is_enabled=0` projects to disabled |
 | `connector_identity_ref` | string |
 | `connector_auth_state` | unknown/valid/invalid/revoked |
 | `last_heartbeat_at` | timestamp/null |
