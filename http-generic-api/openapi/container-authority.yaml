@@ -210,6 +210,130 @@ schemas:
           hasMore: { type: boolean }
       secretsIncluded: { type: boolean, const: false }
 
+  CoWorkspaceItem:
+    type: object
+    additionalProperties: false
+    required: [containerId, tenantId, workspaceId, workspaceKey, displayName, effectiveRoleRank]
+    properties:
+      containerId: { type: string, format: uuid }
+      tenantId: { type: string }
+      workspaceId: { type: string }
+      workspaceKey: { type: string }
+      displayName: { type: string }
+      workspaceType: { type: [string, 'null'] }
+      bootstrapStatus: { type: [string, 'null'] }
+      linkedBrandKey: { type: [string, 'null'] }
+      effectiveRoleRank: { type: integer, minimum: 0 }
+
+  CoWorkspaceListResponse:
+    type: object
+    additionalProperties: false
+    required: [ok, items, page, secretsIncluded]
+    properties:
+      ok: { type: boolean, const: true }
+      items:
+        type: array
+        items: { $ref: '#/schemas/CoWorkspaceItem' }
+      page:
+        type: object
+        additionalProperties: false
+        required: [nextCursor, hasMore]
+        properties:
+          nextCursor: { type: [string, 'null'] }
+          hasMore: { type: boolean }
+      secretsIncluded: { type: boolean, const: false }
+
+  ContainerTeamMember:
+    type: object
+    additionalProperties: false
+    required: [userId, roleTemplateKey, authorityRank, inheritanceMode, assignmentId, status]
+    properties:
+      userId: { type: string }
+      email: { type: [string, 'null'], format: email }
+      displayName: { type: [string, 'null'] }
+      roleTemplateKey: { type: string, enum: [container_viewer, container_operator, container_admin] }
+      roleDisplayName: { type: [string, 'null'] }
+      authorityRank: { type: integer, minimum: 0 }
+      inheritanceMode: { type: string, enum: [local_only, inherit_down] }
+      validFrom: { type: [string, 'null'], format: date-time }
+      validUntil: { type: [string, 'null'], format: date-time }
+      assignmentId: { type: string, format: uuid }
+      status: { type: string, enum: [active] }
+
+  ContainerTeamResponse:
+    type: object
+    additionalProperties: false
+    required: [ok, container, caller, members, count, secretsIncluded]
+    properties:
+      ok: { type: boolean, const: true }
+      container:
+        type: object
+        additionalProperties: false
+        required: [containerId, tenantId, containerType, containerKey, displayName]
+        properties:
+          containerId: { type: string, format: uuid }
+          tenantId: { type: string }
+          containerType: { type: string, enum: [workspace, brand] }
+          containerKey: { type: string }
+          canonicalSubjectRef: { type: [string, 'null'] }
+          displayName: { type: string }
+      caller:
+        type: object
+        additionalProperties: false
+        required: [userId, effectiveRoleRank, canManage]
+        properties:
+          userId: { type: string }
+          effectiveRoleRank: { type: integer, minimum: 0 }
+          canManage: { type: boolean }
+      members:
+        type: array
+        items: { $ref: '#/schemas/ContainerTeamMember' }
+      count: { type: integer, minimum: 0 }
+      secretsIncluded: { type: boolean, const: false }
+
+  ContainerTeamMemberSetRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      userId: { type: string, minLength: 1, maxLength: 36 }
+      email: { type: string, format: email, maxLength: 255 }
+      role:
+        type: string
+        enum: [viewer, member, editor, operator, owner, admin, container_viewer, container_operator, container_admin]
+      roleTemplateKey:
+        type: string
+        enum: [container_viewer, container_operator, container_admin]
+      inheritanceMode: { type: string, enum: [local_only, inherit_down], default: inherit_down }
+      validUntil: { type: string, format: date-time }
+      metadata: { type: object, additionalProperties: true }
+    anyOf:
+      - required: [userId]
+      - required: [email]
+    description: Workspace add may create or reactivate a least-privilege tenant membership for an existing user. Brand add requires an existing active workspace or tenant membership.
+
+  ContainerTeamMutationResponse:
+    type: object
+    additionalProperties: true
+    required: [ok, tenantId, containerId, containerType, status, authorityEpoch, secretsIncluded]
+    properties:
+      ok: { type: boolean, const: true }
+      assignmentId: { type: string, format: uuid }
+      userId: { type: string }
+      email: { type: [string, 'null'], format: email }
+      displayName: { type: [string, 'null'] }
+      tenantId: { type: string }
+      containerId: { type: string, format: uuid }
+      containerType: { type: string, enum: [workspace, brand] }
+      roleTemplateKey: { type: string, enum: [container_viewer, container_operator, container_admin] }
+      authorityRank: { type: integer, minimum: 0 }
+      inheritanceMode: { type: string, enum: [local_only, inherit_down] }
+      status: { type: string, enum: [active, revoked] }
+      authorityEpoch: { type: integer, minimum: 0 }
+      idempotentReplay: { type: boolean }
+      tenantMembership: { type: object, additionalProperties: true }
+      revokedAssignments: { type: integer, minimum: 0 }
+      secretsIncluded: { type: boolean, const: false }
+
 parameters:
   IdempotencyKey:
     name: Idempotency-Key
