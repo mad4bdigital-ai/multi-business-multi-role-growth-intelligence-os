@@ -6,46 +6,48 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 443,
+    "migrations_with_surfaces": 444,
     "docs_complete_count": 443,
-    "docs_gap_count": 0,
-    "docs_completion_percent": 100,
+    "docs_gap_count": 1,
+    "docs_completion_percent": 99.77,
     "surface_totals": {
       "plugins": 12,
-      "tools": 2058,
+      "tools": 2069,
       "views": 399,
       "policies": 159,
       "routes": 569
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 376,
+      "tools": 377,
       "views": 161,
       "policies": 101,
       "routes": 239
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 0,
-      "deployment_parity_checklist.md": 0,
-      "docs/ai-docs-agent-governance.md": 0,
-      "docs/auto-docs-agent/README.md": 0,
-      "docs/change-documentation-governance.md": 0
+      "Updating Registry Patch Index.md": 1,
+      "deployment_parity_checklist.md": 1,
+      "docs/ai-docs-agent-governance.md": 1,
+      "docs/auto-docs-agent/README.md": 1,
+      "docs/change-documentation-governance.md": 1
     },
     "gap_severity_counts": {
       "high": 0,
-      "medium": 0,
+      "medium": 1,
       "low": 0,
       "none": 443
     },
     "high_risk_missing_docs": [],
-    "medium_risk_missing_docs": [],
+    "medium_risk_missing_docs": [
+      "1019_sprint69_github_branch_cleanup_sweep.sql"
+    ],
     "safety_marker_counts": {
       "no_provider_call": 443,
       "no_credential_payload_read": 443,
       "no_raw_secrets": 443,
       "no_external_send": 443,
       "no_external_write": 443,
-      "secrets_included_false": 443
+      "secrets_included_false": 444
     },
     "safety_marker_gap_migrations": 0,
     "route_coverage": {
@@ -68,26 +70,72 @@
     }
   },
   "queue": {
-    "total_items": 0,
+    "total_items": 1,
     "class_counts": {
       "critical_review": 0,
-      "high_review": 0,
+      "high_review": 1,
       "medium_review": 0,
       "low_review": 0
     }
   },
   "triage": {
-    "total_items": 0,
-    "class_counts": {},
-    "gate_candidate_count": 0
+    "total_items": 1,
+    "class_counts": {
+      "new_surface_immediate_review": 1
+    },
+    "gate_candidate_count": 1
   },
   "gate": {
-    "ok": true,
+    "ok": false,
     "mode": "future_only_all_new_gaps",
-    "new_item_count": 0,
-    "blocking_new_item_count": 0
+    "new_item_count": 1,
+    "blocking_new_item_count": 1
   },
-  "top_immediate_items": [],
+  "top_immediate_items": [
+    {
+      "migration_file": "1019_sprint69_github_branch_cleanup_sweep.sql",
+      "score": 677,
+      "queue_class": "high_review",
+      "triage_class": "new_surface_immediate_review",
+      "gate_scope": "new_gap_gate_candidate",
+      "gap_severity": "medium",
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send",
+        "no_external_write"
+      ],
+      "remediation_action_keys": [
+        "document_surface_contract",
+        "verify_tool_registry_binding",
+        "add_explicit_safety_markers"
+      ],
+      "owner_hints": [
+        "docs-agent/human-review",
+        "runtime-registry-review",
+        "safety-contract-review"
+      ],
+      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    }
+  ],
   "safety": {
     "executes_provider_calls": false,
     "reads_credentials": false,
