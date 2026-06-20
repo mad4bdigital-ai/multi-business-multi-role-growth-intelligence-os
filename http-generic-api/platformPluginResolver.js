@@ -557,6 +557,7 @@ export async function resolvePlatformPluginExecution({
   });
   const allowed = Boolean(
     pluginStatusActive &&
+    principalScope.ok &&
     bindingState.ok &&
     surfaceExposure.ok &&
     canonicalPolicy.ready &&
@@ -566,10 +567,11 @@ export async function resolvePlatformPluginExecution({
   );
   const denialReasons = [];
   if (!pluginStatusActive) denialReasons.push("plugin_not_active");
+  if (!principalScope.ok) denialReasons.push(principalScope.reason);
   if (!bindingState.ok) denialReasons.push(bindingState.reason);
   if (!surfaceExposure.ok) denialReasons.push(surfaceExposure.reason);
   if (!canonicalPolicy.ready) denialReasons.push(canonicalPolicy.reason);
-  if (!credential.ok) denialReasons.push(credential.reason);
+  if (credentialLookupAuthorized && !credential.ok) denialReasons.push(credential.reason);
   if (!skill.granted) denialReasons.push(skill.reason);
   if (!smokeCertification.certified) denialReasons.push(smokeCertification.reason);
 
