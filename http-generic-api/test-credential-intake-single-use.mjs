@@ -51,6 +51,14 @@ function buildPool(initialSession) {
             state.session.status = "expired";
             return [{ affectedRows: 1 }];
           }
+          if (normalized.startsWith("UPDATE credential_intake_sessions") && normalized.includes("status = 'revoked'")) {
+            if (state.session.session_id !== params[1] || state.session.status !== "pending") {
+              return [{ affectedRows: 0 }];
+            }
+            state.session.status = "revoked";
+            state.session.revoked_reason = params[0];
+            return [{ affectedRows: 1 }];
+          }
           throw new Error(`Unexpected SQL: ${normalized}`);
         },
         async commit() {
