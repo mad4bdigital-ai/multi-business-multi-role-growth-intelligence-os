@@ -6,7 +6,10 @@ import {
   summarizeAuditCoverage,
   evaluateContainerRolloutReadiness,
   buildContainerRollbackPlan,
-  runContainerRollbackDrill
+  runContainerRollbackDrill,
+  buildContainerCanaryPromotionPlan,
+  runContainerCanaryPromotion,
+  evaluateContainerBypassRetirementReadiness
 } from "./dynamicContainerRolloutSafety.js";
 
 const policy = {
