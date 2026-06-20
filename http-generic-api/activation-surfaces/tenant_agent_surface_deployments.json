@@ -1,0 +1,20 @@
+{
+  "surface_key": "tenant_agent_surface_deployments",
+  "display_name": "Tenant Agent Surface Deployments",
+  "description": "Tenant-scoped managed or dedicated deployment selections and readiness state for agent surfaces.",
+  "source_table": "tenant_agent_surface_deployments",
+  "covered_source_tables": ["tenant_agent_surface_deployments"],
+  "result_key_column": "deployment_id",
+  "result_label_column": "surface_key",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": ["planned", "ready", "active", "blocked"],
+  "result_columns": ["deployment_id", "tenant_id", "surface_key", "activation_mode", "enabled", "platform_runtime_key", "dedicated_target_type", "dedicated_target_id", "status", "policy_json", "source", "activated_by", "activated_at", "updated_at"],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 20,
+  "sort_order": 122,
+  "status": "active",
+  "notes": "Tenant-scoped deployment metadata and target references only. No provider credentials are included."
+}

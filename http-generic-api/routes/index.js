@@ -75,6 +75,7 @@ import { buildWorkspaceResourceRoutes } from "./workspaceResourceRoutes.js";
 import { buildAdminWorkspaceAuthorityRoutes } from "./adminWorkspaceAuthorityRoutes.js";
 import { buildTenantEvolutionRoutes } from "./tenantEvolutionRoutes.js";
 import { buildTenantInfrastructureRoutes } from "./tenantInfrastructureRoutes.js";
+import { buildAgentSurfaceRoutes } from "./agentSurfaceRoutes.js";
 import { buildBrowserRuntimeRoutes } from "./browserRuntimeRoutes.js";
 import { buildPlatformSmokeRoutes } from "./platformSmokeRoutes.js";
 import { buildPlatformEvolutionRoutes } from "./platformEvolutionRoutes.js";
@@ -181,6 +182,7 @@ export function registerRoutes(app, deps) {
   app.use(buildAdminWorkspaceAuthorityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildTenantEvolutionRoutes());
   app.use(buildTenantInfrastructureRoutes(deps));
+  app.use(buildAgentSurfaceRoutes(deps));
   app.use(buildGptSessionRoutes(deps));
   app.use(buildGptToolsRoutes(deps));
   app.use(buildPlatformGraphRoutes({ ...deps, requireAdminPrincipal }));
