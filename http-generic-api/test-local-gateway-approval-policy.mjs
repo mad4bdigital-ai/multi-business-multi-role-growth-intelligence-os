@@ -22,6 +22,16 @@ assert.equal(localGatewayConsentStatus({ risk_class: "high" }, {}), "missing");
 assert.equal(localGatewayConsentStatus({ risk_class: "high" }, { consent_accepted: true }), "accepted");
 assert.equal(localGatewayConsentStatus({ risk_class: "low" }, {}), "not_required");
 
+assert.equal(localGatewayApprovalConsumptionState({}).code, "approval_hold_available");
+const consumed = localGatewayApprovalConsumptionState({
+  approval_consumed_at: "2026-06-20T04:00:00.000Z",
+  approval_consumed_call_id: "call-1",
+});
+assert.equal(consumed.ok, false);
+assert.equal(consumed.code, "approval_hold_already_consumed");
+assert.equal(consumed.consumed_call_id, "call-1");
+assert.equal(consumed.secrets_included, false);
+
 const base = {
   toolKey: "local.connector.files",
   tenantId: "tenant-1",
