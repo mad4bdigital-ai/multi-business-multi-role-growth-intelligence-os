@@ -187,6 +187,7 @@ export async function resolvePlatformManagedTargetAuthority({
       targetType: resourceType,
       targetRefHash: targetHash(resourceType, resourceUri),
       mode,
+      lookupAttempted: true,
     });
   }
 
