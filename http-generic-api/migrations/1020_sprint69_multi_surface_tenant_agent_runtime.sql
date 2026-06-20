@@ -1,0 +1,75 @@
+-- Sprint 69: Hermes, OpenClaude, and OpenClaw tenant runtime control plane.
+-- Additive/idempotent. No provider call, credential read, external send, external write, or secret return.
+CREATE TABLE IF NOT EXISTS agent_surface_catalog (
+ surface_key VARCHAR(64) NOT NULL, display_name VARCHAR(191) NOT NULL, surface_role VARCHAR(64) NOT NULL, description TEXT NOT NULL,
+ supported_modes_json LONGTEXT NOT NULL CHECK(JSON_VALID(supported_modes_json)), supported_channels_json LONGTEXT NOT NULL CHECK(JSON_VALID(supported_channels_json)), capabilities_json LONGTEXT NOT NULL CHECK(JSON_VALID(capabilities_json)), high_risk_capabilities_json LONGTEXT NOT NULL CHECK(JSON_VALID(high_risk_capabilities_json)), default_preferences_json LONGTEXT NOT NULL CHECK(JSON_VALID(default_preferences_json)), platform_runtime_key VARCHAR(191) DEFAULT NULL,
+ status ENUM('planned','active','disabled','archived') NOT NULL DEFAULT 'active', created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ PRIMARY KEY(surface_key), KEY idx_agent_surface_catalog_status(status,surface_role)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS tenant_agent_surface_deployments (
+ deployment_id VARCHAR(36) NOT NULL, tenant_id VARCHAR(64) NOT NULL, surface_key VARCHAR(64) NOT NULL, activation_mode ENUM('platform_managed','dedicated_managed') NOT NULL DEFAULT 'platform_managed', enabled TINYINT(1) NOT NULL DEFAULT 1,
+ platform_runtime_key VARCHAR(191) DEFAULT NULL, dedicated_target_type ENUM('local_device','remote_runtime') DEFAULT NULL, dedicated_target_id VARCHAR(191) DEFAULT NULL, status ENUM('inactive','planned','ready','active','blocked','disabled') NOT NULL DEFAULT 'planned', policy_json LONGTEXT DEFAULT NULL CHECK(policy_json IS NULL OR JSON_VALID(policy_json)), source VARCHAR(64) NOT NULL DEFAULT 'tenant_agent_surface_api', activated_by VARCHAR(64) DEFAULT NULL, activated_at DATETIME DEFAULT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ PRIMARY KEY(deployment_id), UNIQUE KEY uq_tenant_agent_surface_deployment(tenant_id,surface_key), KEY idx_tenant_agent_surface_mode(tenant_id,activation_mode,status), KEY idx_tenant_agent_surface_target(dedicated_target_type,dedicated_target_id), CONSTRAINT fk_tenant_agent_surface_catalog FOREIGN KEY(surface_key) REFERENCES agent_surface_catalog(surface_key) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS user_agent_surface_preferences (
+ preference_id VARCHAR(36) NOT NULL, tenant_id VARCHAR(64) NOT NULL, user_id VARCHAR(64) NOT NULL, surface_key VARCHAR(64) NOT NULL, preferences_json LONGTEXT NOT NULL CHECK(JSON_VALID(preferences_json)), status ENUM('active','disabled','archived') NOT NULL DEFAULT 'active', created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ PRIMARY KEY(preference_id), UNIQUE KEY uq_user_agent_surface_preference(tenant_id,user_id,surface_key), KEY idx_user_agent_surface_preference_lookup(tenant_id,user_id,status), CONSTRAINT fk_user_agent_surface_catalog FOREIGN KEY(surface_key) REFERENCES agent_surface_catalog(surface_key) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+INSERT INTO agent_surface_catalog(surface_key,display_name,surface_role,description,supported_modes_json,supported_channels_json,capabilities_json,high_risk_capabilities_json,default_preferences_json,platform_runtime_key,status) VALUES
+('hermes','Hermes Agent Surface','desktop_agent_workspace','MAD4B desktop agent workspace.',JSON_ARRAY('platform_managed','dedicated_managed'),JSON_ARRAY('telegram','whatsapp','discord','slack','signal'),JSON_ARRAY('chat','sessions','profiles','plans','jobs','memory','skills','cron','multi_agent','model_selection','voice','files','browser','platform_tools','local_tools','channels','shell','file_write','external_send'),JSON_ARRAY('shell','file_write','repo_write','external_send','cron','skill_activation','multi_agent_delegation','browser_control'),JSON_OBJECT('enabled',true,'approval_mode','risk_based','fallback_policy','require_approval','memory_scope','local_profile','max_parallel_agents',2,'channels',JSON_ARRAY()),'hermes_surface_platform_managed_v1','active'),
+('openclaude','OpenClaude Coding Agent','coding_agent','Governed coding and repository agent.',JSON_ARRAY('platform_managed','dedicated_managed'),JSON_ARRAY(),JSON_ARRAY('repo_read','repo_write','code_analysis','code_edit','tests','git','shell','browser','mcp','sub_agents','model_selection','platform_tools'),JSON_ARRAY('shell','file_write','repo_write','external_send','cron','skill_activation','multi_agent_delegation','browser_control'),JSON_OBJECT('enabled',true,'approval_mode','risk_based','fallback_policy','require_approval','memory_scope','disabled','max_parallel_agents',2,'channels',JSON_ARRAY()),'platform_openrouter_dev_agent_v1','active'),
+('openclaw','OpenClaw Channel Gateway','channel_gateway','Tenant multi-channel gateway and agent router.',JSON_ARRAY('platform_managed','dedicated_managed'),JSON_ARRAY('telegram','whatsapp','discord','slack','signal','matrix','line','wechat'),JSON_ARRAY('channels','multi_agent','routing','webhooks','cron','skills','memory','browser','voice','files','platform_tools','external_send','shell','file_write'),JSON_ARRAY('shell','file_write','repo_write','external_send','cron','skill_activation','multi_agent_delegation','browser_control'),JSON_OBJECT('enabled',true,'approval_mode','risk_based','fallback_policy','require_approval','memory_scope','tenant_private','max_parallel_agents',4,'channels',JSON_ARRAY()),'openclaw_platform_managed_v1','active')
+ON DUPLICATE KEY UPDATE display_name=VALUES(display_name),surface_role=VALUES(surface_role),description=VALUES(description),supported_modes_json=VALUES(supported_modes_json),supported_channels_json=VALUES(supported_channels_json),capabilities_json=VALUES(capabilities_json),high_risk_capabilities_json=VALUES(high_risk_capabilities_json),default_preferences_json=VALUES(default_preferences_json),platform_runtime_key=VALUES(platform_runtime_key),status=VALUES(status),updated_at=CURRENT_TIMESTAMP;
+INSERT INTO dev_agent_runtime_registry(runtime_key,display_name,runtime_type,provider_key,execution_surface,supported_use_cases_json,capabilities_json,policy_json,status,notes) VALUES
+('hermes_surface_platform_managed_v1','Hermes Surface Platform Managed Runtime','workflow_agent','hermes','platform_model',JSON_ARRAY('desktop_agent_workspace','chat','sessions','plans','memory','skills','tenant_preferences'),JSON_OBJECT('full_catalog',true,'channels',JSON_ARRAY('telegram','whatsapp','discord','slack','signal'),'platform_tools',true,'local_tools_via_sidecar',true),JSON_OBJECT('deployment_mode','platform_managed','user_preferences_only',true,'high_risk_requires_approval',true,'platform_secret_reference_only',true,'automatic_fallback',false,'secrets_included',false),'planned','Control-plane registration; activation awaits certified MAD4B Hermes container.'),
+('openclaw_platform_managed_v1','OpenClaw Platform Managed Gateway','workflow_agent','openclaw','workflow_runtime',JSON_ARRAY('whatsapp','telegram','discord','slack','signal','multi_agent_routing','webhooks','cron','skills'),JSON_OBJECT('full_catalog',true,'channel_gateway',true,'tenant_routing',true,'platform_tools',true),JSON_OBJECT('deployment_mode','platform_managed','user_preferences_only',true,'high_risk_requires_approval',true,'platform_secret_reference_only',true,'automatic_fallback',false,'tenant_isolation_required',true,'secrets_included',false),'planned','Control-plane registration; activation awaits tenant-isolated gateway deployment.')
+ON DUPLICATE KEY UPDATE display_name=VALUES(display_name),runtime_type=VALUES(runtime_type),provider_key=VALUES(provider_key),execution_surface=VALUES(execution_surface),supported_use_cases_json=VALUES(supported_use_cases_json),capabilities_json=VALUES(capabilities_json),policy_json=VALUES(policy_json),notes=VALUES(notes),updated_at=CURRENT_TIMESTAMP;
+INSERT INTO platform_runtime_config(config_key,config_json,status,note) VALUES('multi_surface_agent_runtime_v1',JSON_OBJECT('surfaces',JSON_ARRAY('hermes','openclaude','openclaw'),'activation_modes',JSON_ARRAY('platform_managed','dedicated_managed'),'preferences_owned_by_authenticated_user',true,'tenant_deployment_requires_owner_or_admin',true,'full_capability_catalog_visible',true,'high_risk_execution_requires_approval',true,'automatic_cross_mode_fallback',false,'dedicated_target_types',JSON_ARRAY('local_device','remote_runtime'),'secrets_included',false),'active','User-owned preferences and tenant managed/dedicated deployments analogous to n8n.') ON DUPLICATE KEY UPDATE config_json=VALUES(config_json),status=VALUES(status),note=VALUES(note),updated_at=CURRENT_TIMESTAMP;
+INSERT INTO tenant_platform_endpoint_tools(tool_key,display_name,description,http_method,http_path,path_param_keys,input_schema,fixed_body,tags,is_enabled,sort_order) VALUES
+('tenant_agent_surfaces_catalog','List Agent Surface Catalog','List Hermes, OpenClaude, and OpenClaw full capability catalogs and modes.','GET','/me/agent-surfaces/catalog',JSON_ARRAY(),JSON_OBJECT('type','object','properties',JSON_OBJECT()),JSON_OBJECT(),'tenant,agents,hermes,openclaude,openclaw,catalog,read_only,no_secrets',1,760),
+('tenant_agent_surfaces_get','Read Tenant Agent Surfaces','Read deployments, own preferences, and readiness.','GET','/me/agent-surfaces',JSON_ARRAY(),JSON_OBJECT('type','object','properties',JSON_OBJECT()),JSON_OBJECT(),'tenant,agents,preferences,readiness,read_only,no_secrets',1,761),
+('tenant_agent_surfaces_readiness','Read Agent Surface Readiness','Read platform-managed or dedicated target readiness.','GET','/me/agent-surfaces/readiness',JSON_ARRAY(),JSON_OBJECT('type','object','properties',JSON_OBJECT()),JSON_OBJECT(),'tenant,agents,managed,dedicated,read_only,no_secrets',1,762),
+('tenant_agent_surface_preferences_update','Update Own Agent Surface Preferences','Replace authenticated user preferences. High-risk execution remains approval-gated.','PUT','/me/agent-surfaces/{surface_key}/preferences',JSON_ARRAY('surface_key'),JSON_OBJECT('type','object','required',JSON_ARRAY('surface_key'),'additionalProperties',true,'properties',JSON_OBJECT('surface_key',JSON_OBJECT('type','string','enum',JSON_ARRAY('hermes','openclaude','openclaw')),'enabled',JSON_OBJECT('type','boolean'),'approval_mode',JSON_OBJECT('type','string','enum',JSON_ARRAY('always','risk_based','manual')),'fallback_policy',JSON_OBJECT('type','string','enum',JSON_ARRAY('none','require_approval','platform_only','dedicated_only')),'memory_scope',JSON_OBJECT('type','string','enum',JSON_ARRAY('disabled','local_profile','tenant_private')),'max_parallel_agents',JSON_OBJECT('type','integer','minimum',1,'maximum',12),'default_model',JSON_OBJECT('type','string'),'channels',JSON_OBJECT('type','array','items',JSON_OBJECT('type','string')),'capabilities',JSON_OBJECT('type','object'))),JSON_OBJECT(),'tenant,agents,preferences,user_owned,state_changing,no_secrets,approval_gate',1,763),
+('tenant_agent_surface_deployment_upsert','Set Tenant Agent Surface Deployment','Set platform_managed or dedicated_managed deployment; owner/admin only.','PUT','/me/agent-surfaces/{surface_key}/deployment',JSON_ARRAY('surface_key'),JSON_OBJECT('type','object','required',JSON_ARRAY('surface_key','activation_mode'),'additionalProperties',false,'properties',JSON_OBJECT('surface_key',JSON_OBJECT('type','string','enum',JSON_ARRAY('hermes','openclaude','openclaw')),'activation_mode',JSON_OBJECT('type','string','enum',JSON_ARRAY('platform_managed','dedicated_managed')),'enabled',JSON_OBJECT('type','boolean'),'dedicated_target_type',JSON_OBJECT('type','string','enum',JSON_ARRAY('local_device','remote_runtime')),'dedicated_target_id',JSON_OBJECT('type','string'))),JSON_OBJECT(),'tenant,agents,deployment,platform_managed,dedicated_managed,state_changing,owner_admin,no_secrets',1,764)
+ON DUPLICATE KEY UPDATE display_name=VALUES(display_name),description=VALUES(description),http_method=VALUES(http_method),http_path=VALUES(http_path),path_param_keys=VALUES(path_param_keys),input_schema=VALUES(input_schema),fixed_body=VALUES(fixed_body),tags=VALUES(tags),is_enabled=VALUES(is_enabled),sort_order=VALUES(sort_order);
+
+UPDATE tenant_platform_endpoint_tools
+SET input_schema = JSON_SET(
+  COALESCE(input_schema, JSON_OBJECT()),
+  '$.properties.agent_surface_modes',
+  JSON_OBJECT(
+    'type','object',
+    'additionalProperties',false,
+    'description','Optional Hermes, OpenClaude, and OpenClaw tenant deployment modes.',
+    'properties',JSON_OBJECT(
+      'hermes',JSON_OBJECT('oneOf',JSON_ARRAY(
+        JSON_OBJECT('type','string','enum',JSON_ARRAY('platform_managed','dedicated_managed')),
+        JSON_OBJECT('type','object','additionalProperties',false,'properties',JSON_OBJECT(
+          'activation_mode',JSON_OBJECT('type','string','enum',JSON_ARRAY('platform_managed','dedicated_managed')),
+          'enabled',JSON_OBJECT('type','boolean'),
+          'dedicated_target_type',JSON_OBJECT('type','string','enum',JSON_ARRAY('local_device','remote_runtime')),
+          'dedicated_target_id',JSON_OBJECT('type','string','maxLength',191)
+        ))
+      )),
+      'openclaude',JSON_OBJECT('oneOf',JSON_ARRAY(
+        JSON_OBJECT('type','string','enum',JSON_ARRAY('platform_managed','dedicated_managed')),
+        JSON_OBJECT('type','object','additionalProperties',false,'properties',JSON_OBJECT(
+          'activation_mode',JSON_OBJECT('type','string','enum',JSON_ARRAY('platform_managed','dedicated_managed')),
+          'enabled',JSON_OBJECT('type','boolean'),
+          'dedicated_target_type',JSON_OBJECT('type','string','enum',JSON_ARRAY('local_device','remote_runtime')),
+          'dedicated_target_id',JSON_OBJECT('type','string','maxLength',191)
+        ))
+      )),
+      'openclaw',JSON_OBJECT('oneOf',JSON_ARRAY(
+        JSON_OBJECT('type','string','enum',JSON_ARRAY('platform_managed','dedicated_managed')),
+        JSON_OBJECT('type','object','additionalProperties',false,'properties',JSON_OBJECT(
+          'activation_mode',JSON_OBJECT('type','string','enum',JSON_ARRAY('platform_managed','dedicated_managed')),
+          'enabled',JSON_OBJECT('type','boolean'),
+          'dedicated_target_type',JSON_OBJECT('type','string','enum',JSON_ARRAY('local_device','remote_runtime')),
+          'dedicated_target_id',JSON_OBJECT('type','string','maxLength',191)
+        ))
+      ))
+    )
+  )
+)
+WHERE tool_key='connect_activate' AND JSON_VALID(input_schema);
