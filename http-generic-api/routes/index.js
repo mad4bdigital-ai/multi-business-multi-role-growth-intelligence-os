@@ -178,6 +178,7 @@ export function registerRoutes(app, deps) {
   app.use(buildTenantPlatformPluginRoutes());
   app.use(buildTenantDocsRoutes());
   app.use(buildTenantLifecycleRoutes());
+  app.use(buildDynamicContainerTeamRoutes());
   app.use(buildDynamicContainerAuthorityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildWorkspaceResourceRoutes());
   app.use(buildSupportTicketRoutes({ ...deps, requireAdminPrincipal }));
