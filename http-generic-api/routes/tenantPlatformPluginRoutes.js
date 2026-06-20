@@ -244,6 +244,10 @@ export function buildTenantPlatformPluginRoutes() {
         appKey: policy.app_key,
         authType: policy.auth_type,
         displayLabel: String(input.display_label || input.displayLabel || policy.display_name || "").trim().slice(0, 120) || null,
+        connectionTargetRef: `tenant:${req.auth.tenant_id}:integration:${policy.app_key}`,
+        purpose,
+        redirectUri: input.redirect_uri || input.redirectUri || null,
+        authoritySnapshot,
         credentialSchema: null,
         metadata: {
           source: "tenant_safe_credential_intake",
