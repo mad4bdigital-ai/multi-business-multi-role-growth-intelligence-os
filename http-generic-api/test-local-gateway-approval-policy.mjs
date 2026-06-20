@@ -77,7 +77,10 @@ for (const token of [
   "approvalDecision?.code",
   "claimApprovedApprovalHold",
   "approval_hold_already_consumed",
+  "approval_hold_consumption_readback_failed",
   "approval_consumed_at",
+  "consumed_request_digest",
+  "approval_consumption_readback_verified",
 ]) {
   assert(routeSource.includes(token), `local gateway route must enforce ${token}`);
 }
