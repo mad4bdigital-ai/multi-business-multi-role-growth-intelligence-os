@@ -277,7 +277,7 @@ export async function listCoWorkspaces({ principalId, limit = 50, cursor = null 
         AND (a.container_id=c.container_id OR (a.inheritance_mode='inherit_down' AND EXISTS (
           SELECT 1 FROM container_closure cc
            WHERE cc.tenant_id=c.tenant_id AND cc.ancestor_container_id=a.container_id AND cc.descendant_container_id=c.container_id
-        ))
+        )))
       GROUP BY c.container_id,c.tenant_id,c.container_key,c.canonical_subject_ref,c.display_name,
                wr.workspace_id,wr.workspace_key,wr.workspace_type,wr.bootstrap_status,wr.linked_brand_key
       ORDER BY c.container_id
