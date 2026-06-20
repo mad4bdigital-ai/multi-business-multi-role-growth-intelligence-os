@@ -55,8 +55,8 @@ export function evaluateLocalConnectorDeviceTrust({
     ...expected,
     ...actual,
     lifecycle_state: lifecycleState,
-    revoked_at: config.revoked_at ? new Date(config.revoked_at).toISOString() : null,
-    archived_at: config.archived_at ? new Date(config.archived_at).toISOString() : null,
+    revoked_at: optionalIso(config.revoked_at),
+    archived_at: optionalIso(config.archived_at),
   };
 
   if (actual.device_id !== expected.device_id) {
