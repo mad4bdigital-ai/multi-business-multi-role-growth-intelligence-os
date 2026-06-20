@@ -134,7 +134,8 @@ assert.match(projection,/INSERT INTO platform_graph_nodes/);
 assert.match(projection,/INSERT INTO platform_graph_edges/);
 assert.match(projection,/'projection_only'/);
 assert.match(projection,/'context_only'/);
-assert.match(projection,/runtime_enforced,0/);
+assert.match(projection,/runtime_role,runtime_enforced/);
+assert.match(projection,/'context_only',0/);
 assert.doesNotMatch(projection,/authority_status='authoritative'/);
 
 console.log("dynamic container rollout safety, rollback, query-index, and graph projection contracts passed");
