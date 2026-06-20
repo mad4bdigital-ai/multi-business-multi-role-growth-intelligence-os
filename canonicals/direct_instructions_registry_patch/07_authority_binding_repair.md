@@ -1282,3 +1282,15 @@ For unified operational alert synchronization:
 - preserve no-secret evidence, tenant scope, source health, same-cycle readback, and explicit lifecycle state
 
 For a diverged non-protected work branch, `github_branch_merge_commit_create` is the only governed multi-parent reconciliation mutation. It requires fresh `admin_branch_reconcile` evidence, expected base and branch SHAs, a reviewed resolution commit whose sole parent is the expected base SHA, exact changed-file scope coverage with no extra files and at most 50 files, a ready GitHub capability envelope, and typed `CREATE_MERGE_COMMIT_<BRANCH_SLUG>` confirmation. The created commit must use parent order `[expected_branch_sha, expected_base_sha]`, use the validated resolution tree, update only the work-branch ref with `force=false`, and pass same-cycle ref, ancestry, tree, `ahead_only`, and `behind_by=0` readback. Default/protected branches, stale evidence, resolution scope drift, missing branch files, extra files, and any force update remain blocked.
+
+## GitHub Branch Cleanup Sweep Enforcement
+
+For `github_branch_cleanup_sweep`:
+- route every request to dry-run unless `mode=apply` is explicit
+- require fixed bounded limits: no more than 300 scanned branches and 25 deletes per invocation
+- accept only a subset of governed disposable prefixes; never permit arbitrary prefix expansion
+- block default/protected branches, open PRs, branches with unique commits, recent branches below the reviewed threshold, invalid metadata, and comparison failures
+- bind apply to the dry-run base SHA, evidence fingerprint, typed confirmation, and one approved capability envelope
+- rerun the same plan before mutation and invoke the existing single-branch delete guard for every candidate
+- stop on the first deletion failure, return partial-success evidence, and forbid force, generic delete fallback, or automatic replay after unknown provider outcome
+- return no credentials, tokens, or raw secret values
