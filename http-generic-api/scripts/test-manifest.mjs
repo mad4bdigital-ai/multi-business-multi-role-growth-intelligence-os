@@ -90,6 +90,7 @@ export const testCommands = [
   "node test-platform-secret-promotion-monitoring.mjs",
   "node test-local-connector-key-promotion.mjs",
   "node test-local-connector-device-trust.mjs",
+  "node test-local-gateway-approval-policy.mjs",
   "node test-wordpress-blog-publish-orchestrator.mjs",
   "node test-wordpress-capability-envelope-requirement.mjs",
   "node test-wordpress-resource-grant-enforcement.mjs",
