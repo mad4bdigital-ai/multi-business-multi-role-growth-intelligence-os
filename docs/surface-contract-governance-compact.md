@@ -1,14 +1,14 @@
 # Surface Contract Governance Compact
 
-- Gate: pass
-- Blocking new items: 0
-- Docs completion: 444/444 (100%)
-- Queue items: 0
+- Gate: fail
+- Blocking new items: 1
+- Docs completion: 444/445 (99.78%)
+- Queue items: 1
 - OpenAPI missing SQL routes: 0
-- OpenAPI-exempt SQL route-like literals: 564/569
+- OpenAPI-exempt SQL route-like literals: 569/574
 - Safety marker gap migrations: 0
-- Trend quality gate: pass
+- Trend quality gate: fail
 
 ## Top actionable
 
-- none
+- `1020_sprint69_multi_surface_tenant_agent_runtime.sql` — critical_review, score 765; add targeted patch-index, parity, and governance documentation
