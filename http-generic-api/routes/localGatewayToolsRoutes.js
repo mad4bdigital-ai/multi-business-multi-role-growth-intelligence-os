@@ -259,8 +259,7 @@ function serviceModeAllowed(row, serviceMode) {
 }
 
 function consentStatusFor(row, args = {}) {
-  if (!row.consent_required) return "not_required";
-  return args.consent_accepted === true || args.consent_accepted === "true" ? "accepted" : "missing";
+  return localGatewayConsentStatus(row, args);
 }
 
 async function tenantHasEntitlement(tenantId, entitlementKey) {
