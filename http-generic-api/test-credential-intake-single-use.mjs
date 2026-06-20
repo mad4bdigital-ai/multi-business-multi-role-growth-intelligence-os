@@ -134,4 +134,30 @@ assert.equal(rollbackPool.state.commits, 0);
 assert.equal(rollbackPool.state.rollbacks, 1);
 assert.equal(rollbackPool.state.releases, 1);
 
+const revokedPool = buildPool({
+  session_id: "session-revoked",
+  token_hash: "revoked-hash",
+  status: "pending",
+  expires_at: future,
+});
+let revokedCreateCount = 0;
+const revokedResult = await atomicallyConsumeCredentialIntakeSession({
+  pool: revokedPool,
+  tokenHash: "revoked-hash",
+  validateSession: async () => ({ ok: false, code: "credential_intake_authority_revoked" }),
+  createConnection: async () => {
+    revokedCreateCount += 1;
+    return { connectionId: "must-not-be-created" };
+  },
+});
+assert.equal(revokedResult.ok, false);
+assert.equal(revokedResult.status, 410);
+assert.equal(revokedResult.error, "credential_intake_authority_revoked");
+assert.equal(revokedCreateCount, 0, "authority drift must block connection creation");
+assert.equal(revokedPool.state.session.status, "revoked");
+assert.equal(revokedPool.state.session.revoked_reason, "credential_intake_authority_revoked");
+assert.equal(revokedPool.state.commits, 1);
+assert.equal(revokedPool.state.rollbacks, 0);
+assert.equal(revokedPool.state.releases, 1);
+
 console.log("credential intake atomic single-use tests passed");
