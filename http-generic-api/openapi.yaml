@@ -12698,6 +12698,122 @@ paths:
       responses:
         "200": { description: Workspace created, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
 
+  /me/agent-surfaces/catalog:
+    get:
+      tags: [agent-surfaces]
+      security:
+        - backendBearerAuth: []
+      operationId: listAgentSurfaceCatalog
+      summary: List Hermes, OpenClaude, and OpenClaw capabilities and deployment modes
+      responses:
+        "200":
+          description: Agent surface catalog
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "401": { description: User JWT required }
+        "403": { description: Active tenant membership required }
+
+  /me/agent-surfaces:
+    get:
+      tags: [agent-surfaces]
+      security:
+        - backendBearerAuth: []
+      operationId: getTenantAgentSurfaces
+      summary: Read tenant deployments, current-user preferences, and readiness
+      responses:
+        "200":
+          description: Tenant agent surfaces
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "401": { description: User JWT required }
+        "403": { description: Active tenant membership required }
+
+  /me/agent-surfaces/readiness:
+    get:
+      tags: [agent-surfaces]
+      security:
+        - backendBearerAuth: []
+      operationId: getTenantAgentSurfaceReadiness
+      summary: Read platform-managed and dedicated-managed runtime readiness
+      responses:
+        "200":
+          description: Agent surface readiness
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "401": { description: User JWT required }
+        "403": { description: Active tenant membership required }
+
+  /me/agent-surfaces/{surface_key}/preferences:
+    put:
+      tags: [agent-surfaces]
+      security:
+        - backendBearerAuth: []
+      operationId: replaceOwnAgentSurfacePreferences
+      summary: Replace the authenticated user's preferences for one surface
+      parameters:
+        - in: path
+          name: surface_key
+          required: true
+          schema: { type: string, enum: [hermes, openclaude, openclaw] }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                enabled: { type: boolean }
+                approval_mode: { type: string, enum: [always, risk_based, manual] }
+                fallback_policy: { type: string, enum: [none, require_approval, platform_only, dedicated_only] }
+                memory_scope: { type: string, enum: [disabled, local_profile, tenant_private] }
+                max_parallel_agents: { type: integer, minimum: 1, maximum: 12 }
+                default_model: { type: string, maxLength: 191 }
+                channels: { type: array, items: { type: string }, maxItems: 32 }
+                capabilities: { type: object, additionalProperties: { type: boolean } }
+                channel_preferences: { type: object, additionalProperties: true }
+                notification_preferences: { type: object, additionalProperties: true }
+                ui_preferences: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Preferences replaced }
+        "400": { description: Invalid or sensitive preference field }
+        "401": { description: User JWT required }
+        "403": { description: Active tenant membership required }
+
+  /me/agent-surfaces/{surface_key}/deployment:
+    put:
+      tags: [agent-surfaces]
+      security:
+        - backendBearerAuth: []
+      operationId: setTenantAgentSurfaceDeployment
+      summary: Set platform-managed or dedicated-managed deployment for one tenant surface
+      parameters:
+        - in: path
+          name: surface_key
+          required: true
+          schema: { type: string, enum: [hermes, openclaude, openclaw] }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [activation_mode]
+              additionalProperties: false
+              properties:
+                activation_mode: { type: string, enum: [platform_managed, dedicated_managed] }
+                enabled: { type: boolean, default: true }
+                dedicated_target_type: { type: string, enum: [local_device, remote_runtime] }
+                dedicated_target_id: { type: string, maxLength: 191 }
+      responses:
+        "200": { description: Deployment stored with same-cycle readiness readback }
+        "400": { description: Invalid deployment configuration }
+        "401": { description: User JWT required }
+        "403": { description: Tenant owner or admin required }
+
   /me/capabilities:
     get:
       tags: [connected-systems]
