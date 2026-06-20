@@ -113,6 +113,7 @@ assert.deepEqual(applyExecutor.calls.filter(value => ["begin","commit","rollback
 
 const migration319 = readFileSync(new URL("./migrations/319_sprint69_dynamic_container_authority_foundation.sql",import.meta.url),"utf8");
 const migration320 = readFileSync(new URL("./migrations/320_sprint69_dynamic_container_authority_runtime_contracts.sql",import.meta.url),"utf8");
+const openapi = readFileSync(new URL("./openapi/container-authority.yaml",import.meta.url),"utf8");
 const repository = readFileSync(new URL("./dynamicContainerAuthorityRepository.js",import.meta.url),"utf8");
 const projection = readFileSync(new URL("./dynamicContainerProjectionService.js",import.meta.url),"utf8");
 
