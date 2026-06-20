@@ -606,7 +606,19 @@ export async function resolvePlatformPluginExecution({
       ? { type: "action_key", value: normalizedActionKey }
       : (normalizedToolKey ? { type: "tool_key", value: normalizedToolKey } : null),
     canonical_policy: canonicalPolicy,
+    principal_scope: principalScope,
     surface_resolution: surfaceExposure,
+    credential_lookup: {
+      attempted: credentialLookupAuthorized,
+      authorized: credentialLookupAuthorized,
+      reason: !selectorRequested
+        ? "credential_lookup_not_required_for_preview"
+        : (credentialLookupAuthorized
+          ? "authorization_and_scope_gates_passed"
+          : "blocked_before_credential_lookup"),
+      row_count: connections.length,
+      secrets_included: false,
+    },
     plugin: {
       plugin_key: platformPlugin.plugin_key,
       display_name: platformPlugin.display_name,
