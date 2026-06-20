@@ -533,10 +533,14 @@ export async function resolvePlatformPluginExecution({
   actionKey = null,
   toolKey = null,
   tenantId = null,
+  workspaceId = null,
   userId = null,
   agentId = null,
   principalClass = "admin",
   requestedCredentialScope = null,
+  targetResourceType = null,
+  targetResourceUri = null,
+  targetMode = "read_only",
   allowExpiredSmokeCertificationForRecertification = false,
 } = {}) {
   const normalizedPluginKey = compactString(pluginKey, 128);
