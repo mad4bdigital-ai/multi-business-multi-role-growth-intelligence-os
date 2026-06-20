@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const script = readFileSync("scripts/governed-migration-reconciler.mjs", "utf8");
 const migration = readFileSync("migrations/308_sprint69_dynamic_governed_migration_reconciliation.sql", "utf8");
+const policy = readFileSync("governedMigrationReconciliationPolicy.mjs", "utf8");
 const cliRoutes = readFileSync("routes/adminCliRoutes.js", "utf8");
 const rollupBuilder = readFileSync("scripts/audit-event-rollup-builder.mjs", "utf8");
 const automationTick = readFileSync("scripts/governed-platform-automation-tick.mjs", "utf8");
@@ -24,11 +25,14 @@ for (const token of [
 ]) {
   assert(script.includes(token), `reconciler must use ${token}`);
 }
-
-assert(script.includes("no_active_explicit_rule"));
-assert(script.includes("record_only_requires_complete_schema"));
-assert(script.includes("use_record_only_rule_instead_of_reapplying"));
-assert(script.includes("risk_requires_approval_but_rule_not_preapproved"));
+assert(script.includes("classifyMigrationReconciliationDecision"));
+assert(policy.includes("no_active_explicit_rule"));
+assert(policy.includes("record_only_requires_complete_schema"));
+assert(policy.includes("use_record_only_rule_instead_of_reapplying"));
+assert(policy.includes("risk_requires_approval_but_rule_not_preapproved"));
+assert(policy.includes("record_only_requires_explicit_policy_only_contract"));
+assert(policy.includes("policy_only_record_only_apply_must_be_disabled"));
+assert(policy.includes("policy_only_record_only_checksum_mismatch"));
 assert(script.includes("APPLY_GOVERNED_MIGRATION_RECONCILIATION"));
 assert(script.includes("governed-migration-runner.mjs"));
 assert(script.includes('typeof parsed.message === "string"'));
