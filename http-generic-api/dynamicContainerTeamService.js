@@ -369,19 +369,25 @@ export async function setContainerTeamMember(input, options = {}, dependencies =
       const container = await resolveAccessibleContainer(connection,{ principalId,containerType,containerRef:preflightContainer.container_id });
       await assertContainerTeamAccess(connection,{ tenantId:container.tenant_id,containerId:container.container_id,principalId },3);
       const targetUser = await resolveTargetUser(connection,{ userId:input.userId,email:input.email });
-      const role = await readRoleTemplate(connection,{ roleTemplateKey,containerType });
+      const [existingRows] = await connection.query(
+        `SELECT assignment_id,role_template_key,inheritance_mode,valid_until FROM container_role_assignments
+          WHERE tenant_id=? AND container_id=? AND principal_type='user' AND principal_id=? AND status='active'
+          ORDER BY created_at,assignment_id FOR UPDATE`,
+        [container.tenant_id,container.container_id,targetUser.user_id]
+      );
+      if(options.partial && !existingRows.length) {
+        throw serviceError(404,"container_team_member_not_found","No active direct team assignment was found for this user.");
+      }
+      const effectiveRoleTemplateKey = roleTemplateKey || existingRows[0]?.role_template_key;
+      const effectiveInheritanceMode = inheritanceMode || existingRows[0]?.inheritance_mode || normalizeInheritanceMode(null,containerType);
+      const effectiveValidUntil = validUntilSpecified ? (input.validUntil || null) : (existingRows[0]?.valid_until || null);
+      const role = await readRoleTemplate(connection,{ roleTemplateKey:effectiveRoleTemplateKey,containerType });
       await assertNotLastContainerAdmin(connection,{
         tenantId:container.tenant_id,containerId:container.container_id,targetUserId:targetUser.user_id,nextRank:role.authority_rank
       });
       const tenantMembership = await ensureTargetTenantMembership(connection,{
         containerType,tenantId:container.tenant_id,userId:targetUser.user_id
       });
-      const [existingRows] = await connection.query(
-        `SELECT assignment_id FROM container_role_assignments
-          WHERE tenant_id=? AND container_id=? AND principal_type='user' AND principal_id=? AND status='active'
-          ORDER BY created_at,assignment_id FOR UPDATE`,
-        [container.tenant_id,container.container_id,targetUser.user_id]
-      );
       let assignmentId;
       if(existingRows.length){
         assignmentId=existingRows[0].assignment_id;
@@ -390,7 +396,7 @@ export async function setContainerTeamMember(input, options = {}, dependencies =
               SET role_template_key=?,inline_permissions_json=NULL,inheritance_mode=?,valid_until=?,version=version+1,
                   issued_by=?,approved_by=?,metadata_json=?,updated_at=UTC_TIMESTAMP()
             WHERE assignment_id=?`,
-          [roleTemplateKey,inheritanceMode,input.validUntil || null,principalId,principalId,JSON.stringify({ ...(input.metadata || {}),source:"container_team_management" }),assignmentId]
+          [effectiveRoleTemplateKey,effectiveInheritanceMode,effectiveValidUntil,principalId,principalId,JSON.stringify({ ...(input.metadata || {}),source:"container_team_management" }),assignmentId]
         );
         if(existingRows.length>1){
           await connection.query(
@@ -406,14 +412,14 @@ export async function setContainerTeamMember(input, options = {}, dependencies =
             (assignment_id,tenant_id,container_id,principal_type,principal_id,role_template_key,inline_permissions_json,
              inheritance_mode,valid_from,valid_until,status,version,issued_by,approved_by,metadata_json)
            VALUES (?,?,?,'user',?,?,NULL,?,UTC_TIMESTAMP(),?,'active',1,?,?,?)`,
-          [assignmentId,container.tenant_id,container.container_id,targetUser.user_id,roleTemplateKey,inheritanceMode,input.validUntil || null,
+          [assignmentId,container.tenant_id,container.container_id,targetUser.user_id,effectiveRoleTemplateKey,effectiveInheritanceMode,effectiveValidUntil,
            principalId,principalId,JSON.stringify({ ...(input.metadata || {}),source:"container_team_management" })]
         );
       }
       return {
         assignmentId,userId:targetUser.user_id,email:targetUser.email,displayName:targetUser.display_name,
-        tenantId:container.tenant_id,containerId:container.container_id,containerType,roleTemplateKey,
-        authorityRank:Number(role.authority_rank || 0),inheritanceMode,status:"active",tenantMembership
+        tenantId:container.tenant_id,containerId:container.container_id,containerType,roleTemplateKey:effectiveRoleTemplateKey,
+        authorityRank:Number(role.authority_rank || 0),inheritanceMode:effectiveInheritanceMode,validUntil:effectiveValidUntil,status:"active",tenantMembership
       };
     }
   });
