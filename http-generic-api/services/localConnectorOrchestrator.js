@@ -65,11 +65,16 @@ async function executeGovernedShellCommand(args) {
   let error = null;
 
   try {
-    const userConfig = await resolveUserLocalConfig(userId, tenantId, deviceId);
-    if (!userConfig) throw new Error("Local connector not enabled or configured for this user/device.");
-
-    const allowlistEntry = userConfig.shellAllowlists.find(e => e.alias === alias);
-    if (!allowlistEntry) throw new Error(`Command alias '${alias}' not found in allowlist.`);
+    const userConfig = await resolveUserLocalConfig(userId, tenantId, deviceId, { includeDisabled: true });
+    const allowlistEntry = userConfig?.shellAllowlists.find((entry) => entry.alias === alias) || null;
+    assertLocalConnectorDeviceTrust({
+      config: userConfig?.config || null,
+      userId: resolveLocalConnectorPrincipalAliases(userId, tenantId).userId,
+      tenantId: resolveLocalConnectorPrincipalAliases(userId, tenantId).tenantId,
+      deviceId,
+      capabilityKey: `shell:${alias}`,
+      capabilitySupported: Boolean(allowlistEntry),
+    });
     if (extraArgs.length > 0 && !allowlistEntry.allow_extra_args) {
       throw new Error(`Command alias '${alias}' does not allow extra arguments.`);
     }
