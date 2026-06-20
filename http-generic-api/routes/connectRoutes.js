@@ -873,6 +873,9 @@ export function buildConnectRoutes(deps) {
         dedicated_integration_readiness: dedicatedIntegrationReadiness,
         hybrid_integration_catalog: hybridIntegrationCatalog(),
         hybrid_integration_readiness: hybridIntegrationReadiness,
+        agent_surface_catalog: agentSurfaceCatalog(),
+        agent_surface_deployments: agentSurfaceDeployments,
+        agent_surface_readiness: agentSurfaceReadiness,
         local_manager_activation_binding: localManagerActivationBinding(),
         activation_graph_context: activationGraphContext,
         next_actions: hybridIntegrationReadiness?.ready === false
