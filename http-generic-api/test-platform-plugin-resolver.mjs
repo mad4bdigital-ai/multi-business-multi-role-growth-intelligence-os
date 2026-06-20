@@ -87,6 +87,16 @@ function makePool({
           is_primary: 1,
         }]] : [[]];
       }
+      if (sql.includes("FROM platform_resource_authority_bindings")) {
+        return withTargetAuthority ? [[{
+          permission_level: targetAuthorityPermission,
+          allowed_modes_json: JSON.stringify(targetAuthorityModes),
+          authority_source: "admin_grant",
+          tenant_id: "tenant-1",
+          workspace_id: null,
+          user_id: null,
+        }]] : [[]];
+      }
       if (sql.includes("FROM agent_skill_grants")) {
         return withSkill ? [[{
           grant_id: "skill-grant-1",
