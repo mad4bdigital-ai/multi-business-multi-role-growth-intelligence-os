@@ -96,7 +96,7 @@
 - [x] **T064** Implement caller-to-device authorization. `[FR-036]`
 - [x] **T065** Implement connector identity verification. `[FR-036]`
 - [x] **T066** Define and enforce heartbeat freshness threshold. `[FR-036, FR-037]`
-- [ ] **T067** Implement device lifecycle checks for archived/revoked state.
+- [x] **T067** Implement device lifecycle checks for archived/revoked state.
 - [x] **T068** Implement capability-support check. `[FR-036]`
 - [x] **T069** Add device trust evidence to decision trace.
 - [x] **T070** Add device matrix tests. `[F01-F11]`
