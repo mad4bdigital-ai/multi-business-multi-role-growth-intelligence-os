@@ -151,6 +151,7 @@ function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections 
       usability_state: CredentialUsabilityState.NOT_EVALUATED,
       credential_source: null,
       reason: "credential_scope_not_allowed",
+      denial_code: CredentialDenialCode.SCOPE_MISMATCH,
       requested_scope: explicitRequestedScope,
       candidate_scopes: candidateScopes,
     };
