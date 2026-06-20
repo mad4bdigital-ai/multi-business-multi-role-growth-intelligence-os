@@ -158,8 +158,10 @@ One immutable decision per request attempt.
 
 - no secret values stored in the decision/audit model
 - one session can be consumed once
-- tenant/subject/integration/purpose cannot be changed after creation
-- redirect URI must be selected from registry allowlist
+- subject, tenant, integration, auth type, target, purpose, redirect, and authority snapshot cannot change after creation without invalidating `binding_digest`
+- redirect URI must be same-origin or selected from the integration registry allowlist
+- a changed tenant membership, tenant state, integration policy, source mode, auth type, or app state revokes a bound pending session before connection creation
+- legacy sessions without binding or authority hashes remain compatible only until their existing expiry and still retain single-use enforcement
 
 ## 9. ActivationReadiness
 
