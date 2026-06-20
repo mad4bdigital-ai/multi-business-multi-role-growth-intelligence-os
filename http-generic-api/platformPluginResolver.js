@@ -692,6 +692,7 @@ export async function resolvePlatformPluginExecution({
     surfaceExposure.ok &&
     canonicalPolicy.ready &&
     credential.ok &&
+    targetAuthority.ok &&
     skill.granted &&
     smokeCertification.certified
   );
