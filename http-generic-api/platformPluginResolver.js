@@ -406,8 +406,22 @@ async function loadPluginRows({ pool, pluginKey, tenantId, userId }) {
     actionBindings,
     toolBindings,
     tenantPolicy: tenantPolicies[0] || null,
-    connections,
   };
+}
+
+async function loadScopedConnections({ pool, pluginKey, tenantId, userId }) {
+  if (!tenantId && !userId) return [];
+  return safeQuery(
+    pool,
+    `SELECT connection_id, tenant_id, user_id, app_key, auth_type, status, validation_status,
+            last_validated_at, last_used_at, is_primary
+       FROM user_app_connections
+      WHERE app_key = ?
+        ${tenantId ? "AND tenant_id = ?" : ""}
+        ${userId ? "AND user_id = ?" : ""}
+      ORDER BY is_primary DESC, last_validated_at DESC, connected_at DESC`,
+    [pluginKey, ...(tenantId ? [tenantId] : []), ...(userId ? [userId] : [])]
+  );
 }
 
 export async function resolvePlatformPluginExecution({
