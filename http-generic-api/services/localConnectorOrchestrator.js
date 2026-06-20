@@ -201,13 +201,19 @@ async function writeGovernedLocalFile(args) {
   let error = null;
 
   try {
-    const userConfig = await resolveUserLocalConfig(userId, tenantId, deviceId);
-    if (!userConfig) throw new Error("Local connector not enabled or configured for this user/device.");
-
-    const rule = userConfig.fileAccessRules.find(r =>
-      r.path_pattern === path && (r.access_mode === "write" || r.access_mode === "read_write")
-    );
-    if (!rule) throw new Error(`File path '${path}' not allowed for write access.`);
+    const userConfig = await resolveUserLocalConfig(userId, tenantId, deviceId, { includeDisabled: true });
+    const rule = userConfig?.fileAccessRules.find((entry) =>
+      entry.path_pattern === path && (entry.access_mode === "write" || entry.access_mode === "read_write")
+    ) || null;
+    const principal = resolveLocalConnectorPrincipalAliases(userId, tenantId);
+    assertLocalConnectorDeviceTrust({
+      config: userConfig?.config || null,
+      userId: principal.userId,
+      tenantId: principal.tenantId,
+      deviceId,
+      capabilityKey: "file:write",
+      capabilitySupported: Boolean(rule),
+    });
 
     const runtimeUrl = connectorRuntimeUrl(userConfig.config);
     if (!runtimeUrl) throw new Error("Local connector runtime URL is not configured for this user/device.");
