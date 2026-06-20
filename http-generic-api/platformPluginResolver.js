@@ -1,5 +1,6 @@
 import { getPool } from "./db.js";
 import { normalizePlatformPlugin } from "./platformPluginCatalog.js";
+import { resolvePlatformManagedTargetAuthority } from "./platformPluginTargetAuthority.js";
 
 export const CredentialRequirement = Object.freeze({
   NOT_REQUIRED: "not_required",
