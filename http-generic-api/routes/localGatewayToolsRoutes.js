@@ -536,22 +536,50 @@ export function buildLocalGatewayToolsRoutes(deps) {
         }
 
         if (row.requires_approval) {
-          const approvedHold = approvalHoldId ? await getApprovedApprovalHold({ holdId: approvalHoldId, tenantId: req.auth?.tenant_id, row }) : null;
-          if (approvalHoldId && !approvedHold) {
-            await completeCallLog({ callId, status: "denied", httpStatus: 403, errorCode: "approval_hold_not_approved", errorMessage: `Approval hold '${approvalHoldId}' is not approved for '${toolKey}'.`, startedAt });
+          const approvalDecision = approvalHoldId
+            ? await getApprovedApprovalHold({
+                holdId: approvalHoldId,
+                tenantId: req.auth?.tenant_id,
+                row,
+                approvalBinding,
+              })
+            : null;
+          if (approvalHoldId && !approvalDecision?.ok) {
+            const errorCode = approvalDecision?.code || "approval_hold_not_approved";
+            const bindingMismatch = Boolean(approvalDecision?.hold);
+            await completeCallLog({
+              callId,
+              status: "denied",
+              httpStatus: 403,
+              errorCode,
+              errorMessage: `Approval hold '${approvalHoldId}' is not valid for '${toolKey}'.`,
+              startedAt,
+            });
             return res.status(403).json({
               ok: false,
               error: {
-                code: "approval_hold_not_approved",
-                message: "The supplied approval hold is missing, expired, rejected, or not approved for this tool.",
-                details: { approval_hold_id: approvalHoldId, required_hold_type: row.approval_hold_type || "review" },
+                code: errorCode,
+                message: bindingMismatch
+                  ? "The supplied approval hold is approved but is bound to a different tool, principal, device, or request."
+                  : "The supplied approval hold is missing, expired, rejected, or not approved for this tool.",
+                details: {
+                  approval_hold_id: approvalHoldId,
+                  required_hold_type: row.approval_hold_type || "review",
+                  mismatch_field: approvalDecision?.bindingDecision?.mismatch_field || null,
+                },
               },
               local_gateway: { call_id: callId, tool_key: row.tool_key, approval_hold_id: approvalHoldId },
             });
           }
 
-          if (!approvedHold) {
-            const createdHoldId = await createApprovalHold({ callId, req, row, tenantId: req.auth?.tenant_id });
+          if (!approvalDecision?.ok) {
+            const createdHoldId = await createApprovalHold({
+              callId,
+              req,
+              row,
+              tenantId: req.auth?.tenant_id,
+              approvalBinding,
+            });
             await getPool().query(
               "UPDATE `local_gateway_tool_call_log` SET approval_hold_id = ? WHERE call_id = ?",
               [createdHoldId, callId]
