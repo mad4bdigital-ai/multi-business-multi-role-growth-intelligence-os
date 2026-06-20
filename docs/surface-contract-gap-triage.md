@@ -4,15 +4,15 @@
 
 ## Summary
 
-- Triaged items: 1
-- Gate candidates: 1
-- New-gap gate: fail
-- Blocking new items: 1
+- Triaged items: 0
+- Gate candidates: 0
+- New-gap gate: pass
+- Blocking new items: 0
 
 ## Class counts
 
-- new_surface_immediate_review: 1
+- none
 
 ## Immediate review candidates
 
-- `1020_sprint69_multi_surface_tenant_agent_runtime.sql` — critical_review, score 765; next: add targeted patch-index, parity, and governance documentation
+- none
