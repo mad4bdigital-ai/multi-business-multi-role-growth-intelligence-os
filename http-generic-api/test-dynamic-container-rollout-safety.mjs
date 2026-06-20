@@ -115,6 +115,37 @@ assert.equal(applied.readback.rollout_mode,"shadow");
 assert.equal(applyExecutor.updateCount,1);
 assert.deepEqual(applyExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","commit"]);
 
+const expectedPlanIndexes=[
+  "idx_cr_tenant_from_status",
+  "idx_cra_principal_status",
+  "idx_crb_tenant_resource_status",
+  "idx_crps_mode_created"
+];
+let planIndexCursor=0;
+const queryPlanPassExecutor={
+  query:async sql => {
+    assert.match(sql,/^EXPLAIN /);
+    const key=expectedPlanIndexes[planIndexCursor++];
+    return [[{ key,type:"ref",rows:4 }]];
+  }
+};
+const queryPlanPass=await runContainerQueryPlanPreflight({ executor:queryPlanPassExecutor });
+assert.equal(queryPlanPass.ok,true);
+assert.equal(queryPlanPass.status,"pass");
+assert.equal(queryPlanPass.failedCount,0);
+assert.equal(queryPlanPass.checks.length,4);
+assert.equal(queryPlanPass.appliesSql,false);
+assert.equal(queryPlanPass.providerCalls,false);
+assert.equal(queryPlanPass.credentialPayloadReads,false);
+
+const queryPlanFail=await runContainerQueryPlanPreflight({
+  executor:{ query:async () => [[{ key:null,type:"ALL",rows:100000 }]] }
+});
+assert.equal(queryPlanFail.ok,false);
+assert.equal(queryPlanFail.status,"failed_query_plan");
+assert.equal(queryPlanFail.failedCount,4);
+assert(queryPlanFail.checks.every(check => check.selectedIndexes.length === 0));
+
 const canaries = [
   { canary_key:"preview-resolution",capability_key:"createContainerContextResolution",operation_class:"read_only",rollout_mode:"shadow",status:"active" },
   { canary_key:"rollout-readiness",capability_key:"getContainerAuthorityRolloutReadiness",operation_class:"read_only",rollout_mode:"shadow",status:"active" }
