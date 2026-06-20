@@ -606,6 +606,8 @@ export function buildConnectRoutes(deps) {
         dedicated_integration_readiness: state.dedicatedIntegrationReadiness,
         hybrid_integration_catalog: hybridIntegrationCatalog(),
         hybrid_integration_readiness: state.hybridIntegrationReadiness,
+        agent_surface_catalog: agentSurfaceCatalog(),
+        agent_surface_readiness: state.agentSurfaceReadiness,
         local_manager_activation_binding: localManagerActivationBinding(),
         gpt_activation_guidance: buildTenantGptActivationGuidance({ onboarding: state.onboarding, devices: state.devices }),
         activation_graph_context: state.activationGraphContext,
