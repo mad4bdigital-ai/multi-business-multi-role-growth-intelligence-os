@@ -401,6 +401,11 @@ export async function setContainerTeamMember(input, options = {}, dependencies =
       const tenantMembership = await ensureTargetTenantMembership(connection,{
         containerType,tenantId:container.tenant_id,userId:targetUser.user_id
       });
+      const assignmentMetadata=JSON.stringify({
+        ...parseJsonObject(existingRows[0]?.metadata_json),
+        ...(input.metadata || {}),
+        source:"container_team_management"
+      });
       let assignmentId;
       if(existingRows.length){
         assignmentId=existingRows[0].assignment_id;
