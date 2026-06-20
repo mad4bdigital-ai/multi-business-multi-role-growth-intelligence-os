@@ -277,11 +277,11 @@ async function tenantHasEntitlement(tenantId, entitlementKey) {
   return Boolean(rows[0]);
 }
 
-async function getApprovedApprovalHold({ holdId, tenantId, row }) {
+async function getApprovedApprovalHold({ holdId, tenantId, row, approvalBinding }) {
   const normalized = String(holdId || "").trim();
-  if (!normalized) return null;
+  if (!normalized) return { ok: false, hold: null, code: "approval_hold_not_approved" };
   const [rows] = await getPool().query(
-    `SELECT hold_id, tenant_id, hold_type, requested_by, required_role, status, expires_at
+    `SELECT hold_id, tenant_id, hold_type, requested_by, required_role, status, expires_at, execution_context_json
        FROM \`approval_holds\`
       WHERE hold_id = ?
         AND tenant_id = ?
@@ -291,7 +291,13 @@ async function getApprovedApprovalHold({ holdId, tenantId, row }) {
       LIMIT 1`,
     [normalized, tenantId, row.approval_hold_type || "review"]
   );
-  return rows[0] || null;
+  const hold = rows[0] || null;
+  if (!hold) return { ok: false, hold: null, code: "approval_hold_not_approved" };
+  const context = parseJson(hold.execution_context_json, {});
+  const bindingDecision = validateLocalGatewayApprovalBinding(context?.approval_binding, approvalBinding);
+  return bindingDecision.ok
+    ? { ok: true, hold, code: bindingDecision.code }
+    : { ok: false, hold, code: bindingDecision.code, bindingDecision };
 }
 
 async function createApprovalHold({ callId, req, row, tenantId }) {
