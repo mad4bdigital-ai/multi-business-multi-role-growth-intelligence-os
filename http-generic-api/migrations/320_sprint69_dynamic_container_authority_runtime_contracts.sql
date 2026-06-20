@@ -288,6 +288,17 @@ ON DUPLICATE KEY UPDATE
   audit_coverage_required_percent=VALUES(audit_coverage_required_percent),minimum_sample_count=VALUES(minimum_sample_count),
   rollback_mode=VALUES(rollback_mode),metadata_json=VALUES(metadata_json),updated_at=CURRENT_TIMESTAMP;
 
+INSERT INTO `container_shadow_canary_registry`
+  (`canary_key`,`capability_key`,`tenant_id`,`container_type_key`,`operation_class`,`rollout_mode`,`status`,`metadata_json`)
+VALUES
+  ('container_authority_preview_resolution_v1','createContainerContextResolution',NULL,NULL,'read_only','shadow','active',
+   JSON_OBJECT('operation_id','createContainerContextResolution','request_mode','preview','provider_calls',false,'credential_payload_reads',false,'external_writes',false,'promotion_requires_readiness',true,'seed','migration_320')),
+  ('container_authority_rollout_readiness_v1','getContainerAuthorityRolloutReadiness',NULL,NULL,'read_only','shadow','active',
+   JSON_OBJECT('operation_id','getContainerAuthorityRolloutReadiness','request_mode','read_only','provider_calls',false,'credential_payload_reads',false,'external_writes',false,'promotion_requires_readiness',true,'seed','migration_320'))
+ON DUPLICATE KEY UPDATE
+  capability_key=VALUES(capability_key),operation_class=VALUES(operation_class),rollout_mode=VALUES(rollout_mode),
+  status=VALUES(status),metadata_json=VALUES(metadata_json),updated_at=CURRENT_TIMESTAMP;
+
 INSERT INTO `container_role_template_registry`
   (`role_template_key`,`display_name`,`description`,`composition_json`,`authority_rank`,`eligible_container_types_json`,`default_scope_mode`,`status`,`metadata_json`)
 VALUES
