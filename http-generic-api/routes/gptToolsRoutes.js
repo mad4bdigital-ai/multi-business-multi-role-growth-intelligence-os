@@ -21,6 +21,7 @@ import {
   loadGovernedToolResponseChunk,
   persistGovernedToolResponseChunk,
 } from "../governedToolResponseChunkStore.js";
+import { runGovernedResponseChunkDurableRecoverySmoke } from "../governedResponseChunkDurableRecoverySmoke.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import {
   capabilityEnvelopeError,
