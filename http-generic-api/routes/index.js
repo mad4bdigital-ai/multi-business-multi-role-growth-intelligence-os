@@ -182,6 +182,7 @@ export function registerRoutes(app, deps) {
   app.use(buildAdminWorkspaceAuthorityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildTenantEvolutionRoutes());
   app.use(buildTenantInfrastructureRoutes(deps));
+  app.use(buildAgentSurfaceRoutes(deps));
   app.use(buildGptSessionRoutes(deps));
   app.use(buildGptToolsRoutes(deps));
   app.use(buildPlatformGraphRoutes({ ...deps, requireAdminPrincipal }));
