@@ -232,6 +232,9 @@ function makePool({
   assert.equal(result.allowed, false);
   assert(result.reason.includes("skill_not_granted"));
   assert.equal(result.skill_resolution.granted, false);
+  assert.equal(result.credential_lookup.attempted, false);
+  assert.equal(result.credential_lookup.reason, "blocked_before_credential_lookup");
+  assert.equal(pool.calls.some((call) => call.sql.includes("FROM user_app_connections")), false);
 }
 
 {
