@@ -295,10 +295,42 @@ async function getApprovedApprovalHold({ holdId, tenantId, row, approvalBinding 
   const hold = rows[0] || null;
   if (!hold) return { ok: false, hold: null, code: "approval_hold_not_approved" };
   const context = parseJson(hold.execution_context_json, {});
+  const consumptionDecision = localGatewayApprovalConsumptionState(context);
+  if (!consumptionDecision.ok) {
+    return {
+      ok: false,
+      hold,
+      code: consumptionDecision.code,
+      consumptionDecision,
+    };
+  }
   const bindingDecision = validateLocalGatewayApprovalBinding(context?.approval_binding, approvalBinding);
   return bindingDecision.ok
     ? { ok: true, hold, code: bindingDecision.code }
     : { ok: false, hold, code: bindingDecision.code, bindingDecision };
+}
+
+async function claimApprovedApprovalHold({ holdId, tenantId, callId, approvalBinding }) {
+  const requestDigest = String(approvalBinding?.request_digest || "").trim();
+  if (!holdId || !tenantId || !callId || !requestDigest) return false;
+  const [result] = await getPool().query(
+    `UPDATE \`approval_holds\`
+        SET execution_context_json = JSON_SET(
+          COALESCE(execution_context_json, JSON_OBJECT()),
+          '$.approval_consumed_at', UTC_TIMESTAMP(),
+          '$.approval_consumed_call_id', ?,
+          '$.approval_consumed_request_digest', ?,
+          '$.secrets_included', FALSE
+        )
+      WHERE hold_id = ?
+        AND tenant_id = ?
+        AND status = 'approved'
+        AND (expires_at IS NULL OR expires_at > NOW())
+        AND JSON_EXTRACT(COALESCE(execution_context_json, JSON_OBJECT()), '$.approval_consumed_at') IS NULL
+        AND JSON_UNQUOTE(JSON_EXTRACT(execution_context_json, '$.approval_binding.request_digest')) = ?`,
+    [callId, requestDigest, holdId, tenantId, requestDigest]
+  );
+  return Number(result?.affectedRows || 0) === 1;
 }
 
 async function createApprovalHold({ callId, req, row, tenantId, approvalBinding }) {
