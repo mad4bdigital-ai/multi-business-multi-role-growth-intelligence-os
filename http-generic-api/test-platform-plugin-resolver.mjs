@@ -323,6 +323,7 @@ function makePool({
   assert.equal(result.allowed, false);
   assert.equal(result.credential_resolution.ok, false);
   assert.equal(result.credential_resolution.reason, "credential_scope_not_allowed");
+  assert.equal(result.credential_resolution.denial_code, "CREDENTIAL_SCOPE_MISMATCH");
   assert.equal(result.credential_resolution.requirement, "required");
   assert.equal(result.credential_resolution.resolution_state, "scope_denied");
   assert.equal(result.credential_resolution.usability_state, "not_evaluated");
