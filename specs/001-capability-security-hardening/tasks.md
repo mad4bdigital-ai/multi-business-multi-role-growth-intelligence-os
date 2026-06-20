@@ -91,15 +91,15 @@
 
 ## Phase 7 — Device trust
 
-- [ ] **T062** Require `device_id` for device-scoped capabilities. `[FR-035]`
-- [ ] **T063** Implement device existence and tenant ownership checks. `[FR-036]`
-- [ ] **T064** Implement caller-to-device authorization. `[FR-036]`
-- [ ] **T065** Implement connector identity verification. `[FR-036]`
-- [ ] **T066** Define and enforce heartbeat freshness threshold. `[FR-036, FR-037]`
+- [x] **T062** Require `device_id` for device-scoped capabilities. `[FR-035]`
+- [x] **T063** Implement device existence and tenant ownership checks. `[FR-036]`
+- [x] **T064** Implement caller-to-device authorization. `[FR-036]`
+- [x] **T065** Implement connector identity verification. `[FR-036]`
+- [x] **T066** Define and enforce heartbeat freshness threshold. `[FR-036, FR-037]`
 - [ ] **T067** Implement device lifecycle checks for archived/revoked state.
-- [ ] **T068** Implement capability-support check. `[FR-036]`
-- [ ] **T069** Add device trust evidence to decision trace.
-- [ ] **T070** Add device matrix tests. `[F01-F11]`
+- [x] **T068** Implement capability-support check. `[FR-036]`
+- [x] **T069** Add device trust evidence to decision trace.
+- [x] **T070** Add device matrix tests. `[F01-F11]`
 
 ## Phase 8 — Local consent, shell, and files
 
