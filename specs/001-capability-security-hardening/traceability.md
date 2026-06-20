@@ -45,6 +45,12 @@
 | Gate evidence incomplete | T092–T096 | J04–J08 |
 | Cloudflare/n8n target scoping | T085–T089 | I01–I07 |
 
+## Verified branch evidence — credential policy
+
+| Tasks | Implementation evidence | Automated evidence | Decision evidence |
+|---|---|---|---|
+| T047 | `platformPluginResolver.js` separates `loadScopedConnections` from plugin/binding discovery and invokes it only after plugin, principal scope, binding, surface, canonical-policy, and skill gates pass | `test-platform-plugin-resolver.mjs` proves no `user_app_connections` query for missing binding, forbidden admin tool surface, missing skill grant, or incomplete tenant principal scope | response includes `principal_scope` and `credential_lookup`; audit read-model tables include `user_app_connections` only when lookup was authorized |
+
 ## Verified branch evidence — secure intake
 
 | Tasks | Implementation evidence | Automated evidence | Contract/data evidence |
