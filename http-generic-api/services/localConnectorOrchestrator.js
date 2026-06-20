@@ -1,5 +1,6 @@
 import { getPool } from "../db.js";
 import crypto from "node:crypto";
+import { assertLocalConnectorDeviceTrust } from "../localConnectorDeviceTrust.js";
 
 const PLATFORM_TENANT_ID = "00000000-0000-4000-a000-000000000001";
 const PLATFORM_ADMIN_USER_ID = "00000000-0000-4000-a000-000000000002";
