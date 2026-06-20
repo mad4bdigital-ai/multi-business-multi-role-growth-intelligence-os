@@ -431,7 +431,7 @@ export async function setContainerTeamMember(input, options = {}, dependencies =
              inheritance_mode,valid_from,valid_until,status,version,issued_by,approved_by,metadata_json)
            VALUES (?,?,?,'user',?,?,NULL,?,UTC_TIMESTAMP(),?,'active',1,?,?,?)`,
           [assignmentId,container.tenant_id,container.container_id,targetUser.user_id,effectiveRoleTemplateKey,effectiveInheritanceMode,effectiveValidUntil,
-           principalId,principalId,JSON.stringify({ ...(input.metadata || {}),source:"container_team_management" })]
+           principalId,principalId,assignmentMetadata]
         );
       }
       return {
