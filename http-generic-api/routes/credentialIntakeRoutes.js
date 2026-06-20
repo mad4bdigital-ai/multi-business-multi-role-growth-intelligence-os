@@ -724,6 +724,29 @@ export async function createCredentialIntakeSessionRecord({
   const ttl = clampTtlMinutes(expiresInMinutes);
   const expiresAt = new Date(Date.now() + ttl * 60_000).toISOString().slice(0, 19).replace("T", " ");
   const safeMetadata = metadata && typeof metadata === "object" && !Array.isArray(metadata) ? metadata : {};
+  const normalizedTargetRef = String(
+    connectionTargetRef
+      || safeMetadata.connection_target_ref
+      || (workspaceId ? `workspace:${workspaceId}:app:${normalizedAppKey}` : `app:${normalizedAppKey}`)
+  ).trim().slice(0, 255);
+  const normalizedPurpose = String(purpose || safeMetadata.purpose || `connect:${normalizedAppKey}`).trim().slice(0, 160);
+  const allowedRedirectUri = normalizeCredentialIntakeRedirect({
+    redirectUri,
+    requestOrigin: absoluteBaseUrl(request),
+    registryAllowlist: app.credential_intake_redirect_allowlist_json,
+  });
+  const authoritySnapshotHash = String(authoritySnapshot?.snapshot_hash || "").trim() || null;
+  const authoritySnapshotVersion = String(authoritySnapshot?.version || "").trim().slice(0, 64) || null;
+  const binding = buildCredentialIntakeBinding({
+    userId: normalizedUserId,
+    tenantId: normalizedTenantId,
+    appKey: normalizedAppKey,
+    authType: normalizedAuthType,
+    connectionTargetRef: normalizedTargetRef,
+    purpose: normalizedPurpose,
+    allowedRedirectUri,
+    authoritySnapshotHash,
+  });
 
   await pool.query(
     `INSERT INTO credential_intake_sessions
