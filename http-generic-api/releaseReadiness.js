@@ -1313,6 +1313,10 @@ async function checkPlatformToolDispatchBindingIntegrity() {
   try {
     const [[row]] = await getPool().query(
       `SELECT COUNT(*) AS binding_count,
+              (SELECT COUNT(*)
+                 FROM platform_tool_dispatch_bindings
+                WHERE parent_action_key = 'github_api_mcp'
+                  AND status = 'active') AS expected_binding_count,
               SUM(endpoint_not_ready) AS endpoint_not_ready,
               SUM(missing_active_export) AS missing_exports,
               SUM(missing_active_dispatch_binding) AS missing_bindings,
@@ -1324,6 +1328,7 @@ async function checkPlatformToolDispatchBindingIntegrity() {
     );
     const result = {
       binding_count: Number(row?.binding_count || 0),
+      expected_binding_count: Number(row?.expected_binding_count || 0),
       endpoint_not_ready: Number(row?.endpoint_not_ready || 0),
       missing_exports: Number(row?.missing_exports || 0),
       missing_bindings: Number(row?.missing_bindings || 0),
@@ -1332,14 +1337,14 @@ async function checkPlatformToolDispatchBindingIntegrity() {
       callable_surface_gaps: Number(row?.callable_surface_gaps || 0),
     };
     const gapCount = Object.entries(result)
-      .filter(([key]) => key !== "binding_count")
+      .filter(([key]) => !new Set(["binding_count", "expected_binding_count"]).has(key))
       .reduce((sum, [, value]) => sum + Number(value || 0), 0);
-    const passed = result.binding_count === 14 && gapCount === 0;
+    const passed = result.expected_binding_count > 0 && result.binding_count === result.expected_binding_count && gapCount === 0;
     return {
       status: passed ? "pass" : "fail",
       detail: passed
-        ? "GitHub tool dispatch integrity is healthy for 14/14 registered bindings."
-        : `GitHub tool dispatch integrity expected 14 healthy bindings and found ${result.binding_count} with ${gapCount} gap(s).`,
+        ? `GitHub tool dispatch integrity is healthy for ${result.binding_count}/${result.expected_binding_count} active registered bindings.`
+        : `GitHub tool dispatch integrity expected ${result.expected_binding_count} healthy bindings and found ${result.binding_count} with ${gapCount} gap(s).`,
       ...result,
       gap_count: gapCount,
       healthy_count: Math.max(0, result.binding_count - gapCount),
@@ -1350,6 +1355,7 @@ async function checkPlatformToolDispatchBindingIntegrity() {
       status: "fail",
       detail: `Platform tool dispatch binding integrity check failed: ${err?.message || "unknown error"}`,
       binding_count: 0,
+      expected_binding_count: 0,
       healthy_count: 0,
       gap_count: 1,
       secrets_included: false,
