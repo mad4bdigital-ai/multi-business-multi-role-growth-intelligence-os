@@ -1,0 +1,7 @@
+{
+  "surface_key": "container_resolution_performance_samples",
+  "source_table": "container_resolution_performance_samples",
+  "reason": "Excluded because it contains internal resolver performance samples used for rollout gates. Activation consumers should receive only bounded readiness summaries.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}
