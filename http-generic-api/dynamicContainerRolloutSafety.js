@@ -184,4 +184,148 @@ export async function runContainerRollbackDrill({
   }
 }
 
+export function buildContainerCanaryPromotionPlan({ canaries = [], targetCanaryKey, readiness } = {}) {
+  const targetKey=String(targetCanaryKey || "").trim();
+  if(!targetKey) throw Object.assign(new Error("targetCanaryKey is required."),{ code:"container_canary_key_required",status:422 });
+  if(!readiness || String(readiness.readinessCode ?? readiness.readiness_code) !== "ready_for_review") {
+    throw Object.assign(new Error("Container rollout readiness must be ready_for_review before canary promotion."),{
+      code:"container_canary_readiness_required",status:409
+    });
+  }
+  const active=(canaries || []).filter(row => String(row.status || "active") === "active");
+  const target=active.find(row => String(row.canaryKey ?? row.canary_key) === targetKey);
+  if(!target) throw Object.assign(new Error("Active canary candidate was not found."),{ code:"container_canary_not_found",status:404 });
+  if(String(target.operationClass ?? target.operation_class ?? "") !== "read_only") {
+    throw Object.assign(new Error("Only read-only capabilities may enter the first canary stage."),{
+      code:"container_canary_operation_not_read_only",status:422
+    });
+  }
+  const otherPromoted=active.filter(row =>
+    String(row.canaryKey ?? row.canary_key) !== targetKey
+    && String(row.rolloutMode ?? row.rollout_mode) === "read_only_canary"
+  );
+  if(otherPromoted.length) {
+    throw Object.assign(new Error("Another read-only canary is already active; promote one capability at a time."),{
+      code:"container_canary_promotion_in_progress",status:409,
+      details:otherPromoted.map(row => ({ canaryKey:row.canaryKey ?? row.canary_key }))
+    });
+  }
+  const currentMode=String(target.rolloutMode ?? target.rollout_mode ?? "shadow");
+  const confirmation=`PROMOTE_DYNAMIC_CONTAINER_CANARY_${targetKey.replace(/[^A-Za-z0-9]+/g,"_").toUpperCase()}`;
+  return {
+    canaryKey:targetKey,
+    capabilityKey:String(target.capabilityKey ?? target.capability_key ?? ""),
+    currentMode,
+    targetMode:"read_only_canary",
+    noOp:currentMode === "read_only_canary",
+    confirmation,
+    actions:["lock_active_canary_rows","verify_rollout_readiness","promote_exact_canary","read_back_exact_canary"],
+    providerCalls:false,
+    credentialPayloadReads:false,
+    externalWrites:false,
+    secretsIncluded:false
+  };
+}
+
+export async function runContainerCanaryPromotion({
+  executor,
+  targetCanaryKey,
+  policyKey = "dynamic_container_authority_v1",
+  apply = false,
+  confirm = null
+} = {}) {
+  if(!executor?.query) throw Object.assign(new Error("A SQL executor is required."),{ code:"container_canary_executor_required",status:500 });
+  let transactionStarted=false;
+  try {
+    if(apply && executor.beginTransaction) {
+      await executor.beginTransaction();
+      transactionStarted=true;
+    }
+    const [canaryRows]=await executor.query(
+      `SELECT canary_key,capability_key,operation_class,rollout_mode,status
+         FROM container_shadow_canary_registry WHERE status='active' ORDER BY canary_key${apply ? " FOR UPDATE" : ""}`
+    );
+    const [readinessRows]=await executor.query(
+      "SELECT policy_key,rollout_mode,readiness_code,audit_coverage_percent,maximum_mismatch_percent FROM v_container_rollout_readiness WHERE policy_key=? LIMIT 1",
+      [policyKey]
+    );
+    const readiness=readinessRows?.[0];
+    if(!readiness) throw Object.assign(new Error("Rollout readiness row was not found."),{ code:"container_rollout_readiness_not_found",status:404 });
+    const plan=buildContainerCanaryPromotionPlan({ canaries:canaryRows,targetCanaryKey,readiness });
+    if(!apply) return { ok:true,mode:"dry_run",plan,secretsIncluded:false };
+    if(confirm !== plan.confirmation) {
+      throw Object.assign(new Error(`Typed confirmation ${plan.confirmation} is required.`),{
+        code:"container_canary_confirmation_required",status:409
+      });
+    }
+    if(!plan.noOp) {
+      await executor.query(
+        `UPDATE container_shadow_canary_registry
+            SET rollout_mode='read_only_canary',metadata_json=JSON_SET(COALESCE(metadata_json,JSON_OBJECT()),
+                '$.promoted_after_readiness',TRUE,'$.promotion_policy_key',?),updated_at=CURRENT_TIMESTAMP
+          WHERE canary_key=? AND status='active' AND operation_class='read_only' AND rollout_mode='shadow'`,
+        [policyKey,plan.canaryKey]
+      );
+    }
+    const [readbackRows]=await executor.query(
+      "SELECT canary_key,capability_key,operation_class,rollout_mode,status FROM container_shadow_canary_registry WHERE canary_key=? LIMIT 1",
+      [plan.canaryKey]
+    );
+    const readback=readbackRows?.[0];
+    if(!readback || String(readback.rollout_mode) !== "read_only_canary") {
+      throw Object.assign(new Error("Canary promotion readback did not match the target mode."),{
+        code:"container_canary_readback_failed",status:409
+      });
+    }
+    if(transactionStarted && executor.commit) await executor.commit();
+    return { ok:true,mode:"apply",plan,readback,secretsIncluded:false };
+  } catch(error) {
+    if(transactionStarted && executor.rollback) await executor.rollback().catch(() => null);
+    throw error;
+  }
+}
+
+export function evaluateContainerBypassRetirementReadiness({
+  rolloutReadiness,
+  adoptionEvidence = {},
+  activeBypassCount = 0,
+  activeOverrideCount = 0
+} = {}) {
+  const rolloutMode=String(rolloutReadiness?.rolloutMode ?? rolloutReadiness?.rollout_mode ?? "shadow");
+  const readinessCode=String(rolloutReadiness?.readinessCode ?? rolloutReadiness?.readiness_code ?? "unknown");
+  const evidence=rolloutReadiness?.evidence || rolloutReadiness || {};
+  const expectedCapabilityCount=Math.max(1,finiteNumber(adoptionEvidence.expectedCapabilityCount ?? adoptionEvidence.expected_capability_count,1));
+  const adoptedCapabilityCount=finiteNumber(adoptionEvidence.adoptedCapabilityCount ?? adoptionEvidence.adopted_capability_count);
+  const requiredReadyWindows=Math.max(1,finiteNumber(adoptionEvidence.requiredReadyWindows ?? adoptionEvidence.required_ready_windows,2));
+  const consecutiveReadyWindows=finiteNumber(adoptionEvidence.consecutiveReadyWindows ?? adoptionEvidence.consecutive_ready_windows);
+  const auditCoveragePercent=finiteNumber(evidence.auditCoveragePercent ?? evidence.audit_coverage_percent);
+  const mismatchPercent=finiteNumber(evidence.mismatchPercent ?? evidence.maximum_mismatch_percent);
+  const criticalMismatchCount=finiteNumber(evidence.criticalMismatchCount ?? evidence.critical_mismatch_count);
+  let readiness="ready_to_retire_bypass";
+  if(finiteNumber(activeBypassCount) < 1) readiness="no_bypass_present";
+  else if(rolloutMode !== "enforced") readiness="enforcement_not_complete";
+  else if(readinessCode !== "ready_for_review") readiness="rollout_not_ready";
+  else if(adoptedCapabilityCount < expectedCapabilityCount) readiness="adoption_incomplete";
+  else if(consecutiveReadyWindows < requiredReadyWindows) readiness="adoption_stability_window_incomplete";
+  else if(auditCoveragePercent < 100) readiness="audit_coverage_below_required";
+  else if(mismatchPercent > 0 || criticalMismatchCount > 0) readiness="mismatch_evidence_present";
+  else if(finiteNumber(activeOverrideCount) > 0) readiness="active_overrides_present";
+  return {
+    readinessCode:readiness,
+    readyToRetireBypass:readiness === "ready_to_retire_bypass",
+    evidence:{
+      rolloutMode,rolloutReadinessCode:readinessCode,
+      expectedCapabilityCount,adoptedCapabilityCount,
+      requiredReadyWindows,consecutiveReadyWindows,
+      auditCoveragePercent,mismatchPercent,criticalMismatchCount,
+      activeBypassCount:finiteNumber(activeBypassCount),
+      activeOverrideCount:finiteNumber(activeOverrideCount)
+    },
+    providerCalls:false,
+    credentialPayloadReads:false,
+    externalWrites:false,
+    secretsIncluded:false
+  };
+}
+
 export const _testingDynamicContainerRolloutSafety = { finiteNumber,normalizeMode };
