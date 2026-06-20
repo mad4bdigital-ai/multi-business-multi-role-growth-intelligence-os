@@ -1,5 +1,6 @@
 import { resolveActivationBootstrapConfig } from "./activationBootstrapConfig.js";
 import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
+import { DEFAULT_DISPOSABLE_BRANCH_PREFIXES } from "./githubRepositoryLifecycle.js";
 import { writeAuditLogAsync } from "./auditLogger.js";
 import {
   createContinuationCheckpoint,
