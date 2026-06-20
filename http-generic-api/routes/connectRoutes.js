@@ -194,6 +194,26 @@ async function fetchUserDevices(userId, tenantId) {
   return rows;
 }
 
+async function assessAgentSurfacesSafe({ tenantId, userId }) {
+  try {
+    return await assessTenantAgentSurfaceReadiness({ tenantId, userId });
+  } catch (error) {
+    if (["ER_NO_SUCH_TABLE", "ER_BAD_FIELD_ERROR"].includes(error?.code)) {
+      return {
+        tenant_id: tenantId,
+        user_id: userId,
+        status: "schema_pending",
+        configured_count: 0,
+        ready_count: 0,
+        items: [],
+        blockers: ["agent_surface_schema_pending"],
+        secrets_included: false,
+      };
+    }
+    throw error;
+  }
+}
+
 async function fetchActiveMemberships(userId) {
   const [rows] = await getPool().query(
     `SELECT m.tenant_id, m.role, m.status, t.display_name AS tenant_display_name
