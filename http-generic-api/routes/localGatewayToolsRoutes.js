@@ -635,6 +635,37 @@ export function buildLocalGatewayToolsRoutes(deps) {
               local_gateway: { call_id: callId, tool_key: row.tool_key, approval_hold_id: createdHoldId, status: "approval_pending" },
             });
           }
+
+          const approvalClaimed = await claimApprovedApprovalHold({
+            holdId: approvalHoldId,
+            tenantId: req.auth?.tenant_id,
+            callId,
+            approvalBinding,
+          });
+          if (!approvalClaimed) {
+            await completeCallLog({
+              callId,
+              status: "denied",
+              httpStatus: 409,
+              errorCode: "approval_hold_already_consumed",
+              errorMessage: `Approval hold '${approvalHoldId}' was already consumed or changed before dispatch.`,
+              startedAt,
+            });
+            return res.status(409).json({
+              ok: false,
+              error: {
+                code: "approval_hold_already_consumed",
+                message: "The supplied approval hold has already been consumed. Create and approve a new hold before retrying.",
+                details: { approval_hold_id: approvalHoldId },
+              },
+              local_gateway: {
+                call_id: callId,
+                tool_key: row.tool_key,
+                approval_hold_id: approvalHoldId,
+                approval_consumed: false,
+              },
+            });
+          }
         }
       }
 
