@@ -751,11 +751,15 @@ export async function createCredentialIntakeSessionRecord({
   await pool.query(
     `INSERT INTO credential_intake_sessions
        (session_id, token_hash, user_id, tenant_id, app_key, auth_type, display_label,
-        mcp_endpoint, webhook_url, api_base_url, workspace_id, credential_schema_json,
-        metadata_json, status, expires_at, created_by)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?)`,
+        mcp_endpoint, webhook_url, api_base_url, workspace_id,
+        connection_target_ref, purpose, allowed_redirect_uri, binding_digest,
+        authority_snapshot_hash, authority_snapshot_version,
+        credential_schema_json, metadata_json, status, expires_at, created_by)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?)`,
     [sessionId, tokenHash, normalizedUserId, normalizedTenantId, normalizedAppKey, normalizedAuthType, displayLabel || null,
      mcpEndpoint || null, webhookUrl || null, apiBaseUrl || null, workspaceId || null,
+     binding.connection_target_ref, binding.purpose, binding.allowed_redirect_uri, binding.binding_digest,
+     authoritySnapshotHash, authoritySnapshotVersion,
      JSON.stringify({ fields: normalizedSchema }), JSON.stringify(safeMetadata), expiresAt, createdBy || normalizedUserId]
   );
 
