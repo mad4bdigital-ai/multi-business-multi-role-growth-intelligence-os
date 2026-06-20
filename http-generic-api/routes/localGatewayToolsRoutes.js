@@ -474,6 +474,13 @@ export function buildLocalGatewayToolsRoutes(deps) {
       const entitlementKey = row.required_entitlement_key || null;
       const consentStatus = consentStatusFor(row, args);
       const approvalHoldId = String(args.approval_hold_id || "").trim() || null;
+      const approvalBinding = buildLocalGatewayApprovalBinding({
+        toolKey: row.tool_key,
+        tenantId: deviceConfig?.tenant_id || req.auth?.tenant_id || args.tenant_id || null,
+        userId: deviceConfig?.user_id || req.auth?.user_id || args.user_id || null,
+        deviceId: args.device_id || deviceConfig?.device_id || null,
+        args,
+      });
       const publicHost = publicHostForRequest(req);
       await insertCallLog({
         tool: row,
