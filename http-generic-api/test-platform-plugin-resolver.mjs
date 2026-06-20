@@ -281,6 +281,7 @@ function makePool({
   assert.equal(result.credential_lookup.attempted, false);
   assert.equal(result.credential_lookup.reason, "blocked_before_credential_lookup");
   assert.equal(pool.calls.some((call) => call.sql.includes("FROM user_app_connections")), false);
+  assert.equal(result.audit.read_model_tables.includes("user_app_connections"), false);
   assert.equal(result.smoke_certification.required, true);
   assert.notEqual(result.smoke_certification.reason, "no_action_requested");
   assert.equal(result.execution.will_execute, false);
