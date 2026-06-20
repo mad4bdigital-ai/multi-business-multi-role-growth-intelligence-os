@@ -15,6 +15,10 @@ assert.equal(classifyBranchReconciliation({ branch: "gpt/example", base_to_branc
 assert.equal(classifyBranchReconciliation({ branch: "gpt/example", base_to_branch: { status: "diverged", ahead_by: 2, behind_by: 3 }, branch_to_base: { files: [{ filename: "same.js" }] }, }).classification, "diverged_no_overlap");
 assert.equal(classifyBranchReconciliation({ branch: "gpt/example", base_to_branch: { status: "diverged", ahead_by: 2, behind_by: 3, files: [{ filename: "same.js" }] }, branch_to_base: { files: [{ filename: "same.js" }] }, }).classification, "diverged_same_files");
 
+assert.doesNotThrow(() => assertAdminBranchReconcileTarget({ branch: "surface-contract-auto/27878658236-1" }));
+assert.throws(() => assertAdminBranchReconcileTarget({ branch: "main" }), (error) => error?.code === "admin_branch_reconcile_protected_branch");
+assert.throws(() => assertAdminBranchReconcileTarget({ branch: "unmanaged/example" }), (error) => error?.code === "admin_branch_reconcile_branch_prefix_blocked");
+
 assert.equal(
   branchReconcileConfirmation("gpt/admin-branch-reconcile-adapter-20260608"),
   "RECONCILE_BRANCH_GPT_ADMIN_BRANCH_RECONCILE_ADAPTER_20260608"
