@@ -581,8 +581,27 @@ export async function resolvePlatformPluginExecution({
   const skill = await checkSkillGrant({ pool, agentId, tenantId, requiredSkillKey });
   const pluginStatusActive = ["active", "beta"].includes(normalize(rows.plugin.status));
   const selectorRequested = Boolean(normalizedActionKey || normalizedToolKey);
-  const credentialLookupAuthorized = Boolean(
+  const credentialRequirement = selectorRequested
+    ? resolveCredentialRequirement({
+        plugin: rows.plugin,
+        binding,
+        tenantPolicy: rows.tenantPolicy,
+        requestedScope: requestedCredentialScope,
+      })
+    : {
+        requirement: CredentialRequirement.NOT_REQUIRED,
+        requested_scope: null,
+        candidate_scopes: [],
+        scope_allowed: true,
+        reason: "credential_not_required_for_preview",
+      };
+  const credentialLookupRequired = Boolean(
     selectorRequested &&
+    credentialRequirement.scope_allowed &&
+    credentialRequirement.requirement === CredentialRequirement.REQUIRED
+  );
+  const credentialLookupAuthorized = Boolean(
+    credentialLookupRequired &&
     pluginStatusActive &&
     principalScope.ok &&
     bindingState.ok &&
@@ -598,14 +617,23 @@ export async function resolvePlatformPluginExecution({
         userId,
       })
     : [];
+  const credentialDecisionEvaluated = Boolean(
+    !selectorRequested ||
+    credentialRequirement.requirement === CredentialRequirement.NOT_REQUIRED ||
+    !credentialRequirement.scope_allowed ||
+    credentialLookupAuthorized
+  );
   const credential = !selectorRequested
     ? {
         ok: true,
+        requirement: CredentialRequirement.NOT_REQUIRED,
+        resolution_state: CredentialResolutionState.NOT_REQUIRED,
+        usability_state: CredentialUsabilityState.NOT_APPLICABLE,
         credential_source: null,
         reason: "credential_resolution_not_required_for_preview",
         candidate_scopes: [],
       }
-    : credentialLookupAuthorized
+    : credentialDecisionEvaluated
       ? resolveCredentialDecision({
           plugin: rows.plugin,
           binding,
@@ -615,9 +643,13 @@ export async function resolvePlatformPluginExecution({
         })
       : {
           ok: false,
+          requirement: credentialRequirement.requirement,
+          resolution_state: CredentialResolutionState.NOT_EVALUATED,
+          usability_state: CredentialUsabilityState.NOT_EVALUATED,
           credential_source: null,
           reason: "credential_resolution_deferred_until_authorized",
-          candidate_scopes: [],
+          requested_scope: credentialRequirement.requested_scope,
+          candidate_scopes: credentialRequirement.candidate_scopes,
         };
   const smokeCertification = await checkSmokeCertification({
     pool,
