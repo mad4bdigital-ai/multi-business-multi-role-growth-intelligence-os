@@ -133,6 +133,10 @@ function makePool({
   assert.equal(result.allowed, true);
   assert.equal(result.mode, "dispatch_ready");
   assert.equal(result.credential_resolution.credential_source, "user_connection");
+  assert.equal(result.credential_lookup.attempted, true);
+  assert.equal(result.credential_lookup.authorized, true);
+  assert.equal(result.credential_lookup.reason, "authorization_and_scope_gates_passed");
+  assert.equal(result.credential_lookup.row_count, 1);
   assert.equal(result.skill_resolution.granted, true);
   assert.equal(result.smoke_certification.certified, true);
   assert.equal(result.smoke_certification.certification.certification_id, "smoke-cert-1");
