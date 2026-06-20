@@ -338,6 +338,9 @@ function makePool({
   assert.equal(result.allowed, false);
   assert.equal(result.credential_resolution.ok, false);
   assert.equal(result.credential_resolution.reason, "credential_not_usable");
+  assert.equal(result.credential_resolution.requirement, "required");
+  assert.equal(result.credential_resolution.resolution_state, "resolved");
+  assert.equal(result.credential_resolution.usability_state, "unusable");
   assert.equal(result.execution.will_execute, false);
 }
 
