@@ -667,7 +667,7 @@ export async function resolvePlatformPluginExecution({
         "app_integration_action_bindings",
         "app_integration_tool_bindings",
         "tenant_integration_policies",
-        "user_app_connections",
+        ...(credentialLookupAuthorized ? ["user_app_connections"] : []),
         "app_action_grants",
         "agent_skills",
         "agent_skill_grants",
