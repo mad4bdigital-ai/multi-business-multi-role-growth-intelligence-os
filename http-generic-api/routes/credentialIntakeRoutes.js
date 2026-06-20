@@ -252,7 +252,18 @@ async function loadPendingSession(token) {
     await getPool().query("UPDATE credential_intake_sessions SET status = 'expired' WHERE session_id = ?", [session.session_id]);
     return { ok: false, status: 410, error: "credential_intake_session_expired" };
   }
-  return { ok: true, session };
+  const security = await validateCredentialIntakeSessionSecurity({ queryable: getPool(), session });
+  if (!security.ok) {
+    await getPool().query(
+      `UPDATE credential_intake_sessions
+          SET status = 'revoked', revoked_reason = ?
+        WHERE session_id = ?
+          AND status = 'pending'`,
+      [String(security.code || "credential_intake_authority_revoked").slice(0, 128), session.session_id]
+    );
+    return { ok: false, status: 410, error: security.code || "credential_intake_authority_revoked" };
+  }
+  return { ok: true, session, security };
 }
 
 function sessionSchema(session) {
