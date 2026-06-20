@@ -365,7 +365,7 @@ const VIRTUAL_ADMIN_TOOLS = [
       required: ["confirm"],
       properties: {
         confirm: { type: "string", const: "RUN_RESPONSE_CHUNK_DURABLE_RECOVERY_SMOKE" },
-        repeat_count: { type: "integer", minimum: 24, maximum: 120, default: 48 },
+        repeat_count: { type: "integer", minimum: 40, maximum: 120, default: 48 },
         chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 30, default: 5 },
       },
       additionalProperties: false,
