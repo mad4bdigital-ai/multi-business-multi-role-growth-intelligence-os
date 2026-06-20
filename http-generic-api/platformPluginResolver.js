@@ -711,13 +711,18 @@ export async function resolvePlatformPluginExecution({
     principal_scope: principalScope,
     surface_resolution: surfaceExposure,
     credential_lookup: {
+      required: credentialLookupRequired,
       attempted: credentialLookupAuthorized,
       authorized: credentialLookupAuthorized,
       reason: !selectorRequested
         ? "credential_lookup_not_required_for_preview"
-        : (credentialLookupAuthorized
-          ? "authorization_and_scope_gates_passed"
-          : "blocked_before_credential_lookup"),
+        : (credentialRequirement.requirement === CredentialRequirement.NOT_REQUIRED
+          ? "credential_lookup_not_required_by_policy"
+          : (!credentialRequirement.scope_allowed
+            ? "credential_scope_denied_before_lookup"
+            : (credentialLookupAuthorized
+              ? "authorization_and_scope_gates_passed"
+              : "blocked_before_credential_lookup"))),
       row_count: connections.length,
       secrets_included: false,
     },
