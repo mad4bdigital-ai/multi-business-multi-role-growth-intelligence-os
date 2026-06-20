@@ -300,6 +300,9 @@ async function resolveConnectState(userId, jwtTenantId = null) {
   const hybridIntegrationReadiness = resolvedTenantId
     ? await assessHybridIntegrationReadiness({ tenantId: resolvedTenantId, userId, connection })
     : null;
+  const agentSurfaceReadiness = resolvedTenantId
+    ? await assessAgentSurfacesSafe({ tenantId: resolvedTenantId, userId })
+    : null;
   const onboarding = buildOnboardingState({ resolvedTenantId, connection, devices });
   const activationGraphContext = await resolveActivationGraphContext({
     user,
