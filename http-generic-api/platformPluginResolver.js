@@ -1,6 +1,26 @@
 import { getPool } from "./db.js";
 import { normalizePlatformPlugin } from "./platformPluginCatalog.js";
 
+export const CredentialRequirement = Object.freeze({
+  NOT_REQUIRED: "not_required",
+  REQUIRED: "required",
+});
+
+export const CredentialResolutionState = Object.freeze({
+  NOT_EVALUATED: "not_evaluated",
+  NOT_REQUIRED: "not_required",
+  RESOLVED: "resolved",
+  MISSING: "missing",
+  SCOPE_DENIED: "scope_denied",
+});
+
+export const CredentialUsabilityState = Object.freeze({
+  NOT_EVALUATED: "not_evaluated",
+  NOT_APPLICABLE: "not_applicable",
+  USABLE: "usable",
+  UNUSABLE: "unusable",
+});
+
 function compactString(value = "", max = 500) {
   return String(value || "").trim().slice(0, max);
 }
