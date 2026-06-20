@@ -310,6 +310,13 @@ function makePool({
   assert.equal(result.allowed, false);
   assert.equal(result.credential_resolution.ok, false);
   assert.equal(result.credential_resolution.reason, "credential_scope_not_allowed");
+  assert.equal(result.credential_resolution.requirement, "required");
+  assert.equal(result.credential_resolution.resolution_state, "scope_denied");
+  assert.equal(result.credential_resolution.usability_state, "not_evaluated");
+  assert.equal(result.credential_lookup.required, false);
+  assert.equal(result.credential_lookup.attempted, false);
+  assert.equal(result.credential_lookup.reason, "credential_scope_denied_before_lookup");
+  assert.equal(pool.calls.some((call) => call.sql.includes("FROM user_app_connections")), false);
   assert.equal(result.execution.will_execute, false);
 }
 
