@@ -51,7 +51,7 @@ function permissionAllowsMode(permissionLevel, mode) {
   return permissionRank >= modeRank;
 }
 
-function decision({ ok, required, reason, denialCode = null, targetType = null, targetRefHash = null, mode = null, binding = null }) {
+function decision({ ok, required, reason, denialCode = null, targetType = null, targetRefHash = null, mode = null, binding = null, lookupAttempted = false }) {
   return {
     ok,
     required,
