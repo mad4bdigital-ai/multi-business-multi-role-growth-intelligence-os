@@ -5,6 +5,11 @@ import {
   resolveCallerTypeForRequest,
   dispatchToolForCaller,
 } from "./gptToolsRoutes.js";
+import {
+  buildLocalGatewayApprovalBinding,
+  localGatewayConsentStatus,
+  validateLocalGatewayApprovalBinding,
+} from "../localGatewayApprovalPolicy.js";
 
 const SENSITIVE_ARG_SUBSTRINGS = [
   "password", "secret", "token", "api_key", "apikey",
