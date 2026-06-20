@@ -17172,6 +17172,10 @@ paths:
                 display_label:
                   type: string
                   maxLength: 120
+                redirect_uri:
+                  type: string
+                  maxLength: 1024
+                  description: Optional same-origin path or exact HTTPS URL registered in the integration credential-intake redirect allowlist.
                 expires_in_minutes:
                   type: integer
                   minimum: 5
