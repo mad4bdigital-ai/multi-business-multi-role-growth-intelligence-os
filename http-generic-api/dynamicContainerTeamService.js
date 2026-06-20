@@ -88,6 +88,16 @@ function parseJsonArray(value) {
   }
 }
 
+function parseJsonObject(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(String(value || "{}"));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 async function resolveAccessibleContainer(executor, { principalId, containerType, containerRef }) {
   const normalizedType = normalizeContainerType(containerType);
   const ref = String(containerRef || "").trim();
