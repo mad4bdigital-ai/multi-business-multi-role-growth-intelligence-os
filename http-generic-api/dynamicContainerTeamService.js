@@ -274,7 +274,7 @@ export async function listCoWorkspaces({ principalId, limit = 50, cursor = null 
       WHERE c.container_type_key='workspace' AND c.status='active' AND (?='' OR c.container_id>?)
         AND (a.valid_from IS NULL OR a.valid_from<=UTC_TIMESTAMP())
         AND (a.valid_until IS NULL OR a.valid_until>UTC_TIMESTAMP())
-        AND (a.container_id=c.container_id OR EXISTS (
+        AND (a.container_id=c.container_id OR (a.inheritance_mode='inherit_down' AND EXISTS (
           SELECT 1 FROM container_closure cc
            WHERE cc.tenant_id=c.tenant_id AND cc.ancestor_container_id=a.container_id AND cc.descendant_container_id=c.container_id
         ))
