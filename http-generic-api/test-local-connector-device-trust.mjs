@@ -85,4 +85,18 @@ assert(orchestrator.includes('err.code || "local_command_execution_failed"'), "d
 assert(orchestrator.includes('err.code || "local_file_read_failed"'), "device trust reason codes must survive file read error mapping");
 assert(orchestrator.includes('err.code || "local_file_write_failed"'), "device trust reason codes must survive file write error mapping");
 
+const lifecycleMigration = readFileSync("migrations/1020_sprint69_local_connector_device_lifecycle.sql", "utf8");
+for (const required of [
+  "ADD COLUMN IF NOT EXISTS `lifecycle_state`",
+  "'active','disabled','revoked','archived'",
+  "ADD COLUMN IF NOT EXISTS `revoked_at`",
+  "ADD COLUMN IF NOT EXISTS `archived_at`",
+  "WHERE is_enabled = 0",
+  "idx_local_connector_tenant_lifecycle",
+]) {
+  assert(lifecycleMigration.includes(required), `device lifecycle migration must include ${required}`);
+}
+assert.equal(lifecycleMigration.includes("DROP TABLE"), false);
+assert.equal(lifecycleMigration.includes("DROP COLUMN"), false);
+
 console.log("local connector device trust matrix passed");
