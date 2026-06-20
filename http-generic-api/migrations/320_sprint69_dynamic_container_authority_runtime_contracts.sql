@@ -1,11 +1,11 @@
 -- Sprint 69: Dynamic Container Authority runtime contracts.
 -- SQL-primary internal metadata, immutable evidence, shadow comparison, and override governance only.
 -- Runtime enforcement remains disabled by default.
--- no_provider_call=true
--- no_credential_payload_read=true
--- no_raw_secrets=true
--- no_external_send=true
--- no_external_write=true
+-- no_provider_call
+-- no_credential_payload_read
+-- no_raw_secrets
+-- no_external_send
+-- no_external_write
 -- secrets_included=false
 
 CREATE TABLE IF NOT EXISTS `container_effective_context_ledger` (
