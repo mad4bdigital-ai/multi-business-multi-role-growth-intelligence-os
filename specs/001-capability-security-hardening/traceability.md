@@ -49,7 +49,10 @@
 
 | Tasks | Implementation evidence | Automated evidence | Decision evidence |
 |---|---|---|---|
-| T047 | `platformPluginResolver.js` separates `loadScopedConnections` from plugin/binding discovery and invokes it only after plugin, principal scope, binding, surface, canonical-policy, and skill gates pass | `test-platform-plugin-resolver.mjs` proves no `user_app_connections` query for missing binding, forbidden admin tool surface, missing skill grant, or incomplete tenant principal scope | response includes `principal_scope` and `credential_lookup`; audit read-model tables include `user_app_connections` only when lookup was authorized |
+| T046 | `platformPluginResolver.js` defines immutable `CredentialRequirement`, `CredentialResolutionState`, and `CredentialUsabilityState` enums and emits all three dimensions for every evaluated/deferred outcome | resolver tests assert usable, missing, scope-denied, unusable, and not-required projections | `data-model.md` documents the three independent dimensions and invariants |
+| T047 | `platformPluginResolver.js` separates `loadScopedConnections` from plugin/binding discovery and invokes it only after plugin, principal scope, binding, surface, canonical-policy, and skill gates pass | tests prove no `user_app_connections` query for missing binding, forbidden admin tool surface, missing skill grant, or incomplete tenant principal scope | response includes `principal_scope` and `credential_lookup`; audit read-model tables include `user_app_connections` only when lookup was authorized |
+| T048 | explicit `credential_source=none` is preserved even under managed/dedicated policy composition and bypasses only credential lookup | tests prove `not_required` can dispatch when all other gates pass and remains denied when the skill gate fails | decision trace reports `requirement=not_required`, `resolution_state=not_required`, `usability_state=not_applicable`, and zero credential rows read |
+| T049 | `connectionIsUsable` requires active lifecycle plus an explicitly accepted validated state before returning an executable connection | tests cover validated success and pending-validation denial | decision trace distinguishes `resolved/usable`, `resolved/unusable`, and `missing/not_evaluated` without exposing secrets |
 
 ## Verified branch evidence — secure intake
 
