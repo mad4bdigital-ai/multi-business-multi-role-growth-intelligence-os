@@ -147,6 +147,29 @@ assert(insertedAssignment,"workspace add must create a direct container role ass
 assert.match(String(insertedAssignment.params.at(-1)),/"source":"container_team_management"/);
 assert.doesNotMatch(String(insertedAssignment.params.at(-1)),/client_attempt.*source/);
 
+const partialHarness=makeMutationHarness({
+  type:"workspace",
+  targetDirectRank:2,
+  otherAdmins:1,
+  membership:{ user_id:"target-user",role:"member",status:"active" },
+  existingAssignments:[{
+    assignment_id:"assignment-existing",
+    role_template_key:"container_operator",
+    inheritance_mode:"local_only",
+    valid_until:"2026-12-31 00:00:00"
+  }]
+});
+const partialUpdated=await setContainerTeamMember(
+  { containerType:"workspace",containerRef:"workspace-1",userId:"target-user",metadata:{ note:"metadata-only" } },
+  { actorUserId:"actor-1",ifMatch:'W/"authority-7"',partial:true },
+  { pool:makePreflightPool("workspace"),withMutation:partialHarness.withMutation }
+);
+assert.equal(partialUpdated.roleTemplateKey,"container_operator");
+assert.equal(partialUpdated.inheritanceMode,"local_only");
+assert.equal(partialUpdated.validUntil,"2026-12-31 00:00:00");
+const partialUpdateCall=partialHarness.calls.find(call => call.sql.startsWith("UPDATE container_role_assignments") && call.sql.includes("role_template_key=?"));
+assert.deepEqual(partialUpdateCall.params.slice(0,3),["container_operator","local_only","2026-12-31 00:00:00"]);
+
 const brandHarness=makeMutationHarness({ type:"brand",membership:null });
 await assert.rejects(
   () => setContainerTeamMember(
