@@ -397,6 +397,7 @@ export const testCommands = [
   "node test-gpt-tools-route-syntax-regression.mjs",
   "node test-governed-tool-response-chunk-store.mjs",
   "node test-governed-response-chunk-schema-reconciliation.mjs",
+  "node test-governed-response-chunk-durable-recovery-smoke.mjs",
   "node test-gpt-tools-response-chunking.mjs",
   "node test-google-sheets-chunking.mjs",
   "node test-sheets-range-drift.mjs",
