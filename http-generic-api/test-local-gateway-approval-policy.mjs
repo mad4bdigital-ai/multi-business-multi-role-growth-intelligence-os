@@ -63,7 +63,7 @@ for (const token of [
   "validateLocalGatewayApprovalBinding",
   "localGatewayConsentStatus",
   "approval_binding",
-  "approval_hold_request_digest_mismatch",
+  "approvalDecision?.code",
 ]) {
   assert(routeSource.includes(token), `local gateway route must enforce ${token}`);
 }
