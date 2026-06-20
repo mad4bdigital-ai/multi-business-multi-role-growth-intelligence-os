@@ -668,6 +668,17 @@ export async function resolvePlatformPluginExecution({
           requested_scope: credentialRequirement.requested_scope,
           candidate_scopes: credentialRequirement.candidate_scopes,
         };
+  const targetAuthority = await resolvePlatformManagedTargetAuthority({
+    pool,
+    credentialSource: credential.credential_source,
+    principalClass,
+    tenantId,
+    workspaceId,
+    userId,
+    targetResourceType,
+    targetResourceUri,
+    targetMode,
+  });
   const smokeCertification = await checkSmokeCertification({
     pool,
     pluginKey: normalizedPluginKey,
