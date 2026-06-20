@@ -45,6 +45,15 @@
 | Gate evidence incomplete | T092–T096 | J04–J08 |
 | Cloudflare/n8n target scoping | T085–T089 | I01–I07 |
 
+## Verified branch evidence — secure intake
+
+| Tasks | Implementation evidence | Automated evidence | Contract/data evidence |
+|---|---|---|---|
+| T055 | `credentialIntakeBindingPolicy.js`; binding columns in migration 1021; tenant route derives subject, tenant, integration, target, and purpose from JWT and active policy | `test-credential-intake-binding-policy.mjs`; `test-tenant-platform-plugin-routes.mjs` | `data-model.md`; tenant and main OpenAPI request contracts |
+| T056 | `normalizeCredentialIntakeRedirect`; same-origin relative paths and exact registered HTTPS allowlist matching | redirect traversal, protocol-relative, HTTP, unregistered-host, and approved-host cases in `test-credential-intake-binding-policy.mjs` | `redirect_uri` documented in both OpenAPI files; runtime code in `error-catalog.md` |
+| T057 | `credentialIntakeSingleUse.js`; row lock, single commit, replay denial, rollback preservation | concurrent-consumption and rollback tests in `test-credential-intake-single-use.mjs` | migration 072 plus migration 1021; single-use state model |
+| T058 | `validateCredentialIntakeSessionSecurity`; authority snapshot comparison during page load and inside the consume transaction; pending session revocation before connection creation | membership role/status, tenant state, policy state/source mode, app state, and missing-authority tests | authority snapshot fields and revocation reason in migration 1021 and `data-model.md` |
+
 ## Release trace rule
 
 A requirement is not complete when code is merged. It is complete only when:
