@@ -14,12 +14,11 @@ ALTER TABLE `local_connector_user_configs`
   ADD COLUMN IF NOT EXISTS `lifecycle_reason` VARCHAR(512) NULL AFTER `archived_by`;
 
 UPDATE `local_connector_user_configs`
-   SET lifecycle_state = CASE
-     WHEN is_enabled = 1 THEN 'active'
-     ELSE 'disabled'
-   END
- WHERE lifecycle_state IS NULL
-    OR lifecycle_state = '';
+   SET lifecycle_state = 'disabled'
+ WHERE is_enabled = 0
+   AND lifecycle_state = 'active'
+   AND revoked_at IS NULL
+   AND archived_at IS NULL;
 
 CREATE INDEX IF NOT EXISTS `idx_local_connector_tenant_lifecycle`
   ON `local_connector_user_configs` (`tenant_id`, `lifecycle_state`, `updated_at`);
