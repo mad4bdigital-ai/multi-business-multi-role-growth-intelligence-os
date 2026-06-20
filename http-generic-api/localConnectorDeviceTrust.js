@@ -43,7 +43,15 @@ export function evaluateLocalConnectorDeviceTrust({
     tenant_id: text(config.tenant_id) || null,
     device_id: text(config.device_id) || null,
   };
-  const evidence = { ...expected, ...actual };
+  const enabled = config.is_enabled === true || Number(config.is_enabled) === 1;
+  const lifecycleState = text(config.lifecycle_state).toLowerCase() || (enabled ? "active" : "disabled");
+  const evidence = {
+    ...expected,
+    ...actual,
+    lifecycle_state: lifecycleState,
+    revoked_at: config.revoked_at ? new Date(config.revoked_at).toISOString() : null,
+    archived_at: config.archived_at ? new Date(config.archived_at).toISOString() : null,
+  };
 
   if (actual.device_id !== expected.device_id) {
     return denial("local_device_identity_mismatch", "The resolved device does not match the requested device_id.", evidence);
