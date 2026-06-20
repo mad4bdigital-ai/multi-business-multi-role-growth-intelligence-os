@@ -68,8 +68,17 @@ export function evaluateLocalConnectorDeviceTrust({
   if (expected.user_id && actual.user_id !== expected.user_id) {
     return denial("local_device_user_mismatch", "The device is not owned by the requesting user.", evidence);
   }
-  if (!(config.is_enabled === true || Number(config.is_enabled) === 1)) {
-    return denial("local_device_disabled", "The local connector device is disabled or revoked.", evidence);
+  if (!new Set(["active", "disabled", "revoked", "archived"]).has(lifecycleState)) {
+    return denial("local_device_lifecycle_invalid", "The local connector device lifecycle state is invalid.", evidence);
+  }
+  if (lifecycleState === "revoked") {
+    return denial("local_device_revoked", "The local connector device has been revoked.", evidence);
+  }
+  if (lifecycleState === "archived") {
+    return denial("local_device_archived", "The local connector device has been archived.", evidence);
+  }
+  if (lifecycleState === "disabled" || !enabled) {
+    return denial("local_device_disabled", "The local connector device is disabled.", evidence);
   }
   if (!text(config.connector_secret)) {
     return denial("local_device_connector_identity_missing", "The device has no active connector identity binding.", evidence);
