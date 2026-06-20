@@ -166,7 +166,11 @@ async function readGovernedLocalFile(args) {
     status = "completed";
 
   } catch (err) {
-    error = { code: "local_file_read_failed", message: err.message };
+    error = {
+      code: err.code || "local_file_read_failed",
+      message: err.message,
+      device_trust: err.device_trust || null,
+    };
   } finally {
     await performUniversalServerWriteback({
       mode: "sync",
