@@ -773,6 +773,12 @@ export async function createCredentialIntakeSessionRecord({
     app_key: normalizedAppKey,
     auth_type: normalizedAuthType,
     field_count: normalizedSchema.length,
+    binding_context: {
+      connection_target_ref: binding.connection_target_ref,
+      purpose: binding.purpose,
+      redirect_configured: Boolean(binding.allowed_redirect_uri),
+      authority_snapshot_version: authoritySnapshotVersion,
+    },
     secrets_included: false,
   };
 }
