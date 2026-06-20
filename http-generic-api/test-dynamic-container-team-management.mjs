@@ -172,6 +172,10 @@ assert.equal(partialUpdated.inheritanceMode,"local_only");
 assert.equal(partialUpdated.validUntil,"2026-12-31 00:00:00");
 const partialUpdateCall=partialHarness.calls.find(call => call.sql.startsWith("UPDATE container_role_assignments") && call.sql.includes("role_template_key=?"));
 assert.deepEqual(partialUpdateCall.params.slice(0,3),["container_operator","local_only","2026-12-31 00:00:00"]);
+const partialMetadata=JSON.parse(String(partialUpdateCall.params[5]));
+assert.equal(partialMetadata.existing,"keep");
+assert.equal(partialMetadata.note,"metadata-only");
+assert.equal(partialMetadata.source,"container_team_management");
 
 const brandHarness=makeMutationHarness({ type:"brand",membership:null });
 await assert.rejects(
