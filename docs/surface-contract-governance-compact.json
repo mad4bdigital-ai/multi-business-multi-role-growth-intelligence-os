@@ -1,23 +1,30 @@
 {
-  "ok": true,
+  "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 100,
+  "docs_completion_percent": 99.77,
   "docs_complete_count": 443,
-  "docs_gap_count": 0,
-  "queue_items": 0,
-  "blocking_new_item_count": 0,
-  "gate_ok": true,
-  "top_actionable": [],
+  "docs_gap_count": 1,
+  "queue_items": 1,
+  "blocking_new_item_count": 1,
+  "gate_ok": false,
+  "top_actionable": [
+    {
+      "migration_file": "1019_sprint69_github_branch_cleanup_sweep.sql",
+      "queue_class": "high_review",
+      "score": 677,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    }
+  ],
   "openapi_missing_sql_route_count": 0,
   "openapi_exempt_sql_route_count": 564,
   "total_sql_route_like_count": 569,
   "safety_marker_gap_migrations": 0,
   "trend_quality_gate": {
-    "ok": true,
+    "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 0,
-    "warning_new_item_count": 0
+    "blocking_new_item_count": 1,
+    "warning_new_item_count": 1
   },
   "safety": {
     "executes_provider_calls": false,
