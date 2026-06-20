@@ -84,6 +84,8 @@ assert.equal(team.count,2);
 assert.equal(team.caller.canManage,false);
 assert.equal(team.members[0].roleTemplateKey,"container_admin");
 assert.equal(team.container.containerType,"workspace");
+assert.equal(team.page.hasMore,false);
+assert.equal(team.page.nextCursor,null);
 
 function makePreflightPool(type="workspace",actorRank=3) {
   return {
