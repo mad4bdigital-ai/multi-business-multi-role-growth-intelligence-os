@@ -32,9 +32,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 443/444 (99.77%)
-- Documentation gap migrations: 1
-- Gap severity: high=0, medium=1, low=0
+- Documentation complete migrations: 444/444 (100.00%)
+- Documentation gap migrations: 0
+- Gap severity: high=0, medium=0, low=0
 - SQL route coverage in OpenAPI: 5/5 (100.00%)
 - SQL route-like literals exempted from OpenAPI scoring: 564/569
 - SQL routes missing OpenAPI path coverage: 0
@@ -54,21 +54,21 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 1 |
-| `deployment_parity_checklist.md` | 1 |
-| `docs/ai-docs-agent-governance.md` | 1 |
-| `docs/auto-docs-agent/README.md` | 1 |
-| `docs/change-documentation-governance.md` | 1 |
+| `Updating Registry Patch Index.md` | 0 |
+| `deployment_parity_checklist.md` | 0 |
+| `docs/ai-docs-agent-governance.md` | 0 |
+| `docs/auto-docs-agent/README.md` | 0 |
+| `docs/change-documentation-governance.md` | 0 |
 
 ### Safety Marker Coverage
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 443 |
-| no_credential_payload_read | 443 |
-| no_raw_secrets | 443 |
-| no_external_send | 443 |
-| no_external_write | 443 |
+| no_provider_call | 444 |
+| no_credential_payload_read | 444 |
+| no_raw_secrets | 444 |
+| no_external_send | 444 |
+| no_external_write | 444 |
 | secrets_included_false | 444 |
 
 ### Route Classification Coverage
@@ -88,15 +88,15 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 1
+- Total queue items: 0
 - Critical review: 0
-- High review: 1
+- High review: 0
 - Medium review: 0
 - Low review: 0
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
-| `1019_sprint69_github_branch_cleanup_sweep.sql` | high_review | 677 | medium | 5 | 0 | 5 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
+| none | covered | 0 | none | 0 | 0 | 0 | none |
 
 
 ## Latest Surface Coverage
