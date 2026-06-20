@@ -29,6 +29,7 @@ import {
 } from "../capabilityResolutionEnvelopeGuard.js";
 import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBranchFastForwardToBase, runGithubBranchMergeCommitCreate } from "../adminBranchReconciliationAdapter.js";
 import { applyGithubExistingBlobChangeSet, applyGithubRepositoryChangeSet, deleteGithubBranchRef, finalizeGithubPullRequest, getGithubPullRequestCiGate } from "../githubRepositoryLifecycle.js";
+import { runGithubBranchCleanupSweep } from "../githubBranchCleanupSweep.js";
 import { runGithubSupersededBranchCleanup } from "../githubSupersededBranchCleanup.js";
 import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveReport } from "../platformCapabilityReports.js";
 import { runGrowthIntelligencePilotAdmin } from "../growthIntelligenceAdminTool.js";
@@ -440,6 +441,34 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "github_branch_cleanup_sweep",
+    displayName: "GitHub Branch Cleanup Sweep",
+    description: "Plan or apply a bounded repository branch cleanup sweep. Dry-run is the default. Apply requires fresh base/fingerprint evidence, typed confirmation, a capability envelope, per-branch open-PR and unique-commit guards, and same-cycle absence readback.",
+    method: "VIRTUAL",
+    path: "internal://github-branch-cleanup-sweep",
+    tags: ["repo", "github", "branch", "cleanup", "dry_run_default", "bounded_batch", "mutation", "capability_envelope", "readback"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
+        page: { type: "integer", minimum: 1, maximum: 10000, default: 1 },
+        max_pages: { type: "integer", minimum: 1, maximum: 3, default: 1 },
+        scan_limit: { type: "integer", minimum: 1, maximum: 300, default: 100 },
+        max_deletes: { type: "integer", minimum: 1, maximum: 25, default: 10 },
+        min_age_days: { type: "integer", minimum: 1, maximum: 3650, default: 7 },
+        branch_prefixes: { type: "array", items: { type: "string" }, maxItems: 29 },
+        expected_base_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        expected_evidence_fingerprint: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+        confirm: { type: "string" },
+        capability_envelope_id: { type: "string" },
+        owner: { type: "string" },
+        repo: { type: "string" },
+        default_branch: { type: "string", default: "main" },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "repo_patch_batch_apply",
     displayName: "Repository Batch Patch Apply",
     description: "Create one atomic multi-file Git commit against an expected base SHA using Git trees, then update one non-protected work branch once and verify branch-head readback.",
@@ -744,7 +773,8 @@ const VIRTUAL_ADMIN_TOOLS = [
       },
       additionalProperties: false,
     },
-  },  {
+  },
+  {
     name: "repo_patch_apply",
     displayName: "Repository Patch Apply",
     description: "Apply a patch to the repository via the GitHub App, sidestepping the local connector. Actions: write_file, replace_block, apply_unified_diff, delete_file, dedupe_openapi_paths. Path is repo-confined; secrets/build folders are blocked. Runtime defaults to a generated non-protected work branch. Protected branches are blocked unless explicit break-glass policy is enabled and justified.",
@@ -1060,6 +1090,26 @@ async function requireGithubBranchDeleteEnvelope({ args = {}, ctx = {} } = {}) {
   return { ...resolved, secrets_included: false };
 }
 
+async function requireGithubBranchCleanupSweepEnvelope({ args = {}, ctx = {} } = {}) {
+  const resolved = await resolveCapabilityExecutionEnvelope({
+    pool: getPool(),
+    source: args,
+    acceptedAppKeys: ["github"],
+    acceptedIntents: ["github_branch_cleanup_sweep", "github_branch_delete", "github_repo_cleanup", "repository_ref_delete", "repo_mutation", "delete"],
+    expectedTenantId: ctx?.auth?.tenant_id || PLATFORM_TENANT_ID,
+    expectedUserId: ctx?.auth?.user_id || "",
+  });
+  if (!resolved.ok) {
+    throw capabilityEnvelopeError(resolved, "GitHub branch cleanup sweep apply requires a valid capability resolution envelope before ref mutation.");
+  }
+  const evidenceRef = String(args?.expected_evidence_fingerprint || "unknown").slice(0, 12);
+  await markCapabilityEnvelopeReferenced({
+    pool: getPool(),
+    envelopeId: resolved.envelope_id,
+    executionRef: `github_branch_cleanup_sweep:${evidenceRef}`,
+  });
+  return { ...resolved, secrets_included: false };
+}
 async function requireGithubPrFinalizeEnvelope({ args = {}, ctx = {} } = {}) {
   const resolved = await resolveCapabilityExecutionEnvelope({
     pool: getPool(),
@@ -1529,6 +1579,21 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     }
   }
 
+  if (callerType === "admin" && toolKey === "github_branch_cleanup_sweep") {
+    try {
+      const mode = String(args?.mode || "dry_run").trim().toLowerCase();
+      if (mode === "apply") {
+        await requireGithubBranchCleanupSweepEnvelope({ args, ctx: { auth: req?.auth } });
+      }
+      const result = await runGithubBranchCleanupSweep(args || {});
+      return { status: result.ok ? 200 : 207, body: { ok: result.ok, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "github_branch_cleanup_sweep_failed", message: err?.message || "GitHub branch cleanup sweep failed.", details: err?.details } },
+      };
+    }
+  }
   if (callerType === "admin" && toolKey === "github_branch_delete") {
     try {
       await requireGithubBranchDeleteEnvelope({ args, ctx: { auth: req?.auth } });
