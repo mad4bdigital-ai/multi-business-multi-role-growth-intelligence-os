@@ -388,7 +388,7 @@ export async function setContainerTeamMember(input, options = {}, dependencies =
               SET role_template_key=?,inline_permissions_json=NULL,inheritance_mode=?,valid_until=?,version=version+1,
                   issued_by=?,approved_by=?,metadata_json=?,updated_at=UTC_TIMESTAMP()
             WHERE assignment_id=?`,
-          [roleTemplateKey,inheritanceMode,input.validUntil || null,principalId,principalId,JSON.stringify({ source:"container_team_management",...(input.metadata || {}) }),assignmentId]
+          [roleTemplateKey,inheritanceMode,input.validUntil || null,principalId,principalId,JSON.stringify({ ...(input.metadata || {}),source:"container_team_management" }),assignmentId]
         );
         if(existingRows.length>1){
           await connection.query(
