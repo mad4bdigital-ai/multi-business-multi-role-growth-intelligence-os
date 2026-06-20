@@ -21,6 +21,7 @@ import {
   loadGovernedToolResponseChunk,
   persistGovernedToolResponseChunk,
 } from "../governedToolResponseChunkStore.js";
+import { runGovernedResponseChunkDurableRecoverySmoke } from "../governedResponseChunkDurableRecoverySmoke.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import {
   capabilityEnvelopeError,
@@ -351,6 +352,24 @@ const VIRTUAL_ADMIN_TOOLS = [
         cursor: { type: "integer", minimum: 0, default: 0 },
         max_chars: { type: "integer", minimum: 5000, maximum: 150000, default: 45000 },
       },
+    },
+  },
+  {
+    name: "response_chunk_durable_recovery_smoke",
+    displayName: "Durable Response Chunk Recovery Smoke",
+    description: "Admin-only bounded smoke. Persists a deterministic Arabic and emoji payload, verifies the durable row exists before chunk_id use, evicts process memory, recovers from MySQL, validates SHA-256 and UTF-8 bytes, reconstructs Unicode exactly, and confirms sliding TTL extension. Returns only bounded evidence including memory_cache_evicted; no raw payload, provider call, external write, or secret.",
+    method: "VIRTUAL",
+    path: "internal://response-chunk-durable-recovery-smoke",
+    tags: ["tooling", "smoke", "read_write", "typed_confirmation", "no_provider_call", "no_external_write", "no_secrets", "ttl_cleanup"],
+    inputSchema: {
+      type: "object",
+      required: ["confirm"],
+      properties: {
+        confirm: { type: "string", const: "RUN_RESPONSE_CHUNK_DURABLE_RECOVERY_SMOKE" },
+        repeat_count: { type: "integer", minimum: 40, maximum: 120, default: 48 },
+        chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 30, default: 5 },
+      },
+      additionalProperties: false,
     },
   },
   {
@@ -1536,6 +1555,16 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
 
   if (callerType === "admin" && toolKey === "response_chunk_read") {
     return { status: 200, body: await readCachedToolResponseChunk(args) };
+  }
+
+  if (callerType === "admin" && toolKey === "response_chunk_durable_recovery_smoke") {
+    const body = await runGovernedResponseChunkDurableRecoverySmoke(args, {
+      pool: getPool(),
+      maybeChunkToolResponseBody,
+      evictToolResponseChunkMemoryCache,
+      readCachedToolResponseChunk,
+    });
+    return { status: 200, body };
   }
 
   if (callerType === "admin" && toolKey === "admin_tool_catalog_search") {
