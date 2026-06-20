@@ -846,6 +846,10 @@ export function buildConnectRoutes(deps) {
         userId: user_id,
         connection,
       });
+      const agentSurfaceReadiness = await assessAgentSurfacesSafe({
+        tenantId: resolvedTenantId,
+        userId: user_id,
+      });
       const [user, devices] = await Promise.all([
         fetchUser(user_id),
         fetchUserDevices(user_id, resolvedTenantId),
