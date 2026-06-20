@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 const registryMigration = readFileSync("migrations/285_sprint68_governed_migration_authorization_registry.sql", "utf8");
 const completionMigration = readFileSync("migrations/286_sprint68_platform_schema_contract_completion_registry.sql", "utf8");
+const containerFoundationMigration = readFileSync("migrations/319_sprint69_dynamic_container_authority_foundation.sql", "utf8");
+const containerRuntimeMigration = readFileSync("migrations/320_sprint69_dynamic_container_authority_runtime_contracts.sql", "utf8");
 
 assert(runner.includes("governed_migration_authorization_registry"), "runner must consult DB-backed migration authorization registry");
 assert(runner.includes("getMigrationAuthorization"), "runner must centralize migration authorization lookup");
