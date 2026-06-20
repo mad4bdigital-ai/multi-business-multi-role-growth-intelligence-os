@@ -1,10 +1,10 @@
 -- Sprint 69: Dynamic Container Authority foundation.
 -- Additive registry and projection surfaces only; no runtime enforcement.
--- no_provider_call=true
--- no_credential_payload_read=true
--- no_raw_secrets=true
--- no_external_send=true
--- no_external_write=true
+-- no_provider_call
+-- no_credential_payload_read
+-- no_raw_secrets
+-- no_external_send
+-- no_external_write
 -- secrets_included=false
 
 CREATE TABLE IF NOT EXISTS `container_type_registry` (
