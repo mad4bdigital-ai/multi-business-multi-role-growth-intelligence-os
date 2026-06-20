@@ -112,6 +112,11 @@ components:
       description: >
         Admin/service Custom GPT-safe backend authentication header. Send
         x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
+    userJwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: User JWT
+      description: Signed user JWT from /auth/login or /auth/google. Backend API keys do not satisfy this scheme.
     localManagerBearerAuth:
       type: http
       scheme: bearer
