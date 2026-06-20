@@ -412,6 +412,90 @@ function makePool({
 }
 
 {
+  const pool = makePool({
+    withConnection: false,
+    withSkill: true,
+    credentialSource: "platform_managed",
+    authType: "api_key",
+  });
+  const result = await resolvePlatformPluginExecution({
+    pool,
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    agentId: "agent-1",
+    principalClass: "tenant",
+  });
+  assert.equal(result.allowed, false);
+  assert.equal(result.credential_resolution.credential_source, "platform_managed");
+  assert.equal(result.target_authorization.reason, "credential_target_authority_required");
+  assert.equal(result.target_authorization.denial_code, "CREDENTIAL_TARGET_AUTHORITY_REQUIRED");
+  assert.equal(result.target_authorization.lookup_attempted, false);
+  assert.equal(pool.calls.some((call) => call.sql.includes("FROM user_app_connections")), false);
+  assert.equal(pool.calls.some((call) => call.sql.includes("FROM platform_resource_authority_bindings")), false);
+}
+
+{
+  const pool = makePool({
+    withConnection: false,
+    withSkill: true,
+    credentialSource: "platform_managed",
+    authType: "api_key",
+    withTargetAuthority: false,
+  });
+  const targetResourceUri = "github://other-org/private-repo";
+  const result = await resolvePlatformPluginExecution({
+    pool,
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    agentId: "agent-1",
+    principalClass: "tenant",
+    targetResourceType: "github_repo",
+    targetResourceUri,
+    targetMode: "read_only",
+  });
+  assert.equal(result.allowed, false);
+  assert.equal(result.target_authorization.reason, "credential_target_not_authorized");
+  assert.equal(result.target_authorization.denial_code, "CREDENTIAL_TARGET_NOT_AUTHORIZED");
+  assert.equal(result.target_authorization.lookup_attempted, true);
+  assert.equal(JSON.stringify(result).includes(targetResourceUri), false);
+  assert.equal(pool.calls.some((call) => call.sql.includes("FROM user_app_connections")), false);
+  assert.equal(result.audit.read_model_tables.includes("platform_resource_authority_bindings"), true);
+}
+
+{
+  const pool = makePool({
+    withConnection: false,
+    withSkill: true,
+    credentialSource: "platform_managed",
+    authType: "api_key",
+    withTargetAuthority: true,
+  });
+  const result = await resolvePlatformPluginExecution({
+    pool,
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    agentId: "agent-1",
+    principalClass: "tenant",
+    targetResourceType: "github_repo",
+    targetResourceUri: "github://mad4bdigital-ai/repo",
+    targetMode: "read_only",
+  });
+  assert.equal(result.allowed, true);
+  assert.equal(result.mode, "dispatch_ready");
+  assert.equal(result.credential_resolution.credential_source, "platform_managed");
+  assert.equal(result.target_authorization.ok, true);
+  assert.equal(result.target_authorization.reason, "credential_target_authorized");
+  assert.equal(result.target_authorization.lookup_attempted, true);
+  assert.equal(pool.calls.some((call) => call.sql.includes("FROM user_app_connections")), false);
+}
+
+{
   const pool = makePool({ withConnection: true, withSkill: true, tenantDedicated: true });
   const result = await resolvePlatformPluginExecution({
     pool,
