@@ -22,6 +22,13 @@ export const CredentialUsabilityState = Object.freeze({
   UNUSABLE: "unusable",
 });
 
+export const CredentialDenialCode = Object.freeze({
+  SCOPE_MISMATCH: "CREDENTIAL_SCOPE_MISMATCH",
+  NOT_USABLE: "CREDENTIAL_NOT_USABLE",
+  REQUIRED: "CREDENTIAL_REQUIRED",
+  DEDICATED_CONNECTION_REQUIRED: "DEDICATED_CONNECTION_REQUIRED",
+});
+
 function compactString(value = "", max = 500) {
   return String(value || "").trim().slice(0, max);
 }
