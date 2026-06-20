@@ -5,6 +5,7 @@ import { loadPlatformPluginCatalog } from "../platformPluginCatalog.js";
 import { resolvePlatformPluginExecution } from "../platformPluginResolver.js";
 import { installPlatformPluginForTenant } from "../platformPluginInstall.js";
 import { createCredentialIntakeSessionRecord } from "./credentialIntakeRoutes.js";
+import { buildTenantCredentialIntakeAuthoritySnapshot } from "../credentialIntakeBindingPolicy.js";
 import { writeAuditLogAsync } from "../auditLogger.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
