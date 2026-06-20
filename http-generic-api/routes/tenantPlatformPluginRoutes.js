@@ -12,7 +12,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const TENANT_CONNECTION_MANAGER_ROLES = new Set(["owner", "admin"]);
 const TENANT_INTAKE_ALLOWED_FIELDS = new Set([
   "plugin_key", "pluginKey", "purpose", "display_label", "displayLabel",
-  "expires_in_minutes", "expiresInMinutes",
+  "redirect_uri", "redirectUri", "expires_in_minutes", "expiresInMinutes",
 ]);
 
 function verifyUserJwt(authHeader) {
