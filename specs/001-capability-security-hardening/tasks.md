@@ -81,10 +81,10 @@
 ## Phase 6 — Secure tenant credential intake
 
 - [x] **T054** Create dedicated tenant-safe intake canonical capability. `[FR-029]`
-- [ ] **T055** Implement subject/tenant/integration/target/purpose binding. `[FR-031]`
-- [ ] **T056** Add allowlisted redirect validation. `[FR-031]`
+- [x] **T055** Implement subject/tenant/integration/target/purpose binding. `[FR-031]`
+- [x] **T056** Add allowlisted redirect validation. `[FR-031]`
 - [x] **T057** Add nonce, short expiry, single-use consumption, and replay protection. `[FR-032]`
-- [ ] **T058** Invalidate sessions after relevant authority changes. `[FR-034]`
+- [x] **T058** Invalidate sessions after relevant authority changes. `[FR-034]`
 - [x] **T059** Add create/consume audit events without secrets. `[FR-033]`
 - [x] **T060** Remove raw tenant route to admin intake implementation. `[FR-030]`
 - [x] **T061** Add secure-intake integration tests. `[E01-E09]`
