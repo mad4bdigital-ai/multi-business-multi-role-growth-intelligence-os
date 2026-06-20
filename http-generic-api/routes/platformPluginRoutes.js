@@ -129,10 +129,14 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
         actionKey: input.action_key || input.actionKey || null,
         toolKey: input.tool_key || input.toolKey || null,
         tenantId: input.tenant_id || input.tenantId || null,
+        workspaceId: input.workspace_id || input.workspaceId || null,
         userId: input.user_id || input.userId || null,
         agentId: input.agent_id || input.agentId || null,
         principalClass: "admin",
         requestedCredentialScope: input.requested_credential_scope || input.requestedCredentialScope || null,
+        targetResourceType: input.target_resource_type || input.targetResourceType || null,
+        targetResourceUri: input.target_resource_uri || input.targetResourceUri || null,
+        targetMode: input.target_mode || input.targetMode || "read_only",
       });
       return res.status(200).json(result);
     } catch (err) { return errorResponse(res, err, "platform_plugin_resolve_failed"); }
