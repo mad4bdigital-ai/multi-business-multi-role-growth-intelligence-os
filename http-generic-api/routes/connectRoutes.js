@@ -20,6 +20,11 @@ import {
   hybridIntegrationCatalog,
   upsertTenantIntegrationPolicies,
 } from "../hybridIntegrationPolicy.js";
+import { agentSurfaceCatalog } from "../agentSurfacePolicy.js";
+import {
+  assessTenantAgentSurfaceReadiness,
+  upsertAgentSurfaceDeploymentsFromActivation,
+} from "../agentSurfaceRuntimeService.js";
 import { resolveActivationGraphContext } from "../activationGraphContext.js";
 import { createOrAppendSupportTicket } from "../supportTicketService.js";
 
