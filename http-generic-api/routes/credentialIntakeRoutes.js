@@ -934,7 +934,14 @@ export function buildCredentialIntakeRoutes(deps = {}) {
         });
       });
 
-      return res.status(201).type("html").send(renderDone(connectionId, { ...autoPromotion, continuationTask }));
+      const doneHtml = renderDone(connectionId, { ...autoPromotion, continuationTask });
+      if (session.allowed_redirect_uri) {
+        const redirectLocation = session.allowed_redirect_uri.startsWith("/")
+          ? `${absoluteBaseUrl(req)}${session.allowed_redirect_uri}`
+          : session.allowed_redirect_uri;
+        return res.status(303).set("Location", redirectLocation).type("html").send(doneHtml);
+      }
+      return res.status(201).type("html").send(doneHtml);
     } catch (err) {
       const loaded = await loadPendingSession(req.params.token).catch(() => null);
       const app = loaded?.session ? await loadApp(loaded.session.app_key).catch(() => ({})) : {};
