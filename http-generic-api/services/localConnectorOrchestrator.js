@@ -32,10 +32,14 @@ function connectorAuthToken(config) {
   return token;
 }
 
-async function resolveUserLocalConfig(userId, tenantId, deviceId) {
+async function resolveUserLocalConfig(userId, tenantId, deviceId, { includeDisabled = false } = {}) {
   const principal = resolveLocalConnectorPrincipalAliases(userId, tenantId);
+  const enabledClause = includeDisabled ? "" : " AND is_enabled = TRUE";
   const [configs] = await getPool().query(
-    "SELECT *, COALESCE(device_runtime_url, tunnel_url) AS runtime_url FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = TRUE LIMIT 1",
+    `SELECT *, COALESCE(device_runtime_url, tunnel_url) AS runtime_url
+       FROM \`local_connector_user_configs\`
+      WHERE user_id = ? AND tenant_id = ? AND device_id = ?${enabledClause}
+      LIMIT 1`,
     [principal.userId, principal.tenantId, deviceId]
   );
   const config = configs[0];
