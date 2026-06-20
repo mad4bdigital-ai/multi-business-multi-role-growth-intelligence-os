@@ -964,3 +964,7 @@ Required behavior:
 - expose acknowledge, investigate, resolve, ignore, and reopen transitions through a governed lifecycle endpoint
 
 Activation summaries must derive attention totals and previews from this unified surface rather than recomputing a competing problem list.
+
+## Governed GitHub Branch Cleanup Sweep
+
+`github_branch_cleanup_sweep` is the bounded repository-maintenance orchestrator for stale disposable branches. Planning must default to read-only, resolve the actual GitHub default branch and base SHA, exclude open-PR and protected branches, prove zero unique commits, apply a minimum-age threshold, cap scan and delete counts, and return a deterministic evidence fingerprint plus typed confirmation. Apply must require fresh base/fingerprint evidence and a capability envelope, rerun the plan before mutation, delegate each candidate to `deleteGithubBranchRef`, stop on the first branch-level failure, and require same-cycle missing-ref readback. Force deletion, unbounded scanning, generic fallback deletion, and automatic retry after an unknown provider outcome are forbidden.
