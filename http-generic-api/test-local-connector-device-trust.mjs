@@ -59,9 +59,17 @@ const allowed = evaluateLocalConnectorDeviceTrust(base);
 assert.equal(allowed.ok, true);
 assert.equal(allowed.code, "local_device_trusted");
 assert.equal(allowed.evidence.device_id, "device-1");
+assert.equal(allowed.evidence.lifecycle_state, "active");
 assert.equal(allowed.evidence.heartbeat_age_ms, 60_000);
 assert.equal(allowed.evidence.secrets_included, false);
 assert.equal(JSON.stringify(allowed).includes(trustedConfig.connector_secret), false);
+
+const legacyAllowed = evaluateLocalConnectorDeviceTrust({
+  ...base,
+  config: { ...trustedConfig, lifecycle_state: undefined },
+});
+assert.equal(legacyAllowed.ok, true);
+assert.equal(legacyAllowed.evidence.lifecycle_state, "active");
 
 assert.throws(
   () => assertLocalConnectorDeviceTrust({ ...base, capabilitySupported: false }),
