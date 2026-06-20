@@ -158,7 +158,8 @@ const partialHarness=makeMutationHarness({
     assignment_id:"assignment-existing",
     role_template_key:"container_operator",
     inheritance_mode:"local_only",
-    valid_until:"2026-12-31 00:00:00"
+    valid_until:"2026-12-31 00:00:00",
+    metadata_json:JSON.stringify({ existing:"keep",source:"legacy" })
   }]
 });
 const partialUpdated=await setContainerTeamMember(
