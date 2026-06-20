@@ -168,6 +168,26 @@ function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections 
   };
 }
 
+function resolvePrincipalScope({ principalClass = "admin", tenantId = null, userId = null }) {
+  const principal = normalize(principalClass) || "admin";
+  if (principal === "tenant" && (!tenantId || !userId)) {
+    return {
+      ok: false,
+      reason: "tenant_principal_scope_required",
+      principal_class: "tenant",
+      tenant_id_present: Boolean(tenantId),
+      user_id_present: Boolean(userId),
+    };
+  }
+  return {
+    ok: true,
+    reason: principal === "tenant" ? "tenant_principal_scope_authorized" : "admin_principal_scope",
+    principal_class: principal,
+    tenant_id_present: Boolean(tenantId),
+    user_id_present: Boolean(userId),
+  };
+}
+
 function resolveSurfaceExposure({ binding, toolKey, principalClass = "admin" }) {
   if (!toolKey) return { ok: true, reason: "action_surface", principal_class: principalClass };
   const toolSurface = normalize(binding?.tool_surface || "");
