@@ -140,11 +140,16 @@ One immutable decision per request attempt.
 | `tenant_id` | reference |
 | `subject_id` | reference |
 | `integration_key` | string |
+| `auth_type` | string/enum |
 | `connection_target_ref` | string |
 | `purpose` | string/enum |
 | `nonce_hash` | string |
-| `allowed_redirect_uri` | string |
-| `status` | created/consumed/expired/revoked |
+| `allowed_redirect_uri` | string/null; same-origin path or exact registered HTTPS URI |
+| `binding_digest` | SHA-256; binds subject, tenant, integration, auth type, target, purpose, redirect, and authority snapshot |
+| `authority_snapshot_hash` | SHA-256/null; immutable tenant membership and integration-policy snapshot |
+| `authority_snapshot_version` | string/null |
+| `status` | pending/used/expired/revoked/error |
+| `revoked_reason` | stable non-secret reason code/null |
 | `created_at` | timestamp |
 | `expires_at` | timestamp |
 | `consumed_at` | timestamp/null |
