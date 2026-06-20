@@ -83,8 +83,12 @@ function memberInput(req,containerType,paramName,{ includePathUser=false }={}) {
 function registerTeamRoutes(router,{ prefix,containerType,paramName }) {
   router.get(`${prefix}/team`,requireUserJwt,async (req,res) => {
     try {
-      assertAllowedKeys(req.query,new Set([]),"query");
-      return res.json(await listContainerTeam(teamContext(req,containerType,paramName)));
+      assertAllowedKeys(req.query,new Set(["limit","cursor"]),"query");
+      return res.json(await listContainerTeam({
+        ...teamContext(req,containerType,paramName),
+        limit:req.query.limit,
+        cursor:req.query.cursor
+      }));
     } catch(error) { return errorResponse(req,res,error); }
   });
 
