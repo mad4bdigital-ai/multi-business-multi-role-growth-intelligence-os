@@ -62,6 +62,23 @@ export async function atomicallyConsumeCredentialIntakeSession({
       return intakeError("credential_intake_session_expired", 410);
     }
 
+    if (typeof validateSession === "function") {
+      const validation = await validateSession({ connection, session });
+      if (!validation?.ok) {
+        const reason = String(validation?.code || "credential_intake_authority_revoked").slice(0, 128);
+        await connection.query(
+          `UPDATE credential_intake_sessions
+              SET status = 'revoked', revoked_reason = ?
+            WHERE session_id = ?
+              AND status = 'pending'`,
+          [reason, session.session_id],
+        );
+        await connection.commit();
+        transactionOpen = false;
+        return intakeError(reason, 410);
+      }
+    }
+
     const created = await createConnection({ connection, session });
     const connectionId = String(created?.connectionId || "").trim();
     if (!connectionId) {
