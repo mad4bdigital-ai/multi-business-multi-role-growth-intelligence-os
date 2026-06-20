@@ -114,6 +114,114 @@ assert.equal(applied.readback.rollout_mode,"shadow");
 assert.equal(applyExecutor.updateCount,1);
 assert.deepEqual(applyExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","commit"]);
 
+const canaries = [
+  { canary_key:"preview-resolution",capability_key:"createContainerContextResolution",operation_class:"read_only",rollout_mode:"shadow",status:"active" },
+  { canary_key:"rollout-readiness",capability_key:"getContainerAuthorityRolloutReadiness",operation_class:"read_only",rollout_mode:"shadow",status:"active" }
+];
+const canaryReadiness={ policy_key:"dynamic_container_authority_v1",rollout_mode:"shadow",readiness_code:"ready_for_review",audit_coverage_percent:100,maximum_mismatch_percent:0 };
+const promotionPlan=buildContainerCanaryPromotionPlan({ canaries,targetCanaryKey:"preview-resolution",readiness:canaryReadiness });
+assert.equal(promotionPlan.targetMode,"read_only_canary");
+assert.equal(promotionPlan.confirmation,"PROMOTE_DYNAMIC_CONTAINER_CANARY_PREVIEW_RESOLUTION");
+assert.equal(promotionPlan.providerCalls,false);
+assert.equal(promotionPlan.externalWrites,false);
+assert.throws(
+  () => buildContainerCanaryPromotionPlan({ canaries,targetCanaryKey:"preview-resolution",readiness:{ readiness_code:"insufficient_samples" } }),
+  error => error.code === "container_canary_readiness_required" && error.status === 409
+);
+assert.throws(
+  () => buildContainerCanaryPromotionPlan({
+    canaries:[canaries[0],{ ...canaries[1],rollout_mode:"read_only_canary" }],
+    targetCanaryKey:"preview-resolution",
+    readiness:canaryReadiness
+  }),
+  error => error.code === "container_canary_promotion_in_progress" && error.status === 409
+);
+assert.throws(
+  () => buildContainerCanaryPromotionPlan({
+    canaries:[{ ...canaries[0],operation_class:"mutation" }],
+    targetCanaryKey:"preview-resolution",
+    readiness:canaryReadiness
+  }),
+  error => error.code === "container_canary_operation_not_read_only" && error.status === 422
+);
+
+function canaryExecutor() {
+  let mode="shadow";
+  let updateCount=0;
+  const calls=[];
+  return {
+    calls,
+    get updateCount() { return updateCount; },
+    beginTransaction:async () => calls.push("begin"),
+    commit:async () => calls.push("commit"),
+    rollback:async () => calls.push("rollback"),
+    query:async (sql) => {
+      calls.push(sql);
+      if(sql.includes("FROM container_shadow_canary_registry WHERE status='active'")) {
+        return [[{ ...canaries[0],rollout_mode:mode },canaries[1]]];
+      }
+      if(sql.includes("FROM v_container_rollout_readiness")) return [[canaryReadiness]];
+      if(sql.startsWith("UPDATE container_shadow_canary_registry")) {
+        mode="read_only_canary";
+        updateCount += 1;
+        return [{ affectedRows:1 }];
+      }
+      if(sql.includes("FROM container_shadow_canary_registry WHERE canary_key=?")) {
+        return [[{ ...canaries[0],rollout_mode:mode }]];
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    }
+  };
+}
+
+const canaryDryRunExecutor=canaryExecutor();
+const canaryDryRun=await runContainerCanaryPromotion({ executor:canaryDryRunExecutor,targetCanaryKey:"preview-resolution" });
+assert.equal(canaryDryRun.mode,"dry_run");
+assert.equal(canaryDryRunExecutor.updateCount,0);
+assert(!canaryDryRunExecutor.calls.includes("begin"));
+
+const canaryWrongConfirmExecutor=canaryExecutor();
+await assert.rejects(
+  runContainerCanaryPromotion({ executor:canaryWrongConfirmExecutor,targetCanaryKey:"preview-resolution",apply:true,confirm:"WRONG" }),
+  error => error.code === "container_canary_confirmation_required" && error.status === 409
+);
+assert.deepEqual(canaryWrongConfirmExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","rollback"]);
+assert.equal(canaryWrongConfirmExecutor.updateCount,0);
+
+const canaryApplyExecutor=canaryExecutor();
+const canaryApplied=await runContainerCanaryPromotion({
+  executor:canaryApplyExecutor,
+  targetCanaryKey:"preview-resolution",
+  apply:true,
+  confirm:"PROMOTE_DYNAMIC_CONTAINER_CANARY_PREVIEW_RESOLUTION"
+});
+assert.equal(canaryApplied.mode,"apply");
+assert.equal(canaryApplied.readback.rollout_mode,"read_only_canary");
+assert.equal(canaryApplyExecutor.updateCount,1);
+assert.deepEqual(canaryApplyExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","commit"]);
+
+const enforcedReady={
+  rolloutMode:"enforced",
+  readinessCode:"ready_for_review",
+  evidence:{ auditCoveragePercent:100,mismatchPercent:0,criticalMismatchCount:0 }
+};
+const completeAdoption={ expectedCapabilityCount:2,adoptedCapabilityCount:2,requiredReadyWindows:2,consecutiveReadyWindows:2 };
+const bypassReady=evaluateContainerBypassRetirementReadiness({
+  rolloutReadiness:enforcedReady,
+  adoptionEvidence:completeAdoption,
+  activeBypassCount:1,
+  activeOverrideCount:0
+});
+assert.equal(bypassReady.readinessCode,"ready_to_retire_bypass");
+assert.equal(bypassReady.readyToRetireBypass,true);
+assert.equal(evaluateContainerBypassRetirementReadiness({ rolloutReadiness:{ ...enforcedReady,rolloutMode:"shadow" },adoptionEvidence:completeAdoption,activeBypassCount:1 }).readinessCode,"enforcement_not_complete");
+assert.equal(evaluateContainerBypassRetirementReadiness({ rolloutReadiness:enforcedReady,adoptionEvidence:{ ...completeAdoption,adoptedCapabilityCount:1 },activeBypassCount:1 }).readinessCode,"adoption_incomplete");
+assert.equal(evaluateContainerBypassRetirementReadiness({ rolloutReadiness:enforcedReady,adoptionEvidence:{ ...completeAdoption,consecutiveReadyWindows:1 },activeBypassCount:1 }).readinessCode,"adoption_stability_window_incomplete");
+assert.equal(evaluateContainerBypassRetirementReadiness({ rolloutReadiness:{ ...enforcedReady,evidence:{ ...enforcedReady.evidence,auditCoveragePercent:99.9 } },adoptionEvidence:completeAdoption,activeBypassCount:1 }).readinessCode,"audit_coverage_below_required");
+assert.equal(evaluateContainerBypassRetirementReadiness({ rolloutReadiness:{ ...enforcedReady,evidence:{ ...enforcedReady.evidence,mismatchPercent:0.01 } },adoptionEvidence:completeAdoption,activeBypassCount:1 }).readinessCode,"mismatch_evidence_present");
+assert.equal(evaluateContainerBypassRetirementReadiness({ rolloutReadiness:enforcedReady,adoptionEvidence:completeAdoption,activeBypassCount:1,activeOverrideCount:1 }).readinessCode,"active_overrides_present");
+assert.equal(evaluateContainerBypassRetirementReadiness({ rolloutReadiness:enforcedReady,adoptionEvidence:completeAdoption,activeBypassCount:0 }).readinessCode,"no_bypass_present");
+
 const migration319 = readFileSync(new URL("./migrations/319_sprint69_dynamic_container_authority_foundation.sql",import.meta.url),"utf8");
 const migration320 = readFileSync(new URL("./migrations/320_sprint69_dynamic_container_authority_runtime_contracts.sql",import.meta.url),"utf8");
 const openapi = readFileSync(new URL("./openapi/container-authority.yaml",import.meta.url),"utf8");
