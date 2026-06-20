@@ -114,7 +114,7 @@ function makeMutationHarness({ type="workspace",targetDirectRank=0,otherAdmins=1
       if(sql.includes("COUNT(DISTINCT a.principal_id) AS admin_count")) return [[{ admin_count:otherAdmins }]];
       if(sql.includes("FROM memberships") && sql.includes("FOR UPDATE")) return [[membership].filter(Boolean)];
       if(sql.startsWith("INSERT INTO memberships") || sql.startsWith("UPDATE memberships")) return [{ affectedRows:1 }];
-      if(sql.includes("SELECT assignment_id FROM container_role_assignments")) return [existingAssignments];
+      if(sql.includes("ORDER BY created_at,assignment_id FOR UPDATE")) return [existingAssignments];
       if(sql.startsWith("INSERT INTO container_role_assignments")) return [{ affectedRows:1 }];
       if(sql.startsWith("UPDATE container_role_assignments") && sql.includes("role_template_key=?")) return [{ affectedRows:1 }];
       if(sql.startsWith("UPDATE container_role_assignments") && sql.includes("status='revoked'")) return [{ affectedRows:existingAssignments.length || 1 }];
