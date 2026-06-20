@@ -263,7 +263,7 @@ schemas:
   ContainerTeamResponse:
     type: object
     additionalProperties: false
-    required: [ok, container, caller, members, count, secretsIncluded]
+    required: [ok, container, caller, members, count, page, secretsIncluded]
     properties:
       ok: { type: boolean, const: true }
       container:
