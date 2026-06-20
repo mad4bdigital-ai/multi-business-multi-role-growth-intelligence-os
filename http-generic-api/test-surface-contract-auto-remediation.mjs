@@ -6,6 +6,7 @@ import {
   isAutoEligible,
   renderGeneratedBlock,
   upsertGeneratedBlock,
+  validateManualAttestation,
 } from "./scripts/surface-contract-auto-remediator.mjs";
 
 const safeItem = {
@@ -77,6 +78,35 @@ const actualExecute = buildAttestation({ item: safeItem, source: "EXECUTE prepar
 assert.equal(actualExecute.eligible, false, "actual EXECUTE statements must remain manual review only");
 assert(actualExecute.reasons.includes("forbidden_sql_pattern_detected"));
 
+const manualManifest = JSON.parse(readFileSync("../docs/surface-contract-manual-safety-attestations.json", "utf8"));
+assert.equal(manualManifest.schema_version, "surface-contract-manual-safety-attestations-v1");
+assert.equal(manualManifest.item_count, manualManifest.items.length);
+const manualItem = manualManifest.items.find((item) => item.migration_file === "1013_sprint69_approval_hold_identity_collation_alignment.sql");
+assert(manualItem, "manual registry should include the guarded approval-hold collation migration");
+const manualSource = readFileSync(`migrations/${manualItem.migration_file}`, "utf8");
+const manualValidation = validateManualAttestation({ item: manualItem, source: manualSource });
+assert.equal(manualValidation.valid, true, `manual attestation should validate: ${manualValidation.reasons.join(", ")}`);
+assert.equal(manualValidation.actual.preflight_risk_count, 0);
+assert.equal(manualValidation.actual.preflight_status, "pass");
+assert.equal(manualValidation.actual.forbidden_patterns.length, 2);
+assert.equal(manualValidation.attestation.execution_authorized, false);
+
+const windowsLineEndings = manualSource.replace(/\r?\n/g, "\r\n");
+const windowsLineEndingValidation = validateManualAttestation({ item: manualItem, source: windowsLineEndings });
+assert.equal(windowsLineEndingValidation.valid, true, "manual attestation checksum must be stable across LF and CRLF checkouts");
+
+const checksumDrift = validateManualAttestation({ item: manualItem, source: `${manualSource}\n-- drift` });
+assert.equal(checksumDrift.valid, false, "manual attestations must fail closed on checksum drift");
+assert(checksumDrift.reasons.includes("manual_attestation_checksum_mismatch"));
+
+const missingReviewer = validateManualAttestation({ item: { ...manualItem, reviewed_by: "" }, source: manualSource });
+assert.equal(missingReviewer.valid, false, "manual attestations require an explicit reviewer");
+assert(missingReviewer.reasons.includes("manual_attestation_reviewer_missing"));
+
+const tamperedForbiddenReview = validateManualAttestation({ item: { ...manualItem, accepted_forbidden_patterns: [] }, source: manualSource });
+assert.equal(tamperedForbiddenReview.valid, false, "manual attestations must enumerate every accepted forbidden SQL pattern");
+assert(tamperedForbiddenReview.reasons.includes("manual_attestation_forbidden_patterns_mismatch"));
+
 const convergenceStates = [
   { id: "first", added: ["first.sql"], attestations: [{ migration_file: "first.sql" }], manual: [] },
   { id: "second", added: ["second.sql"], attestations: [{ migration_file: "first.sql" }, { migration_file: "second.sql" }], manual: [] },
@@ -115,6 +145,8 @@ assert.equal((once.match(/surface-contract-auto-remediation:start/g) || []).leng
 const discovery = readFileSync("scripts/surface-contract-discovery.mjs", "utf8");
 assert(discovery.includes("surface-contract-safety-attestations-v1"));
 assert(discovery.includes("item.migration_sha256 !== sha256(source)"), "discovery must reject checksum drift");
+assert(discovery.includes("canonicalizeChecksumText"), "discovery and remediator must share line-ending-independent checksum semantics");
+assert(discovery.includes("utf8_lf_v1"), "discovery must expose the checksum canonicalization contract");
 assert(discovery.includes("verified_static_no_external_side_effects"));
 
 const workflow = readFileSync("../.github/workflows/surface-contract-auto-remediation.yml", "utf8");

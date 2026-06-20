@@ -834,6 +834,51 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /local/tools:
+    get:
+      tags: [system-layer]
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      operationId: listLocalGatewayTools
+      x-openai-isConsequential: false
+      summary: List tenant-safe local gateway tools
+      description: Returns local gateway tool descriptors available to the signed-in tenant user. User and tenant identity are derived only from the OAuth JWT.
+      parameters:
+        - name: include_planned
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Tenant-safe local gateway tool catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, surface, public_host, caller_type, count, tools]
+                properties:
+                  ok: { type: boolean }
+                  surface: { type: string, enum: [local_gateway] }
+                  public_host: { type: string }
+                  caller_type: { type: string }
+                  count: { type: integer, minimum: 0 }
+                  tools:
+                    type: array
+                    items: { type: object, additionalProperties: true }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: Tenant scope or caller type is not allowed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Local gateway tool list failure
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /system/tools:
     get:
       tags:

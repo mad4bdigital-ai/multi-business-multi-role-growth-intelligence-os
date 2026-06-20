@@ -24,6 +24,7 @@ export const ADMIN_BRANCH_RECONCILIATION_SEQUENCE = Object.freeze([
 
 const PROTECTED_BRANCHES = new Set(["main", "master", "production", "prod", "staging", "release"]);
 const ALLOWED_BRANCH_PREFIXES = ["gpt/", "chore/", "fix/", "feature/", "docs/", "hotfix/"];
+const MAX_BRANCH_MERGE_RESOLUTION_FILES = 50;
 
 function encodeRef(ref = "") {
   return String(ref || "").split("/").map(encodeURIComponent).join("/");
@@ -40,6 +41,10 @@ export function normalizeBranchReconcileMode(value = "dry_run") {
 
 export function branchReconcileConfirmation(branch = "") {
   return `RECONCILE_BRANCH_${String(branch || "").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "").toUpperCase()}`;
+}
+
+export function branchMergeCommitConfirmation(branch = "") {
+  return `CREATE_MERGE_COMMIT_${String(branch || "").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "").toUpperCase()}`;
 }
 
 export function assertAdminBranchReconcileTarget({ branch, default_branch: defaultBranch = "main", mode = "dry_run", confirm = "" } = {}) {
@@ -332,6 +337,243 @@ export async function runGithubBranchFastForwardToBase(args = {}, deps = {}) {
     const err = new Error("GitHub branch fast-forward applied but readback verification did not reach up_to_date.");
     err.status = 502;
     err.code = "github_branch_fast_forward_readback_failed";
+    err.details = result;
+    throw err;
+  }
+  return result;
+}
+
+function requireMergeCommitSha(value, field) {
+  const sha = String(value || "").trim().toLowerCase();
+  if (!/^[0-9a-f]{40}$/.test(sha)) {
+    const err = new Error(`${field} must be a 40-character Git commit SHA.`);
+    err.status = 400;
+    err.code = "github_branch_merge_commit_sha_required";
+    err.details = { field, secrets_included: false };
+    throw err;
+  }
+  return sha;
+}
+
+function sortedUnique(values = []) {
+  return Array.from(new Set((values || []).map((value) => String(value || "").trim()).filter(Boolean))).sort();
+}
+
+export function validateGithubMergeResolutionEvidence({
+  resolution_commit: resolutionCommit = {},
+  resolution_compare: resolutionCompare = {},
+  expected_base_sha: expectedBaseSha = "",
+  branch_changed_files: branchChangedFiles = [],
+} = {}) {
+  const expectedBase = String(expectedBaseSha || "").trim().toLowerCase();
+  const parents = (resolutionCommit.parents || []).map((parent) => String(parent?.sha || "").trim().toLowerCase()).filter(Boolean);
+  const treeSha = String(resolutionCommit?.tree?.sha || "").trim().toLowerCase();
+  const branchFiles = sortedUnique(branchChangedFiles);
+  const resolutionFiles = fileList(resolutionCompare);
+  const branchSet = new Set(branchFiles);
+  const resolutionSet = new Set(resolutionFiles);
+  const missingFiles = branchFiles.filter((file) => !resolutionSet.has(file));
+  const extraFiles = resolutionFiles.filter((file) => !branchSet.has(file));
+  const reasons = [];
+
+  if (branchFiles.length === 0) reasons.push("branch_changed_files_empty");
+  if (branchFiles.length > MAX_BRANCH_MERGE_RESOLUTION_FILES || resolutionFiles.length > MAX_BRANCH_MERGE_RESOLUTION_FILES) {
+    reasons.push("resolution_commit_file_scope_exceeds_limit");
+  }
+
+  if (parents.length !== 1 || parents[0] !== expectedBase) reasons.push("resolution_commit_must_have_expected_base_as_sole_parent");
+  if (!/^[0-9a-f]{40}$/.test(treeSha)) reasons.push("resolution_commit_tree_missing");
+  if (String(resolutionCompare.status || "").toLowerCase() !== "ahead") reasons.push("resolution_commit_must_be_ahead_of_expected_base");
+  if (Number(resolutionCompare.behind_by || 0) !== 0) reasons.push("resolution_commit_must_not_be_behind_expected_base");
+  if (missingFiles.length > 0) reasons.push("resolution_commit_missing_branch_changed_files");
+  if (extraFiles.length > 0) reasons.push("resolution_commit_changes_files_outside_branch_scope");
+
+  return {
+    ok: reasons.length === 0,
+    reasons,
+    tree_sha: treeSha || null,
+    expected_base_sha: expectedBase || null,
+    resolution_parent_shas: parents,
+    branch_changed_files: branchFiles,
+    resolution_changed_files: resolutionFiles,
+    missing_files: missingFiles,
+    extra_files: extraFiles,
+    secrets_included: false,
+  };
+}
+
+export async function runGithubBranchMergeCommitCreate(args = {}, deps = {}) {
+  const expectedBaseSha = requireMergeCommitSha(args.expected_base_sha || args.base_ref_sha, "expected_base_sha");
+  const expectedBranchSha = requireMergeCommitSha(args.expected_branch_sha || args.branch_ref_sha, "expected_branch_sha");
+  const resolutionCommitSha = requireMergeCommitSha(args.resolution_commit_sha, "resolution_commit_sha");
+  const target = await resolveBranchReconcileTarget({ ...args, mode: "dry_run", confirm: "" });
+  const requiredConfirm = branchMergeCommitConfirmation(target.branch);
+  if (String(args.confirm || "") !== requiredConfirm) {
+    const err = new Error(`GitHub branch merge commit creation requires confirm=${requiredConfirm}.`);
+    err.status = 400;
+    err.code = "github_branch_merge_commit_confirmation_required";
+    err.details = { branch: target.branch, expected_confirm: requiredConfirm, secrets_included: false };
+    throw err;
+  }
+
+  const token = deps.token || await getGitHubAppInstallationToken({});
+  const fetchImpl = deps.fetchImpl || fetch;
+  const before = await loadBranchReconcileEvidence({ target: { ...target, mode: "dry_run", confirm: "" }, token, fetchImpl });
+  const currentBaseSha = String(before.baseRef?.object?.sha || before.baseRef?.sha || "").trim().toLowerCase();
+  const currentBranchSha = String(before.branchRef?.object?.sha || before.branchRef?.sha || "").trim().toLowerCase();
+  if (currentBaseSha !== expectedBaseSha || currentBranchSha !== expectedBranchSha) {
+    const err = new Error("GitHub branch merge commit creation requires fresh same-cycle ref evidence.");
+    err.status = 409;
+    err.code = "github_branch_merge_commit_stale_dry_run_evidence";
+    err.details = {
+      expected_base_sha: expectedBaseSha,
+      current_base_sha: currentBaseSha || null,
+      expected_branch_sha: expectedBranchSha,
+      current_branch_sha: currentBranchSha || null,
+      secrets_included: false,
+    };
+    throw err;
+  }
+
+  const classification = before.classification?.classification || null;
+  if (!["diverged_no_overlap", "diverged_same_files"].includes(classification)) {
+    const err = new Error("GitHub branch merge commit creation only supports diverged work branches with an explicit resolution commit.");
+    err.status = 409;
+    err.code = "github_branch_merge_commit_classification_blocked";
+    err.details = { classification: before.classification, evidence: before.plan?.evidence, secrets_included: false };
+    throw err;
+  }
+
+  const resolutionCommit = await githubJson({
+    owner: target.owner,
+    repo: target.repo,
+    apiPath: `/git/commits/${encodeURIComponent(resolutionCommitSha)}`,
+    token,
+    fetchImpl,
+  });
+  const resolutionCompare = await githubJson({
+    owner: target.owner,
+    repo: target.repo,
+    apiPath: `/compare/${encodeCompareRef(expectedBaseSha)}...${encodeCompareRef(resolutionCommitSha)}`,
+    token,
+    fetchImpl,
+  });
+  const resolution = validateGithubMergeResolutionEvidence({
+    resolution_commit: resolutionCommit,
+    resolution_compare: resolutionCompare,
+    expected_base_sha: expectedBaseSha,
+    branch_changed_files: before.classification?.changed_files || [],
+  });
+  if (!resolution.ok) {
+    const err = new Error("Resolution commit failed governed merge-tree validation.");
+    err.status = 409;
+    err.code = "github_branch_merge_commit_resolution_invalid";
+    err.details = resolution;
+    throw err;
+  }
+
+  const commitMessage = String(args.commit_message || `Merge ${target.default_branch} into ${target.branch} using governed resolution ${resolutionCommitSha.slice(0, 12)}`).trim();
+  if (commitMessage.length < 5 || commitMessage.length > 5000) {
+    const err = new Error("commit_message must contain 5 to 5000 characters.");
+    err.status = 400;
+    err.code = "github_branch_merge_commit_message_invalid";
+    throw err;
+  }
+
+  const created = await githubJson({
+    owner: target.owner,
+    repo: target.repo,
+    apiPath: "/git/commits",
+    method: "POST",
+    token,
+    fetchImpl,
+    body: {
+      message: commitMessage,
+      tree: resolution.tree_sha,
+      parents: [expectedBranchSha, expectedBaseSha],
+    },
+  });
+  const mergeCommitSha = requireMergeCommitSha(created?.sha, "created_merge_commit_sha");
+  const update = await githubJson({
+    owner: target.owner,
+    repo: target.repo,
+    apiPath: `/git/refs/heads/${encodeRef(target.branch)}`,
+    method: "PATCH",
+    token,
+    fetchImpl,
+    body: { sha: mergeCommitSha, force: false },
+  });
+
+  const [readbackRef, readbackCommit, after] = await Promise.all([
+    githubJson({ owner: target.owner, repo: target.repo, apiPath: `/git/ref/heads/${encodeRef(target.branch)}`, token, fetchImpl }),
+    githubJson({ owner: target.owner, repo: target.repo, apiPath: `/git/commits/${encodeURIComponent(mergeCommitSha)}`, token, fetchImpl }),
+    loadBranchReconcileEvidence({ target: { ...target, mode: "dry_run", confirm: "" }, token, fetchImpl }),
+  ]);
+  const readbackParents = (readbackCommit.parents || []).map((parent) => String(parent?.sha || "").trim().toLowerCase());
+  const readbackTreeSha = String(readbackCommit?.tree?.sha || "").trim().toLowerCase();
+  const refSha = String(readbackRef?.object?.sha || "").trim().toLowerCase();
+  const ancestryOk = readbackParents.length === 2
+    && readbackParents[0] === expectedBranchSha
+    && readbackParents[1] === expectedBaseSha;
+  const readbackOk = refSha === mergeCommitSha
+    && ancestryOk
+    && readbackTreeSha === resolution.tree_sha
+    && after.classification?.classification === "ahead_only"
+    && Number(after.classification?.behind_by || 0) === 0;
+
+  const result = {
+    ok: readbackOk,
+    adapter: ADMIN_BRANCH_RECONCILIATION_ADAPTER_VERSION,
+    recipe_key: "github.branch.create_multi_parent_merge_commit",
+    action: "github_branch_merge_commit_create",
+    mode: "apply",
+    target: { owner: target.owner, repo: target.repo, branch: target.branch, default_branch: target.default_branch },
+    before: { classification: before.classification, evidence: before.plan?.evidence, secrets_included: false },
+    resolution: { commit_sha: resolutionCommitSha, ...resolution },
+    commit: {
+      sha: mergeCommitSha,
+      tree_sha: resolution.tree_sha,
+      parent_shas: [expectedBranchSha, expectedBaseSha],
+      message: commitMessage,
+      secrets_included: false,
+    },
+    update: { ref: update?.ref || null, branch_sha: update?.object?.sha || null, forced: false, secrets_included: false },
+    after: { classification: after.classification, evidence: after.plan?.evidence, secrets_included: false },
+    verification: {
+      ok: readbackOk,
+      ref_sha_matches: refSha === mergeCommitSha,
+      parent_order_matches: ancestryOk,
+      tree_sha_matches: readbackTreeSha === resolution.tree_sha,
+      branch_classification: after.classification?.classification || null,
+      behind_by: Number(after.classification?.behind_by || 0),
+      secrets_included: false,
+    },
+    capability_envelope_id: args.capability_envelope_id || null,
+    secrets_included: false,
+  };
+
+  writeAuditLogAsync({
+    action: "github_branch_merge_commit_create",
+    resource_type: "github_branch",
+    resource_id: `${target.owner}/${target.repo}:${target.branch}`,
+    payload: {
+      target: result.target,
+      before: result.before,
+      resolution: result.resolution,
+      commit: result.commit,
+      update: result.update,
+      after: result.after,
+      verification: result.verification,
+      capability_envelope_id: args.capability_envelope_id || null,
+      principal: deps?.auth?.user_id || deps?.auth?.mode || "admin",
+      secrets_included: false,
+    },
+  });
+
+  if (!readbackOk) {
+    const err = new Error("GitHub multi-parent merge commit was created or applied, but same-cycle ancestry/readback verification failed.");
+    err.status = 502;
+    err.code = "github_branch_merge_commit_readback_failed";
     err.details = result;
     throw err;
   }

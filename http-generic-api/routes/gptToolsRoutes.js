@@ -27,7 +27,7 @@ import {
   markCapabilityEnvelopeReferenced,
   resolveCapabilityExecutionEnvelope,
 } from "../capabilityResolutionEnvelopeGuard.js";
-import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBranchFastForwardToBase } from "../adminBranchReconciliationAdapter.js";
+import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBranchFastForwardToBase, runGithubBranchMergeCommitCreate } from "../adminBranchReconciliationAdapter.js";
 import { applyGithubExistingBlobChangeSet, applyGithubRepositoryChangeSet, deleteGithubBranchRef, finalizeGithubPullRequest, getGithubPullRequestCiGate } from "../githubRepositoryLifecycle.js";
 import { runGithubSupersededBranchCleanup } from "../githubSupersededBranchCleanup.js";
 import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveReport } from "../platformCapabilityReports.js";
@@ -721,6 +721,30 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "github_branch_merge_commit_create",
+    displayName: "GitHub Branch Multi-Parent Merge Commit Create",
+    description: "Create one governed merge commit on a non-protected diverged work branch using an explicit resolution commit whose sole parent is the expected base. Requires fresh branch/base SHAs, capability-envelope approval, typed confirmation, no-force ref update, exact scope validation, and same-cycle ancestry/tree/readback verification.",
+    method: "VIRTUAL",
+    path: "internal://github-branch-merge-commit-create",
+    tags: ["repo", "reconciliation", "mutation", "capability_envelope", "merge_commit", "no_force", "same_cycle_readback"],
+    inputSchema: {
+      type: "object",
+      required: ["branch", "expected_base_sha", "expected_branch_sha", "resolution_commit_sha", "confirm", "capability_envelope_id"],
+      properties: {
+        branch: { type: "string", description: "Governed non-production diverged work branch." },
+        default_branch: { type: "string", default: "main" },
+        owner: { type: "string", description: "Optional GitHub owner override; defaults to activation bootstrap." },
+        repo: { type: "string", description: "Optional GitHub repo override; defaults to activation bootstrap." },
+        expected_base_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$", description: "Fresh default-branch SHA from same-cycle reconciliation." },
+        expected_branch_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$", description: "Fresh work-branch SHA from same-cycle reconciliation." },
+        resolution_commit_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$", description: "Commit whose sole parent is expected_base_sha and whose tree is the reviewed merge result." },
+        commit_message: { type: "string", minLength: 5, maxLength: 5000 },
+        confirm: { type: "string", description: "Typed CREATE_MERGE_COMMIT_<BRANCH_SLUG> confirmation." },
+        capability_envelope_id: { type: "string", description: "Ready capability envelope approved for branch merge-commit creation or repo mutation." },
+      },
+      additionalProperties: false,
+    },
+  },  {
     name: "repo_patch_apply",
     displayName: "Repository Patch Apply",
     description: "Apply a patch to the repository via the GitHub App, sidestepping the local connector. Actions: write_file, replace_block, apply_unified_diff, delete_file, dedupe_openapi_paths. Path is repo-confined; secrets/build folders are blocked. Runtime defaults to a generated non-protected work branch. Protected branches are blocked unless explicit break-glass policy is enabled and justified.",
@@ -977,6 +1001,25 @@ async function requireGithubBranchFastForwardEnvelope({ args = {}, ctx = {} } = 
   return { ...resolved, secrets_included: false };
 }
 
+async function requireGithubBranchMergeCommitEnvelope({ args = {}, ctx = {} } = {}) {
+  const resolved = await resolveCapabilityExecutionEnvelope({
+    pool: getPool(),
+    source: args,
+    acceptedAppKeys: ["github"],
+    acceptedIntents: ["github_branch_merge_commit_create", "github_ref_update", "repo_mutation", "branch_merge_commit"],
+    expectedTenantId: ctx?.auth?.tenant_id || PLATFORM_TENANT_ID,
+    expectedUserId: ctx?.auth?.user_id || "",
+  });
+  if (!resolved.ok) {
+    throw capabilityEnvelopeError(resolved, "GitHub branch merge-commit creation requires a valid capability resolution envelope before GitHub mutation.");
+  }
+  await markCapabilityEnvelopeReferenced({
+    pool: getPool(),
+    envelopeId: resolved.envelope_id,
+    executionRef: `github_branch_merge_commit_create:${args?.branch || "unknown"}`,
+  });
+  return { ...resolved, secrets_included: false };
+}
 async function requireGithubSupersededBranchCleanupEnvelope({ args = {}, ctx = {} } = {}) {
   const resolved = await resolveCapabilityExecutionEnvelope({
     pool: getPool(),
@@ -1661,6 +1704,18 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     }
   }
 
+  if (callerType === "admin" && toolKey === "github_branch_merge_commit_create") {
+    try {
+      await requireGithubBranchMergeCommitEnvelope({ args, ctx: { auth: req?.auth } });
+      const result = await runGithubBranchMergeCommitCreate(args, { auth: req?.auth });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "github_branch_merge_commit_create_failed", message: err?.message || "GitHub branch merge-commit creation failed.", details: err?.details } },
+      };
+    }
+  }
   if (callerType === "admin" && toolKey === "repo_patch_apply") {
     try {
       const result = await applyRepoPatch(args, { auth: req?.auth });
