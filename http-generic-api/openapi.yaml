@@ -3430,6 +3430,20 @@ paths:
     $ref: './openapi/container-authority.yaml#/containerAuthorityShadowSummary'
   /container-authority/rollout-readiness:
     $ref: './openapi/container-authority.yaml#/containerAuthorityRolloutReadiness'
+  /me/co-workspaces:
+    $ref: './openapi/container-authority.yaml#/coWorkspaces'
+  /me/workspaces/{workspaceId}/team:
+    $ref: './openapi/container-authority.yaml#/workspaceTeam'
+  /me/workspaces/{workspaceId}/team/members:
+    $ref: './openapi/container-authority.yaml#/workspaceTeamMembers'
+  /me/workspaces/{workspaceId}/team/members/{userId}:
+    $ref: './openapi/container-authority.yaml#/workspaceTeamMemberById'
+  /me/brands/{brandRef}/team:
+    $ref: './openapi/container-authority.yaml#/brandTeam'
+  /me/brands/{brandRef}/team/members:
+    $ref: './openapi/container-authority.yaml#/brandTeamMembers'
+  /me/brands/{brandRef}/team/members/{userId}:
+    $ref: './openapi/container-authority.yaml#/brandTeamMemberById'
   /tenant/activation/guidance:
     get:
       tags: [activation-guidance]
