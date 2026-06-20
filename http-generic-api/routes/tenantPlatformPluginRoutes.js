@@ -303,10 +303,14 @@ export function buildTenantPlatformPluginRoutes() {
         actionKey: input.action_key || input.actionKey || null,
         toolKey: input.tool_key || input.toolKey || null,
         tenantId: req.auth.tenant_id,
+        workspaceId: input.workspace_id || input.workspaceId || null,
         userId: req.auth.user_id,
         agentId: input.agent_id || input.agentId || null,
         principalClass: "tenant",
         requestedCredentialScope: input.requested_credential_scope || input.requestedCredentialScope || null,
+        targetResourceType: input.target_resource_type || input.targetResourceType || null,
+        targetResourceUri: input.target_resource_uri || input.targetResourceUri || null,
+        targetMode: input.target_mode || input.targetMode || "read_only",
       });
       return res.status(200).json({
         ...result,
