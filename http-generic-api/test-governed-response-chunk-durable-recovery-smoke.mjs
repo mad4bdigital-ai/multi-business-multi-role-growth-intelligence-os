@@ -53,7 +53,7 @@ function createFakePool() {
 }
 
 async function main() {
-  const payload = buildGovernedResponseChunkUnicodeSmokePayload(24);
+  const payload = buildGovernedResponseChunkUnicodeSmokePayload(40);
   const serialized = JSON.stringify(payload);
   assert.ok(serialized.length > 5000);
   assert.ok(serialized.includes("مرحبا بالعالم"));
