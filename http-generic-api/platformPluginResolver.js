@@ -785,6 +785,7 @@ export async function resolvePlatformPluginExecution({
       source: rows.tenantPolicy.source || null,
     } : null,
     credential_resolution: credential,
+    target_authorization: targetAuthority,
     skill_resolution: skill,
     smoke_certification: smokeCertification,
     approval: {
