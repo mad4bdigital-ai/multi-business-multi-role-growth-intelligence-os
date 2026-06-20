@@ -1188,6 +1188,7 @@ paths:
                   plugin_key: github
                   purpose: Connect the tenant repository
                   display_label: Primary GitHub connection
+                  redirect_uri: /settings/integrations?connected=1
                   expires_in_minutes: 30
       responses:
         "201":
