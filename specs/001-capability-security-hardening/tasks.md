@@ -103,8 +103,8 @@
 
 ## Phase 8 — Local consent, shell, and files
 
-- [ ] **T071** Define risk-based local-consent policy. `[FR-038, FR-041]`
-- [ ] **T072** Implement bounded local approval token. `[FR-041]`
+- [x] **T071** Define risk-based local-consent policy. `[FR-038, FR-041]`
+- [x] **T072** Implement bounded local approval token. `[FR-041]`
 - [ ] **T073** Replace arbitrary shell exposure with registered command capabilities. `[FR-039]`
 - [ ] **T074** Define typed argument schemas and reject shell metacharacter injection.
 - [ ] **T075** Define allowlisted file roots and canonical path normalization. `[FR-040]`
