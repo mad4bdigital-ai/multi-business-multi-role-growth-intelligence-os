@@ -866,6 +866,7 @@ export function buildCredentialIntakeRoutes(deps = {}) {
       const consumed = await atomicallyConsumeCredentialIntakeSession({
         pool: getPool(),
         tokenHash: sha256(req.params.token),
+        validateSession: ({ connection, session }) => validateCredentialIntakeSessionSecurity({ queryable: connection, session }),
         createConnection: async ({ connection: transaction, session }) => {
           const schema = sessionSchema(session);
           const {
