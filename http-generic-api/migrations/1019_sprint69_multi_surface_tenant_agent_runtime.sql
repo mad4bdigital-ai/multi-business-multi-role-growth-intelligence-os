@@ -32,3 +32,44 @@ INSERT INTO tenant_platform_endpoint_tools(tool_key,display_name,description,htt
 ('tenant_agent_surface_preferences_update','Update Own Agent Surface Preferences','Replace authenticated user preferences. High-risk execution remains approval-gated.','PUT','/me/agent-surfaces/{surface_key}/preferences',JSON_ARRAY('surface_key'),JSON_OBJECT('type','object','required',JSON_ARRAY('surface_key'),'additionalProperties',true,'properties',JSON_OBJECT('surface_key',JSON_OBJECT('type','string','enum',JSON_ARRAY('hermes','openclaude','openclaw')),'enabled',JSON_OBJECT('type','boolean'),'approval_mode',JSON_OBJECT('type','string','enum',JSON_ARRAY('always','risk_based','manual')),'fallback_policy',JSON_OBJECT('type','string','enum',JSON_ARRAY('none','require_approval','platform_only','dedicated_only')),'memory_scope',JSON_OBJECT('type','string','enum',JSON_ARRAY('disabled','local_profile','tenant_private')),'max_parallel_agents',JSON_OBJECT('type','integer','minimum',1,'maximum',12),'default_model',JSON_OBJECT('type','string'),'channels',JSON_OBJECT('type','array','items',JSON_OBJECT('type','string')),'capabilities',JSON_OBJECT('type','object'))),JSON_OBJECT(),'tenant,agents,preferences,user_owned,state_changing,no_secrets,approval_gate',1,763),
 ('tenant_agent_surface_deployment_upsert','Set Tenant Agent Surface Deployment','Set platform_managed or dedicated_managed deployment; owner/admin only.','PUT','/me/agent-surfaces/{surface_key}/deployment',JSON_ARRAY('surface_key'),JSON_OBJECT('type','object','required',JSON_ARRAY('surface_key','activation_mode'),'additionalProperties',false,'properties',JSON_OBJECT('surface_key',JSON_OBJECT('type','string','enum',JSON_ARRAY('hermes','openclaude','openclaw')),'activation_mode',JSON_OBJECT('type','string','enum',JSON_ARRAY('platform_managed','dedicated_managed')),'enabled',JSON_OBJECT('type','boolean'),'dedicated_target_type',JSON_OBJECT('type','string','enum',JSON_ARRAY('local_device','remote_runtime')),'dedicated_target_id',JSON_OBJECT('type','string'))),JSON_OBJECT(),'tenant,agents,deployment,platform_managed,dedicated_managed,state_changing,owner_admin,no_secrets',1,764)
 ON DUPLICATE KEY UPDATE display_name=VALUES(display_name),description=VALUES(description),http_method=VALUES(http_method),http_path=VALUES(http_path),path_param_keys=VALUES(path_param_keys),input_schema=VALUES(input_schema),fixed_body=VALUES(fixed_body),tags=VALUES(tags),is_enabled=VALUES(is_enabled),sort_order=VALUES(sort_order);
+
+UPDATE tenant_platform_endpoint_tools
+SET input_schema = JSON_SET(
+  COALESCE(input_schema, JSON_OBJECT()),
+  '$.properties.agent_surface_modes',
+  JSON_OBJECT(
+    'type','object',
+    'additionalProperties',false,
+    'description','Optional Hermes, OpenClaude, and OpenClaw tenant deployment modes.',
+    'properties',JSON_OBJECT(
+      'hermes',JSON_OBJECT('oneOf',JSON_ARRAY(
+        JSON_OBJECT('type','string','enum',JSON_ARRAY('platform_managed','dedicated_managed')),
+        JSON_OBJECT('type','object','additionalProperties',false,'properties',JSON_OBJECT(
+          'activation_mode',JSON_OBJECT('type','string','enum',JSON_ARRAY('platform_managed','dedicated_managed')),
+          'enabled',JSON_OBJECT('type','boolean'),
+          'dedicated_target_type',JSON_OBJECT('type','string','enum',JSON_ARRAY('local_device','remote_runtime')),
+          'dedicated_target_id',JSON_OBJECT('type','string','maxLength',191)
+        ))
+      )),
+      'openclaude',JSON_OBJECT('oneOf',JSON_ARRAY(
+        JSON_OBJECT('type','string','enum',JSON_ARRAY('platform_managed','dedicated_managed')),
+        JSON_OBJECT('type','object','additionalProperties',false,'properties',JSON_OBJECT(
+          'activation_mode',JSON_OBJECT('type','string','enum',JSON_ARRAY('platform_managed','dedicated_managed')),
+          'enabled',JSON_OBJECT('type','boolean'),
+          'dedicated_target_type',JSON_OBJECT('type','string','enum',JSON_ARRAY('local_device','remote_runtime')),
+          'dedicated_target_id',JSON_OBJECT('type','string','maxLength',191)
+        ))
+      )),
+      'openclaw',JSON_OBJECT('oneOf',JSON_ARRAY(
+        JSON_OBJECT('type','string','enum',JSON_ARRAY('platform_managed','dedicated_managed')),
+        JSON_OBJECT('type','object','additionalProperties',false,'properties',JSON_OBJECT(
+          'activation_mode',JSON_OBJECT('type','string','enum',JSON_ARRAY('platform_managed','dedicated_managed')),
+          'enabled',JSON_OBJECT('type','boolean'),
+          'dedicated_target_type',JSON_OBJECT('type','string','enum',JSON_ARRAY('local_device','remote_runtime')),
+          'dedicated_target_id',JSON_OBJECT('type','string','maxLength',191)
+        ))
+      ))
+    )
+  )
+)
+WHERE tool_key='connect_activate' AND JSON_VALID(input_schema);
