@@ -40,7 +40,7 @@ function makePool({
           app_key: "github",
           action_key: "github.repo.read",
           binding_role: "primary_api",
-          credential_source: "user_connection",
+          credential_source: credentialSource,
           exposure_default: runtimeOnly ? "runtime_only" : "curated_exports",
           status: "active",
           notes: null,
