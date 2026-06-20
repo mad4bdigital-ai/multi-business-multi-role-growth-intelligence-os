@@ -1507,6 +1507,16 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     return { status: 200, body: await readCachedToolResponseChunk(args) };
   }
 
+  if (callerType === "admin" && toolKey === "response_chunk_durable_recovery_smoke") {
+    const body = await runGovernedResponseChunkDurableRecoverySmoke(args, {
+      pool: getPool(),
+      maybeChunkToolResponseBody,
+      evictToolResponseChunkMemoryCache,
+      readCachedToolResponseChunk,
+    });
+    return { status: 200, body };
+  }
+
   if (callerType === "admin" && toolKey === "admin_tool_catalog_search") {
     const tools = await fetchTools("admin");
     const { items, page } = paginateItems(tools, args || {});
