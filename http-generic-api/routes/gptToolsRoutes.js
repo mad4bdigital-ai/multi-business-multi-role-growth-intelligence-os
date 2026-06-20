@@ -354,6 +354,24 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "response_chunk_durable_recovery_smoke",
+    displayName: "Durable Response Chunk Recovery Smoke",
+    description: "Admin-only bounded smoke. Persists a deterministic Arabic and emoji payload, verifies the durable row exists before chunk_id use, evicts process memory, recovers from MySQL, validates SHA-256 and UTF-8 bytes, reconstructs Unicode exactly, and confirms sliding TTL extension. Returns only bounded evidence including memory_cache_evicted; no raw payload, provider call, external write, or secret.",
+    method: "VIRTUAL",
+    path: "internal://response-chunk-durable-recovery-smoke",
+    tags: ["tooling", "smoke", "read_write", "typed_confirmation", "no_provider_call", "no_external_write", "no_secrets", "ttl_cleanup"],
+    inputSchema: {
+      type: "object",
+      required: ["confirm"],
+      properties: {
+        confirm: { type: "string", const: "RUN_RESPONSE_CHUNK_DURABLE_RECOVERY_SMOKE" },
+        repeat_count: { type: "integer", minimum: 24, maximum: 120, default: 48 },
+        chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 30, default: 5 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "admin_tool_catalog_search",
     displayName: "Search Admin Tool Catalog",
     description: "Search and paginate the full governed admin tool catalog through callAdminTool when the direct list surface cannot pass cursor/query parameters.",
