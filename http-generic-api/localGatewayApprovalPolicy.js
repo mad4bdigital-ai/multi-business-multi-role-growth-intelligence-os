@@ -82,6 +82,20 @@ export function buildLocalGatewayApprovalBinding({
   };
 }
 
+export function localGatewayApprovalConsumptionState(context = {}) {
+  const consumedAt = text(context?.approval_consumed_at);
+  if (!consumedAt) {
+    return { ok: true, code: "approval_hold_available", secrets_included: false };
+  }
+  return {
+    ok: false,
+    code: "approval_hold_already_consumed",
+    consumed_at: consumedAt,
+    consumed_call_id: text(context?.approval_consumed_call_id) || null,
+    secrets_included: false,
+  };
+}
+
 export function validateLocalGatewayApprovalBinding(storedBinding, expectedBinding) {
   if (!storedBinding || typeof storedBinding !== "object") {
     return { ok: false, code: "approval_hold_binding_missing", secrets_included: false };
