@@ -312,8 +312,11 @@ async function getApprovedApprovalHold({ holdId, tenantId, row, approvalBinding 
 
 async function claimApprovedApprovalHold({ holdId, tenantId, callId, approvalBinding }) {
   const requestDigest = String(approvalBinding?.request_digest || "").trim();
-  if (!holdId || !tenantId || !callId || !requestDigest) return false;
-  const [result] = await getPool().query(
+  if (!holdId || !tenantId || !callId || !requestDigest) {
+    return { ok: false, code: "approval_hold_claim_context_invalid", readback_verified: false };
+  }
+  const pool = getPool();
+  const [result] = await pool.query(
     `UPDATE \`approval_holds\`
         SET execution_context_json = JSON_SET(
           COALESCE(execution_context_json, JSON_OBJECT()),
@@ -330,7 +333,33 @@ async function claimApprovedApprovalHold({ holdId, tenantId, callId, approvalBin
         AND JSON_UNQUOTE(JSON_EXTRACT(execution_context_json, '$.approval_binding.request_digest')) = ?`,
     [callId, requestDigest, holdId, tenantId, requestDigest]
   );
-  return Number(result?.affectedRows || 0) === 1;
+  if (Number(result?.affectedRows || 0) !== 1) {
+    return { ok: false, code: "approval_hold_already_consumed", readback_verified: false };
+  }
+
+  const [rows] = await pool.query(
+    `SELECT
+       JSON_UNQUOTE(JSON_EXTRACT(execution_context_json, '$.approval_consumed_call_id')) AS consumed_call_id,
+       JSON_UNQUOTE(JSON_EXTRACT(execution_context_json, '$.approval_consumed_request_digest')) AS consumed_request_digest,
+       JSON_UNQUOTE(JSON_EXTRACT(execution_context_json, '$.approval_consumed_at')) AS consumed_at
+       FROM \`approval_holds\`
+      WHERE hold_id = ?
+        AND tenant_id = ?
+      LIMIT 1`,
+    [holdId, tenantId]
+  );
+  const readback = rows[0] || null;
+  const verified = Boolean(readback)
+    && String(readback.consumed_call_id || "") === callId
+    && String(readback.consumed_request_digest || "") === requestDigest
+    && Boolean(readback.consumed_at);
+  return {
+    ok: verified,
+    code: verified ? "approval_hold_consumed" : "approval_hold_consumption_readback_failed",
+    readback_verified: verified,
+    consumed_at: readback?.consumed_at || null,
+    secrets_included: false,
+  };
 }
 
 async function createApprovalHold({ callId, req, row, tenantId, approvalBinding }) {
