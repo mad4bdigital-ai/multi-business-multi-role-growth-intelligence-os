@@ -388,7 +388,10 @@ export async function setContainerTeamMember(input, options = {}, dependencies =
       if(options.partial && !existingRows.length) {
         throw serviceError(404,"container_team_member_not_found","No active direct team assignment was found for this user.");
       }
-      const effectiveRoleTemplateKey = roleTemplateKey || existingRows[0]?.role_template_key;
+      const effectiveRoleTemplateKey = roleTemplateKey || existingRows[0]?.role_template_key || (options.partial ? null : "container_viewer");
+      if(!effectiveRoleTemplateKey) {
+        throw serviceError(422,"container_team_role_invalid","An explicit managed role is required for inline or legacy assignments.");
+      }
       const effectiveInheritanceMode = inheritanceMode || existingRows[0]?.inheritance_mode || normalizeInheritanceMode(null,containerType);
       const effectiveValidUntil = validUntilSpecified ? (input.validUntil || null) : (existingRows[0]?.valid_until || null);
       const role = await readRoleTemplate(connection,{ roleTemplateKey:effectiveRoleTemplateKey,containerType });
