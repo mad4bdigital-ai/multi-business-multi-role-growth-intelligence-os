@@ -5,6 +5,11 @@ import { encryptCredentials, encryptToken } from "../tokenEncryption.js";
 import { writeAuditLogAsync } from "../auditLogger.js";
 import { enqueueCredentialIntakeCompletedWebhook } from "../webhookDeliveryDispatcher.js";
 import { atomicallyConsumeCredentialIntakeSession } from "../credentialIntakeSingleUse.js";
+import {
+  buildCredentialIntakeBinding,
+  normalizeCredentialIntakeRedirect,
+  validateCredentialIntakeSessionSecurity,
+} from "../credentialIntakeBindingPolicy.js";
 
 const TOKEN_BYTES = 32;
 const DEFAULT_TTL_MINUTES = 30;
