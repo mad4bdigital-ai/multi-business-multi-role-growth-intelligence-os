@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 444
+- Migrations with detected surfaces: 445
 - Migrations reported here: 80
 - OpenAPI operations detected: 481
 - OpenAPI paths detected: 427
