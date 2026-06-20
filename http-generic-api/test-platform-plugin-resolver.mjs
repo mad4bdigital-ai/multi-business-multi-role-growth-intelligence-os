@@ -242,6 +242,8 @@ function makePool({
   const result = await resolvePlatformPluginExecution({ pool, pluginKey: "github", actionKey: "github.unknown", tenantId: "tenant-1" });
   assert.equal(result.allowed, false);
   assert(result.reason.includes("action_binding_not_found"));
+  assert.equal(result.credential_lookup.attempted, false);
+  assert.equal(pool.calls.some((call) => call.sql.includes("FROM user_app_connections")), false);
 }
 
 {
