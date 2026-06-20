@@ -9,6 +9,7 @@ async function rollbackQuietly(connection) {
 export async function atomicallyConsumeCredentialIntakeSession({
   pool,
   tokenHash,
+  validateSession = null,
   createConnection,
   now = () => Date.now(),
 }) {
