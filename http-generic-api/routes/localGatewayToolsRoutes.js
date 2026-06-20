@@ -300,7 +300,7 @@ async function getApprovedApprovalHold({ holdId, tenantId, row, approvalBinding 
     : { ok: false, hold, code: bindingDecision.code, bindingDecision };
 }
 
-async function createApprovalHold({ callId, req, row, tenantId }) {
+async function createApprovalHold({ callId, req, row, tenantId, approvalBinding }) {
   const holdId = crypto.randomUUID();
   const ttlMinutes = Math.max(15, Math.min(10080, Number(row.approval_ttl_minutes || 1440)));
   const requestId = req.headers?.["x-request-id"] || callId;
@@ -319,7 +319,13 @@ async function createApprovalHold({ callId, req, row, tenantId }) {
       req.auth?.user_id ? "user" : "system",
       requestId,
       requestId,
-      JSON.stringify({ source: "local_gateway_tools_routes", call_id: callId, approval_hold_id: holdId, secrets_included: false }),
+      JSON.stringify({
+        source: "local_gateway_tools_routes",
+        call_id: callId,
+        approval_hold_id: holdId,
+        approval_binding: approvalBinding,
+        secrets_included: false,
+      }),
       row.approval_hold_type || "review",
       req.auth?.user_id || null,
       row.approval_required_role || null,
