@@ -231,6 +231,46 @@ assert.match(serviceSource,/last_container_admin_required/);
 assert.doesNotMatch(serviceSource,/UPDATE memberships SET status='revoked'/);
 
 const rootOpenApi=YAML.parse(readFileSync("openapi.yaml","utf8"));
+const teamOpenApi=YAML.parse(readFileSync("openapi/container-authority.yaml","utf8"));
 assert.equal(rootOpenApi.openapi,"3.1.0");
+assert(rootOpenApi.components.securitySchemes.userJwtAuth,"team routes must declare userJwtAuth");
+const routeContracts=[
+  ["get","/me/co-workspaces","coWorkspaces","listMyCoWorkspaces"],
+  ["get","/me/workspaces/{workspaceId}/team","workspaceTeam","getWorkspaceContainerTeam"],
+  ["post","/me/workspaces/{workspaceId}/team/members","workspaceTeamMembers","addWorkspaceContainerTeamMember"],
+  ["patch","/me/workspaces/{workspaceId}/team/members/{userId}","workspaceTeamMemberById","updateWorkspaceContainerTeamMember"],
+  ["delete","/me/workspaces/{workspaceId}/team/members/{userId}","workspaceTeamMemberById","removeWorkspaceContainerTeamMember"],
+  ["get","/me/brands/{brandRef}/team","brandTeam","getBrandContainerTeam"],
+  ["post","/me/brands/{brandRef}/team/members","brandTeamMembers","addBrandContainerTeamMember"],
+  ["patch","/me/brands/{brandRef}/team/members/{userId}","brandTeamMemberById","updateBrandContainerTeamMember"],
+  ["delete","/me/brands/{brandRef}/team/members/{userId}","brandTeamMemberById","removeBrandContainerTeamMember"]
+];
+for(const [method,pathKey,fragmentKey,operationId] of routeContracts){
+  assert.equal(rootOpenApi.paths[pathKey].$ref,`./openapi/container-authority.yaml#/${fragmentKey}`);
+  const operation=teamOpenApi[fragmentKey][method];
+  assert(operation,`${method.toUpperCase()} ${pathKey} must exist`);
+  assert.equal(operation.operationId,operationId);
+  assert.deepEqual(operation.security,[{ userJwtAuth:[] }]);
+  assert(operation.tags.includes("container-authority"));
+  assert(operation.responses["200"] || operation.responses["201"]);
+}
+for(const key of ["workspaceTeam","brandTeam"]){
+  const names=teamOpenApi[key].get.parameters.map(parameter => parameter.name).filter(Boolean);
+  assert(names.includes("limit") && names.includes("cursor"),`${key} must document cursor pagination`);
+}
+for(const key of ["workspaceTeamMembers","brandTeamMembers"]){
+  const refs=teamOpenApi[key].post.parameters.map(parameter => parameter.$ref).filter(Boolean);
+  assert(refs.includes("#/parameters/IdempotencyKey"));
+  assert(refs.includes("#/parameters/IfMatch"));
+}
+assert(teamOpenApi.schemas.ContainerTeamResponse.required.includes("page"));
+assert.equal(teamOpenApi.schemas.ContainerTeamResponse.properties.secretsIncluded.const,false);
+assert.match(routeSource,/registerTeamRoutes\(router,\{ prefix:"\/me\/workspaces\/:workspaceId"/);
+assert.match(routeSource,/registerTeamRoutes\(router,\{ prefix:"\/me\/brands\/:brandRef"/);
+assert.match(routeSource,/router\.get\(`\$\{prefix\}\/team`/);
+assert.match(routeSource,/router\.post\(`\$\{prefix\}\/team\/members`/);
+assert.match(routeSource,/router\.patch\(`\$\{prefix\}\/team\/members\/:userId`/);
+assert.match(routeSource,/router\.delete\(`\$\{prefix\}\/team\/members\/:userId`/);
+assert.match(serviceSource,/a\.inheritance_mode='inherit_down'/);
 
 console.log("dynamic container team management tests passed");
