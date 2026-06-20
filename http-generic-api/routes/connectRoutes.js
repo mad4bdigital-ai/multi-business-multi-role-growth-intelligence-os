@@ -826,6 +826,15 @@ export function buildConnectRoutes(deps) {
         integrationModes: req.body?.integration_modes || {},
         source: "connect_activate",
       });
+      const requestedAgentSurfaceModes = req.body?.agent_surface_modes;
+      const agentSurfaceDeployments = requestedAgentSurfaceModes
+        ? await upsertAgentSurfaceDeploymentsFromActivation({
+            tenantId: resolvedTenantId,
+            userId: user_id,
+            modes: requestedAgentSurfaceModes,
+            source: "connect_activate",
+          })
+        : [];
       const connection = await fetchTenantConnection(resolvedTenantId);
       const dedicatedIntegrationReadiness = await assessDedicatedIntegrationReadiness({
         tenantId: resolvedTenantId,
