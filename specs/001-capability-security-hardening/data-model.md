@@ -97,6 +97,23 @@ One immutable decision per request attempt.
 
 **Invariant:** an allowed decision cannot have a required gate other than `pass`.
 
+### Credential policy decision states
+
+Credential handling is represented as three independent dimensions so credential absence cannot alter authorization outcomes:
+
+| Dimension | Values | Meaning |
+|---|---|---|
+| `requirement` | `required`, `not_required` | Whether the canonical binding requires a credential source |
+| `resolution_state` | `not_evaluated`, `not_required`, `resolved`, `missing`, `scope_denied` | Whether an authorized lookup resolved an allowed source |
+| `usability_state` | `not_evaluated`, `not_applicable`, `usable`, `unusable` | Whether a resolved credential is active and validated for execution |
+
+**Invariants:**
+
+- `not_required` affects only the credential gate and never grants principal, tenant, surface, skill, target, smoke, or approval permission.
+- credential lookup does not occur before principal scope, binding, surface, canonical-policy, and skill gates pass.
+- a connection is usable only when its lifecycle state is active and its validation state is one of the explicitly accepted validated states.
+- scope denial is decided before reading connection rows.
+
 ## 6. DeviceTrustRecord
 
 | Field | Type |
