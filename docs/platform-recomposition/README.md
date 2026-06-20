@@ -38,6 +38,7 @@ This directory preserves the design evidence, clean-room overlays, and promotion
 | `connect-device-containment-2026-06-18.md` | active containment record | Transactional integration-policy updates, metadata-only connector provisioning, uninstall credential rotation, and tenant-safe route drift guards. |
 | `tenant-containment-readiness-2026-06-18.md` | active containment readiness record | Readiness evidence for tenant-safe hybrid local, governed API-provider, and managed runtime boundaries. |
 | `support-ticket-sla-stale-status-2026-06-18.md` | active correction record | Prevents open tickets without due dates from preserving stale breached or warning SLA state. |
+| `github-branch-cleanup-sweep-2026-06-20.md` | active repository automation record | Bounded dry-run/apply branch cleanup sweep with fingerprint, capability, unique-commit, open-PR, and same-cycle readback guards. |
 | `../growth-intelligence-platform-architecture.md` | active architecture | Defines the first value-producing Tenant/Brand Growth Intelligence workflow and authority boundaries. |
 | `../sequential-plan-orchestration-architecture.md` | active architecture | Defines durable plan compilation, atomic sequential execution, approval stops, checkpoints, and resume behavior. |
 | `../growth-intelligence-operational-runbook.md` | active runbook | Defines baseline, warning/failure response, pilot checks, and recovery evidence. |
