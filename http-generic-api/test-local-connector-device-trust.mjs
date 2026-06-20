@@ -69,8 +69,8 @@ assert(orchestrator.includes('assertLocalConnectorDeviceTrust'), "local connecto
 assert(orchestrator.includes('capabilityKey: `shell:${alias}`'), "shell execution must bind trust to the requested alias");
 assert(orchestrator.includes('capabilityKey: "file:read"'), "file read must require device capability support");
 assert(orchestrator.includes('capabilityKey: "file:write"'), "file write must require device capability support");
-assert(orchestrator.includes('error.code || "local_command_execution_failed"'), "device trust reason codes must survive shell error mapping");
-assert(orchestrator.includes('error.code || "local_file_read_failed"'), "device trust reason codes must survive file read error mapping");
-assert(orchestrator.includes('error.code || "local_file_write_failed"'), "device trust reason codes must survive file write error mapping");
+assert(orchestrator.includes('err.code || "local_command_execution_failed"'), "device trust reason codes must survive shell error mapping");
+assert(orchestrator.includes('err.code || "local_file_read_failed"'), "device trust reason codes must survive file read error mapping");
+assert(orchestrator.includes('err.code || "local_file_write_failed"'), "device trust reason codes must survive file write error mapping");
 
 console.log("local connector device trust matrix passed");
