@@ -345,6 +345,60 @@ function makePool({
 }
 
 {
+  const pool = makePool({
+    withConnection: false,
+    withSkill: true,
+    tenantDedicated: true,
+    credentialSource: "none",
+    authType: "none",
+  });
+  const result = await resolvePlatformPluginExecution({
+    pool,
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    agentId: "agent-1",
+  });
+  assert.equal(result.allowed, true);
+  assert.equal(result.mode, "dispatch_ready");
+  assert.equal(result.credential_resolution.ok, true);
+  assert.equal(result.credential_resolution.requirement, "not_required");
+  assert.equal(result.credential_resolution.resolution_state, "not_required");
+  assert.equal(result.credential_resolution.usability_state, "not_applicable");
+  assert.equal(result.credential_lookup.required, false);
+  assert.equal(result.credential_lookup.attempted, false);
+  assert.equal(result.credential_lookup.reason, "credential_lookup_not_required_by_policy");
+  assert.equal(pool.calls.some((call) => call.sql.includes("FROM user_app_connections")), false);
+}
+
+{
+  const pool = makePool({
+    withConnection: false,
+    withSkill: false,
+    tenantDedicated: true,
+    credentialSource: "none",
+    authType: "none",
+  });
+  const result = await resolvePlatformPluginExecution({
+    pool,
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    agentId: "agent-1",
+  });
+  assert.equal(result.allowed, false);
+  assert(result.reason.includes("skill_not_granted"));
+  assert.equal(result.credential_resolution.ok, true);
+  assert.equal(result.credential_resolution.requirement, "not_required");
+  assert.equal(result.credential_lookup.required, false);
+  assert.equal(result.credential_lookup.attempted, false);
+  assert.equal(pool.calls.some((call) => call.sql.includes("FROM user_app_connections")), false);
+  assert.equal(result.execution.will_execute, false);
+}
+
+{
   const pool = makePool({ withConnection: true, withSkill: true, tenantDedicated: true });
   const result = await resolvePlatformPluginExecution({
     pool,
