@@ -24,7 +24,7 @@ export const ADMIN_BRANCH_RECONCILIATION_SEQUENCE = Object.freeze([
 ]);
 
 const PROTECTED_BRANCHES = new Set(["main", "master", "production", "prod", "staging", "release"]);
-const ALLOWED_BRANCH_PREFIXES = ["gpt/", "chore/", "fix/", "feature/", "docs/", "hotfix/"];
+const ALLOWED_BRANCH_PREFIXES = Object.freeze([...DEFAULT_DISPOSABLE_BRANCH_PREFIXES]);
 const MAX_BRANCH_MERGE_RESOLUTION_FILES = 50;
 
 function encodeRef(ref = "") {
