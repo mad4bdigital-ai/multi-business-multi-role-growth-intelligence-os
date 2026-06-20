@@ -15,6 +15,9 @@ function makePool({
   validationStatus = "validated",
   credentialSource = "user_connection",
   authType = "oauth2",
+  withTargetAuthority = false,
+  targetAuthorityPermission = "read_only",
+  targetAuthorityModes = ["read_only"],
 } = {}) {
   const calls = [];
   return {
