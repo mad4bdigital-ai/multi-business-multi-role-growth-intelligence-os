@@ -111,7 +111,8 @@ function registerTeamRoutes(router,{ prefix,containerType,paramName }) {
           actorUserId:req.containerTeamPrincipal.userId,
           idempotencyKey:req.headers["idempotency-key"],
           ifMatch:req.headers["if-match"],
-          requireIdempotency:false
+          requireIdempotency:false,
+          partial:true
         }
       );
       return res.json(result);
