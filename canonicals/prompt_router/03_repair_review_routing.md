@@ -1113,3 +1113,7 @@ If a governed decision requests any of the above repair families:
 - prompt_router must preserve the repair trigger
 - must not collapse the condition into generic review-only routing
 - and must keep the repair path traceable
+
+## Repository Branch Cleanup Sweep Routing
+
+Repository cleanup intent must route to `github_branch_cleanup_sweep` dry-run by default. The router must preserve page, scan, age, prefix, and delete-limit inputs so the evidence fingerprint is reproducible. Apply routing is valid only when the caller supplies the dry-run base SHA, evidence fingerprint, exact typed confirmation, and capability envelope. A branch-level failure routes to bounded review/reconciliation; it must not route to force deletion, generic provider fallback, or automatic retry.
