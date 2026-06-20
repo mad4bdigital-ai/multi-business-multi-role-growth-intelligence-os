@@ -26,7 +26,7 @@ function makePool({
           app_key: "github",
           display_name: "GitHub",
           description: "Repository automation",
-          auth_type: "oauth2",
+          auth_type: authType,
           mcp_server_info: null,
           docs_url: "https://docs.example/github",
           category: "code",
