@@ -72,7 +72,7 @@ async function main() {
   const pool = createFakePool();
   const result = await runGovernedResponseChunkDurableRecoverySmoke({
     confirm: GOVERNED_RESPONSE_CHUNK_DURABLE_RECOVERY_CONFIRMATION,
-    repeat_count: 24,
+    repeat_count: 40,
     chunk_ttl_minutes: 5,
   }, {
     pool,
