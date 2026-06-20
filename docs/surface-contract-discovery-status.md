@@ -45,7 +45,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 12 | 9 |
-| tools | 2069 | 377 |
+| tools | 2074 | 378 |
 | views | 399 | 161 |
 | policies | 159 | 101 |
 | routes | 569 | 239 |
