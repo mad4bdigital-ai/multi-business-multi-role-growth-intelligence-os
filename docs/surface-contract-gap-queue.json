@@ -1,97 +1,14 @@
 {
   "ok": true,
   "schema_version": "surface-contract-gap-queue-v1",
-  "total_items": 1,
+  "total_items": 0,
   "class_counts": {
     "critical_review": 0,
-    "high_review": 1,
+    "high_review": 0,
     "medium_review": 0,
     "low_review": 0
   },
-  "top_items": [
-    {
-      "migration_file": "1019_sprint69_github_branch_cleanup_sweep.sql",
-      "score": 677,
-      "queue_class": "high_review",
-      "gap_severity": "medium",
-      "documentation_complete": false,
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write"
-      ],
-      "surface_counts": {
-        "plugins": 0,
-        "tools": 11,
-        "views": 0,
-        "policies": 0,
-        "routes": 0
-      },
-      "remediation": [
-        {
-          "action_key": "document_surface_contract",
-          "owner_hint": "docs-agent/human-review",
-          "targets": [
-            "Updating Registry Patch Index.md",
-            "deployment_parity_checklist.md",
-            "docs/ai-docs-agent-governance.md",
-            "docs/auto-docs-agent/README.md",
-            "docs/change-documentation-governance.md"
-          ],
-          "reason": "Migration surfaces are not mentioned in all required documentation targets."
-        },
-        {
-          "action_key": "verify_tool_registry_binding",
-          "owner_hint": "runtime-registry-review",
-          "targets": [
-            "base_and_predelete_sha_readback",
-            "dry_run_fingerprint_capability_typed_confirm_per_branch_delete_guard_absence_readback",
-            "github_list_branches",
-            "github_list_pull_requests",
-            "open_pull_request_guard",
-            "open_pull_requests_blocked",
-            "pre_delete_sha_readback",
-            "ptdb_github_branch_cleanup_sweep_list_branches",
-            "ptdb_github_branch_cleanup_sweep_list_prs",
-            "same_cycle_absence_readback",
-            "virtual_admin_tool"
-          ],
-          "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
-        },
-        {
-          "action_key": "add_explicit_safety_markers",
-          "owner_hint": "safety-contract-review",
-          "targets": [
-            "no_provider_call",
-            "no_credential_payload_read",
-            "no_raw_secrets",
-            "no_external_send",
-            "no_external_write"
-          ],
-          "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
-        }
-      ],
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    }
-  ],
+  "top_items": [],
   "safety": {
     "executes_provider_calls": false,
     "reads_credentials": false,
