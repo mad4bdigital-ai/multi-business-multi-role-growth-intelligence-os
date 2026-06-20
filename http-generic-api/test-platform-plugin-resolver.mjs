@@ -13,6 +13,8 @@ function makePool({
   toolSurface = "admin_platform_tool",
   toolExposureScope = "admin",
   validationStatus = "validated",
+  credentialSource = "user_connection",
+  authType = "oauth2",
 } = {}) {
   const calls = [];
   return {
