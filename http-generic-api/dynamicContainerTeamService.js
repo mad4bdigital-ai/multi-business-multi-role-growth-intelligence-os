@@ -299,8 +299,10 @@ export async function listCoWorkspaces({ principalId, limit = 50, cursor = null 
   return { ok:true,items,page:{ nextCursor:hasMore ? items.at(-1)?.containerId || null : null,hasMore },secretsIncluded:false };
 }
 
-export async function listContainerTeam({ principalId, containerType, containerRef }, dependencies = {}) {
+export async function listContainerTeam({ principalId, containerType, containerRef, limit = 50, cursor = null }, dependencies = {}) {
   const pool = dependencies.pool || getPool();
+  const boundedLimit=Math.max(1,Math.min(100,Number(limit || 50)));
+  const cursorValue=String(cursor || "");
   const container = await resolveAccessibleContainer(pool,{ principalId,containerType,containerRef });
   const effectiveRoleRank = await assertContainerTeamAccess(pool,{ tenantId:container.tenant_id,containerId:container.container_id,principalId },1);
   const [rows] = await pool.query(
@@ -312,16 +314,21 @@ export async function listContainerTeam({ principalId, containerType, containerR
       WHERE a.tenant_id=? AND a.container_id=? AND a.principal_type='user' AND a.status='active'
         AND (a.valid_from IS NULL OR a.valid_from<=UTC_TIMESTAMP())
         AND (a.valid_until IS NULL OR a.valid_until>UTC_TIMESTAMP())
-      ORDER BY rt.authority_rank DESC,u.display_name,a.principal_id,a.created_at`,
-    [container.tenant_id,container.container_id]
+        AND (?='' OR a.assignment_id>?)
+        AND a.assignment_id=(
+          SELECT a2.assignment_id FROM container_role_assignments a2
+           WHERE a2.tenant_id=a.tenant_id AND a2.container_id=a.container_id
+             AND a2.principal_type='user' AND a2.principal_id=a.principal_id AND a2.status='active'
+             AND (a2.valid_from IS NULL OR a2.valid_from<=UTC_TIMESTAMP())
+             AND (a2.valid_until IS NULL OR a2.valid_until>UTC_TIMESTAMP())
+           ORDER BY a2.created_at,a2.assignment_id LIMIT 1
+        )
+      ORDER BY a.assignment_id
+      LIMIT ?`,
+    [container.tenant_id,container.container_id,cursorValue,cursorValue,boundedLimit+1]
   );
-  const members=[];
-  const seen=new Set();
-  for(const row of rows){
-    if(seen.has(row.principal_id)) continue;
-    seen.add(row.principal_id);
-    members.push(publicTeamMember(row));
-  }
+  const hasMore=rows.length>boundedLimit;
+  const members=rows.slice(0,boundedLimit).map(publicTeamMember);
   return {
     ok:true,
     container:{
@@ -329,7 +336,9 @@ export async function listContainerTeam({ principalId, containerType, containerR
       containerKey:container.container_key,canonicalSubjectRef:container.canonical_subject_ref,displayName:container.display_name
     },
     caller:{ userId:principalId,effectiveRoleRank,canManage:effectiveRoleRank>=3 },
-    members,count:members.length,secretsIncluded:false
+    members,count:members.length,
+    page:{ nextCursor:hasMore ? members.at(-1)?.assignmentId || null : null,hasMore },
+    secretsIncluded:false
   };
 }
 
