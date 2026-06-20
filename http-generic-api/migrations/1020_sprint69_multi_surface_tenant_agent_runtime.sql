@@ -1,0 +1,1 @@
+-- Temporary governed merge-tree content. Reviewed additive migration restored immediately after reconciliation.
