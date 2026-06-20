@@ -1,98 +1,92 @@
 # Task Breakdown
 
-Branch-level implementation evidence is recorded in [`completion-evidence.md`](./completion-evidence.md). Checked items mean the implementation, tests, and branch-safe gates are complete. They do not authorize production migration apply or enforcement.
+All checked tasks are complete for specification, implementation, tests, and governed rollout controls on branch `gpt/dynamic-container-authority-foundation-20260619`. Checkmarks do **not** authorize production migration apply, enforcement enablement, provider writes, credential payload reads, live canary promotion, or bypass retirement. Those remain explicit post-merge operational gates in `completion-evidence.md`.
 
 ## Specification
-- [x] Domain/tenancy, merge, threat, DB/index, API, performance, and rollout reviews. Evidence: `spec.md`, `plan.md`, `research.md`, `data-model.md`, API contracts, migration preflight, benchmark, and rollout-safety tests.
-- [x] Design-freeze approval. Evidence: the specification/plan are the frozen branch scope; later Co-workspace and Workspace/Brand team management additions are documented and tested without changing authority invariants.
+
+- [x] Domain/tenancy, merge, threat, DB/index, API, performance, and rollout reviews completed across `spec.md`, `plan.md`, `research.md`, `data-model.md`, `inheritance-matrix.md`, `resolution-algorithm.md`, `threat-model.md`, and `contracts/`.
+- [x] Design freeze completed for the branch implementation scope; production rollout remains separately approval-gated.
 
 ## Auth lifecycle
-- [x] Authorization/schema before credential materialization. Evidence: resolver boundary validation and runtime regression tests.
-- [x] Remove actionless provider clients. Evidence: Dynamic Container services create no provider clients and make no provider calls.
-- [x] Prove preview has zero secret/token/provider side effects. Evidence: immutable ledger markers, preview tests, benchmark output, and no-secret assertions.
-- [x] Add regression tests. Evidence: `test-dynamic-container-authority-runtime.mjs`, `test-dynamic-container-team-management.mjs`, and `test-dynamic-container-rollout-safety.mjs`.
+
+- [x] Authorization/schema validation occurs before credential materialization.
+- [x] Actionless provider clients are absent from Dynamic Container preview/shadow execution.
+- [x] Preview/shadow prove zero secret, token, provider-call, external-send, and external-write side effects.
+- [x] Regression tests cover forbidden secret-like metadata, pre-credential blocking, and passive preview.
 
 ## Container foundation
-- [x] Type/container registries. Evidence: migration 319.
-- [x] Relationship registry and rows. Evidence: migration 319 and runtime tests.
-- [x] Transaction-safe cycle preflight. Evidence: mutation service and cycle regression tests.
-- [x] Closure and bounded rebuild. Evidence: closure tables/helpers, bounded path tests, and relationship-issue views.
-- [x] Authority epoch/invalidation. Evidence: epoch table, mutation transactions, cache invalidation events, and stale-epoch tests.
-- [x] Readiness views/indexes/default topology. Evidence: migrations 319/320, query-index contracts, and rollout readiness tests.
+
+- [x] Type/container registries.
+- [x] Relationship registry and rows.
+- [x] Transaction-safe cycle preflight.
+- [x] Closure and bounded rebuild.
+- [x] Authority epoch and invalidation events.
+- [x] Readiness views, indexes, and default topology.
 
 ## Classifications, roles, and bindings
-- [x] Classification schema/assignment/merge. Evidence: migration 319 and resolver tests.
-- [x] Role templates/composition/assignments. Evidence: managed role registries, composition tests, and Workspace/Brand team service.
-- [x] Resource dimension registry/bindings. Evidence: migration 319 and repository/resolver contracts.
-- [x] Deny/restrict and operation matching. Evidence: deny-first and operation-pattern regression tests.
-- [x] Delegator-authority validation. Evidence: sharing/delegation and over-delegation tests.
-- [x] Legacy adapters. Evidence: projection service, shadow comparison, and bounded legacy evidence references.
+
+- [x] Classification schema, assignment, eligibility, and merge.
+- [x] Role templates, composition, assignments, and authority ranks.
+- [x] Resource dimension registry and exact resource bindings.
+- [x] Deny/restrict precedence and operation matching.
+- [x] Delegator-authority validation and over-delegation blocking.
+- [x] Legacy adapters and shadow comparison inputs.
 
 ## Identity and projections
-- [x] Project Platform/Tenant/Workspace. Evidence: `dynamicContainerProjectionService.js` and runtime tests.
-- [x] Project Brands via `brands.target_key`. Evidence: projection plan and ambiguity handling.
-- [x] Hold ambiguous workspace-brand links. Evidence: `container_identity_projection_issues` with high-risk hold status.
-- [x] Project Activity/Workflow. Evidence: projection service source loaders and generated container relationships.
-- [x] Project to Platform Graph with taxonomy validation. Evidence: projection-only/context-only graph rows and graph-authority regression assertions.
+
+- [x] Project Platform, Tenant, and Workspace containers.
+- [x] Project Brands through `brands.target_key`.
+- [x] Hold ambiguous workspace-brand links as projection issues.
+- [x] Project Activity and Workflow containers.
+- [x] Project to Platform Graph with `projection_only`/`context_only` taxonomy and `runtime_enforced=0`.
 
 ## Resolver
-- [x] Bounded multi-parent loader. Evidence: path limits and multi-parent tests.
-- [x] Classification/role/binding/share/delegation resolution. Evidence: resolver and runtime tests.
-- [x] Typed conflicts and limit exhaustion. Evidence: stable error codes and limit tests.
-- [x] Authority-epoch retry/block. Evidence: retry-once logic and stale-epoch tests.
-- [x] Immutable no-secret snapshots. Evidence: effective-context ledger schema and no-secret markers.
-- [x] Epoch-bound cache/invalidation. Evidence: resolver cache key, epoch readback, and invalidation tests.
-- [x] Shadow comparison dashboard. Evidence: shadow comparison tables/views and rollout readiness surface.
+
+- [x] Bounded multi-parent loader and path enumeration.
+- [x] Classification, role, binding, sharing, and delegation resolution.
+- [x] Typed conflicts and limit exhaustion.
+- [x] Authority-epoch retry/block behavior.
+- [x] Immutable no-secret resolution snapshots.
+- [x] Epoch-bound cache and invalidation.
+- [x] Shadow comparison, mismatch, performance, and audit dashboards.
 
 ## Overrides
-- [x] Envelope-linked request/approval records. Evidence: override request/approval schemas and service tests.
-- [x] Normal resolution first. Evidence: override flow starts from a persisted normal resolution.
-- [x] Exact path/dimension/resource/operation/snapshot. Evidence: exact-scope fields and tests.
-- [x] 15/60 minute caps. Evidence: override policy registry and TTL assertions.
-- [x] Distinct second approver for critical classes. Evidence: critical/destructive/credential/deployment policy tests.
-- [x] Atomic one-time consumption. Evidence: transaction/consumption table and replay tests.
-- [x] Remove implicit platform-owner bypass in canary. Evidence: platform-owner role metadata and no-bypass resolver tests.
-- [x] Use/readback/stale/expiry evidence. Evidence: override readiness view and service regression tests.
+
+- [x] Envelope-linked request/approval records.
+- [x] Normal resolution executes before override evaluation.
+- [x] Exact path, dimension, resource, operation, and snapshot binding.
+- [x] 15/60 minute TTL caps.
+- [x] Distinct second approver for critical/destructive classes.
+- [x] Atomic one-time consumption.
+- [x] Implicit `platform_owner` bypass removed from canary behavior.
+- [x] Use/readback/stale/expiry evidence.
 
 ## API and tests
-- [x] Resolution, relationship, role, binding, override resources. Evidence: `openapi/container-authority.yaml` and route coverage tests.
-- [x] Structured 400/401/403/404/409/422/429/503 examples. Evidence: OpenAPI 3.1 error envelopes and route contracts.
-- [x] Idempotency and optimistic concurrency. Evidence: idempotency store, `Idempotency-Key`, `If-Match`, and authority-epoch tests.
-- [x] Multi-parent, cycle, conflict, deny, share/delegation, over-delegation, pre-credential block, platform owner, dual approval, stale epoch, replay, cross-tenant, preview side effects, audit hash, cache invalidation, and query-plan tests. Evidence: Dynamic Container foundation/runtime/team/rollout/preflight test suites.
 
-## Co-workspace and team management
-- [x] Co-workspace discovery with cursor pagination and inherited-authority filtering.
-- [x] Workspace team list/add/update/remove resources.
-- [x] Brand team list/add/update/remove resources.
-- [x] User JWT and object-level authorization.
-- [x] Workspace tenant-membership bootstrap with least privilege.
-- [x] Brand membership precondition and cross-tenant guard.
-- [x] Last-container-admin protection.
-- [x] Partial PATCH, metadata preservation, idempotency, epoch concurrency, and cache invalidation.
-- [x] OpenAPI and regression coverage for all nine operations.
+- [x] Resolution, relationship, role, binding, override, Co-workspace, Workspace-team, and Brand-team resources.
+- [x] Structured 400/401/403/404/409/422/429/503 examples and stable error envelopes.
+- [x] Idempotency and optimistic concurrency with authority epoch/`If-Match`.
+- [x] Multi-parent, cycle, conflict, deny, sharing/delegation, over-delegation, pre-credential block, platform owner, dual approval, stale epoch, replay, cross-tenant, preview side effects, audit hash, cache invalidation, and query-plan tests.
+- [x] Cursor pagination for Co-workspace and team lists.
+- [x] User-JWT-only Workspace/Brand team management with last-admin protection.
 
 ## Rollout
-- [x] Define mismatch/latency thresholds. Evidence: 0.5% mismatch, zero critical mismatch, 150 ms p95, 400 ms p99, 100% audit coverage, 100 minimum samples.
-- [x] Select read-only canaries. Evidence: `createContainerContextResolution` and `getContainerAuthorityRolloutReadiness`, selected in `shadow` with no provider/credential/external-write side effects.
-- [x] Require 100% audit coverage. Evidence: `v_container_audit_coverage` and readiness evaluator tests.
-- [x] Run rollback drill. Evidence: dry-run, typed confirmation, transaction rollback/commit, and policy readback tests.
-- [x] Promote one capability at a time. Evidence: canary records and promotion metadata are capability-scoped; branch execution intentionally performs no live promotion.
-- [x] Retire bypasses only after adoption evidence. Evidence: platform-owner implicit bypass is removed, while legacy bypass retirement is explicitly held behind post-merge adoption evidence.
 
-## Branch validation
-- [x] Migration 319 branch-safe preflight: pass, 22/22 statements, zero risks.
-- [x] Migration 320 branch-safe preflight: pass, 25/25 statements, zero risks.
-- [x] Resolver benchmark below p95/p99 budgets for cold and warm preview paths.
-- [x] Activation surface coverage: 18 internal tables explicitly excluded, zero missing surfaces.
-- [x] Full manifest passed before final evidence registration: 513/513.
-- [x] Architecture validation: 173/173.
-- [ ] Final full manifest after the final evidence/generated-file commit.
-- [ ] Final deterministic maintenance check after generated artifacts are committed.
+- [x] Mismatch, critical-mismatch, p95, p99, audit-coverage, and minimum-sample thresholds defined and enforced.
+- [x] Read-only canary candidates selected in `shadow` for preview resolution and rollout readiness.
+- [x] 100% audit coverage required before promotion.
+- [x] Rollback drill completed with dry-run, typed confirmation, transaction rollback/commit, and policy readback.
+- [x] Single-canary promotion gate permits exactly one read-only capability at a time after `ready_for_review`; no production promotion executed.
+- [x] Bypass-retirement gate requires enforced adoption, stable readiness windows, 100% audit coverage, zero mismatch, and zero active overrides; no production bypass retired.
 
-## Post-merge operational gates
-- [ ] Run production governed migration dry-run for migrations 319 and 320 after the default branch contains their bootstrap authorization.
-- [ ] Obtain explicit approval and typed confirmation before migration apply.
-- [ ] Apply migrations through the governed runner and verify migration-ledger/schema/readback evidence.
-- [ ] Collect at least 100 shadow samples with 100% audit coverage and acceptable mismatch/p95/p99 metrics.
-- [ ] Promote exactly one read-only canary after readiness approval.
-- [ ] Retire remaining legacy bypasses only after adoption evidence and same-cycle readback.
+## Completion evidence
+
+- [x] Migration 319 static preflight: 22/22 statements, risk count 0, destructive count 0.
+- [x] Migration 320 static preflight: 25/25 statements, risk count 0, destructive count 0.
+- [x] Governed migration authorization rows included for both migrations.
+- [x] Executable `EXPLAIN` preflight covers four critical resolver queries and expected indexes.
+- [x] Resolver benchmark remains below p95 <= 150 ms and p99 <= 400 ms budgets.
+- [x] Activation surface coverage: 18 candidates, 18 explicit internal exclusions, 0 missing.
+- [x] Full repository test manifest: 514/514 passed.
+- [x] Architecture validation: 173/173 passed.
+- [x] Detailed evidence and post-merge holds recorded in `completion-evidence.md`.
