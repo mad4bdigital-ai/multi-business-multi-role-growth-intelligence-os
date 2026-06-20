@@ -289,6 +289,13 @@ schemas:
         type: array
         items: { $ref: '#/schemas/ContainerTeamMember' }
       count: { type: integer, minimum: 0 }
+      page:
+        type: object
+        additionalProperties: false
+        required: [nextCursor, hasMore]
+        properties:
+          nextCursor: { type: [string, 'null'] }
+          hasMore: { type: boolean }
       secretsIncluded: { type: boolean, const: false }
 
   ContainerTeamMemberSetRequest:
