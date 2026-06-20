@@ -222,6 +222,21 @@ export function buildTenantPlatformPluginRoutes() {
         });
       }
 
+      const authoritySnapshot = buildTenantCredentialIntakeAuthoritySnapshot({
+        userId: req.auth.user_id,
+        tenantId: req.auth.tenant_id,
+        tenantRole: req.auth.tenant_role,
+        appKey: policy.app_key,
+        authType: policy.auth_type,
+        sourceMode: policy.source_mode,
+        fallbackAllowed: policy.fallback_allowed,
+        requiredForDeviceInstall: policy.required_for_device_install,
+        membershipStatus: "active",
+        tenantStatus: "active",
+        policyStatus: policy.policy_status,
+        appStatus: policy.app_status,
+      });
+
       const result = await createCredentialIntakeSessionRecord({
         request: req,
         userId: req.auth.user_id,
