@@ -703,6 +703,7 @@ export async function resolvePlatformPluginExecution({
   if (!surfaceExposure.ok) denialReasons.push(surfaceExposure.reason);
   if (!canonicalPolicy.ready) denialReasons.push(canonicalPolicy.reason);
   if (credentialDecisionEvaluated && !credential.ok) denialReasons.push(credential.reason);
+  if (!targetAuthority.ok) denialReasons.push(targetAuthority.reason);
   if (!skill.granted) denialReasons.push(skill.reason);
   if (!smokeCertification.certified) denialReasons.push(smokeCertification.reason);
 
