@@ -1,6 +1,6 @@
 # Hostinger Node.js Auto Deploy
 
-> Repository-only governance note: `.github/workflows/surface-contract-auto-remediation.yml` does not deploy, restart, or synchronize any Hostinger app. It only opens reviewable documentation/generated-evidence PRs within an explicit path allowlist. Changed paths are parsed with NUL delimiters so filenames containing spaces are evaluated exactly and cannot bypass or falsely fail the allowlist. A merged remediation PR does not satisfy deployment verification; production still requires Hostinger Git deployment followed by `/health`, `/version`, and commit-parity readback.
+> Repository-only governance note: `.github/workflows/surface-contract-auto-remediation.yml` does not deploy, restart, or synchronize any Hostinger app. It only opens reviewable documentation/generated-evidence PRs within an explicit path allowlist. Changed paths are parsed with NUL delimiters so filenames containing spaces are evaluated exactly and cannot bypass or falsely fail the allowlist. When repository Auto Merge is disabled or unavailable, the workflow emits a warning and leaves the PR open; it must not fail the completed remediation or fall back to a direct merge. A merged remediation PR does not satisfy deployment verification; production still requires CI, Hostinger Git deployment, `/health`, `/version`, and commit-parity readback.
 
 ## Purpose
 
