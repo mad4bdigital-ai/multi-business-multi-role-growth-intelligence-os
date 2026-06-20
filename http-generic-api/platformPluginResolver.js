@@ -639,6 +639,7 @@ export async function resolvePlatformPluginExecution({
     !selectorRequested ||
     credentialRequirement.requirement === CredentialRequirement.NOT_REQUIRED ||
     !credentialRequirement.scope_allowed ||
+    !credentialLookupRequired ||
     credentialLookupAuthorized
   );
   const credential = !selectorRequested
