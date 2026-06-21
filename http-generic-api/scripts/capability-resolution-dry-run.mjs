@@ -129,6 +129,26 @@ async function loadAppMap(pool, appKey) {
   return rows;
 }
 
+async function loadApplyAuthorizationPolicy(pool, { appKey, capabilityKey, operationIntent, runtimeSurface }) {
+  if (!appKey || !capabilityKey || !runtimeSurface) return null;
+  const [rows] = await pool.query(
+    `SELECT policy_key, app_key, capability_key, operation_intent, runtime_surface, status,
+            allow_external_write, allow_no_credential_binding, requires_ready_for_dispatch,
+            requires_dispatch_allowed, requires_zero_blocking_gaps, requires_audit_evidence,
+            requires_readback, requires_typed_confirmation, requires_same_cycle_dry_run
+       FROM capability_apply_authorization_policy_registry
+      WHERE app_key = ?
+        AND capability_key = ?
+        AND runtime_surface = ?
+        AND status = 'active'
+        AND (operation_intent IS NULL OR operation_intent = '' OR operation_intent = ?)
+      ORDER BY CASE WHEN operation_intent = ? THEN 0 ELSE 1 END, updated_at DESC
+      LIMIT 1`,
+    [appKey, capabilityKey, runtimeSurface, operationIntent || "", operationIntent || ""]
+  );
+  return rows?.[0] || null;
+}
+
 async function loadBrandCore(pool, brandKey) {
   if (!brandKey) return null;
   const [rows] = await pool.query(
