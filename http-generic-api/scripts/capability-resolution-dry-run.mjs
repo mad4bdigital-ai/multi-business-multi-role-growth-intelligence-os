@@ -389,15 +389,11 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
     selected_source: {
       selected_source_tier: sourceTiers.selected_source_tier,
       available_source_tiers: sourceTiers.available_source_tiers,
-      credential_source_candidates: unique([
-        ...appMap.map((row) => row.credential_source).filter(Boolean),
-        ...(platformNoCredentialAllowed ? ["none"] : []),
-      ]),
+      credential_source_candidates: unique(appMap.map((row) => row.credential_source).filter(Boolean)),
       active_connection_count: connections.length,
       active_credential_binding_count: credentialBindings.length,
       runtime_surface_candidates: availableRuntimeSurfaces,
       selected_runtime_surface: args.runtimeSurface || availableRuntimeSurfaces[0] || null,
-      apply_authorization_policy_key: applyAuthorizationPolicy?.policy_key || null,
     },
     authority: {
       status: authority.status,
