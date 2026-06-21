@@ -3376,8 +3376,7 @@ x-tenant-gpt-auth:
     - callTool
     - tenantPlatformPluginCatalog
     - tenantPlatformPluginInstall
-    - tenantPlatformPluginCredentialIntakeSessionCreate
-        - tenantPlatformPluginResolve
+    - tenantPlatformPluginResolve
     - writeSessionTurn
     - endSession
   security_scheme:
@@ -12699,6 +12698,122 @@ paths:
       responses:
         "200": { description: Workspace created, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
 
+  /me/agent-surfaces/catalog:
+    get:
+      tags: [agent-surfaces]
+      security:
+        - backendBearerAuth: []
+      operationId: listAgentSurfaceCatalog
+      summary: List Hermes, OpenClaude, and OpenClaw capabilities and deployment modes
+      responses:
+        "200":
+          description: Agent surface catalog
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "401": { description: User JWT required }
+        "403": { description: Active tenant membership required }
+
+  /me/agent-surfaces:
+    get:
+      tags: [agent-surfaces]
+      security:
+        - backendBearerAuth: []
+      operationId: getTenantAgentSurfaces
+      summary: Read tenant deployments, current-user preferences, and readiness
+      responses:
+        "200":
+          description: Tenant agent surfaces
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "401": { description: User JWT required }
+        "403": { description: Active tenant membership required }
+
+  /me/agent-surfaces/readiness:
+    get:
+      tags: [agent-surfaces]
+      security:
+        - backendBearerAuth: []
+      operationId: getTenantAgentSurfaceReadiness
+      summary: Read platform-managed and dedicated-managed runtime readiness
+      responses:
+        "200":
+          description: Agent surface readiness
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "401": { description: User JWT required }
+        "403": { description: Active tenant membership required }
+
+  /me/agent-surfaces/{surface_key}/preferences:
+    put:
+      tags: [agent-surfaces]
+      security:
+        - backendBearerAuth: []
+      operationId: replaceOwnAgentSurfacePreferences
+      summary: Replace the authenticated user's preferences for one surface
+      parameters:
+        - in: path
+          name: surface_key
+          required: true
+          schema: { type: string, enum: [hermes, openclaude, openclaw] }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                enabled: { type: boolean }
+                approval_mode: { type: string, enum: [always, risk_based, manual] }
+                fallback_policy: { type: string, enum: [none, require_approval, platform_only, dedicated_only] }
+                memory_scope: { type: string, enum: [disabled, local_profile, tenant_private] }
+                max_parallel_agents: { type: integer, minimum: 1, maximum: 12 }
+                default_model: { type: string, maxLength: 191 }
+                channels: { type: array, items: { type: string }, maxItems: 32 }
+                capabilities: { type: object, additionalProperties: { type: boolean } }
+                channel_preferences: { type: object, additionalProperties: true }
+                notification_preferences: { type: object, additionalProperties: true }
+                ui_preferences: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Preferences replaced }
+        "400": { description: Invalid or sensitive preference field }
+        "401": { description: User JWT required }
+        "403": { description: Active tenant membership required }
+
+  /me/agent-surfaces/{surface_key}/deployment:
+    put:
+      tags: [agent-surfaces]
+      security:
+        - backendBearerAuth: []
+      operationId: setTenantAgentSurfaceDeployment
+      summary: Set platform-managed or dedicated-managed deployment for one tenant surface
+      parameters:
+        - in: path
+          name: surface_key
+          required: true
+          schema: { type: string, enum: [hermes, openclaude, openclaw] }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [activation_mode]
+              additionalProperties: false
+              properties:
+                activation_mode: { type: string, enum: [platform_managed, dedicated_managed] }
+                enabled: { type: boolean, default: true }
+                dedicated_target_type: { type: string, enum: [local_device, remote_runtime] }
+                dedicated_target_id: { type: string, maxLength: 191 }
+      responses:
+        "200": { description: Deployment stored with same-cycle readiness readback }
+        "400": { description: Invalid deployment configuration }
+        "401": { description: User JWT required }
+        "403": { description: Tenant owner or admin required }
+
   /me/capabilities:
     get:
       tags: [connected-systems]
@@ -17145,97 +17260,6 @@ paths:
       security:
         - backendBearerAuth: []
 
-  /tenant/platform/plugins/credential-intake-sessions:
-    post:
-      x-openai-isConsequential: true
-      tags: [platform-plugins]
-      operationId: tenantPlatformPluginCredentialIntakeSessionCreate
-      summary: Create a tenant-safe credential intake session
-      description: Creates a short-lived single-use intake URL for a tenant-enabled integration. Identity comes only from the authenticated JWT. Owners/admins only. Unknown fields, credentials, custom schemas, arbitrary metadata, tenant_id, and user_id are rejected.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required: [plugin_key, purpose]
-              properties:
-                plugin_key:
-                  type: string
-                  minLength: 1
-                  maxLength: 180
-                purpose:
-                  type: string
-                  minLength: 1
-                  maxLength: 120
-                display_label:
-                  type: string
-                  maxLength: 120
-                redirect_uri:
-                  type: string
-                  maxLength: 1024
-                  description: Optional same-origin path or exact HTTPS URL registered in the integration credential-intake redirect allowlist.
-                expires_in_minutes:
-                  type: integer
-                  minimum: 5
-                  maximum: 30
-                  default: 30
-            examples:
-              connectRepository:
-                value:
-                  plugin_key: github
-                  purpose: Connect the tenant repository
-                  display_label: Primary GitHub connection
-                  redirect_uri: /settings/integrations?connected=1
-                  expires_in_minutes: 30
-      responses:
-        "201":
-          description: Tenant-bound credential intake session created
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-                required: [ok, session_id, intake_url, expires_at, canonical_capability_id, tenant_facing, admin_tool_invoked, secrets_included]
-                properties:
-                  ok: { type: boolean, enum: [true] }
-                  session_id: { type: string, format: uuid }
-                  intake_url:
-                    type: string
-                    format: uri
-                    description: Opaque short-lived single-use URL. Treat as sensitive and do not log it.
-                  expires_at: { type: string }
-                  app_key: { type: string }
-                  auth_type: { type: string }
-                  field_count: { type: integer, minimum: 0 }
-                  canonical_capability_id: { type: string, enum: [tenant.credential_intake.session.create] }
-                  tenant_facing: { type: boolean, enum: [true] }
-                  admin_tool_invoked: { type: boolean, enum: [false] }
-                  secrets_included: { type: boolean, enum: [false] }
-        "400":
-          description: Invalid request, unknown field, or missing plugin/purpose
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403":
-          description: Active membership, tenant owner/admin role, or tenant plugin policy required
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
-        "409":
-          description: Integration requires OAuth or is not in an intake-compatible state
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
-        "500":
-          description: Credential intake session creation failed
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
-      security:
-        - backendBearerAuth: []
   /tenant/platform/plugins/resolve:
     post:
       x-openai-isConsequential: false
