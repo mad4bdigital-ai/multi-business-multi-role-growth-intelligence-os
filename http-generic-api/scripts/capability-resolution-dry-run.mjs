@@ -228,7 +228,7 @@ async function loadDispatchCertification(pool, keyCandidates = []) {
   return rows;
 }
 
-function deriveSourceTiers({ appMap = [], connections = [], credentialBindings = [], operationRisk = "low", policy = {}, platformNoCredentialAllowed = false }) {
+function deriveSourceTiers({ appMap = [], connections = [], credentialBindings = [], operationRisk = "low", policy = {} }) {
   const credentialSources = unique(appMap.map((row) => row.credential_source).filter(Boolean));
   const sourceTiers = [];
   const hasUserConnection = connections.some((row) => row.status === "active");
