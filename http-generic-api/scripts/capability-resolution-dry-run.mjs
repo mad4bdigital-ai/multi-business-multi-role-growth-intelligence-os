@@ -313,8 +313,8 @@ function authorityStatus({ workspace, grants = [], brandKey, brandCore, activity
   return { passed, missing, status: missing.length ? "incomplete" : "passed" };
 }
 
-export async function runCapabilityResolutionDryRun(args = parseArgs(), dependencies = {}) {
-  const pool = dependencies.pool || getPool();
+export async function runCapabilityResolutionDryRun(args = parseArgs()) {
+  const pool = getPool();
   const policyConfig = await loadRuntimeConfig(pool, POLICY_KEY);
   const sourceTierConfig = await loadRuntimeConfig(pool, SOURCE_TIER_POLICY_KEY);
   const policy = policyConfig?.json || {};
