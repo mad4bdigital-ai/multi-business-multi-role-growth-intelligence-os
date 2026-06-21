@@ -1984,6 +1984,24 @@ function builtInShellAllowlist() {
       timeout_ms: 900000,
       built_in: true
     },
+    migration_authorization_dry_run: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/governed-migration-authorization.mjs", "--dry-run"],
+      display_name: "Governed migration authorization dry-run",
+      allow_extra_args: true,
+      max_extra_args: 8,
+      timeout_ms: 600000,
+      built_in: true
+    },
+    migration_authorization_apply: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/governed-migration-authorization.mjs", "--apply"],
+      display_name: "Governed migration authorization apply",
+      allow_extra_args: true,
+      max_extra_args: 14,
+      timeout_ms: 600000,
+      built_in: true
+    },
     workflow_execution_identity_readback: {
       command: process.execPath,
       args: ["http-generic-api/scripts/workflow-execution-identity-readback.mjs"],
