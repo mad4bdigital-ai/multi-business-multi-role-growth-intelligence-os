@@ -1081,6 +1081,32 @@ async function requireRepoPatchCapabilityEnvelope({ args = {}, ctx = {}, owner =
   };
 }
 
+async function requireRepositoryCloseSupersededPositiveSmokeEnvelope({ args = {}, ctx = {} } = {}) {
+  const expectedMainSha = String(args?.expected_main_sha || "").trim().toLowerCase();
+  const resolved = await resolveCapabilityExecutionEnvelope({
+    pool: getPool(),
+    source: args,
+    acceptedAppKeys: ["github"],
+    acceptedIntents: ["repository_close_superseded_positive_smoke", "repo.pr.close_superseded.smoke", "repo_mutation"],
+    expectedTenantId: ctx?.auth?.tenant_id || PLATFORM_TENANT_ID,
+    expectedUserId: ctx?.auth?.user_id || "",
+    expectedCommitSha: expectedMainSha,
+    requireReadyForDispatch: true,
+    requireDispatchAllowed: true,
+    requireNoBlockingGaps: true,
+    requireNoSecrets: true,
+  });
+  if (!resolved.ok) {
+    throw capabilityEnvelopeError(resolved, "Repository close-superseded positive smoke requires a valid capability resolution envelope bound to expected_main_sha.");
+  }
+  await markCapabilityEnvelopeReferenced({
+    pool: getPool(),
+    envelopeId: resolved.envelope_id,
+    executionRef: `repository_close_superseded_positive_smoke:${expectedMainSha || "unknown"}`,
+  });
+  return { ...resolved, secrets_included: false };
+}
+
 async function requireGithubBranchFastForwardEnvelope({ args = {}, ctx = {} } = {}) {
   const resolved = await resolveCapabilityExecutionEnvelope({
     pool: getPool(),
