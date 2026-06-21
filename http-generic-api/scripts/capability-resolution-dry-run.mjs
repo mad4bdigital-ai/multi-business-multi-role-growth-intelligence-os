@@ -343,8 +343,8 @@ function authorityStatus({ workspace, grants = [], brandKey, brandCore, activity
   return { passed, missing, status: missing.length ? "incomplete" : "passed" };
 }
 
-export async function runCapabilityResolutionDryRun(args = parseArgs()) {
-  const pool = getPool();
+export async function runCapabilityResolutionDryRun(args = parseArgs(), dependencies = {}) {
+  const pool = dependencies.pool || getPool();
   const policyConfig = await loadRuntimeConfig(pool, POLICY_KEY);
   const sourceTierConfig = await loadRuntimeConfig(pool, SOURCE_TIER_POLICY_KEY);
   const policy = policyConfig?.json || {};
@@ -354,12 +354,24 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
   const workspaceType = normalizeKey(args.workspaceType || workspace?.workspace_type || "unknown");
   const brandKey = normalizeKey(args.brandKey || workspace?.linked_brand_key || "");
   const activity = await loadActivity(pool, args.businessActivityType);
-  const app = await loadApp(pool, args.appKey);
-  const appMap = await loadAppMap(pool, args.appKey);
+  const appLookupKey = resolveAppLookupKey(args.appKey);
+  const app = await loadApp(pool, appLookupKey);
+  const appMap = await loadAppMap(pool, appLookupKey);
   const brandCore = await loadBrandCore(pool, brandKey);
   const grants = await loadWorkspaceGrants(pool, { tenantId, userId: args.userId, workspaceId, workspaceKey: workspace?.workspace_key || args.workspaceKey, brandKey, appKey: args.appKey });
-  const connections = await loadConnections(pool, { tenantId, userId: args.userId, appKey: args.appKey });
+  const connections = await loadConnections(pool, { tenantId, userId: args.userId, appKey: appLookupKey });
   const credentialBindings = await loadCredentialBindings(pool, { tenantId, appKey: args.appKey, capabilityKey: args.capabilityKey });
+  const applyAuthorizationPolicy = await loadApplyAuthorizationPolicy(pool, {
+    appKey: args.appKey,
+    capabilityKey: args.capabilityKey,
+    operationIntent: args.operationIntent,
+    runtimeSurface: args.runtimeSurface,
+  });
+  const platformNoCredentialAllowed = Boolean(
+    applyAuthorizationPolicy &&
+    Number(applyAuthorizationPolicy.allow_no_credential_binding || 0) === 1 &&
+    Number(applyAuthorizationPolicy.allow_external_write || 0) === 0
+  );
   const certificationCandidates = unique([
     args.capabilityKey,
     args.runtimeSurface,
