@@ -1288,7 +1288,7 @@ paths:
         - platform-plugins
       operationId: tenantPlatformPluginResolve
       summary: Resolve tenant readiness for a Platform Plugin action/tool
-      description: Checks tenant plugin readiness without executing actions or returning secrets.
+      description: Checks tenant plugin readiness without executing actions or returning secrets. Tenant and user identity come from authentication. Scoped platform-managed credentials require an active target authority binding; foreign or missing targets return public-safe denial evidence with a target hash only.
       requestBody:
         required: true
         content:
@@ -1307,6 +1307,8 @@ paths:
                   type: string
                 agent_id:
                   type: string
+                workspace_id:
+                  type: string
                 requested_credential_scope:
                   type: string
                   enum:
@@ -1315,9 +1317,27 @@ paths:
                     - platform_managed
                     - device_connector
                     - none
+                target_resource_type:
+                  type: string
+                target_resource_uri:
+                  type: string
+                  description: Canonical target reference used only for authority lookup; it is not echoed in the response.
+                target_mode:
+                  type: string
+                  default: read_only
+                  enum:
+                    - read_only
+                    - diagnostic
+                    - comment
+                    - label
+                    - close
+                    - patch
+                    - merge
+                    - apply
+                    - admin
       responses:
         "200":
-          description: Tenant-scoped plugin readiness result
+          description: Tenant-scoped plugin readiness result. Denials are returned as read-only decision evidence.
           content:
             application/json:
               schema:
@@ -1330,14 +1350,279 @@ paths:
                     type: boolean
                   reason:
                     type: string
+                  credential_resolution:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      denial_code:
+                        type: string
+                  target_authorization:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      ok:
+                        type: boolean
+                      required:
+                        type: boolean
+                      state:
+                        type: string
+                        enum: [pass, deny, not_applicable]
+                      reason:
+                        type: string
+                      denial_code:
+                        type: string
+                      target_resource_type:
+                        type: string
+                        nullable: true
+                      target_reference_hash:
+                        type: string
+                        nullable: true
+                        pattern: '^[a-f0-9]{64}  /gpt/sessions/{id}/turn:
+    post:
+      tags:
+        - session-archive
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      operationId: writeSessionTurn
+      x-openai-isConsequential: false
+      summary: Append one turn to a customer_sessions archive
+      description: Append one conversation turn to the active customer_sessions row. Writes the full content to the Drive transcript Doc and JSONL sidecar, and stores a bounded preview, sha256 hash, and Drive anchor in gpt_session_turns. Registered as the admin tool gpt_session_turn_write.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: session_id returned by getActivationSessionContext.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - role
+                - content
+              properties:
+                role:
+                  type: string
+                  enum:
+                    - user
+                    - assistant
+                    - tool
+                content:
+                  type: string
+                action_key:
+                  type: string
+      responses:
+        "200":
+          description: Turn write result with Drive anchor and archive status
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required:
+                  - ok
+                  - session_id
+                  - turn_index
+                  - turn_id
+                  - archive_status
+                properties:
+                  ok:
+                    type: boolean
+                  session_id:
+                    type: string
+                  turn_index:
+                    type: integer
+                  turn_id:
+                    type: string
+                  drive_doc_id:
+                    type: string
+                  drive_anchor:
+                    type: string
+                  archive_status:
+                    type: string
+        "400":
+          description: Missing role/content or invalid role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Session belongs to a different user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Cannot add turns to a closed session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Turn write failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /gpt/sessions/{id}/end:
+    post:
+      tags:
+        - session-archive
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      operationId: endSession
+      x-openai-isConsequential: false
+      summary: Close a customer_sessions archive
+      description: Close the active customer_sessions row. Optionally writes a session_summaries row, finalizes the Drive transcript through closeGptSessionArchive, and triggers the exportSessionToDrive pipeline so drive_export_url is populated for activation readback. Registered as the admin tool gpt_session_end.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: session_id returned by getActivationSessionContext.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                summary:
+                  type: string
+                user_email:
+                  type: string
+      responses:
+        "200":
+          description: Session close result with archive and Drive export pointers
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required:
+                  - ok
+                  - session_id
+                properties:
+                  ok:
+                    type: boolean
+                  session_id:
+                    type: string
+                  archive:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  drive_export:
+                    oneOf:
+                      - type: object
+                        additionalProperties: true
+                        properties:
+                          drive_file_id:
+                            type: string
+                          drive_web_url:
+                            type: string
+                      - type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Session belongs to a different user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Session is already closed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Session end failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+x-gpt-action-auth-preset:
+  authentication_type: OAuth
+  schema_url: https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml
+  client_id: mad4b-tenant-gpt
+  client_secret: <resolved-from-governed-platform-secret>
+  client_secret_ref: platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET
+  client_secret_config_key: tenant_gpt.oauth.client
+  authorization_url: https://auth.mad4b.com/auth/oauth/authorize
+  token_url: https://auth.mad4b.com/auth/oauth/token
+  token_exchange_method: Default (POST request)
+  callback_urls_to_allow:
+    - https://chat.openai.com/aip/g-d36db295032b9022dd77233041763f513e8ba5fa/oauth/callback
+    - https://chat.openai.com/aip/{g-GPT-ID}/oauth/callback
+    - https://chatgpt.com/aip/{g-GPT-ID}/oauth/callback
+  scope_links:
+    - https://auth.mad4b.com/scopes/tenant.links
+    - https://auth.mad4b.com/scopes/tenant.status
+    - https://auth.mad4b.com/scopes/tenant.activation
+    - https://auth.mad4b.com/scopes/tenant.install
+    - https://auth.mad4b.com/scopes/tenant.system-tools
+
+                      requested_mode:
+                        type: string
+                        nullable: true
+                      authority_binding_present:
+                        type: boolean
+                      lookup_attempted:
+                        type: boolean
+                      authority_source:
+                        type: string
+                        nullable: true
+                      permission_level:
+                        type: string
+                        nullable: true
+                      secrets_included:
+                        type: boolean
+                        enum:
+                          - false
                   tenant_facing:
                     type: boolean
                   secrets_included:
                     type: boolean
                     enum:
                       - false
+        "400":
+          description: Invalid resolver or target-mode input.
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Tenant, surface, skill, credential scope, or target authority denied.
+        "503":
+          description: Policy or target-authority store unavailable; resolution fails closed.
       security:
         - userBearerAuth:
             - https://auth.mad4b.com/scopes/tenant.links
