@@ -223,12 +223,27 @@ export async function deleteGithubBranchRef(options = {}) {
     token,
     fetchImpl: options.fetchImpl,
   });
-  const readback = await githubLifecycleRequest({ owner, repo, apiPath: refPath, token, fetchImpl: options.fetchImpl, allowNotFound: true });
-  if (readback.status !== 404) {
-    throw lifecycleError(502, "github_branch_delete_readback_failed", "GitHub branch delete returned success but the ref still exists on readback.", {
+  const readbackAttempts = Math.max(1, Math.min(5, Math.trunc(Number(options.branch_delete_readback_attempts ?? DEFAULT_BRANCH_DELETE_READBACK_ATTEMPTS)) || DEFAULT_BRANCH_DELETE_READBACK_ATTEMPTS));
+  const readbackDelayMs = Math.max(0, Math.min(2000, Math.trunc(Number(options.branch_delete_readback_delay_ms ?? DEFAULT_BRANCH_DELETE_READBACK_DELAY_MS)) || 0));
+  const sleepImpl = typeof options.sleep_impl === "function"
+    ? options.sleep_impl
+    : (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs));
+  let readback = null;
+  let readbackAttempt = 0;
+  for (let attempt = 1; attempt <= readbackAttempts; attempt += 1) {
+    readbackAttempt = attempt;
+    readback = await githubLifecycleRequest({ owner, repo, apiPath: refPath, token, fetchImpl: options.fetchImpl, allowNotFound: true });
+    if (readback.status === 404) break;
+    if (attempt < readbackAttempts && readbackDelayMs > 0) await sleepImpl(readbackDelayMs * attempt);
+  }
+  if (readback?.status !== 404) {
+    throw lifecycleError(502, "github_branch_delete_readback_failed", "GitHub branch delete returned success but the ref still exists after bounded readback retries.", {
       branch,
       expected_head_sha: expectedHeadSha,
-      readback_status: readback.status,
+      readback_status: readback?.status || null,
+      readback_attempts: readbackAttempt,
+      max_readback_attempts: readbackAttempts,
+      readback_delay_ms: readbackDelayMs,
     });
   }
   return {
