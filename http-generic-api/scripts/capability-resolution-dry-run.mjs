@@ -476,6 +476,7 @@ export async function runCapabilityResolutionDryRun(args = parseArgs(), dependen
     explain: args.explain ? {
       notes: [
         "This is a dry-run envelope only; no tool/app/runtime was executed.",
+        "An active apply policy may select platform_managed_fallback without credentials only when allow_no_credential_binding=true and allow_external_write=false.",
         "Workspace_type values are read from the current workspace_registry enum; extended archetypes are policy-level context until a separate schema migration is approved.",
         "No credential values are read or returned; only counts and metadata are exposed.",
       ],
