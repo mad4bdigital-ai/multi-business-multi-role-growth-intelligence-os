@@ -1604,6 +1604,30 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     };
   }
 
+  if (callerType === "admin" && toolKey === "governed_migration_authorization_bootstrap") {
+    try {
+      const result = await bootstrapGovernedMigrationAuthorization(args || {}, {
+        pool: getPool(),
+        auth: req?.auth || {},
+      });
+      return {
+        status: result.authorization_created ? 201 : 200,
+        body: { ok: true, name: toolKey, result },
+      };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "governed_migration_authorization_bootstrap_failed",
+            message: err?.message || "Governed migration authorization bootstrap failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
   if (callerType === "admin" && toolKey === "github_pr_ci_gate") {
     try {
       const result = await getGithubPullRequestCiGate(args || {});
