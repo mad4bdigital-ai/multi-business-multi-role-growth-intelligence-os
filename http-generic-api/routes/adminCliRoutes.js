@@ -46,6 +46,7 @@ const DRY_RUN_ONLY_SHELL_ALIASES = new Set([
   "database_lifecycle_scheduler_approval_proof_dry_run",
   "database_lifecycle_scheduler_snapshot_dry_run",
   "migration_reconciliation_dry_run",
+  "migration_authorization_dry_run",
 ]);
 const APPLY_ONLY_SHELL_ALIASES = new Set([
   "session_archive_relink_repair_apply",
@@ -55,6 +56,7 @@ const APPLY_ONLY_SHELL_ALIASES = new Set([
   "database_lifecycle_scheduler_approval_proof_apply",
   "database_lifecycle_scheduler_snapshot_apply",
   "migration_reconciliation_apply",
+  "migration_authorization_apply",
   "governed_platform_automation_tick",
 ]);
 function isSafeLocalProjectPathArg(arg = "") {
