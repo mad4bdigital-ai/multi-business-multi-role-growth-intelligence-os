@@ -339,14 +339,7 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
   ]);
   const certifications = await loadDispatchCertification(pool, certificationCandidates);
   const risk = riskForOperation(args.operationIntent);
-  const sourceTiers = deriveSourceTiers({
-    appMap,
-    connections,
-    credentialBindings,
-    operationRisk: risk,
-    policy,
-    platformNoCredentialAllowed,
-  });
+  const sourceTiers = deriveSourceTiers({ appMap, connections, credentialBindings, operationRisk: risk, policy });
   const authority = authorityStatus({ workspace, grants, brandKey, brandCore, activity, risk, certifications, sourceTiers });
   const availableRuntimeSurfaces = unique([
     ...appMap.map((row) => row.runtime_capability_class).filter(Boolean),
