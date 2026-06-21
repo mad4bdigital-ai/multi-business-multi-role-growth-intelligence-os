@@ -3,6 +3,9 @@ import { getPool } from "../db.js";
 
 const POLICY_KEY = "dynamic_capability_resolution_policy_v1";
 const SOURCE_TIER_POLICY_KEY = "dynamic_capability_source_tiers_v1";
+const APP_KEY_LOOKUP_ALIASES = Object.freeze({
+  mysql: "remote_mysql_database",
+});
 
 function parseArgs(argv = process.argv.slice(2)) {
   const args = {
