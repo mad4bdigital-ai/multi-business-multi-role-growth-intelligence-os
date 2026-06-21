@@ -15,6 +15,8 @@ const DEFAULT_REQUIRED_CHECKS = Object.freeze([
   "Execution Resolver Gate",
   "Unit & Integration Tests",
 ]);
+const DEFAULT_BRANCH_DELETE_READBACK_ATTEMPTS = 3;
+const DEFAULT_BRANCH_DELETE_READBACK_DELAY_MS = 150;
 
 function lifecycleError(status, code, message, details = null) {
   const error = new Error(message);
