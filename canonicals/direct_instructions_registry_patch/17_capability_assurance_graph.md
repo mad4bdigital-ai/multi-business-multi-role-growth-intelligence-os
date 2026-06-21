@@ -20,3 +20,13 @@ Capability source claims require resolved provenance in `platform_capability_sou
 `platform_capability_assurance_reconcile` must remain dry-run unless a fresh ready capability envelope explicitly authorizes apply. Reconciliation may update SQL registries and evidence only; it must not call providers or perform external writes.
 
 Never store or return plaintext secrets in assurance evidence. Secret movement evidence is hash-and-reference only through `platform_secret_movement_ledger`.
+
+## Dynamic Container Authority Direct Instructions
+
+Treat container rows as descriptive authority inputs only until the shadow resolver is separately promoted. Do not infer execution authority from container existence, type, classification, ancestry, sharing, or role-template registration alone.
+
+Before accepting a containment edge, validate both containers, tenant equality, active relationship type, allowed parent/child type pairs, child multi-parent support, traversal limits, and direct/transitive cycle absence. Sharing must remain read-only by default. A write requires a later explicit delegation and the normal capability, approval, quota, audit, and readback chain.
+
+Use deterministic merge strategies declared by the dimension or classification registry. `deny_wins` overrides inherited allow; numeric ceilings use `minimum`; additive catalogs may use `union`; compatibility sets may use `intersection`; equal-precedence replacement conflicts block with `container_path_ambiguous`. Limit exhaustion blocks with `container_resolution_limit_exceeded` and must not return a partial allow.
+
+Migration `319_sprint69_dynamic_container_authority_foundation.sql` must remain additive and no-execution. Do not wire `dynamicContainerAuthority.js` into provider dispatch, credential resolution, token minting, or client construction in the foundation phase.

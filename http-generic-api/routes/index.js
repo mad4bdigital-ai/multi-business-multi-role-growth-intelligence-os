@@ -109,6 +109,8 @@ import { buildOperationalConsoleRoutes } from "./operationalConsoleRoutes.js";
 import { buildActivationGuidanceRoutes } from "./activationGuidanceRoutes.js";
 import { buildGrowthIntelligenceRoutes } from "./growthIntelligenceRoutes.js";
 import { buildAgentGovernanceRoutes } from "./agentGovernanceRoutes.js";
+import { buildDynamicContainerAuthorityRoutes } from "./dynamicContainerAuthorityRoutes.js";
+import { buildDynamicContainerTeamRoutes } from "./dynamicContainerTeamRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
@@ -177,6 +179,8 @@ export function registerRoutes(app, deps) {
   app.use(buildTenantPlatformPluginRoutes());
   app.use(buildTenantDocsRoutes());
   app.use(buildTenantLifecycleRoutes());
+  app.use(buildDynamicContainerTeamRoutes());
+  app.use(buildDynamicContainerAuthorityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildWorkspaceResourceRoutes());
   app.use(buildSupportTicketRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAdminWorkspaceAuthorityRoutes({ ...deps, requireAdminPrincipal }));

@@ -1,0 +1,7 @@
+{
+  "surface_key": "container_resource_dimension_registry",
+  "source_table": "container_resource_dimension_registry",
+  "reason": "Excluded because it defines internal resource-dimension policy metadata for authorization evaluation. It does not represent connected or actionable activation state.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

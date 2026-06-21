@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 const registryMigration = readFileSync("migrations/285_sprint68_governed_migration_authorization_registry.sql", "utf8");
 const completionMigration = readFileSync("migrations/286_sprint68_platform_schema_contract_completion_registry.sql", "utf8");
+const containerFoundationMigration = readFileSync("migrations/319_sprint69_dynamic_container_authority_foundation.sql", "utf8");
+const containerRuntimeMigration = readFileSync("migrations/320_sprint69_dynamic_container_authority_runtime_contracts.sql", "utf8");
 
 assert(runner.includes("governed_migration_authorization_registry"), "runner must consult DB-backed migration authorization registry");
 assert(runner.includes("getMigrationAuthorization"), "runner must centralize migration authorization lookup");
@@ -12,6 +14,12 @@ assert(!runner.includes("const ALLOWED_MIGRATIONS"), "runner must not expose har
 assert(runner.includes("legacy_bootstrap_fallback"), "runner must retain a safe bootstrap fallback while registry table is absent");
 assert(runner.includes("migration_not_authorized_in_db_registry"), "runner must fail closed when DB registry exists and migration is missing");
 assert(runner.includes("authorization"), "runner output must include authorization evidence for diagnostics");
+assert(runner.includes("319_sprint69_dynamic_container_authority_foundation.sql"), "container foundation migration must be bootstrap-authorized before its self-authorization row exists");
+assert(runner.includes("320_sprint69_dynamic_container_authority_runtime_contracts.sql"), "container runtime migration must be bootstrap-authorized before its self-authorization row exists");
+assert(containerFoundationMigration.includes("'319_sprint69_dynamic_container_authority_foundation.sql','authorized','migration_seed'"), "container foundation migration must self-authorize future governed reads and apply");
+assert(containerRuntimeMigration.includes("'320_sprint69_dynamic_container_authority_runtime_contracts.sql','authorized','migration_seed'"), "container runtime migration must self-authorize future governed reads and apply");
+assert(!/DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i.test(containerFoundationMigration), "container foundation migration must remain additive");
+assert(!/DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i.test(containerRuntimeMigration), "container runtime migration must remain additive");
 
 assert(registryMigration.includes("CREATE TABLE IF NOT EXISTS governed_migration_authorization_registry"), "migration must create authorization registry idempotently");
 assert(registryMigration.includes("FROM governed_migration_ledger"), "migration must seed existing governed history dynamically from ledger");

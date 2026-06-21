@@ -93,6 +93,8 @@ tags:
     description: Admin-governed AI Intelligence Runtime planning, policy, lifecycle, and decision evidence surfaces.
   - name: connected-execution
     description: DB-backed connected execution session, checkpoint, evidence, and resume-action metadata surfaces.
+  - name: container-authority
+    description: Dynamic multi-parent container authority previews, governed assignments, projections, shadow evidence, and explicit override governance.
 
 components:
   securitySchemes:
@@ -110,6 +112,11 @@ components:
       description: >
         Admin/service Custom GPT-safe backend authentication header. Send
         x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
+    userJwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: User JWT
+      description: Signed user JWT from /auth/login or /auth/google. Backend API keys do not satisfy this scheme.
     localManagerBearerAuth:
       type: http
       scheme: bearer
@@ -3401,6 +3408,42 @@ x-tenant-gpt-auth:
         - https://auth.mad4b.com/scopes/tenant.system-tools
 
 paths:
+  /container-context-resolutions:
+    $ref: './openapi/container-authority.yaml#/containerContextResolutions'
+  /container-context-resolutions/{resolutionId}:
+    $ref: './openapi/container-authority.yaml#/containerContextResolutionById'
+  /container-relationships:
+    $ref: './openapi/container-authority.yaml#/containerRelationships'
+  /container-role-assignments:
+    $ref: './openapi/container-authority.yaml#/containerRoleAssignments'
+  /container-resource-bindings:
+    $ref: './openapi/container-authority.yaml#/containerResourceBindings'
+  /container-overrides:
+    $ref: './openapi/container-authority.yaml#/containerOverrides'
+  /container-overrides/{overrideId}:
+    $ref: './openapi/container-authority.yaml#/containerOverrideById'
+  /container-overrides/{overrideId}/approvals:
+    $ref: './openapi/container-authority.yaml#/containerOverrideApprovals'
+  /container-authority/projections:
+    $ref: './openapi/container-authority.yaml#/containerAuthorityProjections'
+  /container-authority/shadow-summary:
+    $ref: './openapi/container-authority.yaml#/containerAuthorityShadowSummary'
+  /container-authority/rollout-readiness:
+    $ref: './openapi/container-authority.yaml#/containerAuthorityRolloutReadiness'
+  /me/co-workspaces:
+    $ref: './openapi/container-authority.yaml#/coWorkspaces'
+  /me/workspaces/{workspaceId}/team:
+    $ref: './openapi/container-authority.yaml#/workspaceTeam'
+  /me/workspaces/{workspaceId}/team/members:
+    $ref: './openapi/container-authority.yaml#/workspaceTeamMembers'
+  /me/workspaces/{workspaceId}/team/members/{userId}:
+    $ref: './openapi/container-authority.yaml#/workspaceTeamMemberById'
+  /me/brands/{brandRef}/team:
+    $ref: './openapi/container-authority.yaml#/brandTeam'
+  /me/brands/{brandRef}/team/members:
+    $ref: './openapi/container-authority.yaml#/brandTeamMembers'
+  /me/brands/{brandRef}/team/members/{userId}:
+    $ref: './openapi/container-authority.yaml#/brandTeamMemberById'
   /tenant/activation/guidance:
     get:
       tags: [activation-guidance]
