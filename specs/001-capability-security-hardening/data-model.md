@@ -114,6 +114,34 @@ Credential handling is represented as three independent dimensions so credential
 - a connection is usable only when its lifecycle state is active and its validation state is one of the explicitly accepted validated states.
 - scope denial is decided before reading connection rows.
 
+### Platform-managed target authorization
+
+When `credential_source=platform_managed`, scoped execution evaluates a separate target authority decision backed by `platform_resource_authority_bindings`.
+
+| Field | Values / meaning |
+|---|---|
+| `required` | Whether target authority is required for this credential/source/principal combination |
+| `state` | `pass`, `deny`, or `not_applicable` |
+| `reason` | Stable internal decision reason |
+| `denial_code` | Stable machine-readable public denial code or null |
+| `target_resource_type` | Canonical non-secret resource type |
+| `target_reference_hash` | SHA-256 of type + target reference; raw target URI is never echoed |
+| `requested_mode` | `read_only`, `diagnostic`, `comment`, `label`, `close`, `patch`, `merge`, `apply`, or `admin` |
+| `authority_binding_present` | Whether an active scoped binding was found |
+| `lookup_attempted` | Whether `platform_resource_authority_bindings` was queried |
+| `authority_source` | Safe binding provenance or null |
+| `permission_level` | Safe effective permission level or null |
+| `secrets_included` | Always false |
+
+**Invariants:**
+
+- target authority is evaluated only for `platform_managed`; other credential sources return `not_applicable`.
+- tenant/user/workspace scope is included in the authority query and tenant/user identity comes from authenticated context on tenant routes.
+- missing and foreign targets share public-safe denial semantics and never echo the raw target reference.
+- requested mode must be both allowlisted by the binding and permitted by its permission level.
+- authority-store errors fail closed with `CREDENTIAL_TARGET_AUTHORITY_UNAVAILABLE`.
+- audit evidence lists `platform_resource_authority_bindings` only when a lookup occurred.
+
 ## 6. DeviceTrustRecord
 
 | Field | Type |
