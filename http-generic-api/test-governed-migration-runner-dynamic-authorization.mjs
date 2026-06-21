@@ -13,6 +13,21 @@ assert(runner.includes("LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS"), "legacy allowlist
 assert(!runner.includes("const ALLOWED_MIGRATIONS"), "runner must not expose hardcoded ALLOWED_MIGRATIONS as the primary authority");
 assert(runner.includes("legacy_bootstrap_fallback"), "runner must retain a safe bootstrap fallback while registry table is absent");
 assert(runner.includes("migration_not_authorized_in_db_registry"), "runner must fail closed when DB registry exists and migration is missing");
+assert.match(
+  runner,
+  /const SELF_AUTHORIZING_BOOTSTRAP_MIGRATIONS = new Set\(\[\s*"319_sprint69_dynamic_container_authority_foundation\.sql",\s*"320_sprint69_dynamic_container_authority_runtime_contracts\.sql",\s*\]\);/,
+  "missing-row bootstrap authority must remain bounded to migrations 319 and 320"
+);
+assert.match(
+  runner,
+  /if \(!row\) \{[\s\S]*?SELF_AUTHORIZING_BOOTSTRAP_MIGRATIONS\.has\(migration\)[\s\S]*?legacy_bootstrap_missing_row[\s\S]*?bootstrap_required: bootstrapAuthorized/,
+  "missing DB authorization rows must permit only explicit bootstrap migrations and expose bootstrap evidence"
+);
+assert.match(
+  runner,
+  /source: bootstrapAuthorized \? "legacy_bootstrap_missing_row" : "db_registry"/,
+  "non-bootstrap missing rows must remain governed by the DB registry fail-closed path"
+);
 assert(runner.includes("authorization"), "runner output must include authorization evidence for diagnostics");
 assert(runner.includes("319_sprint69_dynamic_container_authority_foundation.sql"), "container foundation migration must be bootstrap-authorized before its self-authorization row exists");
 assert(runner.includes("320_sprint69_dynamic_container_authority_runtime_contracts.sql"), "container runtime migration must be bootstrap-authorized before its self-authorization row exists");
