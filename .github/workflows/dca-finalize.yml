@@ -61,15 +61,17 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
+      - name: Remove temporary workflow before generation
+        run: rm .github/workflows/dca-finalize.yml
+
       - name: Regenerate deterministic maintenance artifacts
         working-directory: http-generic-api
         run: node scripts/repo-maintenance-sync.mjs --write
 
-      - name: Enforce generated-only mutation boundary and remove workflow
+      - name: Enforce generated-only mutation boundary
         shell: bash
         run: |
           set -euo pipefail
-          rm .github/workflows/dca-finalize.yml
           mapfile -t changed < <(git status --porcelain=v1 | sed 's/^...//')
           for file in "${changed[@]}"; do
             case "$file" in
