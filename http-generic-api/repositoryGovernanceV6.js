@@ -599,6 +599,34 @@ export async function reanalyzeMutationItemV6({ repoRef, item, token }) {
   return { analysis, defaultBranch, branchProtection, mainTree };
 }
 
+export function assertCloseSupersededEvidenceV6({ plannedHeadSha = "", analysis = {} } = {}) {
+  const expectedHeadSha = s(plannedHeadSha).toLowerCase();
+  const currentHeadSha = s(analysis.head_sha).toLowerCase();
+  if (!expectedHeadSha || currentHeadSha !== expectedHeadSha) {
+    const err = new Error("PR head SHA changed after the close-superseded evidence was prepared.");
+    err.status = 409;
+    err.code = "repository_mutation_head_sha_changed";
+    err.details = { planned_head_sha: expectedHeadSha || null, current_head_sha: currentHeadSha || null, secrets_included: false };
+    throw err;
+  }
+  if (analysis.classification_v6 !== "superseded_by_main" || analysis.main_equivalence?.exact !== true || analysis.main_equivalence?.complete !== true || Number(analysis.confidence_v6 || 0) < 0.98) {
+    const err = new Error("Close requires complete exact main equivalence and high-confidence superseded classification.");
+    err.status = 409;
+    err.code = "repository_close_superseded_evidence_failed";
+    err.details = { classification: analysis.classification_v6 || null, confidence: Number(analysis.confidence_v6 || 0), exact: analysis.main_equivalence?.exact === true, complete: analysis.main_equivalence?.complete === true, secrets_included: false };
+    throw err;
+  }
+  return {
+    ok: true,
+    head_sha: currentHeadSha,
+    classification: analysis.classification_v6,
+    confidence: Number(analysis.confidence_v6 || 0),
+    exact_main_equivalence: true,
+    complete_equivalence_evidence: true,
+    secrets_included: false,
+  };
+}
+
 function assertSameCycleMutationEvidenceV6(item = {}, current = {}) {
   const analysis = current.analysis || {};
   if (!item.head_sha || analysis.head_sha !== item.head_sha) { const err = new Error("PR head SHA changed after the mutation plan was created."); err.status = 409; err.code = "repository_mutation_head_sha_changed"; err.details = { planned_head_sha: item.head_sha || null, current_head_sha: analysis.head_sha || null }; throw err; }
