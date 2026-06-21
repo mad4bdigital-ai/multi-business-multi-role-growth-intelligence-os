@@ -145,13 +145,34 @@ async function main() {
   assert.equal(second.idempotent, true);
   assert.equal(second.migration_sql_executed, false);
 
+  const dispatchOnly = await bootstrapGovernedMigrationAuthorization(baseInput(), {
+    ...deps,
+    pool: createFakePool(),
+    resolveEnvelope: async () => ({
+      ok: true,
+      envelope_id: ENVELOPE_ID,
+      envelope_status: "ready_for_dispatch",
+      decision: "ready_for_dispatch",
+      dispatch_allowed: true,
+      apply_allowed: false,
+      blocking_gap_count: 0,
+      secrets_included: false,
+    }),
+  });
+  assert.equal(dispatchOnly.authorization_created, true);
+  assert.equal(dispatchOnly.migration_sql_executed, false);
+
   await assert.rejects(
     () => bootstrapGovernedMigrationAuthorization(baseInput(), {
       ...deps,
       pool: createFakePool(),
-      resolveEnvelope: async () => ({ ok: true, envelope_id: ENVELOPE_ID, apply_allowed: false }),
+      resolveEnvelope: async () => ({
+        ok: false,
+        status: "capability_resolution_envelope_not_dispatch_ready",
+        secrets_included: false,
+      }),
     }),
-    (error) => error?.code === "capability_resolution_envelope_apply_not_allowed"
+    (error) => error?.code === "capability_resolution_envelope_not_dispatch_ready"
   );
 
   const routeSource = readFileSync("routes/gptToolsRoutes.js", "utf8");
