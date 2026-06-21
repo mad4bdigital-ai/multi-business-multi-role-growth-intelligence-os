@@ -55,7 +55,6 @@ const APPLY_ONLY_SHELL_ALIASES = new Set([
   "database_lifecycle_scheduler_approval_proof_apply",
   "database_lifecycle_scheduler_snapshot_apply",
   "migration_reconciliation_apply",
-  "migration_authorization_apply",
   "governed_platform_automation_tick",
 ]);
 function isSafeLocalProjectPathArg(arg = "") {
