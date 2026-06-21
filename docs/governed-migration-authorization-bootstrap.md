@@ -11,7 +11,7 @@ The Admin virtual tool `governed_migration_authorization_bootstrap` closes that 
 The tool:
 
 - is Admin-only;
-- requires a ready Capability Resolution Envelope with a migration-authorization operation intent and `apply_allowed=true`;
+- requires a specifically scoped Capability Resolution Envelope that is approved, unexpired, secret-free, `ready_for_dispatch`, dispatchable, and has zero blocking gaps; `apply_allowed` is not required because this tool records authorization evidence only and never executes migration SQL;
 - requires the exact migration filename, SHA-256 checksum, statement count, merged PR number, merge commit SHA, and typed confirmation;
 - reads only a repository migration file under `http-generic-api/migrations`;
 - requires the normal migration preflight to pass with zero risk findings;
