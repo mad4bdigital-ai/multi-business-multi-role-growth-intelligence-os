@@ -62,6 +62,11 @@ function normalizeKey(value = "") {
   return String(value || "").trim();
 }
 
+function resolveAppLookupKey(value = "") {
+  const key = normalizeKey(value);
+  return APP_KEY_LOOKUP_ALIASES[key] || key;
+}
+
 function unique(values = []) {
   return [...new Set(values.filter(Boolean))];
 }
