@@ -11,6 +11,14 @@
 | 403 | `SKILL_NOT_GRANTED` | Required skill is not granted |
 | 403 | `RESOURCE_NOT_AUTHORIZED` | Caller lacks object-level access |
 | 403 | `CREDENTIAL_SCOPE_MISMATCH` | Credential binding does not authorize target scope |
+| 403 | `CREDENTIAL_TARGET_AUTHORITY_REQUIRED` | Scoped platform-managed execution requires an explicit target authority binding |
+| 403 | `CREDENTIAL_TARGET_NOT_AUTHORIZED` | No active authority binding permits the requested target; public output does not reveal foreign target existence |
+| 403 | `CREDENTIAL_TARGET_MODE_NOT_ALLOWED` | The authority binding does not permit the requested operation mode |
+| 400 | `CREDENTIAL_TARGET_MODE_INVALID` | Requested target mode is outside the registered mode enum |
+| 409 | `CREDENTIAL_NOT_USABLE` | A resolved credential exists but is not active and validated for execution |
+| 409 | `CREDENTIAL_REQUIRED` | Policy requires a credential but no usable source resolved |
+| 409 | `DEDICATED_CONNECTION_REQUIRED` | Dedicated tenant policy forbids platform fallback and no usable dedicated connection resolved |
+| 503 | `CREDENTIAL_TARGET_AUTHORITY_UNAVAILABLE` | Target authority storage is unavailable; execution fails closed |
 | 403 | `LOCAL_CONSENT_REQUIRED` | Local approval is required and absent |
 | 403 | `APPROVAL_REQUIRED` | Required approval is absent |
 | 404 | `CAPABILITY_NOT_FOUND` | Selector cannot be resolved |
