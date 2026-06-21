@@ -3,6 +3,7 @@ import fs from "node:fs";
 
 import {
   TENANT_REPOSITORY_GOVERNANCE_V6_SYSTEM_TOOLS,
+  buildCloseSupersededWriteV6,
   buildRepositoryMutationPlanV6,
   resolveRepositoryPrincipalScopeV6,
 } from "./repositoryGovernanceV6.js";
@@ -106,6 +107,28 @@ assert.equal(plan.items.every((item) => item.requires_same_cycle_readback), true
 assert.equal(plan.items.every((item) => /^[a-f0-9]{64}$/.test(item.evidence_sha256)), true);
 assert.equal(plan.apply_allowed, false);
 assert.equal(plan.mutations_executed, false);
+
+const closeWrite = buildCloseSupersededWriteV6({
+  owner: "example-owner",
+  repo: "example-repo",
+  prNumber: 17,
+  headSha: "A".repeat(40),
+});
+assert.deepEqual(closeWrite, {
+  method: "PATCH",
+  path: "/repos/example-owner/example-repo/pulls/17",
+  body: { state: "closed" },
+  expected_readback: { state: "closed", head_sha: "a".repeat(40) },
+  secrets_included: false,
+});
+assert.throws(
+  () => buildCloseSupersededWriteV6({ owner: "invalid/owner", repo: "repo", prNumber: 17, headSha: "a".repeat(40) }),
+  (error) => error?.code === "repository_close_superseded_write_invalid"
+);
+assert.throws(
+  () => buildCloseSupersededWriteV6({ owner: "owner", repo: "repo", prNumber: 17, headSha: "not-a-sha" }),
+  (error) => error?.code === "repository_close_superseded_write_invalid"
+);
 
 const toolNames = TENANT_REPOSITORY_GOVERNANCE_V6_SYSTEM_TOOLS.map((tool) => tool.name);
 assert.deepEqual(toolNames, [
