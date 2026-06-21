@@ -400,7 +400,7 @@ export async function runCapabilityResolutionDryRun(args = parseArgs(), dependen
   if (!tenantId) blockingGaps.push("tenant_id_missing");
   if (!args.userId) blockingGaps.push("user_id_missing");
   if (!args.appKey && !args.capabilityKey) blockingGaps.push("app_key_or_capability_key_required");
-  if (!connections.length && !credentialBindings.length && !appMap.some((row) => row.credential_source === "platform_managed" || row.credential_source === "none")) blockingGaps.push("no_active_connection_or_credential_binding_found");
+  if (!connections.length && !credentialBindings.length && !platformNoCredentialAllowed && !appMap.some((row) => row.credential_source === "platform_managed" || row.credential_source === "none")) blockingGaps.push("no_active_connection_or_credential_binding_found");
   blockingGaps.push(...authority.missing);
 
   const approvalRequired = approvalRequiredForRisk(risk) || sourceTiers.selected_source_tier === "platform_managed_fallback";
