@@ -230,3 +230,11 @@ After changing auth strategy code or rows:
 3. Test one user-scoped endpoint with `allow_platform_fallback=false` and no user connection; it must return 403, not silently use platform credentials.
 4. Test a real user connection once an OAuth/API-key intake flow is available.
 5. Confirm `platform_endpoint_tool_exports.input_schema_json` exposes the auth selector fields for exported external tools.
+
+## Migration authorization is not credential fallback
+
+The governed migration runner does not use the external endpoint credential fallback chain. `platform_managed_fallback`, OAuth resolution, API-key lookup, connector dispatch, and credential materialization are outside the migration execution path.
+
+Migration authorization is determined by `governed_migration_authorization_registry`. A missing row normally fails closed. The only missing-row bootstrap allowance is the exact pair `319_sprint69_dynamic_container_authority_foundation.sql` and `320_sprint69_dynamic_container_authority_runtime_contracts.sql`, because those files seed their own authorization rows. The runner must expose that first-pass decision as `source=legacy_bootstrap_missing_row` and `bootstrap_required=true`.
+
+Once a row exists, its status and `allow_apply` value are authoritative. The bounded bootstrap cannot override disabled, archived, or apply-blocked rows. Static SQL preflight, typed confirmation, migration-ledger recording, and same-cycle schema readback remain mandatory, and no secret or provider credential is read.
