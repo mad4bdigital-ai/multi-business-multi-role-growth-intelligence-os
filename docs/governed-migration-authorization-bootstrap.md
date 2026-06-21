@@ -58,3 +58,24 @@ The bootstrap tool does not:
 - apply SQL;
 - repair failed migrations;
 - replace PR review, CI, or production readback.
+
+## Verified rollout: migration 1020
+
+Migration `1020_sprint69_multi_surface_tenant_agent_runtime.sql` completed its governed rollout on June 21, 2026.
+
+Verified evidence:
+
+- source PR: `#1824`;
+- source merge SHA: `694b01b243a6c4aca18b7eae4d85f93b8826b8f6`;
+- migration SHA-256: `aba1c04c229d1acd4d050df5f76654ca364bd4871039d6794f161f06875432ba`;
+- executable statement count: `8`;
+- preflight: `pass`, with zero risk and zero destructive findings;
+- authorization bootstrap: idempotent same-checksum readback, with no migration SQL execution;
+- governed migration ledger run: `d1d4f240-ac6f-49c0-b0ce-e6ac8ce9838c` in `apply` mode;
+- applied at: `2026-06-21T01:49:31.056Z`;
+- schema readback: `agent_surface_catalog`, `tenant_agent_surface_deployments`, and `user_agent_surface_preferences` present;
+- tenant tool readback: all five required agent-surface tools enabled;
+- production parity run: `7b8f1351-d02c-444a-b373-d43a4ae91c1a`, verified on commit `4260a99841dc9ac039ae799732d5d303a3e9a51f`;
+- release readiness run: `6e4e7b09-30cd-4fa2-bb1e-f5fa48d8f245`, with `70/70` checks passing and zero warnings or failures.
+
+A later reconciliation dry-run returned `no_action` / `already_recorded` because the ledger checksum, schema objects, and authorization row already matched. Re-running authorization or apply is therefore unnecessary unless the migration file checksum changes through a separately reviewed PR.
