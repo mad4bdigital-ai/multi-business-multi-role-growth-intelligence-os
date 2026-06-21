@@ -255,6 +255,7 @@ export async function deleteGithubBranchRef(options = {}) {
     deleted: true,
     already_absent: false,
     verified_absent: true,
+    readback_attempts: readbackAttempt,
     safety_evidence: branchContentEvidence,
     secrets_included: false,
   };
