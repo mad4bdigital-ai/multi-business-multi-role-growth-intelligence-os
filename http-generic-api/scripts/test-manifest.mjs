@@ -128,6 +128,7 @@ export const testCommands = [
   "node test-hostinger-apply-policy-safe-field-names.mjs",
   "node test-governed-repository-intelligence-engine.mjs",
   "node test-repository-governance-v6.mjs",
+  "node test-repository-close-superseded-positive-smoke.mjs",
   "node test-repository-advisory-comments-v5.mjs",
   "node test-live-checkout-cleanup-tool.mjs",
   "node test-github-workflow-dispatch-fallback.mjs",

@@ -237,6 +237,7 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "248_sprint68_github_branch_fast_forward_policy.sql",
   "251_sprint68_github_branch_fast_forward_smoke_policy.sql",
   "1014_sprint69_github_branch_multi_parent_merge_commit_policy.sql",
+  "1022_sprint69_repository_close_superseded_positive_smoke_policy.sql",
   "255_sprint68_live_checkout_cleanup_capability_gate.sql",
   "256_sprint68_dynamic_audit_pipeline_readiness.sql",
   "257_sprint68_agent_runtime_ledger_readiness.sql",
