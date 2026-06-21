@@ -23,5 +23,14 @@ assert(schema.includes("Unknown fields, credentials, custom schemas, arbitrary m
 assert(schema.includes("x-openai-isConsequential: true"), "tenant install and intake writes must be marked consequential");
 assert(schema.includes("Tenant/user IDs come from auth"), "schema must document auth-derived tenant/user context");
 assert(schema.includes("Do not include secrets"), "schema must document no-secret connection metadata");
+assert(schema.includes("target_resource_type"), "tenant resolver must document target resource type");
+assert(schema.includes("target_resource_uri"), "tenant resolver must document target resource URI input");
+assert(schema.includes("target_mode"), "tenant resolver must document target operation mode");
+assert(schema.includes("target_authorization"), "tenant resolver response must document target authority evidence");
+assert(schema.includes("target_reference_hash"), "tenant resolver must document hashed target evidence");
+assert(schema.includes("denial_code"), "tenant resolver must document stable denial codes");
+assert(mainSchema.includes("target_resource_type"), "main resolver must document target resource type");
+assert(mainSchema.includes("target_authorization"), "main resolver response must document target authority evidence");
+assert(mainSchema.includes("target_reference_hash"), "main resolver must document hashed target evidence");
 
 console.log("tenant platform plugin OpenAPI tests passed");
