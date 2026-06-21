@@ -136,12 +136,6 @@ async function resolveBootstrapEnvelope({ pool, input, auth, resolveEnvelope }) 
   if (!resolved?.ok) {
     throw capabilityEnvelopeError(resolved, "Governed migration authorization bootstrap requires a valid capability resolution envelope.");
   }
-  if (!resolved.apply_allowed) {
-    throw capabilityEnvelopeError({
-      ...resolved,
-      status: "capability_resolution_envelope_apply_not_allowed",
-    }, "The capability resolution envelope does not permit authorization registry mutation.");
-  }
   return resolved;
 }
 
