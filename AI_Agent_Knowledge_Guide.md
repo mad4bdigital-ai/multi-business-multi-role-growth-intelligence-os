@@ -1115,3 +1115,11 @@ Migration `1018_sprint69_governed_response_chunk_schema_reconciliation.sql` alig
 `github_branch_cleanup_sweep` replaces repeated branch-by-branch cleanup with one bounded admin-only plan/apply surface. Dry-run is the default. It scans at most three pages and 300 branches, blocks protected/default branches, open pull requests, unique commits, non-governed prefixes, invalid metadata, and branches younger than the configured threshold, then returns a base SHA, evidence fingerprint, and typed confirmation.
 
 Apply must replay the same planning inputs, match `expected_base_sha` and `expected_evidence_fingerprint`, pass a ready GitHub capability envelope, and use the exact typed confirmation returned by dry-run. Every planned candidate is delegated to the existing guarded single-branch deletion contract, including expected-head validation, open-PR guard, zero-unique-commit proof, pre-delete SHA readback, and same-cycle missing-ref readback. The sweep is capped at 25 deletions, stops on the first failure, never force-deletes, and never automatically retries an unknown provider outcome.
+
+### Governed migration self-authorization bootstrap
+
+`governed_migration_authorization_registry` remains the primary migration authorization authority. A present row is always authoritative: `disabled` or `archived` status, or `allow_apply=0`, must block execution even when the migration is known to the codebase.
+
+Migrations `319_sprint69_dynamic_container_authority_foundation.sql` and `320_sprint69_dynamic_container_authority_runtime_contracts.sql` seed their own authorization rows. To avoid a circular first-apply dependency, the runner permits a missing-row bootstrap only for these two exact filenames through `SELF_AUTHORIZING_BOOTSTRAP_MIGRATIONS`. The returned evidence must use `source=legacy_bootstrap_missing_row` and `bootstrap_required=true`. Every other missing row fails closed with `migration_not_authorized_in_db_registry`.
+
+This bootstrap does not bypass preflight, typed confirmation, ledger recording, or same-cycle schema readback. It performs no provider call, credential materialization, or secret read, and it must never be treated as an external-auth platform fallback. After either migration applies, its self-seeded DB row governs all future dry-run and apply decisions.
