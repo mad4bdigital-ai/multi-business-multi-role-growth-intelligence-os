@@ -218,6 +218,8 @@ Agents must not treat migrations `277` through `283` as production target-write 
 
 Governed migrations may be applied only through the authorized runner after a `pass` preflight and typed confirmation. Never bypass a `warn` or `fail` preflight with direct SQL. Re-runnable schema-alignment operations must use `information_schema`-guarded dynamic SQL so already-aligned columns become no-op reads, while missing or incompatible contracts fail closed. Production completion requires migration-ledger evidence, same-cycle schema/view readback, and release readiness.
 
+When a reviewed migration is present in the repository but has no row in `governed_migration_authorization_registry`, use the Admin-only virtual tool `governed_migration_authorization_bootstrap`; do not insert authorization rows with freeform SQL. The tool requires a ready apply-capable Capability Resolution Envelope, exact migration SHA-256, exact statement count, merged PR number and merge SHA, deterministic typed confirmation, zero-risk preflight, and same-cycle readback. It may create only the authorization row and must never execute the migration. Destructive SQL, checksum drift, statement-count drift, post-application authorization, missing approval evidence, and secret-bearing envelopes fail closed. See `docs/governed-migration-authorization-bootstrap.md`.
+
 ### Runtime policy preflight governance
 
 `execution_policies` is the active transitional runtime preflight authority. Agents must treat it as required runtime policy evidence until a target-rule resolver bridge proves parity with `platform_engine_policy_rules`.
