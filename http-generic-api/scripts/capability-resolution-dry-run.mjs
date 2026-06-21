@@ -271,6 +271,7 @@ function deriveSourceTiers({ appMap = [], connections = [], credentialBindings =
   if (credentialSources.includes("target_resolved")) sourceTiers.push("remote_dedicated_runtime");
   if (credentialSources.includes("none")) sourceTiers.push("platform_managed_fallback");
   if (platformBinding || credentialSources.includes("platform_managed")) sourceTiers.push("platform_managed_fallback");
+  if (platformNoCredentialAllowed) sourceTiers.push("platform_managed_fallback");
   if (!sourceTiers.length && hasBinding) sourceTiers.push("tenant_managed");
 
   const configuredOrder = Array.isArray(policy?.source_tier_priority_default) ? policy.source_tier_priority_default : [];
