@@ -197,3 +197,11 @@ No connector is called directly from route handlers or the main server entrypoin
 3. Dispatch is always by `endpoint_key` string — no connector is hard-wired to a route.
 4. Auth credentials are read from environment variables inside the connector, not injected by callers.
 5. Error returns are structured objects with `ok: false, error: { code, message }` — not thrown exceptions, except for configuration errors.
+
+## Governed migration runner authorization boundary
+
+The governed migration runner is an internal database-control surface, not a connector credential fallback. It must consult `governed_migration_authorization_registry` before dry-run or apply and must fail closed for missing authorization rows.
+
+A narrowly bounded exception exists only for migrations `319_sprint69_dynamic_container_authority_foundation.sql` and `320_sprint69_dynamic_container_authority_runtime_contracts.sql`, because each migration creates its own authorization row. When either row is absent, `SELF_AUTHORIZING_BOOTSTRAP_MIGRATIONS` may authorize the first governed pass and must return `source=legacy_bootstrap_missing_row` with `bootstrap_required=true`.
+
+An existing registry row always overrides bootstrap behavior. Disabled or archived rows, and rows with `allow_apply=0`, remain blocking. The runner still requires additive static preflight, exact typed confirmation for apply, ledger recording, and schema-object readback. No provider dispatch, connector credential resolution, raw secret access, or direct route-level SQL bypass is permitted.
