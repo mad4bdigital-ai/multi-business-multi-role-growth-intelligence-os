@@ -9,9 +9,9 @@
 
 ## Phase 0 — Safety containment
 
-- [ ] **T001** Add tenant deny rule for all platform-admin tool surfaces without an explicit tenant-safe canonical binding. `[FR-010, FR-011]`
+- [x] **T001** Add tenant deny rule for all platform-admin tool surfaces without an explicit tenant-safe canonical binding. `[FR-010, FR-011]`
 - [x] **T002** Add boundary validation that rejects requests containing multiple selectors. `[FR-001, FR-002]`
-- [ ] **T003** Disable or route known dual-surface bypass aliases through the stricter policy. `[FR-006, FR-007]`
+- [x] **T003** Disable or route known dual-surface bypass aliases through the stricter policy. `[FR-006, FR-007]`
 - [ ] **T004** Deny all state-changing capabilities without an explicit mutation policy. `[FR-019, FR-021]`
 - [x] **T005** Block provider execution for pending, revoked, expired, and scope-mismatched credentials. `[FR-025, FR-028]`
 - [x] **T006** Disable tenant access to raw admin credential-intake tools. `[FR-029, FR-030]`
@@ -73,10 +73,10 @@
 - [x] **T047** Move credential lookup after authorization and ownership. `[FR-023]`
 - [x] **T048** Ensure `not_required` has no effect on permission gates. `[FR-024]`
 - [x] **T049** Enforce validated usable states for execution. `[FR-025]`
-- [ ] **T050** Enforce target authorization for platform-managed credentials. `[FR-027]`
-- [ ] **T051** Implement stable credential-scope denial reasons. `[FR-028]`
-- [ ] **T052** Add secret-redaction tests. `[FR-026]`
-- [ ] **T053** Add credential acceptance tests. `[D01-D09]`
+- [x] **T050** Enforce target authorization for platform-managed credentials. `[FR-027]`
+- [x] **T051** Implement stable credential-scope denial reasons. `[FR-028]`
+- [x] **T052** Add secret-redaction tests. `[FR-026]`
+- [x] **T053** Add credential acceptance tests. `[D01-D09]`
 
 ## Phase 6 — Secure tenant credential intake
 
