@@ -23,6 +23,26 @@ const MUTATION_ACTIONS = new Set([
 ]);
 
 function s(value = "") { return String(value ?? "").trim(); }
+export function buildCloseSupersededWriteV6({ owner, repo, prNumber, headSha } = {}) {
+  const resolvedOwner = s(owner);
+  const resolvedRepo = s(repo);
+  const resolvedPrNumber = Number(prNumber);
+  const resolvedHeadSha = s(headSha).toLowerCase();
+  const validRepositoryPart = (value) => /^[A-Za-z0-9_.-]+$/.test(value);
+  if (!validRepositoryPart(resolvedOwner) || !validRepositoryPart(resolvedRepo) || !Number.isInteger(resolvedPrNumber) || resolvedPrNumber < 1 || !/^[0-9a-f]{40}$/.test(resolvedHeadSha)) {
+    const err = new Error("Close-superseded write contract requires a valid repository, PR number, and expected head SHA.");
+    err.status = 400;
+    err.code = "repository_close_superseded_write_invalid";
+    throw err;
+  }
+  return {
+    method: "PATCH",
+    path: `/repos/${resolvedOwner}/${resolvedRepo}/pulls/${resolvedPrNumber}`,
+    body: { state: "closed" },
+    expected_readback: { state: "closed", head_sha: resolvedHeadSha },
+    secrets_included: false,
+  };
+}
 function safeJson(value, fallback = {}) { if (value && typeof value === "object") return value; try { return JSON.parse(String(value || "")); } catch { return fallback; } }
 function hash(value) { return createHash("sha256").update(typeof value === "string" ? value : JSON.stringify(value)).digest("hex"); }
 function bounded(value, fallback, min, max) { const n = Number(value); return Number.isFinite(n) ? Math.min(Math.max(Math.trunc(n), min), max) : fallback; }
