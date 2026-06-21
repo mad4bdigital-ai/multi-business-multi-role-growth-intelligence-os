@@ -19,10 +19,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 444
+- Migrations with detected surfaces: 445
 - Migrations reported here: 80
-- OpenAPI operations detected: 481
-- OpenAPI paths detected: 427
+- OpenAPI operations detected: 486
+- OpenAPI paths detected: 432
 - Documentation targets checked:
 - `Updating Registry Patch Index.md`
 - `deployment_parity_checklist.md`
@@ -32,11 +32,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 444/444 (100.00%)
+- Documentation complete migrations: 445/445 (100.00%)
 - Documentation gap migrations: 0
 - Gap severity: high=0, medium=0, low=0
 - SQL route coverage in OpenAPI: 5/5 (100.00%)
-- SQL route-like literals exempted from OpenAPI scoring: 564/569
+- SQL route-like literals exempted from OpenAPI scoring: 569/574
 - SQL routes missing OpenAPI path coverage: 0
 - Migrations without explicit `secrets_included=false` marker: 0
 
@@ -45,10 +45,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 12 | 9 |
-| tools | 2069 | 377 |
-| views | 399 | 161 |
+| tools | 2074 | 378 |
+| views | 401 | 162 |
 | policies | 159 | 101 |
-| routes | 569 | 239 |
+| routes | 574 | 240 |
 
 ### Documentation Target Gaps
 
@@ -64,12 +64,12 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 444 |
-| no_credential_payload_read | 444 |
-| no_raw_secrets | 444 |
-| no_external_send | 444 |
-| no_external_write | 444 |
-| secrets_included_false | 444 |
+| no_provider_call | 445 |
+| no_credential_payload_read | 445 |
+| no_raw_secrets | 445 |
+| no_external_send | 445 |
+| no_external_write | 445 |
+| secrets_included_false | 445 |
 
 ### Route Classification Coverage
 
@@ -77,7 +77,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 |---|---:|
 | http_route | 5 |
 | admin_tool_registry_route | 121 |
-| tenant_tool_registry_route | 35 |
+| tenant_tool_registry_route | 40 |
 | system_tool_dispatch_route | 13 |
 | registry_only_surface | 1 |
 | false_positive_route_like_string | 0 |

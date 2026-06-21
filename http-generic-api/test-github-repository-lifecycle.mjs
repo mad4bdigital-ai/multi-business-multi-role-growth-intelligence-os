@@ -65,6 +65,72 @@ function queuedFetch(entries, calls = []) {
 }
 
 {
+  const calls = [];
+  const sleepCalls = [];
+  const branch = "gpt/delayed-delete-readback";
+  const result = await deleteGithubBranchRef({
+    owner: OWNER,
+    repo: REPO,
+    default_branch: "main",
+    token: "test-token",
+    branch,
+    expected_head_sha: HEAD_SHA,
+    confirm: githubBranchDeleteConfirmation(branch),
+    branch_delete_readback_attempts: 3,
+    branch_delete_readback_delay_ms: 1,
+    sleep_impl: async (delayMs) => { sleepCalls.push(delayMs); },
+    fetchImpl: queuedFetch([
+      { status: 200, payload: { default_branch: "main" } },
+      { status: 200, payload: { object: { sha: HEAD_SHA } } },
+      { status: 200, payload: [] },
+      { status: 200, payload: { status: "behind", ahead_by: 0, behind_by: 4 } },
+      { status: 200, payload: { object: { sha: HEAD_SHA } } },
+      { status: 204, payload: {} },
+      { status: 200, payload: { object: { sha: HEAD_SHA } } },
+      { status: 200, payload: { object: { sha: HEAD_SHA } } },
+      { status: 404, payload: { message: "Not Found" } },
+    ], calls),
+  });
+  assert.equal(result.deleted, true);
+  assert.equal(result.verified_absent, true);
+  assert.deepEqual(sleepCalls, [1, 2]);
+  assert.equal(calls.filter((call) => call.method === "DELETE").length, 1, "delayed readback must not repeat DELETE");
+}
+
+{
+  const calls = [];
+  const branch = "gpt/delete-readback-timeout";
+  await assert.rejects(
+    () => deleteGithubBranchRef({
+      owner: OWNER,
+      repo: REPO,
+      default_branch: "main",
+      token: "test-token",
+      branch,
+      expected_head_sha: HEAD_SHA,
+      confirm: githubBranchDeleteConfirmation(branch),
+      branch_delete_readback_attempts: 3,
+      branch_delete_readback_delay_ms: 0,
+      fetchImpl: queuedFetch([
+        { status: 200, payload: { default_branch: "main" } },
+        { status: 200, payload: { object: { sha: HEAD_SHA } } },
+        { status: 200, payload: [] },
+        { status: 200, payload: { status: "behind", ahead_by: 0, behind_by: 4 } },
+        { status: 200, payload: { object: { sha: HEAD_SHA } } },
+        { status: 204, payload: {} },
+        { status: 200, payload: { object: { sha: HEAD_SHA } } },
+        { status: 200, payload: { object: { sha: HEAD_SHA } } },
+        { status: 200, payload: { object: { sha: HEAD_SHA } } },
+      ], calls),
+    }),
+    (error) => error.code === "github_branch_delete_readback_failed"
+      && error.details?.readback_attempts === 3
+      && error.details?.max_readback_attempts === 3
+  );
+  assert.equal(calls.filter((call) => call.method === "DELETE").length, 1, "failed readback retries must not repeat DELETE");
+}
+
+{
   await assert.rejects(
     () => deleteGithubBranchRef({
       owner: OWNER,

@@ -6,23 +6,23 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 444,
-    "docs_complete_count": 444,
+    "migrations_with_surfaces": 445,
+    "docs_complete_count": 445,
     "docs_gap_count": 0,
     "docs_completion_percent": 100,
     "surface_totals": {
       "plugins": 12,
-      "tools": 2069,
-      "views": 399,
+      "tools": 2074,
+      "views": 401,
       "policies": 159,
-      "routes": 569
+      "routes": 574
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 377,
-      "views": 161,
+      "tools": 378,
+      "views": 162,
       "policies": 101,
-      "routes": 239
+      "routes": 240
     },
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 0,
@@ -35,27 +35,27 @@
       "high": 0,
       "medium": 0,
       "low": 0,
-      "none": 444
+      "none": 445
     },
     "high_risk_missing_docs": [],
     "medium_risk_missing_docs": [],
     "safety_marker_counts": {
-      "no_provider_call": 444,
-      "no_credential_payload_read": 444,
-      "no_raw_secrets": 444,
-      "no_external_send": 444,
-      "no_external_write": 444,
-      "secrets_included_false": 444
+      "no_provider_call": 445,
+      "no_credential_payload_read": 445,
+      "no_raw_secrets": 445,
+      "no_external_send": 445,
+      "no_external_write": 445,
+      "secrets_included_false": 445
     },
     "safety_marker_gap_migrations": 0,
     "route_coverage": {
       "sql_route_count": 5,
-      "total_sql_route_like_count": 569,
-      "openapi_exempt_sql_route_count": 564,
+      "total_sql_route_like_count": 574,
+      "openapi_exempt_sql_route_count": 569,
       "route_class_counts": {
         "http_route": 5,
         "admin_tool_registry_route": 121,
-        "tenant_tool_registry_route": 35,
+        "tenant_tool_registry_route": 40,
         "system_tool_dispatch_route": 13,
         "registry_only_surface": 1,
         "false_positive_route_like_string": 0,
