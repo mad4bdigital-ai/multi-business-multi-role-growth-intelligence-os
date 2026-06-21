@@ -3,6 +3,7 @@ import fs from "node:fs";
 
 import {
   TENANT_REPOSITORY_GOVERNANCE_V6_SYSTEM_TOOLS,
+  buildCloseSupersededWriteV6,
   buildRepositoryMutationPlanV6,
   resolveRepositoryPrincipalScopeV6,
 } from "./repositoryGovernanceV6.js";
