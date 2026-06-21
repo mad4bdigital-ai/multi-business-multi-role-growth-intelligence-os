@@ -12,7 +12,12 @@ function makePool({
   withToolBinding = false,
   toolSurface = "admin_platform_tool",
   toolExposureScope = "admin",
+  toolBindingKey = "credential_effective_status",
   validationStatus = "validated",
+  connectionStatus = "active",
+  connectionTenantId = "tenant-1",
+  connectionUserId = "user-1",
+  connectionSecretPayload = {},
   credentialSource = "user_connection",
   authType = "oauth2",
   withTargetAuthority = false,
@@ -53,7 +58,7 @@ function makePool({
         return withToolBinding ? [[{
           binding_id: "bind-credential-status-tool",
           app_key: "github",
-          tool_key: "credential_effective_status",
+          tool_key: toolBindingKey,
           tool_surface: toolSurface,
           binding_role: "state_changing",
           credential_source: "user_connection",
@@ -74,17 +79,23 @@ function makePool({
         }]] : [[]];
       }
       if (sql.includes("FROM user_app_connections")) {
-        return withConnection ? [[{
+        let paramIndex = 1;
+        const requestedTenantId = sql.includes("AND tenant_id = ?") ? params[paramIndex++] : null;
+        const requestedUserId = sql.includes("AND user_id = ?") ? params[paramIndex++] : null;
+        const scopeMatches = (!requestedTenantId || requestedTenantId === connectionTenantId)
+          && (!requestedUserId || requestedUserId === connectionUserId);
+        return withConnection && scopeMatches ? [[{
           connection_id: "conn-1",
-          tenant_id: "tenant-1",
-          user_id: "user-1",
+          tenant_id: connectionTenantId,
+          user_id: connectionUserId,
           app_key: "github",
-          auth_type: "oauth2",
-          status: "active",
+          auth_type: authType,
+          status: connectionStatus,
           validation_status: validationStatus,
           last_validated_at: "2026-05-25T00:00:00.000Z",
           last_used_at: null,
           is_primary: 1,
+          ...connectionSecretPayload,
         }]] : [[]];
       }
       if (sql.includes("FROM platform_resource_authority_bindings")) {
@@ -267,6 +278,87 @@ function makePool({
   assert(result.reason.includes("action_binding_not_found"));
   assert.equal(result.credential_lookup.attempted, false);
   assert.equal(pool.calls.some((call) => call.sql.includes("FROM user_app_connections")), false);
+}
+
+
+
+{
+  const actionPool = makePool({
+    withToolBinding: true,
+    toolBindingKey: "github.repo.read",
+    toolSurface: "virtual_tool",
+    toolExposureScope: "tenant",
+  });
+  const dualSurfaceActionResult = await resolvePlatformPluginExecution({
+    pool: actionPool,
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    agentId: "agent-1",
+    principalClass: "tenant",
+  });
+  assert.equal(dualSurfaceActionResult.allowed, true);
+  assert.equal(dualSurfaceActionResult.canonical_policy.ready, true);
+  assert.equal(dualSurfaceActionResult.canonical_policy.reason, "action_is_canonical_policy_key");
+  assert.equal(dualSurfaceActionResult.credential_lookup.attempted, true);
+  assert.equal(dualSurfaceActionResult.execution.will_execute, true);
+
+  const toolPool = makePool({
+    withToolBinding: true,
+    toolBindingKey: "github.repo.read",
+    toolSurface: "virtual_tool",
+    toolExposureScope: "tenant",
+  });
+  const dualSurfaceToolResult = await resolvePlatformPluginExecution({
+    pool: toolPool,
+    pluginKey: "github",
+    toolKey: "github.repo.read",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    agentId: "agent-1",
+    principalClass: "tenant",
+  });
+  assert.equal(dualSurfaceToolResult.allowed, false);
+  assert.equal(dualSurfaceToolResult.surface_resolution.ok, true);
+  assert.equal(dualSurfaceToolResult.canonical_policy.ready, false);
+  assert.equal(dualSurfaceToolResult.canonical_policy.reason, "tool_canonical_policy_mapping_required");
+  assert(dualSurfaceToolResult.reason.includes("tool_canonical_policy_mapping_required"));
+  assert.equal(dualSurfaceToolResult.credential_lookup.attempted, false);
+  assert.equal(dualSurfaceToolResult.credential_resolution.resolution_state, "not_evaluated");
+  assert.equal(toolPool.calls.some((call) => call.sql.includes("FROM user_app_connections")), false);
+  assert.equal(dualSurfaceToolResult.execution.will_execute, false);
+}
+
+{
+  const adminSurfaceCases = [
+    { toolSurface: "admin_platform_tool", toolExposureScope: "admin" },
+    { toolSurface: "platform_admin_tool", toolExposureScope: "tenant" },
+    { toolSurface: "virtual_tool", toolExposureScope: "admin" },
+    { toolSurface: "virtual_tool", toolExposureScope: "platform" },
+  ];
+  for (const surfaceCase of adminSurfaceCases) {
+    const pool = makePool({ withToolBinding: true, ...surfaceCase });
+    const result = await resolvePlatformPluginExecution({
+      pool,
+      pluginKey: "github",
+      toolKey: "credential_effective_status",
+      tenantId: "tenant-1",
+      userId: "user-1",
+      agentId: "agent-1",
+      principalClass: "tenant",
+    });
+    assert.equal(result.allowed, false);
+    assert.equal(result.surface_resolution.ok, false);
+    assert.equal(result.surface_resolution.reason, "admin_tool_forbidden");
+    assert(result.reason.includes("admin_tool_forbidden"));
+    assert.equal(result.credential_lookup.attempted, false);
+    assert.equal(result.credential_lookup.reason, "blocked_before_credential_lookup");
+    assert.equal(result.credential_resolution.resolution_state, "not_evaluated");
+    assert.equal(pool.calls.some((call) => call.sql.includes("FROM user_app_connections")), false);
+    assert.equal(result.audit.read_model_tables.includes("user_app_connections"), false);
+    assert.equal(result.execution.will_execute, false);
+  }
 }
 
 {
@@ -514,6 +606,100 @@ function makePool({
   assert.equal(result.principal_scope.reason, "tenant_principal_scope_required");
   assert.equal(result.credential_lookup.attempted, false);
   assert.equal(pool.calls.some((call) => call.sql.includes("FROM user_app_connections")), false);
+}
+
+
+{
+  const pool = makePool({
+    withConnection: true,
+    withSkill: true,
+    tenantDedicated: true,
+    connectionStatus: "revoked",
+    validationStatus: "validated",
+  });
+  const result = await resolvePlatformPluginExecution({
+    pool,
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    agentId: "agent-1",
+  });
+  assert.equal(result.allowed, false);
+  assert.equal(result.credential_resolution.reason, "credential_not_usable");
+  assert.equal(result.credential_resolution.denial_code, "CREDENTIAL_NOT_USABLE");
+  assert.equal(result.credential_resolution.resolution_state, "resolved");
+  assert.equal(result.credential_resolution.usability_state, "unusable");
+  assert.equal(result.credential_resolution.connection_status, "revoked");
+  assert.equal(result.execution.will_execute, false);
+}
+
+{
+  const pool = makePool({
+    withConnection: true,
+    withSkill: true,
+    tenantDedicated: true,
+    connectionTenantId: "tenant-1",
+    connectionUserId: "user-1",
+  });
+  const result = await resolvePlatformPluginExecution({
+    pool,
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    tenantId: "tenant-2",
+    userId: "user-2",
+    agentId: "agent-1",
+    principalClass: "tenant",
+  });
+  const connectionQuery = pool.calls.find((call) => call.sql.includes("FROM user_app_connections"));
+  assert(connectionQuery, "credential lookup must execute only after authorization gates pass");
+  assert.deepEqual(connectionQuery.params, ["github", "tenant-2", "user-2"]);
+  assert.match(connectionQuery.sql, /AND tenant_id = \?/);
+  assert.match(connectionQuery.sql, /AND user_id = \?/);
+  assert.doesNotMatch(connectionQuery.sql, /access_token|refresh_token|password|api_key|secret/i);
+  assert.equal(result.allowed, false);
+  assert.equal(result.credential_lookup.row_count, 0);
+  assert.equal(result.credential_resolution.denial_code, "DEDICATED_CONNECTION_REQUIRED");
+  assert.equal(JSON.stringify(result).includes("conn-1"), false);
+  assert.equal(result.execution.will_execute, false);
+}
+
+{
+  const secretValues = [
+    "secret-access-token",
+    "secret-refresh-token",
+    "secret-password",
+    "secret-api-key",
+    "secret-ciphertext",
+  ];
+  const pool = makePool({
+    withConnection: true,
+    withSkill: true,
+    tenantDedicated: true,
+    connectionSecretPayload: {
+      access_token: secretValues[0],
+      refresh_token: secretValues[1],
+      password: secretValues[2],
+      api_key: secretValues[3],
+      encrypted_credentials: secretValues[4],
+    },
+  });
+  const result = await resolvePlatformPluginExecution({
+    pool,
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    agentId: "agent-1",
+  });
+  const serialized = JSON.stringify(result);
+  for (const secret of secretValues) assert.equal(serialized.includes(secret), false);
+  for (const key of ["access_token", "refresh_token", "password", "api_key", "encrypted_credentials"]) {
+    assert.equal(Object.hasOwn(result.credential_resolution, key), false);
+  }
+  assert.equal(result.secrets_included, false);
+  assert.equal(result.credential_lookup.secrets_included, false);
+  assert.equal(result.audit.read_model_tables.includes("user_app_connections"), true);
 }
 
 {
