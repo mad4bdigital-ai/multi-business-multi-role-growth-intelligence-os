@@ -6,23 +6,23 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 445,
-    "docs_complete_count": 445,
+    "migrations_with_surfaces": 448,
+    "docs_complete_count": 448,
     "docs_gap_count": 0,
     "docs_completion_percent": 100,
     "surface_totals": {
       "plugins": 12,
-      "tools": 2074,
-      "views": 399,
+      "tools": 2097,
+      "views": 410,
       "policies": 159,
-      "routes": 569
+      "routes": 574
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 378,
-      "views": 161,
+      "tools": 381,
+      "views": 164,
       "policies": 101,
-      "routes": 239
+      "routes": 240
     },
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 0,
@@ -35,27 +35,27 @@
       "high": 0,
       "medium": 0,
       "low": 0,
-      "none": 445
+      "none": 448
     },
     "high_risk_missing_docs": [],
     "medium_risk_missing_docs": [],
     "safety_marker_counts": {
-      "no_provider_call": 445,
-      "no_credential_payload_read": 445,
-      "no_raw_secrets": 445,
-      "no_external_send": 445,
-      "no_external_write": 445,
-      "secrets_included_false": 445
+      "no_provider_call": 448,
+      "no_credential_payload_read": 447,
+      "no_raw_secrets": 447,
+      "no_external_send": 447,
+      "no_external_write": 448,
+      "secrets_included_false": 448
     },
     "safety_marker_gap_migrations": 0,
     "route_coverage": {
       "sql_route_count": 5,
-      "total_sql_route_like_count": 569,
-      "openapi_exempt_sql_route_count": 564,
+      "total_sql_route_like_count": 574,
+      "openapi_exempt_sql_route_count": 569,
       "route_class_counts": {
         "http_route": 5,
         "admin_tool_registry_route": 121,
-        "tenant_tool_registry_route": 35,
+        "tenant_tool_registry_route": 40,
         "system_tool_dispatch_route": 13,
         "registry_only_surface": 1,
         "false_positive_route_like_string": 0,
@@ -68,24 +68,26 @@
     }
   },
   "queue": {
-    "total_items": 0,
+    "total_items": 1,
     "class_counts": {
       "critical_review": 0,
       "high_review": 0,
       "medium_review": 0,
-      "low_review": 0
+      "low_review": 1
     }
   },
   "triage": {
-    "total_items": 0,
-    "class_counts": {},
+    "total_items": 1,
+    "class_counts": {
+      "safety_marker_review": 1
+    },
     "gate_candidate_count": 0
   },
   "gate": {
-    "ok": true,
+    "ok": false,
     "mode": "future_only_all_new_gaps",
-    "new_item_count": 0,
-    "blocking_new_item_count": 0
+    "new_item_count": 1,
+    "blocking_new_item_count": 1
   },
   "top_immediate_items": [],
   "safety": {
