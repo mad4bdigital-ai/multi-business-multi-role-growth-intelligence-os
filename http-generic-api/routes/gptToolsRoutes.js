@@ -290,6 +290,28 @@ const REPO_INSPECT_TEXT_EXTENSIONS = new Set([
 
 const VIRTUAL_ADMIN_TOOLS = [
   {
+    name: "repository_close_superseded_positive_smoke",
+    displayName: "Repository Close Superseded Positive Smoke",
+    description: "Admin-only disposable positive smoke for repo.pr.close_superseded. Pins the expected main SHA, creates one disposable PR whose head is exactly main and whose base is main's parent, validates the production superseded predicate, closes through the production write contract, requires state/head readback, audits, and cleans both disposable refs. It does not activate the production recipe or apply authority.",
+    method: "VIRTUAL",
+    path: "internal://repository-close-superseded-positive-smoke",
+    tags: ["repo", "github", "pull_request", "positive_smoke", "mutation", "admin_only", "capability_envelope", "typed_confirmation", "readback", "cleanup_required", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["expected_main_sha", "confirm", "capability_envelope_id"],
+      properties: {
+        expected_main_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        confirm: { type: "string", pattern: "^RUN_CLOSE_SUPERSEDED_SMOKE_[0-9A-F]{12}$" },
+        capability_envelope_id: { type: "string" },
+        owner: { type: "string", pattern: "^[A-Za-z0-9_.-]+$" },
+        repo: { type: "string", pattern: "^[A-Za-z0-9_.-]+$" },
+        default_branch: { type: "string" },
+        smoke_id: { type: "string", minLength: 3, maxLength: 80 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "repo_inspect",
     displayName: "Repository Inspect",
     description: "Read-only repository inspection. Actions: list, read, search, git_status, git_log, git_show, git_diff_name_status. Paths are repo-confined; secrets/build folders are blocked. Git helpers return metadata only and never expose .git internals.",
