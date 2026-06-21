@@ -1869,6 +1869,15 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     }
   }
 
+  if (callerType === "admin" && toolKey === "repository_close_superseded_positive_smoke") {
+    try {
+      await requireRepositoryCloseSupersededPositiveSmokeEnvelope({ args, ctx: { auth: req?.auth } });
+      const result = await runRepositoryCloseSupersededPositiveSmokeV6(args, { auth: req?.auth });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return { status: err?.status || 500, body: { ok: false, name: toolKey, error: { code: err?.code || "repository_close_superseded_positive_smoke_failed", message: err?.message || "Repository close-superseded positive smoke failed.", details: err?.details || null } } };
+    }
+  }
   if (callerType === "admin" && toolKey === "github_branch_fast_forward_smoke") {
     try {
       await requireGithubBranchFastForwardEnvelope({ args, ctx: { auth: req?.auth } });
