@@ -130,7 +130,9 @@ async function main() {
   assert.equal(created.migration_sql_executed, false);
   assert.equal(created.applies_migration, false);
   assert.equal(referenced.length, 1);
-  const metadata = JSON.parse(created.authorization.metadata_json);
+  const metadata = typeof created.authorization.metadata_json === "string"
+    ? JSON.parse(created.authorization.metadata_json)
+    : created.authorization.metadata_json;
   assert.equal(metadata.migration_checksum_sha256, CHECKSUM);
   assert.equal(metadata.preflight_risk_count, 0);
   assert.equal(metadata.destructive_operations, 0);
