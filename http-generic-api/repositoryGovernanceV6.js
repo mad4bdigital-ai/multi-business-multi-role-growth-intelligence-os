@@ -588,7 +588,7 @@ async function validateMutationApprovalV6({ row, item, args, auth }) {
   if (!holdOk) { const err = new Error("Approval hold is missing, expired, or not bound to this capability envelope, external-write authority, and scope."); err.status = 403; err.code = "repository_mutation_approval_hold_invalid"; throw err; }
   return { envelope, hold: { hold_id: hold.hold_id, status: hold.status, expires_at: hold.expires_at, secrets_included: false } };
 }
-async function reanalyzeMutationItemV6({ repoRef, item, token }) {
+export async function reanalyzeMutationItemV6({ repoRef, item, token }) {
   const repoInfo = await githubGet(`/repos/${encodeURIComponent(repoRef.owner)}/${encodeURIComponent(repoRef.repo)}`, token);
   const defaultBranch = s(repoInfo.body?.default_branch || "main");
   const protectionResult = await githubGet(`/repos/${encodeURIComponent(repoRef.owner)}/${encodeURIComponent(repoRef.repo)}/branches/${encodeURIComponent(defaultBranch)}/protection`, token, { allowStatuses: [403, 404] });
