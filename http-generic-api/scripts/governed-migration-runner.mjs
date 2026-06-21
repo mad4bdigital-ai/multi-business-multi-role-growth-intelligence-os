@@ -259,6 +259,13 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "320_sprint69_dynamic_container_authority_runtime_contracts.sql",
 ]);
 
+// These migrations seed their own DB authorization rows. Permit a missing-row
+// bootstrap only for this bounded set; an explicit DB row always remains authoritative.
+const SELF_AUTHORIZING_BOOTSTRAP_MIGRATIONS = new Set([
+  "319_sprint69_dynamic_container_authority_foundation.sql",
+  "320_sprint69_dynamic_container_authority_runtime_contracts.sql",
+]);
+
 const RUNNER_VERSION = "governed-migration-runner-v2";
 
 function parseArgs(argv = process.argv.slice(2)) {
@@ -343,7 +350,15 @@ async function getMigrationAuthorization(migration, { mode = "dry_run" } = {}) {
     );
     const row = rows?.[0] || null;
     if (!row) {
-      return { authorized: false, source: "db_registry", reason: "migration_not_authorized_in_db_registry" };
+      const bootstrapAuthorized = SELF_AUTHORIZING_BOOTSTRAP_MIGRATIONS.has(migration);
+      return {
+        authorized: bootstrapAuthorized,
+        source: bootstrapAuthorized ? "legacy_bootstrap_missing_row" : "db_registry",
+        reason: bootstrapAuthorized
+          ? "migration_not_authorized_in_db_registry_bootstrap_allowed"
+          : "migration_not_authorized_in_db_registry",
+        bootstrap_required: bootstrapAuthorized,
+      };
     }
     if (row.authorization_status !== "authorized") {
       return { authorized: false, source: "db_registry", reason: `authorization_status_${row.authorization_status}`, row };
