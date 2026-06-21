@@ -1,0 +1,7 @@
+{
+  "surface_key": "container_effective_context_ledger",
+  "source_table": "container_effective_context_ledger",
+  "reason": "Excluded because it is an immutable internal authority-resolution evidence ledger. Activation payloads must not include raw request or resolution evidence rows.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

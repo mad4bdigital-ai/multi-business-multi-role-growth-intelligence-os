@@ -122,7 +122,11 @@ jobs:
           echo "url=$PR_URL" >> "$GITHUB_OUTPUT"
           gh workflow run ci.yml --ref "$BRANCH" || true
           if [ "$AUTO_MERGE_ELIGIBLE" = "true" ]; then
-            gh pr merge "$PR_URL" --auto --squash
+            if gh pr merge "$PR_URL" --auto --squash; then
+              echo "Auto-merge requested successfully."
+            else
+              echo "::warning::Repository auto-merge is unavailable; the remediation PR remains open for governed review."
+            fi
           else
             echo "PR remains open because manual review is required."
           fi

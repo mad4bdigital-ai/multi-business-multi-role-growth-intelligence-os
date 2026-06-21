@@ -559,7 +559,7 @@ export function buildPersistedDiscoveryReport(report) {
   const compactMigration = (entry) => [
     entry.migration_file,
     entry.documentation_complete === true ? 1 : 0,
-    entry.coverage?.gap_severity || "none",
+    entry.coverage?.gap_severity === "none" ? "" : entry.coverage?.gap_severity || "",
     entry.safety_attestation?.migration_sha256 || "",
     entry.safety_attestation?.evidence_mode || "",
     entry.coverage?.safety_marker_count || 0,

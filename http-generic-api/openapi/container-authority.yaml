@@ -1,0 +1,899 @@
+schemas:
+  ErrorResponse:
+    type: object
+    additionalProperties: false
+    required: [error, secretsIncluded]
+    properties:
+      error:
+        type: object
+        additionalProperties: false
+        required: [code, message, details, requestId]
+        properties:
+          code: { type: string, example: container_authority_epoch_changed }
+          message: { type: string }
+          details:
+            type: array
+            items: { type: object, additionalProperties: true }
+          requestId: { type: string }
+      secretsIncluded: { type: boolean, const: false }
+
+  Principal:
+    type: object
+    additionalProperties: false
+    required: [type, id]
+    properties:
+      type: { type: string, enum: [user, agent, service, group] }
+      id: { type: string, minLength: 1, maxLength: 191 }
+
+  DimensionRequest:
+    type: object
+    additionalProperties: false
+    required: [dimension, resourceType, resourceRef, operation]
+    properties:
+      dimension: { type: string, minLength: 1, maxLength: 191 }
+      resourceType: { type: string, minLength: 1, maxLength: 128 }
+      resourceRef: { type: string, minLength: 1, maxLength: 512, not: { const: '*' } }
+      operation: { type: string, minLength: 1, maxLength: 191, not: { const: '*' } }
+      capabilityKey: { type: [string, 'null'], maxLength: 191 }
+
+  ResolutionRequest:
+    type: object
+    additionalProperties: false
+    required: [targetContainerId, dimensionRequests]
+    properties:
+      principal: { $ref: '#/schemas/Principal' }
+      tenantId: { type: string, minLength: 1, maxLength: 36 }
+      targetContainerId: { type: string, minLength: 1, maxLength: 36 }
+      dimensionRequests:
+        type: array
+        minItems: 1
+        maxItems: 50
+        items: { $ref: '#/schemas/DimensionRequest' }
+      mode: { type: string, enum: [preview, shadow, enforce], default: preview }
+      expectedAuthorityEpoch: { type: integer, minimum: 0 }
+      expectedRegistrySnapshotHash: { type: string, pattern: '^[a-f0-9]{64}$' }
+      legacyDecision: { type: string, maxLength: 64 }
+      legacyEvidenceRef: { type: string, maxLength: 512 }
+      requestId: { type: string, maxLength: 191 }
+    description: Tenant JWT callers are pinned to their signed principal, tenant, and preview mode.
+
+  ResolutionResponse:
+    type: object
+    additionalProperties: true
+    required: [resolutionId, principal, tenantId, targetContainerId, mode, decision, authorityEpoch, resolverVersion, resolutionSha256, blockingCodes, providerCallMade, credentialPayloadRead, secretsIncluded]
+    properties:
+      resolutionId: { type: string, format: uuid }
+      principal: { $ref: '#/schemas/Principal' }
+      tenantId: { type: string }
+      targetContainerId: { type: string }
+      mode: { type: string, enum: [preview, shadow, enforce] }
+      decision: { type: string, enum: [allow, restrict, deny, ambiguous, requires_override] }
+      authorityEpoch: { type: integer, minimum: 0 }
+      resolverVersion: { type: string }
+      requestSha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+      containerPathHash: { type: string, pattern: '^[a-f0-9]{64}$' }
+      registrySnapshotHash: { type: string, pattern: '^[a-f0-9]{64}$' }
+      resolutionSha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+      blockingCodes: { type: array, items: { type: string } }
+      providerCallMade: { type: boolean, const: false }
+      credentialPayloadRead: { type: boolean, const: false }
+      secretsIncluded: { type: boolean, const: false }
+      cacheHit: { type: boolean }
+      idempotentReplay: { type: boolean }
+      expiresAt: { type: string, format: date-time }
+
+  RelationshipRequest:
+    type: object
+    additionalProperties: false
+    required: [tenantId, fromContainerId, toContainerId, relationshipType]
+    properties:
+      relationshipId: { type: string, format: uuid }
+      tenantId: { type: string, minLength: 1, maxLength: 36 }
+      fromContainerId: { type: string, minLength: 1, maxLength: 36 }
+      toContainerId: { type: string, minLength: 1, maxLength: 36 }
+      relationshipType: { type: string, minLength: 1, maxLength: 191 }
+      priority: { type: integer, minimum: 0 }
+      conditions: { type: object, additionalProperties: true }
+      validFrom: { type: string, format: date-time }
+      validUntil: { type: string, format: date-time }
+      approvedBy: { type: string, maxLength: 191 }
+      metadata: { type: object, additionalProperties: true }
+
+  RoleAssignmentRequest:
+    type: object
+    additionalProperties: false
+    required: [tenantId, containerId, principal]
+    properties:
+      assignmentId: { type: string, format: uuid }
+      tenantId: { type: string, minLength: 1, maxLength: 36 }
+      containerId: { type: string, minLength: 1, maxLength: 36 }
+      principal: { $ref: '#/schemas/Principal' }
+      roleTemplateKey: { type: string, maxLength: 191 }
+      inlinePermissions:
+        type: array
+        items: { type: object, additionalProperties: true }
+      inheritanceMode: { type: string, enum: [local_only, inherit_down], default: local_only }
+      validUntil: { type: string, format: date-time }
+      approvedBy: { type: string, maxLength: 191 }
+      metadata: { type: object, additionalProperties: true }
+    oneOf:
+      - required: [roleTemplateKey]
+        not: { required: [inlinePermissions] }
+      - required: [inlinePermissions]
+        not: { required: [roleTemplateKey] }
+
+  ResourceBindingRequest:
+    type: object
+    additionalProperties: false
+    required: [tenantId, containerId, dimension, resourceType, resourceRef, effect]
+    properties:
+      bindingId: { type: string, format: uuid }
+      tenantId: { type: string, minLength: 1, maxLength: 36 }
+      containerId: { type: string, minLength: 1, maxLength: 36 }
+      dimension: { type: string, minLength: 1, maxLength: 191 }
+      resourceType: { type: string, minLength: 1, maxLength: 128 }
+      resourceRef: { type: string, minLength: 1, maxLength: 512, not: { const: '*' } }
+      effect: { type: string, enum: [allow, deny, restrict, require, share, delegate] }
+      permissionKey: { type: string, maxLength: 191 }
+      operations: { type: array, items: { type: string, not: { const: '*' } } }
+      capabilityKeys: { type: array, items: { type: string } }
+      inheritanceMode: { type: string, enum: [local_only, inherit_down, explicit_share, block_inheritance], default: local_only }
+      mergePriority: { type: integer, minimum: 0 }
+      conditions: { type: object, additionalProperties: true }
+      validUntil: { type: string, format: date-time }
+      sourceTable: { type: string, maxLength: 191 }
+      sourcePk: { type: string, maxLength: 255 }
+      delegatedByPrincipalType: { type: string, enum: [user, agent, service, group] }
+      delegatedByPrincipalId: { type: string, maxLength: 191 }
+      delegatorResolutionId: { type: string, format: uuid }
+      delegationRelationshipId: { type: string, format: uuid }
+      approvedBy: { type: string, maxLength: 191 }
+      metadata: { type: object, additionalProperties: true }
+
+  OverrideRequest:
+    type: object
+    additionalProperties: false
+    required: [capabilityEnvelopeId, originalResolutionId, targetContainerId, dimension, resourceType, resourceRef, operation, reason]
+    properties:
+      overrideId: { type: string, format: uuid }
+      capabilityEnvelopeId: { type: string, format: uuid }
+      originalResolutionId: { type: string, format: uuid }
+      targetContainerId: { type: string, format: uuid }
+      dimension: { type: string, maxLength: 191 }
+      resourceType: { type: string, maxLength: 128 }
+      resourceRef: { type: string, maxLength: 512, not: { const: '*' } }
+      operation: { type: string, maxLength: 191, not: { const: '*' } }
+      riskClass: { type: string, enum: [read_only, standard, high, critical, destructive, credential_touching, deployment_affecting] }
+      reason: { type: string, minLength: 20, maxLength: 1000 }
+      requestedTtlMinutes: { type: integer, minimum: 1, maximum: 60 }
+
+  OverrideApprovalRequest:
+    type: object
+    additionalProperties: false
+    required: [decision, decisionNote]
+    properties:
+      decision: { type: string, enum: [approved, rejected] }
+      decisionNote: { type: string, minLength: 10, maxLength: 512 }
+
+  ProjectionRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      mode: { type: string, enum: [dry_run, apply], default: dry_run }
+
+  MutationResponse:
+    type: object
+    additionalProperties: true
+    required: [ok, secretsIncluded]
+    properties:
+      ok: { type: boolean, const: true }
+      authorityEpoch: { type: integer, minimum: 0 }
+      status: { type: string }
+      idempotentReplay: { type: boolean }
+      targetExecuted: { type: boolean, const: false }
+      providerCallMade: { type: boolean, const: false }
+      credentialPayloadRead: { type: boolean, const: false }
+      secretsIncluded: { type: boolean, const: false }
+
+  ListResponse:
+    type: object
+    additionalProperties: false
+    required: [ok, items, secretsIncluded]
+    properties:
+      ok: { type: boolean, const: true }
+      items: { type: array, items: { type: object, additionalProperties: true } }
+      page:
+        type: object
+        additionalProperties: false
+        properties:
+          nextCursor: { type: [string, 'null'] }
+          hasMore: { type: boolean }
+      secretsIncluded: { type: boolean, const: false }
+
+  CoWorkspaceItem:
+    type: object
+    additionalProperties: false
+    required: [containerId, tenantId, workspaceId, workspaceKey, displayName, effectiveRoleRank]
+    properties:
+      containerId: { type: string, format: uuid }
+      tenantId: { type: string }
+      workspaceId: { type: string }
+      workspaceKey: { type: string }
+      displayName: { type: string }
+      workspaceType: { type: [string, 'null'] }
+      bootstrapStatus: { type: [string, 'null'] }
+      linkedBrandKey: { type: [string, 'null'] }
+      effectiveRoleRank: { type: integer, minimum: 0 }
+
+  CoWorkspaceListResponse:
+    type: object
+    additionalProperties: false
+    required: [ok, items, page, secretsIncluded]
+    properties:
+      ok: { type: boolean, const: true }
+      items:
+        type: array
+        items: { $ref: '#/schemas/CoWorkspaceItem' }
+      page:
+        type: object
+        additionalProperties: false
+        required: [nextCursor, hasMore]
+        properties:
+          nextCursor: { type: [string, 'null'] }
+          hasMore: { type: boolean }
+      secretsIncluded: { type: boolean, const: false }
+
+  ContainerTeamMember:
+    type: object
+    additionalProperties: false
+    required: [userId, roleTemplateKey, authorityRank, inheritanceMode, assignmentId, status]
+    properties:
+      userId: { type: string }
+      email: { type: [string, 'null'], format: email }
+      displayName: { type: [string, 'null'] }
+      roleTemplateKey: { type: string, enum: [container_viewer, container_operator, container_admin] }
+      roleDisplayName: { type: [string, 'null'] }
+      authorityRank: { type: integer, minimum: 0 }
+      inheritanceMode: { type: string, enum: [local_only, inherit_down] }
+      validFrom: { type: [string, 'null'], format: date-time }
+      validUntil: { type: [string, 'null'], format: date-time }
+      assignmentId: { type: string, format: uuid }
+      status: { type: string, enum: [active] }
+
+  ContainerTeamResponse:
+    type: object
+    additionalProperties: false
+    required: [ok, container, caller, members, count, page, secretsIncluded]
+    properties:
+      ok: { type: boolean, const: true }
+      container:
+        type: object
+        additionalProperties: false
+        required: [containerId, tenantId, containerType, containerKey, displayName]
+        properties:
+          containerId: { type: string, format: uuid }
+          tenantId: { type: string }
+          containerType: { type: string, enum: [workspace, brand] }
+          containerKey: { type: string }
+          canonicalSubjectRef: { type: [string, 'null'] }
+          displayName: { type: string }
+      caller:
+        type: object
+        additionalProperties: false
+        required: [userId, effectiveRoleRank, canManage]
+        properties:
+          userId: { type: string }
+          effectiveRoleRank: { type: integer, minimum: 0 }
+          canManage: { type: boolean }
+      members:
+        type: array
+        items: { $ref: '#/schemas/ContainerTeamMember' }
+      count: { type: integer, minimum: 0 }
+      page:
+        type: object
+        additionalProperties: false
+        required: [nextCursor, hasMore]
+        properties:
+          nextCursor: { type: [string, 'null'] }
+          hasMore: { type: boolean }
+      secretsIncluded: { type: boolean, const: false }
+
+  ContainerTeamMemberSetRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      userId: { type: string, minLength: 1, maxLength: 36 }
+      email: { type: string, format: email, maxLength: 255 }
+      role:
+        type: string
+        enum: [viewer, member, editor, operator, owner, admin, container_viewer, container_operator, container_admin]
+      roleTemplateKey:
+        type: string
+        enum: [container_viewer, container_operator, container_admin]
+      inheritanceMode: { type: string, enum: [local_only, inherit_down], default: inherit_down }
+      validUntil: { type: string, format: date-time }
+      metadata: { type: object, additionalProperties: true }
+    anyOf:
+      - required: [userId]
+      - required: [email]
+    description: Workspace add may create or reactivate a least-privilege tenant membership for an existing user. Brand add requires an existing active workspace or tenant membership.
+
+  ContainerTeamMemberUpdateRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      role:
+        type: string
+        enum: [viewer, member, editor, operator, owner, admin, container_viewer, container_operator, container_admin]
+      roleTemplateKey:
+        type: string
+        enum: [container_viewer, container_operator, container_admin]
+      inheritanceMode: { type: string, enum: [local_only, inherit_down] }
+      validUntil: { type: string, format: date-time }
+      metadata: { type: object, additionalProperties: true }
+    anyOf:
+      - required: [role]
+      - required: [roleTemplateKey]
+      - required: [inheritanceMode]
+      - required: [validUntil]
+      - required: [metadata]
+
+  ContainerTeamMutationResponse:
+    type: object
+    additionalProperties: true
+    required: [ok, tenantId, containerId, containerType, status, authorityEpoch, secretsIncluded]
+    properties:
+      ok: { type: boolean, const: true }
+      assignmentId: { type: string, format: uuid }
+      userId: { type: string }
+      email: { type: [string, 'null'], format: email }
+      displayName: { type: [string, 'null'] }
+      tenantId: { type: string }
+      containerId: { type: string, format: uuid }
+      containerType: { type: string, enum: [workspace, brand] }
+      roleTemplateKey: { type: string, enum: [container_viewer, container_operator, container_admin] }
+      authorityRank: { type: integer, minimum: 0 }
+      inheritanceMode: { type: string, enum: [local_only, inherit_down] }
+      status: { type: string, enum: [active, revoked] }
+      authorityEpoch: { type: integer, minimum: 0 }
+      idempotentReplay: { type: boolean }
+      tenantMembership: { type: object, additionalProperties: true }
+      revokedAssignments: { type: integer, minimum: 0 }
+      secretsIncluded: { type: boolean, const: false }
+
+parameters:
+  IdempotencyKey:
+    name: Idempotency-Key
+    in: header
+    required: true
+    schema: { type: string, minLength: 8, maxLength: 128 }
+    description: Replays the prior response for an identical request and rejects reuse with different input.
+  IfMatch:
+    name: If-Match
+    in: header
+    required: false
+    schema: { type: string, example: 'W/"authority-7"' }
+    description: Optional optimistic authority-epoch precondition.
+  ResolutionId:
+    name: resolutionId
+    in: path
+    required: true
+    schema: { type: string, format: uuid }
+  OverrideId:
+    name: overrideId
+    in: path
+    required: true
+    schema: { type: string, format: uuid }
+
+responses:
+  BadRequest:
+    description: Invalid request shape, unsupported field, or invalid idempotency key.
+    content: { application/json: { schema: { $ref: '#/schemas/ErrorResponse' } } }
+  Unauthorized:
+    description: Authentication is missing or invalid.
+    content: { application/json: { schema: { $ref: '#/schemas/ErrorResponse' } } }
+  Forbidden:
+    description: The authenticated principal is not authorized for this operation.
+    content: { application/json: { schema: { $ref: '#/schemas/ErrorResponse' } } }
+  NotFound:
+    description: Container authority resource was not found.
+    content: { application/json: { schema: { $ref: '#/schemas/ErrorResponse' } } }
+  Conflict:
+    description: Authority epoch, idempotency state, approval, or override snapshot conflict.
+    content: { application/json: { schema: { $ref: '#/schemas/ErrorResponse' } } }
+  Unprocessable:
+    description: The request is structurally valid but violates an authority invariant.
+    content: { application/json: { schema: { $ref: '#/schemas/ErrorResponse' } } }
+  RateLimited:
+    description: Preview rate limit exceeded. Details include retryAfterSeconds.
+    headers:
+      Retry-After: { schema: { type: integer, minimum: 1 } }
+    content: { application/json: { schema: { $ref: '#/schemas/ErrorResponse' } } }
+  InternalError:
+    description: Unexpected container authority failure. No stack trace or secret is returned.
+    content: { application/json: { schema: { $ref: '#/schemas/ErrorResponse' } } }
+
+containerContextResolutions:
+  post:
+    tags: [container-authority]
+    operationId: createContainerContextResolution
+    summary: Preview or shadow-resolve effective container authority
+    description: Resolves every bounded containment path, classifications, roles, bindings, denies, sharing, and delegations. Tenant JWT callers are forced to preview mode. No provider client is created and no credential payload is read.
+    security:
+      - backendBearerAuth: []
+      - backendApiKeyAuth: []
+    parameters:
+      - { $ref: '#/parameters/IdempotencyKey' }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/schemas/ResolutionRequest' }
+          example:
+            targetContainerId: 4d6fa7d2-28a5-4bc8-a09c-2ef0047e648d
+            mode: preview
+            dimensionRequests:
+              - dimension: assets
+                resourceType: asset
+                resourceRef: article-42
+                operation: read.asset
+    responses:
+      '201': { description: Immutable effective-context resolution, content: { application/json: { schema: { $ref: '#/schemas/ResolutionResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '422': { $ref: '#/responses/Unprocessable' }
+      '429': { $ref: '#/responses/RateLimited' }
+      '500': { $ref: '#/responses/InternalError' }
+
+containerContextResolutionById:
+  get:
+    tags: [container-authority]
+    operationId: getContainerContextResolution
+    summary: Read one immutable container authority resolution
+    security:
+      - backendBearerAuth: []
+      - backendApiKeyAuth: []
+    parameters:
+      - { $ref: '#/parameters/ResolutionId' }
+    responses:
+      '200': { description: Stored effective-context evidence, content: { application/json: { schema: { $ref: '#/schemas/ResolutionResponse' } } } }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '500': { $ref: '#/responses/InternalError' }
+
+containerRelationships:
+  post:
+    tags: [container-authority]
+    operationId: createContainerRelationship
+    summary: Create a governed containment, sharing, delegation, reference, or management edge
+    description: Validates tenant equality, type compatibility, multi-parent policy, approval requirements, traversal limits, and transitive cycle absence before advancing the tenant authority epoch.
+    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    parameters:
+      - { $ref: '#/parameters/IdempotencyKey' }
+      - { $ref: '#/parameters/IfMatch' }
+    requestBody:
+      required: true
+      content: { application/json: { schema: { $ref: '#/schemas/RelationshipRequest' } } }
+    responses:
+      '201': { description: Relationship created and closure rebuilt when applicable, content: { application/json: { schema: { $ref: '#/schemas/MutationResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '422': { $ref: '#/responses/Unprocessable' }
+      '500': { $ref: '#/responses/InternalError' }
+
+containerRoleAssignments:
+  post:
+    tags: [container-authority]
+    operationId: createContainerRoleAssignment
+    summary: Assign a composable role template or explicit inline role to a container
+    description: Validates template composition, cycle absence, container-type eligibility, principal identity, and optimistic authority epoch.
+    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    parameters:
+      - { $ref: '#/parameters/IdempotencyKey' }
+      - { $ref: '#/parameters/IfMatch' }
+    requestBody:
+      required: true
+      content: { application/json: { schema: { $ref: '#/schemas/RoleAssignmentRequest' } } }
+    responses:
+      '201': { description: Role assignment created, content: { application/json: { schema: { $ref: '#/schemas/MutationResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '422': { $ref: '#/responses/Unprocessable' }
+      '500': { $ref: '#/responses/InternalError' }
+
+containerResourceBindings:
+  post:
+    tags: [container-authority]
+    operationId: createContainerResourceBinding
+    summary: Bind an exact resource and operation policy to a container
+    description: Wildcards are forbidden. Delegation requires explicit approval, a live delegation edge, and a delegator resolution proving every delegated operation.
+    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    parameters:
+      - { $ref: '#/parameters/IdempotencyKey' }
+      - { $ref: '#/parameters/IfMatch' }
+    requestBody:
+      required: true
+      content: { application/json: { schema: { $ref: '#/schemas/ResourceBindingRequest' } } }
+    responses:
+      '201': { description: Resource binding created, content: { application/json: { schema: { $ref: '#/schemas/MutationResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '422': { $ref: '#/responses/Unprocessable' }
+      '500': { $ref: '#/responses/InternalError' }
+
+containerOverrides:
+  post:
+    tags: [container-authority]
+    operationId: createContainerOverride
+    summary: Request an explicit, exact-scope platform-owner override
+    description: Requires a prior blocked resolution and a ready capability envelope. Credentials, connection ownership, and Brand Core authority cannot be overridden.
+    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    parameters:
+      - { $ref: '#/parameters/IdempotencyKey' }
+    requestBody:
+      required: true
+      content: { application/json: { schema: { $ref: '#/schemas/OverrideRequest' } } }
+    responses:
+      '201': { description: Override request created without executing the target action, content: { application/json: { schema: { $ref: '#/schemas/MutationResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '422': { $ref: '#/responses/Unprocessable' }
+      '500': { $ref: '#/responses/InternalError' }
+
+containerOverrideById:
+  get:
+    tags: [container-authority]
+    operationId: getContainerOverride
+    summary: Read override readiness, approvals, expiry, and consumption status
+    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    parameters:
+      - { $ref: '#/parameters/OverrideId' }
+    responses:
+      '200': { description: Override governance evidence, content: { application/json: { schema: { $ref: '#/schemas/MutationResponse' } } } }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '500': { $ref: '#/responses/InternalError' }
+
+containerOverrideApprovals:
+  post:
+    tags: [container-authority]
+    operationId: createContainerOverrideApproval
+    summary: Record a distinct override approval or rejection
+    description: Noncritical overrides may be explicitly self-approved; critical overrides require an independent approver; destructive, credential-touching, and deployment-affecting overrides require two independent approvers.
+    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    parameters:
+      - { $ref: '#/parameters/OverrideId' }
+    requestBody:
+      required: true
+      content: { application/json: { schema: { $ref: '#/schemas/OverrideApprovalRequest' } } }
+    responses:
+      '201': { description: Approval evidence recorded; no target action executed, content: { application/json: { schema: { $ref: '#/schemas/MutationResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '422': { $ref: '#/responses/Unprocessable' }
+      '500': { $ref: '#/responses/InternalError' }
+
+containerAuthorityProjections:
+  post:
+    tags: [container-authority]
+    operationId: createContainerAuthorityProjection
+    summary: Dry-run or SQL-only apply the legacy identity projection
+    description: Uses brands.target_key as canonical Brand identity and holds ambiguous workspace, Brand, Activity, or Workflow mappings instead of guessing. Apply remains provider-free and projects Platform Graph rows as context-only.
+    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    requestBody:
+      required: false
+      content: { application/json: { schema: { $ref: '#/schemas/ProjectionRequest' } } }
+    responses:
+      '200': { description: Projection dry-run plan and held issues, content: { application/json: { schema: { $ref: '#/schemas/MutationResponse' } } } }
+      '201': { description: SQL-only projection applied and closure rebuilt, content: { application/json: { schema: { $ref: '#/schemas/MutationResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '409': { $ref: '#/responses/Conflict' }
+      '422': { $ref: '#/responses/Unprocessable' }
+      '500': { $ref: '#/responses/InternalError' }
+
+containerAuthorityShadowSummary:
+  get:
+    tags: [container-authority]
+    operationId: listContainerAuthorityShadowSummary
+    summary: List bounded shadow mismatch and latency summaries
+    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    parameters:
+      - name: limit
+        in: query
+        required: false
+        schema: { type: integer, minimum: 1, maximum: 200, default: 100 }
+    responses:
+      '200': { description: Shadow comparison summary, content: { application/json: { schema: { $ref: '#/schemas/ListResponse' } } } }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '500': { $ref: '#/responses/InternalError' }
+
+containerAuthorityRolloutReadiness:
+  get:
+    tags: [container-authority]
+    operationId: getContainerAuthorityRolloutReadiness
+    summary: Read shadow sample, mismatch, performance, projection, and relationship rollout gates
+    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    responses:
+      '200': { description: Current rollout readiness evidence; this endpoint does not enable enforcement, content: { application/json: { schema: { $ref: '#/schemas/ListResponse' } } } }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '500': { $ref: '#/responses/InternalError' }
+
+coWorkspaces:
+  get:
+    tags: [container-authority]
+    operationId: listMyCoWorkspaces
+    summary: List workspace containers available to the signed-in user
+    description: Returns workspaces reached through direct or inherited container role assignments. It does not expose other tenant workspaces.
+    security: [{ userJwtAuth: [] }]
+    parameters:
+      - name: limit
+        in: query
+        required: false
+        schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      - name: cursor
+        in: query
+        required: false
+        schema: { type: string }
+    responses:
+      '200': { description: Cursor-paginated co-workspaces, content: { application/json: { schema: { $ref: '#/schemas/CoWorkspaceListResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '500': { $ref: '#/responses/InternalError' }
+
+workspaceTeam:
+  get:
+    tags: [container-authority]
+    operationId: getWorkspaceContainerTeam
+    summary: List direct members of one workspace container team
+    security: [{ userJwtAuth: [] }]
+    parameters:
+      - name: workspaceId
+        in: path
+        required: true
+        description: Workspace container ID, workspace ID, workspace key, or canonical subject reference.
+        schema: { type: string, minLength: 1, maxLength: 191 }
+      - name: limit
+        in: query
+        required: false
+        schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      - name: cursor
+        in: query
+        required: false
+        schema: { type: string }
+    responses:
+      '200': { description: Direct workspace team and caller management capability, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '500': { $ref: '#/responses/InternalError' }
+
+workspaceTeamMembers:
+  post:
+    tags: [container-authority]
+    operationId: addWorkspaceContainerTeamMember
+    summary: Add an existing user to a workspace container team
+    description: Requires effective container_admin authority. The service may create or reactivate a least-privilege tenant membership, then creates a direct container role assignment and advances the authority epoch.
+    security: [{ userJwtAuth: [] }]
+    parameters:
+      - name: workspaceId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 191 }
+      - { $ref: '#/parameters/IdempotencyKey' }
+      - { $ref: '#/parameters/IfMatch' }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/schemas/ContainerTeamMemberSetRequest' }
+          example: { email: teammate@example.com, role: editor, inheritanceMode: inherit_down }
+    responses:
+      '200': { description: Idempotent replay of an existing member mutation, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamMutationResponse' } } } }
+      '201': { description: Workspace team member added, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamMutationResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '422': { $ref: '#/responses/Unprocessable' }
+      '500': { $ref: '#/responses/InternalError' }
+
+workspaceTeamMemberById:
+  patch:
+    tags: [container-authority]
+    operationId: updateWorkspaceContainerTeamMember
+    summary: Update one direct workspace team assignment
+    description: Omitted fields retain their current values. Demoting the last effective container administrator is blocked.
+    security: [{ userJwtAuth: [] }]
+    parameters:
+      - name: workspaceId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 191 }
+      - name: userId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 36 }
+      - { $ref: '#/parameters/IfMatch' }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/schemas/ContainerTeamMemberUpdateRequest' }
+          example: { roleTemplateKey: container_operator }
+    responses:
+      '200': { description: Workspace team assignment updated, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamMutationResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '422': { $ref: '#/responses/Unprocessable' }
+      '500': { $ref: '#/responses/InternalError' }
+  delete:
+    tags: [container-authority]
+    operationId: removeWorkspaceContainerTeamMember
+    summary: Revoke one direct workspace team assignment
+    description: Tenant membership remains active so the user can continue participating in other co-workspaces. Removing the last effective container administrator is blocked.
+    security: [{ userJwtAuth: [] }]
+    parameters:
+      - name: workspaceId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 191 }
+      - name: userId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 36 }
+      - { $ref: '#/parameters/IfMatch' }
+    responses:
+      '200': { description: Workspace team assignment revoked, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamMutationResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '500': { $ref: '#/responses/InternalError' }
+
+brandTeam:
+  get:
+    tags: [container-authority]
+    operationId: getBrandContainerTeam
+    summary: List direct members of one brand container team
+    security: [{ userJwtAuth: [] }]
+    parameters:
+      - name: brandRef
+        in: path
+        required: true
+        description: Brand container ID, brands.target_key, or brand container key.
+        schema: { type: string, minLength: 1, maxLength: 255 }
+      - name: limit
+        in: query
+        required: false
+        schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      - name: cursor
+        in: query
+        required: false
+        schema: { type: string }
+    responses:
+      '200': { description: Direct brand team and caller management capability, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '500': { $ref: '#/responses/InternalError' }
+
+brandTeamMembers:
+  post:
+    tags: [container-authority]
+    operationId: addBrandContainerTeamMember
+    summary: Add an existing workspace member to a brand container team
+    description: Requires effective container_admin authority. The target user must already have an active tenant membership; the service never creates cross-tenant Brand access implicitly.
+    security: [{ userJwtAuth: [] }]
+    parameters:
+      - name: brandRef
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 255 }
+      - { $ref: '#/parameters/IdempotencyKey' }
+      - { $ref: '#/parameters/IfMatch' }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/schemas/ContainerTeamMemberSetRequest' }
+          example: { userId: user_123, roleTemplateKey: container_viewer, inheritanceMode: inherit_down }
+    responses:
+      '200': { description: Idempotent replay of an existing member mutation, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamMutationResponse' } } } }
+      '201': { description: Brand team member added, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamMutationResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '422': { $ref: '#/responses/Unprocessable' }
+      '500': { $ref: '#/responses/InternalError' }
+
+brandTeamMemberById:
+  patch:
+    tags: [container-authority]
+    operationId: updateBrandContainerTeamMember
+    summary: Update one direct brand team assignment
+    description: Omitted fields retain their current values. The target identity is read only from the userId path parameter.
+    security: [{ userJwtAuth: [] }]
+    parameters:
+      - name: brandRef
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 255 }
+      - name: userId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 36 }
+      - { $ref: '#/parameters/IfMatch' }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/schemas/ContainerTeamMemberUpdateRequest' }
+          example: { inheritanceMode: local_only }
+    responses:
+      '200': { description: Brand team assignment updated, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamMutationResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '422': { $ref: '#/responses/Unprocessable' }
+      '500': { $ref: '#/responses/InternalError' }
+  delete:
+    tags: [container-authority]
+    operationId: removeBrandContainerTeamMember
+    summary: Revoke one direct brand team assignment
+    description: Revokes only Brand-container authority and never removes the user's tenant membership.
+    security: [{ userJwtAuth: [] }]
+    parameters:
+      - name: brandRef
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 255 }
+      - name: userId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 36 }
+      - { $ref: '#/parameters/IfMatch' }
+    responses:
+      '200': { description: Brand team assignment revoked, content: { application/json: { schema: { $ref: '#/schemas/ContainerTeamMutationResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '500': { $ref: '#/responses/InternalError' }

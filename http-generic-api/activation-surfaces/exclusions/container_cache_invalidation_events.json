@@ -1,0 +1,7 @@
+{
+  "surface_key": "container_cache_invalidation_events",
+  "source_table": "container_cache_invalidation_events",
+  "reason": "Excluded because it is an internal append-only cache invalidation event ledger. It does not describe capabilities, connected systems, or actionable activation state.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

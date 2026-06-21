@@ -22,6 +22,7 @@ import {
   persistGovernedToolResponseChunk,
 } from "../governedToolResponseChunkStore.js";
 import { runGovernedResponseChunkDurableRecoverySmoke } from "../governedResponseChunkDurableRecoverySmoke.js";
+import { bootstrapGovernedMigrationAuthorization } from "../governedMigrationAuthorizationBootstrap.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import {
   capabilityEnvelopeError,
@@ -368,6 +369,29 @@ const VIRTUAL_ADMIN_TOOLS = [
         confirm: { type: "string", const: "RUN_RESPONSE_CHUNK_DURABLE_RECOVERY_SMOKE" },
         repeat_count: { type: "integer", minimum: 40, maximum: 120, default: 48 },
         chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 30, default: 5 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "governed_migration_authorization_bootstrap",
+    displayName: "Governed Migration Authorization Bootstrap",
+    description: "Authorize one checksum-bound additive migration for the governed runner without executing migration SQL. Requires exact checksum, statement count, merged PR evidence, typed confirmation, a ready capability envelope, zero-risk preflight, and same-cycle authorization readback.",
+    method: "VIRTUAL",
+    path: "internal://governed-migration-authorization-bootstrap",
+    tags: ["admin", "migration", "authorization", "bootstrap", "mutation", "typed_confirmation", "capability_envelope", "no_migration_execution", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["migration", "expected_checksum_sha256", "expected_statement_count", "pull_request", "merge_sha", "confirm", "capability_envelope_id"],
+      properties: {
+        migration: { type: "string", pattern: "^[A-Za-z0-9._-]+\\.sql$" },
+        expected_checksum_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        expected_statement_count: { type: "integer", minimum: 1, maximum: 5000 },
+        pull_request: { type: "integer", minimum: 1 },
+        merge_sha: { type: "string", pattern: "^[0-9a-f]{40}$" },
+        confirm: { type: "string" },
+        capability_envelope_id: { type: "string" },
+        decision_note: { type: "string", minLength: 20, maxLength: 1000 },
       },
       additionalProperties: false,
     },
@@ -1580,6 +1604,30 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     };
   }
 
+  if (callerType === "admin" && toolKey === "governed_migration_authorization_bootstrap") {
+    try {
+      const result = await bootstrapGovernedMigrationAuthorization(args || {}, {
+        pool: getPool(),
+        auth: req?.auth || {},
+      });
+      return {
+        status: result.authorization_created ? 201 : 200,
+        body: { ok: true, name: toolKey, result },
+      };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "governed_migration_authorization_bootstrap_failed",
+            message: err?.message || "Governed migration authorization bootstrap failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
   if (callerType === "admin" && toolKey === "github_pr_ci_gate") {
     try {
       const result = await getGithubPullRequestCiGate(args || {});

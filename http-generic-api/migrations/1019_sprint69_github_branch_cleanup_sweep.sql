@@ -1,10 +1,10 @@
 -- Sprint 69: governed GitHub branch cleanup sweep.
 -- Additive/idempotent registry and policy metadata only.
--- no_provider_call=true
--- no_credential_payload_read=true
--- no_raw_secrets=true
--- no_external_send=true
--- no_external_write=true
+-- no_provider_call
+-- no_credential_payload_read
+-- no_raw_secrets
+-- no_external_send
+-- no_external_write
 -- destructive_operations=0
 -- secrets_included=false
 
