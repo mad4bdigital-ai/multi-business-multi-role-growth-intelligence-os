@@ -218,6 +218,7 @@ flowchart TD
 | `recovery_capability_taxonomy_policy_v1` | 2 |
 | `release_readiness_orchestration_gate_policy_v1` | 1 |
 | `repo_conflict_policy_v1` | 1 |
+| `repository_close_superseded_positive_smoke_policy_v1` | 1 |
 | `resource_authority_policy_v1` | 2 |
 | `runtime_agent_loop_policy_v1` | 1 |
 | `runtime_app_action_policy_v1` | 1 |
