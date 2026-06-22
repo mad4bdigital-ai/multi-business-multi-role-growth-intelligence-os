@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "./activationBootstrapConfig.js";
+import { applyUnifiedDiffToText } from "./unifiedDiff.js";
 
 const PROTECTED_BRANCHES = new Set(["main", "master", "production", "prod"]);
 export const DEFAULT_DISPOSABLE_BRANCH_PREFIXES = Object.freeze([
@@ -554,6 +555,65 @@ function validateChangePath(value = "") {
   return path;
 }
 
+function encodeRepositoryPath(filePath = "") {
+  return String(filePath).split("/").map(encodeURIComponent).join("/");
+}
+
+async function readGithubTextAtCommit({ owner, repo, commitSha, filePath, token, fetchImpl }) {
+  const contents = await githubLifecycleRequest({
+    owner,
+    repo,
+    apiPath: `/contents/${encodeRepositoryPath(filePath)}?ref=${encodeURIComponent(commitSha)}`,
+    token,
+    fetchImpl,
+    allowNotFound: true,
+  });
+  if (contents.status === 404) {
+    throw lifecycleError(409, "github_change_set_patch_target_missing", "Unified diff target does not exist at expected_base_sha.", {
+      path: filePath,
+      expected_base_sha: commitSha,
+      secrets_included: false,
+    });
+  }
+  const payload = contents.payload || {};
+  if (payload.type && payload.type !== "file") {
+    throw lifecycleError(400, "github_change_set_patch_target_not_file", "Unified diff target must resolve to a file.", {
+      path: filePath,
+      target_type: payload.type,
+      secrets_included: false,
+    });
+  }
+  let content = null;
+  if (typeof payload.content === "string") {
+    content = Buffer.from(payload.content.replace(/\s/g, ""), payload.encoding || "base64").toString("utf8");
+  } else if (normalizeSha(payload.sha)) {
+    const blob = await githubLifecycleRequest({
+      owner,
+      repo,
+      apiPath: `/git/blobs/${encodeURIComponent(payload.sha)}`,
+      token,
+      fetchImpl,
+    });
+    if (typeof blob.payload?.content === "string") {
+      content = Buffer.from(blob.payload.content.replace(/\s/g, ""), blob.payload.encoding || "base64").toString("utf8");
+    }
+  }
+  if (content === null) {
+    throw lifecycleError(502, "github_change_set_patch_target_read_failed", "Unified diff target content could not be read from GitHub.", {
+      path: filePath,
+      blob_sha: payload.sha || null,
+      secrets_included: false,
+    });
+  }
+  if (content.includes("\u0000")) {
+    throw lifecycleError(400, "github_change_set_patch_target_binary", "Unified diff supports UTF-8 text files only.", {
+      path: filePath,
+      secrets_included: false,
+    });
+  }
+  return { content, blob_sha: normalizeSha(payload.sha) || null };
+}
+
 export async function applyGithubRepositoryChangeSet(options = {}) {
   const { owner, repo, defaultBranch, token } = await lifecycleContext(options);
   const branch = normalizeBranch(options.branch);
@@ -564,6 +624,23 @@ export async function applyGithubRepositoryChangeSet(options = {}) {
   if (!expectedBaseSha) throw lifecycleError(400, "github_change_set_expected_base_required", "expected_base_sha must be a 40-character SHA.");
   if (commitMessage.length < 5) throw lifecycleError(400, "github_change_set_message_required", "commit_message must be at least 5 characters.");
   if (!changes.length || changes.length > 50) throw lifecycleError(400, "github_change_set_items_invalid", "changes must contain between 1 and 50 items.");
+
+  const seenPaths = new Set();
+  const normalizedChanges = changes.map((source) => {
+    const path = validateChangePath(source.path);
+    if (seenPaths.has(path)) {
+      throw lifecycleError(400, "github_change_set_duplicate_path", "Each change path must be unique.", { path });
+    }
+    seenPaths.add(path);
+    const action = String(source.action || "write_file");
+    if (!new Set(["write_file", "delete_file", "apply_unified_diff"]).has(action)) {
+      throw lifecycleError(400, "github_change_set_action_invalid", "Each change action must be write_file, delete_file, or apply_unified_diff.", { path, action });
+    }
+    if (action === "apply_unified_diff" && !String(source.diff || "").trim()) {
+      throw lifecycleError(400, "github_change_set_diff_required", "diff is required for apply_unified_diff.", { path });
+    }
+    return { ...source, path, action };
+  });
 
   const baseRef = await githubLifecycleRequest({ owner, repo, apiPath: `/git/ref/heads/${encodeBranch(defaultBranch)}`, token, fetchImpl: options.fetchImpl });
   const currentBaseSha = normalizeSha(baseRef.payload?.object?.sha);
@@ -580,21 +657,53 @@ export async function applyGithubRepositoryChangeSet(options = {}) {
     });
   }
   const baseCommit = await githubLifecycleRequest({ owner, repo, apiPath: `/git/commits/${expectedBaseSha}`, token, fetchImpl: options.fetchImpl });
-  const tree = [];
-  const itemReadback = [];
-  for (const source of changes) {
-    const path = validateChangePath(source.path);
-    const action = String(source.action || "write_file");
-    if (!new Set(["write_file", "delete_file"]).has(action)) throw lifecycleError(400, "github_change_set_action_invalid", "Each change action must be write_file or delete_file.", { path, action });
-    if (action === "delete_file") {
-      tree.push({ path, mode: "100644", type: "blob", sha: null });
-      itemReadback.push({ path, action, content_sha256: null });
+
+  // Validate every hunk before creating any Git blob, tree, commit, or ref.
+  const preparedChanges = [];
+  for (const source of normalizedChanges) {
+    if (source.action === "delete_file") {
+      preparedChanges.push({ ...source, content: null, base_blob_sha: null });
       continue;
     }
-    const content = String(source.content ?? "");
-    const blob = await githubLifecycleRequest({ owner, repo, apiPath: "/git/blobs", method: "POST", body: { content, encoding: "utf-8" }, token, fetchImpl: options.fetchImpl });
-    tree.push({ path, mode: "100644", type: "blob", sha: blob.payload?.sha });
-    itemReadback.push({ path, action, content_sha256: createHash("sha256").update(content).digest("hex"), blob_sha: blob.payload?.sha || null });
+    if (source.action === "write_file") {
+      preparedChanges.push({ ...source, content: String(source.content ?? ""), base_blob_sha: null });
+      continue;
+    }
+    const current = await readGithubTextAtCommit({
+      owner,
+      repo,
+      commitSha: expectedBaseSha,
+      filePath: source.path,
+      token,
+      fetchImpl: options.fetchImpl,
+    });
+    preparedChanges.push({
+      ...source,
+      content: applyUnifiedDiffToText(current.content, source.diff),
+      base_blob_sha: current.blob_sha,
+    });
+  }
+
+  const tree = [];
+  const itemReadback = [];
+  for (const source of preparedChanges) {
+    if (source.action === "delete_file") {
+      tree.push({ path: source.path, mode: "100644", type: "blob", sha: null });
+      itemReadback.push({ path: source.path, action: source.action, content_sha256: null });
+      continue;
+    }
+    const blob = await githubLifecycleRequest({ owner, repo, apiPath: "/git/blobs", method: "POST", body: { content: source.content, encoding: "utf-8" }, token, fetchImpl: options.fetchImpl });
+    tree.push({ path: source.path, mode: "100644", type: "blob", sha: blob.payload?.sha });
+    itemReadback.push({
+      path: source.path,
+      action: source.action,
+      content_sha256: createHash("sha256").update(source.content).digest("hex"),
+      blob_sha: blob.payload?.sha || null,
+      ...(source.action === "apply_unified_diff" ? {
+        patch_sha256: createHash("sha256").update(String(source.diff)).digest("hex"),
+        base_blob_sha: source.base_blob_sha,
+      } : {}),
+    });
   }
   const newTree = await githubLifecycleRequest({ owner, repo, apiPath: "/git/trees", method: "POST", body: { base_tree: baseCommit.payload?.tree?.sha, tree }, token, fetchImpl: options.fetchImpl });
   const newCommit = await githubLifecycleRequest({ owner, repo, apiPath: "/git/commits", method: "POST", body: { message: commitMessage, tree: newTree.payload?.sha, parents: [expectedBaseSha] }, token, fetchImpl: options.fetchImpl });
@@ -620,7 +729,6 @@ export async function applyGithubRepositoryChangeSet(options = {}) {
     secrets_included: false,
   };
 }
-
 async function readGithubBlobShaAtPath({ owner, repo, treeSha, filePath, token, fetchImpl }) {
   const parts = validateChangePath(filePath).split("/");
   let currentTreeSha = normalizeSha(treeSha);

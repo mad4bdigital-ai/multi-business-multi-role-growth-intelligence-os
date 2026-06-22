@@ -31,6 +31,7 @@ const ACTIVE_SCHEMAS = {
       "callTool",
       "tenantPlatformPluginCatalog",
       "tenantPlatformPluginInstall",
+      "tenantPlatformPluginCredentialIntakeSessionCreate",
       "tenantPlatformPluginResolve",
       "writeSessionTurn",
       "endSession",
@@ -362,8 +363,11 @@ section("dispatcher contracts");
       .join(", "));
 
   const tenantPostOps = collectOperations(tenantDoc).filter((op) => op.method === "post");
-  const tenantAllowedConsequentialOps = new Set(["tenantPlatformPluginInstall"]);
-  assert("tenant dispatcher POST operations are non-consequential except explicit install consent surfaces",
+  const tenantAllowedConsequentialOps = new Set([
+    "tenantPlatformPluginInstall",
+    "tenantPlatformPluginCredentialIntakeSessionCreate",
+  ]);
+  assert("tenant dispatcher POST operations are non-consequential except explicit install/intake consent surfaces",
     tenantPostOps.every((op) => op.operation["x-openai-isConsequential"] === false || tenantAllowedConsequentialOps.has(op.operation.operationId)),
     tenantPostOps
       .filter((op) => op.operation["x-openai-isConsequential"] !== false && !tenantAllowedConsequentialOps.has(op.operation.operationId))
@@ -434,6 +438,7 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     "callTool",
     "tenantPlatformPluginCatalog",
     "tenantPlatformPluginInstall",
+    "tenantPlatformPluginCredentialIntakeSessionCreate",
     "tenantPlatformPluginResolve",
     "writeSessionTurn",
     "endSession",
@@ -444,7 +449,12 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   assert("tenant OpenAI schema does not expose direct connect routes",
     !Object.keys(tenantDoc.paths || {}).some((path) => path.startsWith("/connect")));
   assert("tenant OpenAI schema exposes tenant Platform Plugin routes only under /tenant/platform/plugins",
-    ["/tenant/platform/plugins/catalog", "/tenant/platform/plugins/install", "/tenant/platform/plugins/resolve"].every((path) => Boolean(tenantDoc.paths?.[path])));
+    [
+      "/tenant/platform/plugins/catalog",
+      "/tenant/platform/plugins/install",
+      "/tenant/platform/plugins/credential-intake-sessions",
+      "/tenant/platform/plugins/resolve",
+    ].every((path) => Boolean(tenantDoc.paths?.[path])));
   const tenantCallToolSchema = tenantDoc.paths?.["/system/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
   const tenantToolArgsSchema = tenantCallToolSchema?.properties?.tool_args;
   const tenantCallToolNameSchema = tenantCallToolSchema?.properties?.name || {};

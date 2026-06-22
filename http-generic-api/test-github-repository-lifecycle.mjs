@@ -17,6 +17,7 @@ const HEAD_SHA = "b".repeat(40);
 const COMMIT_SHA = "c".repeat(40);
 const TREE_SHA = "d".repeat(40);
 const BLOB_SHA = "e".repeat(40);
+const PATCH_BLOB_SHA = "1".repeat(40);
 
 function response(status, payload = {}) {
   return {
@@ -392,12 +393,19 @@ function queuedFetch(entries, calls = []) {
     changes: [
       { action: "write_file", path: "http-generic-api/example.js", content: "export const ok = true;\n" },
       { action: "delete_file", path: "http-generic-api/obsolete.js" },
+      {
+        action: "apply_unified_diff",
+        path: "http-generic-api/config.js",
+        diff: "@@ -1,2 +1,2 @@\n export const alpha = true;\n-export const beta = false;\n+export const beta = true;",
+      },
     ],
     fetchImpl: queuedFetch([
       { status: 200, payload: { object: { sha: BASE_SHA } } },
       { status: 404, payload: { message: "Not Found" } },
       { status: 200, payload: { sha: BASE_SHA, tree: { sha: TREE_SHA } } },
+      { status: 200, payload: { type: "file", sha: PATCH_BLOB_SHA, encoding: "base64", content: Buffer.from("export const alpha = true;\nexport const beta = false;\n").toString("base64") } },
       { status: 201, payload: { sha: BLOB_SHA } },
+      { status: 201, payload: { sha: PATCH_BLOB_SHA } },
       { status: 201, payload: { sha: TREE_SHA } },
       { status: 201, payload: { sha: COMMIT_SHA } },
       { status: 201, payload: { ref: "refs/heads/gpt/atomic-change-set", object: { sha: COMMIT_SHA } } },
@@ -405,14 +413,60 @@ function queuedFetch(entries, calls = []) {
     ], calls),
   });
   assert.equal(result.commit_sha, COMMIT_SHA);
-  assert.equal(result.change_count, 2);
+  assert.equal(result.change_count, 3);
   assert.equal(result.branch_created, true);
   assert.equal(result.readback_verified, true);
   const treeCall = calls.find((call) => call.url.endsWith("/git/trees") && call.method === "POST");
-  assert.equal(treeCall.body.tree.length, 2);
+  assert.equal(treeCall.body.tree.length, 3);
   assert.equal(treeCall.body.tree[1].sha, null);
+  assert.equal(treeCall.body.tree[2].sha, PATCH_BLOB_SHA);
+  assert.equal(result.items[2].action, "apply_unified_diff");
+  assert.equal(result.items[2].base_blob_sha, PATCH_BLOB_SHA);
+  assert.match(result.items[2].patch_sha256, /^[0-9a-f]{64}$/);
+  const blobCalls = calls.filter((call) => call.url.endsWith("/git/blobs") && call.method === "POST");
+  assert.equal(blobCalls.length, 2);
+  assert.equal(blobCalls[1].body.content, "export const alpha = true;\nexport const beta = true;\n");
   const commitCall = calls.find((call) => call.url.endsWith("/git/commits") && call.method === "POST");
   assert.deepEqual(commitCall.body.parents, [BASE_SHA]);
+}
+
+
+{
+  const calls = [];
+  await assert.rejects(
+    () => applyGithubRepositoryChangeSet({
+      owner: OWNER, repo: REPO, default_branch: "main", token: "test-token",
+      branch: "gpt/atomic-diff-mismatch", expected_base_sha: BASE_SHA,
+      commit_message: "fix: reject mismatched atomic diff",
+      changes: [{ action: "apply_unified_diff", path: "http-generic-api/config.js", diff: "@@ -1,2 +1,2 @@\n export const alpha = true;\n-WRONG CONTEXT\n+export const beta = true;" }],
+      fetchImpl: queuedFetch([
+        { status: 200, payload: { object: { sha: BASE_SHA } } },
+        { status: 404, payload: { message: "Not Found" } },
+        { status: 200, payload: { sha: BASE_SHA, tree: { sha: TREE_SHA } } },
+        { status: 200, payload: { type: "file", sha: PATCH_BLOB_SHA, encoding: "base64", content: Buffer.from("export const alpha = true;\nexport const beta = false;\n").toString("base64") } },
+      ], calls),
+    }),
+    (error) => error.code === "repo_patch_removal_mismatch"
+  );
+  assert.equal(calls.some((call) => call.method === "POST"), false, "invalid diff must fail before any Git write");
+}
+
+{
+  const calls = [];
+  await assert.rejects(
+    () => applyGithubRepositoryChangeSet({
+      owner: OWNER, repo: REPO, default_branch: "main", token: "test-token",
+      branch: "gpt/atomic-duplicate-path", expected_base_sha: BASE_SHA,
+      commit_message: "fix: reject duplicate batch paths",
+      changes: [
+        { action: "write_file", path: "http-generic-api/config.js", content: "one" },
+        { action: "apply_unified_diff", path: "http-generic-api/config.js", diff: "@@ -1 +1 @@\n-one\n+two" },
+      ],
+      fetchImpl: queuedFetch([], calls),
+    }),
+    (error) => error.code === "github_change_set_duplicate_path"
+  );
+  assert.equal(calls.length, 0, "duplicate paths must fail before GitHub reads or writes");
 }
 
 {
