@@ -8951,7 +8951,7 @@ paths:
                 tool_args:
                   type: object
                   additionalProperties: true
-                  description: Arguments matching the tool inputSchema. For connect_activate, pass mode and integration_modes here; for connect_device_install, pass device_id here; for admin_control pass tool, sql, args etc. here.
+                  description: Arguments matching the tool inputSchema. For connect_activate, pass mode and integration_modes here; for connect_device_install, pass device_id here; for admin_control pass tool, sql, args etc. here. For github_rest_endpoint_dispatch, pass a nested tool_args object containing the registry-authorized parent_action_key, endpoint_key, path_params, and bounded query/body plus any required approval or readback evidence; raw methods, URLs, and authorization headers are not accepted.
                   properties:
                     mode:
                       type: string
