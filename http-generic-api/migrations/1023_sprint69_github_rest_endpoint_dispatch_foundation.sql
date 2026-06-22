@@ -182,6 +182,46 @@ ON DUPLICATE KEY UPDATE
   notes = VALUES(notes),
   updated_at = CURRENT_TIMESTAMP;
 
+-- GitHub returns 201 Created for a successfully created Git reference. Preserve
+-- the existing endpoint contract while adding the missing success response so
+-- runtime response validation does not misclassify a successful provider write.
+UPDATE endpoints
+SET schema_json = JSON_SET(
+      COALESCE(schema_json, JSON_OBJECT()),
+      '$.responses.201',
+      JSON_OBJECT(
+        'description', 'Reference created',
+        'content', JSON_OBJECT(
+          'application/json', JSON_OBJECT(
+            'schema', JSON_OBJECT(
+              'type', 'object',
+              'additionalProperties', TRUE,
+              'required', JSON_ARRAY('ref', 'object'),
+              'properties', JSON_OBJECT(
+                'ref', JSON_OBJECT('type', 'string'),
+                'node_id', JSON_OBJECT('type', 'string'),
+                'url', JSON_OBJECT('type', 'string'),
+                'object', JSON_OBJECT(
+                  'type', 'object',
+                  'additionalProperties', TRUE,
+                  'required', JSON_ARRAY('sha', 'type', 'url'),
+                  'properties', JSON_OBJECT(
+                    'sha', JSON_OBJECT('type', 'string'),
+                    'type', JSON_OBJECT('type', 'string'),
+                    'url', JSON_OBJECT('type', 'string')
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    ),
+    updated_at = CURRENT_TIMESTAMP
+WHERE endpoint_id = 'ACT-GH-EP-011'
+  AND parent_action_key = 'github_api_mcp'
+  AND endpoint_key = 'github_create_branch_reference';
+
 INSERT INTO admin_platform_endpoint_tools (
   tool_key, display_name, description, http_method, http_path,
   path_param_keys, input_schema, fixed_body, tags, is_enabled, sort_order
