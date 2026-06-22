@@ -53,4 +53,11 @@ for (const marker of [
   assert.ok(migration.includes(marker), `missing migration safety marker ${marker}`);
 }
 
+assert.match(migration, /ACT-GH-EP-011/);
+assert.match(migration, /github_create_branch_reference/);
+assert.match(migration, /'\$\.responses\.201'/);
+assert.match(migration, /'description', 'Reference created'/);
+assert.match(migration, /'required', JSON_ARRAY\('ref', 'object'\)/);
+assert.match(migration, /WHERE endpoint_id = 'ACT-GH-EP-011'/);
+
 console.log("github REST endpoint dispatch foundation tests passed");
