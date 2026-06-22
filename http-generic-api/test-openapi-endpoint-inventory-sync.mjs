@@ -277,7 +277,7 @@ assert.doesNotMatch(
   /applyLegacyContainerProjection/,
 );
 
-const migration = await readFile(new URL("./migrations/1023_sprint69_openapi_endpoint_inventory_sync.sql", import.meta.url), "utf8");
+const migration = await readFile(new URL("./migrations/1024_sprint69_openapi_endpoint_inventory_sync.sql", import.meta.url), "utf8");
 for (const toolKey of [
   "openapi_endpoint_inventory_status",
   "openapi_endpoint_inventory_sync",
