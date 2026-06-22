@@ -1,6 +1,7 @@
 import * as authService from './authService.js';
 import { generateDeploymentManifest } from "./scripts/generate-deployment-manifest.mjs";
 import { startDynamicAuditScheduler } from "./dynamicAuditRuntime.js";
+import { startOpenApiEndpointInventorySync } from "./openApiEndpointInventorySync.js";
 import { createLocalConnectorOrchestrator } from "./services/localConnectorOrchestrator.js";
 import { createStateManager } from "./stateManager.js";
 import { DATA_SOURCE_MODE } from "./dataSource.js";
@@ -3239,6 +3240,22 @@ app.listen(port, () => {
       console.error(JSON.stringify({
         event: "dynamic_audit_scheduler_start_failed",
         code: error?.code || "dynamic_audit_scheduler_start_failed",
+        message: String(error?.message || error).slice(0, 500),
+        secrets_included: false,
+      }));
+    });
+  startOpenApiEndpointInventorySync()
+    .then((result) => {
+      console.log(JSON.stringify({
+        event: "openapi_endpoint_inventory_sync_start",
+        ...result,
+        secrets_included: false,
+      }));
+    })
+    .catch((error) => {
+      console.error(JSON.stringify({
+        event: "openapi_endpoint_inventory_sync_start_failed",
+        code: error?.code || "openapi_endpoint_inventory_sync_start_failed",
         message: String(error?.message || error).slice(0, 500),
         secrets_included: false,
       }));
