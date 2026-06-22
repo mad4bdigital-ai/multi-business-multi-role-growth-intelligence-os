@@ -1,0 +1,153 @@
+schemas:
+  ErrorResponse:
+    type: object
+    additionalProperties: false
+    required: [ok, error, secrets_included]
+    properties:
+      ok: { type: boolean, const: false }
+      error:
+        type: object
+        additionalProperties: false
+        required: [code, message]
+        properties:
+          code: { type: string }
+          message: { type: string }
+          details: {}
+          requestId: { type: [string, 'null'] }
+      secrets_included: { type: boolean, const: false }
+
+  InventoryPlan:
+    type: object
+    additionalProperties: false
+    required: [insert_count, update_count, unchanged_count, deprecate_count, callable_rows_created, tool_exports_created]
+    properties:
+      insert_count: { type: integer, minimum: 0 }
+      update_count: { type: integer, minimum: 0 }
+      unchanged_count: { type: integer, minimum: 0 }
+      deprecate_count: { type: integer, minimum: 0 }
+      callable_rows_created: { type: integer, const: 0 }
+      tool_exports_created: { type: integer, const: 0 }
+
+  InventorySyncRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      mode: { type: string, enum: [dry_run, apply], default: dry_run }
+      confirm: { type: string, maxLength: 128 }
+      capability_envelope_id: { type: string, maxLength: 64 }
+    description: Apply requires confirm=SYNC_OPENAPI_ENDPOINT_INVENTORY and a ready platform_orchestration capability envelope.
+
+  InventorySyncResponse:
+    type: object
+    additionalProperties: true
+    required: [ok, mode, source_sha256, source_fingerprint, operation_count, plan, applied, provider_calls, external_writes, secrets_included]
+    properties:
+      ok: { type: boolean, const: true }
+      mode: { type: string, enum: [dry_run, apply] }
+      trigger_source: { type: string }
+      source_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+      source_fingerprint: { type: string, pattern: '^[a-f0-9]{64}$' }
+      operation_count: { type: integer, minimum: 0 }
+      plan: { $ref: '#/schemas/InventoryPlan' }
+      required_confirmation: { type: string }
+      run_id: { type: [string, 'null'], format: uuid }
+      readback_count: { type: integer, minimum: 0 }
+      capability_envelope_id: { type: [string, 'null'] }
+      applied: { type: boolean }
+      applies_inventory_metadata_only: { type: boolean }
+      provider_calls: { type: boolean, const: false }
+      external_writes: { type: boolean, const: false }
+      secrets_included: { type: boolean, const: false }
+
+  InventoryStatusResponse:
+    type: object
+    additionalProperties: true
+    required: [ok, schema_ready, secrets_included]
+    properties:
+      ok: { type: boolean, const: true }
+      schema_ready: { type: boolean }
+      status: { type: string }
+      config:
+        type: object
+        additionalProperties: true
+      latest_run:
+        type: [object, 'null']
+        additionalProperties: true
+      inventory:
+        type: object
+        additionalProperties: false
+        properties:
+          total_count: { type: integer, minimum: 0 }
+          active_inventory_count: { type: integer, minimum: 0 }
+          callable_count: { type: integer, minimum: 0 }
+      secrets_included: { type: boolean, const: false }
+
+responses:
+  BadRequest:
+    description: Invalid mode, confirmation, capability envelope, or request field.
+    content: { application/json: { schema: { $ref: '#/schemas/ErrorResponse' } } }
+  Unauthorized:
+    description: Backend authentication is missing or invalid.
+    content: { application/json: { schema: { $ref: '#/schemas/ErrorResponse' } } }
+  Forbidden:
+    description: The principal or capability envelope does not permit the operation.
+    content: { application/json: { schema: { $ref: '#/schemas/ErrorResponse' } } }
+  Conflict:
+    description: Another synchronization holds the advisory lock or authority state changed.
+    content: { application/json: { schema: { $ref: '#/schemas/ErrorResponse' } } }
+  InternalError:
+    description: Synchronization failed without exposing stack traces or secrets.
+    content: { application/json: { schema: { $ref: '#/schemas/ErrorResponse' } } }
+
+openApiRegistrySyncStatus:
+  get:
+    tags: [admin-control, openapi-registry]
+    operationId: getOpenApiEndpointInventorySyncStatus
+    summary: Read OpenAPI endpoint inventory synchronization status
+    description: Returns runtime config, latest run evidence, inventory counts, and the callable-count safety guard. No mutation, provider call, credential read, or secret output.
+    x-registry-exposure: admin_tool
+    x-registry-tool-key: openapi_endpoint_inventory_status
+    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    responses:
+      '200':
+        description: Current synchronization and inventory state.
+        content: { application/json: { schema: { $ref: '#/schemas/InventoryStatusResponse' } } }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '500': { $ref: '#/responses/InternalError' }
+
+openApiRegistrySync:
+  post:
+    tags: [admin-control, openapi-registry]
+    operationId: syncOpenApiEndpointInventory
+    summary: Dry-run or apply OpenAPI endpoint inventory synchronization
+    description: Parses committed OpenAPI operations and synchronizes non-callable SQL inventory rows. Apply requires typed confirmation and a ready capability envelope. It never creates runtime authority or tool exports.
+    x-registry-exposure: admin_tool
+    x-registry-tool-key: openapi_endpoint_inventory_sync
+    x-openai-isConsequential: true
+    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '#/schemas/InventorySyncRequest' }
+          examples:
+            dryRun:
+              value: { mode: dry_run }
+            apply:
+              value:
+                mode: apply
+                confirm: SYNC_OPENAPI_ENDPOINT_INVENTORY
+                capability_envelope_id: 00000000-0000-0000-0000-000000000000
+    responses:
+      '200':
+        description: Dry-run synchronization plan.
+        content: { application/json: { schema: { $ref: '#/schemas/InventorySyncResponse' } } }
+      '201':
+        description: Inventory metadata synchronized with same-cycle readback.
+        content: { application/json: { schema: { $ref: '#/schemas/InventorySyncResponse' } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '409': { $ref: '#/responses/Conflict' }
+      '500': { $ref: '#/responses/InternalError' }
