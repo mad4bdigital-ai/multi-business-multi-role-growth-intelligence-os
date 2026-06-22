@@ -54,6 +54,12 @@ Tenant GPTs must not use admin repo tools. Tenant knowledge must come from OAuth
 | `platform_endpoint_aliases` | Compatibility mapping from imported or historical endpoint keys to one canonical endpoint key |
 | `tenant_capability_shadow_decisions` | No-secret legacy-versus-effective resolver comparison evidence |
 
+### GitHub REST endpoint authority
+
+GitHub REST execution is registry-driven. Resolve `actions.github_api_mcp` first, then select one active canonical row from `endpoints`; do not accept caller-supplied methods, provider URLs, or authorization headers as execution authority. Canonical execution rows require a non-null endpoint identity, `execution_readiness=ready`, and `transport_action_key=http_generic_api`.
+
+The Admin projection `github_rest_endpoint_dispatch` forwards bounded nested `tool_args` to the existing `runtime_endpoint_call` kernel. `runtime_endpoint_call` remains responsible for principal context, credential resolution, endpoint schema validation, mutation preflight, audit, and readback. Endpoint registration or tool exposure never self-authorizes a provider write. See `docs/github-rest-endpoint-dispatch.md`.
+
 ### Semantic capability resolution
 
 User intent should resolve to a semantic capability before provider-specific action, endpoint, connection, or tool selection. Tenant-effective readiness is the conjunction of authenticated principal, canonical workspace, active membership, semantic capability, provider binding, workspace-linked validated connection, action grant, resource authority, canonical endpoint identity, runtime certification, and derived export state.

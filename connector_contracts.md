@@ -166,6 +166,27 @@ AES-GCM decryption helpers, credential field extraction, scope matching, and las
 - **Capability contract:** This route is the final `.env` writer and must render signed opt-in values into `CONNECTOR_POWERSHELL_ENABLED`, `CONNECTOR_WIN_ENABLED`, `CONNECTOR_FILE_PATHS`, `CONNECTOR_APP_ALLOWLIST`, and `CONNECTOR_SHELL_ALLOWLIST`.
 - **Regression guard:** Do not declare capability install recovered from Settings refresh alone. Validate live connector behavior: `connector_ps`, `connector_win`, `connector_files`, and `connector_apps`.
 
+## GitHub REST endpoint dispatch
+
+GitHub REST operations resolve through the SQL-primary registry chain rather than caller-supplied transport details:
+
+```text
+actions.github_api_mcp
+  -> endpoints
+  -> platform_endpoint_tool_exports
+  -> platform_tool_dispatch_bindings
+  -> runtime_endpoint_call
+  -> http_generic_api
+```
+
+The Admin tool `github_rest_endpoint_dispatch` forwards a nested `tool_args` object to the existing `runtime_endpoint_call` system-layer dispatcher. Callers may select only reviewed endpoint keys and bounded path, query, body, approval, and readback fields. The HTTP method, endpoint path, provider domain, authentication, and transport action are loaded from the active canonical `endpoints` row.
+
+Executable rows must have a non-null canonical endpoint identity, `status=active`, `execution_readiness=ready`, and `transport_action_key=http_generic_api`. Imported or historical inventory rows without that evidence remain non-authoritative.
+
+The initial projection covers pull-request metadata updates plus issue-label list, add, replace, and remove operations. Provider mutations remain subject to runtime authority, preflight or dry-run requirements, approval, audit, and same-cycle readback. The projection does not itself authorize writes and never accepts raw URLs, methods, or authorization headers.
+
+See `docs/github-rest-endpoint-dispatch.md`.
+
 ## Dispatch entrypoint
 
 Connector dispatch routes through two layers:
