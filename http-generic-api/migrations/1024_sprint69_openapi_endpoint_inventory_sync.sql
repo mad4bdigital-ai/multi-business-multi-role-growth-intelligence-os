@@ -270,7 +270,7 @@ INSERT INTO governed_migration_authorization_registry (
   risk_tier, requires_preflight, requires_confirmation,
   allow_record_only, allow_apply, notes, metadata_json
 ) VALUES (
-  '1023_sprint69_openapi_endpoint_inventory_sync.sql',
+  '1024_sprint69_openapi_endpoint_inventory_sync.sql',
   'authorized',
   'migration_seed',
   'governed_migration_runner_authorization_v1',
