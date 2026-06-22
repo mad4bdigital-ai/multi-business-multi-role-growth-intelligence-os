@@ -13,6 +13,7 @@ assert.match(lifecycle, /aheadBy === 0/);
 assert.match(lifecycle, /\["behind", "identical"\]\.includes\(compareStatus\)/);
 assert.match(lifecycle, /validation_phase: "pre_delete_readback"/);
 assert.match(lifecycle, /DEFAULT_DISPOSABLE_BRANCH_PREFIXES/);
+assert.match(lifecycle, /"feat\/"/);
 assert.match(lifecycle, /merged_pull_request_cleanup: true/);
 
 assert.match(resolver, /unique\(\[workspaceId, workspaceKey, tenantId, brandKey, appKey\]\)/);

@@ -23,6 +23,26 @@ const MUTATION_ACTIONS = new Set([
 ]);
 
 function s(value = "") { return String(value ?? "").trim(); }
+export function buildCloseSupersededWriteV6({ owner, repo, prNumber, headSha } = {}) {
+  const resolvedOwner = s(owner);
+  const resolvedRepo = s(repo);
+  const resolvedPrNumber = Number(prNumber);
+  const resolvedHeadSha = s(headSha).toLowerCase();
+  const validRepositoryPart = (value) => /^[A-Za-z0-9_.-]+$/.test(value);
+  if (!validRepositoryPart(resolvedOwner) || !validRepositoryPart(resolvedRepo) || !Number.isInteger(resolvedPrNumber) || resolvedPrNumber < 1 || !/^[0-9a-f]{40}$/.test(resolvedHeadSha)) {
+    const err = new Error("Close-superseded write contract requires a valid repository, PR number, and expected head SHA.");
+    err.status = 400;
+    err.code = "repository_close_superseded_write_invalid";
+    throw err;
+  }
+  return {
+    method: "PATCH",
+    path: `/repos/${resolvedOwner}/${resolvedRepo}/pulls/${resolvedPrNumber}`,
+    body: { state: "closed" },
+    expected_readback: { state: "closed", head_sha: resolvedHeadSha },
+    secrets_included: false,
+  };
+}
 function safeJson(value, fallback = {}) { if (value && typeof value === "object") return value; try { return JSON.parse(String(value || "")); } catch { return fallback; } }
 function hash(value) { return createHash("sha256").update(typeof value === "string" ? value : JSON.stringify(value)).digest("hex"); }
 function bounded(value, fallback, min, max) { const n = Number(value); return Number.isFinite(n) ? Math.min(Math.max(Math.trunc(n), min), max) : fallback; }
@@ -568,7 +588,7 @@ async function validateMutationApprovalV6({ row, item, args, auth }) {
   if (!holdOk) { const err = new Error("Approval hold is missing, expired, or not bound to this capability envelope, external-write authority, and scope."); err.status = 403; err.code = "repository_mutation_approval_hold_invalid"; throw err; }
   return { envelope, hold: { hold_id: hold.hold_id, status: hold.status, expires_at: hold.expires_at, secrets_included: false } };
 }
-async function reanalyzeMutationItemV6({ repoRef, item, token }) {
+export async function reanalyzeMutationItemV6({ repoRef, item, token }) {
   const repoInfo = await githubGet(`/repos/${encodeURIComponent(repoRef.owner)}/${encodeURIComponent(repoRef.repo)}`, token);
   const defaultBranch = s(repoInfo.body?.default_branch || "main");
   const protectionResult = await githubGet(`/repos/${encodeURIComponent(repoRef.owner)}/${encodeURIComponent(repoRef.repo)}/branches/${encodeURIComponent(defaultBranch)}/protection`, token, { allowStatuses: [403, 404] });
@@ -579,10 +599,38 @@ async function reanalyzeMutationItemV6({ repoRef, item, token }) {
   return { analysis, defaultBranch, branchProtection, mainTree };
 }
 
+export function assertCloseSupersededEvidenceV6({ plannedHeadSha = "", analysis = {} } = {}) {
+  const expectedHeadSha = s(plannedHeadSha).toLowerCase();
+  const currentHeadSha = s(analysis.head_sha).toLowerCase();
+  if (!expectedHeadSha || currentHeadSha !== expectedHeadSha) {
+    const err = new Error("PR head SHA changed after the close-superseded evidence was prepared.");
+    err.status = 409;
+    err.code = "repository_mutation_head_sha_changed";
+    err.details = { planned_head_sha: expectedHeadSha || null, current_head_sha: currentHeadSha || null, secrets_included: false };
+    throw err;
+  }
+  if (analysis.classification_v6 !== "superseded_by_main" || analysis.main_equivalence?.exact !== true || analysis.main_equivalence?.complete !== true || Number(analysis.confidence_v6 || 0) < 0.98) {
+    const err = new Error("Close requires complete exact main equivalence and high-confidence superseded classification.");
+    err.status = 409;
+    err.code = "repository_close_superseded_evidence_failed";
+    err.details = { classification: analysis.classification_v6 || null, confidence: Number(analysis.confidence_v6 || 0), exact: analysis.main_equivalence?.exact === true, complete: analysis.main_equivalence?.complete === true, secrets_included: false };
+    throw err;
+  }
+  return {
+    ok: true,
+    head_sha: currentHeadSha,
+    classification: analysis.classification_v6,
+    confidence: Number(analysis.confidence_v6 || 0),
+    exact_main_equivalence: true,
+    complete_equivalence_evidence: true,
+    secrets_included: false,
+  };
+}
+
 function assertSameCycleMutationEvidenceV6(item = {}, current = {}) {
   const analysis = current.analysis || {};
   if (!item.head_sha || analysis.head_sha !== item.head_sha) { const err = new Error("PR head SHA changed after the mutation plan was created."); err.status = 409; err.code = "repository_mutation_head_sha_changed"; err.details = { planned_head_sha: item.head_sha || null, current_head_sha: analysis.head_sha || null }; throw err; }
-  if (item.action === "repo.pr.close_superseded" && (analysis.classification_v6 !== "superseded_by_main" || analysis.main_equivalence?.exact !== true || analysis.main_equivalence?.complete !== true || Number(analysis.confidence_v6 || 0) < 0.98)) { const err = new Error("Close requires complete exact main equivalence and high-confidence superseded classification."); err.status = 409; err.code = "repository_close_superseded_evidence_failed"; throw err; }
+  if (item.action === "repo.pr.close_superseded") assertCloseSupersededEvidenceV6({ plannedHeadSha: item.head_sha, analysis });
   if (item.action === "repo.branch.fast_forward" && analysis.classification_v6 !== "behind_only") { const err = new Error("Fast-forward requires same-cycle behind_only classification."); err.status = 409; err.code = "repository_fast_forward_evidence_failed"; throw err; }
   if (item.action === "repo.pr.merge_ready" && (analysis.classification_v6 !== "merge_ready" || current.branchProtection?.visible !== true || analysis.ci?.required?.complete !== true)) { const err = new Error("Merge requires same-cycle merge_ready evidence, visible branch protection, and complete required checks."); err.status = 409; err.code = "repository_merge_ready_evidence_failed"; throw err; }
   if (item.action === "repo.pr.label" && !["unsafe_to_merge", "manual_review_required"].includes(analysis.classification_v6)) { const err = new Error("Governance label requires an active unsafe/manual-review classification."); err.status = 409; err.code = "repository_label_evidence_failed"; throw err; }
@@ -618,7 +666,7 @@ async function dispatchRepositoryMutationV6({ repoRef, planId, item, current, to
     return { provider_object_id: String(prNumber), write: { action: item.action, labels }, expected_readback: { labels, returned_labels: (result.body || []).map((label) => label.name) } };
   }
   if (item.action === "repo.pr.close_superseded") {
-    const result = await githubRequestV6("PATCH", `/repos/${owner}/${repo}/pulls/${prNumber}`, token, { state: "closed" });
+    const request = buildCloseSupersededWriteV6({ owner, repo, prNumber, headSha: item.head_sha }); const result = await githubRequestV6(request.method, request.path, token, request.body);
     return { provider_object_id: String(prNumber), write: { action: item.action, state: result.body?.state || null }, expected_readback: { state: "closed", head_sha: item.head_sha } };
   }
   if (item.action === "repo.branch.fast_forward") {

@@ -20,6 +20,11 @@ import {
   hybridIntegrationCatalog,
   upsertTenantIntegrationPolicies,
 } from "../hybridIntegrationPolicy.js";
+import { agentSurfaceCatalog } from "../agentSurfacePolicy.js";
+import {
+  assessTenantAgentSurfaceReadiness,
+  upsertAgentSurfaceDeploymentsFromActivation,
+} from "../agentSurfaceRuntimeService.js";
 import { resolveActivationGraphContext } from "../activationGraphContext.js";
 import { createOrAppendSupportTicket } from "../supportTicketService.js";
 
@@ -189,6 +194,26 @@ async function fetchUserDevices(userId, tenantId) {
   return rows;
 }
 
+async function assessAgentSurfacesSafe({ tenantId, userId }) {
+  try {
+    return await assessTenantAgentSurfaceReadiness({ tenantId, userId });
+  } catch (error) {
+    if (["ER_NO_SUCH_TABLE", "ER_BAD_FIELD_ERROR"].includes(error?.code)) {
+      return {
+        tenant_id: tenantId,
+        user_id: userId,
+        status: "schema_pending",
+        configured_count: 0,
+        ready_count: 0,
+        items: [],
+        blockers: ["agent_surface_schema_pending"],
+        secrets_included: false,
+      };
+    }
+    throw error;
+  }
+}
+
 async function fetchActiveMemberships(userId) {
   const [rows] = await getPool().query(
     `SELECT m.tenant_id, m.role, m.status, t.display_name AS tenant_display_name
@@ -275,6 +300,9 @@ async function resolveConnectState(userId, jwtTenantId = null) {
   const hybridIntegrationReadiness = resolvedTenantId
     ? await assessHybridIntegrationReadiness({ tenantId: resolvedTenantId, userId, connection })
     : null;
+  const agentSurfaceReadiness = resolvedTenantId
+    ? await assessAgentSurfacesSafe({ tenantId: resolvedTenantId, userId })
+    : null;
   const onboarding = buildOnboardingState({ resolvedTenantId, connection, devices });
   const activationGraphContext = await resolveActivationGraphContext({
     user,
@@ -296,6 +324,7 @@ async function resolveConnectState(userId, jwtTenantId = null) {
     devices,
     dedicatedIntegrationReadiness,
     hybridIntegrationReadiness,
+    agentSurfaceReadiness,
     activationGraphContext,
     onboarding,
   };
@@ -534,6 +563,7 @@ export function buildConnectRoutes(deps) {
       activation_mode_catalog: activationModeCatalog(),
       dedicated_integration_catalog: dedicatedIntegrationCatalog(),
       hybrid_integration_catalog: hybridIntegrationCatalog(),
+      agent_surface_catalog: agentSurfaceCatalog(),
       local_manager_activation_binding: localManagerActivationBinding(),
       access_model: "Sign in via POST /auth/login, /auth/register, or /auth/google. Use the returned token as Authorization: Bearer <token> on all subsequent calls. For Google Sign-In, complete the flow at https://auth.mad4b.com/connect and use the token shown on the final step.",
       onboarding_url: "https://auth.mad4b.com/connect",
@@ -576,6 +606,8 @@ export function buildConnectRoutes(deps) {
         dedicated_integration_readiness: state.dedicatedIntegrationReadiness,
         hybrid_integration_catalog: hybridIntegrationCatalog(),
         hybrid_integration_readiness: state.hybridIntegrationReadiness,
+        agent_surface_catalog: agentSurfaceCatalog(),
+        agent_surface_readiness: state.agentSurfaceReadiness,
         local_manager_activation_binding: localManagerActivationBinding(),
         gpt_activation_guidance: buildTenantGptActivationGuidance({ onboarding: state.onboarding, devices: state.devices }),
         activation_graph_context: state.activationGraphContext,
@@ -719,6 +751,8 @@ export function buildConnectRoutes(deps) {
         dedicated_integration_readiness: state.dedicatedIntegrationReadiness,
         hybrid_integration_catalog: hybridIntegrationCatalog(),
         hybrid_integration_readiness: state.hybridIntegrationReadiness,
+        agent_surface_catalog: agentSurfaceCatalog(),
+        agent_surface_readiness: state.agentSurfaceReadiness,
         local_manager_activation_binding: localManagerActivationBinding(),
         activation_graph_context: state.activationGraphContext,
       });
@@ -792,6 +826,15 @@ export function buildConnectRoutes(deps) {
         integrationModes: req.body?.integration_modes || {},
         source: "connect_activate",
       });
+      const requestedAgentSurfaceModes = req.body?.agent_surface_modes;
+      const agentSurfaceDeployments = requestedAgentSurfaceModes
+        ? await upsertAgentSurfaceDeploymentsFromActivation({
+            tenantId: resolvedTenantId,
+            userId: user_id,
+            modes: requestedAgentSurfaceModes,
+            source: "connect_activate",
+          })
+        : [];
       const connection = await fetchTenantConnection(resolvedTenantId);
       const dedicatedIntegrationReadiness = await assessDedicatedIntegrationReadiness({
         tenantId: resolvedTenantId,
@@ -802,6 +845,10 @@ export function buildConnectRoutes(deps) {
         tenantId: resolvedTenantId,
         userId: user_id,
         connection,
+      });
+      const agentSurfaceReadiness = await assessAgentSurfacesSafe({
+        tenantId: resolvedTenantId,
+        userId: user_id,
       });
       const [user, devices] = await Promise.all([
         fetchUser(user_id),
@@ -826,6 +873,9 @@ export function buildConnectRoutes(deps) {
         dedicated_integration_readiness: dedicatedIntegrationReadiness,
         hybrid_integration_catalog: hybridIntegrationCatalog(),
         hybrid_integration_readiness: hybridIntegrationReadiness,
+        agent_surface_catalog: agentSurfaceCatalog(),
+        agent_surface_deployments: agentSurfaceDeployments,
+        agent_surface_readiness: agentSurfaceReadiness,
         local_manager_activation_binding: localManagerActivationBinding(),
         activation_graph_context: activationGraphContext,
         next_actions: hybridIntegrationReadiness?.ready === false

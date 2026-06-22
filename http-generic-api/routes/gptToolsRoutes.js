@@ -22,6 +22,7 @@ import {
   persistGovernedToolResponseChunk,
 } from "../governedToolResponseChunkStore.js";
 import { runGovernedResponseChunkDurableRecoverySmoke } from "../governedResponseChunkDurableRecoverySmoke.js";
+import { bootstrapGovernedMigrationAuthorization } from "../governedMigrationAuthorizationBootstrap.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import {
   capabilityEnvelopeError,
@@ -32,6 +33,7 @@ import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBran
 import { applyGithubExistingBlobChangeSet, applyGithubRepositoryChangeSet, deleteGithubBranchRef, finalizeGithubPullRequest, getGithubPullRequestCiGate } from "../githubRepositoryLifecycle.js";
 import { runGithubBranchCleanupSweep } from "../githubBranchCleanupSweep.js";
 import { runGithubSupersededBranchCleanup } from "../githubSupersededBranchCleanup.js";
+import { runRepositoryCloseSupersededPositiveSmokeV6 } from "../repositoryCloseSupersededPositiveSmoke.js";
 import { applyUnifiedDiffToText } from "../unifiedDiff.js";
 export { applyUnifiedDiffToText };
 import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveReport } from "../platformCapabilityReports.js";
@@ -290,6 +292,28 @@ const REPO_INSPECT_TEXT_EXTENSIONS = new Set([
 
 const VIRTUAL_ADMIN_TOOLS = [
   {
+    name: "repository_close_superseded_positive_smoke",
+    displayName: "Repository Close Superseded Positive Smoke",
+    description: "Admin-only disposable positive smoke for repo.pr.close_superseded. Pins the expected main SHA, creates one disposable PR whose head is exactly main and whose base is main's parent, validates the production superseded predicate, closes through the production write contract, requires state/head readback, audits, and cleans both disposable refs. It does not activate the production recipe or apply authority.",
+    method: "VIRTUAL",
+    path: "internal://repository-close-superseded-positive-smoke",
+    tags: ["repo", "github", "pull_request", "positive_smoke", "mutation", "admin_only", "capability_envelope", "typed_confirmation", "readback", "cleanup_required", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["expected_main_sha", "confirm", "capability_envelope_id"],
+      properties: {
+        expected_main_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        confirm: { type: "string", pattern: "^RUN_CLOSE_SUPERSEDED_SMOKE_[0-9A-F]{12}$" },
+        capability_envelope_id: { type: "string" },
+        owner: { type: "string", pattern: "^[A-Za-z0-9_.-]+$" },
+        repo: { type: "string", pattern: "^[A-Za-z0-9_.-]+$" },
+        default_branch: { type: "string" },
+        smoke_id: { type: "string", minLength: 3, maxLength: 80 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "repo_inspect",
     displayName: "Repository Inspect",
     description: "Read-only repository inspection. Actions: list, read, search, git_status, git_log, git_show, git_diff_name_status. Paths are repo-confined; secrets/build folders are blocked. Git helpers return metadata only and never expose .git internals.",
@@ -370,6 +394,29 @@ const VIRTUAL_ADMIN_TOOLS = [
         confirm: { type: "string", const: "RUN_RESPONSE_CHUNK_DURABLE_RECOVERY_SMOKE" },
         repeat_count: { type: "integer", minimum: 40, maximum: 120, default: 48 },
         chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 30, default: 5 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "governed_migration_authorization_bootstrap",
+    displayName: "Governed Migration Authorization Bootstrap",
+    description: "Authorize one checksum-bound additive migration for the governed runner without executing migration SQL. Requires exact checksum, statement count, merged PR evidence, typed confirmation, a ready capability envelope, zero-risk preflight, and same-cycle authorization readback.",
+    method: "VIRTUAL",
+    path: "internal://governed-migration-authorization-bootstrap",
+    tags: ["admin", "migration", "authorization", "bootstrap", "mutation", "typed_confirmation", "capability_envelope", "no_migration_execution", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["migration", "expected_checksum_sha256", "expected_statement_count", "pull_request", "merge_sha", "confirm", "capability_envelope_id"],
+      properties: {
+        migration: { type: "string", pattern: "^[A-Za-z0-9._-]+\\.sql$" },
+        expected_checksum_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        expected_statement_count: { type: "integer", minimum: 1, maximum: 5000 },
+        pull_request: { type: "integer", minimum: 1 },
+        merge_sha: { type: "string", pattern: "^[0-9a-f]{40}$" },
+        confirm: { type: "string" },
+        capability_envelope_id: { type: "string" },
+        decision_note: { type: "string", minLength: 20, maxLength: 1000 },
       },
       additionalProperties: false,
     },
@@ -1037,6 +1084,32 @@ async function requireRepoPatchCapabilityEnvelope({ args = {}, ctx = {}, owner =
   };
 }
 
+async function requireRepositoryCloseSupersededPositiveSmokeEnvelope({ args = {}, ctx = {} } = {}) {
+  const expectedMainSha = String(args?.expected_main_sha || "").trim().toLowerCase();
+  const resolved = await resolveCapabilityExecutionEnvelope({
+    pool: getPool(),
+    source: args,
+    acceptedAppKeys: ["github"],
+    acceptedIntents: ["repository_close_superseded_positive_smoke", "repo.pr.close_superseded.smoke", "repo_mutation"],
+    expectedTenantId: ctx?.auth?.tenant_id || PLATFORM_TENANT_ID,
+    expectedUserId: ctx?.auth?.user_id || "",
+    expectedCommitSha: expectedMainSha,
+    requireReadyForDispatch: true,
+    requireDispatchAllowed: true,
+    requireNoBlockingGaps: true,
+    requireNoSecrets: true,
+  });
+  if (!resolved.ok) {
+    throw capabilityEnvelopeError(resolved, "Repository close-superseded positive smoke requires a valid capability resolution envelope bound to expected_main_sha.");
+  }
+  await markCapabilityEnvelopeReferenced({
+    pool: getPool(),
+    envelopeId: resolved.envelope_id,
+    executionRef: `repository_close_superseded_positive_smoke:${expectedMainSha || "unknown"}`,
+  });
+  return { ...resolved, secrets_included: false };
+}
+
 async function requireGithubBranchFastForwardEnvelope({ args = {}, ctx = {} } = {}) {
   const resolved = await resolveCapabilityExecutionEnvelope({
     pool: getPool(),
@@ -1583,6 +1656,30 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     };
   }
 
+  if (callerType === "admin" && toolKey === "governed_migration_authorization_bootstrap") {
+    try {
+      const result = await bootstrapGovernedMigrationAuthorization(args || {}, {
+        pool: getPool(),
+        auth: req?.auth || {},
+      });
+      return {
+        status: result.authorization_created ? 201 : 200,
+        body: { ok: true, name: toolKey, result },
+      };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "governed_migration_authorization_bootstrap_failed",
+            message: err?.message || "Governed migration authorization bootstrap failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
   if (callerType === "admin" && toolKey === "github_pr_ci_gate") {
     try {
       const result = await getGithubPullRequestCiGate(args || {});
@@ -1775,6 +1872,15 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     }
   }
 
+  if (callerType === "admin" && toolKey === "repository_close_superseded_positive_smoke") {
+    try {
+      await requireRepositoryCloseSupersededPositiveSmokeEnvelope({ args, ctx: { auth: req?.auth } });
+      const result = await runRepositoryCloseSupersededPositiveSmokeV6(args, { auth: req?.auth });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return { status: err?.status || 500, body: { ok: false, name: toolKey, error: { code: err?.code || "repository_close_superseded_positive_smoke_failed", message: err?.message || "Repository close-superseded positive smoke failed.", details: err?.details || null } } };
+    }
+  }
   if (callerType === "admin" && toolKey === "github_branch_fast_forward_smoke") {
     try {
       await requireGithubBranchFastForwardEnvelope({ args, ctx: { auth: req?.auth } });

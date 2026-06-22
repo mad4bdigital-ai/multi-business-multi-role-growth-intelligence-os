@@ -1,0 +1,7 @@
+{
+  "surface_key": "container_shadow_canary_registry",
+  "source_table": "container_shadow_canary_registry",
+  "reason": "Excluded because it is an internal rollout-control registry for shadow canaries. It does not represent user-authorized activation catalog data.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

@@ -1,0 +1,7 @@
+{
+  "surface_key": "container_role_template_permissions",
+  "source_table": "container_role_template_permissions",
+  "reason": "Excluded because it contains internal permission composition rules for managed roles. Raw permission rules are evaluated server-side and are not activation payload content.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

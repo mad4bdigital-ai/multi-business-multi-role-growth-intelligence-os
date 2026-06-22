@@ -27,3 +27,13 @@ Capability provenance is resolved through `platform_capability_source_links`. SQ
 `platform_capability_assurance_reconcile` is dry-run by default. Apply requires a fresh `ready_for_dispatch` capability envelope, performs SQL registry/evidence/certification/debt upserts only, performs no provider calls or external writes, and must verify readback.
 
 Secret movement traceability uses `platform_secret_movement_ledger`. Only source and target references, target field, value hash, policy, actor, reason, status, and readback hash may be stored. Plaintext secret material is forbidden.
+
+## Dynamic Container Authority Foundation
+
+Dynamic Container Authority begins as an additive SQL-primary registry and pure domain-contract layer. The initial canonical surfaces are `container_type_registry`, `containers`, `container_relationship_type_registry`, `container_relationships`, `container_closure`, `container_classification_type_registry`, `container_classifications`, `container_role_template_registry`, `container_role_template_permissions`, `container_role_assignments`, `container_resource_dimension_registry`, `container_resource_bindings`, and `container_authority_epochs`.
+
+The default topology is Platform → Tenant → Workspace → Brand → Activity / Workflow, but types and allowed parent/child relationships remain registry-driven. Multiple containment parents are allowed only when the child type declares support. Containment cycles, cross-tenant edges, invalid type pairs, ambiguous equal-precedence replacements, and traversal-limit exhaustion fail closed.
+
+Containment, sharing, delegation, reference, and management are distinct relationship classes. Sharing is read-only by default and never implies containment, role inheritance, credential ownership, or write permission. Delegation is a later exact-operation authority layer and cannot exceed the delegator's effective authority. Classifications influence defaults or restrictions but never grant authority by themselves.
+
+Migration `319_sprint69_dynamic_container_authority_foundation.sql` and `dynamicContainerAuthority.js` are foundation-only. They do not change execution ordering, authorize provider calls, read credential payloads, create authenticated clients, or enable runtime enforcement. Runtime integration must begin with a separately reviewed no-secret shadow resolver and legacy-versus-container comparison evidence.
