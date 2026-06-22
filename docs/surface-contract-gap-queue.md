@@ -4,8 +4,8 @@
 
 ## Summary
 
-- Total queue items: 0
-- Critical review: 0
+- Total queue items: 1
+- Critical review: 1
 - High review: 0
 - Medium review: 0
 - Low review: 0
@@ -13,4 +13,17 @@
 
 ## Top Queue Items
 
-No actionable surface contract gaps detected.
+### 1. `1023_sprint69_github_rest_endpoint_dispatch_foundation.sql`
+
+- Queue class: critical_review
+- Score: 1039
+- Gap severity: high
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=20, views=0, policies=0, routes=3
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `1023_sprint69_github_rest_endpoint_dispatch_foundation`, `approved_preflight_dry_run_validated`, `db_admin_tool`, `dry_run_preflight_completed`, `github_issue_labels_exact_readback_v1`, `github_issue_labels_list_readback_v1`, `github_list_issue_labels`, `github_pr_state_readback_v1`, `github_rest_endpoint_dispatch`, `github_update_pull_request`, `live_execution_approved`, `mutation_preflight_required`, ...and 8 more
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+

@@ -4,15 +4,15 @@
 
 ## Summary
 
-- Triaged items: 0
-- Gate candidates: 0
-- New-gap gate: pass
-- Blocking new items: 0
+- Triaged items: 1
+- Gate candidates: 1
+- New-gap gate: fail
+- Blocking new items: 1
 
 ## Class counts
 
-- none
+- new_surface_immediate_review: 1
 
 ## Immediate review candidates
 
-- none
+- `1023_sprint69_github_rest_endpoint_dispatch_foundation.sql` — critical_review, score 1039; next: add targeted patch-index, parity, and governance documentation

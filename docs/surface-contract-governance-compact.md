@@ -1,14 +1,14 @@
 # Surface Contract Governance Compact
 
-- Gate: pass
-- Blocking new items: 0
-- Docs completion: 449/449 (100%)
-- Queue items: 0
+- Gate: fail
+- Blocking new items: 1
+- Docs completion: 449/450 (99.78%)
+- Queue items: 1
 - OpenAPI missing SQL routes: 0
-- OpenAPI-exempt SQL route-like literals: 569/574
+- OpenAPI-exempt SQL route-like literals: 572/577
 - Safety marker gap migrations: 0
-- Trend quality gate: pass
+- Trend quality gate: fail
 
 ## Top actionable
 
-- none
+- `1023_sprint69_github_rest_endpoint_dispatch_foundation.sql` — critical_review, score 1039; add targeted patch-index, parity, and governance documentation
