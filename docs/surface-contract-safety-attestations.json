@@ -2,7 +2,7 @@
   "ok": true,
   "schema_version": "surface-contract-safety-attestations-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
-  "item_count": 24,
+  "item_count": 25,
   "items": [
     {
       "migration_file": "1003_sprint68_supervisor_chain_runtime_guards.sql",
@@ -630,6 +630,69 @@
           "action_key": "verify_tool_registry_binding",
           "targets": [
             "close_state_and_head_sha_readback_required"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "1023_sprint69_github_rest_endpoint_dispatch_foundation.sql",
+      "migration_sha256": "44e13630c7a12aca402cc5649cea84f73d51b7276586a6cdadf4e77179437760",
+      "checksum_canonicalization": "utf8_lf_v1",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "critical_review",
+      "gap_severity_at_attestation": "high",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 5,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 20,
+        "views": 0,
+        "policies": 0,
+        "routes": 3
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "1023_sprint69_github_rest_endpoint_dispatch_foundation",
+            "approved_preflight_dry_run_validated",
+            "db_admin_tool",
+            "dry_run_preflight_completed",
+            "github_issue_labels_exact_readback_v1",
+            "github_issue_labels_list_readback_v1",
+            "github_list_issue_labels",
+            "github_pr_state_readback_v1",
+            "github_rest_endpoint_dispatch",
+            "github_update_pull_request",
+            "live_execution_approved",
+            "mutation_preflight_required",
+            "ptdb_github_rest_dispatch_label_remove",
+            "ptdb_github_rest_dispatch_labels_add",
+            "ptdb_github_rest_dispatch_labels_list",
+            "ptdb_github_rest_dispatch_labels_set",
+            "ptdb_github_rest_dispatch_pr_update",
+            "requires_runtime_preflight",
+            "requires_same_cycle_readback",
+            "same_cycle_readback_required"
           ]
         }
       ],
