@@ -10,7 +10,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - Source file: `http-generic-api/openapi.yaml`
 - OpenAPI version: `3.1.0`
-- Paths: 451
+- Paths: 455
 - Operations: 487
 - Top-level tags: 35
 
@@ -93,6 +93,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-gpt-schema-db-coverage-guard.mjs`
 - `http-generic-api/test-gpt-schema-db-coverage-migration.mjs`
 - `http-generic-api/test-openapi-autofill-missing-routes.mjs`
+- `http-generic-api/test-openapi-endpoint-inventory-sync.mjs`
 - `http-generic-api/test-openapi-route-coverage.mjs`
 - `http-generic-api/test-openapi-split-governance.mjs`
 - `http-generic-api/test-openapi-split-regeneration-parity.mjs`
