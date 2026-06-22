@@ -3408,6 +3408,14 @@ x-tenant-gpt-auth:
         - https://auth.mad4b.com/scopes/tenant.system-tools
 
 paths:
+  /admin/openapi-registry-sync/status:
+    $ref: './openapi/openapi-registry-sync.yaml#/openApiRegistrySyncStatus'
+  /admin/openapi-registry-sync:
+    $ref: './openapi/openapi-registry-sync.yaml#/openApiRegistrySync'
+  /admin/container-authority/resolution-preview:
+    $ref: './openapi/container-authority.yaml#/adminContainerResolutionPreview'
+  /admin/container-authority/projection-preview:
+    $ref: './openapi/container-authority.yaml#/adminContainerProjectionPreview'
   /container-context-resolutions:
     $ref: './openapi/container-authority.yaml#/containerContextResolutions'
   /container-context-resolutions/{resolutionId}:
