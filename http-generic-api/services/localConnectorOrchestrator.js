@@ -1,5 +1,6 @@
 import { getPool } from "../db.js";
 import crypto from "node:crypto";
+import { assertLocalConnectorDeviceTrust } from "../localConnectorDeviceTrust.js";
 
 const PLATFORM_TENANT_ID = "00000000-0000-4000-a000-000000000001";
 const PLATFORM_ADMIN_USER_ID = "00000000-0000-4000-a000-000000000002";
@@ -31,10 +32,14 @@ function connectorAuthToken(config) {
   return token;
 }
 
-async function resolveUserLocalConfig(userId, tenantId, deviceId) {
+async function resolveUserLocalConfig(userId, tenantId, deviceId, { includeDisabled = false } = {}) {
   const principal = resolveLocalConnectorPrincipalAliases(userId, tenantId);
+  const enabledClause = includeDisabled ? "" : " AND is_enabled = TRUE";
   const [configs] = await getPool().query(
-    "SELECT *, COALESCE(device_runtime_url, tunnel_url) AS runtime_url FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = TRUE LIMIT 1",
+    `SELECT *, COALESCE(device_runtime_url, tunnel_url) AS runtime_url
+       FROM \`local_connector_user_configs\`
+      WHERE user_id = ? AND tenant_id = ? AND device_id = ?${enabledClause}
+      LIMIT 1`,
     [principal.userId, principal.tenantId, deviceId]
   );
   const config = configs[0];
@@ -60,11 +65,16 @@ async function executeGovernedShellCommand(args) {
   let error = null;
 
   try {
-    const userConfig = await resolveUserLocalConfig(userId, tenantId, deviceId);
-    if (!userConfig) throw new Error("Local connector not enabled or configured for this user/device.");
-
-    const allowlistEntry = userConfig.shellAllowlists.find(e => e.alias === alias);
-    if (!allowlistEntry) throw new Error(`Command alias '${alias}' not found in allowlist.`);
+    const userConfig = await resolveUserLocalConfig(userId, tenantId, deviceId, { includeDisabled: true });
+    const allowlistEntry = userConfig?.shellAllowlists.find((entry) => entry.alias === alias) || null;
+    assertLocalConnectorDeviceTrust({
+      config: userConfig?.config || null,
+      userId: resolveLocalConnectorPrincipalAliases(userId, tenantId).userId,
+      tenantId: resolveLocalConnectorPrincipalAliases(userId, tenantId).tenantId,
+      deviceId,
+      capabilityKey: `shell:${alias}`,
+      capabilitySupported: Boolean(allowlistEntry),
+    });
     if (extraArgs.length > 0 && !allowlistEntry.allow_extra_args) {
       throw new Error(`Command alias '${alias}' does not allow extra arguments.`);
     }
@@ -84,7 +94,11 @@ async function executeGovernedShellCommand(args) {
     status = "completed";
 
   } catch (err) {
-    error = { code: "local_command_execution_failed", message: err.message };
+    error = {
+      code: err.code || "local_command_execution_failed",
+      message: err.message,
+      device_trust: err.device_trust || null,
+    };
   } finally {
     await performUniversalServerWriteback({
       mode: "sync",
@@ -123,13 +137,19 @@ async function readGovernedLocalFile(args) {
   let error = null;
 
   try {
-    const userConfig = await resolveUserLocalConfig(userId, tenantId, deviceId);
-    if (!userConfig) throw new Error("Local connector not enabled or configured for this user/device.");
-
-    const rule = userConfig.fileAccessRules.find(r =>
-      r.path_pattern === path && (r.access_mode === "read" || r.access_mode === "read_write")
-    );
-    if (!rule) throw new Error(`File path '${path}' not allowed for read access.`);
+    const userConfig = await resolveUserLocalConfig(userId, tenantId, deviceId, { includeDisabled: true });
+    const rule = userConfig?.fileAccessRules.find((entry) =>
+      entry.path_pattern === path && (entry.access_mode === "read" || entry.access_mode === "read_write")
+    ) || null;
+    const principal = resolveLocalConnectorPrincipalAliases(userId, tenantId);
+    assertLocalConnectorDeviceTrust({
+      config: userConfig?.config || null,
+      userId: principal.userId,
+      tenantId: principal.tenantId,
+      deviceId,
+      capabilityKey: "file:read",
+      capabilitySupported: Boolean(rule),
+    });
 
     const runtimeUrl = connectorRuntimeUrl(userConfig.config);
     if (!runtimeUrl) throw new Error("Local connector runtime URL is not configured for this user/device.");
@@ -146,7 +166,11 @@ async function readGovernedLocalFile(args) {
     status = "completed";
 
   } catch (err) {
-    error = { code: "local_file_read_failed", message: err.message };
+    error = {
+      code: err.code || "local_file_read_failed",
+      message: err.message,
+      device_trust: err.device_trust || null,
+    };
   } finally {
     await performUniversalServerWriteback({
       mode: "sync",
@@ -185,13 +209,19 @@ async function writeGovernedLocalFile(args) {
   let error = null;
 
   try {
-    const userConfig = await resolveUserLocalConfig(userId, tenantId, deviceId);
-    if (!userConfig) throw new Error("Local connector not enabled or configured for this user/device.");
-
-    const rule = userConfig.fileAccessRules.find(r =>
-      r.path_pattern === path && (r.access_mode === "write" || r.access_mode === "read_write")
-    );
-    if (!rule) throw new Error(`File path '${path}' not allowed for write access.`);
+    const userConfig = await resolveUserLocalConfig(userId, tenantId, deviceId, { includeDisabled: true });
+    const rule = userConfig?.fileAccessRules.find((entry) =>
+      entry.path_pattern === path && (entry.access_mode === "write" || entry.access_mode === "read_write")
+    ) || null;
+    const principal = resolveLocalConnectorPrincipalAliases(userId, tenantId);
+    assertLocalConnectorDeviceTrust({
+      config: userConfig?.config || null,
+      userId: principal.userId,
+      tenantId: principal.tenantId,
+      deviceId,
+      capabilityKey: "file:write",
+      capabilitySupported: Boolean(rule),
+    });
 
     const runtimeUrl = connectorRuntimeUrl(userConfig.config);
     if (!runtimeUrl) throw new Error("Local connector runtime URL is not configured for this user/device.");
@@ -208,7 +238,11 @@ async function writeGovernedLocalFile(args) {
     status = "completed";
 
   } catch (err) {
-    error = { code: "local_file_write_failed", message: err.message };
+    error = {
+      code: err.code || "local_file_write_failed",
+      message: err.message,
+      device_trust: err.device_trust || null,
+    };
   } finally {
     await performUniversalServerWriteback({
       mode: "sync",

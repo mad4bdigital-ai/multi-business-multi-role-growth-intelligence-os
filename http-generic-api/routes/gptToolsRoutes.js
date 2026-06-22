@@ -34,6 +34,8 @@ import { applyGithubExistingBlobChangeSet, applyGithubRepositoryChangeSet, delet
 import { runGithubBranchCleanupSweep } from "../githubBranchCleanupSweep.js";
 import { runGithubSupersededBranchCleanup } from "../githubSupersededBranchCleanup.js";
 import { runRepositoryCloseSupersededPositiveSmokeV6 } from "../repositoryCloseSupersededPositiveSmoke.js";
+import { applyUnifiedDiffToText } from "../unifiedDiff.js";
+export { applyUnifiedDiffToText };
 import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveReport } from "../platformCapabilityReports.js";
 import { runGrowthIntelligencePilotAdmin } from "../growthIntelligenceAdminTool.js";
 import {
@@ -537,7 +539,7 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "repo_patch_batch_apply",
     displayName: "Repository Batch Patch Apply",
-    description: "Create one atomic multi-file Git commit against an expected base SHA using Git trees, then update one non-protected work branch once and verify branch-head readback.",
+    description: "Create one atomic multi-file Git commit against an expected base SHA using Git trees. Supports write_file, delete_file, and apply_unified_diff; every diff is validated against the pinned base before any Git write, then the work branch is updated once with readback.",
     method: "VIRTUAL",
     path: "internal://repo-patch-batch-apply",
     tags: ["repo", "mutation", "batch", "atomic", "capability_envelope", "readback"],
@@ -558,8 +560,9 @@ const VIRTUAL_ADMIN_TOOLS = [
             required: ["path", "action"],
             properties: {
               path: { type: "string" },
-              action: { type: "string", enum: ["write_file", "delete_file"] },
-              content: { type: "string" },
+              action: { type: "string", enum: ["write_file", "delete_file", "apply_unified_diff"] },
+              content: { type: "string", description: "Full new file content for write_file." },
+              diff: { type: "string", description: "Single-file unified diff for apply_unified_diff. Hunks are validated against expected_base_sha before any Git write." },
             },
             additionalProperties: false,
           },
@@ -2374,84 +2377,6 @@ export async function inspectRepoReadOnly(args = {}) {
   err.status = 400;
   err.code = "repo_inspect_bad_action";
   throw err;
-}
-
-export function applyUnifiedDiffToText(originalText, diffBody) {
-  const lines = String(diffBody || "").split(/\r?\n/);
-  // Strip optional headers — diff --git, ---, +++, index
-  let i = 0;
-  while (i < lines.length && !/^@@/.test(lines[i])) i += 1;
-  if (i >= lines.length) {
-    const err = new Error("unified diff has no hunks (lines starting with @@).");
-    err.status = 400;
-    err.code = "repo_patch_no_hunks";
-    throw err;
-  }
-
-  const originalLines = originalText.split(/\r?\n/);
-  const result = [];
-  let originalCursor = 0;
-
-  while (i < lines.length) {
-    const header = lines[i];
-    const match = /^@@\s+-(\d+)(?:,(\d+))?\s+\+(\d+)(?:,(\d+))?\s+@@/.exec(header);
-    if (!match) {
-      i += 1;
-      continue;
-    }
-    const oldStart = parseInt(match[1], 10);
-    const oldStartIdx = Math.max(0, oldStart - 1);
-
-    while (originalCursor < oldStartIdx && originalCursor < originalLines.length) {
-      result.push(originalLines[originalCursor]);
-      originalCursor += 1;
-    }
-
-    i += 1;
-    while (i < lines.length && !/^@@/.test(lines[i])) {
-      const hunkLine = lines[i];
-      if (hunkLine.startsWith("---") || hunkLine.startsWith("+++") || hunkLine.startsWith("diff --git") || hunkLine.startsWith("index ")) {
-        i += 1;
-        continue;
-      }
-      const prefix = hunkLine[0];
-      const body = hunkLine.slice(1);
-      if (prefix === " ") {
-        if (originalLines[originalCursor] !== body) {
-          const err = new Error(`unified diff context mismatch at original line ${originalCursor + 1}.`);
-          err.status = 409;
-          err.code = "repo_patch_context_mismatch";
-          err.details = { expected: body, found: originalLines[originalCursor] };
-          throw err;
-        }
-        result.push(originalLines[originalCursor]);
-        originalCursor += 1;
-      } else if (prefix === "-") {
-        if (originalLines[originalCursor] !== body) {
-          const err = new Error(`unified diff removal mismatch at original line ${originalCursor + 1}.`);
-          err.status = 409;
-          err.code = "repo_patch_removal_mismatch";
-          err.details = { expected: body, found: originalLines[originalCursor] };
-          throw err;
-        }
-        originalCursor += 1;
-      } else if (prefix === "+") {
-        result.push(body);
-      } else if (hunkLine === "" || hunkLine === "\\ No newline at end of file") {
-        // tolerate
-      } else {
-        // Unknown line — skip defensively
-      }
-      i += 1;
-    }
-  }
-
-  while (originalCursor < originalLines.length) {
-    result.push(originalLines[originalCursor]);
-    originalCursor += 1;
-  }
-
-  return result.join("\n");
 }
 
 async function resolveRepoTarget() {
