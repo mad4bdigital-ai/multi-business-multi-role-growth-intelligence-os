@@ -4,7 +4,7 @@ import {
   buildAuditResourceReadPlan,
   classifyAuditEvidence,
   normalizeAuditSiteUrl,
-} from "./growthAuditEvidence.js";
+} from "./growthAuditEvidenceContracts.js";
 
 assert.deepEqual(
   classifyAuditEvidence({
