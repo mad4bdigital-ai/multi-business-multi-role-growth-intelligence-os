@@ -394,7 +394,7 @@ async function groupedCount(table, groupColumn, whereSql, params = []) {
 
 async function countOne(sql, params = []) {
   const result = await safeRows(sql, params);
-  return { ...result, count: safeNumber(result.rows[0]?.count) };
+  return { ...result, count: result.ok ? optionalNumber(result.rows[0]?.count) : null };
 }
 
 export async function buildActivationOperationalSummary({ sessionContext = null, attentionLimit = 12 } = {}) {
