@@ -441,6 +441,7 @@ export const testCommands = [
   "node test-brand-reference-resolver.mjs",
   "node test-brand-core-legacy-compatibility.mjs",
   "node test-growth-audit-evidence-classification.mjs",
+  "node test-growth-audit-evidence-wiring.mjs",
   "node test-path-resolver-rows-loader.mjs",
   "node test-execution-preparation-path-resolver.mjs",
   "node test-governance-resolve-context-diagnostic.mjs",
