@@ -1,5 +1,10 @@
 # AI Docs Agent Governance
 
+## OpenAPI Inventory Synchronization Documentation Contract
+
+Changes to `1024_sprint69_openapi_endpoint_inventory_sync.sql`, `openApiEndpointInventorySync.js`, its Admin routes, or related OpenAPI fragments must keep the runbook, registry patch index, deployment parity checklist, work maps, and surface-contract discovery outputs synchronized. Generated documentation is evidence only and must not be interpreted as callable endpoint authority or migration authorization.
+
+
 > Documentation contract for `1019_sprint69_github_branch_cleanup_sweep.sql`: generated documentation must preserve dry-run-first behavior, fixed disposable-branch prefixes, default/protected-branch blocking, open-PR and unique-commit guards, fresh base and candidate fingerprints, typed confirmation, capability-envelope approval, pre-delete SHA readback, same-cycle absence verification, stop-on-first-failure semantics, and partial-success reporting. It must not imply force deletion, automatic retry of unknown provider outcomes, credential payload access, raw-secret output, or rollout completion from static SQL evidence alone; `secrets_included=false` remains mandatory.
 
 > Documentation contract for `319_sprint69_dynamic_container_authority_foundation.sql` and `320_sprint69_dynamic_container_authority_runtime_contracts.sql`: generated documentation must preserve SQL-primary container identity, multi-parent closure, classification eligibility, composable role ceilings, exact resource/delegation evidence, immutable resolution and shadow ledgers, explicit override approval/consumption rules, workspace/brand team management, and rollout-readiness views. It must not imply implicit `platform_owner` bypass, wildcard delegation, provider execution, credential access, raw-secret output, external sends/writes, deployment, or enabled enforcement. Static evidence remains non-authorizing; rollout requires governed migration, schema/readback, projection dry-run, shadow/performance gates, and explicit enforcement approval with `secrets_included=false`.
