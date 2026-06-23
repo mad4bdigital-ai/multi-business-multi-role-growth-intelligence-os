@@ -20,8 +20,23 @@
 - [x] Preserve and repair the current PR branch.
 - [x] Run branch reconciliation and confirm zero file overlap.
 - [x] Use governed stale-branch patch without force-push.
-- [ ] Reconcile branch ancestry with latest `main` before merge.
-- [ ] Verify final tree scope and generated docs.
+- [x] Merge latest `main` into the current branch with a signed no-force merge commit.
+- [x] Verify branch state is `ahead_only` with `behind_by=0`.
+- [x] Run required CI checks successfully after reconciliation.
+- [ ] Re-run final CI after the last documentation evidence commit.
+- [ ] Verify final tree scope and generated docs immediately before merge.
+
+## Deep design
+
+- [x] Define aggregate boundaries, identities, invariants, state machines, and transaction boundaries.
+- [x] Add constrained policy DSL examples and deterministic resolution cases.
+- [x] Add tenant/user journeys and progressive disclosure.
+- [x] Define adaptive scoring, confidence, calibration, and promotion thresholds.
+- [x] Add threat model, abuse cases, and security acceptance gates.
+- [x] Add SLOs, metrics, tracing, alerting, dashboards, and runbook requirements.
+- [x] Add migration lanes, backfills, compatibility modes, parity classes, cutover units, and rollback hierarchy.
+- [x] Add governance roles, decision rights, delegation, approval routing, and review cadence.
+- [x] Add platform growth flywheel, maturity states, opportunity detection, and growth debt.
 
 ## Canonical alignment
 
