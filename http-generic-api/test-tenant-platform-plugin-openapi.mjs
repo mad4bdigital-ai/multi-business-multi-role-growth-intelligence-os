@@ -29,8 +29,12 @@ assert(schema.includes("target_mode"), "tenant resolver must document target ope
 assert(schema.includes("target_authorization"), "tenant resolver response must document target authority evidence");
 assert(schema.includes("target_reference_hash"), "tenant resolver must document hashed target evidence");
 assert(schema.includes("denial_code"), "tenant resolver must document stable denial codes");
+assert(schema.includes("security_alerts"), "tenant resolver must document temporary security alert evidence");
+assert(schema.includes("TENANT_TO_ADMIN_CAPABILITY_REQUEST"), "tenant resolver must document tenant-to-admin alert code");
+assert(schema.includes("SELECTOR_PARITY_MISMATCH"), "tenant resolver must document selector parity alert code");
 assert(mainSchema.includes("target_resource_type"), "main resolver must document target resource type");
 assert(mainSchema.includes("target_authorization"), "main resolver response must document target authority evidence");
 assert(mainSchema.includes("target_reference_hash"), "main resolver must document hashed target evidence");
+assert(mainSchema.includes("security_alerts"), "main resolver must document temporary security alert evidence");
 
 console.log("tenant platform plugin OpenAPI tests passed");
