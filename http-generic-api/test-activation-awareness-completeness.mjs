@@ -266,6 +266,14 @@ function testRepositoryContracts() {
   assert.match(dynamicTabs, /legacy_estimated_query_count/);
   assert.doesNotMatch(dynamicTabs, /for \(const section of registeredSections\) \{\s*const sectionEvidence = await loadSectionRows/);
 
+  assert.match(awarenessService, /LEFT JOIN installations i/);
+  assert.match(awarenessService, /i\.status = 'active'/);
+  assert.match(awarenessService, /i\.expires_at IS NULL OR i\.expires_at > UTC_TIMESTAMP\(\)/);
+  assert.match(awarenessService, /blocked_surface_count: blockedSurfaceCount/);
+  assert.match(awarenessService, /complete_awareness_with_blocked_surfaces/);
+  assert.doesNotMatch(awarenessService, /const authorizationVisibility = 100;/);
+  assert.doesNotMatch(awarenessService, /blocked_surfaces: 0,/);
+
   for (const required of [
     "CREATE TABLE IF NOT EXISTS activation_runs",
     "CREATE TABLE IF NOT EXISTS activation_snapshot_ledger",
