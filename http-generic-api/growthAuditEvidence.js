@@ -6,7 +6,15 @@ import {
   brandRowMatchesReference,
   normalizeBrandReference,
 } from "./resolvers/brandReferenceResolver.js";
-import { resolveGoogleFileReadDecision } from "./platformPrivateCapabilityVault.js";
+import {
+  buildAuditResourceReadPlan,
+  normalizeAuditSiteUrl,
+} from "./growthAuditEvidenceContracts.js";
+export {
+  buildAuditResourceReadPlan,
+  classifyAuditEvidence,
+  normalizeAuditSiteUrl,
+} from "./growthAuditEvidenceContracts.js";
 
 function text(value = "", max = 2048) {
   return String(value ?? "").trim().slice(0, max);
@@ -27,117 +35,6 @@ function principalScope(args = {}, auth = {}) {
     tenant_id: admin && args.tenant_id ? text(args.tenant_id, 64) : text(auth?.tenant_id, 64),
     user_id: admin && args.user_id ? text(args.user_id, 64) : text(auth?.user_id, 64),
     admin_override_used: admin && Boolean(args.tenant_id || args.user_id),
-  };
-}
-
-export function normalizeAuditSiteUrl(value = "") {
-  const raw = text(value);
-  if (!raw) return "";
-  try {
-    const url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
-    return `${url.protocol}//${url.hostname.replace(/^www\./, "")}${url.port ? `:${url.port}` : ""}/`;
-  } catch {
-    return "";
-  }
-}
-
-export function classifyAuditEvidence(input = {}) {
-  const source = text(input.source, 64).toLowerCase();
-  const sourceDetected = input.source_detected === true;
-  const renderedAttempted = input.rendered_attempted === true;
-  const renderedVisible = input.rendered_visible === true;
-  const conditional = input.conditional === true;
-
-  let classification = "unverified";
-  if (source === "brand_core" || source === "strategy_document") classification = "document_authority";
-  else if (source === "tracker" || source === "implementation_tracker") classification = "tracker_state";
-  else if (renderedVisible) classification = "rendered_visible";
-  else if (conditional) classification = "conditional";
-  else if (renderedAttempted && sourceDetected) classification = "hidden_template_fallback";
-  else if (renderedAttempted && !renderedVisible) classification = "rendered_not_reproduced";
-  else if (sourceDetected) classification = "source_only";
-
-  return {
-    classification,
-    report_as_visitor_issue: classification === "rendered_visible",
-    requires_visual_confirmation: ["source_only", "hidden_template_fallback", "conditional", "unverified"].includes(classification),
-  };
-}
-
-function resourceSteps(product) {
-  if (product === "google_docs") {
-    return [
-      {
-        parent_action_key: "google_drive_api",
-        endpoint_key: "getFileMetadata",
-        purpose: "confirm_mime_type_and_resource_authority",
-      },
-      {
-        parent_action_key: "google_drive_api",
-        endpoint_key: "drive_export_workspace_file",
-        purpose: "export_plain_text",
-        query: { mimeType: "text/plain" },
-      },
-    ];
-  }
-  if (product === "google_sheets") {
-    return [
-      {
-        parent_action_key: "google_sheets_api",
-        endpoint_key: "getSpreadsheet",
-        purpose: "list_sheet_metadata",
-      },
-      {
-        parent_action_key: "google_sheets_api",
-        endpoint_key: "getSheetValues",
-        purpose: "read_selected_ranges_with_pagination",
-      },
-    ];
-  }
-  if (product === "google_slides") {
-    return [
-      {
-        parent_action_key: "google_drive_api",
-        endpoint_key: "getFileMetadata",
-        purpose: "confirm_mime_type_and_resource_authority",
-      },
-      {
-        parent_action_key: "google_drive_api",
-        endpoint_key: "drive_export_workspace_file",
-        purpose: "export_plain_text",
-        query: { mimeType: "text/plain" },
-      },
-    ];
-  }
-  return [
-    {
-      parent_action_key: "google_drive_api",
-      endpoint_key: "getFileMetadata",
-      purpose: "metadata_first_manual_review",
-    },
-  ];
-}
-
-export function buildAuditResourceReadPlan(url = "") {
-  const decision = resolveGoogleFileReadDecision({
-    url,
-    metadata_probe_status: "planned_from_url",
-    max_chars_per_chunk: 12000,
-  });
-  return {
-    resource_url: text(url),
-    file_id: decision.file_id || null,
-    detected_product: decision.detected_product,
-    capability_key: "files.object.read",
-    credential_scope: "auto",
-    resolution_status: decision.file_id ? "planned" : "blocked",
-    read_strategy: decision.read_strategy,
-    fallback_strategy: decision.fallback_strategy,
-    canonical_steps: resourceSteps(decision.detected_product),
-    continuation_required: true,
-    provider_call_executed: false,
-    blockers: decision.blockers || [],
-    secrets_included: false,
   };
 }
 
