@@ -8,6 +8,7 @@ import {
 import {
   buildCompletenessEnvelope,
   buildAwarenessIndex,
+  deriveOperationalBlockedSurfaces,
   _testingActivationAwareness,
 } from "./activationAwarenessService.js";
 import {
