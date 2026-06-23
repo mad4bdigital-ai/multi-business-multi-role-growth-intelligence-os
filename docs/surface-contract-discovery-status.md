@@ -19,10 +19,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 451
+- Migrations with detected surfaces: 452
 - Migrations reported here: 80
 - OpenAPI operations detected: 487
-- OpenAPI paths detected: 451
+- OpenAPI paths detected: 455
 - Documentation targets checked:
 - `Updating Registry Patch Index.md`
 - `deployment_parity_checklist.md`
@@ -32,11 +32,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 451/451 (100.00%)
+- Documentation complete migrations: 452/452 (100.00%)
 - Documentation gap migrations: 0
 - Gap severity: high=0, medium=0, low=0
 - SQL route coverage in OpenAPI: 5/5 (100.00%)
-- SQL route-like literals exempted from OpenAPI scoring: 572/577
+- SQL route-like literals exempted from OpenAPI scoring: 578/583
 - SQL routes missing OpenAPI path coverage: 0
 - Migrations without explicit `secrets_included=false` marker: 0
 
@@ -45,10 +45,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 12 | 9 |
-| tools | 2119 | 384 |
+| tools | 2128 | 385 |
 | views | 410 | 164 |
 | policies | 160 | 102 |
-| routes | 577 | 241 |
+| routes | 583 | 242 |
 
 ### Documentation Target Gaps
 
@@ -64,19 +64,19 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 451 |
-| no_credential_payload_read | 451 |
-| no_raw_secrets | 451 |
-| no_external_send | 451 |
-| no_external_write | 451 |
-| secrets_included_false | 451 |
+| no_provider_call | 452 |
+| no_credential_payload_read | 452 |
+| no_raw_secrets | 452 |
+| no_external_send | 452 |
+| no_external_write | 452 |
+| secrets_included_false | 452 |
 
 ### Route Classification Coverage
 
 | Route class | SQL route-like literals |
 |---|---:|
 | http_route | 5 |
-| admin_tool_registry_route | 124 |
+| admin_tool_registry_route | 130 |
 | tenant_tool_registry_route | 40 |
 | system_tool_dispatch_route | 13 |
 | registry_only_surface | 1 |

@@ -116,6 +116,22 @@ internal static class Program
 
     private static async Task<JsonDocument> SendRequestAsync(string pipeName, object request)
     {
+        const int maxAttempts = 3;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await SendRequestOnceAsync(pipeName, request);
+            }
+            catch (Exception error) when (attempt < maxAttempts && IsTransientPipeFailure(error))
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(100 * attempt));
+            }
+        }
+    }
+
+    private static async Task<JsonDocument> SendRequestOnceAsync(string pipeName, object request)
+    {
         await using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
         await pipe.ConnectAsync(2000);
         using var reader = new StreamReader(pipe, Encoding.UTF8, false, 4096, leaveOpen: true);
@@ -125,6 +141,9 @@ internal static class Program
         Assert(!string.IsNullOrWhiteSpace(response), "sidecar must return a response");
         return JsonDocument.Parse(response!);
     }
+
+    private static bool IsTransientPipeFailure(Exception error) =>
+        error is IOException or TimeoutException;
 
     private static void Assert(bool condition, string message)
     {

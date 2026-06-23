@@ -448,6 +448,59 @@ containerContextResolutions:
       '429': { $ref: '#/responses/RateLimited' }
       '500': { $ref: '#/responses/InternalError' }
 
+adminContainerResolutionPreview:
+  post:
+    tags: [container-authority, admin-control]
+    operationId: previewAdminContainerAuthorityResolution
+    summary: Preview effective Dynamic Container authority through an Admin tool-safe body contract
+    description: Forces preview mode and accepts idempotencyKey in the JSON body for governed tool dispatch. It writes immutable internal evidence only and never enables enforcement, calls providers, reads credential payloads, or performs external writes.
+    x-registry-exposure: admin_tool
+    x-registry-tool-key: dynamic_container_resolution_preview
+    x-openai-isConsequential: true
+    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [tenantId, targetContainerId, dimensionRequests, idempotencyKey]
+            properties:
+              principal: { $ref: '#/schemas/Principal' }
+              tenantId: { type: string, minLength: 1, maxLength: 36 }
+              targetContainerId: { type: string, minLength: 1, maxLength: 36 }
+              dimensionRequests:
+                type: array
+                minItems: 1
+                maxItems: 50
+                items: { $ref: '#/schemas/DimensionRequest' }
+              expectedAuthorityEpoch: { type: integer, minimum: 0 }
+              expectedRegistrySnapshotHash: { type: string, pattern: '^[a-f0-9]{64}$' }
+              legacyDecision: { type: string, maxLength: 64 }
+              legacyEvidenceRef: { type: string, maxLength: 512 }
+              requestId: { type: string, maxLength: 191 }
+              idempotencyKey: { type: string, minLength: 8, maxLength: 128 }
+          example:
+            tenantId: 00000000-0000-0000-0000-000000000000
+            targetContainerId: 4d6fa7d2-28a5-4bc8-a09c-2ef0047e648d
+            idempotencyKey: preview-container-authority-001
+            dimensionRequests:
+              - dimension: assets
+                resourceType: asset
+                resourceRef: article-42
+                operation: read.asset
+    responses:
+      '201': { description: Immutable preview resolution evidence, content: { application/json: { schema: { $ref: '#/schemas/ResolutionResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '404': { $ref: '#/responses/NotFound' }
+      '409': { $ref: '#/responses/Conflict' }
+      '422': { $ref: '#/responses/Unprocessable' }
+      '429': { $ref: '#/responses/RateLimited' }
+      '500': { $ref: '#/responses/InternalError' }
+
 containerContextResolutionById:
   get:
     tags: [container-authority]
@@ -593,6 +646,29 @@ containerOverrideApprovals:
       '422': { $ref: '#/responses/Unprocessable' }
       '500': { $ref: '#/responses/InternalError' }
 
+adminContainerProjectionPreview:
+  post:
+    tags: [container-authority, admin-control]
+    operationId: previewAdminContainerAuthorityProjection
+    summary: Build a Dynamic Container legacy projection plan without applying it
+    description: Forces dry-run behavior at the route boundary. It reads registry sources and returns a projection plan and held issues without database mutation, provider calls, credential payload reads, external writes, or enforcement.
+    x-registry-exposure: admin_tool
+    x-registry-tool-key: dynamic_container_projection_dry_run
+    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+    responses:
+      '200': { description: Projection dry-run plan and held issues, content: { application/json: { schema: { $ref: '#/schemas/MutationResponse' } } } }
+      '400': { $ref: '#/responses/BadRequest' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '500': { $ref: '#/responses/InternalError' }
+
 containerAuthorityProjections:
   post:
     tags: [container-authority]
@@ -617,6 +693,8 @@ containerAuthorityShadowSummary:
   get:
     tags: [container-authority]
     operationId: listContainerAuthorityShadowSummary
+    x-registry-exposure: admin_tool
+    x-registry-tool-key: dynamic_container_shadow_summary
     summary: List bounded shadow mismatch and latency summaries
     security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
     parameters:
@@ -634,6 +712,8 @@ containerAuthorityRolloutReadiness:
   get:
     tags: [container-authority]
     operationId: getContainerAuthorityRolloutReadiness
+    x-registry-exposure: admin_tool
+    x-registry-tool-key: dynamic_container_rollout_readiness
     summary: Read shadow sample, mismatch, performance, projection, and relationship rollout gates
     security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
     responses:
