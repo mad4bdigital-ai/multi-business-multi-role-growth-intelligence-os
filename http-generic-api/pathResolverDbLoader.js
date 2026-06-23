@@ -107,6 +107,16 @@ function mapBrandRow(r) {
     site_aliases_json: str(r.site_aliases_json),
     primary_site_key: str(r.primary_site_key),
     brand_core_required: str(r.brand_core_required || r.brand_core_ready),
+    transport_action_key: str(r.transport_action_key),
+    auth_type: str(r.auth_type),
+    auth_validation_status: str(r.auth_validation_status),
+    credential_resolution: str(r.credential_resolution),
+    transport_enabled: str(r.transport_enabled),
+    write_allowed: str(r.write_allowed),
+    destructive_allowed: str(r.destructive_allowed),
+    resolver_status: str(r.resolver_status),
+    resolver_writeback_status: str(r.resolver_writeback_status),
+    resolver_last_checked_at: str(r.resolver_last_checked_at),
     status: str(r.status),
   };
 }
