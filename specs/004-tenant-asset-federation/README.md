@@ -1,6 +1,7 @@
 # Tenant Asset Federation and Editable Overlays
 
-**Status:** Design ready for review  
+**Status:** Review open  
+**Pull request:** `#1898`  
 **Branch:** `gpt/004-tenant-asset-federation-20260623`  
 **Implementation authorized:** No
 
