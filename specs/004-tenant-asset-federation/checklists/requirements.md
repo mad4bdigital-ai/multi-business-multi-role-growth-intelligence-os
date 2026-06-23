@@ -1,15 +1,67 @@
 # Requirements Checklist
 
-- [x] Platform-base assets are immutable.
-- [x] Tenant-owned editable versions are explicit.
-- [x] Overlay and fork modes are defined.
-- [x] Tenant, workspace, brand, activity type, and role scopes are supported.
-- [x] Union and intersection semantics are deterministic.
-- [x] Explicit mandatory deny wins.
-- [x] Visibility, editability, grantability, and executability are separate.
-- [x] Credential and installation evidence is separate from asset content.
-- [x] Sensitive assets remain approval-gated.
-- [x] Upgrade, conflict, rollback, and audit are covered.
-- [x] Existing specialized authorities have a bridge/cutover plan.
+## Shared assets
+
+- [x] Shared canonical assets remain the default.
+- [x] Ordinary use and grants create no asset copy.
+- [x] Catalog projection references canonical tables.
+- [x] Platform base assets remain immutable to tenant principals.
+- [x] Optional variants require explicit customization.
+- [x] Variants support user, role, workspace, brand, activity, and tenant scopes.
+- [x] Reset to shared default is defined.
+- [x] Base upgrade and variant conflict behavior are defined.
+
+## Context and composition
+
+- [x] Tenant, workspace, brand, activity, role, user, and task layers are represented.
+- [x] Dynamic Container Authority is reused.
+- [x] Multi-parent paths and ambiguity are addressed.
+- [x] Composition mode is selected per dimension/policy family.
+- [x] Guarded union and strict intersection are defined.
+- [x] Typed operators cover deny, risk, quota, scalar, ordered, and prompt semantics.
+- [x] Missing required intersection layers fail closed.
+- [x] Mandatory platform policy cannot be removed.
+- [x] Field-level explanation and provenance are required.
+
+## Personalization
+
+- [x] User preference is separate from authorization.
+- [x] Preferences can rank or narrow only authorized candidates.
+- [x] Personalization covers language, depth, workflow, agent, dashboard, channels, and autonomy bounds.
+- [x] Users can inspect, reset, and opt out of eligible adaptation.
+- [x] Preferences contain no secrets or cross-tenant references.
+
+## Connections and readiness
+
+- [x] Tenant/user credentials remain in governed vault/connection authorities.
+- [x] Assets and variants store opaque connection references only.
+- [x] Catalog, grants, connections, installations, certifications, and approvals are distinct.
+- [x] Registry active status is not treated as installation evidence.
+- [x] Approval-sensitive grants are distinguished from pending requests.
+
+## Dynamic growth
+
+- [x] Existing signals and outcomes are reused.
+- [x] Adaptation is proposal-driven.
+- [x] Proposal classes A–E are defined.
+- [x] Simulation, canary, metrics, guardrails, rollback, and expiry are defined.
+- [x] Class E cannot self-approve.
+- [x] Tenant-local to platform promotion is separate and privacy-reviewed.
+- [x] Dark patterns and proxy-metric optimization are forbidden.
+
+## Runtime and APIs
+
+- [x] Effective runtime manifest is defined.
+- [x] Decisions are deterministic, hashed, versioned, no-secret, and reconstructable.
+- [x] Existing authorities remain until parity and cutover certification.
+- [x] OpenAPI 3.1, resource-oriented APIs, structured errors, pagination, idempotency, and readback are covered.
+- [x] Architecture layer boundaries are defined.
+- [x] Family-by-family rollout and rollback are defined.
+
+## Review status
+
 - [ ] Product terminology approved.
-- [ ] Implementation scope approved.
+- [ ] Typed field/operator registry approved.
+- [ ] Privacy and consent policy approved.
+- [ ] Initial pilot family and context approved.
+- [ ] Implementation scope authorized.
