@@ -1,0 +1,259 @@
+{
+  "version": "1.0.0",
+  "policy_key": "platform_resource_api_coverage_policy_v1",
+  "description": "Fail-closed resource API coverage manifest. New feature surfaces must map to a governed logical resource and operation coverage.",
+  "required_operation_classes": [
+    "list",
+    "get",
+    "search",
+    "permissions",
+    "changes",
+    "revisions",
+    "readback"
+  ],
+  "new_feature_gate": {
+    "require_resource_descriptor": true,
+    "require_admin_or_tenant_scope_decision": true,
+    "require_openapi_contract": true,
+    "require_tests": true,
+    "require_readback_for_mutations": true,
+    "require_secret_field_allowlist": true,
+    "allow_expiring_exemptions": true
+  },
+  "resources": [
+    {
+      "resource_key": "sessions",
+      "display_name": "Sessions",
+      "scope_class": "tenant_user",
+      "source_tables": [
+        "customer_sessions",
+        "gpt_session_turns",
+        "session_summaries",
+        "session_events",
+        "gpt_session_conversation_refs"
+      ],
+      "read_models": [
+        "v_gpt_session_archive_monitoring"
+      ],
+      "id_field": "session_id",
+      "operations": {
+        "list": "active",
+        "get": "active",
+        "search": "active",
+        "permissions": "active",
+        "changes": "active",
+        "revisions": "active",
+        "readback": "active",
+        "create": "existing_writer_only",
+        "update": "existing_writer_only",
+        "archive": "completed_state_only",
+        "restore": "blocked_by_policy",
+        "purge": "blocked_by_policy"
+      },
+      "admin": true,
+      "tenant": true,
+      "route_file": "routes/resourceApiRoutes.js"
+    },
+    {
+      "resource_key": "executions",
+      "display_name": "Executions",
+      "scope_class": "tenant_workspace",
+      "source_tables": [
+        "execution_log",
+        "audit_payload_evidence"
+      ],
+      "read_models": [
+        "v_execution_log_runtime_evidence_recent",
+        "v_execution_log_full_context_evidence_recent"
+      ],
+      "id_field": "id",
+      "operations": {
+        "list": "active",
+        "get": "active",
+        "search": "active",
+        "permissions": "active",
+        "changes": "active",
+        "revisions": "not_applicable",
+        "readback": "active",
+        "create": "existing_runtime_only",
+        "update": "blocked_by_policy",
+        "archive": "blocked_by_policy",
+        "restore": "blocked_by_policy",
+        "purge": "blocked_by_policy"
+      },
+      "admin": true,
+      "tenant": true,
+      "route_file": "routes/resourceApiRoutes.js"
+    },
+    {
+      "resource_key": "assets",
+      "display_name": "Workspace Assets",
+      "scope_class": "tenant_workspace",
+      "source_tables": [
+        "workspace_assets",
+        "workspace_vaults"
+      ],
+      "read_models": [],
+      "id_field": "asset_id",
+      "operations": {
+        "list": "active",
+        "get": "active",
+        "search": "active",
+        "permissions": "active",
+        "changes": "active",
+        "revisions": "not_yet_versioned",
+        "readback": "active",
+        "create": "active",
+        "update": "active",
+        "archive": "active",
+        "restore": "active",
+        "purge": "blocked_by_policy"
+      },
+      "admin": true,
+      "tenant": true,
+      "route_file": "routes/resourceApiRoutes.js"
+    },
+    {
+      "resource_key": "approvals",
+      "display_name": "Approval Holds",
+      "scope_class": "tenant_workspace_user",
+      "source_tables": [
+        "approval_holds"
+      ],
+      "read_models": [
+        "v_approval_hold_parent_resolution"
+      ],
+      "id_field": "hold_id",
+      "operations": {
+        "list": "active",
+        "get": "active",
+        "search": "active",
+        "permissions": "active",
+        "changes": "active",
+        "revisions": "not_yet_versioned",
+        "readback": "active",
+        "create": "existing_workflows_only",
+        "update": "existing_decision_routes_only",
+        "archive": "blocked_by_policy",
+        "restore": "blocked_by_policy",
+        "purge": "blocked_by_policy"
+      },
+      "admin": true,
+      "tenant": true,
+      "route_file": "routes/resourceApiRoutes.js"
+    },
+    {
+      "resource_key": "resource_api_governance",
+      "display_name": "Resource API Governance",
+      "scope_class": "platform_admin",
+      "source_tables": [
+        "platform_resource_type_registry",
+        "platform_resource_operation_registry",
+        "platform_resource_coverage_runs",
+        "platform_resource_coverage_findings"
+      ],
+      "read_models": [
+        "v_platform_resource_api_coverage"
+      ],
+      "id_field": "resource_key",
+      "operations": {
+        "list": "active",
+        "get": "active",
+        "search": "active",
+        "permissions": "active",
+        "changes": "active",
+        "revisions": "not_applicable",
+        "readback": "active",
+        "create": "migration_only",
+        "update": "migration_only",
+        "archive": "migration_only",
+        "restore": "migration_only",
+        "purge": "blocked_by_policy"
+      },
+      "admin": true,
+      "tenant": false,
+      "route_file": "routes/resourceApiRoutes.js"
+    }
+  ],
+  "route_operations": [
+    "GET /admin/resource-types",
+    "GET /admin/resource-types/:resourceKey",
+    "GET /admin/resources/:resourceKey",
+    "GET /admin/resources/:resourceKey/:resourceId",
+    "POST /admin/resources/:resourceKey",
+    "PATCH /admin/resources/:resourceKey/:resourceId",
+    "DELETE /admin/resources/:resourceKey/:resourceId",
+    "POST /admin/resources/:resourceKey/:resourceId/restore",
+    "POST /admin/resources/:resourceKey/:resourceId/purge",
+    "GET /admin/resources/:resourceKey/:resourceId/permissions",
+    "GET /admin/resources/:resourceKey/:resourceId/revisions",
+    "GET /admin/resources/:resourceKey/:resourceId/changes",
+    "GET /admin/resource-changes",
+    "GET /admin/resource-coverage/audit",
+    "GET /admin/operations/:operationId",
+    "GET /me/workspaces/:tenant_id/resources",
+    "GET /me/workspaces/:tenant_id/resources/:resourceKey",
+    "GET /me/workspaces/:tenant_id/resources/:resourceKey/:resourceId",
+    "POST /me/workspaces/:tenant_id/resources/:resourceKey",
+    "PATCH /me/workspaces/:tenant_id/resources/:resourceKey/:resourceId",
+    "DELETE /me/workspaces/:tenant_id/resources/:resourceKey/:resourceId",
+    "POST /me/workspaces/:tenant_id/resources/:resourceKey/:resourceId/restore",
+    "GET /me/workspaces/:tenant_id/resources/:resourceKey/:resourceId/permissions",
+    "GET /me/workspaces/:tenant_id/resources/:resourceKey/:resourceId/revisions",
+    "GET /me/workspaces/:tenant_id/resources/:resourceKey/:resourceId/changes",
+    "GET /me/workspaces/:tenant_id/resource-changes",
+    "GET /me/workspaces/:tenant_id/operations/:operationId",
+    "GET /gpt/sessions",
+    "GET /gpt/sessions/:id",
+    "GET /gpt/sessions/:id/turns",
+    "GET /gpt/sessions/:id/summary",
+    "GET /gpt/sessions/:id/events",
+    "GET /gpt/sessions/:id/transcript",
+    "POST /gpt/sessions/:id/summary/generate"
+  ],
+  "tool_exports": [
+    "platform_resource_types_list",
+    "platform_resource_type_get",
+    "platform_resource_list",
+    "platform_resource_get",
+    "platform_resource_permissions_get",
+    "platform_resource_revisions_list",
+    "platform_resource_changes_list",
+    "platform_resource_create",
+    "platform_resource_update",
+    "platform_resource_archive",
+    "platform_resource_restore",
+    "platform_resource_purge",
+    "platform_resource_coverage_audit",
+    "platform_operation_get",
+    "tenant_resource_catalog",
+    "tenant_resource_list",
+    "tenant_resource_get",
+    "tenant_resource_permissions_get",
+    "tenant_resource_revisions_list",
+    "tenant_resource_changes_list",
+    "tenant_resource_create",
+    "tenant_resource_update",
+    "tenant_resource_archive",
+    "tenant_resource_restore",
+    "tenant_operation_get",
+    "gpt_session_list",
+    "gpt_session_get",
+    "gpt_session_turns_list",
+    "gpt_session_summary_get",
+    "gpt_session_events_list",
+    "gpt_session_transcript_preview",
+    "gpt_session_summary_generate"
+  ],
+  "coverage_exemptions": {
+    "tables": [
+      {
+        "pattern": "^(rb_|zz_|collation_backup_|repair_backup_)",
+        "reason": "Recovery and repair snapshots are non-runtime resources.",
+        "expires_on": "2026-12-31"
+      }
+    ],
+    "routes": [],
+    "tools": []
+  }
+}

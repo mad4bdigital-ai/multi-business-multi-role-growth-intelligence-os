@@ -1,0 +1,26 @@
+# Tasks: Self-Discovering Resource API Coverage
+
+- [x] Define resource coverage constitution and templates.
+- [x] Define Sessions, Executions, Assets, Approvals, and Governance descriptors.
+- [x] Add additive resource registry and finding tables.
+- [x] Add Admin/Tenant resource routes.
+- [x] Add direct Session list/get/turns/summary/events/transcript routes.
+- [x] Add safe Asset create/update/archive/restore adapters.
+- [x] Add live resource-coverage audit.
+- [x] Add changed-surface CI detector.
+- [x] Register tests in the explicit test manifest.
+- [x] Add OpenAPI paths and tool registry seeds.
+- [x] Update canonical families and Knowledge Guide.
+- [x] Rebase on current `main` and preserve the existing security constitution.
+- [x] Add activation-surface descriptors for all new registry tables.
+- [x] Extract resource descriptors and policy into the domain layer.
+- [x] Extract SQL and persistence projections into an infrastructure repository.
+- [x] Extract membership, authorization, lifecycle, audit, and readback orchestration into an application service.
+- [x] Reduce `resourceApiRoutes.js` to transport registration and JWT boundary behavior.
+- [x] Add a controller for HTTP mapping and stable error envelopes.
+- [x] Add architecture-boundary tests and application-service tests.
+- [x] Add an architecture ADR and repository folder map.
+- [ ] Obtain GitHub CI green status.
+- [ ] Merge governed PR.
+- [ ] Apply migration `1023_sprint69_resource_api_coverage_gate.sql`.
+- [ ] Verify production deployment and run the post-merge live audit.

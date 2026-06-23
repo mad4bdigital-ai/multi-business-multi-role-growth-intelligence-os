@@ -14,7 +14,8 @@
     "routes/connectRoutes.js",
     "routes/connectApiRoutes.js",
     "routes/connectorProxyRoutes.js",
-    "routes/connectorAgentRoutes.js"
+    "routes/connectorAgentRoutes.js",
+    "routes/resourceApiRoutes.js"
   ],
   "exact": [
     "GET /",
