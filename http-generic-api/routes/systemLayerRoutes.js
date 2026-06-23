@@ -189,6 +189,7 @@ const SYSTEM_LAYER_TOOLS = [
   ...TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
   ...TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
   ...TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
+  ...GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS,
   {
     name: "system_layer_descriptor_readiness",
     description: "Admin-only read-only diagnostic for descriptor-backed system-layer tool sources. Verifies every descriptor has a runtime handler and no secrets are included.",
