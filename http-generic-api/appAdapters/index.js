@@ -36,6 +36,41 @@ const REGISTRY = {
   makecom_mcp: makecomMcpAdapter,
   wordpress_rest: wordpressRestAdapter,
 };
+const APP_ACTION_MUTATION_REQUIREMENTS = Object.freeze({
+  google_drive: Object.freeze({ list_files: false, read_file: false, search_files: false, write_file: true, create_folder: true }),
+  notion: Object.freeze({ read_page: false, list_databases: false, query_database: false, search: false, create_page: true, update_page: true }),
+  github: Object.freeze({ list_repos: false, read_file: false, list_issues: false, write_file: true, create_issue: true, create_pr: true }),
+  slack: Object.freeze({ list_channels: false, read_channel: false, list_users: false, send_message: true, upload_file: true }),
+  mcp: Object.freeze({ tools_list: false, tools_call: true }),
+  makecom: Object.freeze({ list_scenarios: false, get_scenario: false, trigger_webhook: true, run_scenario: true }),
+  n8n: Object.freeze({ list_workflows: false, get_workflow: false, list_executions: false, trigger_webhook: true, execute_workflow: true }),
+  makecom_mcp: Object.freeze({ mcp_initialize: false, mcp_tools_list: false, mcp_tools_call: true }),
+  wordpress_rest: Object.freeze({
+    "wordpress_rest.validate_connection": false,
+    "wordpress_rest.get_current_user": false,
+    "wordpress_rest.read_users": false,
+  }),
+  api_key: Object.freeze({ call_api: "request_method" }),
+  webhook: Object.freeze({ call_webhook: "request_method" }),
+});
+
+function requestMethodMutationRequirement(args = {}, fallbackMethod = "") {
+  const method = String(args?.method || fallbackMethod || "").trim().toUpperCase();
+  if (["GET", "HEAD", "OPTIONS"].includes(method)) return false;
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) return true;
+  return null;
+}
+
+export function resolveAppActionMutationRequirement(appKey = "", actionKey = "", args = {}) {
+  const normalizedAppKey = String(appKey || "").trim();
+  const normalizedActionKey = String(actionKey || "").trim();
+  const declaration = APP_ACTION_MUTATION_REQUIREMENTS[normalizedAppKey]?.[normalizedActionKey];
+  if (declaration === "request_method") {
+    const fallbackMethod = normalizedAppKey === "api_key" ? "GET" : "POST";
+    return requestMethodMutationRequirement(args, fallbackMethod);
+  }
+  return typeof declaration === "boolean" ? declaration : null;
+}
 
 export function getAdapter(app_key) {
   return REGISTRY[app_key] || null;
@@ -103,11 +138,13 @@ export async function executeAppAction(connection, action_key, args = {}) {
 
   const creds = await ensureFreshCredentials(connection);
 
+  const mutationRequired = resolveAppActionMutationRequirement(connection.app_key, action_key, args);
   assertPreflightAllowed(await evaluateAppActionPreflight({
     connection,
     appKey: connection.app_key,
     actionKey: action_key,
     args,
+    mutationRequired,
   }));
 
   const result = await adapter.call(action_key, args, creds, connection);

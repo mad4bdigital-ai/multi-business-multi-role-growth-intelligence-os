@@ -16,6 +16,18 @@ Apply before architectural refactoring:
    - Cloudflare mutation
    - n8n run/activate/deactivate
    - raw credential-intake creation
+
+   Verified server-side switches:
+
+   | Capability group | Environment variable | Blocked mutations | Read-only operations preserved |
+   |---|---|---|---|
+   | Local shell | `CAPABILITY_KILL_SWITCH_LOCAL_SHELL` | `run`, `shell-fetch-upload` | `status`, `list` |
+   | Local file mutation | `CAPABILITY_KILL_SWITCH_LOCAL_FILE_MUTATION` | write/delete/remove/move/rename/directory mutation actions | list, drive discovery, repo discovery, read |
+   | Cloudflare mutation | `CAPABILITY_KILL_SWITCH_CLOUDFLARE_MUTATION` | `create_dns`, `delete_dns`, `purge_cache` | zone/DNS/tunnel reads |
+   | n8n mutation | `CAPABILITY_KILL_SWITCH_N8N_MUTATION` | start/stop/restart, activate/deactivate/run workflow | status, diagnostics, health, workflow/execution reads |
+   | Raw credential intake | `CAPABILITY_KILL_SWITCH_RAW_CREDENTIAL_INTAKE` | raw admin `/credential-intake/sessions` creation | tenant-safe Platform Plugin credential-intake flow |
+
+   Enabled switches return HTTP `503` with stable code `CAPABILITY_KILL_SWITCH_ENABLED`. Each switch is independently scoped, read at request time, defaults off for backward compatibility, and never emits secret values.
 8. Alert on any tenant request that resolves to an admin-only alias.
 
 ## Rollout stages

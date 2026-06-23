@@ -493,6 +493,8 @@ export const testCommands = [
   "node test-connected-execution-read-only-tool-apply-cert-drift.mjs",
   "node test-runtime-policy-reconciliation.mjs",
   "node test-runtime-policy-resolver.mjs",
+  "node test-explicit-mutation-policy-fail-closed.mjs",
+  "node test-capability-kill-switch-policy.mjs",
   "node test-runtime-verification-contract.mjs",
   "node test-policy-only-target-rule-migration.mjs",
   "node test-safe-additive-repair-policy-literal.mjs",

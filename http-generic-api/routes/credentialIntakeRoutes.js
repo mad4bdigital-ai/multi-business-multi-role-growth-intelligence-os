@@ -5,6 +5,7 @@ import { encryptCredentials, encryptToken } from "../tokenEncryption.js";
 import { writeAuditLogAsync } from "../auditLogger.js";
 import { enqueueCredentialIntakeCompletedWebhook } from "../webhookDeliveryDispatcher.js";
 import { atomicallyConsumeCredentialIntakeSession } from "../credentialIntakeSingleUse.js";
+import { assertCapabilityKillSwitchOpen } from "../capabilityKillSwitchPolicy.js";
 import {
   buildCredentialIntakeBinding,
   normalizeCredentialIntakeRedirect,
@@ -804,6 +805,7 @@ export function buildCredentialIntakeRoutes(deps = {}) {
 
   router.post("/credential-intake/sessions", requireBackendApiKey, async (req, res) => {
     try {
+      assertCapabilityKillSwitchOpen({ surface: "raw_credential_intake_creation", action: "create" });
       const input = req.body && typeof req.body === "object" ? req.body : {};
       const result = await createCredentialIntakeSessionRecord({
         request: req,
@@ -828,7 +830,7 @@ export function buildCredentialIntakeRoutes(deps = {}) {
     } catch (err) {
       return res.status(err.status || 500).json({
         ok: false,
-        error: { code: err.code || "credential_intake_session_create_failed", message: err.message },
+        error: { code: err.code || "credential_intake_session_create_failed", message: err.message, ...(err.details ? { details: err.details } : {}) },
         secrets_included: false,
       });
     }
