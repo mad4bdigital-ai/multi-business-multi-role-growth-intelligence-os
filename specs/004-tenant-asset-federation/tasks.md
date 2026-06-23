@@ -1,46 +1,129 @@
 # Tasks
 
-## Design
+## Design and governance
 
-- [x] Capture tenant-editable platform-base requirement.
-- [x] Capture workspace, brand, business-activity-type, and role scopes.
-- [x] Define user-selected union/intersection composition.
-- [x] Define overlay and fork ownership modes.
-- [x] Separate credentials/installations from asset definitions.
-- [x] Document current connector and approval-sensitive grant findings.
-- [ ] Approve the specification and terminology.
+- [x] Define shared-by-default assets.
+- [x] Remove automatic tenant-copy assumption.
+- [x] Separate runtime composition from asset variants.
+- [x] Define tenant/workspace/brand/activity/role/user layers.
+- [x] Define guarded union, strict intersection, and typed operators.
+- [x] Define optional user/role/workspace/brand/activity/tenant variants.
+- [x] Define personalization as ranking/narrowing, not authority.
+- [x] Define governed adaptive proposal and experiment loop.
+- [x] Document current code and database evidence.
+- [x] Add current and target relationship diagrams.
+- [ ] Approve terminology and frozen decisions.
+- [ ] Approve privacy, consent, and promotion governance.
+
+## Repository continuity
+
+- [x] Preserve and repair the current PR branch.
+- [x] Run branch reconciliation and confirm zero file overlap.
+- [x] Use governed stale-branch patch without force-push.
+- [ ] Reconcile branch ancestry with latest `main` before merge.
+- [ ] Verify final tree scope and generated docs.
 
 ## Canonical alignment
 
-- [ ] Resolve overlap with PR #1894.
-- [ ] Add canonical source pages.
+- [ ] Add ADRs for shared assets, typed policy algebra, personalization boundaries, and adaptive promotion.
 - [ ] Update `AI_Agent_Knowledge_Guide.md`.
-- [ ] Update memory and execution schemas.
-- [ ] Run `node build-canonicals.mjs`.
+- [ ] Update `system_bootstrap.md`.
+- [ ] Update `memory_schema.json`.
+- [ ] Update `direct_instructions_registry_patch.md`.
+- [ ] Update `module_loader.md` and `prompt_router.md`.
+- [ ] Update canonicals and run `node build-canonicals.mjs`.
 
-## Schema
+## Shared catalog
 
-- [ ] Design governed migration and authorization metadata.
-- [ ] Add tables, indexes, constraints, and effective views.
-- [ ] Add no-secret parity and readiness views.
-- [ ] Run migration preflight and readback in development.
+- [ ] Design additive catalog migration.
+- [ ] Register source mappings for all initial asset families.
+- [ ] Add visibility, entitlement, risk, customization, capability, and connection metadata.
+- [ ] Implement Resource API list/get/search/permissions/changes/revisions/readback.
+- [ ] Add catalog readiness states and tests.
 
-## Runtime
+## Dynamic Container projection
 
-- [ ] Implement domain model and resolver.
-- [ ] Implement union/intersection tests.
-- [ ] Implement overlay/fork versioning.
-- [ ] Implement generic grant and scope binding services.
-- [ ] Integrate tenant connections, installations, and certifications.
-- [ ] Implement specialized-authority bridge adapters.
-- [ ] Add Tenant GPT/dashboard APIs.
+- [ ] Project tenants, workspaces, brands, activities, and workflows.
+- [ ] Create deterministic relationship edges and closure.
+- [ ] Add projection consistency views.
+- [ ] Add idempotent backfill and same-cycle readback.
+- [ ] Keep enforcement disabled.
 
-## Verification
+## Legacy bridges
 
-- [ ] Cross-tenant isolation tests pass.
-- [ ] Mandatory safety floor cannot be weakened.
-- [ ] Credential non-disclosure tests pass.
-- [ ] Specialized resolver parity passes per asset family.
-- [ ] OpenAPI, CI, architecture, and runtime policy gates pass.
-- [ ] Development deployment and release readiness pass.
-- [ ] Governed production merge and behavioral readback pass.
+- [ ] Bridge current roles and memberships.
+- [ ] Bridge skill grants and workflow bindings.
+- [ ] Bridge app action and workspace resource grants.
+- [ ] Bridge execution policies and target policy rules into policy atoms.
+- [ ] Add shadow comparisons and parity dashboard.
+
+## Typed composition
+
+- [ ] Add policy-field semantics registry.
+- [ ] Implement pure domain algebra operators.
+- [ ] Add field schemas and explanation templates.
+- [ ] Add deterministic/property/conflict/fuzz tests.
+- [ ] Integrate composition profiles and selections.
+- [ ] Add impact preview and reset.
+
+## Personalization
+
+- [ ] Add allowlisted user runtime preference profile.
+- [ ] Bridge compatible existing preference tables.
+- [ ] Add ranking, hiding, language, tone, dashboard, autonomy, and notification settings.
+- [ ] Add consent, visibility, opt-out, history, revisions, export, and reset.
+- [ ] Prove preferences cannot grant authority.
+
+## Optional variants
+
+- [ ] Add generic shared-asset variants and patches.
+- [ ] Define modifiable-path profiles.
+- [ ] Add versioning, publish, disable, reset, and conflict states.
+- [ ] Add base upgrade preview/apply.
+- [ ] Add approval and certification by risk.
+- [ ] Prove ordinary use creates no variant.
+
+## Effective runtime manifest
+
+- [ ] Add manifest ledger and explanation API.
+- [ ] Include authority epoch, profiles, atoms, assets, variants, preferences, and readiness.
+- [ ] Add cache/version invalidation.
+- [ ] Link execution and outcome evidence.
+- [ ] Add no-secret and reconstruction tests.
+
+## Connections and operational cleanup
+
+- [ ] Integrate eligible connection selection without secret reads.
+- [ ] Classify current pending connectors.
+- [ ] Backfill only validated installation evidence.
+- [ ] Correct approval-sensitive versus pending-request awareness labels.
+- [ ] Add readiness parity tests.
+
+## Adaptive growth
+
+- [ ] Add proposal, simulation, experiment, measurement, and promotion-candidate authorities.
+- [ ] Connect recommendation, intent, execution, readiness, and KPI evidence.
+- [ ] Implement proposal classes A–E.
+- [ ] Add simulation, guardrails, canary, rollback, expiry, and promotion criteria.
+- [ ] Add privacy-safe aggregation and cross-tenant promotion controls.
+- [ ] Prove Class E cannot self-approve.
+
+## APIs and architecture
+
+- [ ] Implement under `src/api`, `src/application`, `src/domain`, and `src/infrastructure` boundaries.
+- [ ] Add OpenAPI 3.1 contracts and examples.
+- [ ] Add structured errors, cursor pagination, filtering, sorting, and idempotency.
+- [ ] Update Resource API coverage and test manifest.
+- [ ] Review performance, security, and observability.
+
+## Verification and rollout
+
+- [ ] Migration preflight and rollback tests pass.
+- [ ] Cross-tenant isolation and secret rejection tests pass.
+- [ ] Shadow sample and parity thresholds pass.
+- [ ] Resolution latency budgets pass.
+- [ ] Personal preference canary passes.
+- [ ] Read-only profile/variant canaries pass.
+- [ ] Family-by-family cutover and rollback pass.
+- [ ] Development verification and release readiness pass.
+- [ ] Governed production merge, parity, and behavioral readback pass.
