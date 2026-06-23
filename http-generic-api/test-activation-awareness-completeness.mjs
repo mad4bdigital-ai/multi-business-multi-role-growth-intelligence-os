@@ -247,6 +247,7 @@ function testRepositoryContracts() {
   const hardRoutes = read("./routes/activationHardRunRoutes.js");
   const awarenessRoutes = read("./routes/activationAwarenessRoutes.js");
   const dynamicTabs = read("./activationDynamicTabsEvidence.js");
+  const awarenessService = read("./activationAwarenessService.js");
   const migration = read("./migrations/310_sprint69_activation_awareness_completeness_control_plane.sql");
   const openapi = read("./openapi.yaml");
 
