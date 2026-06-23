@@ -72,6 +72,7 @@ import { buildTenantPlatformPluginRoutes } from "./tenantPlatformPluginRoutes.js
 import { buildTenantDocsRoutes } from "./tenantDocsRoutes.js";
 import { buildTenantLifecycleRoutes } from "./tenantLifecycleRoutes.js";
 import { buildWorkspaceResourceRoutes } from "./workspaceResourceRoutes.js";
+import { buildResourceApiRoutes } from "./resourceApiRoutes.js";
 import { buildAdminWorkspaceAuthorityRoutes } from "./adminWorkspaceAuthorityRoutes.js";
 import { buildTenantEvolutionRoutes } from "./tenantEvolutionRoutes.js";
 import { buildTenantInfrastructureRoutes } from "./tenantInfrastructureRoutes.js";
@@ -182,6 +183,7 @@ export function registerRoutes(app, deps) {
   app.use(buildDynamicContainerTeamRoutes());
   app.use(buildDynamicContainerAuthorityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildWorkspaceResourceRoutes());
+  app.use(buildResourceApiRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSupportTicketRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAdminWorkspaceAuthorityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildTenantEvolutionRoutes());

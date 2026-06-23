@@ -19,6 +19,7 @@ Open the source file listed below for the relevant domain instead of loading thi
 | Context resolver layer routing | `canonicals/prompt_router/08_context_resolver_layer.md` | Pre-route resolution rules, intent routing table, degraded routing states, and successful route conditions. |
 | Capability assurance routing | `canonicals/prompt_router/09_capability_assurance_graph.md` | Routing for invocation envelopes, capability-specific resource bindings, typed gaps, certification, and reconciliation. |
 | Semantic capability resolution | `canonicals/prompt_router/10_semantic_capability_resolution.md` | Semantic capability registry, tenant-effective resolution, canonical endpoint identity, derived exports, and shadow rollout governance. |
+| Resource API coverage routing | `canonicals/prompt_router/11_resource_api_coverage.md` | Descriptor-first routing for reads, permissions, changes, revisions, lifecycle operations, and readback. |
 
 ---
 
