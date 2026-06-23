@@ -1,0 +1,44 @@
+{
+  "package": "tenant-asset-federation-spec-kit",
+  "feature_branch": "gpt/004-tenant-asset-federation-20260623",
+  "prepared": "2026-06-23",
+  "status": "design_ready_for_review",
+  "implementation_authorized": false,
+  "production_mutation_authorized": false,
+  "provider_writes_allowed": false,
+  "database_migration_included": false,
+  "runtime_files_included": false,
+  "scope_dimensions": [
+    "tenant",
+    "workspace",
+    "brand",
+    "business_activity_type",
+    "role"
+  ],
+  "composition_modes": [
+    "union",
+    "intersection"
+  ],
+  "ownership_modes": [
+    "overlay",
+    "fork"
+  ],
+  "files": [
+    "README.md",
+    "spec.md",
+    "data-model.md",
+    "resolution-algorithm.md",
+    "permissions-matrix.md",
+    "credential-installation-model.md",
+    "api-contracts.md",
+    "research.md",
+    "acceptance-matrix.md",
+    "plan.md",
+    "rollout.md",
+    "tasks.md",
+    "traceability.md",
+    "checklists/requirements.md",
+    "checklists/security.md",
+    "checklists/data-isolation.md"
+  ]
+}
