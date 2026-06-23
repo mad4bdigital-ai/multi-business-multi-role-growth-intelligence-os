@@ -108,6 +108,27 @@ assert.ok(knownZeroIntegrationCard.empty_state?.steps?.length >= 3);
 assert.equal(knownZeroIntegrationCard.value, 0);
 assert.match(knownZeroIntegrationCard.interpretation, /Connect at least one business data source/);
 
+assert.deepEqual(
+  classifyTenantActionReadiness({ runtimeReady: false, capabilityKey: "content_publish", effectiveResolution: { ok: true, ready: true } }),
+  { ready: false, status: "runtime_action_not_ready", blocked_reason: "runtime_action_not_ready" }
+);
+assert.deepEqual(
+  classifyTenantActionReadiness({ runtimeReady: true, capabilityKey: null, effectiveResolution: null }),
+  { ready: false, status: "capability_mapping_missing", blocked_reason: "capability_mapping_missing" }
+);
+assert.deepEqual(
+  classifyTenantActionReadiness({ runtimeReady: true, capabilityKey: "content_publish", effectiveResolution: { ok: false, error: { code: "connection_not_validated" } } }),
+  { ready: false, status: "connection_not_validated", blocked_reason: "connection_not_validated" }
+);
+assert.deepEqual(
+  classifyTenantActionReadiness({ runtimeReady: true, capabilityKey: "content_publish", effectiveResolution: { ok: true, ready: false, status: "runtime_certification_missing" } }),
+  { ready: false, status: "runtime_certification_missing", blocked_reason: "runtime_certification_missing" }
+);
+assert.deepEqual(
+  classifyTenantActionReadiness({ runtimeReady: true, capabilityKey: "content_publish", effectiveResolution: { ok: true, ready: true, status: "ready" } }),
+  { ready: true, status: "dispatch_ready", blocked_reason: null }
+);
+
 const brandIssue = _testingTenantGrowthDashboard.chooseTopIssue({
   businessContext: { brand: { brand_core_ready: false } },
   operationalSummary: { tab_badges: {} },
