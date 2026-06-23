@@ -1,8 +1,8 @@
-# Growth Intelligence Platform Security Constitution
+# Growth Intelligence Platform Security and Resource API Constitution
 
 ## Preamble
 
-This constitution governs capability resolution, authorization, credential handling, device execution, approval, and dispatch across every action, tool, tenant, admin, device, and provider surface.
+This constitution governs capability resolution, authorization, credential handling, device execution, approval, dispatch, and resource-facing API coverage across every action, tool, tenant, admin, device, provider, database, route, and workflow surface.
 
 ## I. Canonical Capability Identity
 
@@ -76,10 +76,37 @@ Every behavior change includes deterministic allowed, denied, invalid-input, cro
 
 Changes are small, explicit, and reversible where practical. Containment is separate from refactoring. Dependencies require justification. Database, API, security, rollout, generated schemas, and canonicals remain synchronized.
 
+## XIII. Resource API Coverage and Feature Admission
+
+No new user-visible table, view, route, tool export, or workflow surface may merge without a governed logical resource descriptor.
+
+- Runtime authority remains MySQL, while clients consume logical resources rather than raw tables.
+- Tenant, workspace, user, and brand scope are resolved server-side from signed authentication, membership, and resource grants.
+- Resource outputs use explicit field allowlists; secrets, credential payloads, raw authorization material, and unrestricted transcript content are forbidden.
+- Every resource declares list, get, search, permissions, changes, revisions, and readback behavior, or an explicit governed `not_applicable` state.
+- Mutation operations additionally require validation, authorization, audit, lifecycle semantics, and same-cycle readback.
+- DELETE maps to archive, revoke, disable, or expire unless a separately approved purge and retention policy exists.
+- Client input never controls SQL tables, columns, projections, or ordering.
+- Existing routes remain backward-compatible while resource routes provide consistent contracts.
+- CI fails closed for newly uncovered relations, routes, or tool exports. Exemptions must be explicit, justified, owned, and expiring.
+
+### Resource API quality gates
+
+A resource-facing change is mergeable only when:
+
+- its resource descriptor and operation matrix are complete;
+- Admin and Tenant scope decisions are explicit;
+- routes and tool exports appear in OpenAPI 3.1 and the coverage manifest;
+- tests are registered in the explicit test manifest;
+- tenant isolation, invalid input, field redaction, and mutation readback are tested;
+- lifecycle, changes, and revision behavior are documented;
+- canonicals and the knowledge guide are updated when behavior changes;
+- CI, release readiness, security review, and governed PR merge checks pass.
+
 ## Governance
 
 Exceptions require written rationale, named owner, bounded duration, compensating controls, explicit security approval, and a tracked removal task.
 
-**Version:** 1.0.0  
+**Version:** 1.1.0  
 **Ratified:** 2026-06-19  
-**Last amended:** 2026-06-19
+**Last amended:** 2026-06-22

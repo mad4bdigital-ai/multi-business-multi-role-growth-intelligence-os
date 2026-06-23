@@ -17,6 +17,9 @@ tags:
   - name: platform-plugins
     description: Tenant-facing and admin-governed Platform Plugin catalog, install, resolve, contribution, and promotion surfaces.
   - name: session-archive
+  - name: resource-api
+    description: Governed logical resources, safe projections, lifecycle operations, changes, revisions, permissions, and readback.
+
 components:
   securitySchemes:
     userBearerAuth:
@@ -275,6 +278,392 @@ security:
       - https://auth.mad4b.com/scopes/tenant.install
       - https://auth.mad4b.com/scopes/tenant.system-tools
 paths:
+  # BEGIN RESOURCE API COVERAGE
+  /me/workspaces/{tenant_id}/resources:
+    get:
+      operationId: getMeWorkspacesTenantIdResources
+      x-openai-isConsequential: false
+      summary: "GET /me/workspaces/{tenant_id}/resources"
+      tags: [resource-api]
+      security:
+        - userBearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resources/{resourceKey}:
+    get:
+      operationId: getMeWorkspacesTenantIdResourcesResourceKey
+      x-openai-isConsequential: false
+      summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}"
+      tags: [resource-api]
+      security:
+        - userBearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+    post:
+      operationId: postMeWorkspacesTenantIdResourcesResourceKey
+      x-openai-isConsequential: false
+      summary: "POST /me/workspaces/{tenant_id}/resources/{resourceKey}"
+      tags: [resource-api]
+      security:
+        - userBearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Successful resource operation }
+        '201': { description: Resource created }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}:
+    get:
+      operationId: getMeWorkspacesTenantIdResourcesResourceKeyResourceId
+      x-openai-isConsequential: false
+      summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}"
+      tags: [resource-api]
+      security:
+        - userBearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+    patch:
+      operationId: patchMeWorkspacesTenantIdResourcesResourceKeyResourceId
+      x-openai-isConsequential: false
+      summary: "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}"
+      tags: [resource-api]
+      security:
+        - userBearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+    delete:
+      operationId: deleteMeWorkspacesTenantIdResourcesResourceKeyResourceId
+      x-openai-isConsequential: false
+      summary: "DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}"
+      tags: [resource-api]
+      security:
+        - userBearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore:
+    post:
+      operationId: postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore
+      x-openai-isConsequential: false
+      summary: "POST /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore"
+      tags: [resource-api]
+      security:
+        - userBearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/permissions:
+    get:
+      operationId: getMeWorkspacesTenantIdResourcesResourceKeyResourceIdPermissions
+      x-openai-isConsequential: false
+      summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/permissions"
+      tags: [resource-api]
+      security:
+        - userBearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/revisions:
+    get:
+      operationId: getMeWorkspacesTenantIdResourcesResourceKeyResourceIdRevisions
+      x-openai-isConsequential: false
+      summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/revisions"
+      tags: [resource-api]
+      security:
+        - userBearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/changes:
+    get:
+      operationId: getMeWorkspacesTenantIdResourcesResourceKeyResourceIdChanges
+      x-openai-isConsequential: false
+      summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/changes"
+      tags: [resource-api]
+      security:
+        - userBearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resource-changes:
+    get:
+      operationId: getMeWorkspacesTenantIdResourceChanges
+      x-openai-isConsequential: false
+      summary: "GET /me/workspaces/{tenant_id}/resource-changes"
+      tags: [resource-api]
+      security:
+        - userBearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/operations/{operationId}:
+    get:
+      operationId: getMeWorkspacesTenantIdOperationsOperationId
+      x-openai-isConsequential: false
+      summary: "GET /me/workspaces/{tenant_id}/operations/{operationId}"
+      tags: [resource-api]
+      security:
+        - userBearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: operationId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  # END RESOURCE API COVERAGE
   /activation/session-context:
     get:
       tags:
