@@ -1,5 +1,10 @@
 # Automated Docs Agent Notes
 
+## Migration 1024 Generated-Documentation Expectations
+
+When `1024_sprint69_openapi_endpoint_inventory_sync.sql` or its route/OpenAPI surfaces change, the docs agent must refresh work maps and surface-contract evidence while preserving the inventory-only safety classification. Generated outputs must state that synchronization does not auto-promote endpoints or create tool exports, and that production apply remains separately governed.
+
+
 > Auto-docs coverage for `1019_sprint69_github_branch_cleanup_sweep.sql` must retain the bounded dry-run plan, fixed disposable-branch prefix allowlist, protected/default-branch and open-PR guards, zero-unique-commit requirement, fresh base/head SHA evidence, candidate fingerprint, typed confirmation, capability envelope, pre-delete readback, same-cycle absence proof, and stop-on-first-failure reporting. Generated notes must not claim force deletion, automatic retry after unknown mutation state, credential payload access, raw-secret output, or deployment completion; `secrets_included=false`.
 
 > Auto-docs coverage for `319_sprint69_dynamic_container_authority_foundation.sql` and `320_sprint69_dynamic_container_authority_runtime_contracts.sql` must retain the additive SQL-primary registries, multi-parent closure, dynamic classifications and role composition, exact bindings and delegation evidence, immutable resolution/shadow records, explicit override governance, workspace/brand team routes, and readback/rollout gates. Generated notes must state that enforcement remains disabled by default and must not claim implicit owner bypass, provider calls, credential payload reads, raw-secret returns, external sends/writes, deployment, or rollout completion. Production readiness requires governed migration apply, ledger/schema readback, projection dry-run, shadow/performance evidence, explicit enforcement approval, and `secrets_included=false`.
