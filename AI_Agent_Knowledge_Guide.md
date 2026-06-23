@@ -1,4 +1,9 @@
 # AI Agent Knowledge Guide
+
+## OpenAPI Endpoint Inventory Synchronization Authority
+
+Migration `1024_sprint69_openapi_endpoint_inventory_sync.sql` and `openApiEndpointInventorySync.js` maintain SQL endpoint inventory from committed OpenAPI operations. This is discovery metadata only: rows remain non-callable and pending governance review, OpenAPI extensions do not create runtime authority, and callable promotion requires a separate governed migration or approval flow. Manual apply requires `SYNC_OPENAPI_ENDPOINT_INVENTORY`, a ready `platform_orchestration` capability envelope, advisory locking, transaction boundaries, and same-cycle readback. Startup apply is runtime-config controlled and can be stopped with `OPENAPI_ENDPOINT_INVENTORY_SYNC_DISABLED=true`.
+
 **Repository:** Multi-Business-Multi-Role-Growth-Intelligence-OS
 
 ## Purpose

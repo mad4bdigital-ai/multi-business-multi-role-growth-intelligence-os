@@ -8,6 +8,7 @@ import {
 import {
   buildCompletenessEnvelope,
   buildAwarenessIndex,
+  deriveOperationalBlockedSurfaces,
   _testingActivationAwareness,
 } from "./activationAwarenessService.js";
 import {
@@ -217,6 +218,41 @@ function testCompletenessAndAwareness() {
   assert.ok(blockedIndex.score < index.score);
 }
 
+function testOperationalCountIntegrityAndBlockedSurfaceDetails() {
+  const blocked = deriveOperationalBlockedSurfaces({
+    results: {
+      systems: { ok: true },
+      tasks: { ok: true },
+      agents: { ok: true },
+      skills: { ok: true },
+      freshness: { ok: true },
+      signals: { ok: true },
+    },
+    counts: {
+      systems: { active: 3, pending: 28, error: 0 },
+      tasks: { blocked: 3, open: 17 },
+      agents: { active: 252, degraded: 0, offline: 0 },
+      skills: { active: 79, requires_approval: 10 },
+      freshness: {},
+      signals: {},
+    },
+  });
+  assert.deepEqual(blocked.map((item) => item.surface_key), ["connectors", "tasks", "skills"]);
+  assert.deepEqual(blocked[0].reasons, ["pending_installations"]);
+  assert.deepEqual(blocked[0].metrics, { active: 3, pending: 28, error: 0 });
+  assert.deepEqual(blocked[1].reasons, ["blocked_tasks"]);
+  assert.deepEqual(blocked[2].reasons, ["approval_required"]);
+  assert.equal(blocked.every((item) => item.secrets_included === false), true);
+
+  const unavailable = deriveOperationalBlockedSurfaces({
+    results: { systems: { ok: false } },
+    counts: { systems: {} },
+  });
+  assert.equal(unavailable[0].surface_key, "connectors");
+  assert.deepEqual(unavailable[0].reasons, ["source_unavailable"]);
+  assert.deepEqual(unavailable[0].metrics, { active: null, pending: null, error: null });
+}
+
 function testIdempotencyAndInputNormalization() {
   assert.equal(normalizeActivationSessionPolicy("reuse_only"), "reuse_only");
   assert.equal(normalizeActivationSessionPolicy("invalid"), "reuse_or_create");
@@ -270,6 +306,10 @@ function testRepositoryContracts() {
   assert.match(awarenessService, /i\.status = 'active'/);
   assert.match(awarenessService, /i\.expires_at IS NULL OR i\.expires_at > UTC_TIMESTAMP\(\)/);
   assert.match(awarenessService, /blocked_surface_count: blockedSurfaceCount/);
+  assert.match(awarenessService, /registered_system_count: registeredSystemCount/);
+  assert.match(awarenessService, /connected_system_count: connectedSystemCount/);
+  assert.match(awarenessService, /connectedSystemCount = systems\.ok \? safeNumber\(systemCounts\.active\) : null/);
+  assert.match(awarenessService, /blocked_surfaces: blockedSurfaces/);
   assert.match(awarenessService, /complete_awareness_with_blocked_surfaces/);
   assert.doesNotMatch(awarenessService, /const authorizationVisibility = 100;/);
   assert.doesNotMatch(awarenessService, /blocked_surfaces: 0,/);
@@ -303,6 +343,7 @@ function testRepositoryContracts() {
 async function main() {
   testProfilesAndBudgets();
   testCompletenessAndAwareness();
+  testOperationalCountIntegrityAndBlockedSurfaceDetails();
   testIdempotencyAndInputNormalization();
   testRepositoryContracts();
   console.log("activation awareness completeness contract tests passed");
