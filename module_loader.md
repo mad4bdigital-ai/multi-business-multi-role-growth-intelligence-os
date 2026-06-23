@@ -18,6 +18,7 @@ Open the source file listed below for the relevant domain instead of loading thi
 | Context resolver layer dependencies | `canonicals/module_loader/07_context_resolver_layer.md` | Loader row collections for resolveContext and resolver loading order. |
 | Capability assurance graph dependencies | `canonicals/module_loader/08_capability_assurance_graph.md` | Capability, envelope, binding, evidence, certification, provenance, and debt dependencies for governed dispatch. |
 | Semantic capability resolution | `canonicals/module_loader/09_semantic_capability_resolution.md` | Semantic capability registry, tenant-effective resolution, canonical endpoint identity, derived exports, and shadow rollout governance. |
+| Resource API coverage dependencies | `canonicals/module_loader/10_resource_api_coverage.md` | Resource descriptors, safe projections, scope, lifecycle, changes, revisions, and readback dependencies. |
 
 ---
 
