@@ -50,11 +50,18 @@ function buildQueryParts(resourceDescriptor, query = {}, context = null) {
   return { clauses, params };
 }
 
-export function createResourceRepository({ pool }) {
-  if (!pool?.query) throw new TypeError("Resource repository requires a SQL pool.");
+export function createResourceRepository({ pool = null, resolvePool = null }) {
+  if (!pool?.query && typeof resolvePool !== "function") {
+    throw new TypeError("Resource repository requires a SQL pool or lazy pool resolver.");
+  }
+  const executeQuery = (...args) => {
+    const activePool = pool || resolvePool();
+    if (!activePool?.query) throw new TypeError("Resource repository pool resolver returned an invalid SQL pool.");
+    return activePool.query(...args);
+  };
 
   async function findMembership(userId, tenantId) {
-    const [rows] = await pool.query(
+    const [rows] = await executeQuery(
       `SELECT m.user_id,m.tenant_id,m.role,m.status,t.status AS tenant_status
          FROM memberships m
          JOIN tenants t ON t.tenant_id=m.tenant_id
@@ -71,7 +78,7 @@ export function createResourceRepository({ pool }) {
     const { clauses, params } = buildQueryParts(resourceDescriptor, query, context);
     const limit = parsePageSize(query.pageSize || query.limit);
     params.push(limit + 1);
-    const [rows] = await pool.query(
+    const [rows] = await executeQuery(
       `SELECT ${resourceDescriptor.fields}
          FROM ${resourceDescriptor.table} r
          ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""}
@@ -101,7 +108,7 @@ export function createResourceRepository({ pool }) {
         params.push(context.auth.user_id);
       }
     }
-    const [rows] = await pool.query(
+    const [rows] = await executeQuery(
       `SELECT ${resourceDescriptor.fields}
          FROM ${resourceDescriptor.table} r
         WHERE ${clauses.join(" AND ")}
@@ -113,7 +120,7 @@ export function createResourceRepository({ pool }) {
 
   async function insertAsset({ tenantId, actorId, input }) {
     const assetId = String(input.asset_id || randomUUID()).slice(0, 64);
-    await pool.query(
+    await executeQuery(
       `INSERT INTO workspace_assets
         (asset_id,tenant_id,vault_id,asset_type,asset_ref,display_name,brand_ref,site_ref,
          workflow_ref,session_ref,visibility,lifecycle_status,metadata_json,created_by)
@@ -162,7 +169,7 @@ export function createResourceRepository({ pool }) {
     }
     if (!sets.length) return false;
     params.push(assetId);
-    await pool.query(
+    await executeQuery(
       `UPDATE workspace_assets
           SET ${sets.join(",")},updated_at=NOW()
         WHERE asset_id=?`,
@@ -172,7 +179,7 @@ export function createResourceRepository({ pool }) {
   }
 
   async function setAssetLifecycle(assetId, lifecycleStatus) {
-    await pool.query(
+    await executeQuery(
       "UPDATE workspace_assets SET lifecycle_status=?,updated_at=NOW() WHERE asset_id=?",
       [lifecycleStatus, assetId]
     );
@@ -188,7 +195,7 @@ export function createResourceRepository({ pool }) {
       scope = " AND tenant_id=?";
       params.push(context.tenantId);
     }
-    const [rows] = await pool.query(
+    const [rows] = await executeQuery(
       `SELECT summary_id AS revision_id,created_at,analyzed_at,analyzed,turn_count,complexity,session_model
          FROM session_summaries
         WHERE session_id=?${scope}
@@ -231,7 +238,7 @@ export function createResourceRepository({ pool }) {
   async function getSessionSummary(sessionId) {
     const session = await getResource("sessions", sessionId);
     if (!session) return null;
-    const [rows] = await pool.query(
+    const [rows] = await executeQuery(
       `SELECT summary_id,session_id,summary_text,tasks_completed,blockers,feature_requests,integration_needs,
               complexity,session_model,turn_count,analyzed,analyzed_at,created_at
          FROM session_summaries
@@ -256,7 +263,7 @@ export function createResourceRepository({ pool }) {
       params.push(String(query.role).slice(0, 32));
     }
     params.push(limit + 1);
-    const [rows] = await pool.query(
+    const [rows] = await executeQuery(
       `SELECT turn_id,turn_index,role,content_preview,content_sha256,storage_mode,action_key,
               drive_doc_part,drive_anchor,created_at
          FROM gpt_session_turns
@@ -280,7 +287,7 @@ export function createResourceRepository({ pool }) {
       params.push(String(query.event_type).slice(0, 128));
     }
     params.push(parsePageSize(query.pageSize || query.limit));
-    const [rows] = await pool.query(
+    const [rows] = await executeQuery(
       `SELECT event_id,session_id,turn_id,record_type,event_type,tool_name,status,payload_preview,
               payload_sha256,redaction_status,event_timestamp,created_at
          FROM session_events
