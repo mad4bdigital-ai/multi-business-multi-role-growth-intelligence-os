@@ -1,39 +1,140 @@
-# Research Findings
+# Research Findings and Architectural Decisions
 
-## Current strengths
+## 1. The platform is already shared-first
 
-The repository already has useful specialized authorities:
+Core assets are global definitions. Tenant/user-specific state is generally represented through grants, bindings, connections, workspaces, brands, roles, and preferences. A one-copy-per-tenant design would increase storage, drift, upgrade complexity, conflict handling, and audit ambiguity without matching current architecture.
 
-- `agent_skills` and `agent_skill_grants`;
-- `agent_workflow_bindings`;
-- `app_integrations`;
-- `app_action_grants`;
-- `workspace_resource_grants`;
-- `entitlements`;
-- `connected_systems` and `installations`;
-- semantic capability, connection, approval, policy, and certification layers.
+Decision: build a shared asset catalog projection and sparse optional variants.
 
-## Current gaps
+## 2. The current policy runtime is global and textual
 
-1. `agent_workflow_bindings` has no tenant/workspace/brand/activity/role scope.
-2. `agent_skill_grants` supports tenant and brand but not workspace, activity type, or role composition.
-3. `app_action_grants` is connection/workspace/agent-specific but does not provide tenant-owned editable action definitions.
-4. `workspace_resource_grants` controls access but does not define asset inheritance/versioning.
-5. `app_integrations`, workflows, actions, policies, agents, and skills are global definitions without a generic tenant overlay/fork authority.
-6. Credential and installation evidence is separate but current UI counts can obscure the distinction.
-7. Existing active approval-sensitive grants are not equivalent to pending approval requests.
+`runtimePolicyLoader.js` matches `execution_scope` and `affects_layer` strings from `execution_policies`. `runtimePolicyResolver.js` loads platform target rules as evidence but keeps `execution_policies` as enforcement and reports cutover disabled.
 
-## Live evidence reviewed
+Decision: do not replace current enforcement immediately. Normalize existing policies into typed scoped atoms and run contextual shadow parity first.
 
-- 31 registered connected systems resolve to 3 operationally active and 28 pending because only 3 active installation rows exist.
-- Of the 28 pending, 23 have registry status `active` but no installation evidence; 5 are registry `pending`.
-- Ten skill grants are active grants to approval-sensitive skills. They are not ten pending approval requests.
-- Four open approval holds exist, but none is directly linked to those ten grants by skill or agent identifier.
+## 3. Dynamic Container Authority is the correct context substrate
 
-## Design conclusion
+It already provides:
 
-A generic tenant asset federation layer is preferable to adding more asset-specific grant tables. It should bridge existing authorities first, run in read-only shadow mode, and become runtime authority only after parity certification.
+- dynamic container types;
+- multi-parent DAG traversal;
+- containment, sharing, delegation, reference, and management edges;
+- classifications and merge strategies;
+- role templates and assignments;
+- resource dimensions and bindings;
+- authority epochs, immutable ledgers, overrides, cache invalidation, limits, and rollout policy.
 
-## Open implementation dependency
+It is safer to extend this substrate than to create parallel workspace/brand/activity/role policy tables with independent resolution.
 
-PR `#1894` introduces a governed Resource API coverage layer and changes canonical/template surfaces. Implementation planning must rebase on the state of that PR and reuse its resource architecture where compatible. This Spec Kit intentionally avoids changing those files.
+## 4. The container foundation is not operationally populated
+
+The type/dimension registries are seeded, but live `containers`, relationships, assignments, bindings, and ledgers were empty during review. Rollout is shadow and enforcement/provider writes are disabled.
+
+Decision: canonical projection and parity evidence are mandatory before any enforcement work.
+
+## 5. Declared dimension strategies are richer than current resource execution
+
+The dimension registry already assigns union, intersection, deny-wins, minimum, and nearest-replace strategies. Generic candidate resolution implements union/intersection, but current resource binding authorization uses deny-wins for safety and exposes the dimension strategy mainly as evidence.
+
+Decision: retain deny-wins for authority, while adding typed composition for positive catalogs/preferences and policy fields. Do not reinterpret union as authorization bypass.
+
+## 6. Variants already exist, but only for package-shaped assets
+
+Package variants support scoped patches, risk, approval, certification, edit sessions, and merge runs. Their scopes omit workspace and role, and they do not cover every shared asset family.
+
+Decision: reuse patch/version/risk concepts and add a generic shared-asset variant authority for non-package assets. Avoid forcing all canonical assets into package containers.
+
+## 7. Preference data exists but is fragmented
+
+Agent-surface and dashboard preferences exist; memory scope links include user/workspace/brand/activity/role/runtime references. None is a unified runtime preference contract.
+
+Decision: create an allowlisted user runtime preference profile, then bridge compatible existing settings. Preference remains downstream of authorization.
+
+## 8. The platform has enough learning signals
+
+Recommendation events, intent resolutions, execution logs, workflow and step runs, output artifacts, adaptation records, readiness, and KPI evidence already capture much of the required feedback loop.
+
+Decision: focus new work on attribution, proposal lifecycle, simulation, experiment governance, and promotion—not another raw event system.
+
+## 9. Effective manifests are the missing attribution spine
+
+Without a versioned manifest, outcomes cannot be reliably attributed to the exact context path, policies, profile, assets, variants, preferences, connection readiness, or authority epoch.
+
+Decision: add an immutable effective runtime manifest linked to container resolution and execution evidence.
+
+## 10. Personalization must be bounded by user trust
+
+Dynamic personalization can become opaque or intrusive if inferred preferences silently change behavior. It can also become an escalation path if mixed with grants.
+
+Decision: classify adaptations, show explanations, require confirmation based on risk, provide reset/opt-out/history, and prohibit authority mutation through preference.
+
+## 11. Platform learning must not leak tenant intellectual property
+
+A tenant-specific prompt, workflow, policy, or business practice may be proprietary even if it improves outcomes.
+
+Decision: cross-tenant/platform promotion uses privacy-safe aggregate signals or explicitly reviewed candidates. It never copies tenant content into shared assets automatically.
+
+## 12. Policy composition needs algebra, not precedence folklore
+
+One fixed order such as “user overrides role overrides brand” is unsafe because fields have different semantics. Risk should take maximum, quota should take minimum, denies should accumulate, preferences may replace, and allowed catalogs may union or intersect.
+
+Decision: register field semantics and operators. Layer order is evidence and tie-break context, not a universal override rule.
+
+## 13. Discovery and execution should use different strictness
+
+Users benefit from broad discovery but execution must remain restrictive.
+
+Decision:
+
+- discovery/read-only catalogs default to guarded union;
+- write, spend, credential, deployment, and destructive execution use strict authority, deny-wins, and approval gates;
+- the same profile can declare different behavior per dimension.
+
+## 14. Existing Resource API architecture should shape interfaces
+
+Latest `main` includes Resource API coverage conventions and Spec Kit templates. Public interfaces should cover list, get, search, permissions, changes, revisions, and readback with OpenAPI 3.1 and stable errors.
+
+Decision: implement the new surfaces through existing resource-layer boundaries rather than standalone route files.
+
+## 15. Repository branch continuity matters
+
+The active PR branch diverged from `main`, but governed reconciliation found no overlapping files. Creating a replacement branch would fragment history and review context unnecessarily.
+
+Decision: repair the current branch first through governed reconciliation and no-force updates. New branches are last resort.
+
+## 16. Recommended target architecture
+
+```text
+Shared canonical assets
+        ↓
+Shared catalog projection
+        ↓
+Dynamic Container context + existing authority bridges
+        ↓
+Composition profile selection
+        ↓
+Typed policy algebra
+        ↓
+Optional scoped variants
+        ↓
+User preference ranking
+        ↓
+Connection/credential/install/certification/approval readiness
+        ↓
+Immutable effective runtime manifest
+        ↓
+Execution evidence and outcomes
+        ↓
+Governed adaptive proposals and experiments
+```
+
+## 17. Open decisions before implementation
+
+- exact ownership and delegation rules for role-scoped profile publication;
+- which policy families are user-selectable versus admin-only;
+- data retention and export semantics for inferred preferences;
+- minimum evidence thresholds by adaptive proposal class;
+- whether generic variants extend package tables or share only domain services;
+- policy atom bridge materialization versus runtime views;
+- initial pilot tenant, workspace, brand, activity, and read-only asset family;
+- migration sequencing relative to Dynamic Container production seeding.
