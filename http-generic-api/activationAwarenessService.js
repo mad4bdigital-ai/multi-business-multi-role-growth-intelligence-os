@@ -378,6 +378,20 @@ function aggregateRows(rows, key, accepted = null) {
   return output;
 }
 
+export function countOperationalBlockedSurfaces({ results = {}, counts = {} } = {}) {
+  const highSeveritySignals = Object.entries(counts.signals || {})
+    .filter(([key]) => /^(critical|high):/i.test(key))
+    .reduce((sum, [, value]) => sum + safeNumber(value), 0);
+  return [
+    results.systems?.ok !== true || safeNumber(counts.systems?.pending) > 0 || safeNumber(counts.systems?.error) > 0,
+    results.tasks?.ok !== true || safeNumber(counts.tasks?.blocked) > 0,
+    results.agents?.ok !== true || safeNumber(counts.agents?.degraded) > 0 || safeNumber(counts.agents?.offline) > 0,
+    results.skills?.ok !== true || safeNumber(counts.skills?.requires_approval) > 0,
+    results.freshness?.ok !== true || safeNumber(counts.freshness?.failed) > 0 || safeNumber(counts.freshness?.stale) > 0,
+    results.signals?.ok !== true || highSeveritySignals > 0,
+  ].filter(Boolean).length;
+}
+
 async function groupedCount(table, groupColumn, whereSql, params = []) {
   try {
     const tableSql = quoteIdentifier(table);
