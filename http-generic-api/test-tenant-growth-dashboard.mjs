@@ -5,6 +5,7 @@ import {
   normalizeDashboardPreferences,
   resolveProductTabKeys,
   buildDashboardCards,
+  classifyTenantActionReadiness,
   _testingTenantGrowthDashboard,
 } from "./tenantGrowthDashboardService.js";
 
@@ -72,20 +73,61 @@ assert.equal(cards[0].metric_key, "dashboard_health_score");
 assert.equal(cards.every((card) => card.data_status?.source_scope === "tenant_authorized"), true);
 assert.equal(cards.every((card) => typeof card.interpretation === "string"), true);
 
-const emptyIntegrationCard = buildDashboardCards({
+const unavailableIntegrationCard = buildDashboardCards({
   businessContext: { brand: { brand_core_ready: false } },
   operationalSummary: {
     summary: {},
-    tab_badges: { connectors: {}, tasks: {}, agents: {}, skills: {} },
+    tab_badges: { connectors: { available: false }, tasks: { available: false }, agents: { available: false }, skills: { available: false } },
     freshness_status: "unknown",
   },
   dashboardManifest: { tiles: [] },
   metrics: [], actions: [], activeTab: "tenant_today",
 }).find((card) => card.card_id === "active_integrations");
-assert.equal(emptyIntegrationCard.status, "not_connected");
-assert.ok(emptyIntegrationCard.empty_state?.steps?.length >= 3);
-assert.equal(emptyIntegrationCard.value, 0);
-assert.match(emptyIntegrationCard.interpretation, /Connect at least one business data source/);
+assert.equal(unavailableIntegrationCard.status, "unknown");
+assert.equal(unavailableIntegrationCard.empty_state, null);
+assert.equal(unavailableIntegrationCard.value, null);
+assert.match(unavailableIntegrationCard.interpretation, /will not treat missing evidence as zero/);
+
+const knownZeroIntegrationCard = buildDashboardCards({
+  businessContext: { brand: { brand_core_ready: false } },
+  operationalSummary: {
+    summary: {},
+    tab_badges: {
+      connectors: { available: true, active: 0, pending: 0, error: 0 },
+      tasks: { available: true, open: 0, blocked: 0 },
+      agents: { available: true, active: 0, degraded: 0, offline: 0 },
+      skills: { available: true, active_grants: 0, requires_approval: 0 },
+    },
+    freshness_status: "unknown",
+  },
+  dashboardManifest: { tiles: [] },
+  metrics: [], actions: [], activeTab: "tenant_today",
+}).find((card) => card.card_id === "active_integrations");
+assert.equal(knownZeroIntegrationCard.status, "not_connected");
+assert.ok(knownZeroIntegrationCard.empty_state?.steps?.length >= 3);
+assert.equal(knownZeroIntegrationCard.value, 0);
+assert.match(knownZeroIntegrationCard.interpretation, /Connect at least one business data source/);
+
+assert.deepEqual(
+  classifyTenantActionReadiness({ runtimeReady: false, capabilityKey: "content_publish", effectiveResolution: { ok: true, ready: true } }),
+  { ready: false, status: "runtime_action_not_ready", blocked_reason: "runtime_action_not_ready" }
+);
+assert.deepEqual(
+  classifyTenantActionReadiness({ runtimeReady: true, capabilityKey: null, effectiveResolution: null }),
+  { ready: false, status: "capability_mapping_missing", blocked_reason: "capability_mapping_missing" }
+);
+assert.deepEqual(
+  classifyTenantActionReadiness({ runtimeReady: true, capabilityKey: "content_publish", effectiveResolution: { ok: false, error: { code: "connection_not_validated" } } }),
+  { ready: false, status: "connection_not_validated", blocked_reason: "connection_not_validated" }
+);
+assert.deepEqual(
+  classifyTenantActionReadiness({ runtimeReady: true, capabilityKey: "content_publish", effectiveResolution: { ok: true, ready: false, status: "runtime_certification_missing" } }),
+  { ready: false, status: "runtime_certification_missing", blocked_reason: "runtime_certification_missing" }
+);
+assert.deepEqual(
+  classifyTenantActionReadiness({ runtimeReady: true, capabilityKey: "content_publish", effectiveResolution: { ok: true, ready: true, status: "ready" } }),
+  { ready: true, status: "dispatch_ready", blocked_reason: null }
+);
 
 const brandIssue = _testingTenantGrowthDashboard.chooseTopIssue({
   businessContext: { brand: { brand_core_ready: false } },

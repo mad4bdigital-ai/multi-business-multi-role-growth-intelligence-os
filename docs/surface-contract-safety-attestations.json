@@ -716,7 +716,7 @@
     },
     {
       "migration_file": "1024_sprint69_github_issue_label_response_schema_alignment.sql",
-      "migration_sha256": "f3e7e24de04a80ead550916f594777e7ce874e60636b5423660d30f5c2138713",
+      "migration_sha256": "f621119403524d66e361f400706a913c9d2c7d56355ac7b6b3a65f79ca8910f1",
       "checksum_canonicalization": "utf8_lf_v1",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_static_contract",

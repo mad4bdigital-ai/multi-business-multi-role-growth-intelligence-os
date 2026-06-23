@@ -8,6 +8,7 @@ import {
 import {
   buildCompletenessEnvelope,
   buildAwarenessIndex,
+  deriveOperationalBlockedSurfaces,
   _testingActivationAwareness,
 } from "./activationAwarenessService.js";
 import {
@@ -199,8 +200,57 @@ function testCompletenessAndAwareness() {
 
   const index = buildAwarenessIndex({ completeness, operationalSummary: { ok: true } });
   assert.equal(index.coverage, 100);
+  assert.equal(index.authorization_visibility, 100);
   assert.equal(index.detail_availability, 100);
   assert.ok(index.score >= 95);
+
+  const blockedCompleteness = buildCompletenessEnvelope({
+    tabManifest: { summary: { registered_tabs: 14, degraded_surface_count: 0 } },
+    operationalSummary: { summary: { blocked_surface_count: 3, degraded_surface_count: 0 }, freshness_status: "fresh", ok: true },
+    dashboardManifest: { summary: { registered_tiles: 7, degraded_surface_count: 0 } },
+    fullyHydratedSurfaces: 1,
+  });
+  assert.equal(blockedCompleteness.blocked_surfaces, 3);
+  assert.equal(blockedCompleteness.coverage_status, "complete_awareness_with_blocked_surfaces");
+  const blockedIndex = buildAwarenessIndex({ completeness: blockedCompleteness, operationalSummary: { ok: true } });
+  assert.equal(blockedIndex.coverage, 100);
+  assert.ok(blockedIndex.authorization_visibility < 100);
+  assert.ok(blockedIndex.score < index.score);
+}
+
+function testOperationalCountIntegrityAndBlockedSurfaceDetails() {
+  const blocked = deriveOperationalBlockedSurfaces({
+    results: {
+      systems: { ok: true },
+      tasks: { ok: true },
+      agents: { ok: true },
+      skills: { ok: true },
+      freshness: { ok: true },
+      signals: { ok: true },
+    },
+    counts: {
+      systems: { active: 3, pending: 28, error: 0 },
+      tasks: { blocked: 3, open: 17 },
+      agents: { active: 252, degraded: 0, offline: 0 },
+      skills: { active: 79, requires_approval: 10 },
+      freshness: {},
+      signals: {},
+    },
+  });
+  assert.deepEqual(blocked.map((item) => item.surface_key), ["connectors", "tasks", "skills"]);
+  assert.deepEqual(blocked[0].reasons, ["pending_installations"]);
+  assert.deepEqual(blocked[0].metrics, { active: 3, pending: 28, error: 0 });
+  assert.deepEqual(blocked[1].reasons, ["blocked_tasks"]);
+  assert.deepEqual(blocked[2].reasons, ["approval_required"]);
+  assert.equal(blocked.every((item) => item.secrets_included === false), true);
+
+  const unavailable = deriveOperationalBlockedSurfaces({
+    results: { systems: { ok: false } },
+    counts: { systems: {} },
+  });
+  assert.equal(unavailable[0].surface_key, "connectors");
+  assert.deepEqual(unavailable[0].reasons, ["source_unavailable"]);
+  assert.deepEqual(unavailable[0].metrics, { active: null, pending: null, error: null });
 }
 
 function testIdempotencyAndInputNormalization() {
@@ -233,6 +283,7 @@ function testRepositoryContracts() {
   const hardRoutes = read("./routes/activationHardRunRoutes.js");
   const awarenessRoutes = read("./routes/activationAwarenessRoutes.js");
   const dynamicTabs = read("./activationDynamicTabsEvidence.js");
+  const awarenessService = read("./activationAwarenessService.js");
   const migration = read("./migrations/310_sprint69_activation_awareness_completeness_control_plane.sql");
   const openapi = read("./openapi.yaml");
 
@@ -250,6 +301,18 @@ function testRepositoryContracts() {
   assert.match(dynamicTabs, /batch_query_count/);
   assert.match(dynamicTabs, /legacy_estimated_query_count/);
   assert.doesNotMatch(dynamicTabs, /for \(const section of registeredSections\) \{\s*const sectionEvidence = await loadSectionRows/);
+
+  assert.match(awarenessService, /LEFT JOIN installations i/);
+  assert.match(awarenessService, /i\.status = 'active'/);
+  assert.match(awarenessService, /i\.expires_at IS NULL OR i\.expires_at > UTC_TIMESTAMP\(\)/);
+  assert.match(awarenessService, /blocked_surface_count: blockedSurfaceCount/);
+  assert.match(awarenessService, /registered_system_count: registeredSystemCount/);
+  assert.match(awarenessService, /connected_system_count: connectedSystemCount/);
+  assert.match(awarenessService, /connectedSystemCount = systems\.ok \? safeNumber\(systemCounts\.active\) : null/);
+  assert.match(awarenessService, /blocked_surfaces: blockedSurfaces/);
+  assert.match(awarenessService, /complete_awareness_with_blocked_surfaces/);
+  assert.doesNotMatch(awarenessService, /const authorizationVisibility = 100;/);
+  assert.doesNotMatch(awarenessService, /blocked_surfaces: 0,/);
 
   for (const required of [
     "CREATE TABLE IF NOT EXISTS activation_runs",
@@ -280,6 +343,7 @@ function testRepositoryContracts() {
 async function main() {
   testProfilesAndBudgets();
   testCompletenessAndAwareness();
+  testOperationalCountIntegrityAndBlockedSurfaceDetails();
   testIdempotencyAndInputNormalization();
   testRepositoryContracts();
   console.log("activation awareness completeness contract tests passed");
