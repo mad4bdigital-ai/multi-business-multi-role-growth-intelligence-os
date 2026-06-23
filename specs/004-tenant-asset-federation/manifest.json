@@ -1,32 +1,70 @@
 {
-  "package": "tenant-asset-federation-spec-kit",
+  "package": "shared-asset-fabric-contextual-composition-spec-kit",
   "feature_branch": "gpt/004-tenant-asset-federation-20260623",
   "pull_request": 1898,
   "prepared": "2026-06-23",
-  "status": "review_open",
+  "status": "design_ready_for_review",
+  "model": "shared_by_default_optional_variants_contextual_policy_composition",
   "implementation_authorized": false,
   "production_mutation_authorized": false,
   "provider_writes_allowed": false,
   "database_migration_included": false,
   "runtime_files_included": false,
-  "scope_dimensions": [
+  "current_branch_repair_preferred": true,
+  "automatic_tenant_asset_copies": false,
+  "scope_layers": [
+    "platform_mandatory",
     "tenant",
     "workspace",
     "brand",
     "business_activity_type",
-    "role"
+    "role",
+    "user_preference",
+    "session_task"
   ],
   "composition_modes": [
-    "union",
-    "intersection"
+    "guarded_union",
+    "strict_intersection",
+    "deny_wins",
+    "minimum",
+    "maximum",
+    "nearest_replace",
+    "priority_replace",
+    "stable_topological_merge",
+    "ordered_append_dedupe",
+    "bounded_weighted_merge"
   ],
-  "ownership_modes": [
-    "overlay",
-    "fork"
+  "optional_variant_scopes": [
+    "tenant",
+    "workspace",
+    "brand",
+    "business_activity",
+    "role",
+    "user"
+  ],
+  "adaptation_classes": [
+    "presentation",
+    "workflow_preference",
+    "scoped_composition",
+    "asset_variant",
+    "authority_or_consequential_execution"
+  ],
+  "reused_authorities": [
+    "shared_canonical_asset_registries",
+    "dynamic_container_authority",
+    "existing_specialized_grants",
+    "connections_installations_certifications",
+    "package_variant_concepts",
+    "recommendation_intent_execution_outcome_evidence"
   ],
   "files": [
     "README.md",
     "spec.md",
+    "current-state.md",
+    "relationship-diagrams.md",
+    "policy-composition-model.md",
+    "personalization-adaptation-model.md",
+    "growth-learning-loop.md",
     "data-model.md",
     "resolution-algorithm.md",
     "permissions-matrix.md",
@@ -40,6 +78,7 @@
     "traceability.md",
     "checklists/requirements.md",
     "checklists/security.md",
-    "checklists/data-isolation.md"
+    "checklists/data-isolation.md",
+    "checklists/adaptive-growth.md"
   ]
 }
