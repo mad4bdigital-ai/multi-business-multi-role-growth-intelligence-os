@@ -1,91 +1,235 @@
 # Implementation Plan
 
-## Phase 0 — Canonical and overlap alignment
+## Delivery principle
 
-- Rebase after PR `#1894` is resolved.
-- Add canonical domain pages for tenant asset federation to `system_bootstrap`, `direct_instructions_registry_patch`, `module_loader`, and `prompt_router` sources.
-- Update `AI_Agent_Knowledge_Guide.md` and rebuild generated canonicals.
-- Define tenant-safe asset classification and mandatory platform policy floor.
+The preferred repository path is to repair and reconcile the current feature branch. Before creating a replacement branch, the governed workflow must:
 
-## Phase 1 — Additive SQL foundation
+1. inspect current and default branch SHAs;
+2. classify drift and file overlap;
+3. repair the current branch through fast-forward, reviewed merge commit, or explicitly approved stale-branch patch;
+4. verify ancestry, tree scope, CI, and PR continuity.
 
-Create one governed migration for:
+A new branch is a last resort only when the current branch cannot be safely reconciled without losing history or violating policy.
 
-- platform asset catalog;
-- tenant instances and versions;
-- composition profiles and scope bindings;
-- generic grants;
-- connection bindings;
-- upgrade runs;
-- resolution ledger;
-- effective views and parity views.
+## Architecture boundaries
 
-No existing grant table is removed or changed into a compatibility view in this phase.
+Implementation follows the repository layer model:
 
-## Phase 2 — Read-only catalog and resolver
+```text
+src/api/sharedAssetFabric
+src/application/sharedAssetFabric
+src/domain/sharedAssetFabric
+src/infrastructure/sharedAssetFabric
 
-Implement layered services under:
+src/api/contextComposition
+src/application/contextComposition
+src/domain/contextComposition
+src/infrastructure/contextComposition
 
-- `src/domain/tenantAssets`
-- `src/application/tenantAssets`
-- `src/infrastructure/tenantAssets`
-- `src/api/tenantAssets`
+src/api/adaptiveGrowth
+src/application/adaptiveGrowth
+src/domain/adaptiveGrowth
+src/infrastructure/adaptiveGrowth
+```
 
-Add read-only catalog, instance read, effective resolution, and readiness endpoints. Run the generic resolver in shadow mode against existing specialized authorities.
+- API validates and maps transport contracts.
+- Application services orchestrate use cases and transactions.
+- Domain modules implement typed algebra, invariants, and decisions.
+- Infrastructure adapters read current registries, Dynamic Container Authority, variants, connections, and telemetry.
+- Existing Resource API coverage architecture is reused for list/get/search/permissions/changes/revisions/readback patterns.
 
-## Phase 3 — Adoption and editable versions
+No controller may directly implement policy algebra or call providers.
 
-Add idempotent adoption, overlay/fork creation, draft versioning, validation, publish, rollback, and audit/readback. Enforce platform-base immutability and bounded patch schemas.
+## Phase 0 — Design and canonical alignment
 
-## Phase 4 — Scope composition
+- Approve the shared-by-default and optional-variant terminology.
+- Approve typed policy operators and user preference boundaries.
+- Reconcile this Spec Kit with the Dynamic Container Authority canonical and the Resource API coverage architecture now on `main`.
+- Add ADRs for shared asset identity, typed composition algebra, personalization boundaries, and adaptive promotion.
+- Update `AI_Agent_Knowledge_Guide.md`, `system_bootstrap.md`, `memory_schema.json`, `direct_instructions_registry_patch.md`, `module_loader.md`, and `prompt_router.md`.
+- Update canonicals and run `node build-canonicals.mjs`.
 
-Add user-managed composition profiles and bindings for tenant root, workspace, brand, activity type, role, and composites. Certify union/intersection behavior, deterministic precedence, conflict blocking, and explicit deny semantics.
+Exit: design freeze with no unresolved authority duplication.
 
-## Phase 5 — Credential and installation integration
+## Phase 1 — Shared catalog projection
 
-Bind tenant asset instances to existing connection/vault authorities. Add credential readiness without secret exposure. Require installation and smoke certification for operational readiness.
+- Add `platform_asset_catalog_registry` and catalog projection adapters.
+- Register canonical source mappings for agents, skills, workflows, actions, apps, plugins, policies, rules, tools, logic, engines, knowledge, and profiles.
+- Define tenant visibility, entitlement, risk, customization policy, required capabilities, and connection profile.
+- Expose read-only Admin and Tenant Resource API coverage.
 
-## Phase 6 — Grant bridges
+Exit: tenants can discover shared assets without copies, with explicit readiness states.
 
-Bridge generic grants to existing specialized authorities:
+## Phase 2 — Populate Dynamic Container subjects
 
-- agent skills;
-- agent workflows;
-- app actions;
-- workspace resources;
-- policies and execution authority.
+- Project existing tenants, workspaces, brands, business activities, and workflows into `containers` using deterministic canonical subject references.
+- Create valid containment/reference edges without changing canonical ownership.
+- Populate closure, classifications, and authority epochs.
+- Build consistency views for missing, duplicate, stale, and cross-tenant projections.
+- Keep enforcement disabled.
 
-Record parity gaps. Do not cut over any asset family until same-cycle parity, isolation, and execution tests pass.
+Exit: every pilot context resolves a bounded graph path with zero provider calls.
 
-## Phase 7 — Tenant UI/GPT surfaces
+## Phase 3 — Bridge current roles, grants, and policies
 
-Expose catalog, adoption, editable version, scope profile, connection setup, readiness, and upgrade guidance through Tenant GPT and dashboard surfaces. Show at most three prioritized next actions and distinguish missing evidence from zero.
+- Build read-only bridge views/adapters for `role_assignments`, skill grants, workflow bindings, app action grants, workspace resource grants, execution policies, and target policy rules.
+- Normalize bridge evidence into resource bindings and policy atoms without changing current authorities.
+- Record comparable legacy and contextual decisions in shadow.
 
-## Phase 8 — Controlled cutover
+Exit: parity dashboard explains every match/mismatch by source row and field.
 
-Cut over one low-risk read-only asset family first. Expand by asset family after certification. Write/consequential actions remain behind capability, credential, resource, quota, approval, audit, and readback gates.
+## Phase 4 — Typed policy semantics
 
-## Verification gates
+- Add `policy_field_semantics_registry` and registered schemas.
+- Implement pure domain operators: union, intersection, deny-wins, min/max, replacement, topological merge, ordered append, bounded weighted merge.
+- Add deterministic property tests, conflict tests, and fuzzing for bounded inputs.
+- Integrate field-level explanation.
 
-- migration preflight and authorization;
-- schema/view readback;
-- cross-tenant isolation tests;
-- deterministic union/intersection tests;
-- conflict and deny tests;
-- overlay/fork version tests;
-- credential non-disclosure tests;
-- specialized bridge parity tests;
-- OpenAPI coverage;
-- runtime policy and architecture checks;
-- dev verification before production promotion;
-- production parity and behavioral readback.
+Exit: identical input/version state yields identical values, evidence, and checksum.
+
+## Phase 5 — Composition profiles
+
+- Add composition profile, rule, and principal-selection authorities.
+- Seed platform templates: explore, focused, brand-strict, role-strict, automation-safe, regulated.
+- Add impact preview and versioned publish/reset flows.
+- Enforce dimension-allowed operators and required layers.
+
+Exit: users can choose eligible modes per dimension and preview impact without changing authority.
+
+## Phase 6 — User runtime preferences
+
+- Add the allowlisted user preference schema and service.
+- Bridge existing dashboard and agent-surface preferences where compatible.
+- Separate ranking/hiding/presentation from authorization.
+- Add transparency, reset, change history, revisions, consent, and opt-out controls.
+
+Exit: every user can personalize authorized behavior with no cross-user or authority mutation.
+
+## Phase 7 — Optional variants
+
+- Extend existing package variant concepts into generic shared-asset variants for non-package assets.
+- Add modifiable-path profiles, patch validation, versioning, conflict detection, upgrade preview/apply, reset, and certification gates.
+- Do not create variants during ordinary catalog use or grants.
+
+Exit: explicit user/role/workspace/brand/activity/tenant customization is versioned, isolated, and reversible.
+
+## Phase 8 — Effective runtime manifest
+
+- Combine container resolution, shared candidates, profile choices, policy algebra, variants, preferences, and readiness into an immutable manifest.
+- Add epoch and version revalidation, caching, invalidation, explanation, and outcome attribution.
+- Link execution plans/logs to the manifest checksum.
+
+Exit: every dispatch or block is reconstructable without secrets.
+
+## Phase 9 — Connections and operational cleanup
+
+- Integrate tenant/user connection selection and opaque credential references.
+- Clean pending connector classifications: genuine setup gaps, platform validation gaps, internal transports, duplicates, stale records, and dev-only connectors.
+- Backfill installation evidence only after same-cycle validation.
+- Separate approval-sensitive grants from open requests in awareness.
+
+Exit: catalog readiness matches operational evidence and no synthetic installation exists.
+
+## Phase 10 — Adaptive growth foundation
+
+- Add adaptive proposals, simulations, experiments, outcome measurements, and promotion candidates.
+- Connect existing recommendation, intent, execution, readiness, and business-result evidence.
+- Implement proposal classes A–E and approval routing.
+- Add privacy, consent, retention, and cross-tenant aggregation controls.
+
+Exit: signals can produce explainable proposals, but no proposal silently mutates authority.
+
+## Phase 11 — Simulation and canary
+
+- Build bounded historical/synthetic replay with no provider writes.
+- Define success metrics, guardrails, sample thresholds, expiry, and automatic rollback.
+- Canary personal preferences first, then read-only composition profiles, then low-risk variants.
+- Exclude provider writes and Class E from autonomous canaries.
+
+Exit: measured improvements can be promoted or rolled back using immutable evidence.
+
+## Phase 12 — Family-by-family cutover
+
+Suggested order:
+
+1. shared catalog visibility;
+2. user presentation preferences;
+3. read-only workflow ranking;
+4. knowledge/tools guarded union;
+5. agent/workflow contextual composition;
+6. read actions and connections;
+7. approval-sensitive actions in shadow;
+8. write actions only after exact certification.
+
+Each family requires parity, latency, audit, isolation, rollback, and release-readiness evidence.
+
+## Testing strategy
+
+### Unit
+
+- every algebra operator;
+- precedence and ambiguity;
+- patch validation;
+- preference authority boundaries;
+- proposal risk classification;
+- deterministic checksums.
+
+### Integration
+
+- container graph plus legacy bridges;
+- profile selection plus typed atoms;
+- variants plus shared base upgrades;
+- connection/readiness resolution;
+- manifest persistence and epoch drift;
+- adaptive simulation and rollback.
+
+### Security
+
+- cross-tenant object access;
+- secret-like payload rejection;
+- role/grant escalation;
+- mandatory policy weakening;
+- wildcard delegation;
+- stale cache/manifest use;
+- provider call before authorization.
+
+### Performance
+
+- multi-parent path bounds;
+- candidate limits;
+- catalog pagination;
+- p50/p95/p99 manifest resolution;
+- cache invalidation;
+- high-cardinality telemetry queries.
+
+## Migration strategy
+
+- additive migrations only;
+- bridge views before authority cutover;
+- no one-row-per-tenant asset seeding;
+- reversible by disabling consumers and feature flags;
+- backfills are idempotent, bounded, and read back;
+- destructive cleanup occurs only after certified cutover and retention review.
+
+## Release gates
+
+- OpenAPI 3.1 and Resource API coverage pass;
+- architecture boundaries and test manifest pass;
+- migrations preflight and rollback plan pass;
+- zero critical shadow mismatches;
+- required sample and audit coverage pass;
+- secrets-included flags remain false;
+- development verification and release readiness pass;
+- explicit approval precedes production enforcement;
+- production parity and behavioral readback pass.
 
 ## No-go conditions
 
-- unresolved PR overlap with the Resource API architecture;
-- missing tenant membership enforcement;
-- any secret value copied into tenant asset JSON;
-- union mode bypassing mandatory safety;
-- specialized/granular runtime cutover without parity;
-- ambiguous connection or scope resolution;
-- missing rollback/readback evidence.
+- shared assets are copied automatically per tenant;
+- user preference is used as a grant;
+- arbitrary JSON merge remains possible;
+- current Dynamic Container graph remains empty for target pilot scopes;
+- unresolved legacy/contextual parity gaps;
+- credentials appear in variants or manifests;
+- enforcement is enabled without rollback and same-cycle readback;
+- adaptive changes can self-approve authority or provider writes.
