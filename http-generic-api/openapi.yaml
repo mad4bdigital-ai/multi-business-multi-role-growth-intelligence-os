@@ -3341,6 +3341,21 @@ components:
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Forbidden:
+      description: Authenticated principal is not authorized for this operation
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Conflict:
+      description: Resource state conflicts with the requested operation
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    InternalError:
+      description: Unexpected internal server error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
     NotFound:
       description: Resource not found
       content:
@@ -11848,7 +11863,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { description: Device not found or not enabled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
-        "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "503": { description: Capability kill switch enabled or device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /connector/{device_id}/files:
     post:
@@ -11896,7 +11911,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { description: Device not found or not enabled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
-        "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "503": { description: Capability kill switch enabled or device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /connector/{device_id}/dependencies:
     post:
@@ -12245,7 +12260,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { description: Device not found or not enabled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
-        "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "503": { description: Capability kill switch enabled or device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /connector/{device_id}/cf:
     post:
@@ -12284,7 +12299,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { description: Device not found or not enabled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
-        "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "503": { description: Capability kill switch enabled or device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /connector/{device_id}/fetch-upload:
     post:
@@ -12380,7 +12395,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { description: Device not found or not enabled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
-        "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "503": { description: Capability kill switch enabled or device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /policy:
     get:
@@ -13258,6 +13273,7 @@ paths:
             schema: { type: object, required: [user_id, tenant_id, app_key, auth_type], additionalProperties: true }
       responses:
         "201": { description: Credential intake session created, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "503": { description: Raw credential-intake creation disabled by capability kill switch, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /credential-intake/{token}/schema:
     get:
