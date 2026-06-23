@@ -881,7 +881,7 @@ export function buildAwarenessIndex({ completeness, operationalSummary } = {}) {
   const visible = safeNumber(completeness?.visible_surfaces);
   const coverage = Math.round((visible / known) * 100);
   const freshness = completeness?.stale_surfaces > 0 ? 80 : 100;
-  const authorizationVisibility = 100;
+  const blocked = safeNumber(completeness?.blocked_surfaces); const authorizationVisibility = Math.max(0, Math.round((Math.max(known - blocked, 0) / known) * 100));
   const attentionDetection = operationalSummary?.ok === false ? 75 : 100;
   const detailAvailability = completeness?.deferred_details_have_refs ? 100 : 70;
   const score = Math.round((coverage + freshness + authorizationVisibility + attentionDetection + detailAvailability) / 5);
