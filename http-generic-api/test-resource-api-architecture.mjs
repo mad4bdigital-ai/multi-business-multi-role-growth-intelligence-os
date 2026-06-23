@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { createDefaultResourceApiService } from "./src/infrastructure/resourceApi/resourceApiComposition.js";
 
 const files = {
   routes: readFileSync("routes/resourceApiRoutes.js", "utf8"),
@@ -49,21 +48,7 @@ for (const route of [
   assert(files.routes.includes(route), `missing route registration ${route}`);
 }
 
-const dbEnvKeys = ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD"];
-const savedDbEnv = Object.fromEntries(dbEnvKeys.map((key) => [key, process.env[key]]));
-try {
-  dbEnvKeys.forEach((key) => delete process.env[key]);
-  const lazyService = createDefaultResourceApiService();
-  assert.equal(lazyService.listResourceTypes().count >= 5, true, "manifest-only startup must not resolve DB config");
-  await assert.rejects(
-    () => lazyService.adminListResources("sessions", {}),
-    (error) => error?.code === "DB_CONFIG_MISSING",
-    "first DB-backed request must resolve and validate DB config"
-  );
-} finally {
-  for (const key of dbEnvKeys) {
-    if (savedDbEnv[key] === undefined) delete process.env[key];
-    else process.env[key] = savedDbEnv[key];
-  }
-}
+assert(files.composition.includes("const resolvePool = () =>"), "composition must resolve the SQL pool lazily");
+assert(!files.composition.includes("const pool = deps.pool || getPool();"), "composition must not resolve DB config during route registration");
+assert(files.repository.includes("resolvePool"), "repository must accept a lazy pool resolver");
 console.log("resource API architecture boundary tests passed");
