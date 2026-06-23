@@ -181,3 +181,15 @@ For changes that introduce `governed_tool_response_chunks`, deploy the merged co
 Bootstrap migration `1018` once through the governed migration runner after static preflight and typed confirmation. Same-cycle readback must report `v_governed_response_chunk_schema_readiness.readiness_status='ready'`. After that bootstrap, `platform_runtime_config.governed_migration_reconciliation_scheduler` lets the internal Dynamic Audit scheduler reconcile only exact authorized migrations under its MySQL advisory lock. The runtime adapter delegates to `governed-migration-reconciler.mjs`; it cannot execute raw SQL or widen migration scope.
 
 Runtime parity is complete only when `/health.version` and `/version` match the merged SHA, the original `20260618` migration is ledgered as `record_only` without replay, a second automatic cycle is idempotent, and a bounded smoke proves persistence before `chunk_id`, memory-cache eviction, MySQL recovery, integrity verification, TTL extension, and exact Unicode reconstruction. Before bootstrap, generated surface-governance evidence must no longer classify `1018_sprint69_governed_response_chunk_schema_reconciliation.sql` as a blocking new item or safety-marker gap. Never expose or persist raw migration output, credentials, authorization headers, or secret-bearing payloads during bootstrap or smoke.
+
+## GitHub create-reference 201 contract rollout
+
+Migration `1024_sprint69_github_create_reference_201_contract_reconciliation.sql`
+is a SQL registry-contract correction, not a Hostinger deployment action. Merging the
+repository change may trigger normal `main` auto-deploy, but production completion
+must remain blocked until the migration is separately authorized and applied through
+the governed migration runner, `ACT-GH-EP-011` reads back `responses.201`, and a
+bounded disposable create-ref certification succeeds with same-cycle ref readback and
+cleanup. Do not use SSH, restart, or redeploy to substitute for the missing SQL contract,
+and do not mark the acknowledged operational alert resolved from repository or runtime
+commit parity alone.
