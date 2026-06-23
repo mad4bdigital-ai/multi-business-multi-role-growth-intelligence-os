@@ -1,12 +1,39 @@
 import { getPool } from "./db.js";
+import {
+  brandHost,
+  extractGoogleFileId,
+  normalizeBrandReference,
+  resolveBrandReference,
+} from "./resolvers/brandReferenceResolver.js";
 
 function str(v) {
   return v == null ? "" : String(v);
 }
 
+function lower(v) {
+  return str(v).trim().toLowerCase();
+}
+
+function unique(values = []) {
+  return [...new Set(values.filter(Boolean))];
+}
+
 async function query(sql, params = []) {
   const [rows] = await getPool().query(sql, params);
   return rows;
+}
+
+function brandNeedles(req = {}) {
+  return unique([req.brandKey, req.targetKey].flatMap((value) => {
+    const raw = lower(value);
+    if (!raw) return [];
+    return [
+      raw,
+      brandHost(raw),
+      raw.replace(/[-_]+/g, " "),
+      normalizeBrandReference(raw),
+    ];
+  }));
 }
 
 async function loadBusinessActivityRows(req) {
@@ -54,16 +81,20 @@ async function loadProfileRows(req) {
   }));
 }
 
-async function loadBrandRows(req) {
-  const keys = [req.brandKey, req.targetKey].filter(Boolean);
-  if (!keys.length) return [];
-  const placeholders = keys.map(() => "?").join(", ");
+async function findBrandCandidates(req) {
+  const needles = brandNeedles(req);
+  if (!needles.length) return [];
+  const clauses = needles.map(() => `LOWER(CONCAT_WS(' ', target_key, brand_name, normalized_brand_name, brand_domain, base_url, site_aliases_json)) LIKE ?`);
   const rows = await query(
-    `SELECT * FROM \`brands\` WHERE target_key IN (${placeholders}) OR normalized_brand_name IN (${placeholders})`,
-    [...keys, ...keys]
+    `SELECT * FROM \`brands\` WHERE ${clauses.join(" OR ")} ORDER BY id ASC LIMIT 50`,
+    needles.map((value) => `%${value}%`)
   );
-  return rows.map(r => ({
-    brand_key: str(r.target_key),
+  return rows;
+}
+
+function mapBrandRow(r) {
+  return {
+    brand_key: str(r.target_key || r.brand_key),
     brand_name: str(r.brand_name),
     normalized_brand_name: str(r.normalized_brand_name),
     business_type_key: str(r.business_type_key),
@@ -73,17 +104,50 @@ async function loadBrandRows(req) {
     base_url: str(r.base_url),
     website_url: str(r.base_url),
     brand_domain: str(r.brand_domain),
+    site_aliases_json: str(r.site_aliases_json),
+    primary_site_key: str(r.primary_site_key),
+    brand_core_required: str(r.brand_core_required || r.brand_core_ready),
     status: str(r.status),
-  }));
+  };
 }
 
-async function loadBrandPathRows(req) {
-  const keys = [req.brandKey, req.targetKey].filter(Boolean);
-  if (!keys.length) return [];
-  const placeholders = keys.map(() => "?").join(", ");
+async function loadBrandRows(req) {
+  const candidates = (await findBrandCandidates(req)).map(mapBrandRow);
+  const references = unique([req.brandKey, req.targetKey]);
+  const selected = [];
+  for (const reference of references) {
+    const resolution = resolveBrandReference({ reference, rows: candidates });
+    if (resolution.status === "resolved" && resolution.row) selected.push(resolution.row);
+  }
+  return unique(selected.map((row) => row.target_key || row.brand_key))
+    .map((key) => selected.find((row) => (row.target_key || row.brand_key) === key));
+}
+
+function canonicalBrandRefs(req, brandRows = []) {
+  return unique([
+    req.brandKey,
+    req.targetKey,
+    ...brandRows.flatMap((row) => [
+      row.brand_key,
+      row.target_key,
+      row.brand_name,
+      row.normalized_brand_name,
+      row.brand_domain,
+      brandHost(row.base_url),
+    ]),
+  ]);
+}
+
+async function loadBrandPathRows(req, brandRows = []) {
+  const refs = canonicalBrandRefs(req, brandRows).map(lower).filter(Boolean);
+  if (!refs.length) return [];
+  const placeholders = refs.map(() => "?").join(", ");
   const rows = await query(
-    `SELECT * FROM \`brand_paths\` WHERE brand_key IN (${placeholders}) OR target_key IN (${placeholders})`,
-    [...keys, ...keys]
+    `SELECT * FROM \`brand_paths\`
+      WHERE LOWER(COALESCE(brand_key, '')) IN (${placeholders})
+         OR LOWER(COALESCE(target_key, '')) IN (${placeholders})
+         OR LOWER(COALESCE(normalized_brand_name, '')) IN (${placeholders})`,
+    [...refs, ...refs, ...refs]
   );
   return rows.map(r => ({
     brand_key: str(r.brand_key),
@@ -99,37 +163,40 @@ async function loadBrandPathRows(req) {
   }));
 }
 
-async function loadBrandCoreRows(req) {
-  const keys = [req.brandKey, req.targetKey].filter(Boolean);
-  if (!keys.length) return [];
-  const placeholders = keys.map(() => "?").join(", ");
+async function loadBrandCoreRows(req, brandRows = []) {
+  const refs = canonicalBrandRefs(req, brandRows).map(lower).filter(Boolean);
+  if (!refs.length) return [];
+  const placeholders = refs.map(() => "?").join(", ");
   const rows = await query(
-    `SELECT * FROM \`brand_core\` WHERE brand_key IN (${placeholders})`,
-    keys
+    `SELECT * FROM \`brand_core\`
+      WHERE LOWER(COALESCE(brand_key, '')) IN (${placeholders})
+         OR LOWER(COALESCE(brand_name, '')) IN (${placeholders})`,
+    [...refs, ...refs]
   );
   return rows.map(r => ({
     brand_key: str(r.brand_key),
+    brand_name: str(r.brand_name),
     asset_key: str(r.asset_key),
-    doc_key: str(r.doc_key || r.asset_key),
-    doc_id: str(r.doc_id),
-    file_id: str(r.doc_id),
-    google_doc_id: str(r.doc_id),
+    doc_key: str(r.doc_key || r.asset_key || r.asset_type),
+    doc_id: str(r.doc_id || extractGoogleFileId(r.google_drive_link)),
+    file_id: str(r.file_id || extractGoogleFileId(r.google_drive_link)),
+    google_doc_id: str(r.google_doc_id || extractGoogleFileId(r.google_drive_link)),
+    google_drive_link: str(r.google_drive_link),
+    asset_type: str(r.asset_type),
+    document_name: str(r.document_name),
+    priority: str(r.priority),
+    read_priority: str(r.read_priority),
     brand_core_docs_json: str(r.brand_core_docs_json),
-    status: str(r.status),
+    active_status: str(r.active_status),
+    validation_status: str(r.validation_status),
+    status: str(r.status || r.validation_status || r.active_status),
   }));
 }
 
-async function loadTargetRows(req) {
-  const keys = [req.targetKey, req.brandKey].filter(Boolean);
-  if (!keys.length) return [];
-  const placeholders = keys.map(() => "?").join(", ");
-  const rows = await query(
-    `SELECT * FROM \`brands\` WHERE target_key IN (${placeholders}) OR normalized_brand_name IN (${placeholders})`,
-    [...keys, ...keys]
-  );
-  return rows.map(r => ({
+function loadTargetRowsFromBrands(brandRows = []) {
+  return brandRows.map(r => ({
     target_key: str(r.target_key),
-    brand_key: str(r.target_key),
+    brand_key: str(r.brand_key || r.target_key),
     base_url: str(r.base_url),
     brand_domain: str(r.brand_domain),
     provider: str(r.transport_action_key),
@@ -200,29 +267,36 @@ async function loadValidationRows(req) {
 }
 
 export async function loadPathResolverRowsFromDb(loadRequest = {}) {
-  const [businessActivityRows, profileRows, brandRows, brandPathRows, brandCoreRows, targetRows, validationRows] =
-    await Promise.all([
-      loadBusinessActivityRows(loadRequest).catch(() => []),
-      loadProfileRows(loadRequest).catch(() => []),
-      loadBrandRows(loadRequest).catch(() => []),
-      loadBrandPathRows(loadRequest).catch(() => []),
-      loadBrandCoreRows(loadRequest).catch(() => []),
-      loadTargetRows(loadRequest).catch(() => []),
-      loadValidationRows(loadRequest).catch(() => []),
-    ]);
+  const brandRows = await loadBrandRows(loadRequest).catch(() => []);
+  const brandPathRows = await loadBrandPathRows(loadRequest, brandRows).catch(() => []);
+  const inferred = brandPathRows[0] || brandRows[0] || {};
+  const effectiveRequest = {
+    ...loadRequest,
+    brandKey: inferred.brand_key || inferred.target_key || loadRequest.brandKey,
+    targetKey: inferred.target_key || inferred.brand_key || loadRequest.targetKey,
+    businessTypeKey: loadRequest.businessTypeKey || inferred.business_type_key,
+    knowledgeProfileKey: loadRequest.knowledgeProfileKey || inferred.knowledge_profile_key,
+  };
+
+  const [businessActivityRows, profileRows, brandCoreRows, validationRows] = await Promise.all([
+    loadBusinessActivityRows(effectiveRequest).catch(() => []),
+    loadProfileRows(effectiveRequest).catch(() => []),
+    loadBrandCoreRows(effectiveRequest, brandRows).catch(() => []),
+    loadValidationRows(effectiveRequest).catch(() => []),
+  ]);
 
   return {
     requested: true,
     loaded: true,
     reason: "loaded_from_db",
-    load_request: loadRequest,
+    load_request: { ...loadRequest, resolved_brand_key: effectiveRequest.brandKey || "" },
     rows: {
       businessActivityRows,
       profileRows,
       brandRows,
       brandPathRows,
       brandCoreRows,
-      targetRows,
+      targetRows: loadTargetRowsFromBrands(brandRows),
       validationRows,
     },
   };
