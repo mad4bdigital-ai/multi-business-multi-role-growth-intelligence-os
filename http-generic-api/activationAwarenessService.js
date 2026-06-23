@@ -588,10 +588,13 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
       : freshTotal > 0
         ? "fresh"
         : "unknown";
-  const blockedSurfaceCount = countOperationalBlockedSurfaces({
+  const blockedSurfaces = deriveOperationalBlockedSurfaces({
     results: { systems, tasks, agents, skills, freshness, signals },
     counts: { systems: systemCounts, tasks: taskCounts, agents: agentCounts, skills: skillCounts, freshness: freshnessCounts, signals: signalCounts },
   });
+  const blockedSurfaceCount = blockedSurfaces.length;
+  const registeredSystemCount = sumCountGroups(systems, systemCounts);
+  const connectedSystemCount = systems.ok ? safeNumber(systemCounts.active) : null;
 
   return {
     attempted: true,
