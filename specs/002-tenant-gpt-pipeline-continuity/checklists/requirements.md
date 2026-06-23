@@ -9,5 +9,5 @@
 - [x] Backward compatibility is preserved through additive fields.
 - [x] Implementation matches FR-001 through FR-010.
 - [x] Acceptance scenarios AC-01 through AC-14 are covered by code, tests, or source-contract assertions.
-- [ ] AC-15 required CI checks pass on final head.
+- [x] AC-15 required CI checks pass on the reviewed head.
 - [ ] AC-16 governed merge and ancestry readback complete.
