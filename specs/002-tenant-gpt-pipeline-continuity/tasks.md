@@ -21,13 +21,17 @@
 - [x] Add action readiness regression coverage.
 - [x] Add unknown-versus-known-zero dashboard coverage.
 - [x] Add blocked completeness and awareness coverage.
-- [ ] Run final required CI on the final branch head.
+- [x] Pass Syntax Check.
+- [x] Pass Unit & Integration Tests.
+- [x] Pass Execution Resolver Gate.
+- [x] Pass Architecture Drift Detection.
 
 ## Release
 
-- [x] Open a pull request.
-- [ ] Verify final changed-file scope.
-- [ ] Complete requirements and security checklists.
-- [ ] Confirm all required checks pass.
-- [ ] Merge through governed PR finalization.
-- [ ] Confirm merged ancestry on `main`.
+- [x] Open pull request #1891.
+- [x] Verify final changed-file scope.
+- [x] Complete requirements and security checklists.
+- [x] Confirm required checks pass on the reviewed head.
+- [x] Prepare governed merge with fresh SHA validation and ancestry readback.
+
+Post-merge evidence is recorded in PR #1891 and the governed execution log rather than by mutating the merged branch.
