@@ -620,6 +620,7 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
       all_known_issues_visible: unifiedAttention?.completeness?.all_known_issues_visible === true,
       final_result_complete: unifiedAttention?.completeness?.final_result_complete === true,
       blocked_surface_count: blockedSurfaceCount,
+      blocked_surfaces: blockedSurfaces,
       degraded_surface_count: degraded.length,
     },
     tab_badges: {
