@@ -1,6 +1,6 @@
 # Shared Asset Fabric and Contextual Policy Composition
 
-**Status:** Review open — model revision in progress  
+**Status:** Design ready for review — corrected model  
 **Pull request:** `#1898`  
 **Branch:** `gpt/004-tenant-asset-federation-20260623`  
 **Implementation authorized:** No
