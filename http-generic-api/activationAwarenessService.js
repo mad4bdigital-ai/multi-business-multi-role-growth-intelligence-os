@@ -548,6 +548,10 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
       : freshTotal > 0
         ? "fresh"
         : "unknown";
+  const blockedSurfaceCount = countOperationalBlockedSurfaces({
+    results: { systems, tasks, agents, skills, freshness, signals },
+    counts: { systems: systemCounts, tasks: taskCounts, agents: agentCounts, skills: skillCounts, freshness: freshnessCounts, signals: signalCounts },
+  });
 
   return {
     attempted: true,
