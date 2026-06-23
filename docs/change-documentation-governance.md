@@ -1,5 +1,7 @@
 # Repo and SQL Change Documentation Governance
 
+> Change-governance contract for `1024_sprint69_github_create_reference_201_contract_reconciliation.sql`: review that the diff contains one idempotent `UPDATE endpoints` statement scoped to `ACT-GH-EP-011`, `github_api_mcp`, and `github_create_branch_reference`; preserves all existing response entries; adds only `responses.201`; and contains no tool/export/route/binding registration or provider execution. Merge requires the focused regression test, test-manifest registration, green CI, and documented rollout boundaries. Production apply requires checksum-bound migration authorization, zero-risk preflight, ledger/schema readback, and later create-ref certification before the acknowledged operational alert may be resolved.
+
 ## OpenAPI Endpoint Inventory Synchronization
 
 A change affecting `1024_sprint69_openapi_endpoint_inventory_sync.sql`, the inventory sync service, Admin routes, or OpenAPI contracts is incomplete until the runbook, migration index, deployment parity evidence, generated work maps, and surface-contract queue are current. Required safety evidence includes `auto_promote=false`, non-callable inventory rows, typed confirmation and capability-envelope gating for manual apply, transactional/advisory-lock behavior, same-cycle readback, and explicit no-provider/no-credential/no-external-write/no-secret assertions.
