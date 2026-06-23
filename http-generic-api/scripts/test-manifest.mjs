@@ -263,6 +263,7 @@ export const testCommands = [
   "node test-openapi-route-coverage.mjs",
   "node test-resource-api-coverage.mjs",
   "node test-resource-api-architecture.mjs",
+  "node test-resource-api-composition.mjs",
   "node test-resource-api-service.mjs",
   "node scripts/resource-api-coverage-audit.mjs --changed",
   "node test-openapi-autofill-missing-routes.mjs",
