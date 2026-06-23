@@ -81,3 +81,17 @@ PATCH, POST, PUT, and DELETE operations remain subject to the existing runtime m
 ```
 
 The corresponding method and path are loaded from `endpoints`; they are not accepted from this request.
+
+## Create-reference response contract
+
+GitHub returns `201 Created` when a Git reference is created successfully. The
+`github_create_branch_reference` endpoint contract must therefore retain a
+`responses.201` schema in SQL registry authority. Migration
+`1024_sprint69_github_create_reference_201_contract_reconciliation.sql` adds
+that response to the existing endpoint row without registering or enabling any
+additional tool, export, route, or dispatch binding.
+
+This is an additive response-validation correction. It does not change the
+public Admin route shape, authentication model, mutation approval gates, audit
+requirements, or same-cycle readback requirements. A successful provider
+response must still pass the existing mutation governance and readback flow.
