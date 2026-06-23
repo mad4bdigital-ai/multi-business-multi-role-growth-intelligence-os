@@ -298,6 +298,10 @@ function testRepositoryContracts() {
   assert.match(awarenessService, /i\.status = 'active'/);
   assert.match(awarenessService, /i\.expires_at IS NULL OR i\.expires_at > UTC_TIMESTAMP\(\)/);
   assert.match(awarenessService, /blocked_surface_count: blockedSurfaceCount/);
+  assert.match(awarenessService, /registered_system_count: registeredSystemCount/);
+  assert.match(awarenessService, /connected_system_count: connectedSystemCount/);
+  assert.match(awarenessService, /connectedSystemCount = systems\.ok \? safeNumber\(systemCounts\.active\) : null/);
+  assert.match(awarenessService, /blocked_surfaces: blockedSurfaces/);
   assert.match(awarenessService, /complete_awareness_with_blocked_surfaces/);
   assert.doesNotMatch(awarenessService, /const authorizationVisibility = 100;/);
   assert.doesNotMatch(awarenessService, /blocked_surfaces: 0,/);
