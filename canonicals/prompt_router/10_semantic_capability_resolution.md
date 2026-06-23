@@ -25,3 +25,19 @@ The router must not treat an app name, parent action key, endpoint key, or manua
 ### Compatibility
 
 Legacy provider-specific tools may remain visible during migration, but semantic resolution runs in shadow beside them. A later governed reconciler may promote derived projections to `canary` or `active`; no prompt or direct instruction may promote rollout state implicitly.
+
+### Growth-audit routing
+
+Requests that compare client recommendations with a live site, Brand Core, strategy documents, or implementation trackers must route first to `growth_audit_evidence_prepare`.
+
+The router must:
+
+1. Resolve the canonical Brand from name, target key, domain, URL, or registered alias.
+2. Resolve signed-principal Admin/Tenant authority before exposing Brand Core or resource plans.
+3. Load Brand Core pointers before accepting positioning, identity, pricing, or messaging recommendations.
+4. Keep rendered visitor evidence separate from HTML/source evidence.
+5. Report a visitor-facing UX defect only when rendered evidence classifies it as `rendered_visible`.
+6. Keep Google Workspace resource bindings in `shadow` until the file-read adapter and tenant authority chain are separately certified.
+7. Return explicit degraded surfaces instead of guessing provider endpoints or silently falling back to an unrelated tool.
+
+The preparation tool is read-only and may not execute provider calls, browser actions, mutations, or external sends. Subsequent provider reads must use registry-resolved parent action and endpoint keys through the governed runtime.
