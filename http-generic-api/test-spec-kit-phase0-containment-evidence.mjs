@@ -30,6 +30,8 @@ for (const required of [
   "203224b81b8cd7dc81d1f37d213d99722c36615f",
   "CAPABILITY_KILL_SWITCH_LOCAL_SHELL",
   "CI must pass again on the final reconciled PR head before merge",
+  "same-cycle PR gate and GitHub merge audit",
+  "Unrelated advancement of `main` does not invalidate this baseline",
   "Secrets included: `false`",
 ]) {
   assert(validation.includes(required), `containment validation evidence must include: ${required}`);
