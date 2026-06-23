@@ -59,6 +59,12 @@ Read operations may dispatch after registry, schema, principal, credential, and 
 
 PATCH, POST, PUT, and DELETE operations remain subject to the existing runtime mutation controls, including applicable resource authority, dry-run or preflight evidence, explicit approval, audit logging, and same-cycle readback. Registering an endpoint or Admin projection does not itself authorize a provider write.
 
+## Response schema alignment
+
+GitHub issue-label add, replace, and remove operations return the complete remaining label array on `200 OK`. Their canonical endpoint rows and exported registry copies must include the corresponding JSON response schema. A description-only success response is insufficient because the runtime response validator treats the missing content schema as contract drift even when GitHub completed the mutation successfully.
+
+Response contracts should remain tolerant of additive provider fields while validating the stable label fields used by the platform.
+
 ## Example
 
 ```json
