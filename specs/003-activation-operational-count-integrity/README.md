@@ -1,6 +1,6 @@
 # Activation Operational Count Integrity
 
-**Status:** Verification in progress  
+**Status:** Merge ready  
 **Branch:** `gpt/003-activation-operational-count-integrity-20260623`
 
 This bounded correction separates registered connector inventory from operationally connected systems and exposes safe, explainable blocked-surface details.
