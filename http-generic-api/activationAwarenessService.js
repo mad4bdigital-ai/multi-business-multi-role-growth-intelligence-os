@@ -401,6 +401,7 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
   const subject = resolveSubject(sessionContext || {});
   const tenantWhere = subject.is_admin ? "1 = 1" : "tenant_id = ?";
   const tenantParams = subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__"];
+  const systemTenantWhere = subject.is_admin ? "1 = 1" : "cs.tenant_id = ?";
   const userTenantWhere = subject.is_admin ? "1 = 1" : "(tenant_id = ? OR user_id = ?)";
   const userTenantParams = subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__", subject.user_id || "__missing_user__"];
 
