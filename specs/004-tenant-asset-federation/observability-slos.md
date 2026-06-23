@@ -1,0 +1,397 @@
+# Observability, SLOs, and Operational Intelligence
+
+## 1. Observability goals
+
+The platform must answer, without reading secrets:
+
+- Which shared assets are visible, authorized, configured, and ready?
+- Which context paths, profiles, policies, variants, and preferences produced a decision?
+- Why did a request block or select a given asset?
+- Are contextual decisions consistent with legacy authorities during migration?
+- Are recommendations calibrated and producing verified outcomes?
+- Did a rollout or experiment improve value without degrading safety, cost, or latency?
+- Can every consequential execution be reconstructed from immutable evidence?
+
+Observability is part of runtime correctness, not a dashboard-only concern.
+
+## 2. Correlation model
+
+Every request and derived operation should carry:
+
+```text
+request_id
+correlation_id
+session_id
+conversation_id when applicable
+tenant_id
+principal_id hash or governed ID
+workspace/brand/activity/workflow context IDs
+container_resolution_id
+effective_runtime_manifest_id
+execution_id
+approval_hold_id when applicable
+adaptive_proposal_id / experiment_id when applicable
+```
+
+Public responses return only safe identifiers. Logs and metrics must not include credential payloads, tokens, hidden prompts, or unnecessary personal content.
+
+## 3. Structured event families
+
+### Catalog
+
+```text
+shared_asset_catalog_queried
+shared_asset_opened
+shared_asset_readiness_viewed
+shared_asset_not_visible
+shared_asset_not_entitled
+```
+
+### Context and composition
+
+```text
+context_resolution_started
+context_resolution_completed
+context_resolution_blocked
+composition_profile_selected
+composition_profile_conflict
+policy_atom_invalid
+policy_field_resolved
+```
+
+### Variants and preferences
+
+```text
+user_preference_changed
+user_preference_reset
+asset_variant_created
+asset_variant_published
+asset_variant_conflict
+asset_variant_reset
+```
+
+### Readiness and execution
+
+```text
+connection_binding_resolved
+connection_binding_ambiguous
+installation_not_ready
+certification_required
+approval_required
+manifest_created
+manifest_stale
+execution_dispatched
+execution_completed
+execution_failed
+readback_verified
+```
+
+### Adaptive growth
+
+```text
+adaptive_proposal_created
+adaptive_proposal_simulated
+adaptive_proposal_accepted
+adaptive_proposal_dismissed
+adaptive_experiment_started
+adaptive_experiment_metric_observed
+adaptive_experiment_rolled_back
+adaptive_change_promoted
+platform_promotion_candidate_created
+```
+
+## 4. Core metrics
+
+### Coverage
+
+- shared catalog source mappings by asset family;
+- tenant-visible shared assets;
+- projected versus missing containers;
+- relationship and closure coverage;
+- roles/grants/policies bridged;
+- composition profile coverage;
+- policy fields with registered semantics;
+- assets with modifiable-path profiles;
+- executions linked to effective manifests.
+
+### Resolution quality
+
+- context resolution allow/deny/block rate;
+- path count and visited-container distributions;
+- missing required layers;
+- policy conflicts;
+- variant conflicts;
+- ambiguous connection resolution;
+- stale epoch/version retries;
+- deterministic checksum mismatch count.
+
+### Readiness
+
+- visible → authorized conversion;
+- authorized → configured conversion;
+- configured → ready conversion;
+- connection-required count;
+- operational pending installations;
+- expired certifications;
+- actual pending approvals;
+- quota/budget blocks;
+- provider/runtime outages.
+
+### Personalization
+
+- preference profile adoption;
+- composition profile selection and reset;
+- variant creation/publish/reset;
+- preview-to-apply conversion;
+- conflicts per base upgrade;
+- adaptation opt-in/opt-out;
+- user-reported relevance and trust.
+
+### Adaptive growth
+
+- proposal volume by class;
+- accepted/dismissed/expired rate;
+- simulation pass/block rate;
+- canary promotion/rollback rate;
+- predicted versus realized impact;
+- calibration error;
+- recommendation diversity;
+- result-observed coverage;
+- platform promotion candidate throughput.
+
+### Safety
+
+- cross-tenant denial attempts;
+- secret-like field rejections;
+- mandatory-policy bypass attempts;
+- approval replay/scope mismatch;
+- stale-manifest dispatch attempts;
+- provider call before authority violations;
+- privacy/promotion review blocks;
+- critical shadow mismatches.
+
+## 5. Proposed SLOs
+
+Initial targets are design proposals and require benchmark validation.
+
+### Catalog SLO
+
+- availability: 99.9% monthly for tenant catalog reads;
+- p95 latency: ≤ 300 ms for indexed list/get without live provider probes;
+- freshness: source projection lag ≤ 5 minutes for non-security metadata;
+- security-critical status invalidation: ≤ 60 seconds.
+
+### Context preview SLO
+
+- successful bounded preview availability: 99.9%;
+- p95 latency: ≤ 150 ms under initial graph limits;
+- p99 latency: ≤ 400 ms;
+- deterministic replay mismatch: 0;
+- audit/manifest coverage: 100% for dispatchable decisions.
+
+These align with the current Dynamic Container rollout registry budgets but must be measured against seeded production-like data.
+
+### Mutation SLO
+
+For profile, preference, variant, and connection-binding mutations:
+
+- idempotent retry correctness: 100%;
+- same-cycle readback evidence: 100%;
+- version conflict detection: 100%;
+- stale-authority write acceptance: 0;
+- p95 internal mutation latency excluding external OAuth/provider work: ≤ 750 ms.
+
+### Invalidation SLO
+
+- role/grant/policy/connection revocation propagated to effective authority: ≤ 30 seconds target;
+- critical revocation should use event-driven invalidation immediately;
+- stale cache grants: 0;
+- stale preview may be displayed only as expired/unavailable, never dispatchable.
+
+### Adaptive proposal SLO
+
+- proposals include evidence/confidence/expiry/rollback fields: 100%;
+- Class C/D simulation coverage before canary: 100%;
+- Class E self-approval: 0;
+- safety-triggered canary rollback initiation: ≤ 60 seconds after verified trigger;
+- recommendation result-observed coverage target: ≥ 70% for executed recommendations before model/default promotion.
+
+## 6. Error budgets
+
+Error budgets are tracked per surface and risk class.
+
+### Availability budget
+
+Standard read surfaces may consume normal availability budget. Authority and safety failures do not become acceptable because an availability budget remains.
+
+### Zero-tolerance conditions
+
+No budget applies to:
+
+- cross-tenant data exposure;
+- secret exposure;
+- mandatory policy bypass;
+- unapproved consequential write;
+- stale revoked authority dispatch;
+- unreconstructable critical execution;
+- destructive experiment outside exact cohort.
+
+One verified occurrence triggers containment and rollout rollback.
+
+## 7. Tracing spans
+
+Suggested spans:
+
+```text
+request.authenticate
+context.resolve_subjects
+context.traverse_graph
+authority.resolve_roles_bindings
+catalog.resolve_candidates
+composition.select_profiles
+policy.load_atoms
+policy.apply_algebra
+variant.resolve_apply
+preference.rank
+readiness.resolve_connection
+readiness.resolve_installation_certification
+readiness.resolve_approval_quota
+manifest.persist_readback
+execution.dispatch
+execution.verify_readback
+adaptive.attribute_outcome
+adaptive.score_candidate
+adaptive.simulate
+```
+
+Span attributes use IDs, counts, versions, reason codes, and timing—not raw content or secrets.
+
+## 8. Operational dashboards
+
+### Shared Asset Health
+
+- catalog coverage by family;
+- visibility/entitlement/readiness funnel;
+- unmapped canonical records;
+- stale or revoked assets;
+- optional variant conflicts.
+
+### Context Authority Health
+
+- projected container coverage;
+- graph integrity;
+- path-limit usage;
+- role/binding coverage;
+- authority epochs and invalidation lag;
+- legacy/contextual parity.
+
+### Personalization Trust
+
+- active preference profiles;
+- user resets and opt-outs;
+- accepted versus dismissed proposals;
+- recommendation cadence complaints;
+- explanation views;
+- calibration and rollback.
+
+### Integration Readiness
+
+- connections by state;
+- installations and certifications;
+- operational pending classification;
+- ambiguous bindings;
+- provider health;
+- approval and quota blockers.
+
+### Adaptive Growth
+
+- opportunities by objective;
+- proposal lifecycle;
+- experiments and guardrails;
+- realized business impact;
+- promotion candidates;
+- unresolved adaptation debt.
+
+## 9. Alerting
+
+### Critical
+
+- cross-tenant access success;
+- secret detected in prohibited surface;
+- mandatory policy bypass;
+- provider write without valid manifest/approval;
+- stale revoked authority dispatch;
+- experiment cohort breach.
+
+### High
+
+- critical legacy/contextual mismatch;
+- readback missing for consequential operation;
+- invalidation lag exceeds critical threshold;
+- p99 resolver latency sustained above budget;
+- widespread connection/certification failure;
+- calibration degradation causing harmful recommendations.
+
+### Medium
+
+- rising variant conflicts;
+- ambiguous profile/connection resolution;
+- catalog projection lag;
+- low result-observed coverage;
+- repeated user dismissal/opt-out;
+- adaptation proposal backlog.
+
+Alerts include tenant-safe context, runbook link, recent deployment/config change, and rollback action.
+
+## 10. Data quality
+
+Every metric/event specifies:
+
+- authority/source table or service;
+- event schema version;
+- observed and occurred timestamps;
+- tenant/user/context scope;
+- deduplication key;
+- completeness and freshness;
+- verification status;
+- retention class.
+
+Dashboards distinguish zero, unknown, unavailable, stale, and not applicable.
+
+## 11. Sampling and retention
+
+- authority decisions and consequential executions are not sampled out;
+- high-volume field-level traces may be sampled only after the immutable manifest preserves the decision;
+- security and approval evidence follow required retention;
+- user preference history follows privacy/retention policy;
+- adaptive raw events may be aggregated and minimized after attribution windows;
+- no retention policy deletes evidence required to reconstruct an active approval, variant, or experiment.
+
+## 12. Runbook requirements
+
+Runbooks must cover:
+
+- resolver latency/path explosion;
+- authority epoch invalidation failure;
+- legacy/contextual parity regression;
+- catalog projection failure;
+- variant/base conflict surge;
+- credential/installation outage;
+- secret-like payload detection;
+- adaptive experiment rollback;
+- platform promotion containment;
+- feature-family cutover rollback;
+- repository branch reconciliation.
+
+## 13. Release observability gates
+
+Before each rollout stage:
+
+- dashboards and alerts exist for new failure modes;
+- baseline metrics are captured;
+- SLO query definitions are versioned;
+- audit coverage is measured;
+- no-secret assertions are active;
+- rollback signal and operator are identified;
+- deployment and registry SHAs/versions are visible;
+- post-release behavioral readback confirms expected traffic and decisions.
