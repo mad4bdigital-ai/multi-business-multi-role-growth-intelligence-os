@@ -226,7 +226,9 @@ function badgeForTab(tabKey, operationalSummary = {}) {
 }
 
 function badgeCount(badge = {}) {
-  return Object.values(badge).reduce((sum, value) => sum + safeNumber(value), 0);
+  return Object.entries(badge)
+    .filter(([key]) => key !== "available")
+    .reduce((sum, [, value]) => sum + safeNumber(value), 0);
 }
 
 function attentionCountForTab(tabKey, operationalSummary = {}) {
