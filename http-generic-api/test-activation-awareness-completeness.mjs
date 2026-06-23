@@ -335,6 +335,7 @@ function testRepositoryContracts() {
 async function main() {
   testProfilesAndBudgets();
   testCompletenessAndAwareness();
+  testOperationalCountIntegrityAndBlockedSurfaceDetails();
   testIdempotencyAndInputNormalization();
   testRepositoryContracts();
   console.log("activation awareness completeness contract tests passed");
