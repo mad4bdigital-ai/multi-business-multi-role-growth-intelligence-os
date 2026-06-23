@@ -36,6 +36,15 @@ No silent self-modification is allowed. High-risk policy, authority, credential,
 - `policy-composition-model.md` — typed composition semantics.
 - `personalization-adaptation-model.md` — user customization and optional variants.
 - `growth-learning-loop.md` — dynamic growth and controlled adaptation.
+- `platform-growth-operating-model.md` — activation, productivity, tenant maturity, business, and platform growth flywheels.
+- `adaptive-scoring-confidence.md` — transparent opportunity scoring, confidence, calibration, and promotion thresholds.
+- `domain-model-invariants.md` — aggregate boundaries, identities, state machines, transactions, and non-negotiable invariants.
+- `policy-dsl-examples.md` — constrained policy atom/profile syntax and worked resolution examples.
+- `user-experience-journeys.md` — shared-use, setup, personalization, variants, explanations, and adaptive user journeys.
+- `governance-decision-matrix.md` — decision rights, delegation, approvals, conflicts, and review cadence.
+- `threat-model.md` — assets, trust boundaries, 28 threats, abuse cases, tests, and security gates.
+- `observability-slos.md` — events, metrics, SLOs, error budgets, alerts, dashboards, and runbooks.
+- `migration-cutover-map.md` — current-to-target bridges, backfills, parity, cutover units, and rollback.
 - `data-model.md` — reused and new authorities.
 - `resolution-algorithm.md` — deterministic effective-context resolution.
 - `permissions-matrix.md` — authority, preference, customization, and execution boundaries.
