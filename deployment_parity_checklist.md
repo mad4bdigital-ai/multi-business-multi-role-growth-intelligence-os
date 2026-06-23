@@ -1,5 +1,7 @@
 # Deployment Parity Checklist
 
+> GitHub create-reference 201 parity for `1024_sprint69_github_create_reference_201_contract_reconciliation.sql`: do not declare rollout complete until the governed migration ledger records the exact checksum, the live `ACT-GH-EP-011` endpoint schema contains `responses.201`, the existing `200` response remains preserved, release readiness no longer reports the `github_rest_endpoint_dispatch` contract gap, and a disposable create-ref operation returns `201` and passes same-cycle reference readback plus cleanup. Migration apply, certification, and alert resolution are separate governed steps; no provider call occurs during migration execution.
+
 ## OpenAPI Endpoint Inventory Sync — Migration 1024
 
 For `1024_sprint69_openapi_endpoint_inventory_sync.sql`, release parity requires: migration-ledger success; `platform_runtime_config.config_key=openapi_endpoint_inventory_sync` active with `auto_promote=false`; six curated Admin tools and `platform_orchestration` bindings present; OpenAPI operation count equal to active inventory-row count; latest sync run completed; callable inventory count equal to zero; preview routes still force preview/dry-run behavior; and no provider, credential, external-write, deployment, or secret activity. Rollback uses the runtime-config switch or `OPENAPI_ENDPOINT_INVENTORY_SYNC_DISABLED=true` and never deletes inventory history.
