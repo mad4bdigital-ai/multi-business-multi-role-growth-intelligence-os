@@ -870,7 +870,7 @@ export function buildCompletenessEnvelope({ tabManifest, operationalSummary, das
     blocked_surfaces: safeNumber(operationalSummary?.summary?.blocked_surface_count),
     stale_surfaces: stale,
     degraded_surfaces: degraded,
-    coverage_status: degraded === 0 ? "complete_awareness" : "complete_awareness_with_degraded_sources",
+    coverage_status: degraded > 0 ? "complete_awareness_with_degraded_sources" : safeNumber(operationalSummary?.summary?.blocked_surface_count) > 0 ? "complete_awareness_with_blocked_surfaces" : "complete_awareness",
     details_omitted_silently: false,
     deferred_details_have_refs: true,
   };
