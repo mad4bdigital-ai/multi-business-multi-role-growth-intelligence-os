@@ -71,6 +71,8 @@ import {
   tenantEffectiveCapabilityReadinessSmoke,
   tenantCapabilityShadowCompare,
 } from "../tenantEffectiveCapabilityResolver.js";
+import { GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS } from "../growthAuditEvidence.js";
+import * as GrowthAuditEvidenceRuntime from "../growthAuditEvidence.js";
 import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
 
 const SYSTEM_LAYER_TOOLS = [
