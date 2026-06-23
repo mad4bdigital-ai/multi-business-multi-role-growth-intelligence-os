@@ -1,8 +1,9 @@
 {
   "package": "tenant-asset-federation-spec-kit",
   "feature_branch": "gpt/004-tenant-asset-federation-20260623",
+  "pull_request": 1898,
   "prepared": "2026-06-23",
-  "status": "design_ready_for_review",
+  "status": "review_open",
   "implementation_authorized": false,
   "production_mutation_authorized": false,
   "provider_writes_allowed": false,
