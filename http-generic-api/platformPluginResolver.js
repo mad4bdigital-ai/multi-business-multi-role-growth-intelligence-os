@@ -1,6 +1,7 @@
 import { getPool } from "./db.js";
 import { normalizePlatformPlugin } from "./platformPluginCatalog.js";
 import { resolvePlatformManagedTargetAuthority } from "./platformPluginTargetAuthority.js";
+import { schedulePlatformPluginSecurityAlerts } from "./platformPluginSecurityAlerts.js";
 
 export const CredentialRequirement = Object.freeze({
   NOT_REQUIRED: "not_required",
@@ -542,6 +543,9 @@ export async function resolvePlatformPluginExecution({
   targetResourceUri = null,
   targetMode = "read_only",
   allowExpiredSmokeCertificationForRecertification = false,
+  requestId = null,
+  correlationId = null,
+  securityAlertWriter = undefined,
 } = {}) {
   const normalizedPluginKey = compactString(pluginKey, 128);
   if (!normalizedPluginKey) {
@@ -589,6 +593,21 @@ export async function resolvePlatformPluginExecution({
   const canonicalPolicy = normalizedToolKey
     ? { ready: false, reason: "tool_canonical_policy_mapping_required", canonical_action_key: null }
     : { ready: true, reason: normalizedActionKey ? "action_is_canonical_policy_key" : "no_selector_preview", canonical_action_key: normalizedActionKey };
+  const securityAlerts = schedulePlatformPluginSecurityAlerts({
+    writer: securityAlertWriter,
+    principalClass,
+    tenantId,
+    workspaceId,
+    userId,
+    requestId,
+    correlationId,
+    pluginKey: normalizedPluginKey,
+    actionKey: normalizedActionKey,
+    toolKey: normalizedToolKey,
+    surfaceExposure,
+    canonicalPolicy,
+    actionBindings: rows.actionBindings,
+  });
   const requiredSkillKey = deriveRequiredSkill({
     pluginKey: normalizedPluginKey,
     actionKey: normalizedActionKey,
@@ -742,6 +761,7 @@ export async function resolvePlatformPluginExecution({
     canonical_policy: canonicalPolicy,
     principal_scope: principalScope,
     surface_resolution: surfaceExposure,
+    security_alerts: securityAlerts,
     credential_lookup: {
       required: credentialLookupRequired,
       attempted: credentialLookupAuthorized,
