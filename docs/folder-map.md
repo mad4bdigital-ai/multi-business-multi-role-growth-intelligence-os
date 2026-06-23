@@ -65,7 +65,7 @@ Repeatable CI and maintenance utilities, including changed-surface resource cove
 
 ### `.specify/` and `specs/`
 
-The Spec Kit constitution, reusable templates, approved feature specifications, plans, tasks, data models, and contracts.
+The Spec Kit constitution, reusable templates, approved feature specifications, plans, tasks, data models, contracts, machine-readable `completion.json` records, and feature-specific checklists. Any new or modified Spec Kit is subject to the changed-scope completion gate.
 
 ## Dependency direction
 
