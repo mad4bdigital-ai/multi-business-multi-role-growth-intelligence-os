@@ -206,8 +206,6 @@ flowchart TD
 | `orchestration_state_snapshot_required_policy_v1` | 1 |
 | `platform_development_constitution_policy_v1` | 1 |
 | `platform_private_capability_vault_policy_v1` | 1 |
-| `platform_resource_api_coverage_policy_v1` | 1 |
-| `platform_resource_api_secret_field_policy_v1` | 1 |
 | `platform_resource_authority_binding_policy_v1` | 1 |
 | `platform_schema_blocker_classification_policy_v1` | 1 |
 | `platform_secret_promotion_policy_v1` | 1 |
