@@ -5,6 +5,7 @@ import {
   buildActivationDashboardManifest,
   buildActivationTabManifest,
 } from "./activationAwarenessService.js";
+import { resolveTenantEffectiveCapability } from "./tenantEffectiveCapabilityResolver.js";
 
 const PRODUCT_TAB_TO_OPERATIONAL_TAB = Object.freeze({
   tenant_today: "container_overview",
