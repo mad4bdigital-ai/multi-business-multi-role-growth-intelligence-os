@@ -1,123 +1,201 @@
-# Specification
+# Specification: Shared Asset Fabric and Contextual Policy Composition
 
 ## 1. Problem
 
-The platform has separate grant and binding models for skills, workflows, app actions, resources, connections, and policies. These models do not provide one consistent mechanism for a tenant to:
+The platform already stores most agents, skills, workflows, actions, apps, plugins, engines, and policies as shared global definitions. Runtime access and context are distributed across tenant memberships, workspaces, brands, business activities, roles, grants, connections, policies, and newer Dynamic Container Authority registries.
 
-1. discover platform-base assets;
-2. adopt any tenant-safe asset;
-3. create an isolated editable tenant version;
-4. compose permissions and configuration across workspace, brand, business activity, and role;
-5. choose union or intersection composition;
-6. attach tenant-owned credentials to apps/plugins/actions;
-7. upgrade from later platform-base versions without losing tenant edits.
+The missing capability is a single explainable model that lets every authorized user:
 
-## 2. Product intent
+1. discover and use shared platform assets without creating copies;
+2. choose how eligible context layers compose for their work;
+3. personalize non-authority behavior such as preferred agents, workflows, output style, and interaction mode;
+4. create an optional variant only when an asset itself needs customization;
+5. use tenant-owned credentials for apps, plugins, and provider actions;
+6. benefit from adaptive recommendations driven by measured outcomes;
+7. preserve mandatory safety, isolation, approval, quota, and certification controls.
 
-Every authorized tenant can use the platform catalog as a base library. Adopting an asset creates a tenant-owned instance using either an overlay or fork. A tenant editor may modify only the tenant-owned instance and never the platform original.
+## 2. Core decisions
 
-## 3. Asset classes
+### 2.1 Shared by default
 
-The model MUST be extensible and MUST initially support:
+Platform assets remain canonical and shared. A tenant grant, role, workspace, brand, or activity binding references the shared asset directly. Adoption or ordinary use creates no copy.
+
+### 2.2 Variants are optional
+
+A variant is created only after an explicit customization request by an authorized principal. The variant stores bounded patches against a shared base asset and has an owner scope such as user, role, workspace, brand, activity, or tenant.
+
+### 2.3 Runtime composition is independent from variants
+
+`union`, `intersection`, `deny_wins`, `minimum`, `maximum`, replacement, and ordered merge are runtime composition strategies. They determine how contextual layers combine. They do not describe asset ownership.
+
+### 2.4 Authority and preference are separate
+
+A user preference may rank, hide, or select among already-authorized options. It may not create authority, weaken mandatory policy, expose credentials, or enable an unready provider action.
+
+### 2.5 Adaptation is proposal-driven
+
+The platform may learn from explicit feedback, behavior, quality, and business outcomes, but it may only create no-secret adaptation proposals. A proposal must pass simulation, policy classification, and the required approval or canary process before changing an effective profile or variant.
+
+## 3. Context layers
+
+The resolver evaluates these conceptual layers:
+
+1. mandatory platform safety floor;
+2. tenant policy and entitlement;
+3. workspace configuration;
+4. brand governance and Brand Core;
+5. business activity type constraints and defaults;
+6. role authority;
+7. user experience and workflow preferences;
+8. bounded session/task context;
+9. exact execution envelope, resource authority, connection, and credential readiness.
+
+The physical graph may be multi-parent. Brand, activity, and workflow may be reached through more than one valid container path. Equal-precedence conflicts fail closed.
+
+## 4. Asset families
+
+The shared catalog must support at least:
 
 - `agent`
 - `skill`
-- `policy`
 - `workflow`
+- `policy`
+- `rule`
 - `app`
 - `plugin`
 - `action`
 - `tool`
+- `endpoint`
 - `logic`
 - `engine`
-- `knowledge_profile`
+- `knowledge`
+- `profile`
 - `dashboard_component`
+- future registry-defined families
 
-New classes MUST be registered rather than introduced through ad hoc tables.
+Catalog projection does not replace each canonical source table.
 
-## 4. Scope dimensions
+## 5. Composition profiles
 
-An asset instance, grant, composition profile, or credential binding MAY apply to:
+A user may select or maintain composition profiles for eligible dimensions and contexts. A profile includes:
 
-- tenant root;
-- workspace;
-- brand;
-- business activity type;
-- role;
-- any explicit composite of these dimensions.
+- owner principal;
+- target container or context selector;
+- dimension or policy family;
+- allowed composition mode;
+- required layers;
+- precedence and tie-break behavior;
+- conflict policy;
+- effective dates;
+- audit and version metadata.
 
-Tenant identity MUST come from the signed principal. Client-supplied tenant overrides are forbidden.
+A profile is valid only within modes allowed by the dimension registry and mandatory platform policy.
 
-## 5. Ownership modes
+## 6. Typed policy algebra
 
-### 5.1 Overlay
+The resolver must not merge arbitrary JSON. Every policy field is registered with a semantic type and merge operator.
 
-An overlay stores only tenant changes against a platform-base version. It remains upgrade-linked and can be rebased onto a newer base version after conflict review.
+Examples:
 
-### 5.2 Fork
+- allow/catalog sets: `union` or `intersection`;
+- denies: accumulated union, with deny winning;
+- requirements and validators: accumulated union;
+- approval severity: maximum;
+- risk and data sensitivity: maximum;
+- budgets, quotas, and upper limits: minimum;
+- scalar preferences: nearest or priority replacement;
+- ordered workflows: stable topological merge;
+- weights: bounded normalized weighted merge;
+- prompts and knowledge: ordered append, de-duplicate, and token-budget enforcement.
 
-A fork stores a complete tenant-owned snapshot. It is independently versioned and does not inherit later base changes unless the tenant explicitly imports them.
+## 7. Personalization
 
-### 5.3 Copy-on-write
+Every user may customize experience within their authority:
 
-The first tenant edit to a referenced platform asset MUST create an overlay automatically. Platform rows remain immutable.
+- preferred agents and workflows;
+- explanation depth;
+- language and tone;
+- notification cadence;
+- preferred channels;
+- default dashboard views;
+- autonomy preference within allowed policy;
+- preferred tools among ready alternatives;
+- personal composition profiles;
+- optional personal variants.
 
-## 6. Composition modes
+Personalization never changes another user's preferences or the shared base asset.
 
-### 6.1 Union
+## 8. Dynamic growth
 
-An asset is included when at least one applicable scope allows it. Configuration collections are combined unless a mandatory deny or conflict rule blocks resolution.
+The platform should continuously improve through governed evidence:
 
-### 6.2 Intersection
+- recommendation shown/opened/accepted/dismissed/executed/result events;
+- intent resolution quality;
+- workflow success and verification;
+- business KPI movement;
+- user feedback;
+- readiness and operational friction;
+- variant and composition experiment results.
 
-An asset is included only when every required applicable scope allows it. Missing required scope evidence is blocking rather than silently permissive.
+The system may recommend:
 
-### 6.3 Safety floor
+- a different shared workflow;
+- a new composition profile;
+- a personal or scoped variant;
+- a missing connection or credential setup;
+- a safer or more automated operating mode;
+- promotion of a proven tenant-local improvement into a reusable platform candidate.
 
-Neither composition mode may bypass:
+Cross-tenant promotion requires aggregation, privacy protection, admin review, certification, and a new shared asset version. Tenant content is never silently copied into the platform catalog.
 
-- platform mandatory policy;
-- tenant isolation;
-- credential readiness;
-- capability and resource authority;
-- approval requirements;
-- runtime certification;
-- quotas and commercial entitlement;
-- same-cycle readback requirements.
+## 9. Functional requirements
 
-Explicit mandatory deny always wins.
+- **FR-001:** Shared assets are referenced directly without automatic copying.
+- **FR-002:** Ordinary grants and use do not create variants.
+- **FR-003:** An authorized principal may explicitly create a bounded variant.
+- **FR-004:** Variants support user, role, workspace, brand, activity, and tenant ownership scopes.
+- **FR-005:** Platform base assets remain immutable to tenant principals.
+- **FR-006:** The resolver evaluates tenant, workspace, brand, activity, role, and user layers.
+- **FR-007:** Composition mode is selected per eligible dimension or policy family, not as one unsafe global switch.
+- **FR-008:** Modes are constrained by the dimension registry and platform safety floor.
+- **FR-009:** Typed field operators determine effective policy values.
+- **FR-010:** Deny, restriction, required approval, and mandatory validators cannot be removed by union or preference.
+- **FR-011:** Intersection fails closed when a configured required layer is missing.
+- **FR-012:** Equal-ranked conflicting replacements block with evidence.
+- **FR-013:** User preferences can narrow or rank authorized options but cannot grant authority.
+- **FR-014:** Role permissions, resource bindings, grants, and user preferences remain separately explainable.
+- **FR-015:** Effective results include all contributing layers, assets, variants, operators, and blocking reasons.
+- **FR-016:** Apps/plugins/actions use tenant- or user-owned connection references and never store credentials in asset definitions.
+- **FR-017:** Catalog availability is distinct from grant, installation, certification, credential, and execution readiness.
+- **FR-018:** Approval-sensitive active grants are distinguished from pending approval requests.
+- **FR-019:** Adaptation begins as a proposal and never directly mutates effective authority.
+- **FR-020:** Every adaptive proposal includes objective, evidence, expected impact, risk, affected scopes, simulation, rollback, and expiry.
+- **FR-021:** Low-risk preference changes may be user-approved; authority and provider-write changes follow governed approval.
+- **FR-022:** Experiments are scope-bounded, reversible, and measured against declared outcomes.
+- **FR-023:** Successful tenant-local improvements may become platform promotion candidates only through separate governance.
+- **FR-024:** Existing specialized authorities remain authoritative until shadow parity and cutover certification pass.
+- **FR-025:** The Dynamic Container Authority must be seeded from canonical tenant/workspace/brand/activity/workflow subjects before enforcement.
+- **FR-026:** Current `execution_policies` enforcement remains in place until contextual policy parity is proven.
+- **FR-027:** Every effective runtime context is immutable, hashed, no-secret, versioned, and reconstructable.
+- **FR-028:** Each user can preview and explain the exact effect of changing a composition profile before applying it.
+- **FR-029:** Users can reset preferences or variants to shared defaults without affecting grants or credentials.
+- **FR-030:** Platform learning and personalization include explicit data-use visibility and opt-out controls where applicable.
 
-## 7. Functional requirements
+## 10. Non-functional requirements
 
-- **FR-001:** All active tenant-safe platform assets are discoverable through one catalog.
-- **FR-002:** Platform-control-plane-only and secret-bearing assets are never tenant-adoptable.
-- **FR-003:** Tenant adoption creates an isolated tenant asset instance.
-- **FR-004:** Tenant users with `edit` permission can create new tenant versions.
-- **FR-005:** Tenant users with `grant` permission can bind instances to workspace, brand, activity type, role, agent, or user scopes.
-- **FR-006:** Composition profiles support `union` and `intersection`.
-- **FR-007:** Profiles can be selected per tenant context and per asset family.
-- **FR-008:** Asset resolution is deterministic, explainable, and emits source/version evidence.
-- **FR-009:** Credentials are referenced by opaque connection or vault identifiers and never copied into asset content.
-- **FR-010:** Apps/plugins/actions remain non-executable until tenant connection, credential, grant, certification, and policy checks pass.
-- **FR-011:** Sensitive skills/actions remain approval-gated even when broadly adopted.
-- **FR-012:** Tenant policies may strengthen mandatory platform policy but cannot weaken it.
-- **FR-013:** Upgrade, rebase, conflict, rollback, and detach operations are versioned and audited.
-- **FR-014:** Existing specialized grant tables remain authoritative until bridge parity is proven.
-- **FR-015:** The system distinguishes approval-sensitive active grants from actual pending approval requests.
-- **FR-016:** Catalog registration is not operational installation evidence.
+- deterministic resolution for the same principal, context, epoch, registry version, profile version, and asset versions;
+- bounded graph traversal and candidate counts;
+- no raw secret values in catalog, profile, variant, proposal, experiment, ledger, or response;
+- backward-compatible additive schema changes;
+- idempotent mutations and same-cycle readback;
+- cursor pagination for catalogs and history;
+- stable structured errors;
+- complete object-level tenant authorization;
+- cache keys include authority epoch, composition profile version, and variant/base checksums;
+- event-driven invalidation with bounded TTL fallback;
+- framework-independent domain algebra under `src/domain`;
+- no provider call before effective authority and credential eligibility are resolved.
 
-## 8. Non-functional requirements
+## 11. Non-goals
 
-- fail closed on ambiguity;
-- no raw secrets in responses, logs, overlays, or version payloads;
-- bounded JSON patches and snapshots;
-- deterministic checksums;
-- idempotent adoption and grant operations;
-- same-cycle write readback;
-- cross-tenant queries blocked at repository and service layers;
-- OpenAPI 3.1 contracts with stable structured errors;
-- compatibility with `src/api`, `src/application`, `src/domain`, and `src/infrastructure` boundaries.
-
-## 9. Non-goals
-
-This specification does not authorize automatic provider writes, automatic approval of sensitive operations, copying platform credentials into tenant scope, editing platform-base records, or replacing existing runtime authorities before shadow parity.
+This specification does not authorize automatic cross-tenant learning, silent policy mutation, automatic creation of one copy per tenant, copying credential values into variants, provider writes, bypassing approvals, or replacing current runtime enforcement before certified rollout.
