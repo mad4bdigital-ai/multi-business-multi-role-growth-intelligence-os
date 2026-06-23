@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "feature_key": "001-resource-api-coverage",
+  "title": "Self-Discovering Resource API Coverage",
+  "status": "complete",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "implementation_prs": [
+      {
+        "number": 1894,
+        "status": "merged",
+        "merge_sha": "525b5763d0f4396e1358e43ce6a0dd8b6c3b87c7"
+      }
+    ],
+    "closeout_pr": {
+      "number": "current",
+      "branch": "gpt/spec-kit-completion-governance-20260624",
+      "role": "completion",
+      "status": "current_pr"
+    }
+  },
+  "evidence": {
+    "ci": {
+      "status": "pass",
+      "head_sha": "70144841282d17df8a40775676c14bc4e38a48a2",
+      "checks_passed": 4,
+      "checks_total": 4
+    },
+    "release_readiness": {
+      "status": "pass",
+      "checks_passed": 70,
+      "checks_total": 70
+    },
+    "migration": {
+      "status": "applied",
+      "file": "1023_sprint69_resource_api_coverage_gate.sql",
+      "checksum_sha256": "b21696d3e14b574a62e105d72cf658e1da66a4f8d56dd4e8f855674efad1e9c9",
+      "statement_count": 12,
+      "ledger_run_id": "683406e3-0758-4ea1-9a7d-134d05fab2ba"
+    },
+    "production_verification": {
+      "status": "verified",
+      "run_id": "e37a9da4-19f4-4982-9677-8bddabe698af",
+      "expected_commit_sha": "629b2edbb78a36e30bbdc06c646e049cd74da824",
+      "deployed_commit_sha": "629b2edbb78a36e30bbdc06c646e049cd74da824"
+    },
+    "post_merge_audit": {
+      "status": "completed_with_backlog",
+      "run_id": "748dbe4e-feb5-4633-9033-2510f80837ec",
+      "findings_total": 200,
+      "findings_by_severity": { "high": 1, "medium": 84, "low": 115 },
+      "new_feature_gate_findings": 0,
+      "backlog_refs": ["specs/001-resource-api-coverage/backlog.md"]
+    }
+  },
+  "secrets_included": false
+}

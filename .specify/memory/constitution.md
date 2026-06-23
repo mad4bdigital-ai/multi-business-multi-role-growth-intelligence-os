@@ -103,10 +103,21 @@ A resource-facing change is mergeable only when:
 - canonicals and the knowledge guide are updated when behavior changes;
 - CI, release readiness, security review, and governed PR merge checks pass.
 
+## XIV. Spec Kit Completion Governance
+
+Every new or changed Spec Kit MUST include `spec.md`, `plan.md`, `tasks.md`, `completion.json`, and at least one feature checklist under `checklists/`.
+
+- `single_pr` delivery is allowed only when no migration, production verification, or post-merge audit is required.
+- Any post-merge obligation requires `multi_pr` delivery with one or more implementation PRs and a final closeout PR.
+- A feature marked `complete` contains no unresolved `[ ]` task or checklist item. Explicit `[~]` not-applicable items include an inline rationale.
+- Completion evidence is machine-readable and records applicable CI, release readiness, merge, migration ledger, production parity, and post-merge audit identifiers.
+- An audit may close with backlog only when that backlog has a tracked reference and owner.
+- CI applies changed-scope fail-closed enforcement. Unchanged legacy Spec Kits are grandfathered only until their next modification.
+
 ## Governance
 
 Exceptions require written rationale, named owner, bounded duration, compensating controls, explicit security approval, and a tracked removal task.
 
-**Version:** 1.1.0  
-**Ratified:** 2026-06-19  
-**Last amended:** 2026-06-22
+**Version:** 1.2.0
+**Ratified:** 2026-06-19
+**Last amended:** 2026-06-24
