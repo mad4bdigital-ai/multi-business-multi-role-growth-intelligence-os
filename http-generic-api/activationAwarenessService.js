@@ -867,7 +867,7 @@ export function buildCompletenessEnvelope({ tabManifest, operationalSummary, das
     summarized_surfaces: knownSurfaces,
     fully_hydrated_surfaces: safeNumber(fullyHydratedSurfaces),
     deferred_surfaces: deferred,
-    blocked_surfaces: 0,
+    blocked_surfaces: safeNumber(operationalSummary?.summary?.blocked_surface_count),
     stale_surfaces: stale,
     degraded_surfaces: degraded,
     coverage_status: degraded === 0 ? "complete_awareness" : "complete_awareness_with_degraded_sources",
