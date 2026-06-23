@@ -128,3 +128,16 @@ Required same-cycle evidence:
 - a second cycle executes no migration and creates no duplicate ledger evidence.
 
 The final smoke must create an oversized response, confirm durable persistence before `chunk_id`, evict the process-local cache entry, recover through MySQL, verify SHA-256 and UTF-8 byte length, confirm sliding expiry extension, and reconstruct Arabic/emoji JSON exactly. Before production bootstrap, generated surface-governance evidence must show that `1018_sprint69_governed_response_chunk_schema_reconciliation.sql` has complete required docs and no remaining safety-marker gap. Record only bounded no-secret summaries; do not retain raw migration output, response payloads, credentials, or authorization headers.
+
+## GitHub create-reference 201 contract reconciliation
+
+For `1024_sprint69_github_create_reference_201_contract_reconciliation.sql`, treat
+repository parity, Hostinger runtime parity, SQL contract parity, and provider
+certification as separate states. Runtime sync is complete when production serves the
+merged commit, but the acknowledged `github_create_branch_reference` validation alert
+must remain open until the governed migration ledger records the exact migration,
+`endpoints.schema_json.responses.201` reads back on `ACT-GH-EP-011`, and a disposable
+create-ref request returns `201` and passes same-cycle reference readback plus cleanup.
+The migration itself performs no provider call, credential payload read, external send,
+or external write. Never use a runtime restart or repository redeploy as a substitute
+for the SQL readback and provider certification gates.

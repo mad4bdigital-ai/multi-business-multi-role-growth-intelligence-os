@@ -16,6 +16,17 @@ function safeNumber(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function optionalNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function sumCountGroups(result, counts = {}) {
+  if (result?.ok !== true) return null;
+  return Object.values(counts).reduce((sum, value) => sum + safeNumber(value), 0);
+}
+
 function parseJson(value, fallback = null) {
   if (value === null || value === undefined || value === "") return fallback;
   if (typeof value === "object") return value;
@@ -215,7 +226,9 @@ function badgeForTab(tabKey, operationalSummary = {}) {
 }
 
 function badgeCount(badge = {}) {
-  return Object.values(badge).reduce((sum, value) => sum + safeNumber(value), 0);
+  return Object.entries(badge)
+    .filter(([key]) => key !== "available")
+    .reduce((sum, [, value]) => sum + safeNumber(value), 0);
 }
 
 function attentionCountForTab(tabKey, operationalSummary = {}) {
@@ -365,6 +378,20 @@ function aggregateRows(rows, key, accepted = null) {
   return output;
 }
 
+export function countOperationalBlockedSurfaces({ results = {}, counts = {} } = {}) {
+  const highSeveritySignals = Object.entries(counts.signals || {})
+    .filter(([key]) => /^(critical|high):/i.test(key))
+    .reduce((sum, [, value]) => sum + safeNumber(value), 0);
+  return [
+    results.systems?.ok !== true || safeNumber(counts.systems?.pending) > 0 || safeNumber(counts.systems?.error) > 0,
+    results.tasks?.ok !== true || safeNumber(counts.tasks?.blocked) > 0,
+    results.agents?.ok !== true || safeNumber(counts.agents?.degraded) > 0 || safeNumber(counts.agents?.offline) > 0,
+    results.skills?.ok !== true || safeNumber(counts.skills?.requires_approval) > 0,
+    results.freshness?.ok !== true || safeNumber(counts.freshness?.failed) > 0 || safeNumber(counts.freshness?.stale) > 0,
+    results.signals?.ok !== true || highSeveritySignals > 0,
+  ].filter(Boolean).length;
+}
+
 async function groupedCount(table, groupColumn, whereSql, params = []) {
   try {
     const tableSql = quoteIdentifier(table);
@@ -383,18 +410,41 @@ async function groupedCount(table, groupColumn, whereSql, params = []) {
 
 async function countOne(sql, params = []) {
   const result = await safeRows(sql, params);
-  return { ...result, count: safeNumber(result.rows[0]?.count) };
+  return { ...result, count: result.ok ? optionalNumber(result.rows[0]?.count) : null };
 }
 
 export async function buildActivationOperationalSummary({ sessionContext = null, attentionLimit = 12 } = {}) {
   const subject = resolveSubject(sessionContext || {});
   const tenantWhere = subject.is_admin ? "1 = 1" : "tenant_id = ?";
   const tenantParams = subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__"];
+  const systemTenantWhere = subject.is_admin ? "1 = 1" : "cs.tenant_id = ?";
   const userTenantWhere = subject.is_admin ? "1 = 1" : "(tenant_id = ? OR user_id = ?)";
   const userTenantParams = subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__", subject.user_id || "__missing_user__"];
 
   const [systems, tasks, agents, skills, freshness, signals, actionCount, packCount, subscriptionCount] = await Promise.all([
-    groupedCount("connected_systems", "status", `${tenantWhere} AND status <> 'archived'`, tenantParams),
+    safeRows(
+      `SELECT operational_status AS group_value, COUNT(*) AS count
+         FROM (
+           SELECT cs.system_id,
+                  CASE
+                    WHEN cs.status = 'error' OR SUM(CASE WHEN i.status = 'error' THEN 1 ELSE 0 END) > 0 THEN 'error'
+                    WHEN cs.status = 'pending' THEN 'pending'
+                    WHEN cs.status = 'active'
+                     AND SUM(CASE WHEN i.status = 'active' AND (i.expires_at IS NULL OR i.expires_at > UTC_TIMESTAMP()) THEN 1 ELSE 0 END) > 0 THEN 'active'
+                    WHEN cs.status = 'active' THEN 'pending'
+                    ELSE cs.status
+                  END AS operational_status
+             FROM connected_systems cs
+             LEFT JOIN installations i
+               ON i.system_id = cs.system_id
+              AND i.tenant_id = cs.tenant_id
+            WHERE ${systemTenantWhere}
+              AND cs.status <> 'archived'
+            GROUP BY cs.system_id, cs.status
+         ) operational_systems
+        GROUP BY operational_status`,
+      tenantParams
+    ),
     safeRows(
       `SELECT task_status AS group_value, COUNT(*) AS count
          FROM v_activation_pending_tasks
@@ -498,6 +548,10 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
       : freshTotal > 0
         ? "fresh"
         : "unknown";
+  const blockedSurfaceCount = countOperationalBlockedSurfaces({
+    results: { systems, tasks, agents, skills, freshness, signals },
+    counts: { systems: systemCounts, tasks: taskCounts, agents: agentCounts, skills: skillCounts, freshness: freshnessCounts, signals: signalCounts },
+  });
 
   return {
     attempted: true,
@@ -510,24 +564,25 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
       high_attention_count: safeNumber(unifiedAttention?.summary?.by_severity?.high),
       known_issue_count: safeNumber(unifiedAttention?.summary?.known_issue_count),
       current_detected_count: safeNumber(unifiedAttention?.summary?.current_detected_count),
-      connected_system_count: Object.values(systemCounts).reduce((sum, value) => sum + safeNumber(value), 0),
-      pending_task_count: Object.values(taskCounts).reduce((sum, value) => sum + safeNumber(value), 0),
-      agent_count: Object.values(agentCounts).reduce((sum, value) => sum + safeNumber(value), 0),
-      skill_grant_count: Object.values(skillCounts).reduce((sum, value) => sum + safeNumber(value), 0),
+      connected_system_count: sumCountGroups(systems, systemCounts),
+      pending_task_count: sumCountGroups(tasks, taskCounts),
+      agent_count: sumCountGroups(agents, agentCounts),
+      skill_grant_count: sumCountGroups(skills, skillCounts),
       registered_action_count: actionCount.count,
       connector_pack_count: packCount.count,
       signal_subscription_count: subscriptionCount.count,
       all_known_issues_visible: unifiedAttention?.completeness?.all_known_issues_visible === true,
       final_result_complete: unifiedAttention?.completeness?.final_result_complete === true,
+      blocked_surface_count: blockedSurfaceCount,
       degraded_surface_count: degraded.length,
     },
     tab_badges: {
-      connectors: { active: safeNumber(systemCounts.active), pending: safeNumber(systemCounts.pending), error: safeNumber(systemCounts.error) },
-      tasks: { blocked: safeNumber(taskCounts.blocked), open: Object.values(taskCounts).reduce((sum, value) => sum + safeNumber(value), 0) },
-      agents: { active: safeNumber(agentCounts.active), degraded: safeNumber(agentCounts.degraded), offline: safeNumber(agentCounts.offline) },
-      skills: { active_grants: safeNumber(skillCounts.active), requires_approval: safeNumber(skillCounts.requires_approval) },
-      freshness: freshnessCounts,
-      signals: signalCounts,
+      connectors: { available: systems.ok, active: systems.ok ? safeNumber(systemCounts.active) : null, pending: systems.ok ? safeNumber(systemCounts.pending) : null, error: systems.ok ? safeNumber(systemCounts.error) : null },
+      tasks: { available: tasks.ok, blocked: tasks.ok ? safeNumber(taskCounts.blocked) : null, open: sumCountGroups(tasks, taskCounts) },
+      agents: { available: agents.ok, active: agents.ok ? safeNumber(agentCounts.active) : null, degraded: agents.ok ? safeNumber(agentCounts.degraded) : null, offline: agents.ok ? safeNumber(agentCounts.offline) : null },
+      skills: { available: skills.ok, active_grants: skills.ok ? safeNumber(skillCounts.active) : null, requires_approval: skills.ok ? safeNumber(skillCounts.requires_approval) : null },
+      freshness: { available: freshness.ok, ...freshnessCounts },
+      signals: { available: signals.ok, ...signalCounts },
     },
     attention_by_source: attentionBySource,
     attention_items: attentionItems.slice(0, Math.min(attentionLimit, 20)),
@@ -812,10 +867,10 @@ export function buildCompletenessEnvelope({ tabManifest, operationalSummary, das
     summarized_surfaces: knownSurfaces,
     fully_hydrated_surfaces: safeNumber(fullyHydratedSurfaces),
     deferred_surfaces: deferred,
-    blocked_surfaces: 0,
+    blocked_surfaces: safeNumber(operationalSummary?.summary?.blocked_surface_count),
     stale_surfaces: stale,
     degraded_surfaces: degraded,
-    coverage_status: degraded === 0 ? "complete_awareness" : "complete_awareness_with_degraded_sources",
+    coverage_status: degraded > 0 ? "complete_awareness_with_degraded_sources" : safeNumber(operationalSummary?.summary?.blocked_surface_count) > 0 ? "complete_awareness_with_blocked_surfaces" : "complete_awareness",
     details_omitted_silently: false,
     deferred_details_have_refs: true,
   };
@@ -826,7 +881,7 @@ export function buildAwarenessIndex({ completeness, operationalSummary } = {}) {
   const visible = safeNumber(completeness?.visible_surfaces);
   const coverage = Math.round((visible / known) * 100);
   const freshness = completeness?.stale_surfaces > 0 ? 80 : 100;
-  const authorizationVisibility = 100;
+  const blocked = safeNumber(completeness?.blocked_surfaces); const authorizationVisibility = Math.max(0, Math.round((Math.max(known - blocked, 0) / known) * 100));
   const attentionDetection = operationalSummary?.ok === false ? 75 : 100;
   const detailAvailability = completeness?.deferred_details_have_refs ? 100 : 70;
   const score = Math.round((coverage + freshness + authorizationVisibility + attentionDetection + detailAvailability) / 5);
