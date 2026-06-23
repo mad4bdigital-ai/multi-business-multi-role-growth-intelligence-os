@@ -378,18 +378,58 @@ function aggregateRows(rows, key, accepted = null) {
   return output;
 }
 
-export function countOperationalBlockedSurfaces({ results = {}, counts = {} } = {}) {
+export function deriveOperationalBlockedSurfaces({ results = {}, counts = {} } = {}) {
   const highSeveritySignals = Object.entries(counts.signals || {})
     .filter(([key]) => /^(critical|high):/i.test(key))
     .reduce((sum, [, value]) => sum + safeNumber(value), 0);
-  return [
-    results.systems?.ok !== true || safeNumber(counts.systems?.pending) > 0 || safeNumber(counts.systems?.error) > 0,
-    results.tasks?.ok !== true || safeNumber(counts.tasks?.blocked) > 0,
-    results.agents?.ok !== true || safeNumber(counts.agents?.degraded) > 0 || safeNumber(counts.agents?.offline) > 0,
-    results.skills?.ok !== true || safeNumber(counts.skills?.requires_approval) > 0,
-    results.freshness?.ok !== true || safeNumber(counts.freshness?.failed) > 0 || safeNumber(counts.freshness?.stale) > 0,
-    results.signals?.ok !== true || highSeveritySignals > 0,
-  ].filter(Boolean).length;
+  const blocked = [];
+  const add = (surfaceKey, reasons, metrics) => {
+    if (!reasons.length) return;
+    blocked.push({ surface_key: surfaceKey, status: "blocked", reasons, metrics, secrets_included: false });
+  };
+
+  add("connectors", [
+    results.systems?.ok !== true ? "source_unavailable" : null,
+    safeNumber(counts.systems?.pending) > 0 ? "pending_installations" : null,
+    safeNumber(counts.systems?.error) > 0 ? "connector_errors" : null,
+  ].filter(Boolean), {
+    active: results.systems?.ok === true ? safeNumber(counts.systems?.active) : null,
+    pending: results.systems?.ok === true ? safeNumber(counts.systems?.pending) : null,
+    error: results.systems?.ok === true ? safeNumber(counts.systems?.error) : null,
+  });
+  add("tasks", [
+    results.tasks?.ok !== true ? "source_unavailable" : null,
+    safeNumber(counts.tasks?.blocked) > 0 ? "blocked_tasks" : null,
+  ].filter(Boolean), { blocked: results.tasks?.ok === true ? safeNumber(counts.tasks?.blocked) : null });
+  add("agents", [
+    results.agents?.ok !== true ? "source_unavailable" : null,
+    safeNumber(counts.agents?.degraded) > 0 ? "degraded_agents" : null,
+    safeNumber(counts.agents?.offline) > 0 ? "offline_agents" : null,
+  ].filter(Boolean), {
+    degraded: results.agents?.ok === true ? safeNumber(counts.agents?.degraded) : null,
+    offline: results.agents?.ok === true ? safeNumber(counts.agents?.offline) : null,
+  });
+  add("skills", [
+    results.skills?.ok !== true ? "source_unavailable" : null,
+    safeNumber(counts.skills?.requires_approval) > 0 ? "approval_required" : null,
+  ].filter(Boolean), { requires_approval: results.skills?.ok === true ? safeNumber(counts.skills?.requires_approval) : null });
+  add("freshness", [
+    results.freshness?.ok !== true ? "source_unavailable" : null,
+    safeNumber(counts.freshness?.failed) > 0 ? "freshness_failed" : null,
+    safeNumber(counts.freshness?.stale) > 0 ? "freshness_stale" : null,
+  ].filter(Boolean), {
+    failed: results.freshness?.ok === true ? safeNumber(counts.freshness?.failed) : null,
+    stale: results.freshness?.ok === true ? safeNumber(counts.freshness?.stale) : null,
+  });
+  add("signals", [
+    results.signals?.ok !== true ? "source_unavailable" : null,
+    highSeveritySignals > 0 ? "high_severity_signals" : null,
+  ].filter(Boolean), { high_severity: results.signals?.ok === true ? highSeveritySignals : null });
+  return blocked;
+}
+
+export function countOperationalBlockedSurfaces(input = {}) {
+  return deriveOperationalBlockedSurfaces(input).length;
 }
 
 async function groupedCount(table, groupColumn, whereSql, params = []) {
