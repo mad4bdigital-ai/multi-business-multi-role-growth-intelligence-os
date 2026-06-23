@@ -9,13 +9,13 @@ This record closes only **Phase 0 — Safety containment (T001–T009)** for PR 
 - Repository: `mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os`
 - Pull request: `#1879`
 - Pull request branch: `gpt/001-capability-security-hardening-completion`
-- Validated base commit: `d98394a37310124f6d05069667a42664ee0e8e50`
+- Validated baseline commit: `d98394a37310124f6d05069667a42664ee0e8e50`
 - Local T008 evidence commit: `7dd1e6f850c7eb2969d3790199ac56a674981c01`
 - Local T009 evidence commit: `203224b81b8cd7dc81d1f37d213d99722c36615f`
 - Resolution scope: 25 files, equal to the union of the existing PR scope and T008–T009 changes; no missing or extra paths.
 - Secrets included: `false`
 
-The final remote commit and merge SHA are recorded by the PR and GitHub merge audit after same-cycle CI. If the base commit changes before merge, this evidence must be refreshed and the resolution suite rerun.
+The final expected base, remote commit, and merge SHA are recorded by the same-cycle PR gate and GitHub merge audit. Unrelated advancement of `main` does not invalidate this baseline when exact-tree reconciliation and final-head CI pass; any content conflict or test regression requires the resolution suite to be rerun.
 
 ## Named owners
 
