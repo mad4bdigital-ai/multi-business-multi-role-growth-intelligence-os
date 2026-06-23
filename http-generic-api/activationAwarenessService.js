@@ -406,7 +406,29 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
   const userTenantParams = subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__", subject.user_id || "__missing_user__"];
 
   const [systems, tasks, agents, skills, freshness, signals, actionCount, packCount, subscriptionCount] = await Promise.all([
-    groupedCount("connected_systems", "status", `${tenantWhere} AND status <> 'archived'`, tenantParams),
+    safeRows(
+      `SELECT operational_status AS group_value, COUNT(*) AS count
+         FROM (
+           SELECT cs.system_id,
+                  CASE
+                    WHEN cs.status = 'error' OR SUM(CASE WHEN i.status = 'error' THEN 1 ELSE 0 END) > 0 THEN 'error'
+                    WHEN cs.status = 'pending' THEN 'pending'
+                    WHEN cs.status = 'active'
+                     AND SUM(CASE WHEN i.status = 'active' AND (i.expires_at IS NULL OR i.expires_at > UTC_TIMESTAMP()) THEN 1 ELSE 0 END) > 0 THEN 'active'
+                    WHEN cs.status = 'active' THEN 'pending'
+                    ELSE cs.status
+                  END AS operational_status
+             FROM connected_systems cs
+             LEFT JOIN installations i
+               ON i.system_id = cs.system_id
+              AND i.tenant_id = cs.tenant_id
+            WHERE ${systemTenantWhere}
+              AND cs.status <> 'archived'
+            GROUP BY cs.system_id, cs.status
+         ) operational_systems
+        GROUP BY operational_status`,
+      tenantParams
+    ),
     safeRows(
       `SELECT task_status AS group_value, COUNT(*) AS count
          FROM v_activation_pending_tasks
