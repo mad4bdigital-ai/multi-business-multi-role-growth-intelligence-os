@@ -51,6 +51,8 @@ function parseJson(value, fallback = null) {
   try { return JSON.parse(String(value)); } catch { return fallback; }
 }
 function safeNumber(value) { const parsed = Number(value); return Number.isFinite(parsed) ? parsed : 0; }
+function optionalNumber(value) { if (value === null || value === undefined || value === "") return null; const parsed = Number(value); return Number.isFinite(parsed) ? parsed : null; }
+function badgeAvailable(badge = {}, keys = []) { if (badge.available === false) return false; if (badge.available === true) return true; return keys.some((key) => optionalNumber(badge[key]) !== null); }
 function safeText(value, max = 500) { const text = String(value || "").trim(); return text ? text.slice(0, max) : null; }
 function normalizeKey(value, fallback = null) {
   const normalized = String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
