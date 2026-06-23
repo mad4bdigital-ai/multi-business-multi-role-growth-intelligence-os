@@ -2,7 +2,7 @@
 
 **Feature branch:** `gpt/002-tenant-gpt-pipeline-continuity-20260623`  
 **Prepared:** 2026-06-23  
-**Status:** Verification in progress
+**Status:** Merge ready
 
 This kit closes false-readiness gaps in the Tenant GPT dashboard and activation-awareness pipeline without changing provider adapters or performing external writes.
 
