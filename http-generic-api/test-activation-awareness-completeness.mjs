@@ -199,8 +199,22 @@ function testCompletenessAndAwareness() {
 
   const index = buildAwarenessIndex({ completeness, operationalSummary: { ok: true } });
   assert.equal(index.coverage, 100);
+  assert.equal(index.authorization_visibility, 100);
   assert.equal(index.detail_availability, 100);
   assert.ok(index.score >= 95);
+
+  const blockedCompleteness = buildCompletenessEnvelope({
+    tabManifest: { summary: { registered_tabs: 14, degraded_surface_count: 0 } },
+    operationalSummary: { summary: { blocked_surface_count: 3, degraded_surface_count: 0 }, freshness_status: "fresh", ok: true },
+    dashboardManifest: { summary: { registered_tiles: 7, degraded_surface_count: 0 } },
+    fullyHydratedSurfaces: 1,
+  });
+  assert.equal(blockedCompleteness.blocked_surfaces, 3);
+  assert.equal(blockedCompleteness.coverage_status, "complete_awareness_with_blocked_surfaces");
+  const blockedIndex = buildAwarenessIndex({ completeness: blockedCompleteness, operationalSummary: { ok: true } });
+  assert.equal(blockedIndex.coverage, 100);
+  assert.ok(blockedIndex.authorization_visibility < 100);
+  assert.ok(blockedIndex.score < index.score);
 }
 
 function testIdempotencyAndInputNormalization() {
