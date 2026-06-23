@@ -459,6 +459,7 @@ export const testCommands = [
   "node test-platform-tool-dispatch-binding-integrity.mjs",
   "node test-github-rest-endpoint-dispatch-foundation.mjs",
   "node test-github-create-reference-201-contract-reconciliation.mjs",
+  "node test-github-issue-label-response-schema-alignment.mjs",
   "node test-runtime-profile-contract.mjs",
   "node test-cms-account-claim-resolver.mjs",
   "node test-cms-site-access-grants-foundation.mjs",
