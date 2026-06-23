@@ -16,6 +16,17 @@ function safeNumber(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function optionalNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function sumCountGroups(result, counts = {}) {
+  if (result?.ok !== true) return null;
+  return Object.values(counts).reduce((sum, value) => sum + safeNumber(value), 0);
+}
+
 function parseJson(value, fallback = null) {
   if (value === null || value === undefined || value === "") return fallback;
   if (typeof value === "object") return value;
