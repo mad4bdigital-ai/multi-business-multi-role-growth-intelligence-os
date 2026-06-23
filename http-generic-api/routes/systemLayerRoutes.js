@@ -450,6 +450,13 @@ const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
     readiness_tool: "tenant_effective_capability_readiness_smoke",
     readiness_args: {},
   },
+  {
+    source_key: "growth_audit_evidence_v1",
+    tools: GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS,
+    handlers: GrowthAuditEvidenceRuntime,
+    readiness_tool: "growth_audit_evidence_readiness_smoke",
+    readiness_args: {},
+  },
 ];
 
 function snakeToolNameToCamelHandlerName(name = "") {
