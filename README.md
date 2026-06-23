@@ -1,4 +1,4 @@
-﻿# Multi-Business Multi-Role Growth Intelligence OS
+# Multi-Business Multi-Role Growth Intelligence OS
 
 **A multi-tenant, Human-Managed, governed-registry-driven execution system — designed for multi-agent workflows within a business intelligence context, collaborative by design, and fully realizing the vision of a Growth AI Intelligence-Human Managed Platform.**
 
@@ -492,3 +492,23 @@ For ongoing operations:
 
 This repository should be approached as a governed operating model with executable runtime modules, not as a conventional app-first project.
 Agent behavior governance, internal-first research routing, opaque handoffs, prompt quarantine, and skill runtime coverage are documented in [docs/agent-governance-runtime-architecture.md](docs/agent-governance-runtime-architecture.md).
+
+
+### Spec Kit and resource API coverage
+
+- `.specify/` contains the repository constitution and reusable feature/spec/plan/task/checklist templates.
+- `specs/` contains approved feature specifications and contracts.
+- `http-generic-api/resource-api-coverage.manifest.json` is the logical resource and operation coverage authority.
+- `http-generic-api/scripts/resource-api-coverage-audit.mjs --ci --changed` blocks new uncovered tables, views, routes, or tool exports.
+- `GET /admin/resource-coverage/audit` performs bounded live discovery of legacy coverage debt.
+#### Resource API layer boundaries
+
+Resource API code follows an enforced transport/application/domain/infrastructure split:
+
+- `routes/resourceApiRoutes.js`: route registration and JWT transport boundary only.
+- `src/api/resourceApi/`: HTTP mapping and structured error responses.
+- `src/application/resourceApi/`: membership, authorization, lifecycle, audit, and same-cycle readback orchestration.
+- `src/domain/resourceApi/`: resource descriptors, capabilities, pagination, and invariants.
+- `src/infrastructure/resourceApi/`: SQL repositories and dependency composition.
+
+`node test-resource-api-architecture.mjs` is a blocking CI test that rejects SQL or database imports above the infrastructure layer. See `docs/folder-map.md` and `docs/adr-2026-06-22-resource-api-layer-boundaries.md`.
