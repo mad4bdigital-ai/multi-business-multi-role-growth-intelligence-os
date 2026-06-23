@@ -218,6 +218,33 @@ function testCompletenessAndAwareness() {
   assert.ok(blockedIndex.score < index.score);
 }
 
+function testOperationalCountIntegrityAndBlockedSurfaceDetails() {
+  const blocked = deriveOperationalBlockedSurfaces({
+    results: {
+      systems: { ok: true },
+      tasks: { ok: true },
+      agents: { ok: true },
+      skills: { ok: true },
+      freshness: { ok: true },
+      signals: { ok: true },
+    },
+    counts: {
+      systems: { active: 3, pending: 28, error: 0 },
+      tasks: { blocked: 3, open: 17 },
+      agents: { active: 252, degraded: 0, offline: 0 },
+      skills: { active: 79, requires_approval: 10 },
+      freshness: {},
+      signals: {},
+    },
+  });
+  assert.deepEqual(blocked.map((item) => item.surface_key), ["connectors", "tasks", "skills"]);
+  assert.deepEqual(blocked[0].reasons, ["pending_installations"]);
+  assert.deepEqual(blocked[0].metrics, { active: 3, pending: 28, error: 0 });
+  assert.deepEqual(blocked[1].reasons, ["blocked_tasks"]);
+  assert.deepEqual(blocked[2].reasons, ["approval_required"]);
+  assert.equal(blocked.every((item) => item.secrets_included === false), true);
+}
+
 function testIdempotencyAndInputNormalization() {
   assert.equal(normalizeActivationSessionPolicy("reuse_only"), "reuse_only");
   assert.equal(normalizeActivationSessionPolicy("invalid"), "reuse_or_create");
