@@ -11,6 +11,17 @@
   "database_migration_included": false,
   "runtime_files_included": false,
   "current_branch_repair_preferred": true,
+  "branch_reconciled": true,
+  "reconciled_main_sha": "629b2edbb78a36e30bbdc06c646e049cd74da824",
+  "reconciled_branch_head_sha": "11c7b50e667078c9bccb23155b9f6899be4461cd",
+  "branch_state_after_reconciliation": "ahead_only",
+  "ci_gate_status": "pass",
+  "required_checks_passed": [
+    "Syntax Check",
+    "Architecture Drift Detection",
+    "Execution Resolver Gate",
+    "Unit & Integration Tests"
+  ],
   "automatic_tenant_asset_copies": false,
   "scope_layers": [
     "platform_mandatory",
