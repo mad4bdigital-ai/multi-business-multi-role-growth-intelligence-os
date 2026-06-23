@@ -25,6 +25,8 @@ servers:
     description: Governed HTTP backend
 
 tags:
+  - name: resource-api
+    description: Governed logical resources, safe projections, lifecycle operations, changes, revisions, permissions, and readback.
   - name: health
     description: Backend health and queue status.
   - name: dev-diagnostics
@@ -3408,6 +3410,979 @@ x-tenant-gpt-auth:
         - https://auth.mad4b.com/scopes/tenant.system-tools
 
 paths:
+  # BEGIN RESOURCE API COVERAGE
+  /admin/resource-types:
+    get:
+      operationId: getAdminResourceTypes
+      summary: "GET /admin/resource-types"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/resource-types/{resourceKey}:
+    get:
+      operationId: getAdminResourceTypesResourceKey
+      summary: "GET /admin/resource-types/{resourceKey}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/resources/{resourceKey}:
+    get:
+      operationId: getAdminResourcesResourceKey
+      summary: "GET /admin/resources/{resourceKey}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+    post:
+      operationId: postAdminResourcesResourceKey
+      summary: "POST /admin/resources/{resourceKey}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Successful resource operation }
+        '201': { description: Resource created }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/resources/{resourceKey}/{resourceId}:
+    get:
+      operationId: getAdminResourcesResourceKeyResourceId
+      summary: "GET /admin/resources/{resourceKey}/{resourceId}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+    patch:
+      operationId: patchAdminResourcesResourceKeyResourceId
+      summary: "PATCH /admin/resources/{resourceKey}/{resourceId}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+    delete:
+      operationId: deleteAdminResourcesResourceKeyResourceId
+      summary: "DELETE /admin/resources/{resourceKey}/{resourceId}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/resources/{resourceKey}/{resourceId}/restore:
+    post:
+      operationId: postAdminResourcesResourceKeyResourceIdRestore
+      summary: "POST /admin/resources/{resourceKey}/{resourceId}/restore"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/resources/{resourceKey}/{resourceId}/purge:
+    post:
+      operationId: postAdminResourcesResourceKeyResourceIdPurge
+      summary: "POST /admin/resources/{resourceKey}/{resourceId}/purge"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/resources/{resourceKey}/{resourceId}/permissions:
+    get:
+      operationId: getAdminResourcesResourceKeyResourceIdPermissions
+      summary: "GET /admin/resources/{resourceKey}/{resourceId}/permissions"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/resources/{resourceKey}/{resourceId}/revisions:
+    get:
+      operationId: getAdminResourcesResourceKeyResourceIdRevisions
+      summary: "GET /admin/resources/{resourceKey}/{resourceId}/revisions"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/resources/{resourceKey}/{resourceId}/changes:
+    get:
+      operationId: getAdminResourcesResourceKeyResourceIdChanges
+      summary: "GET /admin/resources/{resourceKey}/{resourceId}/changes"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/resource-changes:
+    get:
+      operationId: getAdminResourceChanges
+      summary: "GET /admin/resource-changes"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/resource-coverage/audit:
+    get:
+      operationId: getAdminResourceCoverageAudit
+      summary: "GET /admin/resource-coverage/audit"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/operations/{operationId}:
+    get:
+      operationId: getAdminOperationsOperationId
+      summary: "GET /admin/operations/{operationId}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: operationId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resources:
+    get:
+      operationId: getMeWorkspacesTenantIdResources
+      summary: "GET /me/workspaces/{tenant_id}/resources"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resources/{resourceKey}:
+    get:
+      operationId: getMeWorkspacesTenantIdResourcesResourceKey
+      summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+    post:
+      operationId: postMeWorkspacesTenantIdResourcesResourceKey
+      summary: "POST /me/workspaces/{tenant_id}/resources/{resourceKey}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Successful resource operation }
+        '201': { description: Resource created }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}:
+    get:
+      operationId: getMeWorkspacesTenantIdResourcesResourceKeyResourceId
+      summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+    patch:
+      operationId: patchMeWorkspacesTenantIdResourcesResourceKeyResourceId
+      summary: "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+    delete:
+      operationId: deleteMeWorkspacesTenantIdResourcesResourceKeyResourceId
+      summary: "DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore:
+    post:
+      operationId: postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore
+      summary: "POST /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/permissions:
+    get:
+      operationId: getMeWorkspacesTenantIdResourcesResourceKeyResourceIdPermissions
+      summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/permissions"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/revisions:
+    get:
+      operationId: getMeWorkspacesTenantIdResourcesResourceKeyResourceIdRevisions
+      summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/revisions"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/changes:
+    get:
+      operationId: getMeWorkspacesTenantIdResourcesResourceKeyResourceIdChanges
+      summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/changes"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resource-changes:
+    get:
+      operationId: getMeWorkspacesTenantIdResourceChanges
+      summary: "GET /me/workspaces/{tenant_id}/resource-changes"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/operations/{operationId}:
+    get:
+      operationId: getMeWorkspacesTenantIdOperationsOperationId
+      summary: "GET /me/workspaces/{tenant_id}/operations/{operationId}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: operationId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /gpt/sessions:
+    get:
+      operationId: getGptSessions
+      summary: "GET /gpt/sessions"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /gpt/sessions/{id}:
+    get:
+      operationId: getGptSessionsId
+      summary: "GET /gpt/sessions/{id}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /gpt/sessions/{id}/turns:
+    get:
+      operationId: getGptSessionsIdTurns
+      summary: "GET /gpt/sessions/{id}/turns"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /gpt/sessions/{id}/summary:
+    get:
+      operationId: getGptSessionsIdSummary
+      summary: "GET /gpt/sessions/{id}/summary"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /gpt/sessions/{id}/events:
+    get:
+      operationId: getGptSessionsIdEvents
+      summary: "GET /gpt/sessions/{id}/events"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /gpt/sessions/{id}/transcript:
+    get:
+      operationId: getGptSessionsIdTranscript
+      summary: "GET /gpt/sessions/{id}/transcript"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /gpt/sessions/{id}/summary/generate:
+    post:
+      operationId: postGptSessionsIdSummaryGenerate
+      summary: "POST /gpt/sessions/{id}/summary/generate"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  # END RESOURCE API COVERAGE
   /container-context-resolutions:
     $ref: './openapi/container-authority.yaml#/containerContextResolutions'
   /container-context-resolutions/{resolutionId}:
