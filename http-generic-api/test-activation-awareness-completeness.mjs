@@ -243,6 +243,14 @@ function testOperationalCountIntegrityAndBlockedSurfaceDetails() {
   assert.deepEqual(blocked[1].reasons, ["blocked_tasks"]);
   assert.deepEqual(blocked[2].reasons, ["approval_required"]);
   assert.equal(blocked.every((item) => item.secrets_included === false), true);
+
+  const unavailable = deriveOperationalBlockedSurfaces({
+    results: { systems: { ok: false } },
+    counts: { systems: {} },
+  });
+  assert.equal(unavailable[0].surface_key, "connectors");
+  assert.deepEqual(unavailable[0].reasons, ["source_unavailable"]);
+  assert.deepEqual(unavailable[0].metrics, { active: null, pending: null, error: null });
 }
 
 function testIdempotencyAndInputNormalization() {
