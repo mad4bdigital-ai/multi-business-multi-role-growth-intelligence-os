@@ -129,6 +129,12 @@ Shared canonical assets
         ↓
 Shared catalog projection
         ↓
+Business-Type Layer Blueprints
+        ↓
+Brand Business-Type bindings + inheritance profile
+        ↓
+Brand-scoped layer instances + canonical resource references
+        ↓
 Dynamic Container context + existing authority bridges
         ↓
 Composition profile selection
