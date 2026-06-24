@@ -257,27 +257,40 @@ The following are not tenant-configurable:
 
 ### Tenant owner may configure
 
-- Department and Group hierarchy within platform bounds;
-- required primary Department;
-- multi-Department membership;
-- tenant-global and cross-Department group policy;
-- direct grant policy;
-- delegation policy within platform bounds;
-- recertification cadence;
-- tenant defaults for approval and organizational behavior.
+- which Business Types and Blueprint families may be inherited by Brands;
+- tenant-wide hard bounds below Platform maxima;
+- cross-Brand participation policy;
+- delegation and redelegation policy within Platform bounds;
+- tenant-wide recertification, break-glass, approval, and separation-of-duties defaults;
+- who may publish Brand inheritance profiles.
+
+### Brand administrator may configure
+
+Within Platform and Tenant bounds:
+
+- active primary and secondary Business-Type bindings;
+- selected required/recommended/optional Blueprints;
+- Brand Department and Group hierarchy;
+- required primary Department for Brand members;
+- multi-Department membership within the Brand;
+- Brand-global and cross-Department group policy;
+- direct grant and role-publication policy;
+- Brand-local recertification, approver, queue, cost-center, and reporting defaults;
+- Blueprint pin, upgrade, replacement, and bounded override behavior.
 
 ### Department administrator may configure
 
-Only keys explicitly delegated by the Tenant profile, such as:
+Only keys explicitly delegated by the Brand profile, such as:
 
 - child Department usage within remaining depth;
 - Group hierarchy within remaining depth;
 - Department-local membership/role publication workflow;
-- local recertification cadence stricter than Tenant defaults;
+- local recertification cadence stricter than Brand defaults;
 - local approver and queue defaults;
-- local cost center and reporting metadata.
+- local cost center and reporting metadata;
+- selection among Brand-approved inherited Agent, Role, Knowledge, Workflow, and Tool profiles.
 
-A Department administrator cannot enable a capability disabled by Tenant or Platform settings.
+A Department administrator cannot enable a capability disabled by Brand, Tenant, or Platform settings.
 
 ### Workspace administrator
 
