@@ -113,6 +113,7 @@
     "observability-slos.md",
     "migration-cutover-map.md",
     "additional-dimensions-gap-analysis.md",
+    "expanded-platform-plane-architecture.md",
     "data-model.md",
     "resolution-algorithm.md",
     "permissions-matrix.md",
