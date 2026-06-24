@@ -3,7 +3,7 @@
   "feature_branch": "gpt/004-tenant-asset-federation-20260623",
   "pull_request": 1898,
   "prepared": "2026-06-23",
-  "status": "deep_design_ready_for_review",
+  "status": "extended_design_ready_for_review",
   "model": "shared_by_default_optional_variants_contextual_policy_composition",
   "implementation_authorized": false,
   "production_mutation_authorized": false,
