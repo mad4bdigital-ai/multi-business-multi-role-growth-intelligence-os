@@ -2,7 +2,9 @@
 
 ## Status
 
-**Proposed for product approval.**
+**Approved by product owner.**
+
+This decision is part of the Design Freeze record. Implementation remains unauthorized until the linked schemas, APIs, migrations, tests, and rollout gates are separately approved.
 
 This decision defines how an invited person signs in with Google, joins an existing Tenant, receives exact Brand/Workspace/Department/Group/Role access, and optionally creates a separate personal workspace.
 
