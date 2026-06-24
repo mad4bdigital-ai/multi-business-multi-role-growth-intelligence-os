@@ -87,6 +87,47 @@ Exit: design freeze with no unresolved authority duplication.
 
 Exit: tenants can discover shared assets without copies, with explicit readiness states.
 
+## Phase 1A — Layer type and Blueprint registries
+
+- Add the typed layer and relationship registries.
+- Register specialized canonical source mappings for Departments, Groups, Roles, member profiles, Agent profiles, Activities, Knowledge, Skills, Workflows, Policies, Apps, Plugins, Actions, Tools, Engines, Logic, Graph fragments, dashboards, metrics, validators, prompts, and output templates.
+- Add Blueprint, Blueprint relationship, closure, and shared-resource binding authorities.
+- Seed one controlled Business-Type Blueprint package for the pilot activity.
+- Validate cycle, type/cardinality, compatibility, provenance, version, and no-secret constraints.
+- Expose Admin read-only list/get/search/graph/provenance diagnostics.
+
+Exit: one Business Type can describe a complete reusable organizational/capability tree without creating live Brand entities or copying shared assets.
+
+## Phase 1B — Brand Business-Type bindings and inheritance preview
+
+- Add primary/secondary/specialization Business-Type bindings.
+- Add inheritance profiles and per-layer rules.
+- Implement pure preview: eligibility, selection, equivalence, conflicts, dependencies, instance plan, resource references, and disposition impact.
+- Add Brand-scoped API/UI preview and explanation.
+- Perform no instance mutation, membership creation, provider call, or grant activation.
+
+Exit: a pilot Brand can preview its complete inherited operating model deterministically.
+
+## Phase 1C — Brand layer instances and organization
+
+- Add generic Brand layer-instance, relationship, closure, resource-binding, and override-patch projections.
+- Add specialized Brand Department, Group, membership, Role/member-profile, and Agent-profile authorities.
+- Apply inheritance transactionally with idempotency, optimistic versioning, epoch invalidation, audit, and same-cycle readback.
+- Keep shared assets as canonical references.
+- Populate Dynamic Container subjects from the resulting Brand organization and layer graph.
+
+Exit: the pilot Brand has Brand-scoped Departments/Groups/profiles and inherited resource references with full provenance and no duplicate shared definitions.
+
+## Phase 1D — Upgrade, conflict, and removal lifecycle
+
+- Add Blueprint upgrade preview/apply, pin, replacement, supersession, conflict, and revocation states.
+- Implement bounded local patch rebase.
+- Require disposition plans before removing a Business-Type binding or inherited layer.
+- Invalidate affected manifests and authority/configuration epochs.
+- Add rollback and historical reconstruction.
+
+Exit: Blueprint evolution is safe, explainable, and reversible.
+
 ## Phase 2 — Populate Dynamic Container subjects
 
 - Project existing tenants, workspaces, brands, business activities, and workflows into `containers` using deterministic canonical subject references.
