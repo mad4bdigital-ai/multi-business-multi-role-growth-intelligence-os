@@ -77,6 +77,24 @@
 - [ ] Multi-Business-Type conflict and equivalence abuse tests completed.
 - [ ] Upgrade/rebase/removal disposition security review completed.
 
+## Scoped invitation and identity security
+
+- [x] Google ID token issuer, audience, nonce/state, verified email, and provider subject are validated.
+- [x] Invitation email match is mandatory for first acceptance and account switching is offered on mismatch.
+- [x] Invitation tokens are random, single-use, expiring, revocable, hash-stored, redacted, and delivered through an approved channel.
+- [x] Invitation scope is immutable after delivery or requires a disclosed revision/new invitation.
+- [x] Inviter authority and delegation ceiling are revalidated at acceptance time.
+- [x] Acceptance is transactional, idempotent, and same-cycle read back.
+- [x] Scoped invitations do not create broad default workspace grants.
+- [x] Existing stronger authority is not silently downgraded.
+- [x] Identity linking cannot merge accounts solely because emails resemble or aliases normalize unexpectedly.
+- [x] Personal account/workspace is isolated and cannot expose or copy company resources implicitly.
+- [x] Active contexts are short-lived, version/epoch bound, revocable, and cannot combine unrelated Tenant data.
+- [x] Revoked membership invalidates active context without affecting unrelated contexts.
+- [ ] Account-link collision and recovery threat review completed.
+- [ ] Invitation delivery, replay, enumeration, phishing, and redirect threat review completed.
+- [ ] Context-switch confusion and stale-context threat review completed.
+
 ## Extended plane security
 
 - [x] Group nesting and delegation depth are bounded and cycle-safe.
