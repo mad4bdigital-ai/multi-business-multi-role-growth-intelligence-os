@@ -58,6 +58,21 @@
 - [ ] Data retention periods approved by policy owners.
 - [ ] Subject export/deletion tests implemented.
 
+## Invitation, membership, and personal-context isolation
+
+- [x] An invitation targets exactly one Tenant and cannot create or modify another Tenant.
+- [x] Exact Brand/Workspace/Department/Group/Role/resource scopes are tenant- and object-bound.
+- [x] Accepting one invitation cannot change memberships or grants in unrelated Tenants.
+- [x] A personal-account Tenant and personal Workspace are separate from company Tenants and hidden from their administrators.
+- [x] Company resources, artifacts, knowledge, connections, and credentials cannot be copied into personal space without explicit authorized policy.
+- [x] Active context contains one Tenant boundary and cannot aggregate unrelated Tenant data implicitly.
+- [x] Context switching revalidates current membership, grants, Brand/Workspace scope, and authority epoch.
+- [x] Revocation invalidates only affected Tenant contexts and preserves unrelated personal/company contexts.
+- [x] Public invitation preview reveals only safe labels and no private member, asset, credential, or data details.
+- [x] Identity-provider linkage does not grant Tenant membership or resource access by itself.
+- [ ] Cross-Tenant invitation token substitution tests implemented.
+- [ ] Personal/company data crossover and context-confusion tests implemented.
+
 ## Blueprint inheritance and Brand isolation
 
 - [x] Business-Type Blueprints are reusable templates and contain no Brand credentials, memberships, or private content by default.
