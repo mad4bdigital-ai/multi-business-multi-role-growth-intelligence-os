@@ -17,7 +17,7 @@
 - [x] **T006** Disable tenant access to raw admin credential-intake tools. `[FR-029, FR-030]`
 - [x] **T007** Verify kill switches for local shell, file write/delete, Cloudflare mutation, n8n mutation, and raw intake creation.
 - [x] **T008** Add temporary high-severity alerts for tenant-to-admin requests and selector parity mismatches.
-- [x] **T009** Record containment validation evidence and named owners.
+- [x] **T009** Record containment validation evidence, the unified 34-wave tenant reverification report, named owners, and auditable Phase-0 checklists.
 
 ## Phase 1 — Repository and registry discovery
 
