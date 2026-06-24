@@ -15,7 +15,8 @@
 ## Outputs
 
 - effective authority decision;
-- shared asset candidate set;
+- resolved Business Types, inheritance profile, selected Blueprints, Brand layer-instance graph, conflicts, exclusions, and provenance;
+- inherited and local canonical shared-asset candidate set;
 - typed effective policy;
 - selected optional variants;
 - user preference ranking;
