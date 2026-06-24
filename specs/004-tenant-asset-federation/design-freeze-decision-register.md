@@ -48,11 +48,27 @@ Recommended defaults include Department depth 3, Group depth 5, cross-Brand Grou
 
 ### DFR-002 — Tenant federation and lifecycle
 
-**Question:** How do owns/manages/partners-with/white-label relationships affect administration, billing, support, and shared services without implicit access?
+**Approved decision:** Explicit Non-Transitive Tenant Federation Graph.
 
-**Required outcome:** relationship policy, ownership transfer, suspension, offboarding, export, legal hold, erasure, orphan-resource disposition, and final evidence.
+Each Tenant remains an independent data, authority, billing-accountability, and audit boundary. Ownership, management, billing, support, white-label, shared-service, and partnership relationships are represented as separate typed contracts. A relationship grants no access by itself and never becomes transitive authority.
 
-**Status:** open.
+Required defaults:
+
+- direct contract required for every delegated capability;
+- ownership, management, billing, support, white-label, and shared-service scopes remain separate;
+- relationship authority is non-transitive;
+- multiple managers are allowed through non-overlapping or explicitly conflict-resolved contracts;
+- one active legal owner and one primary billing owner are identified;
+- support access is short-lived, approved, visible, and audited;
+- credentials are never inherited or transferred as values;
+- ownership transfer requires current/new-owner acceptance and high-risk approval;
+- Tenant offboarding is staged through freeze, export, connection/grant shutdown, settlement, legal-hold evaluation, archive/erasure, and completion evidence;
+- legal hold is an independent overlay rather than a Tenant status;
+- missing or ambiguous federation evidence fails closed.
+
+Configuration may enable allowed relationship families, TTLs, recertification, support limits, and shared-service classes within immutable Platform isolation and non-transitivity bounds.
+
+**Status:** approved_design; implementation_not_authorized.
 
 ### DFR-003 — Data governance
 
