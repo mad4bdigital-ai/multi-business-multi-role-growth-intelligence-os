@@ -1128,3 +1128,20 @@ Migration `1018_sprint69_governed_response_chunk_schema_reconciliation.sql` alig
 `github_branch_cleanup_sweep` replaces repeated branch-by-branch cleanup with one bounded admin-only plan/apply surface. Dry-run is the default. It scans at most three pages and 300 branches, blocks protected/default branches, open pull requests, unique commits, non-governed prefixes, invalid metadata, and branches younger than the configured threshold, then returns a base SHA, evidence fingerprint, and typed confirmation.
 
 Apply must replay the same planning inputs, match `expected_base_sha` and `expected_evidence_fingerprint`, pass a ready GitHub capability envelope, and use the exact typed confirmation returned by dry-run. Every planned candidate is delegated to the existing guarded single-branch deletion contract, including expected-head validation, open-PR guard, zero-unique-commit proof, pre-delete SHA readback, and same-cycle missing-ref readback. The sweep is capped at 25 deletions, stops on the first failure, never force-deletes, and never automatically retries an unknown provider outcome.
+
+
+## Resource API Coverage and Feature Admission
+
+New user-visible tables, views, routes, tool exports, and workflow surfaces must map to a logical resource descriptor before merge. The descriptor owns source tables/read models, safe fields, search and pagination behavior, Admin/Tenant scope, permissions, lifecycle operations, changes, revisions, and mutation readback.
+
+The blocking policy is `platform_resource_api_coverage_policy_v1`. Run `node http-generic-api/scripts/resource-api-coverage-audit.mjs --ci --changed` for changed-surface admission and use `GET /admin/resource-coverage/audit` for live SQL/tool/read-model debt discovery. Tenant identity is resolved from signed JWT and active membership; resource endpoints never accept client-controlled SQL tables, columns, projections, or ordering. DELETE maps to archive/revoke/disable behavior and hard purge remains blocked unless a separate retention and capability policy is approved.
+### Resource API architectural boundaries
+
+Resource API execution is layered and fail-closed. `routes/resourceApiRoutes.js` owns only path registration and transport authentication. HTTP request/response mapping belongs to `src/api/resourceApi/resourceApiController.js`; membership, authorization, lifecycle, audit, summary generation, and same-cycle readback belong to `src/application/resourceApi/resourceApiService.js`; descriptors and capability policy belong to `src/domain/resourceApi/resourceCatalog.js`; SQL and external service wiring belong to `src/infrastructure/resourceApi/`.
+
+Controllers must not call repositories directly for resource workflows. Application and domain code must not import Express, JWT parsing, or database drivers. SQL must remain code-owned in the infrastructure repository. `test-resource-api-architecture.mjs` and `test-resource-api-service.mjs` are blocking tests for these boundaries and behaviors.
+## Spec Kit completion governance
+
+Every new or modified feature under `specs/` is governed by `.specify/spec-kit-governance.json` and the changed-scope fail-closed gate `http-generic-api/scripts/spec-kit-completion-gate.mjs`. A governed feature must contain `spec.md`, `plan.md`, `tasks.md`, `completion.json`, and at least one checklist under `checklists/`.
+
+Use `single_pr` only when the feature has no migration, production-verification, or post-merge-audit obligation. Otherwise use `multi_pr`: implementation PRs deliver the behavior and a final closeout PR records CI, release readiness, merge, migration ledger, production parity, audit, and any tracked backlog. A feature marked complete cannot contain unresolved checkboxes.
