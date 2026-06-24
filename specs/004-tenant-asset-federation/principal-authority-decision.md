@@ -115,13 +115,16 @@ The resolver calculates:
 ```text
 Direct principal identity
 + Tenant membership
-+ Direct Department membership
-+ Department ancestry
-+ Group membership paths
-+ Group role assignments
++ Brand membership and authority
++ Active Brand-to-Business-Type bindings
++ Inheritance profile and Blueprint provenance
++ Direct Brand Department membership
++ Department ancestry inside the Brand
++ Group membership paths inside the Brand
++ Inherited/local Role and member/Agent profile assignments
 + Direct scoped grants
 + Delegation paths
-− Revoked, expired, suspended, conflicting, or forbidden paths
+− Revoked, expired, suspended, conflicting, stale, or forbidden paths
 = Resolved Principal Authority
 ```
 
