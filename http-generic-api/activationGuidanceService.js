@@ -4,6 +4,8 @@ import {
   loadGuidanceInvocationRegistry,
   resolveGuidanceLanguagePreference,
 } from "./activationGuidancePresentation.js";
+import { buildTenantActivationSnapshot } from "./tenantActivationSnapshot.js";
+import { evaluateActivationGuidanceContract } from "./platformDegradationPolicy.js";
 
 const SENSITIVE_KEY_PATTERN = /(secret|credential|token|password|private_key|cipher|api_key|authorization|cookie|set-cookie|installer|raw_token)/i;
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
