@@ -196,6 +196,86 @@ Cross-tenant promotion requires aggregation, privacy protection, admin review, c
 - framework-independent domain algebra under `src/domain`;
 - no provider call before effective authority and credential eligibility are resolved.
 
-## 11. Non-goals
+## 11. Extended platform planes
+
+The Context Compiler must consume evidence from independent planes rather than embedding every concern in one resolver:
+
+1. Identity and Organization;
+2. Tenant Federation and Lifecycle;
+3. Context and Resource Authority;
+4. Policy Composition;
+5. Preference and Variant;
+6. Data Governance;
+7. Commercial and FinOps;
+8. Model Governance;
+9. Knowledge and Provenance;
+10. Runtime Orchestration;
+11. Connection and Provider Readiness;
+12. Human Approval and Operations;
+13. Resilience and Recovery;
+14. Adaptive Growth.
+
+Each plane has its own authority, lifecycle, audit, versioning, and rollback. The Effective Runtime Manifest references the contributing versions and decisions without becoming the write authority for those planes.
+
+## 12. Extended functional requirements
+
+- **FR-031:** Users, agents, services, and groups resolve through an authoritative principal graph with bounded nested membership and delegation.
+- **FR-032:** Group membership, service identity ownership, break-glass use, and delegated authority are tenant-bound, expiring, auditable, and non-escalating.
+- **FR-033:** Parent, partner, managed-client, and white-label tenant relationships never imply resource or data access without an explicit relationship policy and delegated grant.
+- **FR-034:** Tenant suspension, ownership transfer, offboarding, export, legal hold, credential shutdown, and erasure are modeled as explicit lifecycle workflows.
+- **FR-035:** Data use is constrained by sensitivity, purpose, consent or lawful basis where applicable, retention, residency, jurisdiction, and legal hold.
+- **FR-036:** Personal preference and adaptation data can be inspected, exported, reset, or erased subject to the minimal immutable audit policy.
+- **FR-037:** Entitlement, quota, credit, and budget are resolved separately from authorization and readiness.
+- **FR-038:** Consequential cost-bearing execution follows estimate, reservation, execution, verification, settlement, and refund or adjustment.
+- **FR-039:** Cost and usage entries are idempotent and linked to the exact manifest, execution, tenant, and billable owner.
+- **FR-040:** Model selection is contextual and constrained by capability, task class, risk, data policy, region, tenant entitlement, quality evidence, cost, latency, and provider readiness.
+- **FR-041:** Model fallback cannot weaken data-handling, residency, safety, quality, tool, or structured-output requirements.
+- **FR-042:** Model, prompt, workflow, and tool versions require evaluation evidence and compatibility before promotion or contextual write use.
+- **FR-043:** Every long-running or externally effectful operation declares delivery, idempotency, retry, deadline, cancellation, partial-success, and compensation semantics.
+- **FR-044:** State changes that emit events use an outbox/inbox or equivalent deduplicated consistency contract.
+- **FR-045:** Concurrency, reservations, tenant fairness, priority, and backpressure prevent duplicate effects and noisy-neighbor starvation.
+- **FR-046:** Every artifact and knowledge object records schema version, checksum, source lineage, manifest reference, sensitivity, audience, ownership/license, freshness, verification, and retention.
+- **FR-047:** Corrections, retractions, source expiry, and erasure propagate to derived artifacts, indexes, and promotion candidates.
+- **FR-048:** Resolution supports an explicit `as_of` timestamp, scheduled future changes, historical replay, grace periods, and timezone normalization.
+- **FR-049:** Environment, region, and jurisdiction are first-class context dimensions for connections, credentials, approvals, variants, models, data processing, and execution.
+- **FR-050:** Preview, simulation, or non-production manifests cannot authorize production execution.
+- **FR-051:** Plugins and packages require publisher identity, immutable digest, requested capabilities, trust policy, certification, and revocation.
+- **FR-052:** Third-party or code-bearing packages require supply-chain evidence such as signature, dependency inventory, vulnerability review, license, and compatibility where applicable.
+- **FR-053:** Contracts, policy DSL, manifests, variants, clients, models, and tools declare version and compatibility behavior with deprecation windows.
+- **FR-054:** Tenants can export and import portable no-secret manifests for supported profiles, variants, grants, preferences, and artifacts with conflict validation.
+- **FR-055:** Backup, restore, disaster, and degraded-mode evidence cover every new authority and preserve tenant isolation and manifest reconstructability.
+- **FR-056:** Human approvals and managed operations include queue ownership, workload limits, fallback approvers, escalation, separation of duties, and rollback ownership.
+- **FR-057:** Intent resolves first to a capability ontology, then to compatible asset implementations ranked by authority, readiness, quality, risk, cost, locale, and preference.
+- **FR-058:** Quality evaluations cover asset family, activity, language, model, workflow, risk, grounding, policy, tool selection, and output contract.
+- **FR-059:** Recommendation and experiment governance detects exposure bias, popularity feedback loops, manipulated events, and cross-tenant domination.
+- **FR-060:** Cross-tenant learning uses approved aggregation, minimum cohorts, tenant privacy controls, and never exposes raw tenant content to another tenant.
+
+## 13. Extended non-functional requirements
+
+- every authority plane exposes versioned, deterministic, no-secret evidence;
+- manifest creation remains bounded even when some planes are unavailable;
+- unavailable evidence is represented as unknown or blocked, never as permissive zero;
+- write dispatch revalidates temporal, environment, commercial, model, and authority versions;
+- cost, model, artifact, privacy, and operation events share stable request/manifest/execution correlation;
+- tenant export, retention, and disaster workflows are idempotent and read back;
+- compatibility and quality gates block unsafe promotion instead of relying on client convention;
+- zero-tolerance conditions include cross-tenant exposure, secret exposure, stale revoked dispatch, unapproved consequential effect, and unreconstructable critical execution.
+
+## 14. Design Freeze prerequisites
+
+Production contracts for the Context Compiler and Effective Runtime Manifest are not frozen until the following are approved:
+
+1. principal/group/service identity authority;
+2. tenant federation and offboarding lifecycle;
+3. data purpose, retention, residency, export, legal hold, and erasure;
+4. entitlement, reservation, settlement, and refund contract;
+5. contextual model selection and evaluation;
+6. universal async, idempotency, cancellation, and compensation;
+7. artifact and knowledge provenance;
+8. temporal, environment, region, and jurisdiction semantics;
+9. plugin/package supply-chain trust;
+10. initial quality suites and cutover thresholds.
+
+## 15. Non-goals
 
 This specification does not authorize automatic cross-tenant learning, silent policy mutation, automatic creation of one copy per tenant, copying credential values into variants, provider writes, bypassing approvals, or replacing current runtime enforcement before certified rollout.
