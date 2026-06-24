@@ -72,6 +72,7 @@ function push(findings, type, feature, details = {}) {
 export function validateFeatureDirectory(feature, options = {}) {
   const root = options.root || REPO_ROOT;
   const policy = options.policy || readJson(POLICY_PATH);
+  const headRef = options.headRef || process.env.GITHUB_HEAD_REF || "";
   const featureRoot = path.join(root, policy.spec_root, feature);
   const findings = [];
 
@@ -147,8 +148,8 @@ export function validateFeatureDirectory(feature, options = {}) {
       if ((!numberValid && !currentValid) || closeout.role !== "completion" || !["current_pr", "merged"].includes(closeout.status)) {
         push(findings, "invalid_closeout_pr_evidence", feature, { closeout });
       }
-      if (currentValid && process.env.GITHUB_HEAD_REF && closeout.branch !== process.env.GITHUB_HEAD_REF) {
-        push(findings, "closeout_branch_mismatch", feature, { expected: process.env.GITHUB_HEAD_REF, actual: closeout.branch });
+      if (currentValid && headRef && closeout.branch !== headRef) {
+        push(findings, "closeout_branch_mismatch", feature, { expected: headRef, actual: closeout.branch });
       }
     }
 

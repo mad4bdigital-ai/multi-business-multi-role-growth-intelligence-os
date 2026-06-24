@@ -180,6 +180,10 @@ async function findActiveSessionForCaller(pool, req, args = {}) {
       return { ...row, archive_binding: "latest_active_with_conversation_turn", turn_counts: counts };
     }
   }
+  if (rows?.[0]) {
+    const counts = await countConversationTurns(pool, rows[0].session_id);
+    return { ...rows[0], archive_binding: "latest_active_session_fallback", turn_counts: counts };
+  }
   return null;
 }
 
