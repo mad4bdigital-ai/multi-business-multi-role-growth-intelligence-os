@@ -58,6 +58,31 @@
 - [ ] Data retention periods approved by policy owners.
 - [ ] Subject export/deletion tests implemented.
 
+## Federation, lifecycle, and portability
+
+- [x] Parent/partner/managed-client/white-label relationships require explicit delegated scope.
+- [x] Group and service identities remain tenant-bound and cannot resolve cross-tenant members implicitly.
+- [x] Tenant ownership transfer and offboarding include connection, grant, variant, approval, schedule, artifact, and export disposition.
+- [x] Tenant and user exports are no-secret, checksummed, scope-authorized, and auditable.
+- [x] Imports validate tenant ownership, stable IDs, conflicts, schema compatibility, and prohibited references.
+- [x] Legal hold blocks deletion without granting new access.
+- [x] Erasure propagation covers preferences, adaptive evidence, derived artifacts, and indexes subject to minimal audit retention.
+
+## Data location and model use
+
+- [x] Residency and jurisdiction restrict storage, indexing, model, provider, and connector eligibility.
+- [x] Environment and region bindings are validated before credential materialization.
+- [x] Model routing cannot move tenant content to an ineligible provider or region through fallback.
+- [x] Simulation and evaluation corpora remain tenant-scoped unless an approved aggregate dataset is used.
+- [x] Cross-tenant aggregation uses minimum cohorts, privacy policy, weighting, and opt-out controls where applicable.
+
+## Artifact and recovery isolation
+
+- [x] Provenance exposes safe source IDs/evidence without another tenant's private content.
+- [x] Correction/retraction/erasure propagation never crosses tenant boundaries accidentally.
+- [x] Backup and restore preserve tenant ownership and validate no cross-tenant reference after recovery.
+- [x] Disaster/degraded modes cannot widen tenant or data access.
+
 ## Verification
 
 - [ ] Cross-tenant list/get/search/mutation tests pass for every new resource.
