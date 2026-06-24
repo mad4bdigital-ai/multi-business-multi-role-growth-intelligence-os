@@ -79,7 +79,7 @@ A Department may own:
 - parent department;
 - department head and backup head;
 - cost center and commercial attribution key;
-- default workspace, brand, business-activity, and region bindings;
+- default workspace, business-activity, region, and inherited layer bindings inside the owning Brand;
 - default composition profiles;
 - role and group publication authority;
 - approval routing and human-work queue;
