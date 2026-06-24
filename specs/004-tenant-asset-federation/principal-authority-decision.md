@@ -55,15 +55,18 @@ Agent identity       → agents
 New authorities provide missing organizational identities:
 
 ```text
-Departments          → principal_departments
-Department hierarchy → principal_department_relationships
-Department membership→ principal_department_memberships
-Groups               → principal_groups
-Group membership     → principal_group_memberships
-Services             → service_principals
-Delegations          → principal_delegations
-Safety conflicts     → separation_of_duties_rules
-Settings             → principal_authority_settings
+Business-Type Blueprints → platform_layer_blueprints
+Brand inheritance        → layer_inheritance_profiles
+Brand Departments        → brand_departments
+Department hierarchy     → brand_department_relationships
+Department membership    → brand_department_memberships
+Brand Groups             → brand_groups
+Group membership         → brand_group_memberships
+Services                 → service_principals
+Delegations              → principal_delegations
+Safety conflicts         → separation_of_duties_rules
+Settings                 → principal_authority_settings
+Layer provenance         → brand_layer_instances
 ```
 
 A unified Principal Resolver returns a `ResolvedPrincipal` without moving users or agents into a duplicate identity store.
