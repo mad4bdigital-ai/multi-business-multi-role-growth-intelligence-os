@@ -58,6 +58,25 @@
 - [x] Architecture layer boundaries are defined.
 - [x] Family-by-family rollout and rollback are defined.
 
+## Extended platform planes
+
+- [x] Organizational principal/group/service gaps are documented.
+- [x] Tenant federation, ownership transfer, offboarding, export, legal hold, and erasure are specified.
+- [x] Data classification, purpose, consent, retention, residency, and jurisdiction are included.
+- [x] Commercial entitlement, estimate, reservation, settlement, refund, and cost attribution are included.
+- [x] Contextual model routing, fallback constraints, evaluation, and drift are included.
+- [x] Universal operation identity, delivery, idempotency, cancellation, compensation, concurrency, and backpressure are included.
+- [x] Artifact/knowledge provenance, verification, correction, retraction, and disposition are included.
+- [x] Unified temporal, environment, region, and jurisdiction semantics are included.
+- [x] Plugin/package publisher, signing, dependency, vulnerability, license, update, and revocation requirements are included.
+- [x] Contract compatibility, client negotiation, portability, and tenant exit are included.
+- [x] Backup/restore, disaster mode, human workload/SLA, and capability ontology are included.
+- [x] Localization, accessibility, quality evaluation, fairness, and cross-tenant learning are included.
+- [ ] P0 source-of-truth ownership approved.
+- [ ] P0 manifest contribution schemas approved.
+- [ ] P0 fail-closed and degraded-mode behavior approved.
+- [ ] Initial evaluation suites and thresholds approved.
+
 ## Review status
 
 - [ ] Product terminology approved.
