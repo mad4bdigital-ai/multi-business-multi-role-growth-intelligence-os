@@ -302,7 +302,117 @@ Stores privacy-reviewed candidates for a new or improved shared asset. Promotion
 - `v_effective_runtime_readiness`
 - `v_adaptive_proposal_readiness`
 
-## 11. Indexing and integrity
+## 11. Extended authority-plane data model
+
+The following are proposed authorities or bridge contracts. They are not an instruction to create every table in one migration. Existing canonical tables are reused whenever they already own the behavior.
+
+### Identity and organization
+
+- `principal_registry` — user, agent, service, and group identity, tenant ownership, assurance, status, and recertification.
+- `principal_group_memberships` — bounded nested group membership with validity and cycle protection.
+- `principal_delegation_chains` — exact delegated scope, operations, source authority, expiry, and maximum depth.
+- `separation_of_duties_rules` — incompatible requester, approver, executor, and publisher combinations.
+
+### Tenant federation and lifecycle
+
+- extend/project `tenant_relationships` into contextual authority with relationship policy and delegated operations;
+- `tenant_lifecycle_runs` — suspension, ownership transfer, offboarding, export, legal hold, erasure, and completion evidence;
+- `tenant_ownership_transfers` — current/future owner, approvals, effective time, and rollback;
+- `tenant_orphan_resource_reviews` — variants, grants, connections, approvals, artifacts, and scheduled work requiring disposition.
+
+### Data governance
+
+- `data_classification_registry` — sensitivity, audience, allowed purpose, retention, and protection requirements;
+- `data_processing_purpose_registry` — purpose and allowed source/use/sink categories;
+- `principal_data_use_preferences` — consent/opt-out and transparency settings where applicable;
+- `data_residency_policy_registry` — allowed storage, processing, model, and provider regions;
+- `data_subject_request_runs` — access, correction, export, restriction, and erasure lifecycle;
+- `legal_holds` — exact data scope, reason, approver, validity, and deletion suppression;
+- `retention_execution_runs` — preview, approval, archive/delete action, checksum, and readback.
+
+### Commercial and FinOps
+
+Existing plans, subscriptions, entitlements, quotas, usage, credits, and `budget_quota_authority_registry` remain sources.
+
+- `runtime_cost_estimates` — units, currency, model/provider/action inputs, confidence, and expiry;
+- `runtime_cost_reservations` — idempotent reserved amount/units tied to manifest and operation;
+- `runtime_cost_settlements` — realized cost, provider evidence, refund/adjustment, and ledger refs;
+- `commercial_entitlement_bindings` — plan/tenant/asset/capability/operation availability;
+- `cost_attribution_ledger` — user/workspace/brand/activity/objective attribution.
+
+### Model governance
+
+Existing `ai_model_registry`, `ai_model_providers`, runtime settings, and model-run ledgers are reused.
+
+- `model_capability_profiles` — modality, language, context, tools, structured output, safety, latency, and data-handling capabilities;
+- `model_context_policies` — tenant/plan/activity/risk/region/provider/model eligibility and fallback constraints;
+- `model_evaluation_suites` — dataset, rubric, evaluator, metric, risk, locale, and minimum threshold;
+- `model_evaluation_runs` — exact model/prompt/tool/workflow versions, results, failures, and evidence;
+- `model_quality_scorecards` — bounded current quality, calibration, latency, reliability, cost, and freshness;
+- `model_deprecation_runs` — impacted assets, replacements, migration, deadlines, and rollback.
+
+### Runtime orchestration and consistency
+
+- `runtime_operations` — universal operation identity, exact manifest, state, deadline, cancellation, and idempotency;
+- `runtime_operation_outbox` — transactionally emitted no-secret events;
+- `runtime_operation_inbox` — consumer deduplication and processing result;
+- `runtime_dead_letters` — failed event/operation, attempts, classification, and recovery owner;
+- `runtime_saga_instances` and `runtime_saga_steps` — multi-step effects and compensations;
+- `runtime_resource_reservations` — cost, quota, lock, provider slot, and other bounded reservations;
+- `runtime_concurrency_policies` — tenant/resource/action limits, priority, fairness, and backpressure.
+
+### Artifact and knowledge provenance
+
+Existing `output_artifacts`, JSON assets, graph evidence, and runtime verification remain sources.
+
+- `artifact_versions` — immutable schema version, content checksum, manifest, source run, sensitivity, audience, license, freshness, and verification;
+- `artifact_provenance_edges` — derived-from, cites, transforms, supersedes, corrects, or retracts;
+- `artifact_verification_runs` — validators, results, confidence, and evidence;
+- `knowledge_index_versions` — source set, chunking/embedding model, retrieval policy, and invalidation state;
+- `artifact_data_disposition_runs` — retention, export, correction, retraction, and erasure propagation.
+
+### Temporal, environment, region, and jurisdiction
+
+- `context_time_schedules` — scheduled profile, policy, variant, grant, or connection changes;
+- `environment_registry` — local, development, staging, production, managed, and dedicated environments;
+- `environment_resource_bindings` — environment-scoped connection, credential, asset, model, and approval eligibility;
+- `region_jurisdiction_registry` — region, jurisdiction, residency, provider, and data constraints;
+- manifests include `as_of`, environment, region, jurisdiction, and clock/version evidence.
+
+### Supply chain and compatibility
+
+Existing plugin, package, version, trust, capability, and certification tables remain sources.
+
+- `publisher_identity_registry` — verified publisher and signing identities;
+- `package_supply_chain_manifests` — digest, signature, SBOM, dependency lock, license, requested capabilities, scan evidence;
+- `package_update_channels` — staged channels, cohorts, minimum runtime, rollback, and revocation;
+- `contract_schema_registry` — API, asset, policy DSL, manifest, prompt/tool, and event schemas;
+- `contract_compatibility_rules` — backward/forward/full/breaking policy and deprecation windows;
+- `client_capability_profiles` — supported contracts and negotiated behavior.
+
+### Portability and resilience
+
+- `tenant_export_runs` and `tenant_export_manifests` — no-secret portable snapshot, checksums, ownership, and scope;
+- `tenant_import_runs` — validation, ID mapping, conflicts, and result evidence;
+- `data_subject_export_runs` — user-scoped export and delivery evidence;
+- existing backup/restore authorities are extended to profiles, variants, manifests, proposals, experiments, and authority epochs;
+- `disaster_mode_runs` — affected region/provider, declared degraded policy, owner, RPO/RTO, and recovery evidence.
+
+### Human operations
+
+- `human_work_queues` — queue scope, owner, service class, and escalation policy;
+- `human_work_items` — exact request/approval/review/rollback task and manifest link;
+- `approver_availability` — availability, backup approver, timezone, capacity, and validity;
+- `managed_service_handoffs` — customer/operator state, SLA timers, and completion evidence.
+
+### Capability ontology and evaluation
+
+- populate/extend asset equivalence into `capability_ontology_registry` and `capability_implementation_bindings`;
+- `capability_compatibility_edges` — requires, conflicts, replaces, supersedes, and compatible-with;
+- `quality_evaluation_suites` and `quality_evaluation_runs` cover assets, models, workflows, prompts, languages, activities, and risks;
+- `recommendation_exposure_ledger` records ranking/exposure for bias and feedback-loop analysis.
+
+## 12. Indexing and integrity
 
 - every tenant-owned row begins with `tenant_id` in lookup indexes;
 - principal/context/profile selection indexes support exact scoped resolution;
