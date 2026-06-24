@@ -70,6 +70,32 @@ Configuration may enable allowed relationship families, TTLs, recertification, s
 
 **Status:** approved_design; implementation_not_authorized.
 
+### DFR-002A — Scoped member invitation and Google onboarding
+
+**Approved decision:** Identity-first, Scope-aware Invitation Onboarding.
+
+A Google invitation creates or links one global user identity, then joins that identity to the existing target Tenant with a minimal base membership and exact Brand, Workspace, Department, Group, Role/profile, and resource grants from an immutable invitation scope. Accepting an invitation never creates a new Tenant automatically.
+
+A separate personal-account Tenant and personal Workspace are optional, lazy, and explicitly created. The same user may own a personal workspace while participating in multiple company Tenants through an explicit active-context switcher.
+
+Required defaults:
+
+- verified Google email must match the invited email during first acceptance;
+- stable Google provider subject is linked after verification;
+- invitation token is single-use, expiring, revocable, hash-stored, and delivered through an approved outbox channel;
+- invitation scope is immutable after delivery or requires a disclosed revision/new invitation;
+- base Tenant membership is minimal, normally `member`;
+- broad default workspace grants are disabled for scoped invitations;
+- exact scope grants and organizational assignments are transactional, idempotent, and read back;
+- an inviter cannot delegate authority it does not hold;
+- human users are never auto-created as Tenants and personal workspaces are never auto-created by invitation acceptance;
+- multi-Tenant users select an active Tenant/Brand/Workspace context instead of being bound to the first membership;
+- accepting one invitation cannot alter other Tenant memberships or personal resources.
+
+**Decision evidence:** `member-invitation-onboarding-model.md`.
+
+**Status:** approved_design; implementation_not_authorized.
+
 ### DFR-003 — Data governance
 
 **Question:** How are classification, purpose, consent/lawful basis, retention, residency, jurisdiction, legal hold, export, correction, and erasure evaluated?
