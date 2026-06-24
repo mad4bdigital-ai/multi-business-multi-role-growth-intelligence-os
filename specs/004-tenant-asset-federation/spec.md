@@ -275,6 +275,21 @@ Each plane has its own authority, lifecycle, audit, versioning, and rollback. Th
 - **FR-083:** Existing users retain personal and other Tenant memberships; accepting an invitation cannot downgrade stronger target authority or alter unrelated contexts.
 - **FR-084:** A personal-account Tenant and personal Workspace are optional, explicitly created, isolated from company Tenants, and limited by Platform policy.
 - **FR-085:** Multi-membership users select an active Tenant, Brand, Workspace, Department, Group, and Role context through a revalidated context-switch contract rather than an implicit first membership.
+- **FR-086:** Every verified global user may explicitly request creation of a Tenant within configurable plan, verification, risk, and policy limits while retaining memberships in other Tenants.
+- **FR-087:** Google sign-in, invitation acceptance, and first membership never create a Tenant automatically.
+- **FR-088:** A Tenant is the canonical ownership, isolation, billing, governance, federation, data-policy, connection, audit, and lifecycle boundary.
+- **FR-089:** Every Workspace belongs to exactly one Tenant and is an operational collaboration/execution context rather than a mini-Tenant.
+- **FR-090:** Workspaces connect to Brands, Departments, Groups, Business Activities, Roles/profiles, Agents, and resources through explicit typed bindings and grants.
+- **FR-091:** Workspace access requires active Tenant membership plus all applicable organizational, Workspace, resource, environment, commercial, approval, and readiness checks.
+- **FR-092:** Personal-account Tenants and personal Workspaces are optional, explicit or lazy, and isolated from company Tenants.
+- **FR-093:** Multi-Brand Workspaces are disabled by default, remain inside one Tenant when enabled, and require explicit Brand bindings, grants, policy conflict resolution, and provenance.
+- **FR-094:** Cross-Tenant Workspaces are forbidden.
+- **FR-095:** Tenant ownership is represented by an explicit versioned owner-assignment authority and is not inferred from membership order.
+- **FR-096:** Tenant creation is a governed provisioning workflow with status, idempotency, plan/entitlement checks, region selection, risk/verification, owner assignment, audit, and same-cycle readback.
+- **FR-097:** Workspace deletion never deletes its Tenant or Brands and requires disposition of tasks, schedules, Agents, grants, artifacts, bindings, and active operations.
+- **FR-098:** Tenant offboarding includes every owned Workspace and its dependent operational resources.
+- **FR-099:** Creating or owning a Tenant never grants authority in another Tenant or changes existing memberships.
+- **FR-100:** Commercial limits on owned Tenants and Workspaces are explained as entitlement restrictions and never presented as security or authorization failures.
 
 ## 13. Extended non-functional requirements
 
