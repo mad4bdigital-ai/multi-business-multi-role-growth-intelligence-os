@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "feature_key": "004-tenant-asset-federation",
+  "title": "Shared Asset Fabric and Contextual Platform Planes",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": false,
+    "production_verification": false,
+    "post_merge_audit": false
+  },
+  "delivery": {
+    "design_pr": {
+      "number": 1898,
+      "branch": "gpt/004-tenant-asset-federation-20260623",
+      "status": "current_pr"
+    },
+    "implementation_prs": [],
+    "closeout_pr": null
+  },
+  "evidence": {
+    "design_scope": {
+      "status": "extended_design_ready_for_review",
+      "implementation_authorized": false,
+      "runtime_files_included": false,
+      "database_migration_included": false,
+      "provider_writes_allowed": false,
+      "automatic_tenant_asset_copies": false
+    },
+    "branch_reconciliation": {
+      "status": "pass",
+      "base_sha": "c0db5228e77dae33de925f40e4f2d80aea863fe5",
+      "merge_sha": "559710431029e5d0a7fa74c7ebb4c915aeeadfe8",
+      "branch_state": "ahead_only",
+      "behind_by": 0
+    },
+    "ci": {
+      "status": "pending",
+      "head_sha": null,
+      "checks_passed": 0,
+      "checks_total": 4
+    }
+  },
+  "secrets_included": false
+}
