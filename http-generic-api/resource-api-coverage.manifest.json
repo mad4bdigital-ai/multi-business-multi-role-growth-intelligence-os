@@ -18,7 +18,9 @@
     "require_tests": true,
     "require_readback_for_mutations": true,
     "require_secret_field_allowlist": true,
-    "allow_expiring_exemptions": true
+    "allow_expiring_exemptions": true,
+    "require_surface_policy_decision": true,
+    "internal_surfaces_require_explicit_not_applicable": true
   },
   "resources": [
     {
