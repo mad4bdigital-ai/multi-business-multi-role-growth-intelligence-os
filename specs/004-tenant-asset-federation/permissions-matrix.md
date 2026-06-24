@@ -106,7 +106,38 @@ May select and administer only Brand-approved inherited layers delegated to the 
 
 May view inherited provenance and select eligible non-authority preferences. It cannot change Business-Type bindings, inheritance profiles, Department/Group structure, or inherited authority unless separately delegated.
 
-## 5. Composition profile permissions
+## 5. Invitation, identity-link, and personal-context permissions
+
+### Tenant/Brand inviter
+
+May invite only when holding explicit invitation authority for the target Tenant and every included Brand, Workspace, Department, Group, Role/profile, and resource scope. The inviter cannot delegate a permission, environment, expiry, approval bypass, or redelegation capability beyond its current authority ceiling.
+
+### Invitee
+
+May:
+
+- view a safe invitation preview;
+- authenticate with the exact verified invited identity;
+- accept or decline;
+- review the exact resulting membership and scopes;
+- create a separate personal account/workspace only through an explicit operation;
+- switch among currently authorized contexts.
+
+May not edit invitation scope, select another invitee identity without revalidation, access target resources before acceptance, or infer private Tenant contents from preview.
+
+### Tenant owner/admin
+
+May create, list, resend through approved delivery, revise with renewed disclosure, revoke, and audit invitations within delegated scope. It cannot read raw invitation tokens after delivery or access the invitee's personal workspace.
+
+### Platform identity governance
+
+May define identity-provider validation, link/recovery policy, token/session bounds, invitation security floors, personal-account limits, and context schema. It cannot grant Tenant access solely because an external identity or domain exists.
+
+### Personal account owner
+
+Owns the personal-account Tenant and personal Workspace within plan and Platform bounds. Company Tenant administrators have no authority over personal resources, and personal ownership grants no authority in company Tenants.
+
+## 6. Composition profile permissions
 
 ### User
 
