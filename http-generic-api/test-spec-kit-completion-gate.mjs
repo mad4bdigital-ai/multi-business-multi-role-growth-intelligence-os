@@ -61,7 +61,7 @@ function fixture(completion = validCompletion(), tasks = "- [x] Done\n", checkli
 
 {
   const root = fixture();
-  assert.deepEqual(validateFeatureDirectory("001-example", { root, policy }), []);
+  assert.deepEqual(validateFeatureDirectory("001-example", { root, policy, headRef: FIXTURE_HEAD_REF }), []);
 }
 
 {
