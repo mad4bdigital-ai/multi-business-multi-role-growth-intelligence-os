@@ -96,6 +96,31 @@ Required defaults:
 
 **Status:** approved_design; implementation_not_authorized.
 
+### DFR-002B — Tenant and Workspace boundary
+
+**Approved decision:** Tenant-Owned Operational Workspace Model.
+
+Every verified global user may explicitly create and own a Tenant within configurable plan, verification, risk, and policy limits while retaining memberships in other Tenants. Tenant creation is never automatic on Google sign-in, invitation acceptance, or first membership.
+
+A Tenant is the ownership, isolation, billing, governance, federation, data-policy, connection, audit, and lifecycle boundary. A Workspace is an operational context owned by exactly one Tenant and connected to Brands, Departments, Groups, Business Activities, Roles/profiles, Agents, and resources through explicit bindings and grants.
+
+Required defaults:
+
+- every Workspace has exactly one immutable owning Tenant;
+- Workspaces are not mini-Tenants and do not independently own Brands, memberships, federation relationships, billing, or credential values;
+- Workspace access requires active Tenant membership plus exact organizational and Workspace/resource authority;
+- personal-account Tenant and personal Workspace are optional and explicitly/lazily created;
+- multi-Brand Workspace is disabled by default and remains inside one Tenant when enabled;
+- cross-Tenant Workspace is forbidden;
+- creating a Tenant does not alter existing memberships;
+- invitation acceptance never creates a Tenant;
+- active context selection replaces implicit first-membership behavior;
+- Workspace deletion does not delete Tenant or Brand; Tenant offboarding processes all owned Workspaces.
+
+**Decision evidence:** `tenant-workspace-boundary-decision.md`.
+
+**Status:** approved_design; implementation_not_authorized.
+
 ### DFR-003 — Data governance
 
 **Question:** How are classification, purpose, consent/lawful basis, retention, residency, jurisdiction, legal hold, export, correction, and erasure evaluated?
