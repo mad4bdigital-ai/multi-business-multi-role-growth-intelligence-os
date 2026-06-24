@@ -50,6 +50,18 @@
 | Localization and accessibility affect presentation and eligibility without changing IDs | gap analysis 19 | locale, RTL, translation, model-language, and jurisdiction tests |
 | Quality, fairness, drift, and cross-tenant learning are governed | gap analysis 20–21; `spec.md` FR-058–FR-060 | golden evaluation, exposure, drift, cohort, opt-out, and privacy tests |
 
+| Business Types define reusable versioned Layer Blueprints | `dynamic-layer-inheritance-model.md`; `spec.md` FR-061–FR-063 | Blueprint registry, relationship, closure, and validation tests |
+| Brands selectively inherit from primary/secondary Business Types | inheritance model 8–10; FR-064–FR-065 | binding/profile preview, apply, priority, and effective-date tests |
+| Inheritance creates Brand-scoped instances without shared-asset copies | inheritance model 2, 11–12; FR-066–FR-068 | row-count, source-pointer, Agent/profile, member-account, and no-copy tests |
+| Departments are under Brands and Groups are under Departments | `principal-authority-decision.md`; FR-067 | Brand/Department/Group scope and hierarchy tests |
+| Roles, members, and AI Agents use the same generic inheritance/provenance framework | inheritance model 13; FR-068 | profile assignment, authority ceiling, model/knowledge/cost/evaluation tests |
+| Multiple Business Types compose per layer family | inheritance model 14; FR-069 | union/intersection/deny/equivalence/priority/conflict tests |
+| Layer and Blueprint graphs are bounded and deterministic | inheritance model 5–6, 11; FR-070 | cycle, depth, path, closure, checksum, and rebuild tests |
+| Every inherited result preserves provenance and settings versions | inheritance model 17–18; FR-071, FR-074–FR-075 | manifest/provenance/explanation/version-vector tests |
+| Blueprint upgrades are previewed, classified, and reversible | inheritance model 16; FR-072 | auto-safe/review/conflict/pin/revoke/rebase/rollback tests |
+| Removing inheritance requires complete disposition | inheritance model 19; FR-073 | orphan member/agent/grant/schedule/approval/variant/artifact tests |
+| Specialized tables remain canonical while generic registries connect them | inheritance model 4, 20; FR-062 | architecture-boundary and source-authority tests |
+
 ## Source-to-target traceability
 
 | Existing authority | Target role |
