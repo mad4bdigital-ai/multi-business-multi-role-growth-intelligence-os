@@ -104,6 +104,23 @@
 | Principal preference ranks inherited workflows | Ranking applies only inside the authorized inherited candidate set and does not change Blueprint, grant, or policy authority |
 | Effective manifest is inspected | It includes Business Types, Blueprints, inheritance profile, Brand layer graph, source asset versions, merge operators, exclusions, conflicts, local patches, and authority/version vector |
 
+| New Google user accepts a scoped invitation | One global user identity is created/linked; no new Tenant or personal workspace is created; target membership and exact grants are applied transactionally |
+| Existing user accepts an invitation to another Tenant | Existing identity and unrelated memberships/personal resources remain unchanged; only target membership/scopes are added |
+| Invited Google email does not match the signed-in verified email | Acceptance blocks and offers account switching without leaking invitation scope |
+| Invitation targets one Brand and Workspace | User receives minimal Tenant membership plus only the listed Brand/Workspace/Department/Group/Role grants; no broad default workspace grant is created |
+| Invitation scope is changed after delivery | Original acceptance checksum fails; user must accept a disclosed revision or new invitation |
+| Inviter lost authority before acceptance | Acceptance blocks or recomputes within the inviter's current delegation ceiling; stale invitation grants are not applied |
+| Invitation token is replayed | Second acceptance is idempotent or rejected as already used; no duplicate memberships or grants are created |
+| Invitation is revoked or expired | Preview/acceptance fails closed and no context is issued |
+| User already holds a stronger target role | Acceptance adds missing exact scopes without downgrading the stronger role |
+| Scoped invitation contains conflicting Role/Group assignments | Acceptance blocks with typed conflict evidence until authorized resolution |
+| User accepts invitation and requests personal workspace | Personal account/workspace is created only through the separate explicit operation and remains isolated from company Tenant resources |
+| User declines personal workspace prompt | Team membership remains active; no personal Tenant is created |
+| Multi-Tenant user signs in | UI/API requires or restores a validated active context; first membership order is not treated as authority |
+| User switches context from personal to company Workspace | New short-lived context is issued after current membership/grant/epoch validation; previous context cannot expose mixed data |
+| Company membership is revoked while context is active | Active context expires or is invalidated and company resources become inaccessible without affecting personal/other Tenant contexts |
+| Google identity is linked to an existing password account | Provider subject links to the same global user after verified ownership checks; duplicate users are not created |
+
 ## Success thresholds before enforcement
 
 - zero cross-tenant leakage in tests and shadow evidence;
