@@ -46,8 +46,10 @@ No silent self-modification is allowed. High-risk policy, authority, credential,
 - `observability-slos.md` — events, metrics, SLOs, error budgets, alerts, dashboards, and runbooks.
 - `migration-cutover-map.md` — current-to-target bridges, backfills, parity, cutover units, and rollback.
 - `additional-dimensions-gap-analysis.md` — evidence-based review of identity, tenant lifecycle, privacy, FinOps, model governance, async consistency, provenance, temporal/environment semantics, supply chain, portability, resilience, human operations, capability ontology, localization, and quality drift.
-- `expanded-platform-plane-architecture.md` — fourteen-plane relationship model, manifest contribution contract, fail-closed matrix, version vector, and end-to-end decision pipeline.
-- `design-freeze-decision-register.md` — frozen decisions plus 20 open P0/P1/P2 decisions, closure evidence, and the rule that write enforcement cannot freeze before DFR-001–DFR-010.
+- `expanded-platform-plane-architecture.md` — fifteen-plane relationship model, including Blueprint and Layer Inheritance, manifest contribution contracts, fail-closed behavior, version vectors, and the end-to-end decision pipeline.
+- `dynamic-layer-inheritance-model.md` — generic Business-Type Blueprint inheritance for Brand-scoped Departments, Groups, Roles, members, AI Agents, knowledge trees, and linked shared assets.
+- `principal-authority-decision.md` — approved configurable federated principal authority with Brand-scoped Departments above Groups.
+- `design-freeze-decision-register.md` — frozen/approved decisions plus remaining P0/P1/P2 decisions, closure evidence, and the rule that write enforcement cannot freeze before unresolved P0 boundaries close.
 - `data-model.md` — reused and new authorities across all fourteen platform planes.
 - `resolution-algorithm.md` — deterministic effective-context resolution.
 - `permissions-matrix.md` — authority, preference, customization, and execution boundaries.
