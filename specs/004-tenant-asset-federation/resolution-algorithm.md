@@ -4,11 +4,13 @@
 
 - signed principal and tenant membership;
 - user intent and requested operation;
-- workspace, brand, business activity type, workflow/task context;
-- active roles and group memberships;
+- workspace, Brand, business activity type, workflow/task context;
+- active Brand-to-Business-Type bindings and inheritance-profile selection;
+- active roles, Brand Departments, Groups, memberships, Agent/Service identities, and delegations;
 - requested resource dimensions and exact asset/action references where known;
 - optional user-selected composition profiles;
-- expected authority epoch and registry snapshot for mutation retries.
+- explicit `as_of`, environment, region, and jurisdiction where applicable;
+- expected inheritance, authority, policy, settings, and registry versions for mutation retries.
 
 ## Outputs
 
