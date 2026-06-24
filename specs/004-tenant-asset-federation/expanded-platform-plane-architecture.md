@@ -113,6 +113,7 @@ A plane never returns raw credentials, private cross-tenant content, or hidden m
 | Plane unavailable | Read-only discovery | Preview | Consequential execution |
 |---|---|---|---|
 | Identity/tenant/context authority | unavailable or safely restricted | blocked | blocked |
+| Blueprint/layer inheritance | shared catalog may remain visible without inherited organization | inherited preview unavailable or blocked | consequential execution using inherited layers blocks |
 | Mandatory policy | safely denied | blocked | blocked |
 | User preference | platform/default ordering | allowed with degraded label | allowed if all authority/readiness passes |
 | Variant | shared base if variant is optional and safely ignorable | allowed with explanation | block if selected variant affects required runtime behavior |
