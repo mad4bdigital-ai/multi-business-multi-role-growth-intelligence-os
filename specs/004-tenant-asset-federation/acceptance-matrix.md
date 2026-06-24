@@ -82,6 +82,28 @@
 | Recommendation is repeatedly shown because of prior exposure | Exposure ledger and exploration/calibration controls prevent self-reinforcing ranking |
 | High-volume tenant dominates aggregate evidence | Cohort and weighting controls prevent automatic platform-default promotion |
 
+| Brand is linked to one primary Business Type | Compatible required/recommended/optional Blueprints become eligible; no Department, membership, credential, or execution grant is created until an approved inheritance apply |
+| Brand previews Travel Agency inheritance | Preview shows proposed Departments, Groups, Roles, member profiles, AI Agent profiles, knowledge trees, and canonical asset references with provenance and no provider call |
+| Brand applies a Department Blueprint | A Brand-scoped Department instance and typed relationships are created; shared Skills, Workflows, Policies, Apps, Tools, Graphs, Engines, Logic, and Knowledge remain references |
+| Business Type Blueprint contains an AI Agent profile | Brand receives a scoped Agent assignment/profile referencing the shared Agent; the base Agent is not copied and no extra authority is granted |
+| Member-profile Blueprint is inherited | Existing/invited members may be assigned to the profile; no human account is auto-created |
+| Brand has primary Travel and secondary Ecommerce Business Types | Compatible Department/knowledge/workflow Blueprints compose per registered layer rules; action authority remains restrictive |
+| Two Business Types contribute equivalent Departments | Equivalence/supersession metadata de-duplicates deterministically or resolution blocks if ambiguous |
+| Two equal-ranked Blueprints conflict | Apply blocks with a typed inheritance conflict until an authorized resolution is recorded |
+| Brand excludes an optional Blueprint | Exclusion is recorded in the inheritance profile and explanation; required mandatory controls remain effective |
+| Brand pins a Blueprint version | Future ordinary upgrades remain preview-only while security revocation can still block the unsafe version |
+| Blueprint adds a new optional Group | It is not auto-adopted under the recommended default; Brand receives an upgrade proposal |
+| Blueprint security update revokes an unsafe Tool | Effective inherited binding is invalidated according to security policy and affected manifests expire |
+| Local Brand patch does not overlap a Blueprint update | Upgrade is classified auto-safe or reviewable according to profile and can rebase deterministically |
+| Local patch conflicts with the updated Blueprint | Upgrade enters conflict state and current behavior is pinned or blocked according to risk policy |
+| Brand removes a Business-Type binding with active members and agents | Removal blocks until an approved disposition plan covers Departments, Groups, roles, memberships, agents, grants, schedules, approvals, variants, artifacts, and dependencies |
+| Department hierarchy exceeds Brand/Tenant/Platform depth | Publication or inheritance apply blocks before graph mutation |
+| Blueprint or instance graph creates a cycle | Publication/apply blocks and authority epoch remains unchanged |
+| Unknown layer type or relationship type is referenced | Blueprint publication/resolution blocks; no generic JSON fallback is used |
+| Brand inheritance settings attempt to weaken Tenant safety | Setting is rejected by parent-bound validation |
+| Principal preference ranks inherited workflows | Ranking applies only inside the authorized inherited candidate set and does not change Blueprint, grant, or policy authority |
+| Effective manifest is inspected | It includes Business Types, Blueprints, inheritance profile, Brand layer graph, source asset versions, merge operators, exclusions, conflicts, local patches, and authority/version vector |
+
 ## Success thresholds before enforcement
 
 - zero cross-tenant leakage in tests and shadow evidence;
