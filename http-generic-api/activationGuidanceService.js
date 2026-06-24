@@ -407,5 +407,13 @@ export async function buildActivationGuidance({
     generated_at: new Date().toISOString(),
     secrets_included: false,
   };
+  const degradationPrevention = evaluateActivationGuidanceContract(payload);
+  payload.degradation_prevention = degradationPrevention;
+  if (!degradationPrevention.ok) {
+    payload.ok = false;
+    payload.guidance_status = "degraded_contract";
+  } else {
+    payload.guidance_status = "ready";
+  }
   return stripSensitive(payload);
 }
