@@ -190,6 +190,52 @@ Suggested order:
 
 Each family requires parity, latency, audit, isolation, rollback, and release-readiness evidence.
 
+## Cross-plane implementation sequence
+
+The additional planes are introduced behind read-only adapters and feature-family flags. They do not require one monolithic migration.
+
+### Sequence A — identity and lifecycle foundations
+
+- principal/group/service identity;
+- tenant relationships and lifecycle states;
+- environment/region/jurisdiction registry;
+- data classification and purpose registry;
+- contract/schema registry.
+
+### Sequence B — manifest inputs
+
+- commercial entitlement and cost estimate/reservation preview;
+- model capability/policy/evaluation read models;
+- artifact provenance and verification;
+- human availability/escalation evidence;
+- resilience and backup readiness.
+
+### Sequence C — operation consistency
+
+- universal operation identity;
+- outbox/inbox and deduplication;
+- deadlines/cancellation;
+- concurrency and reservations;
+- saga/compensation and dead-letter recovery.
+
+### Sequence D — tenant portability and ecosystem
+
+- tenant export/import and offboarding;
+- plugin/package supply-chain trust;
+- capability ontology/substitution;
+- client compatibility/deprecation;
+- localization and jurisdiction behavior.
+
+### Sequence E — evaluation and adaptive expansion
+
+- golden datasets and regression suites;
+- recommendation exposure/fairness evidence;
+- online drift/calibration;
+- privacy-safe cross-tenant aggregate learning;
+- commercial and platform-default experiments.
+
+Each sequence begins in diagnostics/shadow and can be independently disabled. Contextual writes remain blocked until all applicable P0 planes return current, non-ambiguous evidence.
+
 ## Testing strategy
 
 ### Unit
