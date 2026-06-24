@@ -903,13 +903,27 @@ export function buildCredentialIntakeRoutes(deps = {}) {
 
   router.get("/credential-intake/:token", async (req, res) => {
     noStoreHeaders(res);
+    let loaded = null;
     try {
-      const loaded = await loadPendingSession(req.params.token);
+      loaded = await loadPendingSession(req.params.token);
       if (!loaded.ok) return res.status(loaded.status).type("text").send(loaded.error);
       const app = await loadApp(loaded.session.app_key);
       return res.status(200).type("html").send(renderCredentialForm({ session: loaded.session, app: app || {} }));
-    } catch {
-      return res.status(500).type("text").send("Credential intake page failed.");
+    } catch (error) {
+      const requestId = randomUUID();
+      console.error(JSON.stringify({ event: "credential_intake.page_render_failed", request_id: requestId, code: error?.code || "credential_intake_page_render_failed", secrets_included: false }));
+      writeAuditLogAsync({
+        tenant_id: loaded?.session?.tenant_id || null,
+        actor_id: loaded?.session?.user_id || null,
+        actor_type: "credential_intake_link",
+        action: "credential_intake.page_render_failed",
+        resource_type: "credential_intake_page",
+        resource_id: requestId,
+        after_json: { code: error?.code || "credential_intake_page_render_failed", stage: "page_render", secrets_included: false },
+        ip_address: req.ip || null,
+        user_agent: req.headers?.["user-agent"] || null,
+      });
+      return res.status(500).type("html").send(renderCredentialIntakeFailure(requestId));
     }
   });
 
