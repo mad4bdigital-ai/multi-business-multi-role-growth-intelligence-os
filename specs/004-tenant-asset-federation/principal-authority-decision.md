@@ -12,25 +12,29 @@ The canonical organizational hierarchy is:
 
 ```text
 Tenant
-└─ Department
-   └─ Group
-      └─ Principal
-         ├─ User
-         ├─ Agent
-         └─ Service
+└─ Brand
+   └─ Department
+      └─ Group
+         └─ Principal
+            ├─ User
+            ├─ Agent
+            └─ Service
 ```
 
 Optional sub-departments are supported:
 
 ```text
 Tenant
-└─ Department
-   └─ Sub-department
-      └─ Group
-         └─ Principal
+└─ Brand
+   └─ Department
+      └─ Sub-department
+         └─ Group
+            └─ Principal
 ```
 
-A Department models a durable organizational unit such as Marketing, Sales, Finance, Operations, Engineering, or a regional/business division. A Group models a working, permission, or collaboration cohort inside a Department, such as SEO Team, Publishers, Approvers, Analysts, or Campaign Operators.
+A Department models a durable organizational unit inside one Brand, such as Marketing, Sales, Finance, Operations, Engineering, or a regional/business division. A Group models a working, permission, or collaboration cohort inside a Department, such as SEO Team, Publishers, Approvers, Analysts, or Campaign Operators.
+
+The Tenant remains the isolation, ownership, billing, and top-level governance boundary. The Brand is the organizational operating boundary for Departments. Departments are not created directly under the Tenant in the normal case.
 
 Departments and Groups are not interchangeable:
 
