@@ -130,15 +130,17 @@ Direct principal identity
 
 The Effective Runtime Manifest records:
 
-- initiating principal;
-- acting principal;
-- primary and participating Departments;
-- resolved Group paths;
-- direct, inherited, and delegated authority;
-- source IDs and versions;
-- ignored, expired, and blocked paths;
-- principal-authority settings version;
-- authority epoch/checksum.
+- initiating and acting Principals;
+- Tenant and Brand;
+- primary/secondary Business-Type bindings;
+- inheritance profile, contributing Blueprints, and Brand layer-instance versions;
+- primary and participating Brand Departments;
+- resolved Brand Group paths;
+- direct, Blueprint-inherited, local, and delegated authority;
+- canonical shared-asset references and Brand-local profile/binding IDs;
+- ignored, excluded, replaced, expired, conflicting, and blocked paths;
+- principal-authority and inheritance-settings versions;
+- authority/inheritance epoch vector and checksum.
 
 ## 6. Configurable settings hierarchy
 
