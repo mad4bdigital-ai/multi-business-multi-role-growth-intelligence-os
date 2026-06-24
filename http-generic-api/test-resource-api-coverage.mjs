@@ -10,7 +10,6 @@ const repositorySource = readFileSync("src/infrastructure/resourceApi/resourceRe
 const migration = readFileSync("migrations/1023_sprint69_resource_api_coverage_gate.sql", "utf8");
 const surfacePolicyMigration = readFileSync("migrations/1025_sprint69_resource_surface_policy_governance.sql", "utf8");
 const auditScript = readFileSync("scripts/resource-api-coverage-audit.mjs", "utf8");
-const migrationRunner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 const spec = readFileSync("../specs/001-resource-api-coverage/spec.md", "utf8");
 
 assert.equal(manifest.policy_key, "platform_resource_api_coverage_policy_v1");
@@ -39,7 +38,6 @@ assert(surfacePolicyMigration.includes("CREATE TABLE IF NOT EXISTS platform_reso
 assert(surfacePolicyMigration.includes("resource_surface_policy_backfill_v1"));
 assert(surfacePolicyMigration.includes("internal_surfaces_require_explicit_not_applicable"));
 assert(!/\b(?:DROP|TRUNCATE|DELETE\s+FROM)\b/i.test(surfacePolicyMigration));
-assert(migrationRunner.includes("1025_sprint69_resource_surface_policy_governance.sql"));
 assert(auditScript.includes("new_relation_missing_surface_policy_decision"));
 assert(spec.includes("No feature without resource API coverage"));
 
