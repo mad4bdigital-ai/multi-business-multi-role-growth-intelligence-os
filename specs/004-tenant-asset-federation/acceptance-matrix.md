@@ -50,6 +50,38 @@
 | Resolution exceeds path/candidate/time limits | Fails closed with typed limit error; no partial allow |
 | Cached decision predates revocation | Epoch/version invalidation prevents stale authority from granting execution |
 
+| User receives a role through a nested group | Membership path is bounded, tenant-scoped, cycle-free, versioned, and included in the manifest |
+| Group membership is revoked after preview | Authority epoch/version invalidates the preview before dispatch |
+| Service principal has no active owner or assurance | Sensitive execution blocks with principal-readiness evidence |
+| Partner tenant manages a client tenant | No client resource access exists unless the exact relationship policy and delegated grant allow it |
+| Tenant enters offboarding | New consequential work blocks; export, connection shutdown, grant disposition, legal hold, and erasure follow the lifecycle plan |
+| User requests preference export or erasure | Export/reset/erasure respects legal hold and preserves only required minimal audit evidence |
+| Artifact is classified for a prohibited processing purpose | Model, provider, indexing, or cross-tenant use blocks before content transfer |
+| Data residency allows one region only | Ineligible model/provider/connection regions are removed from candidates |
+| Cost-bearing action is previewed | Estimate and reservation requirements are shown without debit or provider write |
+| Two concurrent requests reserve the same remaining budget | At most one succeeds or both receive a consistent bounded reservation result; no overspend |
+| Execution fails after a cost reservation | Settlement releases/refunds unused reservation idempotently |
+| Model is cheaper but fails required quality/data policy | It is excluded; free-first cannot weaken the constraints |
+| Selected model version lacks current evaluation evidence | Sensitive execution blocks with `MODEL_EVALUATION_REQUIRED` |
+| Model fallback would cross residency boundary | Fallback blocks rather than silently switching provider |
+| External operation is retried after timeout | Universal idempotency prevents duplicate effect and records delivery semantics |
+| Multi-step provider operation partially succeeds | Saga state identifies completed steps and executes or requests approved compensation |
+| User cancels a queued operation before dispatch | Cancellation is durable and no provider call occurs |
+| Artifact is produced | Checksum, schema, manifest, provenance, sensitivity, license, freshness, verification, and retention are recorded |
+| Source artifact is corrected or erased | Dependent artifacts/indexes are revalidated, retracted, corrected, or disposed according to policy |
+| Future policy is scheduled | Current and future-state previews differ by explicit `as_of` time without early enforcement |
+| Preview was created in staging | It cannot authorize production execution |
+| Production connection is referenced from sandbox | Environment binding blocks before credential materialization |
+| Package signature or dependency evidence is missing | Code-bearing package installation/publication blocks |
+| Client lacks support for manifest schema version | Compatibility negotiation selects an approved version or returns a migration/deprecation error |
+| Tenant export is requested | Portable no-secret manifest is complete, checksummed, authorized, and auditable |
+| Restored backup contains profiles and variants | Tenant isolation, authority epochs, manifest reconstruction, and cache invalidation pass restore validation |
+| Primary approver is unavailable | Approved fallback/escalation policy applies without weakening separation of duties |
+| Two assets implement the same capability | Only compatible, authorized, ready, policy-compliant alternatives are ranked by quality/risk/cost/preference |
+| Arabic tenant experience uses a model without Arabic quality evidence | Model is excluded or marked insufficiently evaluated |
+| Recommendation is repeatedly shown because of prior exposure | Exposure ledger and exploration/calibration controls prevent self-reinforcing ranking |
+| High-volume tenant dominates aggregate evidence | Cohort and weighting controls prevent automatic platform-default promotion |
+
 ## Success thresholds before enforcement
 
 - zero cross-tenant leakage in tests and shadow evidence;
