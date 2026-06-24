@@ -265,6 +265,16 @@ Each plane has its own authority, lifecycle, audit, versioning, and rollback. Th
 - **FR-073:** Removing a Business-Type binding or Blueprint requires a disposition plan for Departments, Groups, members, Agents, Roles, grants, schedules, approvals, variants, artifacts, and dependent layers.
 - **FR-074:** Blueprint inheritance and settings resolve through Platform hard bounds, Platform defaults, Business-Type defaults, Tenant policy, Brand profile, delegated Department/Group settings, Workspace bindings, and non-authority Principal preferences.
 - **FR-075:** The Effective Runtime Manifest includes the resolved layer-instance graph, inherited resource bindings, Blueprint provenance, conflicts, exclusions, local patches, upgrade state, and inheritance version vector.
+- **FR-076:** A human user has one global platform identity that may be linked to Google and other identity providers without creating duplicate users or Tenants.
+- **FR-077:** A team invitation targets an existing Tenant and carries an immutable, versioned scope for minimal Tenant membership plus exact Brand, Workspace, Department, Group, Role/profile, and resource grants.
+- **FR-078:** Accepting a scoped invitation never creates a new Tenant or personal workspace automatically.
+- **FR-079:** New Google invitees create or link a global user identity only after verified-email match, stable provider-subject validation, nonce/state validation, and explicit acceptance.
+- **FR-080:** Invitation tokens are single-use, expiring, revocable, stored as hashes, delivered through an approved outbox channel, and never returned or logged after delivery.
+- **FR-081:** Invitation acceptance is transactional, idempotent, authority-bounded, and creates/reactivates only the approved membership, grants, Department/Group assignments, and Role/profile bindings.
+- **FR-082:** Scoped invitations disable broad default workspace grants; exact resource grants determine access while a minimal Tenant membership establishes the isolation boundary.
+- **FR-083:** Existing users retain personal and other Tenant memberships; accepting an invitation cannot downgrade stronger target authority or alter unrelated contexts.
+- **FR-084:** A personal-account Tenant and personal Workspace are optional, explicitly created, isolated from company Tenants, and limited by Platform policy.
+- **FR-085:** Multi-membership users select an active Tenant, Brand, Workspace, Department, Group, and Role context through a revalidated context-switch contract rather than an implicit first membership.
 
 ## 13. Extended non-functional requirements
 
