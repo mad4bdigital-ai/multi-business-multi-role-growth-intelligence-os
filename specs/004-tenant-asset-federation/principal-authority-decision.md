@@ -4,7 +4,7 @@
 
 **Approved by product owner.**
 
-The platform adopts a federated principal authority that preserves current canonical user and agent sources, adds first-class departments above groups, and exposes bounded configuration through governed settings.
+The platform adopts a federated principal authority that preserves current canonical user and agent sources, places Departments under Brands and above Groups, and supports generic Business-Type Blueprint inheritance with bounded configuration through governed settings.
 
 ## 1. Organizational hierarchy
 
