@@ -399,9 +399,11 @@ High-impact changes may require approval, including:
 
 ### `principal_authority_epochs`
 
-- tenant and optionally Department;
-- current epoch;
-- reason, source event, changed-at.
+- tenant and Brand, with optional Department or Group scope;
+- current epoch and parent epoch vector;
+- affected layer types and instance IDs;
+- reason, source event, changed-at;
+- Blueprint/inheritance/profile versions that triggered invalidation.
 
 ## 12. API and settings surfaces
 
