@@ -162,6 +162,8 @@ Cache keys include:
 
 - tenant and principal;
 - target container and normalized request;
+- Business-Type binding versions;
+- inheritance profile, Blueprint, layer-instance, closure, and override version hashes;
 - authority epoch;
 - composition profile selection/version hashes;
 - policy semantics registry version;
