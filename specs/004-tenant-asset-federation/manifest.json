@@ -112,6 +112,7 @@
     "threat-model.md",
     "observability-slos.md",
     "migration-cutover-map.md",
+    "additional-dimensions-gap-analysis.md",
     "data-model.md",
     "resolution-algorithm.md",
     "permissions-matrix.md",
