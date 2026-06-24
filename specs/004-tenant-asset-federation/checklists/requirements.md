@@ -79,6 +79,24 @@
 - [ ] Brand inheritance settings schema and parent bounds approved.
 - [ ] Blueprint publisher/certification/security-update policy approved.
 
+## Scoped member invitation and active contexts
+
+- [x] One global human identity can hold multiple Tenant memberships.
+- [x] Accepting a team invitation does not create a Tenant or personal workspace automatically.
+- [x] New Google invitees create/link only a global user identity before target membership acceptance.
+- [x] Invitation scope supports Tenant, Brand, Workspace, Department, Group, Role/profile, and exact resources.
+- [x] Base Tenant membership is minimal and exact grants determine resource access.
+- [x] Scoped invitations disable broad default workspace grants.
+- [x] Existing users retain unrelated memberships and stronger authority.
+- [x] Personal account/workspace is explicit, optional, lazy, and isolated.
+- [x] Active context is selected and revalidated rather than inferred from first membership.
+- [x] Invitation lifecycle covers delivery, preview, authentication, acceptance/decline, expiry, revoke, and readback.
+- [x] Google provider subject and verified email linkage are separated from Tenant authorization.
+- [ ] Identity-link conflict and account-recovery policy approved.
+- [ ] Invitation scope registry and migration compatibility approved.
+- [ ] Personal-account plan/entitlement and lifecycle policy approved.
+- [ ] Context token/session contract approved.
+
 ## Extended platform planes
 
 - [x] Organizational principal/group/service gaps are documented.
