@@ -57,6 +57,31 @@
 - [x] No partial allow is returned after limit exhaustion or dependency failure.
 - [x] Same-cycle readback is required for state-changing operations.
 
+## Extended plane security
+
+- [x] Group nesting and delegation depth are bounded and cycle-safe.
+- [x] Service and agent principals require tenant ownership, assurance, and accountable owners.
+- [x] Partner/managed-client/white-label relationships do not grant implicit cross-tenant access.
+- [x] Offboarding, export, legal hold, and erasure preserve exact authorization and evidence.
+- [x] Data purpose, sensitivity, residency, and jurisdiction are evaluated before model/provider/indexing use.
+- [x] Cost reservations are idempotent and concurrency-safe.
+- [x] Model fallback cannot weaken privacy, region, safety, quality, or tool constraints.
+- [x] External operations declare delivery, retry, cancellation, and compensation behavior.
+- [x] Transactional outbox/inbox or equivalent deduplication prevents duplicate effects.
+- [x] Artifact provenance cannot expose another tenant's private sources.
+- [x] Preview/staging manifests cannot dispatch production operations.
+- [x] Package publication/install requires trust, integrity, requested-capability, compatibility, and revocation evidence.
+- [x] Tenant export/import excludes secrets and validates ownership and object references.
+- [x] Restore validation covers tenant isolation, authority epochs, caches, and reconstructability.
+- [x] High-risk human work preserves requester/approver/executor separation.
+- [x] Evaluation and recommendation evidence is protected from manipulation and exposure feedback loops.
+- [ ] Principal/group/service threat review completed.
+- [ ] Data governance and residency threat review completed.
+- [ ] Commercial reservation and settlement threat review completed.
+- [ ] Model routing and evaluation threat review completed.
+- [ ] Async/saga/outbox threat review completed.
+- [ ] Supply-chain and portability threat review completed.
+
 ## API and implementation
 
 - [x] All external input is validated.
