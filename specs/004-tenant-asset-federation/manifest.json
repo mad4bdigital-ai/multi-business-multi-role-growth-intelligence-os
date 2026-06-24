@@ -93,6 +93,7 @@
   ],
   "files": [
     "README.md",
+    "completion.json",
     "spec.md",
     "current-state.md",
     "relationship-diagrams.md",
