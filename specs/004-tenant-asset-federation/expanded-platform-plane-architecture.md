@@ -173,6 +173,9 @@ The manifest binds a version vector rather than one global configuration number:
 ```text
 principal_version
 + tenant_lifecycle_version
++ business_type_binding_versions
++ inheritance_profile_versions
++ blueprint_and_layer_instance_versions
 + authority_epoch
 + composition_profile_versions
 + policy_semantics_version
