@@ -299,7 +299,7 @@ A Department administrator cannot enable a capability disabled by Brand, Tenant,
 
 ### Workspace administrator
 
-May select or bind eligible Departments and Groups to a Workspace when delegated. A Workspace does not redefine organizational identity or bypass Department/Tenant policy.
+May select or bind eligible Brand Departments and Groups to a Workspace when delegated. A Workspace does not redefine organizational identity, change Business-Type inheritance, or bypass Brand, Department, Tenant, or Platform policy.
 
 ## 10. Settings lifecycle
 
