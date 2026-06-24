@@ -4,6 +4,8 @@ import {
   loadGuidanceInvocationRegistry,
   resolveGuidanceLanguagePreference,
 } from "./activationGuidancePresentation.js";
+import { buildTenantActivationSnapshot } from "./tenantActivationSnapshot.js";
+import { evaluateActivationGuidanceContract } from "./platformDegradationPolicy.js";
 
 const SENSITIVE_KEY_PATTERN = /(secret|credential|token|password|private_key|cipher|api_key|authorization|cookie|set-cookie|installer|raw_token)/i;
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -306,7 +308,20 @@ export async function buildActivationGuidance({
     ? await fetchAdminTenantContext({ tenantId })
     : await fetchTenantContext({ userId, tenantId });
   const effectiveTenantId = tenantContext?.tenant_id || tenantId || null;
-  const counts = await buildCounts({ profile: normalizedProfile, userId, tenantId: effectiveTenantId });
+  const baseCounts = await buildCounts({ profile: normalizedProfile, userId, tenantId: effectiveTenantId });
+  const tenantDynamicSnapshot = await buildTenantActivationSnapshot({
+    profile: normalizedProfile,
+    tenantId: effectiveTenantId,
+    userId,
+    role: tenantContext?.role || (normalizedProfile === "admin" ? "admin" : null),
+  });
+  const counts = {
+    ...baseCounts,
+    ...(tenantDynamicSnapshot?.counts || {}),
+  };
+  const managedBrands = Array.isArray(tenantDynamicSnapshot?.managed_brands)
+    ? tenantDynamicSnapshot.managed_brands
+    : [];
   const groups = buildCapabilityGroups({ profile: normalizedProfile, counts });
   const recommendedNextActions = rankNextActions({ profile: normalizedProfile, counts, groups });
   const toolRows = await readToolRows(normalizedProfile === "admin" ? "admin_platform_endpoint_tools" : "tenant_platform_endpoint_tools", "is_enabled = 1", []);
@@ -360,10 +375,14 @@ export async function buildActivationGuidance({
     command_palette: presentation.command_palette,
     presentation_summary: presentation.presentation_summary,
     activation_brief: presentation.localized_activation_brief,
+    tenant_dynamic_snapshot: tenantDynamicSnapshot,
+    managed_brands: managedBrands,
     account_or_admin_capability_snapshot: {
       counts,
       permission_semantics: permissionSemantics,
       readiness_dimensions: readinessDimensions,
+      data_quality: tenantDynamicSnapshot?.data_quality || null,
+      managed_brands: managedBrands,
     },
     capability_groups: groups,
     recommended_next_actions: presentation.localized_recommended_actions,
@@ -377,10 +396,24 @@ export async function buildActivationGuidance({
         keep_machine_signals_language_neutral: true,
         accepted_invocation_signals: ["invocation_tag", "slash_alias", "intent_key"],
         tags_do_not_bypass_authorization: true,
+        require_dynamic_tenant_snapshot: true,
+        require_brand_snapshot: true,
+        require_skill_coverage_summary: true,
+        minimum_activation_response_profile: "evidence",
+        admin_is_tenant_intelligence_superset: true,
+        never_report_healthy_from_connection_state_alone: true,
       },
     },
     generated_at: new Date().toISOString(),
     secrets_included: false,
   };
+  const degradationPrevention = evaluateActivationGuidanceContract(payload);
+  payload.degradation_prevention = degradationPrevention;
+  if (!degradationPrevention.ok) {
+    payload.ok = false;
+    payload.guidance_status = "degraded_contract";
+  } else {
+    payload.guidance_status = "ready";
+  }
   return stripSensitive(payload);
 }
