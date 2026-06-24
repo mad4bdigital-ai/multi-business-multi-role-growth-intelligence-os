@@ -50,7 +50,63 @@ Permissions are explicit. `edit` does not imply `grant`; `select profile` does n
 | Update base | creates new platform version | variants receive upgrade state | platform governance only |
 | Archive/revoke base | base status changes | dependent variants may block | platform governance only |
 
-## 4. Composition profile permissions
+## 4. Blueprint and inheritance permissions
+
+### Platform governance
+
+May:
+
+- register layer and relationship types;
+- publish Platform and Business-Type Blueprint versions;
+- define required/recommended/optional adoption classes;
+- define allowed merge, replacement, supersession, upgrade, and security-revocation behavior;
+- certify Blueprint packages and shared-resource bindings;
+- revoke unsafe Blueprint/resource versions;
+- define Platform hard bounds and settings schemas.
+
+May not silently create Brand memberships, credentials, or execution grants through Blueprint publication.
+
+### Tenant owner
+
+May:
+
+- allow or deny Business Types and Blueprint families for Tenant Brands;
+- set Tenant inheritance bounds below Platform maxima;
+- delegate Brand inheritance publication authority;
+- approve cross-Brand participation exceptions where Platform policy allows;
+- review destructive removal/disposition and high-risk upgrade decisions.
+
+### Brand administrator
+
+May, within Tenant/Platform bounds:
+
+- create and manage primary/secondary Business-Type bindings;
+- select required/recommended/optional Blueprints;
+- publish Brand inheritance profiles;
+- preview/apply Brand-scoped Department, Group, Role, member-profile, Agent-profile, knowledge, and resource-binding instances;
+- pin, replace, upgrade, disable, or locally patch eligible inherited layers;
+- resolve non-safety inheritance conflicts;
+- manage Brand Departments and Groups.
+
+May not:
+
+- modify another Brand;
+- exclude mandatory Platform/Tenant controls;
+- auto-create human users;
+- duplicate or mutate canonical shared assets;
+- inherit credential values;
+- grant an Agent/Role more authority than current Brand/Tenant policy;
+- remove active inherited layers without an approved disposition plan.
+
+### Department administrator
+
+May select and administer only Brand-approved inherited layers delegated to the Department, including local Groups, Role/member/Agent profile assignments, knowledge/workflow/tool selection, stricter settings, and local queues. It cannot publish a new Business-Type binding or exceed Brand bounds.
+
+### User
+
+May view inherited provenance and select eligible non-authority preferences. It cannot change Business-Type bindings, inheritance profiles, Department/Group structure, or inherited authority unless separately delegated.
+
+## 5. Composition profile permissions
 
 ### User
 
