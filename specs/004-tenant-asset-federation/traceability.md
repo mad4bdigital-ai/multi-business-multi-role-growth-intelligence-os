@@ -70,6 +70,14 @@
 | Multi-Tenant users select a validated active context | invitation model 7; FR-085 | context list/switch/revoke/expiry/epoch and mixed-data prevention tests |
 | Accepting an invitation preserves unrelated memberships and stronger authority | invitation model 5; FR-081, FR-083 | idempotency, no-downgrade, conflict, and unrelated-context tests |
 
+| Every verified user may explicitly create a Tenant while retaining other memberships | `tenant-workspace-boundary-decision.md` 3, 8–10; `spec.md` FR-086–FR-087, FR-095–FR-096, FR-099–FR-100 | creation capability, provisioning, ownership, plan-limit, and membership-preservation tests |
+| Tenant is the ownership, isolation, billing, governance, and lifecycle boundary | boundary decision 1, 4, 14–18; FR-088, FR-095–FR-100 | owner-assignment, federation, billing, export/offboarding, and isolation tests |
+| Workspace is a Tenant-owned operational context, not a mini-Tenant | boundary decision 1–2, 5–7; FR-089–FR-091 | one-owner-Tenant, access-chain, binding-not-grant, and no-independent-billing tests |
+| Workspace binds to Brands, Departments, Groups, Activities, Roles, Agents, and resources | boundary decision 6–7; FR-090–FR-091 | same-Tenant binding, exact grant, role ceiling, and resource eligibility tests |
+| Personal Tenant/Workspace is optional and isolated | boundary decision 5, 11; FR-092, FR-099 | explicit creation, personal/company isolation, copy/export policy, and context tests |
+| Multi-Brand Workspace is opt-in and same-Tenant only | boundary decision 13; FR-093–FR-094 | disabled-default, same-Tenant validation, policy conflict, provenance, and cross-Tenant rejection tests |
+| Workspace and Tenant lifecycles remain separate | boundary decision 14; FR-097–FR-098 | Workspace disposition, Brand preservation, Tenant offboarding, and dependent-resource tests |
+
 ## Source-to-target traceability
 
 | Existing authority | Target role |
