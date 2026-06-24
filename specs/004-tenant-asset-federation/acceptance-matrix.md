@@ -121,6 +121,23 @@
 | Company membership is revoked while context is active | Active context expires or is invalidated and company resources become inaccessible without affecting personal/other Tenant contexts |
 | Google identity is linked to an existing password account | Provider subject links to the same global user after verified ownership checks; duplicate users are not created |
 
+| Verified user explicitly creates a company Tenant | Governed provisioning creates the Tenant, owner assignment, owner membership, selected region/plan, audit, and readback without altering other memberships |
+| User signs in with Google but does not request Tenant creation | No Tenant, Brand, or Workspace is created automatically |
+| User accepts a team invitation | User joins the existing target Tenant only; Tenant creation capability remains available separately |
+| User owns a personal Tenant and belongs to a company Tenant | Both contexts remain visible and isolated; company administrators cannot access personal resources |
+| User reaches owned-Tenant plan limit | Creation blocks with a commercial/entitlement explanation and upgrade/request path, not an authorization error |
+| Workspace is created | It records exactly one immutable owning Tenant and an allowed registered Workspace type |
+| Brand Workspace is bound to one Brand | Binding affects context/resource eligibility but does not transfer Brand ownership or create access by itself |
+| User has active Tenant membership but no Workspace grant | Workspace and its resources remain inaccessible |
+| User has Workspace grant but Tenant membership is revoked | Access blocks and active context is invalidated |
+| Multi-Brand Workspace is requested under default settings | Creation or additional binding blocks until Tenant policy explicitly enables it |
+| Multi-Brand Workspace is enabled | All bound Brands belong to the same Tenant and exact grants/policy conflicts/provenance are enforced |
+| Cross-Tenant Brand or resource is bound to a Workspace | Binding blocks before mutation |
+| Sandbox Workspace attempts production execution | Dispatch blocks regardless of user preference or inherited Blueprint |
+| Workspace is archived or deleted | Tenant and Brands remain; tasks, schedules, Agents, grants, artifacts, bindings, and active operations follow approved disposition |
+| Tenant enters offboarding | Every owned Workspace and dependent operational resource appears in the lifecycle impact plan |
+| User switches from owned Tenant to invited Tenant Workspace | Context is revalidated and no data from the previous Tenant remains visible implicitly |
+
 ## Success thresholds before enforcement
 
 - zero cross-tenant leakage in tests and shadow evidence;
