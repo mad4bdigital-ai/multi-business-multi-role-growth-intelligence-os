@@ -106,7 +106,7 @@ A Group may own:
 
 Groups cannot cross tenant boundaries.
 
-Cross-Department Groups are disabled by default. When enabled by Tenant settings, they are represented as a tenant-global Group with explicit Department participation bindings rather than a Group silently belonging to multiple Departments.
+Cross-Department Groups are disabled by default. When enabled by the Brand profile within Tenant and Platform bounds, they are represented as a Brand-global Group with explicit Department participation bindings rather than a Group silently belonging to multiple Departments. Cross-Brand Groups remain forbidden in the normal hierarchy.
 
 ## 5. Principal resolution
 
