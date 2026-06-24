@@ -23,23 +23,26 @@ This register separates decisions that are already frozen from decisions that mu
 
 ### DFR-001 — Principal and organization authority
 
-**Approved decision:** Configurable Federated Principal Authority with Departments above Groups.
+**Approved decision:** Configurable Federated Principal Authority with Brand-scoped Departments above Groups and generic Business-Type Blueprint inheritance.
 
 ```text
 Tenant
-└─ Department
-   └─ optional Sub-department
-      └─ Group
-         └─ User | Agent | Service
+└─ Brand
+   └─ Department
+      └─ optional Sub-department
+         └─ Group
+            └─ User | Agent | Service
 ```
 
-Existing `users`, `memberships`, and `agents` remain canonical. Additive authorities own Departments, Groups, Services, Delegations, Separation of Duties, settings, and authority epochs.
+Existing `users`, `memberships`, and `agents` remain canonical. Additive authorities own Brand-scoped Departments, Groups, Services, Delegations, Separation of Duties, settings, and authority epochs.
 
-Configuration resolves through Platform hard bounds, Platform defaults, Tenant settings, delegated Department settings, and eligible Workspace bindings. Local configuration cannot weaken cross-tenant isolation, cycle prevention, service ownership, high-risk separation of duties, break-glass audit, or fail-closed behavior.
+Business Types may define reusable Department, Group, Role, member-profile, AI-Agent-profile, knowledge-tree, and shared-asset Blueprints. A compatible Brand selectively inherits them into Brand-scoped operational instances. Shared Skills, Workflows, Policies, Apps, Tools, Graph definitions, Engines, Logic, and Knowledge remain canonical references rather than per-Brand copies.
 
-Recommended defaults include Department depth 3, Group depth 5, cross-Department Groups disabled, tenant-global Groups explicitly governed, redelegation disabled by default, Service owner mandatory, and high-risk separation of duties mandatory.
+Configuration resolves through Platform hard bounds, Platform defaults, Business-Type Blueprint defaults, Tenant inheritance policy, Brand settings/profile, delegated Department and Group settings, eligible Workspace bindings, and Principal preference for non-authority fields. Lower scopes cannot weaken cross-tenant isolation, cycle prevention, service ownership, high-risk separation of duties, break-glass audit, mandatory policy, or fail-closed behavior.
 
-**Decision evidence:** `principal-authority-decision.md`.
+Recommended defaults include Department depth 3, Group depth 5, cross-Brand Groups disabled, cross-Department Groups disabled, redelegation disabled by default, Service owner mandatory, high-risk separation of duties mandatory, optional Blueprint auto-adoption disabled, and security-revocation updates enforced.
+
+**Decision evidence:** `principal-authority-decision.md` and `dynamic-layer-inheritance-model.md`.
 
 **Status:** approved_design; implementation_not_authorized.
 
