@@ -4,6 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import { validateFeatureDirectory, validateRepository } from "./scripts/spec-kit-completion-gate.mjs";
 
+const FIXTURE_HEAD_REF = "gpt/spec-closeout";
+
 const policy = {
   schema_version: 1,
   policy_key: "spec_kit_completion_gate_v1",
