@@ -4,16 +4,15 @@
 
 ## Summary
 
-- Triaged items: 2
-- Gate candidates: 2
-- New-gap gate: fail
-- Blocking new items: 2
+- Triaged items: 0
+- Gate candidates: 0
+- New-gap gate: pass
+- Blocking new items: 0
 
 ## Class counts
 
-- new_surface_immediate_review: 2
+- none
 
 ## Immediate review candidates
 
-- `1023_sprint69_resource_api_coverage_gate.sql` — critical_review, score 995; next: add targeted patch-index, parity, and governance documentation
-- `1025_sprint69_resource_surface_policy_governance.sql` — high_review, score 556; next: add targeted patch-index, parity, and governance documentation
+- none
