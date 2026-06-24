@@ -249,6 +249,21 @@ Each plane has its own authority, lifecycle, audit, versioning, and rollback. Th
 - **FR-058:** Quality evaluations cover asset family, activity, language, model, workflow, risk, grounding, policy, tool selection, and output contract.
 - **FR-059:** Recommendation and experiment governance detects exposure bias, popularity feedback loops, manipulated events, and cross-tenant domination.
 - **FR-060:** Cross-tenant learning uses approved aggregation, minimum cohorts, tenant privacy controls, and never exposes raw tenant content to another tenant.
+- **FR-061:** The platform provides a registry-driven Layer Blueprint and Inheritance authority that supports current and future organizational, principal, agent, knowledge, capability, and asset layer families.
+- **FR-062:** Every layer family retains a specialized canonical table or authority while generic typed relationship, closure, inheritance, compatibility, and provenance registries connect the layers.
+- **FR-063:** Business Types may define versioned Department, Group, Role, member-profile, AI-Agent-profile, Business-Activity, knowledge-tree, workflow, policy, app, tool, engine, logic, graph, dashboard, metric, validator, prompt, and output-template Blueprints.
+- **FR-064:** A Brand binds to one primary and optional secondary Business Types using versioned, effective-dated, approved bindings that grant no execution authority by themselves.
+- **FR-065:** A Brand inheritance profile selects required, recommended, and optional Blueprints and declares merge, exclusion, replacement, pinning, upgrade, and local-override behavior per layer family.
+- **FR-066:** Inherited organizational and profile Blueprints produce Brand-scoped layer instances; shared Skills, Workflows, Policies, Apps, Tools, Graphs, Engines, Logic, Knowledge, and other platform assets remain canonical references unless a bounded optional variant is explicitly created.
+- **FR-067:** Departments are Brand-scoped and contain Groups; Groups contain or assign human members, AI agents, and service principals according to Brand/Tenant/Platform authority.
+- **FR-068:** Member-profile, Role, and AI-Agent-profile Blueprints configure eligibility, placement, capabilities, knowledge, model policy, autonomy, cost, evaluation, and handoff bounds without auto-creating users, copying base agents, or granting authority.
+- **FR-069:** Multiple Business Types compose per layer family using registered semantics such as guarded union, strict intersection, deny-wins, minimum, maximum, equivalence, supersession, priority, and block-on-ambiguity.
+- **FR-070:** Blueprint and instance hierarchies use typed relationships and bounded closure tables with cycle detection, path limits, source versions, and deterministic checksums.
+- **FR-071:** Every inherited instance and binding records Business Type, Blueprint/version, inheritance-profile/version, merge operator, local overrides, canonical source references, and effective authority/configuration epoch.
+- **FR-072:** Blueprint updates run impact analysis and classify each inherited instance as auto-safe, review-required, conflicting, blocked, pinned, superseded, or revoked before adoption.
+- **FR-073:** Removing a Business-Type binding or Blueprint requires a disposition plan for Departments, Groups, members, Agents, Roles, grants, schedules, approvals, variants, artifacts, and dependent layers.
+- **FR-074:** Blueprint inheritance and settings resolve through Platform hard bounds, Platform defaults, Business-Type defaults, Tenant policy, Brand profile, delegated Department/Group settings, Workspace bindings, and non-authority Principal preferences.
+- **FR-075:** The Effective Runtime Manifest includes the resolved layer-instance graph, inherited resource bindings, Blueprint provenance, conflicts, exclusions, local patches, upgrade state, and inheritance version vector.
 
 ## 13. Extended non-functional requirements
 
