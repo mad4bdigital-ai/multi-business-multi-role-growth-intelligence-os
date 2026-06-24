@@ -1,7 +1,7 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "policy_key": "platform_resource_api_coverage_policy_v1",
-  "description": "Fail-closed resource API coverage manifest. New feature surfaces must map to a governed logical resource and operation coverage.",
+  "description": "Fail-closed Resource API coverage manifest. New feature surfaces must map to a governed logical resource or declare an explicit active surface-policy decision.",
   "required_operation_classes": [
     "list",
     "get",
