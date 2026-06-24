@@ -72,7 +72,7 @@ function fixture(completion = validCompletion(), tasks = "- [x] Done\n", checkli
 {
   const completion = validCompletion({ delivery_mode: "single_pr" });
   const root = fixture(completion);
-  assert(validateFeatureDirectory("001-example", { root, policy }).some((row) => row.type === "single_pr_has_post_merge_obligations"));
+  assert(validateFeatureDirectory("001-example", { root, policy, headRef: FIXTURE_HEAD_REF }).some((row) => row.type === "single_pr_has_post_merge_obligations"));
 }
 
 {
