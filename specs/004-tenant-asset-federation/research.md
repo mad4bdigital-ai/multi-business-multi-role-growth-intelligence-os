@@ -102,7 +102,27 @@ The active PR branch diverged from `main`, but governed reconciliation found no 
 
 Decision: repair the current branch first through governed reconciliation and no-force updates. New branches are last resort.
 
-## 16. Recommended target architecture
+## 16. Business-Type Blueprint inheritance is the missing reusable operating-model layer
+
+The platform already has global Business Activity/Type registries, shared assets, Brand/workspace subjects, package variants, and Dynamic Container relationship semantics. It does not yet have a generic authority that lets a Business Type describe a reusable organizational and capability tree and lets a Brand selectively instantiate it with provenance.
+
+Creating Department/Group/Role/Agent structures manually for every Brand would repeat setup and lose the platform's ability to improve Business-Type defaults. Copying Skills, Workflows, Policies, Apps, Tools, Graphs, Engines, Logic, or Knowledge into every Brand would recreate the duplication problem the shared-asset design is intended to solve.
+
+Decision:
+
+- Business Types own versioned Layer Blueprints, not live Brand entities;
+- Brands bind to primary/secondary Business Types and publish inheritance profiles;
+- inheritance creates Brand-scoped organizational/profile/binding instances only;
+- specialized domain tables remain canonical;
+- a generic typed layer/relationship/closure/provenance authority connects them;
+- shared assets remain canonical references;
+- multiple Business Types compose per layer family;
+- Blueprint upgrades, pins, conflicts, rebase, replacement, supersession, revocation, and removal disposition are explicit lifecycles;
+- Departments live under Brands, Groups under Departments, and human/Agent/service principals under or assigned through those organizational scopes.
+
+This model generalizes beyond Departments to Roles, member profiles, AI Agent profiles, Activities, knowledge, capabilities, and future registered layers.
+
+## 17. Recommended target architecture
 
 ```text
 Shared canonical assets
