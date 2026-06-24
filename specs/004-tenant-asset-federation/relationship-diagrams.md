@@ -1,5 +1,98 @@
 # Relationship Diagrams
 
+## 0. Business-Type Blueprint inheritance
+
+```mermaid
+flowchart TD
+    BT[Business Type]
+    BP[Versioned Layer Blueprints]
+    BIND[Brand Business-Type Bindings]
+    PROF[Brand Inheritance Profile]
+    PREVIEW[Inheritance Preview and Conflict Resolution]
+    INST[Brand-scoped Layer Instances]
+    DEPT[Departments / Sub-departments]
+    GROUP[Groups]
+    PRINC[Human / AI Agent / Service Principals]
+    ROLE[Roles and Delegations]
+    KNOW[Knowledge and Memory Trees]
+    ASSET[Canonical Shared Asset References]
+    MAN[Effective Runtime Manifest]
+
+    BT --> BP
+    BP --> BIND
+    BIND --> PROF
+    PROF --> PREVIEW
+    PREVIEW --> INST
+    INST --> DEPT
+    DEPT --> GROUP
+    GROUP --> PRINC
+    INST --> ROLE
+    INST --> KNOW
+    INST --> ASSET
+    DEPT --> MAN
+    GROUP --> MAN
+    PRINC --> MAN
+    ROLE --> MAN
+    KNOW --> MAN
+    ASSET --> MAN
+```
+
+```text
+Tenant
+└─ Brand
+   ├─ inherited/local Business Activities
+   ├─ Departments
+   │  ├─ Sub-departments
+   │  └─ Groups
+   │     ├─ Human members
+   │     ├─ AI Agent assignments/profiles
+   │     └─ Service principals
+   ├─ Roles and delegations
+   ├─ Knowledge and memory trees
+   └─ bindings to shared Skills, Workflows, Policies, Apps, Tools, Graphs, Engines, Logic, and future registered assets
+```
+
+Business Types provide reusable templates. Brands own the live organizational instances. Shared resources are referenced rather than copied.
+
+### Generic layer graph
+
+```mermaid
+erDiagram
+    LAYER_TYPE ||--o{ BLUEPRINT : defines
+    BUSINESS_TYPE ||--o{ BLUEPRINT : owns
+    BLUEPRINT ||--o{ BLUEPRINT_RELATIONSHIP : source
+    BLUEPRINT ||--o{ BLUEPRINT_RELATIONSHIP : target
+    BLUEPRINT ||--o{ BLUEPRINT_RESOURCE_BINDING : references
+    BRAND ||--o{ BUSINESS_TYPE_BINDING : selects
+    BRAND ||--o{ INHERITANCE_PROFILE : configures
+    INHERITANCE_PROFILE ||--o{ INHERITANCE_RULE : contains
+    BLUEPRINT ||--o{ BRAND_LAYER_INSTANCE : instantiates
+    BRAND_LAYER_INSTANCE ||--o{ BRAND_LAYER_RELATIONSHIP : source
+    BRAND_LAYER_INSTANCE ||--o{ BRAND_LAYER_RELATIONSHIP : target
+    BRAND_LAYER_INSTANCE ||--o{ BRAND_LAYER_RESOURCE_BINDING : resolves
+    BRAND_LAYER_INSTANCE ||--o{ LAYER_OVERRIDE_PATCH : customizes
+```
+
+### Multiple Business Types
+
+```mermaid
+flowchart LR
+    BT1[Primary Business Type]
+    BT2[Secondary Business Type]
+    BT3[Specialization]
+    ALG[Per-layer inheritance algebra]
+    EQ[Equivalence / supersession / conflict]
+    BRAND[Effective Brand layer graph]
+
+    BT1 --> ALG
+    BT2 --> ALG
+    BT3 --> ALG
+    ALG --> EQ
+    EQ --> BRAND
+```
+
+Recommended behavior differs by layer family: organization/knowledge/workflows use guarded union with equivalence checks, execution authority uses intersection and deny-wins, quotas use minimum, and risk/approval use maximum.
+
 ## 1. Shared assets and optional variants
 
 ```mermaid
