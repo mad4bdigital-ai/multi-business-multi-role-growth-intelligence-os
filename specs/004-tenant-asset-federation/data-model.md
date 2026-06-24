@@ -488,6 +488,20 @@ The following are proposed authorities or bridge contracts. They are not an inst
 - `principal_delegation_chains` — exact delegated scope, operations, source authority, expiry, and maximum depth.
 - `separation_of_duties_rules` — incompatible requester, approver, executor, and publisher combinations.
 
+### Scoped invitation onboarding and personal contexts
+
+Existing `users`, `invitations`, `memberships`, `workspace_resource_grants`, and Google authentication remain migration inputs. The target adds:
+
+- `user_identities` — global user to provider identity links using provider subject, verified email, assurance, status, and last-use evidence; no provider access/refresh token values;
+- `invitation_scope_bindings` — immutable typed Tenant, Brand, Workspace, Department, Group, Role/profile, workflow, Agent, asset, capability, and future-resource scope rows with permission/effect, conditions, expiry, source authority, and checksum;
+- `invitation_delivery_events` — queued/sent/failed/viewed delivery evidence without raw token retention;
+- `invitation_acceptance_runs` — identity evidence, invitation checksum, transactional membership/grant/assignment IDs, context issued, readback checksum, and idempotency;
+- `personal_account_profiles` — optional one-per-user personal-account Tenant policy, status, plan, creation source, and lifecycle;
+- `active_user_contexts` — short-lived selected Tenant/Brand/Workspace/Department/Group/Role context, source membership/grant versions, authority epoch, expiry, and revocation;
+- `context_switch_events` — requested/previous/new context, validation outcome, source versions, and audit evidence.
+
+Target enum additions include `personal_account` for Tenant type and `personal` for Workspace type. Invitation tokens are stored only as hashes with single-use and expiry evidence.
+
 ### Tenant federation and lifecycle
 
 - extend/project `tenant_relationships` into contextual authority with relationship policy and delegated operations;
