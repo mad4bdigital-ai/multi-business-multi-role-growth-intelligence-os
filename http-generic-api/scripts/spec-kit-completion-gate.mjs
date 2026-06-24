@@ -72,6 +72,7 @@ function push(findings, type, feature, details = {}) {
 export function validateFeatureDirectory(feature, options = {}) {
   const root = options.root || REPO_ROOT;
   const policy = options.policy || readJson(POLICY_PATH);
+  const headRef = options.headRef || process.env.GITHUB_HEAD_REF || "";
   const featureRoot = path.join(root, policy.spec_root, feature);
   const findings = [];
 
