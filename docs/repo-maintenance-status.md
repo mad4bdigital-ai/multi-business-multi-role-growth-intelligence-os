@@ -59,6 +59,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 ## Automation Workflows
 
 - `.github/workflows/ci.yml`
+- `.github/workflows/custom-gpt-contract-guard.yml`
 - `.github/workflows/docs-agent.yml`
 - `.github/workflows/dr-certification-readiness.yml`
 - `.github/workflows/local-manager-windows.yml`
