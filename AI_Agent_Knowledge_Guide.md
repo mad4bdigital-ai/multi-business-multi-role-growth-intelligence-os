@@ -1140,3 +1140,8 @@ The blocking policy is `platform_resource_api_coverage_policy_v1`. Run `node htt
 Resource API execution is layered and fail-closed. `routes/resourceApiRoutes.js` owns only path registration and transport authentication. HTTP request/response mapping belongs to `src/api/resourceApi/resourceApiController.js`; membership, authorization, lifecycle, audit, summary generation, and same-cycle readback belong to `src/application/resourceApi/resourceApiService.js`; descriptors and capability policy belong to `src/domain/resourceApi/resourceCatalog.js`; SQL and external service wiring belong to `src/infrastructure/resourceApi/`.
 
 Controllers must not call repositories directly for resource workflows. Application and domain code must not import Express, JWT parsing, or database drivers. SQL must remain code-owned in the infrastructure repository. `test-resource-api-architecture.mjs` and `test-resource-api-service.mjs` are blocking tests for these boundaries and behaviors.
+## Spec Kit completion governance
+
+Every new or modified feature under `specs/` is governed by `.specify/spec-kit-governance.json` and the changed-scope fail-closed gate `http-generic-api/scripts/spec-kit-completion-gate.mjs`. A governed feature must contain `spec.md`, `plan.md`, `tasks.md`, `completion.json`, and at least one checklist under `checklists/`.
+
+Use `single_pr` only when the feature has no migration, production-verification, or post-merge-audit obligation. Otherwise use `multi_pr`: implementation PRs deliver the behavior and a final closeout PR records CI, release readiness, merge, migration ledger, production parity, audit, and any tracked backlog. A feature marked complete cannot contain unresolved checkboxes.

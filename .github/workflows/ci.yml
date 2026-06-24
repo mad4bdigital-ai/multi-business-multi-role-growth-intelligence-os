@@ -49,6 +49,9 @@ jobs:
           node test-resource-api-architecture.mjs
           node test-resource-api-service.mjs
 
+      - name: Enforce Spec Kit completion governance
+        run: node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+
       - name: Validate memory schema refs
         run: node validate-memory-schema.mjs
 

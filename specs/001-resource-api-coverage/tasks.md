@@ -20,7 +20,9 @@
 - [x] Add a controller for HTTP mapping and stable error envelopes.
 - [x] Add architecture-boundary tests and application-service tests.
 - [x] Add an architecture ADR and repository folder map.
-- [ ] Obtain GitHub CI green status.
-- [ ] Merge governed PR.
-- [ ] Apply migration `1023_sprint69_resource_api_coverage_gate.sql`.
-- [ ] Verify production deployment and run the post-merge live audit.
+- [x] Obtain GitHub CI green status: 4/4 required checks passed on PR #1894.
+- [x] Merge governed PR: merge SHA `525b5763d0f4396e1358e43ce6a0dd8b6c3b87c7`.
+- [x] Apply migration `1023_sprint69_resource_api_coverage_gate.sql`: 12/12 statements, ledger run `683406e3-0758-4ea1-9a7d-134d05fab2ba`.
+- [x] Verify production deployment and run the post-merge live audit: runtime run `e37a9da4-19f4-4982-9677-8bddabe698af`; audit run `748dbe4e-feb5-4633-9033-2510f80837ec`.
+- [x] Record bounded legacy audit backlog in `backlog.md` without weakening the future fail-closed gate.
+- [x] Complete the feature checklist and completion manifest in the final closeout PR.
