@@ -32,6 +32,24 @@
 | Current branch is repaired before replacement | `plan.md` delivery principle | reconciliation, no-force mutation, ancestry readback |
 | No provider writes during design/preview/simulation | README, credential model, growth loop | provider-call and credential-read flags remain false |
 
+| Organizational user, group, service, and agent identities are authoritative | `additional-dimensions-gap-analysis.md` 4; `spec.md` FR-031–FR-032 | principal/group/delegation and separation-of-duties tests |
+| Tenant partner/managed-client/white-label relationships stay explicit | gap analysis 5; `spec.md` FR-033–FR-034 | federation and cross-tenant delegation tests |
+| Tenant offboarding/export/legal hold/erasure are governed workflows | gap analysis 5–6 | lifecycle, disposition, export, and erasure readback tests |
+| Data purpose, consent, sensitivity, retention, residency, and jurisdiction constrain use | gap analysis 6, 12 | prohibited-purpose, residency, hold, and deletion-propagation tests |
+| Commercial availability is distinct from authority/readiness | gap analysis 7; `spec.md` FR-037–FR-039 | entitlement, reservation, settlement, and concurrent budget tests |
+| Model routing is contextual and evaluation-gated | gap analysis 8; `spec.md` FR-040–FR-042 | policy, fallback, quality, cost, locale, and residency model-selection tests |
+| External effects are idempotent, cancellable, and compensatable | gap analysis 9; `spec.md` FR-043–FR-045 | outbox/inbox, duplicate delivery, cancel, saga, and dead-letter tests |
+| Artifacts and knowledge are fully attributable and governable | gap analysis 10; `spec.md` FR-046–FR-047 | checksum, provenance, correction, retraction, and disposition tests |
+| Temporal/environment/region semantics are first-class | gap analysis 11–12; `spec.md` FR-048–FR-050 | as-of replay, future preview, environment isolation, and regional routing tests |
+| Packages and plugins carry supply-chain trust evidence | gap analysis 13; `spec.md` FR-051–FR-052 | signature, SBOM, vulnerability, license, permission, update, and revocation tests |
+| Contracts evolve compatibly | gap analysis 14; `spec.md` FR-053 | client negotiation, deprecation, variant rebase, and historical manifest tests |
+| Tenants and users can export/exit without secret leakage | gap analysis 15; `spec.md` FR-054 | portable manifest, import conflict, revocation, legal-hold, and deletion-certificate tests |
+| New authorities participate in backup/restore and degraded modes | gap analysis 16; `spec.md` FR-055 | RPO/RTO, restore isolation, epoch, cache, and reconstruction tests |
+| Human operations have capacity, escalation, and separation-of-duties controls | gap analysis 17; `spec.md` FR-056 | queue, availability, fallback, SLA, support-access, and escalation tests |
+| Intent resolves through capability ontology to substitutable implementations | gap analysis 18; `spec.md` FR-057 | equivalence, compatibility, deprecation, and ranking tests |
+| Localization and accessibility affect presentation and eligibility without changing IDs | gap analysis 19 | locale, RTL, translation, model-language, and jurisdiction tests |
+| Quality, fairness, drift, and cross-tenant learning are governed | gap analysis 20–21; `spec.md` FR-058–FR-060 | golden evaluation, exposure, drift, cohort, opt-out, and privacy tests |
+
 ## Source-to-target traceability
 
 | Existing authority | Target role |
