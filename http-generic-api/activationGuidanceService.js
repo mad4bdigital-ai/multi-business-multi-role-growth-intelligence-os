@@ -308,7 +308,20 @@ export async function buildActivationGuidance({
     ? await fetchAdminTenantContext({ tenantId })
     : await fetchTenantContext({ userId, tenantId });
   const effectiveTenantId = tenantContext?.tenant_id || tenantId || null;
-  const counts = await buildCounts({ profile: normalizedProfile, userId, tenantId: effectiveTenantId });
+  const baseCounts = await buildCounts({ profile: normalizedProfile, userId, tenantId: effectiveTenantId });
+  const tenantDynamicSnapshot = await buildTenantActivationSnapshot({
+    profile: normalizedProfile,
+    tenantId: effectiveTenantId,
+    userId,
+    role: tenantContext?.role || (normalizedProfile === "admin" ? "admin" : null),
+  });
+  const counts = {
+    ...baseCounts,
+    ...(tenantDynamicSnapshot?.counts || {}),
+  };
+  const managedBrands = Array.isArray(tenantDynamicSnapshot?.managed_brands)
+    ? tenantDynamicSnapshot.managed_brands
+    : [];
   const groups = buildCapabilityGroups({ profile: normalizedProfile, counts });
   const recommendedNextActions = rankNextActions({ profile: normalizedProfile, counts, groups });
   const toolRows = await readToolRows(normalizedProfile === "admin" ? "admin_platform_endpoint_tools" : "tenant_platform_endpoint_tools", "is_enabled = 1", []);
