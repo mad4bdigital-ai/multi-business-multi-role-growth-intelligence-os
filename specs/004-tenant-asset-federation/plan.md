@@ -40,6 +40,33 @@ src/infrastructure/adaptiveGrowth
 
 No controller may directly implement policy algebra or call providers.
 
+## Phase -1 — Extended Design Freeze
+
+Before runtime implementation, approve the boundaries and canonical owners for the additional platform planes:
+
+1. principal/group/service identity and delegation;
+2. tenant federation, lifecycle, ownership transfer, offboarding, export, legal hold, and erasure;
+3. data classification, purpose, consent, retention, residency, and jurisdiction;
+4. commercial entitlement, estimate, reservation, settlement, refund, and cost attribution;
+5. contextual model routing, fallback, evaluation, deprecation, and quality drift;
+6. universal operation identity, outbox/inbox, delivery semantics, cancellation, compensation, concurrency, and backpressure;
+7. artifact/knowledge provenance, verification, correction, retraction, and disposition;
+8. temporal `as_of`, scheduled publication, environment, region, and jurisdiction semantics;
+9. plugin/package publisher trust, signing, dependency inventory, vulnerability, license, update, and revocation;
+10. compatibility, portability, resilience, human service levels, capability ontology, localization, fairness, and cross-tenant learning.
+
+Deliverables:
+
+- ADRs for each P0 boundary;
+- source-of-truth and ownership matrix;
+- compatibility and migration strategy;
+- updated Effective Runtime Manifest schema proposal;
+- threat model and data-flow review;
+- quality/evaluation and cutover thresholds;
+- decision on which authorities are required in the first read-only pilot versus deferred.
+
+Exit: no unresolved P0 authority duplication or undefined fail-open behavior.
+
 ## Phase 0 — Design and canonical alignment
 
 - Approve the shared-by-default and optional-variant terminology.
