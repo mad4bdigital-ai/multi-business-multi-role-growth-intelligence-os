@@ -834,6 +834,12 @@ export async function createCredentialIntakeSessionRecord({
       redirect_configured: Boolean(binding.allowed_redirect_uri),
       authority_snapshot_version: authoritySnapshotVersion,
     },
+    page_preflight: {
+      ok: true,
+      rendered: true,
+      superseded_pending_sessions: supersededPendingSessions,
+      automatic_retry_after_render_failure: false,
+    },
     secrets_included: false,
   };
 }
