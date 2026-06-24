@@ -80,7 +80,7 @@ function fixture(completion = validCompletion(), tasks = "- [x] Done\n", checkli
     evidence: { ...validCompletion().evidence, post_merge_audit: { status: "completed_with_backlog", run_id: "audit-run", backlog_refs: [] } },
   });
   const root = fixture(completion);
-  assert(validateFeatureDirectory("001-example", { root, policy }).some((row) => row.type === "audit_backlog_not_tracked"));
+  assert(validateFeatureDirectory("001-example", { root, policy, headRef: FIXTURE_HEAD_REF }).some((row) => row.type === "audit_backlog_not_tracked"));
 }
 
 {
