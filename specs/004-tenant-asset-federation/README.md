@@ -45,7 +45,8 @@ No silent self-modification is allowed. High-risk policy, authority, credential,
 - `threat-model.md` — assets, trust boundaries, 28 threats, abuse cases, tests, and security gates.
 - `observability-slos.md` — events, metrics, SLOs, error budgets, alerts, dashboards, and runbooks.
 - `migration-cutover-map.md` — current-to-target bridges, backfills, parity, cutover units, and rollback.
-- `data-model.md` — reused and new authorities.
+- `additional-dimensions-gap-analysis.md` — evidence-based review of identity, tenant lifecycle, privacy, FinOps, model governance, async consistency, provenance, temporal/environment semantics, supply chain, portability, resilience, human operations, capability ontology, localization, and quality drift.
+- `data-model.md` — reused and new authorities across all fourteen platform planes.
 - `resolution-algorithm.md` — deterministic effective-context resolution.
 - `permissions-matrix.md` — authority, preference, customization, and execution boundaries.
 - `credential-installation-model.md` — tenant credentials and runtime readiness.
