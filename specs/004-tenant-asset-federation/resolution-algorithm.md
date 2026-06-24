@@ -38,6 +38,20 @@
 8. Fail closed on cycles, path explosion, stale epoch, cross-tenant edges, missing role authority, or ambiguous non-mergeable paths.
 9. Produce the base `container_effective_context_ledger` resolution.
 
+### Stage 2A — Resolve Business-Type Blueprint inheritance
+
+10. Resolve the active Brand and its primary, secondary, specialization, seasonal, or experimental Business-Type bindings.
+11. Load the active Brand inheritance profile and per-layer rules.
+12. Enumerate eligible required, recommended, and selected optional Blueprints by registered layer type.
+13. Validate Blueprint status, version, compatibility, entitlement, region, environment, dependency, certification, and security-revocation conditions.
+14. Traverse Blueprint relationships and closure within registered type, depth, path, and cycle limits.
+15. Resolve equivalent, replaced, superseded, conflicting, pinned, and locally overridden Blueprints using per-layer registered semantics.
+16. Resolve or preview Brand-scoped layer instances and relationships for Departments, Groups, Roles, member profiles, AI-Agent profiles, Activities, knowledge trees, and other registered layers.
+17. Resolve inherited canonical resource bindings for Skills, Workflows, Policies, Apps, Plugins, Actions, Tools, Engines, Logic, Graphs, dashboards, metrics, validators, prompts, and output templates without copying shared definitions.
+18. Validate that every inherited instance/reference belongs to the same tenant and Brand and preserves source Business Type, Blueprint/version, inheritance-profile/version, merge operator, override, and authority epoch.
+19. Block on unknown layer/relationship types, missing required Blueprint, cycle, path explosion, ambiguous conflict, stale security-revoked pin, or missing disposition for a pending removal.
+20. Produce an immutable inheritance-resolution summary and checksum for the Effective Runtime Manifest.
+
 ### Stage 3 — Discover shared candidates
 
 10. Read shared assets from `platform_asset_catalog_registry` and canonical source registries.
