@@ -114,6 +114,7 @@
     "migration-cutover-map.md",
     "additional-dimensions-gap-analysis.md",
     "expanded-platform-plane-architecture.md",
+    "design-freeze-decision-register.md",
     "data-model.md",
     "resolution-algorithm.md",
     "permissions-matrix.md",
