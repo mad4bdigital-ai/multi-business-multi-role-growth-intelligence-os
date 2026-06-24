@@ -54,6 +54,22 @@
 - [x] Shared asset publication requires admin certification and normal release governance.
 - [x] A positive experiment does not automatically modify the shared base.
 
+## Quality, fairness, and cross-tenant learning
+
+- [x] Model/workflow/prompt/tool evaluation suites are versioned and risk/locale/activity aware.
+- [x] Recommendation exposure is logged separately from clicks and outcomes.
+- [x] Popularity and exposure feedback loops are detected and bounded.
+- [x] One high-volume tenant cannot dominate aggregate defaults or promotion candidates.
+- [x] Negative outcomes, dismissals, resets, and rollbacks remain in calibration evidence.
+- [x] Sensitive personal traits are not inferred for personalization.
+- [x] Cross-tenant simulations never contain another tenant's raw content.
+- [x] Aggregate learning requires minimum cohorts, approved purpose, privacy controls, and tenant policy.
+- [x] Commercial objectives are disclosed and cannot masquerade as safety or relevance.
+- [x] Platform promotion requires quality, privacy, supply-chain, compatibility, and rollback evidence.
+- [ ] Initial golden datasets and evaluators approved.
+- [ ] Exposure/fairness thresholds approved.
+- [ ] Cross-tenant cohort and aggregation thresholds approved.
+
 ## Metrics and operations
 
 - [x] Product, execution, business, and safety metrics are defined.
