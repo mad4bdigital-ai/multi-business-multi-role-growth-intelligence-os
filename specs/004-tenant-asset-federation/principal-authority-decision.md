@@ -160,16 +160,27 @@ A lower scope may choose only values within the parent scope's allowed range. Se
 ### Proposed settings resource
 
 ```yaml
-profile_key: tenant_principal_authority_default
-scope_type: tenant
-scope_ref: tenant_123
+profile_key: dream_desert_principal_authority
+scope_type: brand
+scope_ref: dream_desert
+inherits_from:
+  business_types:
+    - key: travel_agency
+      role: primary
+      priority: 100
 settings:
+  department_blueprint_inheritance_enabled: true
+  inherit_required_department_blueprints: true
+  inherit_recommended_department_blueprints: selected
+  auto_adopt_new_optional_blueprints: false
+  auto_adopt_security_revocations: true
   department_hierarchy_enabled: true
   max_department_depth: 3
   group_hierarchy_enabled: true
   max_group_depth: 5
+  allow_cross_brand_groups: false
   allow_cross_department_groups: false
-  allow_tenant_global_groups: true
+  allow_brand_global_groups: true
   require_primary_department_for_users: true
   allow_multi_department_membership: true
   direct_department_roles_enabled: true
