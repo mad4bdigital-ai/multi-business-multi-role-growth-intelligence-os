@@ -111,6 +111,8 @@
     "migration-cutover-map.md",
     "additional-dimensions-gap-analysis.md",
     "expanded-platform-plane-architecture.md",
+    "dynamic-layer-inheritance-model.md",
+    "principal-authority-decision.md",
     "design-freeze-decision-register.md",
     "data-model.md",
     "resolution-algorithm.md",
