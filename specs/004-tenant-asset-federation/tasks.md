@@ -38,6 +38,24 @@
 - [x] Add governance roles, decision rights, delegation, approval routing, and review cadence.
 - [x] Add platform growth flywheel, maturity states, opportunity detection, and growth debt.
 
+## Extended platform planes
+
+- [x] Complete live code/database gap analysis for identity, tenant lifecycle, privacy, FinOps, models, async consistency, provenance, temporal/environment semantics, supply chain, portability, resilience, human operations, capability ontology, localization, and quality drift.
+- [x] Add the fourteen-plane target architecture and revised Design Freeze gate.
+- [x] Add FR-031 through FR-060 to the core specification.
+- [x] Add proposed authority-plane data structures and reuse boundaries.
+- [ ] Approve principal/group/service identity and delegation authority.
+- [ ] Approve tenant federation, ownership transfer, offboarding, export, legal hold, and erasure lifecycle.
+- [ ] Approve data-purpose, consent, classification, retention, residency, and jurisdiction rules.
+- [ ] Approve commercial entitlement, cost estimate, reservation, settlement, refund, and attribution contract.
+- [ ] Approve contextual model routing, fallback constraints, evaluation suites, and quality thresholds.
+- [ ] Approve universal operation, outbox/inbox, delivery, cancellation, compensation, and concurrency contract.
+- [ ] Approve artifact/knowledge provenance, verification, correction, retraction, and disposition schema.
+- [ ] Approve unified temporal `as_of`, environment, region, and jurisdiction semantics.
+- [ ] Approve plugin/package publisher, signing, SBOM, vulnerability, license, update, and revocation policy.
+- [ ] Approve compatibility registry, tenant portability, disaster integration, human SLA, and capability ontology.
+- [ ] Define initial quality, fairness, calibration, and cross-tenant aggregate-learning gates.
+
 ## Canonical alignment
 
 - [ ] Add ADRs for shared assets, typed policy algebra, personalization boundaries, and adaptive promotion.
