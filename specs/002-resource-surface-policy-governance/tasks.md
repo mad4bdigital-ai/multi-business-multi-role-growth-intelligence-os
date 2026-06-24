@@ -10,7 +10,7 @@
 - [x] T006 Resolve `runtime_unclassified` metadata deterministically.
 - [x] T007 Resolve assets and approvals revisions strategy as `readback_guarded`.
 - [x] T008 Add deterministic unit and regression tests.
-- [ ] T009 Add ADR, canonicals, and Knowledge Guide updates.
+- [x] T009 Add ADR, canonicals, and Knowledge Guide updates.
 
 ## Delivery and verification
 
