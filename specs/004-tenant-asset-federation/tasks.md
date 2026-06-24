@@ -110,6 +110,30 @@
 - [ ] Add Google issuer/audience/nonce/state/email-verified/provider-subject tests.
 - [ ] Add cross-Tenant, replay, revoke, expiry, no-downgrade, and personal-isolation tests.
 
+## Tenant creation and Workspace boundary
+
+- [x] Approve that every verified global user may explicitly create and own a Tenant within plan/policy limits.
+- [x] Approve that Tenant creation is never automatic on Google sign-in, invitation acceptance, or first membership.
+- [x] Define Tenant as the ownership, isolation, billing, governance, federation, data-policy, connection, audit, and lifecycle boundary.
+- [x] Define Workspace as a Tenant-owned operational context rather than a mini-Tenant.
+- [x] Define organizational and operational axes connected through explicit bindings and grants.
+- [x] Define personal, brand, project, campaign, operations, and sandbox Workspace types.
+- [x] Define optional personal-account Tenant/personal Workspace coexistence with company memberships.
+- [x] Define one-Tenant Workspace ownership, multi-Brand opt-in, and cross-Tenant prohibition.
+- [x] Define Tenant provisioning, owner assignments, Workspace lifecycle, and active-context dependencies.
+- [ ] Approve Tenant and Workspace type registries and migration mapping for existing rows.
+- [ ] Approve owned-Tenant and active-Workspace limits per plan/entitlement.
+- [ ] Approve Tenant provisioning state machine, verification/risk rules, and setup templates.
+- [ ] Approve explicit owner-assignment and ownership-transfer schema.
+- [ ] Approve Workspace Brand/Department/Group/Activity binding schemas and conflict semantics.
+- [ ] Approve multi-Brand Workspace policy and allowed use cases.
+- [ ] Approve personal-account plan, privacy, export, and deletion behavior.
+- [ ] Implement tenant-creation capability and asynchronous provisioning APIs.
+- [ ] Implement Workspace type/binding/context authorities and readback.
+- [ ] Remove implicit first-membership context from new clients while preserving migration compatibility.
+- [ ] Implement Workspace archive/deletion disposition and Tenant offboarding integration.
+- [ ] Add one-Tenant ownership, cross-Tenant rejection, access-chain, sandbox/production, plan-limit, and lifecycle tests.
+
 ## Shared catalog
 
 - [ ] Design additive catalog migration.
