@@ -92,7 +92,7 @@ A Department does not own raw credentials or platform shared asset definitions.
 
 ## 4. Group semantics
 
-Each normal Group belongs to exactly one Department. Tenant-wide system Groups may be explicitly marked `tenant_global` and require stronger administration.
+Each normal Group belongs to exactly one Brand Department. Brand-wide Groups may be explicitly marked `brand_global` and require stronger Brand/Tenant administration. Tenant-wide operational Groups are not part of the default hierarchy; cross-Brand participation requires a separate explicit Tenant-governed construct and never merges Brand authority implicitly.
 
 A Group may own:
 
