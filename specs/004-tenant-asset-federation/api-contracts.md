@@ -146,7 +146,38 @@ Preview returns the proposed Brand-scoped Department, Group, Role, member-profil
 
 Apply requires a current preview checksum, profile/version precondition, exact publisher authority, required approvals, idempotency, transaction/readback evidence, and a disposition plan for destructive removals. Business-Type bindings grant Blueprint eligibility only.
 
-## 10. Identity, organization, and tenant lifecycle
+## 10. Identity, invitation onboarding, active context, and tenant lifecycle
+
+### Invitation and identity surfaces
+
+- `POST /tenant/invitations`
+- `GET /tenant/invitations/{invitationId}`
+- `GET /tenant/invitations/{invitationId}/scope`
+- `POST /tenant/invitations/{invitationId}/deliveries`
+- `POST /tenant/invitations/{invitationId}/revoke`
+- `POST /tenant/invitations/{invitationId}/revisions`
+- `GET /invitations/{token}/preview`
+- `POST /invitations/{token}/accept`
+- `POST /invitations/{token}/decline`
+- `GET /me/identities`
+- `POST /me/identities/google/link`
+- `POST /me/identities/{identityId}/unlink`
+- `GET /me/memberships`
+- `GET /me/contexts`
+- `POST /me/active-context`
+- `DELETE /me/active-context`
+- `GET /me/personal-account`
+- `POST /me/personal-account`
+- `GET /me/personal-workspaces`
+- `POST /me/personal-workspaces`
+
+Invitation creation requires an exact immutable scope, inviter authority/version, expiry, idempotency key, and approved delivery channel. Public preview exposes only safe Tenant/Brand/Workspace/Department/Group/Role labels and scope summaries.
+
+Acceptance verifies the invitation token hash, expiry/status, Google issuer/audience/nonce/state, verified invited-email match, inviter authority ceiling, and scope checksum. One transaction creates or reactivates the minimal Tenant membership plus exact scoped grants and organizational assignments, marks the invitation accepted, persists readback evidence, and issues a revalidated target context.
+
+Scoped invitations do not create broad default workspace grants, new Tenants, or personal workspaces. Personal-account creation is an explicit separate operation. Context switching never trusts the first membership implicitly and returns stable structured errors for unavailable, revoked, expired, or ambiguous contexts.
+
+### Organization and lifecycle surfaces
 
 Planned resource surfaces:
 
