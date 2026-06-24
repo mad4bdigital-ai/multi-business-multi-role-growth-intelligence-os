@@ -57,6 +57,26 @@
 - [x] No partial allow is returned after limit exhaustion or dependency failure.
 - [x] Same-cycle readback is required for state-changing operations.
 
+## Blueprint and inheritance security
+
+- [x] Business-Type bindings grant Blueprint eligibility only and never execution authority.
+- [x] Blueprint publication validates registered layer/relationship types, cardinality, hierarchy, compatibility, and cycles.
+- [x] Brand inheritance apply validates tenant/Brand ownership, exact profile/version, approval, idempotency, and readback.
+- [x] Inheritance creates only Brand-scoped organizational/profile/binding records and never copies credentials or canonical shared assets.
+- [x] Member-profile Blueprints cannot auto-create human users or silently assign privileged roles.
+- [x] AI-Agent-profile Blueprints cannot exceed Brand/Tenant authority, model, cost, knowledge, autonomy, or approval bounds.
+- [x] Cross-Brand Departments, Groups, memberships, Agent assignments, and instance relationships are forbidden.
+- [x] Cross-Department participation is explicit and disabled by default.
+- [x] Blueprint/instance closure traversal is depth/path bounded and cycle-safe.
+- [x] Equivalent or conflicting Blueprints require registered deterministic resolution; ambiguity blocks.
+- [x] Local override patches cannot modify mandatory policy, authority, credential, audit, approval, certification, tenant, or environment fields.
+- [x] Blueprint removal requires disposition of memberships, agents, grants, approvals, schedules, variants, artifacts, and dependencies.
+- [x] Security revocation can invalidate an inherited unsafe asset/profile despite an ordinary version pin.
+- [x] Blueprint provenance and inheritance versions are bound into authority/cache/manifest invalidation.
+- [ ] Blueprint publisher trust and certification threat review completed.
+- [ ] Multi-Business-Type conflict and equivalence abuse tests completed.
+- [ ] Upgrade/rebase/removal disposition security review completed.
+
 ## Extended plane security
 
 - [x] Group nesting and delegation depth are bounded and cycle-safe.
