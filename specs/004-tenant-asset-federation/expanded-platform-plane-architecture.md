@@ -60,6 +60,7 @@ Signed principal + normalized request
 |---|---|---|
 | Identity and Organization | principal identity, group membership, service ownership, assurance, delegation | tenant asset content or provider credentials |
 | Tenant Federation and Lifecycle | tenant relationships, ownership transfer, suspension, offboarding, export, legal hold, erasure | implicit cross-tenant access |
+| Blueprint and Layer Inheritance | Business-Type Blueprints, Brand bindings, inheritance profiles, layer instances, relationships, closure, provenance, upgrades, conflicts | live memberships, credentials, shared-asset copies, or execution grants |
 | Context and Resource Authority | containers, roles, resource bindings, authority epochs | user preference or commercial pricing |
 | Policy Composition | typed fields, operators, mandatory floors, conflict behavior | asset copies or credential payloads |
 | Preference and Variant | personal ranking and explicit sparse customization | grants, quotas, mandatory-policy weakening |
