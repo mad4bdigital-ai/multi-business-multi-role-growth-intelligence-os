@@ -91,7 +91,7 @@ function fixture(completion = validCompletion(), tasks = "- [x] Done\n", checkli
 
 {
   const root = fixture(validCompletion({ status: "in_progress" }), "- [ ] Pending\n", "- [ ] Review pending\n");
-  assert.deepEqual(validateFeatureDirectory("001-example", { root, policy }), []);
+  assert.deepEqual(validateFeatureDirectory("001-example", { root, policy, headRef: FIXTURE_HEAD_REF }), []);
 }
 
 console.log("spec kit completion governance tests passed");
