@@ -408,25 +408,36 @@ High-impact changes may require approval, including:
 ## 12. API and settings surfaces
 
 ```text
-GET    /tenant/departments
-POST   /tenant/departments
-GET    /tenant/departments/{departmentId}
-PATCH  /tenant/departments/{departmentId}
-POST   /tenant/departments/{departmentId}/memberships
-DELETE /tenant/departments/{departmentId}/memberships/{membershipId}
+GET    /tenant/brands/{brandKey}/departments
+POST   /tenant/brands/{brandKey}/departments
+GET    /tenant/brands/{brandKey}/departments/{departmentId}
+PATCH  /tenant/brands/{brandKey}/departments/{departmentId}
+POST   /tenant/brands/{brandKey}/departments/{departmentId}/memberships
+DELETE /tenant/brands/{brandKey}/departments/{departmentId}/memberships/{membershipId}
 
-GET    /tenant/departments/{departmentId}/groups
-POST   /tenant/departments/{departmentId}/groups
-POST   /tenant/groups/{groupId}/memberships
-DELETE /tenant/groups/{groupId}/memberships/{membershipId}
+GET    /tenant/brands/{brandKey}/departments/{departmentId}/groups
+POST   /tenant/brands/{brandKey}/departments/{departmentId}/groups
+POST   /tenant/brands/{brandKey}/groups/{groupId}/memberships
+DELETE /tenant/brands/{brandKey}/groups/{groupId}/memberships/{membershipId}
 
-GET    /tenant/principal-authority-settings
-POST   /tenant/principal-authority-settings
-POST   /tenant/principal-authority-settings/{profileId}/preview-impact
-POST   /tenant/principal-authority-settings/{profileId}/publish
-POST   /tenant/principal-authority-settings/{profileId}/disable
-GET    /tenant/principal-authority-settings/{profileId}/changes
-GET    /tenant/principal-authority-settings/{profileId}/revisions
+GET    /tenant/brands/{brandKey}/business-type-bindings
+POST   /tenant/brands/{brandKey}/business-type-bindings
+GET    /tenant/brands/{brandKey}/inheritance-profiles
+POST   /tenant/brands/{brandKey}/inheritance-profiles
+POST   /tenant/brands/{brandKey}/inheritance-profiles/{profileId}/preview-impact
+POST   /tenant/brands/{brandKey}/inheritance-profiles/{profileId}/apply
+POST   /tenant/brands/{brandKey}/inheritance-profiles/{profileId}/disable
+GET    /tenant/brands/{brandKey}/inheritance-runs/{runId}
+GET    /tenant/brands/{brandKey}/layer-instances
+GET    /tenant/brands/{brandKey}/layer-instances/{layerInstanceId}/provenance
+
+GET    /tenant/brands/{brandKey}/principal-authority-settings
+POST   /tenant/brands/{brandKey}/principal-authority-settings
+POST   /tenant/brands/{brandKey}/principal-authority-settings/{profileId}/preview-impact
+POST   /tenant/brands/{brandKey}/principal-authority-settings/{profileId}/publish
+POST   /tenant/brands/{brandKey}/principal-authority-settings/{profileId}/disable
+GET    /tenant/brands/{brandKey}/principal-authority-settings/{profileId}/changes
+GET    /tenant/brands/{brandKey}/principal-authority-settings/{profileId}/revisions
 ```
 
 All mutations require object-level authorization, idempotency where retryable, optimistic version checks, stable errors, audit, and same-cycle readback.
