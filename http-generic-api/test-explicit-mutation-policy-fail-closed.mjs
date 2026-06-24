@@ -10,6 +10,20 @@ import {
 } from "./governedExecutionPreflight.js";
 import { resolveAppActionMutationRequirement } from "./appAdapters/index.js";
 
+function makePolicyDeps(executionPolicyRows = []) {
+  return {
+    skipSurfaceAuthority: true,
+    pool: {
+      async query(sql) {
+        const text = String(sql || "");
+        if (text.includes("FROM `execution_policies`")) return [executionPolicyRows];
+        if (text.includes("FROM platform_engine_policy_rules")) return [[]];
+        throw new Error(`Unexpected SQL in policy test: ${text.slice(0, 120)}`);
+      },
+    },
+  };
+}
+
 const emptyPolicyDeps = {
   skipSurfaceAuthority: true,
   pool: {
@@ -45,6 +59,27 @@ const undeclaredMutationTool = await evaluateGptToolDispatchPreflight({ callerTy
 assert.equal(undeclaredMutationTool.ok, false);
 assert.deepEqual(undeclaredMutationTool.errors, ["mutation_policy_required"]);
 
+const genericPolicyDeps = makePolicyDeps([{
+  id: 2,
+  policy_group: "Generic Runtime Governance",
+  policy_key: "Broad Advisory Guard",
+  policy_value: JSON.stringify({ enforcement_mode: "advisory" }),
+  active: "TRUE",
+  execution_scope: "gpt_tools_call|tool_dispatch|app_action|external_app_action",
+  affects_layer: "gptToolsRoutes|tenant|admin|appAdapters|appAdapters/index.js|github",
+  blocking: "FALSE",
+  notes: "Broad seeded policy must not satisfy explicit mutation policy requirements.",
+}]);
+const genericUndeclaredMutationTool = await evaluateGptToolDispatchPreflight({
+  callerType: "admin",
+  toolKey: "unsafe_write_with_generic_policy",
+  method: "POST",
+  tags: ["mutation"],
+}, genericPolicyDeps);
+assert.equal(genericUndeclaredMutationTool.ok, false);
+assert.deepEqual(genericUndeclaredMutationTool.errors, ["mutation_policy_required"]);
+assert.equal(genericUndeclaredMutationTool.evidence.matching_policy_count, 1);
+
 const declaredMutationTool = await evaluateGptToolDispatchPreflight({ callerType: "admin", toolKey: "governed_write", method: "VIRTUAL", tags: ["mutation", "capability_envelope", "readback"] }, emptyPolicyDeps);
 assert.equal(declaredMutationTool.ok, true);
 assert.equal(declaredMutationTool.classification, "allow_with_declared_mutation_policy");
@@ -58,6 +93,34 @@ assert.equal(readOnlyApp.ok, true);
 const mutatingApp = await evaluateAppActionPreflight({ appKey: "github", actionKey: "write_file", mutationRequired: true }, emptyPolicyDeps);
 assert.equal(mutatingApp.ok, false);
 assert.deepEqual(mutatingApp.errors, ["mutation_policy_required"]);
+const genericMutatingApp = await evaluateAppActionPreflight({
+  appKey: "github",
+  actionKey: "write_file",
+  mutationRequired: true,
+}, genericPolicyDeps);
+assert.equal(genericMutatingApp.ok, false);
+assert.deepEqual(genericMutatingApp.errors, ["mutation_policy_required"]);
+assert.equal(genericMutatingApp.evidence.matching_policy_count, 1);
+assert.equal(genericMutatingApp.evidence.explicit_mutation_policy_count, 0);
+
+const specificAppPolicyDeps = makePolicyDeps([{
+  id: 3,
+  policy_group: "External App Action Governance",
+  policy_key: "GitHub Write File Guard",
+  policy_value: JSON.stringify({ enforcement_mode: "advisory" }),
+  active: "TRUE",
+  execution_scope: "app_action|external_app_action|github|write_file",
+  affects_layer: "appAdapters|appAdapters/index.js|github",
+  blocking: "FALSE",
+  notes: "Action-specific mutation policy.",
+}]);
+const specificallyGovernedMutatingApp = await evaluateAppActionPreflight({
+  appKey: "github",
+  actionKey: "write_file",
+  mutationRequired: true,
+}, specificAppPolicyDeps);
+assert.equal(specificallyGovernedMutatingApp.ok, true);
+assert.equal(specificallyGovernedMutatingApp.evidence.explicit_mutation_policy_count, 1);
 const unclassifiedApp = await evaluateAppActionPreflight({ appKey: "future_app", actionKey: "future_action", mutationRequired: null }, emptyPolicyDeps);
 assert.equal(unclassifiedApp.ok, false);
 assert.deepEqual(unclassifiedApp.errors, ["mutation_classification_required"]);
@@ -102,5 +165,13 @@ assert.match(gptToolsSource, /tags: descriptor\.tags/);
 const appAdapterSource = await import("node:fs/promises").then(({ readFile }) => readFile(new URL("./appAdapters/index.js", import.meta.url), "utf8"));
 assert.match(appAdapterSource, /resolveAppActionMutationRequirement\(connection\.app_key, action_key, args\)/);
 assert.match(appAdapterSource, /mutationRequired,/);
+const executeAppActionSource = appAdapterSource.slice(
+  appAdapterSource.indexOf("export async function executeAppAction"),
+  appAdapterSource.indexOf("return result;", appAdapterSource.indexOf("export async function executeAppAction")),
+);
+assert.ok(
+  executeAppActionSource.indexOf("evaluateAppActionPreflight") < executeAppActionSource.indexOf("ensureFreshCredentials(connection)"),
+  "app action authorization preflight must run before credential access",
+);
 
 console.log("explicit mutation policy fail-closed tests passed");
