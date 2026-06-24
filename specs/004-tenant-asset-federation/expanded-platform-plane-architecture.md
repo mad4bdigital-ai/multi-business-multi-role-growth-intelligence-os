@@ -133,23 +133,25 @@ A plane never returns raw credentials, private cross-tenant content, or hidden m
 2. Resolve principal/group/service identity
 3. Resolve tenant and federation relationship
 4. Validate tenant lifecycle state
-5. Resolve container graph, role, and resource authority
-6. Select composition profiles and typed policy atoms
-7. Apply optional variants and user preferences
-8. Evaluate data classification, purpose, residency, and retention
-9. Evaluate entitlement, quota, estimate, and reservation requirement
-10. Resolve eligible models and evaluation evidence
-11. Resolve artifacts/knowledge provenance and freshness
-12. Create or validate universal runtime operation semantics
-13. Resolve connection, installation, certification, and provider health
-14. Resolve approval queue, approver availability, SLA, and separation of duties
-15. Evaluate resilience/degraded-mode policy
-16. Build and persist immutable Effective Runtime Manifest
-17. Revalidate authority/time/environment/cost versions
-18. Dispatch exact registered operation or return typed block
-19. Verify external/internal readback
-20. Attribute cost, quality, artifact, and business outcome
-21. Feed no-secret evidence to adaptive proposal lifecycle
+5. Resolve Brand and active Business-Type bindings
+6. Resolve inheritance profile, eligible Blueprints, instance graph, provenance, conflicts, pins, and upgrades
+7. Resolve container graph, Brand Department/Group paths, roles, and resource authority
+8. Select composition profiles and typed policy atoms
+9. Apply optional variants and user preferences
+10. Evaluate data classification, purpose, residency, and retention
+11. Evaluate entitlement, quota, estimate, and reservation requirement
+12. Resolve eligible models and evaluation evidence
+13. Resolve artifacts/knowledge provenance and freshness
+14. Create or validate universal runtime operation semantics
+15. Resolve connection, installation, certification, and provider health
+16. Resolve approval queue, approver availability, SLA, and separation of duties
+17. Evaluate resilience/degraded-mode policy
+18. Build and persist immutable Effective Runtime Manifest
+19. Revalidate inheritance, authority, time, environment, cost, model, and readiness versions
+20. Dispatch exact registered operation or return typed block
+21. Verify external/internal readback
+22. Attribute cost, quality, artifact, Blueprint, and business outcome
+23. Feed no-secret evidence to adaptive proposal lifecycle
 ```
 
 ## 6. Context dimensions versus authority planes
