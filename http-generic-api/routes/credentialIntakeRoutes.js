@@ -232,11 +232,23 @@ function noStoreHeaders(res) {
 }
 
 async function loadApp(appKey, pool = getPool()) {
-  const [rows] = await pool.query(
-    "SELECT app_key, display_name, description, auth_type, category, status, credential_intake_redirect_allowlist_json FROM `app_integrations` WHERE app_key = ? LIMIT 1",
-    [appKey]
-  );
-  return rows[0] || null;
+  try {
+    const [rows] = await pool.query(
+      "SELECT app_key, display_name, description, auth_type, category, status, credential_intake_redirect_allowlist_json FROM `app_integrations` WHERE app_key = ? LIMIT 1",
+      [appKey]
+    );
+    return rows[0] || null;
+  } catch (error) {
+    if (error?.code !== "ER_BAD_FIELD_ERROR") throw error;
+    const [rows] = await pool.query(
+      "SELECT app_key, display_name, description, auth_type, category, status FROM `app_integrations` WHERE app_key = ? LIMIT 1",
+      [appKey]
+    );
+    const app = rows[0] || null;
+    if (app) app.credential_intake_redirect_allowlist_json = null;
+    console.warn(JSON.stringify({ event: "credential_intake_optional_column_fallback", app_key: appKey, secrets_included: false }));
+    return app;
+  }
 }
 
 async function loadPendingSession(token) {
