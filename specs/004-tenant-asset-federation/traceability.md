@@ -62,6 +62,14 @@
 | Removing inheritance requires complete disposition | inheritance model 19; FR-073 | orphan member/agent/grant/schedule/approval/variant/artifact tests |
 | Specialized tables remain canonical while generic registries connect them | inheritance model 4, 20; FR-062 | architecture-boundary and source-authority tests |
 
+| Global human identity is reused across personal and company Tenants | `member-invitation-onboarding-model.md` 2, 5; `spec.md` FR-076, FR-079, FR-083 | Google-link, existing-user, duplicate-user, and multi-membership tests |
+| Scoped invitation joins an existing Tenant without creating another Tenant | invitation model 1, 3–5; FR-077–FR-078 | new-user invite, no-Tenant-creation, and transactional acceptance tests |
+| Invitation access is exact rather than a broad membership default | invitation model 3, 8–9; FR-077, FR-081–FR-082 | Brand/Workspace/Department/Group/Role grant and no-broad-default tests |
+| Invitation delivery and token handling are single-use and no-secret | invitation model 4, 10–11; FR-080 | hash storage, outbox, expiry, revoke, replay, and log-redaction tests |
+| Personal account/workspace is optional and isolated | invitation model 6; FR-078, FR-084 | explicit creation, prompt/decline, isolation, export/copy-policy tests |
+| Multi-Tenant users select a validated active context | invitation model 7; FR-085 | context list/switch/revoke/expiry/epoch and mixed-data prevention tests |
+| Accepting an invitation preserves unrelated memberships and stronger authority | invitation model 5; FR-081, FR-083 | idempotency, no-downgrade, conflict, and unrelated-context tests |
+
 ## Source-to-target traceability
 
 | Existing authority | Target role |
