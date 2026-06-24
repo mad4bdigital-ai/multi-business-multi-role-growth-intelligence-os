@@ -200,16 +200,22 @@ settings:
 ## 7. Recommended defaults
 
 ```text
-Department hierarchy: enabled
+Business-Type Blueprint inheritance: enabled
+Required Blueprint inheritance: enabled
+Recommended Blueprint inheritance: selected by Brand profile
+Automatic optional Blueprint adoption: disabled
+Automatic security revocation adoption: enabled
+Department hierarchy: enabled under Brand
 Maximum Department depth: 3
 Platform maximum Department depth: 8
-Group hierarchy: enabled
+Group hierarchy: enabled under Department
 Maximum Group depth: 5
 Platform maximum Group depth: 10
+Cross-Brand Groups: disabled
 Cross-Department Groups: disabled
-Tenant-global Groups: enabled with elevated administration
-Primary Department required for human users: enabled
-Multiple Department membership: enabled
+Brand-global Groups: enabled with elevated Brand/Tenant administration
+Primary Department required for human users per Brand: enabled
+Multiple Department membership inside a Brand: enabled
 Direct Department roles: enabled
 Direct Group grants: enabled only for exact scoped exceptions
 Direct Group grant expiry: required by default
@@ -220,7 +226,7 @@ Service recertification: 90 days
 Membership recertification: 180 days
 Break-glass maximum TTL: 60 minutes
 High-risk separation of duties: mandatory
-Missing identity evidence: fail closed
+Missing identity or inheritance evidence: fail closed
 ```
 
 ## 8. Hard safety invariants
