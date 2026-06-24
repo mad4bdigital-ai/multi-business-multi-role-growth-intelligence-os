@@ -302,7 +302,182 @@ Stores privacy-reviewed candidates for a new or improved shared asset. Promotion
 - `v_effective_runtime_readiness`
 - `v_adaptive_proposal_readiness`
 
-## 11. Extended authority-plane data model
+## 11. Dynamic Blueprint and Layer Inheritance authorities
+
+### `platform_layer_type_registry`
+
+Defines every inheritable or instantiable layer family and its canonical source.
+
+Key fields:
+
+- `layer_type_key`;
+- canonical source table/key;
+- supports Blueprints, runtime instances, hierarchy, multi-parent, variants, and resource bindings;
+- allowed parent/child layer types;
+- default and allowed merge strategies;
+- modifiable-path profile;
+- risk class, version, and status.
+
+Initial layer types include:
+
+```text
+department
+group
+role
+member_profile
+agent_profile
+business_activity
+knowledge_tree
+skill_set
+workflow_set
+policy_set
+app_set
+plugin_set
+action_set
+tool_set
+engine_set
+logic_set
+graph_fragment
+dashboard_profile
+metric_set
+validator_set
+prompt_profile
+output_template
+```
+
+### `platform_layer_relationship_type_registry`
+
+Defines typed relationships such as `contains`, `inherits_from`, `references`, `requires`, `conflicts_with`, `replaces`, `supersedes`, `compatible_with`, `managed_by`, and `assigned_to`, including source/target type constraints, direction, transitivity, cardinality, conflict behavior, and version.
+
+### `platform_layer_blueprints`
+
+- Blueprint ID/key and layer type;
+- platform or Business-Type owner;
+- Business-Type key where applicable;
+- canonical template source reference;
+- required/recommended/optional adoption class;
+- version/checksum/status;
+- compatibility and entitlement conditions;
+- default settings profile;
+- customization and upgrade policy;
+- risk/certification metadata.
+
+### `platform_layer_blueprint_relationships`
+
+Stores Blueprint hierarchy and dependency edges with typed relationship, source/target Blueprint versions, conditions, priority, validity, and provenance.
+
+### `platform_layer_blueprint_closure`
+
+Stores bounded transitive closure for Blueprint hierarchy, dependency traversal, cycle detection, impact analysis, deterministic checksums, and fast preview.
+
+### `platform_layer_blueprint_resource_bindings`
+
+Links Blueprints to canonical shared resources without copying them.
+
+Binding purposes include:
+
+```text
+required
+recommended
+allowed
+default
+denied
+validator
+fallback
+```
+
+Each row stores resource dimension/reference, effect, priority, conditions, inheritance behavior, validity, and provenance.
+
+### `brand_business_type_bindings`
+
+- tenant and Brand;
+- Business Type key;
+- binding role: primary, secondary, specialization, seasonal, or experimental;
+- classification source/confidence;
+- inheritance profile reference;
+- priority, effective dates, status, approval, and provenance.
+
+The binding grants no execution authority.
+
+### `layer_inheritance_profiles`
+
+- tenant and Brand;
+- profile key/version/status;
+- contributing Business Types and priorities;
+- required/recommended/optional Blueprint selection policy;
+- per-layer merge strategy;
+- exclusion, replacement, pin, upgrade, and auto-adoption behavior;
+- local override policy;
+- publisher, approval, checksum, and timestamps.
+
+### `layer_inheritance_profile_rules`
+
+Stores one rule per layer family, Blueprint family, Business Type, condition, or conflict group, including merge mode, required layers, allowed exclusions/replacements, upgrade channel, and block/review behavior.
+
+### `layer_inheritance_runs`
+
+Immutable preview/apply evidence:
+
+- input Brand/Business-Type/profile versions;
+- eligible, selected, excluded, replaced, conflicted, and blocked Blueprints;
+- proposed instance/resource changes;
+- impact on members, agents, roles, grants, schedules, approvals, variants, artifacts, cost, and authority epochs;
+- status, approval, checksum, and readback.
+
+### `layer_inheritance_conflicts`
+
+Typed conflict records for equivalent, overlapping, incompatible, stale, ambiguous, or locally patched Blueprints, with candidate resolutions and decision evidence.
+
+### `brand_layer_instances`
+
+Generic projection of Brand-scoped operational instances while specialized domain tables retain full fields.
+
+- layer instance ID;
+- tenant and Brand;
+- layer type;
+- canonical runtime table/key;
+- source mode: inherited, local, imported, or promoted;
+- source Blueprint/version;
+- inheritance profile/version;
+- lifecycle status;
+- effective settings checksum;
+- local override/variant reference;
+- authority epoch and timestamps.
+
+### `brand_layer_instance_relationships`
+
+Stores typed operational Brand hierarchy/dependency edges between layer instances.
+
+### `brand_layer_instance_closure`
+
+Stores Brand-scoped transitive closure, depth, path/version checksum, source relationships, and validation evidence.
+
+### `brand_layer_resource_bindings`
+
+Stores effective inherited or local references from Brand layer instances to canonical shared resources, including purpose, effect, priority, conditions, source Blueprint, profile version, local override, and status.
+
+### `brand_layer_override_patches`
+
+Sparse bounded Brand, Department, Group, Role, or Principal-profile overrides against inherited settings or resource bindings. Protected authority, credential, audit, and mandatory-policy paths remain non-modifiable.
+
+### `layer_inheritance_upgrade_runs`
+
+Compares new Blueprint versions with active instances and local patches, classifying each change as auto-safe, review-required, conflict, blocked, pinned, superseded, or revoked.
+
+### Specialized Brand organization authorities
+
+- `brand_departments`;
+- `brand_department_relationships` and `brand_department_closure`;
+- `brand_department_memberships`;
+- `brand_groups`;
+- `brand_group_relationships` and `brand_group_closure`;
+- `brand_group_memberships`;
+- scoped Role/member/Agent profile authorities;
+- `principal_authority_settings` and `principal_authority_epochs`.
+
+These rows reference Business-Type Blueprints and shared assets; they do not duplicate shared definitions.
+
+## 12. Extended authority-plane data model
 
 The following are proposed authorities or bridge contracts. They are not an instruction to create every table in one migration. Existing canonical tables are reused whenever they already own the behavior.
 
