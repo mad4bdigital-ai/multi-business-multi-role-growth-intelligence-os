@@ -14,6 +14,9 @@ Signed principal + normalized request
      Tenant Federation and Lifecycle Plane
                    │
                    ▼
+       Blueprint and Layer Inheritance Plane
+                   │
+                   ▼
      Context and Resource Authority Plane
                    │
                    ▼
