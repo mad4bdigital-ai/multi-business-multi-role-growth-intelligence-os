@@ -23,13 +23,25 @@ This register separates decisions that are already frozen from decisions that mu
 
 ### DFR-001 — Principal and organization authority
 
-**Question:** Which table/service is canonical for users, agents, services, groups, nested membership, assurance, recertification, and delegation?
+**Approved decision:** Configurable Federated Principal Authority with Departments above Groups.
 
-**Current evidence:** container assignments support multiple principal types, but group/service identity ownership is not operationally complete.
+```text
+Tenant
+└─ Department
+   └─ optional Sub-department
+      └─ Group
+         └─ User | Agent | Service
+```
 
-**Required outcome:** exact authority owner, membership/delegation algorithm, cycle/depth rules, separation of duties, lifecycle, and manifest contribution.
+Existing `users`, `memberships`, and `agents` remain canonical. Additive authorities own Departments, Groups, Services, Delegations, Separation of Duties, settings, and authority epochs.
 
-**Status:** open.
+Configuration resolves through Platform hard bounds, Platform defaults, Tenant settings, delegated Department settings, and eligible Workspace bindings. Local configuration cannot weaken cross-tenant isolation, cycle prevention, service ownership, high-risk separation of duties, break-glass audit, or fail-closed behavior.
+
+Recommended defaults include Department depth 3, Group depth 5, cross-Department Groups disabled, tenant-global Groups explicitly governed, redelegation disabled by default, Service owner mandatory, and high-risk separation of duties mandatory.
+
+**Decision evidence:** `principal-authority-decision.md`.
+
+**Status:** approved_design; implementation_not_authorized.
 
 ### DFR-002 — Tenant federation and lifecycle
 
