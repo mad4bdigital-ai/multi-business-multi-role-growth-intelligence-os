@@ -115,7 +115,124 @@ Simulation is no-provider-write and references a bounded, privacy-authorized cor
 
 Platform promotion uses existing release and certification governance. It is never a direct tenant endpoint.
 
-## 9. Standard response shapes
+## 9. Identity, organization, and tenant lifecycle
+
+Planned resource surfaces:
+
+- `GET /tenant/principals`
+- `GET /tenant/principals/{principalId}`
+- `GET /tenant/groups`
+- `POST /tenant/groups`
+- `POST /tenant/groups/{groupId}/memberships`
+- `DELETE /tenant/groups/{groupId}/memberships/{membershipId}`
+- `GET /tenant/delegations`
+- `POST /tenant/delegations`
+- `POST /tenant/delegations/{delegationId}/revoke`
+- `GET /tenant/relationships`
+- `POST /tenant/lifecycle-runs`
+- `GET /tenant/lifecycle-runs/{runId}`
+- `POST /tenant/lifecycle-runs/{runId}/approve`
+- `POST /tenant/lifecycle-runs/{runId}/cancel`
+
+Lifecycle run types include ownership transfer, offboarding, export, legal hold, and erasure. No lifecycle endpoint directly returns credential material or performs unapproved destructive work.
+
+## 10. Data governance and portability
+
+- `GET /tenant/data-governance/classifications`
+- `GET /tenant/data-governance/purposes`
+- `GET /tenant/data-governance/residency-policies`
+- `GET /tenant/users/me/data-use-preferences`
+- `PATCH /tenant/users/me/data-use-preferences`
+- `POST /tenant/data-subject-requests`
+- `GET /tenant/data-subject-requests/{requestId}`
+- `POST /tenant/legal-holds`
+- `POST /tenant/retention-execution-runs/preview`
+- `POST /tenant/export-runs`
+- `GET /tenant/export-runs/{runId}`
+- `POST /tenant/import-runs/preview`
+- `POST /tenant/import-runs`
+
+Export and import payloads are checksummed, versioned, bounded, and no-secret. Erasure and retention execution require exact scope, legal-hold evaluation, approval, and same-cycle readback.
+
+## 11. Commercial and FinOps
+
+- `GET /tenant/commercial-entitlements`
+- `POST /tenant/runtime-cost-estimates`
+- `POST /tenant/runtime-cost-reservations`
+- `GET /tenant/runtime-cost-reservations/{reservationId}`
+- `POST /tenant/runtime-cost-reservations/{reservationId}/release`
+- `GET /tenant/cost-attribution`
+
+A cost reservation binds the exact manifest, operation, currency, unit, amount, expiry, and idempotency key. Settlement/refund is performed by governed internal execution, not arbitrary clients.
+
+## 12. Model governance and evaluation
+
+- `GET /tenant/model-candidates`
+- `POST /tenant/model-selections/preview`
+- `GET /admin/model-capability-profiles`
+- `GET /admin/model-context-policies`
+- `GET /admin/model-evaluation-suites`
+- `POST /admin/model-evaluation-runs`
+- `GET /admin/model-quality-scorecards`
+- `POST /admin/model-deprecation-runs`
+
+Model preview returns eligibility and evidence without credentials. It explains exclusions for policy, region, entitlement, capability, quality, cost, latency, evaluation, or provider readiness.
+
+## 13. Runtime operations and consistency
+
+- `POST /tenant/runtime-operations`
+- `GET /tenant/runtime-operations/{operationId}`
+- `POST /tenant/runtime-operations/{operationId}/cancel`
+- `POST /tenant/runtime-operations/{operationId}/resume`
+- `GET /tenant/runtime-operations/{operationId}/events`
+- `GET /admin/runtime-dead-letters`
+- `POST /admin/runtime-dead-letters/{deadLetterId}/replay`
+- `GET /admin/runtime-sagas/{sagaId}`
+
+Creation requires an idempotency key and declares deadline, delivery semantics, retry class, cancellation policy, and compensation profile where applicable. `202 Accepted` is used for queued operations with a status resource.
+
+## 14. Artifacts, knowledge, and provenance
+
+- `GET /tenant/artifacts`
+- `GET /tenant/artifacts/{artifactId}`
+- `GET /tenant/artifacts/{artifactId}/provenance`
+- `GET /tenant/artifacts/{artifactId}/verification`
+- `GET /tenant/artifacts/{artifactId}/changes`
+- `GET /tenant/artifacts/{artifactId}/revisions`
+- `POST /tenant/artifacts/{artifactId}/corrections`
+- `POST /tenant/artifacts/{artifactId}/retractions`
+- `GET /tenant/knowledge-index-versions`
+
+Content responses apply audience, sensitivity, purpose, residency, and object-level authorization. Provenance routes return safe source identifiers and evidence, not another tenant's private content.
+
+## 15. Environment, supply chain, compatibility, and resilience
+
+- `GET /tenant/environments`
+- `GET /tenant/regions-jurisdictions`
+- `GET /tenant/packages/{packageId}/supply-chain`
+- `GET /tenant/packages/{packageId}/compatibility`
+- `GET /admin/publishers`
+- `GET /admin/contract-schemas`
+- `GET /admin/contract-compatibility`
+- `GET /admin/disaster-readiness`
+- `POST /admin/disaster-mode-runs/preview`
+
+Code-bearing package publication/install requires trusted publisher, digest/signature, dependency/license/security evidence, requested capabilities, compatibility, certification, and rollback.
+
+## 16. Human operations, capability ontology, and quality
+
+- `GET /tenant/human-work-items`
+- `GET /tenant/human-work-queues`
+- `GET /tenant/capabilities`
+- `GET /tenant/capabilities/{capabilityKey}/implementations`
+- `GET /admin/quality-evaluation-suites`
+- `POST /admin/quality-evaluation-runs`
+- `GET /admin/recommendation-exposure-health`
+- `GET /admin/cross-tenant-learning-health`
+
+Human work surfaces disclose SLA/escalation and exact scope without exposing other tenants. Capability implementation lists distinguish equivalence, compatibility, readiness, quality, risk, cost, locale, and deprecation.
+
+## 17. Standard response shapes
 
 ### Resource response
 
