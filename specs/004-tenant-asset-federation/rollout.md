@@ -57,6 +57,51 @@ Project shared assets and readiness into Admin-only diagnostics, then Tenant rea
 
 Rollback: disable catalog routes/projections.
 
+## Stage B1 — Blueprint registry diagnostics
+
+Register layer types, relationship types, Business-Type Blueprints, Blueprint graphs, and canonical resource bindings in Admin-only read mode.
+
+**Required:** typed source mappings, cycle/cardinality validation, stable versions/checksums, no secret or live grant payloads.  
+**Runtime effect:** none.
+
+Rollback: disable registry/projector consumers.
+
+## Stage B2 — Brand inheritance preview
+
+Enable Brand read-only preview for Business-Type bindings and inheritance profiles.
+
+Preview includes proposed Departments, Groups, Roles, member/Agent profiles, knowledge trees, resource references, conflicts, exclusions, replacements, upgrade state, and disposition requirements.
+
+**Forbidden:** live Department/Group creation, member invitation, Agent activation, grants, credentials, cost reservation, provider calls, or external effects.
+
+Rollback: disable preview routes.
+
+## Stage B3 — Controlled Brand organization apply
+
+For one pilot Brand, apply approved organizational Blueprints only:
+
+- Brand Departments and Groups;
+- Role/member/Agent profile records;
+- layer-instance provenance;
+- canonical resource references;
+- no provider execution authority.
+
+Require transactional idempotency, readback, authority-epoch invalidation, graph integrity, and no-copy evidence.
+
+Rollback: disable inherited instances and restore the previous profile/version; retain evidence.
+
+## Stage B4 — Inherited read-only assets
+
+Allow inherited knowledge, Skills, Workflows, Tools, Apps, dashboards, and metrics to influence discovery and ranking after contextual authority checks. Actions/endpoints remain legacy-authoritative.
+
+Rollback: disable the inherited-resource consumer for the affected layer family.
+
+## Stage B5 — Blueprint upgrade lifecycle
+
+Enable preview/pin/rebase/replace/revoke and conflict resolution for pilot Blueprints. Optional updates are not auto-adopted by default; security revocations remain enforceable.
+
+Rollback: restore the prior active Blueprint/profile version and invalidate affected manifests.
+
 ## Stage C — Container projection preview
 
 Seed canonical tenant, workspace, brand, activity, and workflow containers. Rebuild closure and run preview resolutions.
