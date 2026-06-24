@@ -12,16 +12,12 @@
   "runtime_files_included": false,
   "current_branch_repair_preferred": true,
   "branch_reconciled": true,
-  "reconciled_main_sha": "629b2edbb78a36e30bbdc06c646e049cd74da824",
-  "reconciliation_merge_sha": "11c7b50e667078c9bccb23155b9f6899be4461cd",
+  "reconciled_main_sha": "c0db5228e77dae33de925f40e4f2d80aea863fe5",
+  "reconciliation_merge_sha": "559710431029e5d0a7fa74c7ebb4c915aeeadfe8",
   "branch_state_after_reconciliation": "ahead_only",
-  "ci_gate_status": "pass",
-  "required_checks_passed": [
-    "Syntax Check",
-    "Architecture Drift Detection",
-    "Execution Resolver Gate",
-    "Unit & Integration Tests"
-  ],
+  "branch_behind_by": 0,
+  "ci_gate_status": "pending_after_extended_design_update",
+  "required_checks_passed": [],
   "automatic_tenant_asset_copies": false,
   "scope_layers": [
     "platform_mandatory",
