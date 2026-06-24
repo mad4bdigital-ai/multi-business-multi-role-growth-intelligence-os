@@ -198,6 +198,45 @@ Planned resource surfaces:
 
 Lifecycle run types include ownership transfer, offboarding, export, legal hold, and erasure. No lifecycle endpoint directly returns credential material or performs unapproved destructive work.
 
+## 10A. Tenant creation and Workspace operations
+
+### Tenant creation
+
+- `GET /me/tenant-creation-capability`
+- `GET /me/owned-tenants`
+- `POST /me/tenant-provisioning-runs`
+- `GET /me/tenant-provisioning-runs/{runId}`
+- `POST /me/tenant-provisioning-runs/{runId}/cancel`
+- `GET /tenant/owner-assignments`
+- `POST /tenant/ownership-transfer-runs`
+
+Tenant provisioning accepts requested Tenant type, display name, region, plan, optional setup template, and idempotency key. It returns `202 Accepted` with a status resource. It does not silently create Brands, Workspaces, connections, or Business-Type bindings unless explicitly included in an approved setup request.
+
+`GET /me/tenant-creation-capability` explains verification, plan, owned-Tenant count, allowed types, regions, limits, and recoverable commercial/policy blockers. Commercial blockers are identified separately from security or authorization errors.
+
+### Workspace resources
+
+- `GET /tenant/workspaces`
+- `POST /tenant/workspaces`
+- `GET /tenant/workspaces/{workspaceId}`
+- `PATCH /tenant/workspaces/{workspaceId}`
+- `GET /tenant/workspaces/{workspaceId}/bindings`
+- `POST /tenant/workspaces/{workspaceId}/brand-bindings`
+- `DELETE /tenant/workspaces/{workspaceId}/brand-bindings/{bindingId}`
+- `POST /tenant/workspaces/{workspaceId}/department-bindings`
+- `POST /tenant/workspaces/{workspaceId}/group-bindings`
+- `POST /tenant/workspaces/{workspaceId}/activity-bindings`
+- `POST /tenant/workspaces/{workspaceId}/resource-grants`
+- `POST /tenant/workspaces/{workspaceId}/archive`
+- `POST /tenant/workspaces/{workspaceId}/deletion-runs/preview`
+- `POST /tenant/workspaces/{workspaceId}/deletion-runs`
+- `GET /tenant/workspaces/{workspaceId}/changes`
+- `GET /tenant/workspaces/{workspaceId}/revisions`
+
+Every Workspace request is scoped to one owning Tenant. Brand/Department/Group/Activity bindings validate same-Tenant ownership, registered relationship type, parent policy, version, and conflict rules. Bindings do not grant access by themselves.
+
+Multi-Brand Workspace creation requires explicit Tenant policy and exact Brand bindings. Sandbox Workspaces cannot authorize production execution. Workspace deletion is asynchronous and requires dependency-disposition preview, approval where applicable, idempotency, audit, and same-cycle readback.
+
 ## 10. Data governance and portability
 
 - `GET /tenant/data-governance/classifications`
