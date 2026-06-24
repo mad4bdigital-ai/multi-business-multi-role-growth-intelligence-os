@@ -327,14 +327,16 @@ High-impact changes may require approval, including:
 
 ## 11. Proposed data model
 
-### `principal_departments`
+### `brand_departments`
 
 - `department_id`;
-- `tenant_id`;
+- `tenant_id` and `brand_key`;
 - `department_key`;
 - `display_name`;
 - `department_type`;
 - `status`;
+- source mode: `inherited | local | imported | promoted`;
+- source Blueprint ID/version and inheritance profile version;
 - `primary_head_principal_id`;
 - `backup_head_principal_id`;
 - `cost_center_key`;
@@ -342,32 +344,48 @@ High-impact changes may require approval, including:
 - `effective_from`, `effective_until`;
 - `version`, checksum, timestamps.
 
-### `principal_department_relationships`
+### `brand_department_relationships`
 
-- parent and child Department IDs;
+- tenant, Brand, parent and child Department IDs;
 - relationship type, initially `contains`;
+- source Blueprint relationship reference where inherited;
 - depth/closure evidence;
 - validity, status, version;
 - unique active parent policy as configured.
 
-### `principal_department_memberships`
+### `brand_department_closure`
 
-- Department and Principal;
+- tenant and Brand;
+- ancestor and descendant Department IDs;
+- depth and path checksum;
+- source relationship versions;
+- rebuild/validation evidence.
+
+### `brand_department_memberships`
+
+- tenant, Brand, Department, and Principal;
 - membership type: `primary | secondary | leader | administrator | observer`;
-- role references where appropriate;
+- role/profile references where appropriate;
 - validity, status, source, recertification.
 
-### `principal_groups`
+### `brand_groups`
 
-- `group_id`, tenant, Department;
-- `group_scope_type`: `department | tenant_global`;
+- `group_id`, tenant, Brand, and Department;
+- `group_scope_type`: `department | brand_global`;
 - key, name, purpose, status;
+- source Blueprint ID/version when inherited;
 - optional parent Group;
 - validity, version, checksum.
 
-### `principal_group_memberships`
+### `brand_group_relationships` and `brand_group_closure`
 
-- group and Principal or child Group;
+- tenant, Brand, parent/child or ancestor/descendant Group IDs;
+- typed relationship, depth, source, validity, version, and checksum;
+- cycle and path-limit evidence.
+
+### `brand_group_memberships`
+
+- tenant, Brand, Group, and Principal or child Group;
 - membership type;
 - validity, source, status, recertification.
 
