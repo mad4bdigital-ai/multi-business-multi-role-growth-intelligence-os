@@ -58,6 +58,22 @@
 - [ ] Data retention periods approved by policy owners.
 - [ ] Subject export/deletion tests implemented.
 
+## Blueprint inheritance and Brand isolation
+
+- [x] Business-Type Blueprints are reusable templates and contain no Brand credentials, memberships, or private content by default.
+- [x] Every inherited operational instance begins with tenant and Brand scope.
+- [x] Brand layer relationships and closure never traverse into another Brand.
+- [x] Shared resource bindings store canonical references and provenance, not copied tenant data.
+- [x] Brand-local overrides remain tenant/Brand scoped and cannot modify another Brand's inherited instance.
+- [x] Member and Agent profile assignments validate the same tenant/Brand/Department/Group before authority resolution.
+- [x] Knowledge inheritance references only data whose audience, purpose, residency, and Brand policy permit use.
+- [x] Cross-Brand learning or Blueprint promotion never copies raw Brand content automatically.
+- [x] Removing a Business-Type binding preserves or disposes Brand-local data according to an approved plan; it never deletes canonical shared assets.
+- [x] Export/import preserves Blueprint and canonical source references while remapping Brand-scoped instance IDs safely.
+- [x] Backup/restore validates Brand and Blueprint provenance and rejects cross-Brand reference corruption.
+- [ ] Brand inheritance crossover test suite implemented for every layer family.
+- [ ] Knowledge/resource binding audience and residency tests implemented.
+
 ## Federation, lifecycle, and portability
 
 - [x] Parent/partner/managed-client/white-label relationships require explicit delegated scope.
