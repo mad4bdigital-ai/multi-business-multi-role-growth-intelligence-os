@@ -58,6 +58,27 @@
 - [x] Architecture layer boundaries are defined.
 - [x] Family-by-family rollout and rollback are defined.
 
+## Dynamic Blueprint and Layer Inheritance
+
+- [x] Business Types may own versioned reusable Layer Blueprints.
+- [x] Brands use explicit primary/secondary Business-Type bindings.
+- [x] Brand inheritance profiles select required, recommended, and optional Blueprints.
+- [x] Departments are Brand-scoped and Groups are Department-scoped.
+- [x] Roles, member profiles, AI Agent profiles, Activities, Knowledge, Skills, Workflows, Policies, Apps, Tools, Graphs, Engines, Logic, and future layers use the same inheritance/provenance framework.
+- [x] Specialized canonical tables remain authoritative while generic registries manage type, relationship, closure, inheritance, compatibility, and provenance.
+- [x] Shared assets are referenced and never automatically copied by inheritance.
+- [x] Human users are not auto-created from member-profile Blueprints.
+- [x] Base AI Agents are not duplicated; Brand-scoped Agent profiles/assignments reference them.
+- [x] Multiple Business Types compose per layer family through registered semantics.
+- [x] Blueprint and instance graphs are bounded, cycle-safe, versioned, and checksummed.
+- [x] Inherited instances record source Business Type, Blueprint/version, profile/version, merge operator, overrides, and authority epoch.
+- [x] Upgrade, pin, rebase, replace, supersede, conflict, revoke, and removal/disposition lifecycles are defined.
+- [x] Business-Type binding or inheritance profile alone grants no execution authority.
+- [ ] Initial layer-type and relationship registries approved.
+- [ ] Initial pilot Business Type/Brand and Blueprint package approved.
+- [ ] Brand inheritance settings schema and parent bounds approved.
+- [ ] Blueprint publisher/certification/security-update policy approved.
+
 ## Extended platform planes
 
 - [x] Organizational principal/group/service gaps are documented.
