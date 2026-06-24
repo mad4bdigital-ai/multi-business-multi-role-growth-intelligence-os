@@ -202,18 +202,19 @@ The Context Compiler must consume evidence from independent planes rather than e
 
 1. Identity and Organization;
 2. Tenant Federation and Lifecycle;
-3. Context and Resource Authority;
-4. Policy Composition;
-5. Preference and Variant;
-6. Data Governance;
-7. Commercial and FinOps;
-8. Model Governance;
-9. Knowledge and Provenance;
-10. Runtime Orchestration;
-11. Connection and Provider Readiness;
-12. Human Approval and Operations;
-13. Resilience and Recovery;
-14. Adaptive Growth.
+3. Blueprint and Layer Inheritance;
+4. Context and Resource Authority;
+5. Policy Composition;
+6. Preference and Variant;
+7. Data Governance;
+8. Commercial and FinOps;
+9. Model Governance;
+10. Knowledge and Provenance;
+11. Runtime Orchestration;
+12. Connection and Provider Readiness;
+13. Human Approval and Operations;
+14. Resilience and Recovery;
+15. Adaptive Growth.
 
 Each plane has its own authority, lifecycle, audit, versioning, and rollback. The Effective Runtime Manifest references the contributing versions and decisions without becoming the write authority for those planes.
 
