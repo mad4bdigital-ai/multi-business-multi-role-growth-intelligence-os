@@ -24,6 +24,9 @@ import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRo
           status: "active",
         }]];
       }
+      if (sql.includes("UPDATE credential_intake_sessions") && sql.includes("superseded_by_new_session")) {
+        return [{ affectedRows: 2 }];
+      }
       if (sql.includes("INSERT INTO credential_intake_sessions")) return [{ affectedRows: 1 }];
       throw new Error(`Unexpected query: ${sql}`);
     },
