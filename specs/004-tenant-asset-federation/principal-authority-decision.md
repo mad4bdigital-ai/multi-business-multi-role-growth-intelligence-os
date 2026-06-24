@@ -141,10 +141,16 @@ Settings resolve in this order:
 ```text
 Platform hard bounds
 → Platform defaults
-→ Tenant settings
+→ Business Type Blueprint defaults
+→ Tenant inheritance policy
+→ Brand settings and inheritance profile
 → Department settings where allowed
+→ Group settings where allowed
 → Workspace selection/binding where allowed
+→ Principal preference for non-authority fields only
 ```
+
+Departments are normally Brand-scoped. A Brand may acquire Department, Group, Role, member-profile, AI-Agent-profile, knowledge, and asset structures by inheriting registered Business Type Blueprints. Shared assets remain referenced; only Brand-scoped organizational instances, bindings, settings, memberships, and bounded variants are created.
 
 A lower scope may choose only values within the parent scope's allowed range. Settings cannot weaken hard platform safety invariants.
 
