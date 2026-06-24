@@ -9,6 +9,39 @@
 - every stage has a disable/rollback path;
 - current branch repair is preferred over replacement branch creation.
 
+## Stage A0 — Extended plane decision freeze
+
+Before canonical/runtime implementation, freeze the P0 boundaries for identity, tenant lifecycle, data governance, FinOps, model governance, asynchronous consistency, provenance, and temporal/environment/region semantics.
+
+Required evidence:
+
+- source-of-truth owner for each plane;
+- fail-closed behavior when evidence is unavailable;
+- lifecycle and rollback;
+- compatibility and migration contract;
+- manifest contribution and versioning;
+- security/privacy review;
+- initial quality and latency thresholds.
+
+**Runtime effect:** none.
+
+## Stage A1 — Extended read-only diagnostics
+
+Expose Admin-only diagnostics for:
+
+- missing group/service identity authority;
+- tenant relationship/lifecycle readiness;
+- retention/residency/purpose coverage;
+- entitlement/cost-reservation coverage;
+- model policy/evaluation coverage;
+- operation idempotency/outbox readiness;
+- artifact provenance completeness;
+- environment/region binding coverage;
+- package supply-chain/compatibility evidence;
+- export/restore/human-SLA/capability-quality readiness.
+
+Diagnostics cannot grant, reserve cost, execute retention, read credentials, call models/providers, or mutate tenant state.
+
 ## Stage A — Design freeze and canonical alignment
 
 Approve terminology, typed algebra, personalization boundaries, variant rules, adaptive classes, data use, and promotion governance. Align with Dynamic Container Authority and Resource API architecture.
