@@ -502,6 +502,27 @@ Existing `users`, `invitations`, `memberships`, `workspace_resource_grants`, and
 
 Target enum additions include `personal_account` for Tenant type and `personal` for Workspace type. Invitation tokens are stored only as hashes with single-use and expiry evidence.
 
+### Tenant creation and Workspace boundary
+
+Existing `tenants`, `memberships`, `workspace_registry`, and `workspace_resource_grants` remain migration inputs. The target adds or extends:
+
+- `tenant_type_registry` — registered Tenant types, eligibility, verification, default templates, federation eligibility, plan compatibility, and lifecycle policy;
+- `tenant_creation_policies` — Platform/Tenant-creator policy, required verification, regions, plan rules, allowed types, fraud/risk checks, and hard bounds;
+- `tenant_creation_entitlements` — per-user/plan maximum owned Tenants, allowed types, trial behavior, status, validity, and source subscription;
+- `tenant_provisioning_runs` — asynchronous requested/provisioning/active/failed/cancelled state, requested type/name/region/plan, owner, idempotency, approval/risk evidence, created resource IDs, and readback;
+- `tenant_owner_assignments` — canonical versioned owner Principal, ownership type, status, validity, transfer source, verification/approval, and checksum;
+- `workspace_type_registry` — `personal`, `brand`, `project`, `campaign`, `operations`, `sandbox`, plus future types with allowed binding and execution behavior;
+- extend `workspace_registry` with owning Tenant, workspace type, environment, visibility, lifecycle, primary Brand where applicable, provisioning source, settings profile, and authority epoch;
+- `workspace_brand_bindings` — one primary and optional additional Brand bindings within the same Tenant;
+- `workspace_department_bindings` — Brand Department participation and purpose;
+- `workspace_group_bindings` — Brand Group participation and purpose;
+- `workspace_activity_bindings` — eligible Business Activities and workflow/task contexts;
+- `workspace_context_policies` — multi-Brand, environment, data, Agent, connection, scheduling, and resource behavior within parent bounds;
+- `workspace_authority_epochs` — invalidation after Workspace, binding, membership, grant, environment, or lifecycle changes;
+- `workspace_deletion_runs` — preview, dependency disposition, approval, archive/delete actions, evidence, and rollback/readback.
+
+A Workspace row always has one immutable owning `tenant_id`. Bindings never create cross-Tenant authority and are not grants by themselves.
+
 ### Tenant federation and lifecycle
 
 - extend/project `tenant_relationships` into contextual authority with relationship policy and delegated operations;
