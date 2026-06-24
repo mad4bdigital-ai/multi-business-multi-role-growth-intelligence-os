@@ -115,7 +115,38 @@ Simulation is no-provider-write and references a bounded, privacy-authorized cor
 
 Platform promotion uses existing release and certification governance. It is never a direct tenant endpoint.
 
-## 9. Identity, organization, and tenant lifecycle
+## 9. Business-Type Blueprints and Brand inheritance
+
+- `GET /tenant/business-types/{businessTypeKey}/layer-blueprints`
+- `GET /tenant/layer-blueprints/{blueprintId}`
+- `GET /tenant/layer-blueprints/{blueprintId}/relationships`
+- `GET /tenant/layer-blueprints/{blueprintId}/resource-bindings`
+- `GET /tenant/brands/{brandKey}/business-type-bindings`
+- `POST /tenant/brands/{brandKey}/business-type-bindings`
+- `PATCH /tenant/brands/{brandKey}/business-type-bindings/{bindingId}`
+- `DELETE /tenant/brands/{brandKey}/business-type-bindings/{bindingId}`
+- `GET /tenant/brands/{brandKey}/inheritance-profiles`
+- `POST /tenant/brands/{brandKey}/inheritance-profiles`
+- `PATCH /tenant/brands/{brandKey}/inheritance-profiles/{profileId}`
+- `POST /tenant/brands/{brandKey}/inheritance-profiles/{profileId}/preview-impact`
+- `POST /tenant/brands/{brandKey}/inheritance-profiles/{profileId}/apply`
+- `POST /tenant/brands/{brandKey}/inheritance-profiles/{profileId}/disable`
+- `GET /tenant/brands/{brandKey}/inheritance-runs/{runId}`
+- `GET /tenant/brands/{brandKey}/inheritance-conflicts`
+- `POST /tenant/brands/{brandKey}/inheritance-conflicts/{conflictId}/resolve`
+- `GET /tenant/brands/{brandKey}/layer-instances`
+- `GET /tenant/brands/{brandKey}/layer-instances/{layerInstanceId}`
+- `GET /tenant/brands/{brandKey}/layer-instances/{layerInstanceId}/provenance`
+- `GET /tenant/brands/{brandKey}/layer-instances/{layerInstanceId}/effective-resources`
+- `POST /tenant/brands/{brandKey}/layer-upgrade-runs/preview`
+- `POST /tenant/brands/{brandKey}/layer-upgrade-runs/{runId}/apply`
+- `POST /tenant/brands/{brandKey}/layer-upgrade-runs/{runId}/reject`
+
+Preview returns the proposed Brand-scoped Department, Group, Role, member-profile, AI-Agent-profile, knowledge, and asset graph; shared resource references; conflicts; exclusions; replacements; local patches; disposition requirements; expected authority-epoch changes; and no-secret checksums. It performs no hidden instance mutation, membership creation, credential read, provider call, or execution grant.
+
+Apply requires a current preview checksum, profile/version precondition, exact publisher authority, required approvals, idempotency, transaction/readback evidence, and a disposition plan for destructive removals. Business-Type bindings grant Blueprint eligibility only.
+
+## 10. Identity, organization, and tenant lifecycle
 
 Planned resource surfaces:
 
