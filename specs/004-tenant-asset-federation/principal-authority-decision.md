@@ -444,18 +444,21 @@ All mutations require object-level authorization, idempotency where retryable, o
 
 ## 13. Acceptance rules
 
-- a Department contains Groups, not the reverse;
-- optional sub-Departments respect configured and platform maximum depth;
-- a normal Group belongs to one Department;
-- tenant-global Groups require explicit policy and elevated authority;
-- cross-Department participation is explicit and off by default;
-- multi-Department users resolve all valid paths while retaining one primary Department when required;
-- conflicts between equal-ranked Department paths block or require registered resolution;
-- Department settings cannot exceed Tenant or Platform bounds;
-- Group settings cannot create cross-tenant membership;
-- changing settings advances authority epoch and invalidates stale manifests;
-- disabling a hierarchy feature requires an impact/disposition plan for existing children;
-- high-risk operations retain mandatory separation of duties regardless of local settings.
+- a Brand contains Departments; a Department contains Groups, not the reverse;
+- a Business Type contributes Blueprints, not live Brand memberships, credentials, or execution grants;
+- required, recommended, and optional Blueprints are resolved by a versioned Brand inheritance profile;
+- applying inheritance creates Brand-scoped organizational/profile/binding records only and references shared assets without copying them;
+- optional sub-Departments respect configured Brand/Tenant/Platform maximum depth;
+- a normal Group belongs to one Brand Department;
+- Brand-global Groups require explicit policy and elevated Brand/Tenant authority;
+- cross-Brand and cross-Department participation is explicit and off by default;
+- multi-Department users resolve all valid paths inside the Brand while retaining one primary Department when required;
+- inherited Agent and Role profiles never grant more authority than current Brand/Tenant policy allows;
+- conflicts between equal-ranked Blueprints or organizational paths block or require a registered resolution strategy;
+- Department and Group settings cannot exceed Brand, Tenant, or Platform bounds;
+- changing a Business-Type binding, inheritance profile, hierarchy, membership, role, or delegation advances the affected authority epoch and invalidates stale manifests;
+- disabling hierarchy or removing a Blueprint requires an impact/disposition plan for members, agents, grants, approvals, schedules, variants, artifacts, and dependent layers;
+- high-risk operations retain mandatory separation of duties regardless of local or inherited settings.
 
 ## 14. Final approved decision
 
