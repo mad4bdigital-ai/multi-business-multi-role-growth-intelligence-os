@@ -66,6 +66,29 @@
 - [ ] Update `module_loader.md` and `prompt_router.md`.
 - [ ] Update canonicals and run `node build-canonicals.mjs`.
 
+## Dynamic Blueprint and Layer Inheritance
+
+- [x] Approve Business-Type Blueprint inheritance as a generic platform model.
+- [x] Place Departments under Brands and Groups under Departments.
+- [x] Generalize inheritance to Roles, members, AI Agents, Business Activities, knowledge, Skills, Workflows, Policies, Apps, Tools, Graphs, Engines, Logic, and future layer families.
+- [x] Define specialized canonical tables plus generic type/relationship/closure/inheritance/provenance authorities.
+- [x] Define primary/secondary Business-Type bindings and per-layer inheritance profiles.
+- [x] Define no-copy shared-resource references and Brand-scoped organizational/profile instances.
+- [x] Define multi-Business-Type merge semantics, equivalence, supersession, conflict, pin, upgrade, rebase, and revocation.
+- [x] Define Blueprint and instance acceptance scenarios, APIs, provenance, version vectors, and rollout stages.
+- [ ] Approve the initial registered layer-type list and allowed parent/child relationships.
+- [ ] Approve the first pilot Business Type and Brand.
+- [ ] Approve required/recommended/optional Blueprint adoption rules.
+- [ ] Approve Brand inheritance profile settings schema and Platform/Tenant hard bounds.
+- [ ] Approve Brand Department/Group/Role/member/Agent specialized schemas.
+- [ ] Approve equivalence, conflict, replacement, and supersession governance.
+- [ ] Approve Blueprint publisher, certification, upgrade-channel, and security-revocation policy.
+- [ ] Implement read-only Blueprint registry diagnostics.
+- [ ] Implement inheritance preview with no mutations or provider calls.
+- [ ] Implement transactional Brand layer-instance apply and readback.
+- [ ] Implement upgrade, pin, rebase, conflict, removal, and disposition lifecycle.
+- [ ] Prove inherited shared assets are referenced and never automatically copied.
+
 ## Shared catalog
 
 - [ ] Design additive catalog migration.
