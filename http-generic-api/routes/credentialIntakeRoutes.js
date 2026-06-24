@@ -675,6 +675,21 @@ function renderDone(connectionId, autoPromotion = null) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Connection saved</title><style>body{font-family:system-ui;display:grid;place-items:center;min-height:100vh;margin:0;background:#0f172a}main{background:white;padding:28px;border-radius:24px;max-width:560px}code{background:#f1f5f9;padding:3px 6px;border-radius:8px}</style></head><body><main><h1>Connection saved</h1><p>The credential was encrypted and stored successfully.</p>${promotionHtml}<p>Connection ID: <code>${htmlEscape(connectionId)}</code></p><p>You can close this page.</p></main></body></html>`;
 }
 
+function renderCredentialIntakeFailure(requestId) {
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Credential intake unavailable</title></head><body><main><h1>Credential intake is temporarily unavailable</h1><p>No credential data was submitted or stored.</p><p>Support reference: <code>${htmlEscape(requestId)}</code></p></main></body></html>`;
+}
+
+async function revokeSupersededPendingSessions(pool, { userId, tenantId, appKey, authType }) {
+  const [result] = await pool.query(
+    `UPDATE credential_intake_sessions
+        SET status = 'revoked', revoked_reason = 'superseded_by_new_session'
+      WHERE user_id = ? AND tenant_id = ? AND app_key = ? AND auth_type = ?
+        AND status = 'pending' AND expires_at > NOW()`,
+    [userId, tenantId, appKey, authType]
+  );
+  return Number(result?.affectedRows || 0);
+}
+
 function absoluteBaseUrl(req) {
   const proto = req?.headers?.["x-forwarded-proto"] || req?.protocol || "https";
   const host = req?.headers?.["x-forwarded-host"] || req?.headers?.host;
