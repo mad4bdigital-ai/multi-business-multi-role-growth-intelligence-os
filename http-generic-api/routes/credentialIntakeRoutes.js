@@ -786,6 +786,23 @@ export async function createCredentialIntakeSessionRecord({
     authoritySnapshotHash,
   });
 
+  renderCredentialForm({
+    session: {
+      app_key: normalizedAppKey,
+      auth_type: normalizedAuthType,
+      display_label: displayLabel || null,
+      expires_at: expiresAt,
+      credential_schema_json: JSON.stringify({ fields: normalizedSchema }),
+    },
+    app,
+  });
+  const supersededPendingSessions = await revokeSupersededPendingSessions(pool, {
+    userId: normalizedUserId,
+    tenantId: normalizedTenantId,
+    appKey: normalizedAppKey,
+    authType: normalizedAuthType,
+  });
+
   await pool.query(
     `INSERT INTO credential_intake_sessions
        (session_id, token_hash, user_id, tenant_id, app_key, auth_type, display_label,
