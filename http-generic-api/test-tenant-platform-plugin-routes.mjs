@@ -58,6 +58,10 @@ import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRo
   assert.equal(JSON.parse(insert.params[18]).source, "tenant_safe_credential_intake");
   assert.equal(result.binding_context.connection_target_ref, "app:github");
   assert.equal(result.binding_context.purpose, "connect repository");
+  assert.equal(result.page_preflight.ok, true);
+  assert.equal(result.page_preflight.rendered, true);
+  assert.equal(result.page_preflight.superseded_pending_sessions, 2);
+  assert.equal(result.page_preflight.automatic_retry_after_render_failure, false);
 }
 
 {
