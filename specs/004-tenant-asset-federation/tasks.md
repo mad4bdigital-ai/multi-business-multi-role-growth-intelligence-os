@@ -89,6 +89,27 @@
 - [ ] Implement upgrade, pin, rebase, conflict, removal, and disposition lifecycle.
 - [ ] Prove inherited shared assets are referenced and never automatically copied.
 
+## Scoped member invitation and active contexts
+
+- [x] Approve identity-first, scope-aware Google/email invitation onboarding.
+- [x] Decide that accepting an invitation never creates a new Tenant or personal workspace automatically.
+- [x] Define one global user identity with multiple Tenant memberships and optional isolated personal account/workspace.
+- [x] Define exact Brand/Workspace/Department/Group/Role/resource invitation scopes and minimal base Tenant membership.
+- [x] Define invitation token hashing, single use, expiry, revoke, outbox delivery, immutable scope checksum, and transactional readback.
+- [x] Define existing/new user, stronger-role, duplicate acceptance, and conflicting-assignment behavior.
+- [x] Define active-context selection and switching instead of implicit first-membership binding.
+- [ ] Approve `user_identities` schema and identity-link/unlink recovery rules.
+- [ ] Approve invitation scope type registry and delegation-ceiling validation.
+- [ ] Approve personal-account Tenant and personal Workspace enum/schema additions.
+- [ ] Approve active-context token/session lifetime, renewal, revocation, and device/session behavior.
+- [ ] Implement invitation email outbox and remove raw token from administrative responses/logs.
+- [ ] Implement hash-only token storage and migration for pending legacy invitations.
+- [ ] Implement typed scope preview, disclosed revisions, and exact acceptance transaction.
+- [ ] Disable broad default workspace grants for scoped invitations while preserving legacy compatibility during migration.
+- [ ] Implement context list/switch/revalidation and remove implicit first-membership selection from new clients.
+- [ ] Add Google issuer/audience/nonce/state/email-verified/provider-subject tests.
+- [ ] Add cross-Tenant, replay, revoke, expiry, no-downgrade, and personal-isolation tests.
+
 ## Shared catalog
 
 - [ ] Design additive catalog migration.
