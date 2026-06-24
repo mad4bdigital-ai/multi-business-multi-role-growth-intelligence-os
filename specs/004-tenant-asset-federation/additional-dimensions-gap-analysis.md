@@ -423,6 +423,7 @@ Required controls:
 ```text
 Identity and Organization Plane
 Tenant Federation and Lifecycle Plane
+Blueprint and Layer Inheritance Plane
 Context and Resource Authority Plane
 Policy Composition Plane
 Preference and Variant Plane
