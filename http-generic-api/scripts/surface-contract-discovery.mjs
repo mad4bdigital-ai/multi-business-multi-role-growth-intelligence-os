@@ -565,12 +565,24 @@ export function buildPersistedDiscoveryReport(report) {
     entry.coverage?.safety_marker_count || 0,
     entry.coverage?.route_coverage?.missing_count || 0,
   ];
+  const allMigrationsIndex = report.all_migrations.map(compactMigration);
+  const allMigrationPositions = new Map(
+    allMigrationsIndex.map((entry, index) => [entry[0], index])
+  );
+  const reportedMigrationPositions = report.migrations.map((entry) => {
+    const index = allMigrationPositions.get(entry.migration_file);
+    if (!Number.isInteger(index)) {
+      throw new Error(`reported migration missing from all_migrations_index: ${entry.migration_file}`);
+    }
+    return index;
+  });
   return {
     ok: report.ok === true,
     schema_version: report.schema_version,
-    serialization_profile: "bounded_evidence_v2",
-    migration_index_detail_level: "compact_tuple_index_v2",
+    serialization_profile: "bounded_evidence_v3",
+    migration_index_detail_level: "compact_tuple_index_v3",
     migration_index_columns: migrationIndexColumns,
+    reported_migration_reference: "all_migrations_index_position",
     migration_surface_count: report.migration_surface_count,
     reported_count: report.reported_count,
     openapi_operation_count: report.openapi_operation_count,
@@ -579,9 +591,9 @@ export function buildPersistedDiscoveryReport(report) {
     coverage_summary: report.coverage_summary,
     gap_queue: report.gap_queue,
     reported_migrations_count: report.migrations.length,
-    reported_migrations_index: report.migrations.map(compactMigration),
+    reported_migration_positions: reportedMigrationPositions,
     all_migrations_count: report.all_migrations.length,
-    all_migrations_index: report.all_migrations.map(compactMigration),
+    all_migrations_index: allMigrationsIndex,
     safety: report.safety,
   };
 }
