@@ -59,17 +59,26 @@ function booleanFilter(column = "is_enabled") {
 }
 
 const METRICS = Object.freeze([
-  { key: "active_memberships", table: "memberships", configure: statusFilter() },
+  { key: "active_memberships", table: "memberships", userScoped: true, configure: statusFilter() },
   { key: "devices_registered", table: "local_connector_user_configs", userScoped: true },
   { key: "devices_active", table: "local_connector_user_configs", userScoped: true, configure: booleanFilter() },
   { key: "connected_apps", table: "connected_systems" },
   { key: "connected_apps_active", table: "connected_systems", configure: statusFilter() },
   { key: "user_connections", table: "user_app_connections", userScoped: true },
   { key: "user_connections_active", table: "user_app_connections", userScoped: true, configure: statusFilter() },
+  {
+    key: "user_connections_validated",
+    table: "user_app_connections",
+    userScoped: true,
+    configure: ({ columns, clauses, params, warnings }) => {
+      statusFilter()({ columns, clauses, params, warnings });
+      statusFilter(["valid", "validated", "passed", "healthy", "active"], "validation_status")({ columns, clauses, params, warnings });
+    },
+  },
   { key: "integration_policies", table: "tenant_integration_policies" },
   { key: "integration_policies_active", table: "tenant_integration_policies", configure: statusFilter() },
-  { key: "resource_grants", table: "workspace_resource_grants", userScoped: true },
-  { key: "resource_grants_active", table: "workspace_resource_grants", userScoped: true, configure: statusFilter() },
+  { key: "resource_grants", table: "workspace_resource_grants", userScoped: true, userColumns: ["grantee_user_id"] },
+  { key: "resource_grants_active", table: "workspace_resource_grants", userScoped: true, userColumns: ["grantee_user_id"], configure: statusFilter() },
   { key: "workspace_assets", table: "workspace_assets", configure: statusFilter(["deleted"], "lifecycle_status", true) },
   { key: "workspace_vaults", table: "workspace_vaults" },
   { key: "workspace_vaults_active", table: "workspace_vaults", configure: statusFilter() },
@@ -78,7 +87,7 @@ const METRICS = Object.freeze([
   { key: "pending_tasks_open", table: "platform_pending_tasks", userScoped: true, configure: statusFilter(["closed", "completed", "resolved", "cancelled", "canceled"], "status", true) },
   { key: "pending_tasks_blocked", table: "platform_pending_tasks", userScoped: true, configure: statusFilter(["blocked"]) },
   { key: "execution_plans", table: "execution_plans" },
-  { key: "execution_plans_actionable", table: "execution_plans", configure: statusFilter(["validated", "approved", "in_progress", "running"]) },
+  { key: "execution_plans_actionable", table: "execution_plans", configure: statusFilter(["validated", "approved", "in_progress", "running"], "plan_status") },
   { key: "workflow_runs", table: "workflow_runs" },
   { key: "workflow_runs_active", table: "workflow_runs", configure: statusFilter(["pending", "queued", "running", "in_progress"]) },
   { key: "output_artifacts", table: "output_artifacts" },
@@ -106,10 +115,15 @@ async function countMetric(pool, definition, context) {
     clauses.push(definition.includeGlobal ? "(tenant_id = ? OR tenant_id IS NULL)" : "tenant_id = ?");
     params.push(context.tenantId);
     scope = definition.includeGlobal ? "tenant_plus_global" : "tenant";
-    if (definition.userScoped && context.userId && shape.columns.has("user_id")) {
-      clauses.push("user_id = ?");
-      params.push(context.userId);
-      scope = "tenant_user";
+    if (definition.userScoped && context.userId) {
+      const userColumn = [...(definition.userColumns || []), "user_id"].find((column) => shape.columns.has(column));
+      if (userColumn) {
+        clauses.push(`${sqlIdentifier(userColumn)} = ?`);
+        params.push(context.userId);
+        scope = "tenant_user";
+      } else if (!(context.profile === "admin" || ["owner", "admin"].includes(String(context.role || "").toLowerCase()))) {
+        return metricResult({ key, state: "unscoped", table, scope: "tenant_user_column_missing", warning: "tenant_wide_count_forbidden_for_non_owner" });
+      }
     }
   } else if (context.userId && shape.columns.has("user_id")) {
     clauses.push("user_id = ?");

@@ -2,7 +2,7 @@
   "ok": true,
   "schema_version": "surface-contract-safety-attestations-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
-  "item_count": 26,
+  "item_count": 27,
   "items": [
     {
       "migration_file": "1003_sprint68_supervisor_chain_runtime_guards.sql",
@@ -693,6 +693,77 @@
             "requires_runtime_preflight",
             "requires_same_cycle_readback",
             "same_cycle_readback_required"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "1023_sprint69_resource_api_coverage_gate.sql",
+      "migration_sha256": "b21696d3e14b574a62e105d72cf658e1da66a4f8d56dd4e8f855674efad1e9c9",
+      "checksum_canonicalization": "utf8_lf_v1",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "critical_review",
+      "gap_severity_at_attestation": "high",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 12,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 11,
+        "views": 5,
+        "policies": 2,
+        "routes": 26
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_policy_seed_readiness",
+          "targets": [
+            "platform_resource_api_coverage_policy_v1",
+            "platform_resource_api_secret_field_policy_v1"
+          ]
+        },
+        {
+          "action_key": "verify_readback_view",
+          "targets": [
+            "v_approval_hold_parent_resolution",
+            "v_execution_log_full_context_evidence_recent",
+            "v_execution_log_runtime_evidence_recent",
+            "v_gpt_session_archive_monitoring",
+            "v_platform_resource_api_coverage"
+          ]
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "gpt_session_events_list",
+            "gpt_session_list",
+            "gpt_session_turns_list",
+            "new_feature_gate",
+            "platform_resource_changes_list",
+            "platform_resource_list",
+            "platform_resource_revisions_list",
+            "platform_resource_types_list",
+            "tenant_resource_changes_list",
+            "tenant_resource_list",
+            "tenant_resource_revisions_list"
           ]
         }
       ],
