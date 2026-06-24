@@ -136,8 +136,6 @@ export async function executeAppAction(connection, action_key, args = {}) {
   const adapter = getAdapter(connection.app_key);
   if (!adapter) throw new Error(`No adapter for app '${connection.app_key}'`);
 
-  const creds = await ensureFreshCredentials(connection);
-
   const mutationRequired = resolveAppActionMutationRequirement(connection.app_key, action_key, args);
   assertPreflightAllowed(await evaluateAppActionPreflight({
     connection,
@@ -147,6 +145,7 @@ export async function executeAppAction(connection, action_key, args = {}) {
     mutationRequired,
   }));
 
+  const creds = await ensureFreshCredentials(connection);
   const result = await adapter.call(action_key, args, creds, connection);
 
   if (result?.ok) {
