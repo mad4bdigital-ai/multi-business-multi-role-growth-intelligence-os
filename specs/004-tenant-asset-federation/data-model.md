@@ -532,13 +532,35 @@ A Workspace row always has one immutable owning `tenant_id`. Bindings never crea
 
 ### Data governance
 
-- `data_classification_registry` — sensitivity, audience, allowed purpose, retention, and protection requirements;
-- `data_processing_purpose_registry` — purpose and allowed source/use/sink categories;
-- `principal_data_use_preferences` — consent/opt-out and transparency settings where applicable;
-- `data_residency_policy_registry` — allowed storage, processing, model, and provider regions;
-- `data_subject_request_runs` — access, correction, export, restriction, and erasure lifecycle;
-- `legal_holds` — exact data scope, reason, approver, validity, and deletion suppression;
-- `retention_execution_runs` — preview, approval, archive/delete action, checksum, and readback.
+The approved DFR-003 authority set is layered and purpose-bound. Access grants remain separate from processing eligibility.
+
+- `data_classification_registry` — registered sensitivity tiers, category attributes, protection floors, allowed downgrade behavior, version, and status;
+- `data_classification_assignments` — resource/data reference, source classification, sensitivity tier, category attributes, classifier/authority, confidence where applicable, validity, version, and checksum;
+- `processing_purpose_registry` — registered purpose, operations, audiences, recipients, lawful-basis/consent expectations, derived-data behavior, approvals, and lifecycle;
+- `purpose_data_class_rules` — purpose-to-class eligibility, allowed source/use/sink categories, environments, destinations, providers/models, regions, retention profile, and deny/review behavior;
+- `lawful_basis_registry` — supported basis types, jurisdiction applicability, evidence schema, review requirements, and version;
+- `consent_records` — subject, purpose, categories, audience/provider scope, grant source, version, validity, withdrawal state, and no-secret evidence;
+- `consent_events` — grant, update, withdrawal, expiry, dispute, and resulting invalidation/disposition evidence;
+- `principal_data_use_preferences` — opt-in/opt-out and transparency preferences where applicable; preferences cannot authorize prohibited use;
+- `data_residency_policies` — storage, processing, model, provider, backup, and export region constraints by scope and data class;
+- `data_transfer_policies` — allowed destination, recipient, cross-border mechanism, contract/evidence, conditions, validity, and review state;
+- `retention_profiles` — trigger, duration/review rule, disposition action, legal basis, jurisdiction, and override floor;
+- `retention_assignments` — data/resource/artifact binding to profile/version with source policy, start event, expiry/review date, and checksum;
+- `legal_holds` — hold identity, reason, authority, lifecycle, validity, and audit; a hold grants no read authority;
+- `legal_hold_scopes` — exact Tenant, Brand, Workspace, subject, resource, case, date-range, category, and source-system coverage;
+- `data_subject_requests` — access, export, correction, restriction, erasure, objection, or consent-withdrawal lifecycle and identity evidence;
+- `data_subject_request_items` — discovered primary/derived objects, exemption/hold/retention decision, action, completion, and readback;
+- `data_lineage_edges` — typed source-to-derived relationships for raw records, summaries, embeddings, indexes, Agent memory, evaluations, analytics, aggregates, artifacts, provider copies, and backups;
+- `derived_data_disposition_runs` — preview/apply evidence for delete, rebuild, invalidate, retract, anonymize, aggregate, retain-under-hold, or minimal-tombstone actions;
+- `model_data_use_policies` — inference, prompt/response retention, evaluation, fine-tuning, cross-Tenant learning, embeddings, Agent memory, provider training, and zero-retention controls;
+- `provider_data_processing_profiles` — region, retention, training use, subprocessors, contract/certification, security posture, deletion capability, and purpose compatibility;
+- `data_use_decisions` — immutable actor/context, resource, classification, purpose, lawful-basis/consent, residency/transfer, retention/hold, provider/model, audience/destination, policy sources, decision, expiry, version vector, explanation, and checksum;
+- `data_governance_epochs` — scope invalidation after policy, classification, consent, hold, retention, provider-profile, or subject-request change;
+- `cross_tenant_learning_policies` — participation/opt-out, approved purposes, eligible aggregates, minimum cohort, contribution/dominance limits, residency, re-identification, quality, and fairness controls;
+- `cross_tenant_learning_runs` — immutable cohort, inputs-as-aggregate, policy versions, privacy/quality checks, outputs, blockers, and readback;
+- `retention_execution_runs` — governed preview, approval, archive/delete/anonymize action, lineage propagation, checksum, and readback.
+
+Specialized domain tables retain their records. These authorities govern eligibility, lineage, and disposition and do not form an unrestricted generic EAV write surface.
 
 ### Commercial and FinOps
 
