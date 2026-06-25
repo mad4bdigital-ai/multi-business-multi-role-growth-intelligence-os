@@ -137,7 +137,43 @@ May define identity-provider validation, link/recovery policy, token/session bou
 
 Owns the personal-account Tenant and personal Workspace within plan and Platform bounds. Company Tenant administrators have no authority over personal resources, and personal ownership grants no authority in company Tenants.
 
-## 6. Composition profile permissions
+## 6. Tenant creation and Workspace permissions
+
+### Verified global user
+
+May:
+
+- inspect Tenant-creation capability and limits;
+- request creation of an allowed Tenant type;
+- cancel a pending provisioning run where safe;
+- create an optional personal account/workspace;
+- retain memberships in other Tenants;
+- switch among authorized contexts.
+
+May not bypass plan, verification, region, risk, fraud, or legal policy; create a Tenant implicitly through sign-in/invitation; or gain authority in another Tenant because it owns one Tenant.
+
+### Tenant owner
+
+May, within Platform and plan bounds:
+
+- create and administer Workspaces;
+- publish Workspace context policies;
+- bind same-Tenant Brands, Departments, Groups, Activities, Agents, and resources;
+- grant Workspace access within its own authority ceiling;
+- enable multi-Brand Workspaces when allowed;
+- archive or request deletion with dependency disposition.
+
+May not create cross-Tenant Workspace bindings, expose personal-account resources, store credential values in Workspace settings, or use a Workspace to bypass Tenant/Brand/Role authority.
+
+### Workspace administrator
+
+May manage delegated Workspace settings, members/grants, bindings, tasks, schedules, and operational resources. It cannot change Tenant ownership, billing owner, federation contracts, Brand ownership, Tenant security floors, or Workspace owning Tenant.
+
+### Platform governance
+
+May define Tenant/Workspace types, creation hard bounds, regional/plan availability, risk/verification, personal-account policy, multi-Brand constraints, and lifecycle schemas. It cannot silently create Tenants for users or treat commercial restrictions as security grants.
+
+## 7. Composition profile permissions
 
 ### User
 
