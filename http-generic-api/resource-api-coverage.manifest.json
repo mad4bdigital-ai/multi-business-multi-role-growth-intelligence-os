@@ -1,7 +1,7 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "policy_key": "platform_resource_api_coverage_policy_v1",
-  "description": "Fail-closed resource API coverage manifest. New feature surfaces must map to a governed logical resource and operation coverage.",
+  "description": "Fail-closed Resource API coverage manifest. New feature surfaces must map to a governed logical resource or declare an explicit active surface-policy decision.",
   "required_operation_classes": [
     "list",
     "get",
@@ -18,7 +18,9 @@
     "require_tests": true,
     "require_readback_for_mutations": true,
     "require_secret_field_allowlist": true,
-    "allow_expiring_exemptions": true
+    "allow_expiring_exemptions": true,
+    "require_surface_policy_decision": true,
+    "internal_surfaces_require_explicit_not_applicable": true
   },
   "resources": [
     {
@@ -101,7 +103,7 @@
         "search": "active",
         "permissions": "active",
         "changes": "active",
-        "revisions": "not_yet_versioned",
+        "revisions": "readback_guarded",
         "readback": "active",
         "create": "active",
         "update": "active",
@@ -130,7 +132,7 @@
         "search": "active",
         "permissions": "active",
         "changes": "active",
-        "revisions": "not_yet_versioned",
+        "revisions": "readback_guarded",
         "readback": "active",
         "create": "existing_workflows_only",
         "update": "existing_decision_routes_only",
@@ -150,7 +152,8 @@
         "platform_resource_type_registry",
         "platform_resource_operation_registry",
         "platform_resource_coverage_runs",
-        "platform_resource_coverage_findings"
+        "platform_resource_coverage_findings",
+        "platform_resource_surface_policy_registry"
       ],
       "read_models": [
         "v_platform_resource_api_coverage"
@@ -175,6 +178,29 @@
       "route_file": "routes/resourceApiRoutes.js"
     }
   ],
+  "surface_policy": {
+    "registry": "platform_resource_surface_policy_registry",
+    "allowed_exposure_classes": [
+      "resource_source",
+      "resource_read_model",
+      "resource_tool",
+      "internal_runtime",
+      "internal_registry",
+      "internal_log",
+      "internal_read_model",
+      "internal_tool",
+      "governance_ledger",
+      "planned_placeholder",
+      "recovery_snapshot"
+    ],
+    "descriptor_requirements": ["required", "not_applicable"],
+    "operation_requirements": ["required", "not_applicable"],
+    "archive_requirements": ["physical_marker", "lifecycle_policy", "resource_state", "not_applicable"],
+    "version_requirements": ["optimistic_concurrency", "resource_state", "not_applicable"],
+    "new_relation_policy": "descriptor_or_explicit_surface_policy",
+    "new_tool_policy": "resource_operation_or_explicit_surface_policy",
+    "broad_pattern_exemptions_forbidden": true
+  },
   "route_operations": [
     "GET /admin/resource-types",
     "GET /admin/resource-types/:resourceKey",
