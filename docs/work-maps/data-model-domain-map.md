@@ -633,4 +633,33 @@ flowchart LR
 | `v_session_insight_capability_envelope_dispatch_readback_issues` | view | Platform resources & graph | 1 | - | - |
 | `v_session_insight_capability_envelope_plan_issues` | view | Platform resources & graph | 1 | - | - |
 | `v_session_insight_capability_envelope_plan_readiness` | view | Platform resources & graph | 1 | - | - |
-| `v_session_insight_capability_envelope_request_di__PR1904_DATA_MODEL_MARKER__
+| `v_session_insight_capability_envelope_request_dispatch_readiness` | view | Platform resources & graph | 1 | - | - |
+| `v_session_insight_capability_envelope_request_gate_issues` | view | Platform resources & graph | 1 | - | - |
+| `v_session_insight_capability_envelope_request_gate_readiness` | view | Platform resources & graph | 1 | - | - |
+| `v_session_insight_capability_envelope_request_review_issues` | view | Platform resources & graph | 1 | - | - |
+| `v_session_insight_capability_envelope_request_review_queue` | view | Platform resources & graph | 1 | - | - |
+| `v_session_insight_dispatch_dry_run_review_issues` | view | Sessions & memory | 1 | - | - |
+| `v_session_insight_dispatch_dry_run_review_queue` | view | Sessions & memory | 1 | - | - |
+| `v_session_insight_dispatch_readback_readiness` | view | Sessions & memory | 1 | - | - |
+| `v_session_insight_payload_preview_issues` | view | Sessions & memory | 1 | - | - |
+| `v_session_insight_payload_preview_readiness` | view | Sessions & memory | 1 | - | - |
+| `v_session_insight_payload_preview_review_issues` | view | Sessions & memory | 1 | - | - |
+| `v_session_insight_payload_preview_review_queue` | view | Sessions & memory | 1 | - | - |
+| `v_session_insight_promotion_apply_request_issues` | view | Sessions & memory | 1 | - | - |
+| `v_session_insight_promotion_execution_preview_issues` | view | Sessions & memory | 1 | - | - |
+| `v_session_insight_promotion_issues` | view | Sessions & memory | 1 | - | - |
+| `v_session_insight_promotion_review_queue` | view | Sessions & memory | 1 | - | - |
+| `v_session_insight_remaining_scope_completion_issues` | view | Sessions & memory | 1 | - | - |
+| `v_session_insight_remaining_scope_completion_readiness` | view | Sessions & memory | 1 | - | - |
+| `v_session_insight_scope_link_issues` | view | Sessions & memory | 1 | - | - |
+| `v_session_insight_target_adapter_issues` | view | Sessions & memory | 1 | - | - |
+| `v_session_insight_target_write_readback_issues` | view | Sessions & memory | 1 | - | - |
+| `v_session_insight_target_write_readback_readiness` | view | Sessions & memory | 1 | - | - |
+| `v_session_summary_graph_attachments` | view | Sessions & memory | 1 | - | - |
+| `v_skill_runtime_coverage` | view | Agents & intelligence | 2 | - | - |
+| `v_smoke_branch_cleanup_gate_readback` | view | Repository & development | 1 | - | - |
+| `v_sql_only_runtime_contract_readiness` | view | Observability & release | 1 | - | - |
+| `v_superseded_branch_cleanup_policy_readback` | view | Repository & development | 2 | - | - |
+| `v_tenant_effective_capability_candidates` | view | Platform resources & graph | 1 | - | - |
+| `v_workspace_authority_reconciliation_summary` | view | Tenancy & identity | 1 | - | - |
+| `v_workspace_resource_grant_effective` | view | Tenancy & identity | 1 | - | - |
