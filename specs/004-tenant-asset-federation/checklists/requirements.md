@@ -97,6 +97,24 @@
 - [ ] Personal-account plan/entitlement and lifecycle policy approved.
 - [ ] Context token/session contract approved.
 
+## Tenant creation and Workspace boundary
+
+- [x] Every verified user may explicitly request Tenant creation within plan/policy bounds.
+- [x] Google sign-in, invitation acceptance, and first membership do not auto-create a Tenant.
+- [x] Tenant is the ownership, isolation, billing, governance, federation, data-policy, connection, audit, and lifecycle boundary.
+- [x] Workspace is a Tenant-owned operational context and not a mini-Tenant.
+- [x] Every Workspace belongs to exactly one Tenant.
+- [x] Workspaces bind to Brands, Departments, Groups, Activities, Roles/profiles, Agents, and resources through explicit typed bindings and grants.
+- [x] Personal-account Tenant and personal Workspace are optional and isolated.
+- [x] Multi-Brand Workspaces are disabled by default and remain same-Tenant when enabled.
+- [x] Cross-Tenant Workspaces are forbidden.
+- [x] Explicit owner assignment replaces first-membership ownership inference.
+- [x] Workspace deletion and Tenant offboarding have separate dependency-disposition lifecycles.
+- [ ] Tenant/Workspace type registries and migration mapping approved.
+- [ ] Tenant-creation entitlements and provisioning rules approved.
+- [ ] Multi-Brand Workspace policy and conflicts approved.
+- [ ] Workspace deletion and personal-account lifecycle approved.
+
 ## Extended platform planes
 
 - [x] Organizational principal/group/service gaps are documented.
