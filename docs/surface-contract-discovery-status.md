@@ -546,4 +546,518 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Missing docs: none
 - Surface count: 18
 - Plugins: none
-- Tools: `admin_platform_tool`, `app_integration_tool_bindings`, `bind_action_support_ticket_lifecycle_snapshot_propose`, `bind_action_support_ticket_lifecycle_snapshot_record`, `bind_tool_support_ticket_lifecycle_snapshot_propose`, `bind_tool_support_ticket_lifecycle_snapshot_record`, `manual_tools`, `no_approval_decision`, `no_workflow_dispatch`, `ready__PR1904_DISCOVERY_MD_MARKER__
+- Tools: `admin_platform_tool`, `app_integration_tool_bindings`, `bind_action_support_ticket_lifecycle_snapshot_propose`, `bind_action_support_ticket_lifecycle_snapshot_record`, `bind_tool_support_ticket_lifecycle_snapshot_propose`, `bind_tool_support_ticket_lifecycle_snapshot_record`, `manual_tools`, `no_approval_decision`, `no_workflow_dispatch`, `ready_for_dispatch`, `requires_dispatch_allowed`, `requires_readback`, `requires_ready_for_dispatch`, `support_ticket_lifecycle_snapshot_propose`, `support_ticket_lifecycle_snapshot_record`, `support_ticket_lifecycle_snapshot_record_apply_authorization`, `support_ticket_lifecycle_snapshot_record_apply_v1`
+- Views: none
+- Policies: `support_ticket_lifecycle_snapshot_apply_binding_policy_v1`
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=no, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `902_sprint68_dynamic_capability_apply_authorization_policy.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 6
+- Plugins: none
+- Tools: `ads_provider_governance_snapshot_record`, `ads_provider_governance_snapshot_record_apply_v1`, `idx_capability_apply_auth_policy_lookup`, `requires_dispatch_allowed`, `requires_readback`, `requires_ready_for_dispatch`
+- Views: none
+- Policies: none
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `901_sprint68_resource_manifest_create_gate_authority.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 4
+- Plugins: none
+- Tools: `manifest_create_gate_negative_smoke_passed_positive_apply_pending`, `migration_901_resource_manifest_create_gate_authority`, `requires_readback`, `runtime_dispatch_certification_registry`
+- Views: none
+- Policies: none
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
+
+### `900_sprint68_governed_repository_intelligence_engine.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 8
+- Plugins: none
+- Tools: `github_pull_request`, `installed_tool_key`, `normalize_github_pull_request_metadata`, `normalize_github_pull_requests`, `parse_github_pull_request_ref`, `requires_same_cycle_readback`, `same_cycle_readback_required`
+- Views: none
+- Policies: `governed_repository_intelligence_engine_policy_v1`
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `320_sprint69_dynamic_container_authority_runtime_contracts.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 21
+- Plugins: none
+- Tools: `allow_record_only`, `container_authority_rollout_readiness_v1`, `container_decision`, `container_override_requests`, `idx_cecl_epoch_decision`, `idx_coa_override_decision`, `legacy_decision`, `original_decision`, `override_request_id`, `override_second_approver_required`, `promotion_requires_readiness`, `requires_preflight`, `uq_coa_distinct_approver`, `v_container_override_readiness`, `v_container_rollout_readiness`
+- Views: `v_container_audit_coverage`, `v_container_override_readiness`, `v_container_relationship_issues`, `v_container_resolution_performance_summary`, `v_container_rollout_readiness`, `v_container_shadow_mismatch_summary`
+- Policies: none
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `319_sprint69_dynamic_container_authority_foundation.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 6
+- Plugins: none
+- Tools: `allow_record_only`, `migration_319_schema_readback`, `requires_preflight`
+- Views: `v_container_active_hierarchy`, `v_container_authority_foundation_summary`, `v_container_relationship_issues`
+- Policies: none
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `318_sprint69_database_lifecycle_daily_snapshot_runtime.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 1
+- Plugins: none
+- Tools: none
+- Views: none
+- Policies: `database_lifecycle_report_snapshot_schedule_policy_v1`
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `317_sprint69_superseded_orphan_branch_cleanup.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 1
+- Plugins: none
+- Tools: none
+- Views: `v_superseded_branch_cleanup_policy_readback`
+- Policies: none
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `316_sprint69_safe_branch_cleanup_support.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 3
+- Plugins: none
+- Tools: `actual_default_branch_expected_sha_open_pr_no_unique_commits_predelete_sha_absence_readback`, `requires_predelete_sha_readback`, `requires_same_cycle_absence_readback`
+- Views: none
+- Policies: none
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `316_sprint69_database_lifecycle_registry_upsert_admin_tool.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 2
+- Plugins: none
+- Tools: `database_lifecycle_registry_upsert_admin_tool`
+- Views: none
+- Policies: none
+- Routes: `/admin/control`
+- Route classifications: `/admin/control`=admin_tool_registry_route:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `315_sprint69_capability_vault_record_tool_export.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 12
+- Plugins: none
+- Tools: `admin_platform_endpoint_tool`, `capability_vault_record_only_same_cycle_v1`, `capability_vault_record_only_transaction_rollback_v1`, `capability_vault_repo_ingestion_record`, `confirm_record_only`, `confirm_record_only_required`, `grants_dispatch_or_apply`, `platform_capability_vault_record_only`, `platform_capability_vault_repo_ingestion_record`, `ptdb_capability_vault_repo_ingestion_record`, `same_cycle_readback`
+- Views: none
+- Policies: none
+- Routes: `/platform/capability-vault/repo-ingestion-record`
+- Route classifications: `/platform/capability-vault/repo-ingestion-record`=admin_tool_registry_route:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `314_sprint69_dynamic_audit_runtime_closure.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 7
+- Plugins: none
+- Tools: `allow_record_only`, `drive_asset_readback_verified_total`, `requires_preflight`, `v_dynamic_audit_pipeline_readiness`
+- Views: `v_dynamic_audit_pipeline_counts`, `v_dynamic_audit_pipeline_quality`, `v_dynamic_audit_pipeline_readiness`
+- Policies: none
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `314_sprint69_capability_authority_evidence_projection.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 8
+- Plugins: none
+- Tools: `platform_tool_dispatch_bindings`
+- Views: `v_platform_bindings_current`, `v_platform_capabilities_current`, `v_platform_capabilities_effective_evidence`, `v_platform_capability_authority_evidence`, `v_platform_capability_gaps`, `v_platform_capability_maturity`, `v_platform_exports_current`
+- Policies: none
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `314_sprint69_capability_assurance_graph.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 20
+- Plugins: none
+- Tools: `admin_platform_endpoint_tools`, `blocks_dispatch`, `capability_envelope_decision`, `idx_ppc_dispatch_apply`, `ready_for_dispatch`, `requires_readback`, `runtime_dispatch`, `runtime_dispatch_certification_registry`, `tenant_platform_endpoint_tools`, `v_platform_capability_readiness_vector`
+- Views: `v_effective_platform_resource_authority_bindings`, `v_platform_bindings_current`, `v_platform_capabilities_current`, `v_platform_capability_assurance_gaps`, `v_platform_capability_assurance_summary`, `v_platform_capability_readiness_vector`, `v_platform_exports_current`, `v_platform_secret_promotion_monitoring`
+- Policies: `platform_secret_promotion_policy_v1`
+- Routes: `/admin/control`
+- Route classifications: `/admin/control`=http_route:openapi
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `312_sprint69_platform_tool_dispatch_integrity_scope_fix.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 2
+- Plugins: none
+- Tools: `virtual_admin_tool`
+- Views: `v_platform_tool_dispatch_integrity`
+- Policies: none
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `311_sprint69_superseded_closed_pr_branch_cleanup.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 1
+- Plugins: none
+- Tools: none
+- Views: `v_superseded_branch_cleanup_policy_readback`
+- Policies: none
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `311_sprint69_semantic_capability_effective_resolution.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 14
+- Plugins: none
+- Tools: `connection_not_validated`, `effective_decision`, `execution_readiness`, `idx_capability_binding_lookup`, `legacy_decision`, `platform_endpoint_tool_exports`, `requires_readback`, `tenant_capability_shadow_decisions`, `workspace_validated_primary`, `workspace_validated_single`
+- Views: `v_platform_capability_export_projection`, `v_platform_capability_export_reconciliation`, `v_platform_endpoint_canonical_identity`, `v_tenant_effective_capability_candidates`
+- Policies: none
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `311_sprint69_platform_tool_dispatch_binding_integrity.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 20
+- Plugins: none
+- Tools: `archive_superseded_bindings_only_after_readback`, `base_head_readback`, `bounded_by_endpoint_and_tool_catalog`, `freshness_gate`, `github_get_pull_request`, `github_list_pull_requests`, `github_merge_pull_request`, `github_pr_ci_gate`, `github_pr_ci_readback`, `github_pr_state_readback_v1`, `github_pr_update_branch_readback_v1`, `github_update_pull_request`, `github_update_pull_request_branch`, `merge_ancestry_readback`, `platform_tool_dispatch_bindings`, `platform_tool_dispatch_integrity`, `ptdb_github_pr_ci_gate_get_pr`, `sprint69_platform_tool_dispatch_binding_integrity`, `virtual_admin_tool`
+- Views: `v_platform_tool_dispatch_integrity`
+- Policies: none
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `310_sprint69_activation_awareness_completeness_control_plane.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 9
+- Plugins: none
+- Tools: none
+- Views: `v_activation_agent_catalog`, `v_activation_agent_skill_grants`, `v_activation_awareness_latest_runs`, `v_activation_pending_tasks`
+- Policies: none
+- Routes: `/activation/awareness`, `/activation/dynamic-tabs/detail`, `/activation/runs/{runId}/ack`, `/tenant/activation/awareness`, `/tenant/activation/dynamic-tabs/detail`
+- Route classifications: `/activation/awareness`=admin_tool_registry_route:exempt, `/activation/dynamic-tabs/detail`=admin_tool_registry_route:exempt, `/activation/runs/{runId}/ack`=admin_tool_registry_route:exempt, `/tenant/activation/awareness`=admin_tool_registry_route:exempt, `/tenant/activation/dynamic-tabs/detail`=admin_tool_registry_route:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `309_sprint69_activation_guidance_invocation_registry.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 5
+- Plugins: none
+- Tools: `explain_approval_gated_options`, `local_gateway_tools_list`, `review_brand_readiness`, `review_brand_readiness_and_next_actions`, `review_connected_app_readiness`
+- Views: none
+- Policies: none
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `308_sprint69_dynamic_governed_migration_reconciliation.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 5
+- Plugins: none
+- Tools: `governed_migration_record_only`, `migration_preflight_pass`, `migration_reconcile_305_record_only`, `post_apply_schema_readback`, `schema_evidence_readback`
+- Views: none
+- Policies: none
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `308_sprint69_activation_guidance_intelligence.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 2
+- Plugins: none
+- Tools: none
+- Views: none
+- Policies: none
+- Routes: `/admin/activation/guidance`, `/tenant/activation/guidance`
+- Route classifications: `/admin/activation/guidance`=admin_tool_registry_route:exempt, `/tenant/activation/guidance`=admin_tool_registry_route:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `307_sprint69_hostinger_deploy_restart_option_support.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 18
+- Plugins: none
+- Tools: `admin_platform_endpoint_tools`, `admin_platform_tool`, `break_glass_execution_gated_supported`, `capability_envelope_ready_for_dispatch`, `execution_gated_supported`, `positive_dry_run_passed_break_glass_execution_gated_certified`, `positive_dry_run_passed_execution_gated_certified`, `post_deploy_readback`, `post_restart_readback`, `runtime_dispatch_certification`, `runtime_dispatch_certification_registry`, `same_cycle_dry_run_then_capability_envelope_then_post_deploy_readback`, `same_cycle_restart_dry_run_then_capability_envelope_then_post_restart_readback`, `tenant_platform_endpoint_tools`, `tenant_platform_tool`
+- Views: `v_platform_exports_current`
+- Policies: `hostinger_deploy_release_apply_policy_v1`, `hostinger_restart_app_apply_policy_v1`
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `306_sprint69_session_insight_target_write_readback.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 33
+- Plugins: none
+- Tools: `actual_request_id`, `admin_platform_endpoint_tools`, `blocked_target_write_not_executed`, `chk_session_insight_target_write_readback_no_secrets`, `chk_session_insight_target_write_readback_read_only`, `executes_rollback`, `external_write_executed`, `fk_session_insight_target_write_readback_write`, `idx_session_insight_target_write_readback_status`, `idx_session_insight_target_write_readback_write`, `provider_call_executed`, `ready_for_target_write_readback`, `rollback_executed`, `session_insight_target_write_readback_create`, `session_insight_target_write_readback_list`, `session_insight_target_write_readback_policy_v1`, `session_insight_target_write_readback_read_only`, `session_insight_target_write_readbacks`, `target_item_modified_by_readback`, `target_modified_by_readback`, ...and 8 more
+- Views: `v_session_insight_target_write_readback_issues`, `v_session_insight_target_write_readback_readiness`
+- Policies: `session_insight_target_write_readback_policy_v1`
+- Routes: `/platform/session-insight-promotions/target-write-readbacks/create`, `/platform/session-insight-promotions/target-write-readbacks/list`
+- Route classifications: `/platform/session-insight-promotions/target-write-readbacks/create`=legacy_closure_route_reviewed:exempt, `/platform/session-insight-promotions/target-write-readbacks/list`=legacy_closure_route_reviewed:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=yes, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
+
+### `306_sprint69_operational_console_api.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 2
+- Plugins: none
+- Tools: none
+- Views: none
+- Policies: none
+- Routes: `/operational/console`, `/operational/console/evidence`
+- Route classifications: `/operational/console`=admin_tool_registry_route:exempt, `/operational/console/evidence`=admin_tool_registry_route:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `305_sprint69_runtime_verification_control_plane_hardening.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 12
+- Plugins: none
+- Tools: `tenant_repository_intelligence_v2_readiness_smoke`, `tenant_repository_intelligence_v3_v4_readiness_smoke`
+- Views: `v_runtime_ci_check_gate`, `v_runtime_production_parity`, `v_runtime_verification_evidence_manifest`, `v_runtime_verification_latest`
+- Policies: none
+- Routes: `/activation/hard-run/summary`, `/admin/system/tools/call`, `/runtime/parity/{environmentKey}`, `/runtime/verification-runs`, `/runtime/verification-runs/{runId}`, `/runtime/verification-runs/{runId}/evidence`
+- Route classifications: `/activation/hard-run/summary`=admin_tool_registry_route:exempt, `/admin/system/tools/call`=admin_tool_registry_route:exempt, `/runtime/parity/{environmentKey}`=admin_tool_registry_route:exempt, `/runtime/verification-runs`=admin_tool_registry_route:exempt, `/runtime/verification-runs/{runId}`=admin_tool_registry_route:exempt, `/runtime/verification-runs/{runId}/evidence`=admin_tool_registry_route:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `293_sprint68_system_layer_descriptor_auto_wiring.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 10
+- Plugins: none
+- Tools: `approval_gated_comment_only`, `requires_registry_migration_for_tenant_tool_rows`, `system_layer_tool_descriptor_source_registry`, `tenant_platform_endpoint_tools`, `tenant_repository_advisory_comment_readback`, `tenant_repository_advisory_comment_v5_readiness_smoke`, `tenant_repository_advisory_comment_v5_tool_wiring_policy_v1`
+- Views: none
+- Policies: `system_layer_descriptor_auto_wiring_policy_v1`, `tenant_repository_advisory_comment_v5_tool_wiring_policy_v1`
+- Routes: `/system/tools/call`
+- Route classifications: `/system/tools/call`=system_tool_dispatch_route:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `292_sprint68_platform_health_scorecard_operationalization.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 24
+- Plugins: `support_ticket_external_delivery_orchestrator`
+- Tools: `enabled_tenant_tool_count`, `manual_readback`, `platform_health_scorecard_snapshot_record`, `platform_health_scorecard_tenant_rollout_readiness`, `platform_orchestration_readback`, `release_readiness`, `release_readiness_health`, `remediate_release_readiness_health`, `remediate_tool_bus_health`, `system_layer_tool_count`, `total_preflight_risk_count`
+- Views: `v_platform_health_scorecard_component_registry_readback`, `v_platform_health_scorecard_components`, `v_platform_health_scorecard_history`, `v_platform_health_scorecard_ledger_hygiene`, `v_platform_health_scorecard_remediation_plan`, `v_platform_health_scorecard_tenant_rollout_readiness`
+- Policies: none
+- Routes: `/platform/health/scorecard`, `/platform/health/scorecard/ledger-hygiene`, `/platform/health/scorecard/remediation-plan`, `/platform/health/scorecard/snapshot-record`, `/platform/health/scorecard/tenant-rollout`, `/platform/orchestration/readback`
+- Route classifications: `/platform/health/scorecard`=admin_tool_registry_route:exempt, `/platform/health/scorecard/ledger-hygiene`=admin_tool_registry_route:exempt, `/platform/health/scorecard/remediation-plan`=admin_tool_registry_route:exempt, `/platform/health/scorecard/snapshot-record`=admin_tool_registry_route:exempt, `/platform/health/scorecard/tenant-rollout`=admin_tool_registry_route:exempt, `/platform/orchestration/readback`=admin_tool_registry_route:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `291_sprint68_platform_health_scorecard_readback_alignment.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 15
+- Plugins: none
+- Tools: `admin_tools_total`, `completion_certification_tool_count`, `enabled_admin_tools`, `enabled_external_delivery_tool_count`, `enabled_runtime_endpoint_call_tools`, `invalid_admin_tool_input_schema`, `no_external_send_tool_count`, `recursive_tenant_tools_active`, `release_readiness_health`, `system_layer_tenant_tools_active`
+- Views: `v_platform_health_scorecard_components`, `v_platform_orchestration_external_delivery_readiness`, `v_platform_orchestration_graph_readiness`
+- Policies: none
+- Routes: `/gpt/tools/call`, `/system/tools/call`
+- Route classifications: `/gpt/tools/call`=legacy_closure_route_reviewed:exempt, `/system/tools/call`=system_tool_dispatch_route:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `290_sprint68_platform_health_scorecard.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 16
+- Plugins: none
+- Tools: `admin_tools_total`, `completion_certification_tool_count`, `enabled_admin_tools`, `enabled_external_delivery_tool_count`, `enabled_runtime_endpoint_call_tools`, `invalid_admin_tool_input_schema`, `no_external_send_tool_count`, `recursive_tenant_tools_active`, `release_readiness_health`
+- Views: `v_platform_health_scorecard`, `v_platform_health_scorecard_components`, `v_platform_orchestration_external_delivery_readiness`, `v_platform_orchestration_graph_readiness`
+- Policies: none
+- Routes: `/gpt/tools/call`, `/platform/health/scorecard`, `/system/tools/call`
+- Route classifications: `/gpt/tools/call`=admin_tool_registry_route:exempt, `/platform/health/scorecard`=admin_tool_registry_route:exempt, `/system/tools/call`=admin_tool_registry_route:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `289_sprint68_external_delivery_policy_scope_alignment.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 3
+- Plugins: none
+- Tools: `support_ticket_external_delivery_orchestration_readback_policy_v1`
+- Views: `v_platform_orchestration_external_delivery_readiness`
+- Policies: `support_ticket_external_delivery_orchestration_readback_policy_v1`
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=yes, no_external_write=no, secrets_included_false=no
+
+### `287_sprint68_external_delivery_orchestration_graph_plugin.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 48
+- Plugins: `ads_provider_governance_orchestrator`, `support_ticket_external_delivery_orchestrator`, `support_ticket_lifecycle_orchestrator`
+- Tools: `admin_platform_endpoint_tools`, `approval_decision_not_auto_applied`, `approval_readback`, `completion_certification_tool_count`, `credential_binding_readback`, `credential_binding_requires_approved_hold`, `credential_candidates_listable`, `credential_readback`, `delivery_readiness`, `delivery_readiness_is_classified`, `dry_run_or_record_only`, `enabled_external_delivery_tool_count`, `execution_plan_record`, `external_delivery_readiness_state`, `external_delivery_readiness_state_known`, `external_send_plan_record_state`, `external_send_plan_record_state_known`, `platform_orchestration_readback`, `provider_dispatch_disabled`, `provider_gate`, ...and 22 more
+- Views: `v_platform_orchestration_external_delivery_readiness`, `v_platform_orchestration_graph_readiness`
+- Policies: `support_ticket_external_delivery_orchestration_readback_policy_v1`
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `286_sprint68_platform_schema_contract_completion_registry.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 2
+- Plugins: none
+- Tools: `inactive_endpoint_execution_readiness_cleared`
+- Views: none
+- Policies: none
+- Routes: `/platform/wordpress/blog-publish-recovery`
+- Route classifications: `/platform/wordpress/blog-publish-recovery`=registry_only_surface:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `284_sprint68_wordpress_schema_import_completion_registry.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 1
+- Plugins: none
+- Tools: `validated_readback_alias_provider_family_synced`
+- Views: none
+- Policies: none
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `284_sprint68_session_insight_backlog_target_write_executor.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 20
+- Plugins: none
+- Tools: `actual_request_id`, `adapter_execution_gate_id`, `admin_platform_endpoint_tools`, `all_remaining_stages_gated_no_execution`, `external_write_executed`, `provider_call_executed`, `remaining_scope_completed_as_gated_no_execution`, `session_insight_backlog_target_write_execute`, `session_insight_backlog_target_write_list`, `session_insight_backlog_target_write_rollback`, `session_insight_capability_envelope_adapter_execution_gates`, `target_write_already_executed`, `target_write_executed`, `v_session_insight_backlog_target_write_readiness`
+- Views: `v_session_insight_backlog_target_write_issues`, `v_session_insight_backlog_target_write_readiness`
+- Policies: `session_insight_backlog_target_write_executor_policy_v1`
+- Routes: `/platform/session-insight-promotions/backlog-target-writes/execute`, `/platform/session-insight-promotions/backlog-target-writes/list`, `/platform/session-insight-promotions/backlog-target-writes/rollback`
+- Route classifications: `/platform/session-insight-promotions/backlog-target-writes/execute`=legacy_closure_route_reviewed:exempt, __PR1904_DISCOVERY_MD_MARKER__
