@@ -95,6 +95,24 @@
 - [ ] Invitation delivery, replay, enumeration, phishing, and redirect threat review completed.
 - [ ] Context-switch confusion and stale-context threat review completed.
 
+## Tenant creation and Workspace boundary security
+
+- [x] Tenant creation requires verified identity, plan/entitlement, region, policy, risk/fraud checks, idempotency, and readback.
+- [x] Tenant ownership is explicit and versioned rather than inferred from membership order.
+- [x] Creating or owning a Tenant grants no authority in any other Tenant.
+- [x] Every Workspace has one immutable owning Tenant.
+- [x] Workspace bindings are not authority grants and must reference resources inside the same Tenant.
+- [x] Workspace access requires active Tenant membership plus exact organizational/resource authority.
+- [x] Multi-Brand Workspaces remain same-Tenant and require explicit policy, grants, and conflict resolution.
+- [x] Cross-Tenant Workspaces and bindings are forbidden.
+- [x] Personal/company resources and credentials remain isolated.
+- [x] Sandbox Workspaces cannot authorize production execution or credential use.
+- [x] Workspace archive/deletion requires dependency disposition and cannot delete Tenant or Brand implicitly.
+- [x] Tenant offboarding includes all Workspaces and active operational dependencies.
+- [ ] Tenant-provisioning abuse, quota, fraud, and ownership-collision threat review completed.
+- [ ] Workspace binding, context-confusion, and multi-Brand policy-bypass threat review completed.
+- [ ] Personal/company resource-copy and deletion-disposition threat review completed.
+
 ## Extended plane security
 
 - [x] Group nesting and delegation depth are bounded and cycle-safe.
