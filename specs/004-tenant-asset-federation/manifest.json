@@ -69,6 +69,7 @@
     "identity_and_organization",
     "tenant_federation_and_lifecycle",
     "scoped_invitation_and_active_contexts",
+    "tenant_workspace_boundary_and_provisioning",
     "blueprint_and_layer_inheritance",
     "data_governance_and_privacy",
     "commercial_finops",
