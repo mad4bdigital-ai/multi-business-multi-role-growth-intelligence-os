@@ -1060,4 +1060,344 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_session_insight_backlog_target_write_issues`, `v_session_insight_backlog_target_write_readiness`
 - Policies: `session_insight_backlog_target_write_executor_policy_v1`
 - Routes: `/platform/session-insight-promotions/backlog-target-writes/execute`, `/platform/session-insight-promotions/backlog-target-writes/list`, `/platform/session-insight-promotions/backlog-target-writes/rollback`
-- Route classifications: `/platform/session-insight-promotions/backlog-target-writes/execute`=legacy_closure_route_reviewed:exempt, __PR1904_DISCOVERY_MD_MARKER__
+- Route classifications: `/platform/session-insight-promotions/backlog-target-writes/execute`=legacy_closure_route_reviewed:exempt, `/platform/session-insight-promotions/backlog-target-writes/list`=legacy_closure_route_reviewed:exempt, `/platform/session-insight-promotions/backlog-target-writes/rollback`=legacy_closure_route_reviewed:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
+
+### `284_sprint68_execution_log_full_context_evidence.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 4
+- Plugins: none
+- Tools: `v_execution_log_full_context_evidence_readiness`
+- Views: `v_execution_log_full_context_evidence_readiness`, `v_execution_log_full_context_evidence_recent`
+- Policies: `execution_log_full_context_evidence_policy_v1`
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
+
+### `283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 41
+- Plugins: none
+- Tools: `actual_request_id`, `adapter_apply_dispatch_gate`, `adapter_apply_dispatch_gate_status`, `adapter_apply_executed`, `adapter_apply_readback`, `adapter_apply_readback_status`, `adapter_apply_requested`, `adapter_execution_gate_id`, `adapter_execution_gate_ready`, `adapter_execution_gate_status`, `admin_platform_endpoint_tools`, `all_remaining_stages_gated_no_execution`, `approval_decision_id`, `blocked_until_adapter_apply_dispatch`, `blocked_until_adapter_apply_readback`, `current_gate_sha256`, `dispatch_readback_id`, `fk_session_insight_remaining_scope_completion_gate`, `ready_but_not_requested`, `ready_for_adapter_apply_dispatch`, ...and 16 more
+- Views: `v_session_insight_remaining_scope_completion_issues`, `v_session_insight_remaining_scope_completion_readiness`
+- Policies: `session_insight_capability_envelope_remaining_scope_completion_policy_v1`
+- Routes: `/platform/session-insight-promotions/remaining-scope-completions/create`, `/platform/session-insight-promotions/remaining-scope-completions/list`
+- Route classifications: `/platform/session-insight-promotions/remaining-scope-completions/create`=legacy_closure_route_reviewed:exempt, `/platform/session-insight-promotions/remaining-scope-completions/list`=legacy_closure_route_reviewed:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 52
+- Plugins: none
+- Tools: `actual_request_id`, `actual_request_preflight_id`, `adapter_apply_dispatch`, `adapter_apply_dispatch_not_implemented`, `adapter_apply_executed`, `adapter_apply_requested`, `adapter_execution_gate_blocked`, `adapter_execution_gate_claims_apply_or_target_write`, `adapter_execution_gate_id`, `adapter_execution_gate_ready`, `adapter_execution_gate_secret_flagged`, `adapter_execution_gate_source_readback_changed`, `adapter_execution_gate_source_readback_not_ready`, `adapter_execution_gate_status`, `admin_platform_endpoint_tools`, `approval_decision_id`, `blocked_adapter_execution_gate_claims_apply_or_write`, `blocked_adapter_execution_gate_not_ready`, `chk_session_insight_adapter_execution_gate_no_execution`, `chk_session_insight_adapter_execution_gate_no_secrets`, ...and 27 more
+- Views: `v_session_insight_adapter_apply_readiness`, `v_session_insight_adapter_gate_issues`
+- Policies: `session_insight_capability_envelope_adapter_execution_gate_policy_v1`
+- Routes: `/platform/session-insight-promotions/capability-envelope-adapter-execution-gates/create`, `/platform/session-insight-promotions/capability-envelope-adapter-execution-gates/list`
+- Route classifications: `/platform/session-insight-promotions/capability-envelope-adapter-execution-gates/create`=legacy_closure_route_reviewed:exempt, `/platform/session-insight-promotions/capability-envelope-adapter-execution-gates/list`=legacy_closure_route_reviewed:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `281_sprint68_session_insight_capability_envelope_dispatch_readback.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 48
+- Plugins: none
+- Tools: `actual_envelope_approved`, `actual_request_id`, `actual_request_preflight_id`, `adapter_apply_executed`, `adapter_execution_gate_not_implemented`, `admin_platform_endpoint_tools`, `approval_decision_id`, `blocked_dispatch_readback_claims_execution`, `blocked_dispatch_readback_not_passed`, `blocked_dispatch_readback_policy_not_ready`, `blocked_envelope_not_ready_for_adapter_execution_gate`, `chk_session_insight_capability_dispatch_readback_no_execution`, `chk_session_insight_capability_dispatch_readback_no_secrets`, `dispatch_readback_blocked`, `dispatch_readback_claims_execution_or_target_write`, `dispatch_readback_envelope_not_ready_for_dispatch`, `dispatch_readback_id`, `dispatch_readback_passed`, `dispatch_readback_policy_status`, `dispatch_readback_secret_flagged`, ...and 23 more
+- Views: `v_session_insight_adapter_execution_readiness`, `v_session_insight_capability_envelope_dispatch_readback_issues`
+- Policies: `session_insight_capability_envelope_dispatch_readback_policy_v1`
+- Routes: `/platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create`, `/platform/session-insight-promotions/capability-envelope-dispatch-readbacks/list`
+- Route classifications: `/platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create`=legacy_closure_route_reviewed:exempt, `/platform/session-insight-promotions/capability-envelope-dispatch-readbacks/list`=legacy_closure_route_reviewed:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `280_sprint68_session_insight_capability_envelope_approval_gate.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 40
+- Plugins: none
+- Tools: `actual_envelope_approved`, `actual_envelope_requested`, `actual_request_id`, `actual_request_preflight_id`, `adapter_apply_executed`, `admin_platform_endpoint_tools`, `approval_decision_claims_execution_or_target_write`, `approval_decision_envelope_not_dispatch_ready_after_approval`, `approval_decision_id`, `approval_decision_secret_flagged`, `approval_decision_source_request_changed`, `approval_decision_status`, `approved_but_not_executed`, `blocked_approval_decision_claims_execution`, `blocked_envelope_not_ready_for_dispatch_readback`, `current_actual_request_sha256`, `dispatch_readback_only`, `envelope_decision_after_approval`, `fk_session_insight_capability_approval_actual_request`, `idx_session_insight_capability_approval_dispatch`, ...and 15 more
+- Views: `v_session_insight_capability_envelope_approval_decision_issues`, `v_session_insight_dispatch_readback_readiness`
+- Policies: `session_insight_capability_envelope_approval_gate_policy_v1`
+- Routes: `/platform/session-insight-promotions/capability-envelope-approvals/decision`, `/platform/session-insight-promotions/capability-envelope-approvals/list`
+- Route classifications: `/platform/session-insight-promotions/capability-envelope-approvals/decision`=legacy_closure_route_reviewed:exempt, `/platform/session-insight-promotions/capability-envelope-approvals/list`=legacy_closure_route_reviewed:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 57
+- Plugins: none
+- Tools: `actual_capability_envelope_decision`, `actual_capability_envelope_dispatch_allowed`, `actual_capability_envelope_requested`, `actual_envelope_request_blocked`, `actual_envelope_requested`, `actual_envelope_requested_but_not_approved`, `actual_request_claims_execution_or_target_write`, `actual_request_envelope_not_found`, `actual_request_id`, `actual_request_missing_actual_envelope_id`, `actual_request_policy_status`, `actual_request_preflight_id`, `actual_request_preflight_passed`, `actual_request_secret_flagged`, `actual_request_source_preflight_changed`, `actual_request_source_preflight_not_ready`, `actual_request_status`, `adapter_apply_executed`, `admin_platform_endpoint_tools`, `apply_request_id`, ...and 32 more
+- Views: `v_session_insight_capability_envelope_actual_request_issues`, `v_session_insight_capability_envelope_approval_readiness`
+- Policies: `session_insight_capability_envelope_actual_request_dispatch_policy_v1`
+- Routes: `/platform/session-insight-promotions/capability-envelope-actual-requests/create`, `/platform/session-insight-promotions/capability-envelope-actual-requests/list`
+- Route classifications: `/platform/session-insight-promotions/capability-envelope-actual-requests/create`=legacy_closure_route_reviewed:exempt, `/platform/session-insight-promotions/capability-envelope-actual-requests/list`=legacy_closure_route_reviewed:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `278_sprint68_session_insight_capability_envelope_actual_request_preflight.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 45
+- Plugins: none
+- Tools: `actual_capability_envelope_requested`, `actual_request_preflight_blocked`, `actual_request_preflight_claims_actual_envelope_or_execution`, `actual_request_preflight_duplicate_live_envelope_detected`, `actual_request_preflight_id`, `actual_request_preflight_passed`, `actual_request_preflight_passed_no_dispatch`, `actual_request_preflight_secret_flagged`, `actual_request_preflight_source_dispatch_not_approved`, `actual_request_preflight_source_payload_changed`, `adapter_apply_executed`, `admin_platform_endpoint_tools`, `apply_request_id`, `blocked_dispatch_dry_run_not_approved`, `blocked_dispatch_policy_not_ready`, `chk_session_insight_actual_request_preflight_no_execution`, `chk_session_insight_actual_request_preflight_no_secrets`, `current_dispatch_payload_sha256`, `dispatch_dry_run_approved`, `dispatch_dry_run_approved_but_not_dispatched`, ...and 20 more
+- Views: `v_session_insight_actual_preflight_issues`, `v_session_insight_actual_preflight_readiness`
+- Policies: `session_insight_capability_envelope_actual_request_preflight_policy_v1`
+- Routes: `/platform/session-insight-promotions/capability-envelope-actual-requests/preflights/create`, `/platform/session-insight-promotions/capability-envelope-actual-requests/preflights/list`
+- Route classifications: `/platform/session-insight-promotions/capability-envelope-actual-requests/preflights/create`=legacy_closure_route_reviewed:exempt, `/platform/session-insight-promotions/capability-envelope-actual-requests/preflights/list`=legacy_closure_route_reviewed:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `277_sprint68_session_insight_capability_envelope_dispatch_dry_run_review.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 42
+- Plugins: none
+- Tools: `actual_capability_envelope_requested`, `actual_dispatch_not_implemented`, `adapter_apply_executed`, `admin_platform_endpoint_tools`, `allowed_decisions`, `apply_request_id`, `approval_dispatches_actual_capability_envelope`, `approved_but_not_dispatched`, `approved_dispatch_dry_run_claims_actual_envelope_or_execution`, `approved_dispatch_dry_run_not_approved_but_not_dispatched`, `approved_dispatch_dry_run_source_gate_not_approved`, `blocked_dispatch_dry_run_not_approved`, `blocked_dispatch_policy_not_approved_but_not_dispatched`, `blocked_until_dispatch_dry_run_approved`, `chk_session_insight_capability_dispatch_review_no_secrets`, `dispatch_dry_run_approved`, `dispatch_dry_run_approved_but_not_dispatched`, `dry_run_no_dispatch`, `fk_session_insight_capability_dispatch_review_dry_run`, `idx_session_insight_capability_dispatch_review_dry_run`, ...and 17 more
+- Views: `v_session_insight_actual_request_readiness`, `v_session_insight_dispatch_dry_run_review_issues`, `v_session_insight_dispatch_dry_run_review_queue`
+- Policies: `session_insight_capability_envelope_dispatch_dry_run_review_policy_v1`
+- Routes: `/platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/review/decision`
+- Route classifications: `/platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/review/decision`=legacy_closure_route_reviewed:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `277_sprint68_execution_log_runtime_evidence.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 4
+- Plugins: none
+- Tools: `v_execution_log_runtime_evidence_readiness`
+- Views: `v_execution_log_runtime_evidence_readiness`, `v_execution_log_runtime_evidence_recent`
+- Policies: `execution_log_runtime_evidence_policy_v1`
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
+
+### `276_sprint68_activation_positive_surface_fixtures.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 2
+- Plugins: none
+- Tools: `last_validated_at`
+- Views: `v_var`
+- Policies: none
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `275_sprint68_session_insight_capability_envelope_dispatch_dry_run.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 36
+- Plugins: none
+- Tools: `actual_capability_envelope_requested`, `adapter_apply_executed`, `admin_platform_endpoint_tools`, `apply_request_id`, `blocked_request_gate_not_approved_for_dispatch_dry_run`, `chk_session_insight_capability_dispatch_no_execution`, `chk_session_insight_capability_dispatch_no_secrets`, `dispatch_dry_run_claims_real_dispatch`, `dispatch_dry_run_generated_no_dispatch`, `dispatch_dry_run_source_gate_not_approved`, `dry_run_no_dispatch`, `fk_session_insight_capability_dispatch_request_gate`, `idx_session_insight_capability_dispatch_plan`, `idx_session_insight_capability_dispatch_request_gate`, `idx_session_insight_capability_dispatch_status`, `invalid_dispatch_dry_run_claims_execution`, `ready_for_dispatch_dry_run`, `request_approved`, `request_approved_but_not_dispatched`, `request_gate_id`, ...and 11 more
+- Views: `v_session_insight_capability_envelope_dispatch_dry_run_issues`, `v_session_insight_capability_envelope_dispatch_dry_run_readiness`
+- Policies: `session_insight_capability_envelope_dispatch_dry_run_policy_v1`
+- Routes: `/platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create`, `/platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/list`
+- Route classifications: `/platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create`=legacy_closure_route_reviewed:exempt, `/platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/list`=legacy_closure_route_reviewed:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `274_sprint68_session_insight_capability_envelope_request_review.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 35
+- Plugins: none
+- Tools: `actual_capability_envelope_requested`, `adapter_apply_executed`, `admin_platform_endpoint_tools`, `allowed_decisions`, `apply_request_id`, `approval_dispatches_actual_capability_envelope`, `approved_but_not_dispatched`, `approved_request_gate_claims_actual_envelope_or_execution`, `approved_request_gate_not_approved_but_not_dispatched`, `blocked_request_gate_not_approved`, `blocked_until_request_gate_approved`, `chk_session_insight_capability_request_review_no_secrets`, `fk_session_insight_capability_request_review_gate`, `idx_session_insight_capability_request_review_gate`, `idx_session_insight_capability_request_review_plan`, `invalid_request_gate_claims_dispatch_or_execution`, `request_approved`, `request_approved_but_not_dispatched`, `request_gate_approved_but_dispatch_not_implemented`, `request_gate_id`, ...and 10 more
+- Views: `v_session_insight_capability_envelope_request_dispatch_readiness`, `v_session_insight_capability_envelope_request_review_issues`, `v_session_insight_capability_envelope_request_review_queue`
+- Policies: `session_insight_capability_envelope_request_review_policy_v1`
+- Routes: `/platform/session-insight-promotions/capability-envelope-request-gates/review/decision`
+- Route classifications: `/platform/session-insight-promotions/capability-envelope-request-gates/review/decision`=legacy_closure_route_reviewed:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `274_sprint68_schema_split_importer_v2_reference_preservation.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 1
+- Plugins: none
+- Tools: none
+- Views: none
+- Policies: none
+- Routes: `/admin/schema-import/action-ref`
+- Route classifications: `/admin/schema-import/action-ref`=admin_tool_registry_route:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
+
+### `274_sprint68_execution_policy_enforcement_closure.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 15
+- Plugins: `support_ticket_lifecycle_orchestrator`
+- Tools: `capability_envelope_freshness_preflight`, `external_provider_gate_registry_resolver_policy_v1`, `external_provider_gate_registry_resolver_target_rule_v1`, `github_pr_create_rest_fallback_preflight`, `provider_dispatch_enabled`, `provider_gate`, `publish_failure_diagnosis_preflight`, `pull_request_create`, `ready_for_dispatch`, `repo_patch_capability_envelope_preflight`, `repository_publish_preflight`, `requires_ready_for_dispatch`, `support_ticket_provider_gate_preflight`
+- Views: none
+- Policies: `external_provider_gate_registry_resolver_policy_v1`
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=yes, no_external_write=no, secrets_included_false=no
+
+### `273_sprint68_support_ticket_lifecycle_snapshot_record_gate.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 8
+- Plugins: none
+- Tools: `admin_platform_endpoint_tools`, `no_approval_decision`, `no_workflow_dispatch`, `support_ticket_lifecycle_snapshot_record`, `support_ticket_lifecycle_snapshot_record_gate`, `support_ticket_lifecycle_snapshot_record_gate_policy_v1`
+- Views: none
+- Policies: `support_ticket_lifecycle_snapshot_record_gate_policy_v1`
+- Routes: `/platform/orchestration/support-ticket/snapshot-record`
+- Route classifications: `/platform/orchestration/support-ticket/snapshot-record`=legacy_closure_route_reviewed:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=no, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `273_sprint68_session_insight_capability_envelope_request_gate.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 45
+- Plugins: none
+- Tools: `actual_capability_envelope_requested`, `adapter_apply_executed`, `admin_platform_endpoint_tools`, `apply_request_id`, `blocked_plan_not_ready_for_request_gate`, `blocked_until_request_gate_approved`, `capability_envelope_plan_created_not_requested`, `capability_request_gate_created_requires_review`, `capability_request_gate_status_unknown`, `chk_session_insight_capability_request_gate_no_execution`, `chk_session_insight_capability_request_gate_no_secrets`, `fk_session_insight_capability_request_gate_plan`, `idx_session_insight_capability_request_gate_payload`, `idx_session_insight_capability_request_gate_plan`, `idx_session_insight_capability_request_gate_review`, `invalid_request_gate_claims_execution`, `planned_not_requested`, `ready_for_capability_envelope_request_gate`, `request_approved`, `request_approved_but_not_dispatched`, ...and 19 more
+- Views: `v_session_insight_capability_envelope_plan_readiness`, `v_session_insight_capability_envelope_request_gate_issues`, `v_session_insight_capability_envelope_request_gate_readiness`
+- Policies: `session_insight_capability_envelope_request_gate_policy_v1`
+- Routes: `/platform/session-insight-promotions/capability-envelope-request-gates/create`, `/platform/session-insight-promotions/capability-envelope-request-gates/list`
+- Route classifications: `/platform/session-insight-promotions/capability-envelope-request-gates/create`=legacy_closure_route_reviewed:exempt, `/platform/session-insight-promotions/capability-envelope-request-gates/list`=legacy_closure_route_reviewed:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `273_sprint68_activation_catalog_authorized_surfaces.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 23
+- Plugins: none
+- Tools: `agent_tool_bindings`, `agent_tool_index`, `app_integration_tool_bindings`, `dispatch_tool_key`, `local_gateway_tools`, `readback_tool_key`, `v_activation_agent_tool_catalog`, `v_activation_catalog_authorized_surface_readiness`, `v_activation_local_gateway_tool_catalog`
+- Views: `v_activation_agent_bindings_catalog`, `v_activation_agent_catalog`, `v_activation_agent_skill_catalog`, `v_activation_agent_tool_catalog`, `v_activation_app_binding_catalog`, `v_activation_app_integration_catalog`, `v_activation_catalog_authorized_surface_readiness`, `v_activation_local_gateway_tool_catalog`, `v_activation_logic_pack_catalog`, `v_activation_platform_plugin_catalog`, `v_activation_skill_manifest_catalog`, `v_activation_skill_package_catalog`, `v_activation_task_route_catalog`, `v_activation_workflow_catalog`
+- Policies: none
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
+
+### `272_sprint68_ticket_external_provider_gate_registry_resolver.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 7
+- Plugins: none
+- Tools: `admin_platform_endpoint_tools`, `external_provider_gate_registry_resolver_policy_v1`, `provider_dispatch_enabled`, `provider_gate_must_resolve_adapter_contracts_from_db_registry`, `support_ticket_external_send_provider_gate_attempt`, `support_ticket_external_send_provider_gate_plan`
+- Views: none
+- Policies: `external_provider_gate_registry_resolver_policy_v1`
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=yes, no_external_write=no, secrets_included_false=yes
+
+### `272_sprint68_support_ticket_lifecycle_snapshot_proposal.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 6
+- Plugins: none
+- Tools: `admin_platform_endpoint_tools`, `no_approval_decision`, `no_workflow_dispatch`, `support_ticket_lifecycle_snapshot_propose`
+- Views: none
+- Policies: `support_ticket_lifecycle_snapshot_proposal_policy_v1`
+- Routes: `/platform/orchestration/support-ticket/snapshot-propose`
+- Route classifications: `/platform/orchestration/support-ticket/snapshot-propose`=legacy_closure_route_reviewed:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=no, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
+
+### `272_sprint68_session_insight_capability_envelope_planner.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 18
+- Plugins: none
+- Tools: `actual_capability_envelope_requested`, `adapter_apply_executed`, `admin_platform_endpoint_tools`, `apply_request_id`, `blocked_gate_not_ready_for_capability_plan`, `capability_envelope_plan_created_not_requested`, `capability_plan_source_gate_not_ready_but_blocked`, `planned_not_requested`, `requires_gate_status`, `session_insight_capability_envelope_plan_list`, `v_session_insight_adapter_apply_readiness_gate`, `v_session_insight_capability_envelope_plan_readiness`
+- Views: `v_session_insight_adapter_apply_readiness_gate`, `v_session_insight_capability_envelope_plan_issues`, `v_session_insight_capability_envelope_plan_readiness`
+- Policies: `session_insight_capability_envelope_planner_policy_v1`
+- Routes: `/platform/session-insight-promotions/capability-envelope-plans/create`, `/platform/session-insight-promotions/capability-envelope-plans/list`
+- Route classifications: `/platform/session-insight-promotions/capability-envelope-plans/create`=legacy_closure_route_reviewed:exempt, `/platform/session-insight-promotions/capability-envelope-plans/list`=legacy_closure_route_reviewed:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `271_sprint68_session_insight_adapter_apply_readiness_gate.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 28
+- Plugins: none
+- Tools: `adapter_apply_executed`, `admin_platform_endpoint_tools`, `apply_readiness_gate_payload_approved_but_invalid_contract`, `apply_readiness_gate_secret_flagged`, `apply_readiness_gate_source_claims_execution`, `apply_request_id`, `backlog_policy_canonical_write_executed`, `blocked_payload_not_approved`, `blocked_promotion_not_approved_ready`, `external_write_executed`, `invalid_adapter_not_skeleton_for_foundation_gate`, `payload_approved`, `promotion_allowed_must_remain_false_in_readiness_gate`, `promotion_approved`, `provider_call_executed`, `read_only_gate`, `requires_payload_approved`, `requires_promotion_approved`, `session_insight_adapter_apply_readiness_gate_list`, `session_insight_adapter_apply_readiness_gate_policy_v1`, ...and 4 more
+- Views: `v_session_insight_adapter_apply_readiness_gate`, `v_session_insight_adapter_apply_readiness_gate_issues`
+- Policies: `session_insight_adapter_apply_readiness_gate_policy_v1`
+- Routes: `/platform/session-insight-promotions/adapter-apply-readiness/list`
+- Route classifications: `/platform/session-insight-promotions/adapter-apply-readiness/list`=legacy_closure_route_reviewed:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `271_sprint68_activation_expanded_authorized_surfaces.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 12
+- Plugins: none
+- Tools: `tenant_platform_endpoint_tools`, `v_activation_expanded_authorized_surface_readiness`, `v_activation_tenant_tools`
+- Views: `v_activation_agent_skill_grants`, `v_activation_app_action_grants`, `v_activation_connected_app_connections`, `v_activation_expanded_authorized_surface_readiness`, `v_activation_pending_tasks`, `v_activation_plugin_contributions`, `v_activation_tenant_integration_policies`, `v_activation_tenant_tools`, `v_activation_workflow_runtime_bindings`
+- Policies: none
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
+
+
+## Automation Contract
+
+- `repo-maintenance-sync.mjs --write` regenerates this report, `docs/surface-contract-discovery-status.json`, `docs/surface-contract-gap-queue.md`, and `docs/surface-contract-gap-queue.json`.
+- `openapi-auto-sync.yml` opens a reviewable PR after route, migration, OpenAPI, docs, or surface-discovery script changes.
+- Autogenerated OpenAPI TODO stubs block auto-merge until a human contract review replaces them.
+- Docs-only report updates may auto-merge after CI if repository branch protection allows it.
