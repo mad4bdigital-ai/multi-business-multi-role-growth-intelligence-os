@@ -73,6 +73,21 @@
 - [ ] Cross-Tenant invitation token substitution tests implemented.
 - [ ] Personal/company data crossover and context-confusion tests implemented.
 
+## Tenant and Workspace isolation
+
+- [x] Every Workspace has exactly one owning Tenant and cannot move across Tenants by rebinding.
+- [x] Workspace Brand, Department, Group, Activity, Agent, and resource bindings reference objects in the same Tenant.
+- [x] Workspace grants never create Tenant membership or cross-Tenant authority.
+- [x] Owning one Tenant does not expose Workspaces or resources in another Tenant.
+- [x] Personal-account Workspaces are invisible to company Tenant administrators.
+- [x] Company resources cannot be copied into personal space without explicit export/copy policy, authorization, provenance, and data-governance review.
+- [x] Multi-Brand Workspaces remain inside one Tenant and preserve Brand-specific policy and access boundaries.
+- [x] Active context identifies one Tenant boundary and prevents implicit mixed-Tenant views.
+- [x] Workspace archive/deletion preserves required audit and disposes only scoped operational dependencies.
+- [x] Tenant offboarding enumerates and processes every owned Workspace.
+- [ ] Same-Tenant binding and cross-Tenant rejection tests implemented for every Workspace binding type.
+- [ ] Personal/company isolation and multi-Brand data-separation tests implemented.
+
 ## Blueprint inheritance and Brand isolation
 
 - [x] Business-Type Blueprints are reusable templates and contain no Brand credentials, memberships, or private content by default.
