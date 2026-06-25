@@ -33,19 +33,27 @@ The repository has two execution-resolution surfaces: the root TypeScript resolv
 
 ## Finding D-001: envelope bootstrap policy declaration
 
-After Phase 0 tightened mutation handling, live calls to `capability_resolution_envelope_create` and `capability_resolution_dry_run` returned `mutation_policy_required`. Their descriptors identify dry-run/no-execution authority, but do not expose an explicit mutation-policy declaration recognized by `evaluateGptToolDispatchPreflight`.
+Phase 0 fail-closed mutation handling exposed a bootstrap metadata gap: `capability_resolution_dry_run`, `capability_resolution_envelope_create`, and `capability_resolution_envelope_approve` did not carry the explicit descriptor tags expected by `evaluateGptToolDispatchPreflight`.
 
-This is fail-closed and must not be bypassed. T014/T019 must:
+Repository remediation is now present in:
 
-1. classify envelope-ledger creation and approval explicitly;
-2. distinguish authority-record mutation from target execution;
-3. add regression tests proving bootstrap works while undeclared mutations stay blocked;
-4. update descriptor/policy metadata through registry authority.
+- `http-generic-api/migrations/315_sprint69_capability_envelope_bootstrap_policy_declaration.sql`
+- `http-generic-api/test-explicit-mutation-policy-fail-closed.mjs`
 
-The branch was created through the registered GitHub GraphQL endpoint with typed approval and ref readback because the normal bootstrap path was unavailable.
+The migration classifies the passive dry-run as `preview_only/no_mutation/no_execution`; classifies envelope creation and approval as authority-record mutations using `mutation/capability_envelope/readback`; adds `approval_required` to the approval tool; and explicitly forbids target execution, provider calls, and secret return.
+
+Validation evidence:
+
+- Commit `867994c21d3b0f391fbc55a0202d3d31021f726b`
+- Syntax Check: pass
+- Unit & Integration Tests: pass
+- Execution Resolver Gate: pass
+- Architecture Drift Detection: pass
+
+The migration is committed but has **not** been applied to production. Application requires the governed migration authorization/preflight/readback chain after review and merge. No direct SQL or policy bypass is authorized.
 
 ## Remaining Phase 1 work
 
 T011–T017 and T019 remain open: full alias inventory, dual-surface parity, tenant-visible admin exposure, mutation-policy completeness, credential provenance, device model, latency/volume baselines, and plan reconciliation.
 
-T010 and T018 may be checked only after `test-phase1-capability-discovery-inventory.mjs` passes.
+T010 and T018 have repository evidence and green CI. Their task checkboxes should be updated only in the final reviewed branch state.
