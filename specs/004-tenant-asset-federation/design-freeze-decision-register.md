@@ -123,11 +123,27 @@ Required defaults:
 
 ### DFR-003 — Data governance
 
-**Question:** How are classification, purpose, consent/lawful basis, retention, residency, jurisdiction, legal hold, export, correction, and erasure evaluated?
+**Approved decision:** Layered Purpose-Bound Data Governance.
 
-**Required outcome:** source authorities, field semantics, purpose-to-use matrix, deletion propagation, audit exception, and fail-closed behavior.
+Access authority is necessary but insufficient. Every consequential data operation must also satisfy the effective classification, registered purpose, lawful-basis or consent, residency and transfer, retention, legal hold, provider/model data-use, audience, destination, and most-restrictive applicable Platform, jurisdiction, Tenant, Brand, Workspace, resource, and subject policy.
 
-**Status:** open.
+Required defaults:
+
+- classification is multi-dimensional: sensitivity tier plus category attributes;
+- every consequential use declares a registered processing purpose;
+- lawful basis and consent are versioned, purpose-bound, and revocable where applicable;
+- residency covers storage, processing, providers/models, backups, exports, and transfer mechanisms;
+- retention resolves by data class, purpose, scope, artifact type, source contract, jurisdiction, subject request, and legal hold;
+- legal hold is an independent overlay and grants no read authority;
+- correction, restriction, erasure, objection, or consent withdrawal propagates through lineage to summaries, embeddings, indexes, Agent memory, evaluations, artifacts, provider copies, analytics, and backups;
+- provider/model fallback is blocked when retention, training, region, deletion, contract, or purpose requirements are incompatible;
+- raw cross-Tenant learning is forbidden; only privacy-governed aggregate evidence may be eligible;
+- the most restrictive applicable rule wins and missing, stale, conflicting, revoked, or ambiguous evidence fails closed;
+- the Effective Runtime Manifest binds an immutable data-use decision and governance version vector.
+
+**Decision evidence:** `data-governance-decision.md`.
+
+**Status:** approved_design; implementation_not_authorized.
 
 ### DFR-004 — Commercial and FinOps transaction
 
