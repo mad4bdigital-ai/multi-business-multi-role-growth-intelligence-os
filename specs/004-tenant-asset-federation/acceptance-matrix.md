@@ -138,6 +138,27 @@
 | Tenant enters offboarding | Every owned Workspace and dependent operational resource appears in the lifecycle impact plan |
 | User switches from owned Tenant to invited Tenant Workspace | Context is revalidated and no data from the previous Tenant remains visible implicitly |
 
+| User has CRM read access but requests an unregistered purpose | Data-use decision blocks with `PROCESSING_PURPOSE_MISSING` before model, provider, index, export, or transfer |
+| Registered purpose excludes the resource classification | Operation blocks with `PROCESSING_PURPOSE_NOT_ALLOWED` even though the access grant remains valid |
+| Marketing use requires consent but no current consent exists | Operation blocks with `CONSENT_REQUIRED` and exposes a safe recovery action |
+| Consent is withdrawn after an embedding and Agent memory were created | Future use blocks; lineage creates a disposition plan for the embedding, index, memory, summaries, and dependent artifacts |
+| Tenant policy requires EU storage and processing | Non-EU provider/model/backup/export candidates are excluded before content transfer |
+| Preferred model retains prompts while policy requires zero retention | Preferred model is excluded and fallback is allowed only if it satisfies the same data-use constraints |
+| Legal hold covers a customer case | Matching erasure/deletion is suppressed, but the hold grants no additional read access |
+| Retention expiry occurs while a legal hold is active | Data is retained under hold with review evidence; ordinary expiry does not delete it |
+| Data subject requests correction | Primary data is corrected and dependent summaries, indexes, Agent memory, evaluations, and artifacts are rebuilt, invalidated, or retracted according to lineage |
+| Data subject requests erasure | Governed discovery covers primary records, embeddings, indexes, Agent memory, provider copies, artifacts, analytics, and backups; each item records action or lawful exemption |
+| Derived summary has no lineage to its source | Consequential reuse or deletion completion blocks with `DERIVED_DATA_DISPOSITION_REQUIRED` |
+| Restricted data is sent to an external provider without compatible processing profile | Dispatch blocks with `PROVIDER_DATA_USE_INCOMPATIBLE` before credential materialization or content transfer |
+| Model policy forbids fine-tuning or provider training | Training use blocks even when inference with the same provider is otherwise eligible |
+| Raw content from two Tenants is proposed for shared learning | Operation blocks with `CROSS_TENANT_RAW_DATA_FORBIDDEN` |
+| Aggregate learning cohort is below its privacy threshold | Run blocks with `CROSS_TENANT_COHORT_TOO_SMALL` and produces no reusable output |
+| One Tenant dominates aggregate-learning contribution | Contribution/dominance controls block or reweight the run before promotion evidence is accepted |
+| Governance policy changes after manifest preview | Governance epoch invalidates the stale manifest and dispatch blocks with `DATA_GOVERNANCE_VERSION_CHANGED` |
+| Classification, purpose, or lawful-basis evidence is ambiguous | Most-restrictive evaluation fails closed and records the conflicting sources |
+| Personal Workspace attempts to receive restricted company data | Transfer/copy blocks under Tenant, audience, purpose, and destination policy despite user ownership of the personal context |
+| Data-use preview is requested | It returns classification, purpose, basis/consent, residency, retention/hold, provider/model, audience/destination, policy sources, blockers, checksum, and expiry without any provider call, deletion, transfer, or external write |
+
 ## Success thresholds before enforcement
 
 - zero cross-tenant leakage in tests and shadow evidence;
