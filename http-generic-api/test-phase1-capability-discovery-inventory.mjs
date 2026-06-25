@@ -11,11 +11,10 @@ const inventory = readFileSync(
 );
 
 for (const text of [
-  "main@8c7bd63eae1100c2da886bf5df3c78e5fb12c7da",
+  "main@89c54872c18432b0b0f41c8963ed731f8f12751f",
   "## T010 runtime map",
   "## T018 build and governance mechanisms",
-  "Finding D-001: envelope bootstrap policy declaration",
-  "T011–T017 and T019 remain open",
+  "Finding D-001: passive dry-run descriptor policy",
   "no provider execution, database mutation, deployment, or production promotion",
 ]) {
   assert(inventory.includes(text), `Missing Phase 1 evidence: ${text}`);
@@ -56,6 +55,8 @@ for (const relative of paths) {
   assert(existsSync(path.join(repoRoot, relative)), `Missing mapped path: ${relative}`);
   assert(inventory.includes(relative), `Inventory must reference: ${relative}`);
 }
+
+assert.match(inventory, /T011[-–]T017 and T019 remain open/);
 
 for (const generated of [
   "system_bootstrap.md",

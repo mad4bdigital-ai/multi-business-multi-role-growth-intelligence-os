@@ -1,8 +1,19 @@
 # Phase 1 Capability Security Discovery
 
-**Baseline:** `main@8c7bd63eae1100c2da886bf5df3c78e5fb12c7da`  
-**Date:** 2026-06-25  
+**Baseline:** `main@89c54872c18432b0b0f41c8963ed731f8f12751f`
+**Date:** 2026-06-25
 **Posture:** repository inspection only; no provider execution, database mutation, deployment, or production promotion.
+
+## Required canonical authority sources
+
+- `AI_Agent_Knowledge_Guide.md`
+- `system_bootstrap.md`
+- `memory_schema.json`
+- `direct_instructions_registry_patch.md`
+- `module_loader.md`
+- `prompt_router.md`
+
+These generated/runtime references are authority inputs. Generated files are read for validation; canonical edits remain under `canonicals/` and require `node build-canonicals.mjs` plus `--check` verification.
 
 ## T010 runtime map
 
@@ -23,7 +34,7 @@ The repository has two execution-resolution surfaces: the root TypeScript resolv
 ## T018 build and governance mechanisms
 
 - Migrations: `http-generic-api/migrations/` through `http-generic-api/scripts/governed-migration-runner.mjs`.
-- HTTP tests: `cd http-generic-api && npm test` through `scripts/run-test-manifest.mjs`.
+- HTTP tests: `cd http-generic-api && npm test` through `http-generic-api/scripts/run-test-manifest.mjs`.
 - Resolver tests: root `npm run ci:execution-resolvers`.
 - Canonicals: edit `canonicals/`, run `node build-canonicals.mjs`, and verify with `--check`.
 - Canonical structure: `node validate-canonical-sources.mjs`.
@@ -31,29 +42,34 @@ The repository has two execution-resolution surfaces: the root TypeScript resolv
 - CI: `.github/workflows/ci.yml` requires Syntax, Unit & Integration, Execution Resolver, and Architecture Drift jobs.
 - Spec Kit: `http-generic-api/scripts/spec-kit-completion-gate.mjs` enforces truthful `completion.json`.
 
-## Finding D-001: envelope bootstrap policy declaration
+## Finding D-001: passive dry-run descriptor policy
 
-Phase 0 fail-closed mutation handling exposed a bootstrap metadata gap: `capability_resolution_dry_run`, `capability_resolution_envelope_create`, and `capability_resolution_envelope_approve` did not carry the explicit descriptor tags expected by `evaluateGptToolDispatchPreflight`.
+Phase 0 fail-closed mutation handling exposed descriptor gaps. Current `main` now governs envelope create/approve and `repo_patch*` through `20260625_repository_mutation_descriptor_policy_recovery.sql` and its virtual descriptor changes. The remaining gap is `capability_resolution_dry_run`: it is a passive POST diagnostic but lacks the explicit `preview_only/no_mutation/no_execution` descriptor used by `evaluateGptToolDispatchPreflight`.
 
-Repository remediation is now present in:
+Repository remediation for that remaining gap is present in:
 
 - `http-generic-api/migrations/315_sprint69_capability_envelope_bootstrap_policy_declaration.sql`
 - `http-generic-api/test-explicit-mutation-policy-fail-closed.mjs`
 
-The migration classifies the passive dry-run as `preview_only/no_mutation/no_execution`; classifies envelope creation and approval as authority-record mutations using `mutation/capability_envelope/readback`; adds `approval_required` to the approval tool; and explicitly forbids target execution, provider calls, and secret return.
+The migration updates only `capability_resolution_dry_run`, records a no-secret/no-provider policy row, and leaves create/approve plus repository mutations under the newer main authority. It does not execute target capabilities or relax fail-closed behavior.
 
-Validation evidence:
-
-- Commit `867994c21d3b0f391fbc55a0202d3d31021f726b`
-- Syntax Check: pass
-- Unit & Integration Tests: pass
-- Execution Resolver Gate: pass
-- Architecture Drift Detection: pass
+Validation evidence from the earlier branch commit remains historical; current-head CI must be rerun after reconciliation with `main`.
 
 The migration is committed but has **not** been applied to production. Application requires the governed migration authorization/preflight/readback chain after review and merge. No direct SQL or policy bypass is authorized.
 
+## Phase 1 discovery report
+
+The read-only report implementation is split by responsibility:
+
+- `http-generic-api/phase1CapabilityDiscoverySources.js`
+- `http-generic-api/phase1CapabilityDiscoveryAnalysis.js`
+- `http-generic-api/phase1CapabilityDiscoveryReport.js`
+- `http-generic-api/scripts/phase1-capability-discovery-report.mjs`
+
+It inventories MySQL-primary descriptors for T011-T014, reuses the production mutation classifier, performs no runtime dispatch or provider call, reads no credential payload, and emits no secrets.
+
 ## Remaining Phase 1 work
 
-T011–T017 and T019 remain open: full alias inventory, dual-surface parity, tenant-visible admin exposure, mutation-policy completeness, credential provenance, device model, latency/volume baselines, and plan reconciliation.
+T011-T017 and T019 remain open until the live report and the remaining provenance, device, performance, and plan-reconciliation evidence are complete.
 
-T010 and T018 have repository evidence and green CI. Their task checkboxes should be updated only in the final reviewed branch state.
+T010 and T018 have repository evidence. Their task checkboxes should be updated only after current-head CI and review succeed.

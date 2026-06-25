@@ -324,3 +324,7 @@ Safety contract: `no_provider_call`, `no_credential_payload_read`, `no_raw_secre
 ## Durable governed response chunk change surface
 
 Changes to `governedToolResponseChunkStore.js`, the `response_chunk_read` contract, or `20260618_governed_tool_response_chunks.sql` require synchronized updates to the main OpenAPI source, focused restart/cache-loss/integrity/expiry/Unicode tests, `AI_Agent_Knowledge_Guide.md`, the registry patch index, deployment parity evidence, and a human-readable ADR/runbook. The public continuation fields must remain backward compatible. Durable writes must complete before `chunk_id` is returned, secret-bearing payloads must be rejected, and production migration apply remains preflighted and typed-confirmation gated.
+## Sprint 69 passive capability-resolution dry-run descriptor
+
+- `315_sprint69_capability_envelope_bootstrap_policy_declaration.sql` closes only the remaining passive POST classification gap for `capability_resolution_dry_run`. It adds `preview_only`, `no_mutation`, and `no_execution` registry metadata without changing envelope create/approve or repository mutation authority.
+- Migration execution is registry-only and declares `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`. Production apply remains governed-runner, authorization, preflight, checksum, typed-confirmation, and same-cycle-readback gated.

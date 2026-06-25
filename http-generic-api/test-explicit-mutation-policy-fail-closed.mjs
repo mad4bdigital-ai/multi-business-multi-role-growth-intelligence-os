@@ -185,36 +185,16 @@ assert.deepEqual(
   classifyMutationPolicyRequirement({ method: "POST", tags: dryRunBootstrapTags }),
   { required: false, classification: "read_only_tag" },
 );
-const envelopeCreateTags = [
-  "admin", "capability_resolution", "envelope_ledger", "mutation",
-  "capability_envelope", "readback", "no_execution", "no_secrets",
-];
-assert.deepEqual(
-  classifyMutationPolicyRequirement({ method: "POST", tags: envelopeCreateTags }),
-  { required: true, classification: "mutation_tag" },
-);
-assert.equal(hasDeclaredMutationPolicy({ tags: envelopeCreateTags }), true);
-const envelopeApproveTags = [
-  "admin", "capability_resolution", "envelope_approval", "mutation",
-  "capability_envelope", "approval_required", "readback", "no_execution", "no_secrets",
-];
-assert.deepEqual(
-  classifyMutationPolicyRequirement({ method: "POST", tags: envelopeApproveTags }),
-  { required: true, classification: "mutation_tag" },
-);
-assert.equal(hasDeclaredMutationPolicy({ tags: envelopeApproveTags }), true);
 for (const expected of [
   "capability_resolution_dry_run",
-  "capability_resolution_envelope_create",
-  "capability_resolution_envelope_approve",
   "preview_only,no_mutation,no_execution",
-  "mutation,capability_envelope,readback",
-  "mutation,capability_envelope,approval_required,readback",
   "'target_execution_allowed',false",
   "'provider_calls_allowed',false",
+  "'credential_payloads_read',false",
   "'secrets_included',false",
+  "20260625_repository_mutation_descriptor_policy_recovery.sql",
 ]) {
   assert(envelopeBootstrapMigration.includes(expected), `D-001 migration must include: ${expected}`);
 }
-
+assert.doesNotMatch(envelopeBootstrapMigration, /WHERE tool_key = 'capability_resolution_envelope_(?:create|approve)'/);
 console.log("explicit mutation policy fail-closed tests passed");

@@ -13,10 +13,15 @@ export const PHASE1_CAPABILITY_DISCOVERY_REPORT_VERSION =
 export async function buildPhase1CapabilityDiscoveryReport(args = {}, deps = {}) {
   const scanLimit = clampDiscoveryInteger(args.scan_limit ?? args.scanLimit, 5000, 1, 10000);
   const outputLimit = clampDiscoveryInteger(args.limit, 100, 1, 500);
-  const pool = deps.pool || getPool();
-  const inventories = deps.loadSourceInventories
-    ? await deps.loadSourceInventories({ scanLimit, sources: PHASE1_CAPABILITY_DISCOVERY_SOURCES })
-    : await Promise.all(PHASE1_CAPABILITY_DISCOVERY_SOURCES.map((source) => loadPhase1DiscoverySource(pool, source, scanLimit)));
+  let inventories;
+  if (deps.loadSourceInventories) {
+    inventories = await deps.loadSourceInventories({ scanLimit, sources: PHASE1_CAPABILITY_DISCOVERY_SOURCES });
+  } else {
+    const pool = deps.pool || getPool();
+    inventories = await Promise.all(
+      PHASE1_CAPABILITY_DISCOVERY_SOURCES.map((source) => loadPhase1DiscoverySource(pool, source, scanLimit)),
+    );
+  }
   return {
     ok: true,
     report_type: "phase1_capability_discovery",
