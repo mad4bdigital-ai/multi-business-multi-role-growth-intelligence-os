@@ -239,21 +239,58 @@ Multi-Brand Workspace creation requires explicit Tenant policy and exact Brand b
 
 ## 10. Data governance and portability
 
+### Classification, purpose, residency, and retention
+
 - `GET /tenant/data-governance/classifications`
+- `POST /tenant/data-governance/classification-assignments`
 - `GET /tenant/data-governance/purposes`
+- `POST /tenant/data-governance/purpose-policies`
 - `GET /tenant/data-governance/residency-policies`
+- `POST /tenant/data-governance/residency-policies`
+- `GET /tenant/data-governance/retention-profiles`
+- `POST /tenant/data-governance/retention-profiles`
 - `GET /tenant/users/me/data-use-preferences`
 - `PATCH /tenant/users/me/data-use-preferences`
+
+Classification-assignment and policy mutations require object-level authority, version preconditions, bounded schemas, idempotency where retryable, audit, governance-epoch invalidation, and same-cycle readback. A preference can narrow or disclose a choice but cannot authorize a prohibited use.
+
+### Legal hold and privacy requests
+
+- `POST /tenant/legal-holds`
+- `GET /tenant/legal-holds/{holdId}`
+- `POST /tenant/legal-holds/{holdId}/release`
 - `POST /tenant/data-subject-requests`
 - `GET /tenant/data-subject-requests/{requestId}`
-- `POST /tenant/legal-holds`
-- `POST /tenant/retention-execution-runs/preview`
+- `GET /tenant/data-subject-requests/{requestId}/items`
+
+Legal-hold creation/release requires exact scoped authority, reason, version, audit, and readback. A hold prevents specified deletion or mutation but never grants read authority. Data-subject requests support access, export, correction, restriction, erasure, objection, and consent withdrawal with verified identity and per-item disposition evidence.
+
+### Data-use decisions, model policy, and derived-data disposition
+
+- `POST /tenant/data-use-decisions/preview`
+- `GET /tenant/data-use-decisions/{decisionId}`
+- `POST /tenant/derived-data-disposition-runs/preview`
+- `POST /tenant/derived-data-disposition-runs`
+- `GET /tenant/derived-data-disposition-runs/{runId}`
+- `GET /tenant/model-data-use-policies`
+- `POST /tenant/model-data-use-policies`
+- `GET /tenant/cross-tenant-learning-policy`
+- `PATCH /tenant/cross-tenant-learning-policy`
+
+Data-use preview evaluates access authority plus classification, registered purpose, lawful basis/consent, residency/transfer, retention/legal hold, provider/model compatibility, audience, destination, and the most restrictive applicable rule. It performs no provider call, model execution, transfer, deletion, or external write.
+
+Derived-data preview returns discovered primary/derived objects and proposed delete, rebuild, invalidate, retract, anonymize, aggregate, hold, or minimal-tombstone actions. Apply requires a current preview checksum, exact authority, idempotency key, legal-hold revalidation, approvals where applicable, transaction/compensation evidence, and same-cycle readback.
+
+Raw cross-Tenant content learning is forbidden. Cross-Tenant aggregate-learning policy may only narrow participation within Platform privacy, cohort, contribution, residency, re-identification, provenance, quality, and fairness bounds.
+
+### Export and import
+
 - `POST /tenant/export-runs`
 - `GET /tenant/export-runs/{runId}`
 - `POST /tenant/import-runs/preview`
 - `POST /tenant/import-runs`
 
-Export and import payloads are checksummed, versioned, bounded, and no-secret. Erasure and retention execution require exact scope, legal-hold evaluation, approval, and same-cycle readback.
+Export and import payloads are checksummed, versioned, bounded, and no-secret. Export eligibility is purpose, audience, destination, residency/transfer, retention, legal-hold, and object-authority constrained. Erasure and retention execution require exact scope, legal-hold evaluation, approval, lineage propagation, and same-cycle readback.
 
 ## 11. Commercial and FinOps
 
