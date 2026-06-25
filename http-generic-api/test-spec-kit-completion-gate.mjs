@@ -35,7 +35,12 @@ function validCompletion(overrides = {}) {
     requirements: { migration: true, production_verification: true, post_merge_audit: true },
     delivery: {
       implementation_prs: [{ number: 100, status: "merged", merge_sha: "a".repeat(40) }],
-      closeout_pr: { number: "current", branch: "gpt/spec-closeout", role: "completion", status: "current_pr" },
+      closeout_pr: {
+        number: "current",
+        branch: process.env.GITHUB_HEAD_REF || "gpt/spec-closeout",
+        role: "completion",
+        status: "current_pr",
+      },
     },
     evidence: {
       ci: { status: "pass", head_sha: "b".repeat(40) },

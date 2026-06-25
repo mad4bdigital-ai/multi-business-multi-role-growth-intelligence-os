@@ -1784,6 +1784,41 @@ paths:
                         type: boolean
                         enum:
                           - false
+                  security_alerts:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - scheduled_count
+                      - reason_codes
+                      - temporary_control
+                      - secrets_included
+                    properties:
+                      scheduled_count:
+                        type: integer
+                        minimum: 0
+                        maximum: 2
+                      severity:
+                        type: string
+                        nullable: true
+                        enum:
+                          - high
+                      reason_codes:
+                        type: array
+                        maxItems: 2
+                        uniqueItems: true
+                        items:
+                          type: string
+                          enum:
+                            - TENANT_TO_ADMIN_CAPABILITY_REQUEST
+                            - SELECTOR_PARITY_MISMATCH
+                      temporary_control:
+                        type: boolean
+                        enum:
+                          - true
+                      secrets_included:
+                        type: boolean
+                        enum:
+                          - false
                   tenant_facing:
                     type: boolean
                   secrets_included:

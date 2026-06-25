@@ -20,6 +20,66 @@ function hasMeaningfulPolicy(policies = []) {
   return Array.isArray(policies) && policies.length > 0;
 }
 
+const MUTATION_POLICY_TAGS = new Set([
+  "mutation", "state_changing", "read_write", "writeback", "provider_write", "external_write",
+]);
+const NON_MUTATION_POLICY_TAGS = new Set([
+  "read_only", "preview_only", "diagnostics", "no_mutation",
+]);
+const DECLARED_MUTATION_POLICY_TAGS = new Set([
+  "capability_envelope", "typed_confirmation", "approval_required", "readback",
+  "same_cycle_readback", "dry_run_default", "preview_required", "rollback_required",
+]);
+
+export function classifyMutationPolicyRequirement({ method = "", tags = [], mutationRequired = null } = {}) {
+  if (mutationRequired === true) return { required: true, classification: "explicit_mutation" };
+  if (mutationRequired === false) return { required: false, classification: "explicit_read_only" };
+
+  const normalizedTags = new Set((Array.isArray(tags) ? tags : String(tags || "").split(","))
+    .map((tag) => String(tag || "").trim().toLowerCase())
+    .filter(Boolean));
+  if ([...normalizedTags].some((tag) => MUTATION_POLICY_TAGS.has(tag))) {
+    return { required: true, classification: "mutation_tag" };
+  }
+
+  const normalizedMethod = String(method || "").trim().toUpperCase();
+  if (["PUT", "PATCH", "DELETE"].includes(normalizedMethod)) {
+    return { required: true, classification: "state_changing_http_method" };
+  }
+  if ([...normalizedTags].some((tag) => NON_MUTATION_POLICY_TAGS.has(tag))) {
+    return { required: false, classification: "read_only_tag" };
+  }
+  if (["GET", "HEAD", "OPTIONS"].includes(normalizedMethod)) {
+    return { required: false, classification: "read_only_http_method" };
+  }
+  if (["POST", "VIRTUAL"].includes(normalizedMethod)) {
+    return { required: true, classification: "conservative_state_changing_default" };
+  }
+  return { required: null, classification: "mutation_classification_missing" };
+}
+
+export function hasDeclaredMutationPolicy({ tags = [], mutationPolicyDeclared = null } = {}) {
+  if (mutationPolicyDeclared === true) return true;
+  if (mutationPolicyDeclared === false) return false;
+  const normalizedTags = new Set((Array.isArray(tags) ? tags : String(tags || "").split(","))
+    .map((tag) => String(tag || "").trim().toLowerCase())
+    .filter(Boolean));
+  return [...normalizedTags].some((tag) => DECLARED_MUTATION_POLICY_TAGS.has(tag));
+}
+function policySpecificallyTargetsAppAction(policy = {}, appKey = "", actionKey = "") {
+  const required = [appKey, actionKey]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean);
+  if (required.length !== 2) return false;
+  const scopeTokens = Array.isArray(policy.execution_scope_tokens)
+    ? policy.execution_scope_tokens
+    : String(policy.execution_scope || "")
+      .split(/[|,;]/)
+      .map((value) => String(value || "").trim().toLowerCase())
+      .filter(Boolean);
+  return required.every((value) => scopeTokens.includes(value));
+}
+
 function policyAllowsBlocking(policy) {
   const value = policyJson(policy);
   const mode = String(value.enforcement_mode || value.mode || "").trim().toLowerCase();
@@ -45,6 +105,22 @@ function makePreflightResult({ classification = "allow", policies = [], blocking
   };
 }
 
+function makeMutationPolicyBlock({ operation = "mutation", reason = "explicit_mutation_policy_not_configured", mutation = null, evidence = {}, runtimePolicyResolution = null } = {}) {
+  const errorCode = reason === "mutation_classification_missing"
+    ? "mutation_classification_required"
+    : "mutation_policy_required";
+  return makePreflightResult({
+    classification: "blocked",
+    errors: [errorCode],
+    evidence: {
+      operation,
+      reason,
+      mutation_policy_requirement: mutation || null,
+      ...evidence,
+    },
+    runtimePolicyResolution,
+  });
+}
 async function resolvePolicies(context = {}, deps = {}) {
   const runtimePolicyResolution = await resolveRuntimePolicyContext(context, deps);
   return { runtimePolicyResolution, policies: runtimePolicyResolution.policies || [] };
@@ -99,7 +175,7 @@ async function loadRepositoryMutationPolicies(operation, affectsLayer, deps = {}
 
 export async function evaluateRepositoryMutationPreflight({ operation, args = [], repo = {}, pr = null, compare = null, branch = "" } = {}, deps = {}) {
   const { runtimePolicyResolution, policies } = await loadRepositoryMutationPolicies(operation, "adminCliRoutes", deps);
-  if (!policies.length) return makePreflightResult({ evidence: { operation, reason: "repository_mutation_policy_not_configured" }, runtimePolicyResolution });
+  if (!policies.length) return makeMutationPolicyBlock({ operation, reason: "repository_mutation_policy_not_configured", mutation: { required: true, classification: "repository_mutation" }, runtimePolicyResolution });
   const blockingPolicies = [];
   const warnings = [];
   const errors = [];
@@ -137,7 +213,7 @@ export async function evaluateRepositoryMutationPreflight({ operation, args = []
 
 export async function evaluateRepoPatchApplyPreflight({ args = {}, repo = {}, branch = "", defaultBranch = "main", branchExists = false, compare = null } = {}, deps = {}) {
   const { runtimePolicyResolution, policies } = await loadRepositoryMutationPolicies("repo_patch_apply", "gptToolsRoutes", deps);
-  if (!policies.length) return makePreflightResult({ evidence: { operation: "repo_patch_apply", reason: "repository_mutation_policy_not_configured" }, runtimePolicyResolution });
+  if (!policies.length) return makeMutationPolicyBlock({ operation: "repo_patch_apply", reason: "repository_mutation_policy_not_configured", mutation: { required: true, classification: "repository_mutation" }, runtimePolicyResolution });
   const blockingPolicies = [];
   const warnings = [];
   const errors = [];
@@ -279,23 +355,50 @@ export async function evaluateSupportTicketExternalProviderGatePreflight({ chann
   return makePreflightResult({ classification: warnings.length ? "allow_with_policy_warnings" : "allow", policies, warnings, errors, evidence, runtimePolicyResolution });
 }
 
-export async function evaluateGptToolDispatchPreflight({ callerType = "tenant", toolKey = "", args = {} } = {}, deps = {}) {
+export async function evaluateGptToolDispatchPreflight({ callerType = "tenant", toolKey = "", args = {}, method = "", tags = [], mutationRequired = null, mutationPolicyDeclared = null } = {}, deps = {}) {
+  const mutation = classifyMutationPolicyRequirement({ method, tags, mutationRequired });
+  const declaredMutationPolicy = hasDeclaredMutationPolicy({ tags, mutationPolicyDeclared });
   const { runtimePolicyResolution, policies } = await resolvePolicies({ execution_scope: ["gpt_tools_call", "tool_dispatch", toolKey].filter(Boolean), affects_layer: ["gptToolsRoutes", callerType].filter(Boolean) }, deps);
-  if (!policies.length) return makePreflightResult({ evidence: { operation: "gpt_tools_call", tool_key: toolKey, reason: "no_matching_active_execution_policy" }, runtimePolicyResolution });
+  const evidence = { operation: "gpt_tools_call", caller_type: callerType, tool_key: toolKey, method: method || null, tags, mutation_policy_requirement: mutation, mutation_policy_declared: declaredMutationPolicy, matching_policy_count: policies.length };
+  if (mutation.required === null) return makeMutationPolicyBlock({ operation: "gpt_tools_call", reason: "mutation_classification_missing", mutation, evidence, runtimePolicyResolution });
+  if (mutation.required && !declaredMutationPolicy) {
+    return makeMutationPolicyBlock({ operation: "gpt_tools_call", reason: "explicit_mutation_policy_not_configured", mutation, evidence, runtimePolicyResolution });
+  }
+  if (!policies.length) {
+    return makePreflightResult({ classification: mutation.required ? "allow_with_declared_mutation_policy" : "allow", evidence: { ...evidence, reason: mutation.required ? "descriptor_mutation_policy_declared" : "read_only_tool_without_execution_policy" }, runtimePolicyResolution });
+  }
   const blockingPolicies = policies.filter(policyAllowsBlocking);
-  return makePreflightResult({ classification: blockingPolicies.length ? "requires_policy_specific_evaluation" : "allow_with_policy_advisory", policies, warnings: blockingPolicies.length ? ["matching_blocking_tool_dispatch_policies_require_specific_evaluation"] : [], evidence: { operation: "gpt_tools_call", caller_type: callerType, tool_key: toolKey, matching_policy_count: policies.length }, runtimePolicyResolution });
+  return makePreflightResult({ classification: blockingPolicies.length ? "requires_policy_specific_evaluation" : "allow_with_policy_advisory", policies, warnings: blockingPolicies.length ? ["matching_blocking_tool_dispatch_policies_require_specific_evaluation"] : [], evidence, runtimePolicyResolution });
 }
 
-export async function evaluateAppActionPreflight({ connection = {}, appKey = "", actionKey = "", args = {} } = {}, deps = {}) {
+export async function evaluateAppActionPreflight({ connection = {}, appKey = "", actionKey = "", args = {}, mutationRequired = null } = {}, deps = {}) {
   const resolvedAppKey = String(appKey || connection?.app_key || "").trim();
   const resolvedActionKey = String(actionKey || "").trim();
+  const mutation = classifyMutationPolicyRequirement({ mutationRequired });
   const { runtimePolicyResolution, policies } = await resolvePolicies({ execution_scope: ["app_action", "external_app_action", resolvedAppKey, resolvedActionKey].filter(Boolean), affects_layer: ["appAdapters", "appAdapters/index.js", resolvedAppKey].filter(Boolean) }, deps);
-  if (!policies.length) return makePreflightResult({ evidence: { operation: "app_action", app_key: resolvedAppKey, action_key: resolvedActionKey, reason: "no_matching_active_execution_policy" }, runtimePolicyResolution });
+  if (mutation.required === null) return makeMutationPolicyBlock({ operation: "app_action", reason: "mutation_classification_missing", mutation, evidence: { operation: "app_action", app_key: resolvedAppKey, action_key: resolvedActionKey }, runtimePolicyResolution });
+  const explicitMutationPolicies = mutation.required
+    ? policies.filter((policy) => policySpecificallyTargetsAppAction(policy, resolvedAppKey, resolvedActionKey))
+    : [];
+  const policyEvidence = {
+    operation: "app_action",
+    app_key: resolvedAppKey,
+    action_key: resolvedActionKey,
+    mutation_policy_requirement: mutation,
+    matching_policy_count: policies.length,
+    explicit_mutation_policy_count: explicitMutationPolicies.length,
+  };
+  if (mutation.required && !explicitMutationPolicies.length) {
+    return makeMutationPolicyBlock({ operation: "app_action", reason: "explicit_mutation_policy_not_configured", mutation, evidence: policyEvidence, runtimePolicyResolution });
+  }
+  if (!policies.length) {
+    return makePreflightResult({ evidence: { ...policyEvidence, reason: "read_only_app_action_without_execution_policy" }, runtimePolicyResolution });
+  }
   const warnings = [];
   const errors = [];
   const enforcedBlockingPolicies = [];
   const genericBlockingPolicies = [];
-  const evidence = { operation: "app_action", app_key: resolvedAppKey, action_key: resolvedActionKey, connection_id: connection?.connection_id || null, matching_policy_count: policies.length };
+  const evidence = { ...policyEvidence, connection_id: connection?.connection_id || null };
   for (const policy of policies) {
     if (!policyAllowsBlocking(policy)) continue;
     const group = String(policy.policy_group || "").trim();
@@ -320,7 +423,11 @@ export async function evaluateAppActionPreflight({ connection = {}, appKey = "",
 export async function evaluateConnectorDispatchPreflight({ plan = {}, connectorType = "", workflowDef = null, apply = false } = {}, deps = {}) {
   const resolvedConnectorType = String(connectorType || "").trim();
   const { runtimePolicyResolution, policies } = await resolvePolicies({ execution_scope: ["connector_dispatch", "workflow_dispatch", resolvedConnectorType, plan.workflow_id, plan.workflow_key, plan.intent_key].filter(Boolean), affects_layer: ["connectorExecutor", "connectorExecutor.js", resolvedConnectorType].filter(Boolean) }, deps);
-  if (!policies.length) return makePreflightResult({ evidence: { operation: "connector_dispatch", connector_type: resolvedConnectorType, reason: "no_matching_active_execution_policy" }, runtimePolicyResolution });
+  if (!policies.length) {
+    const mutation = classifyMutationPolicyRequirement({ mutationRequired: Boolean(apply) });
+    if (apply) return makeMutationPolicyBlock({ operation: "connector_dispatch", reason: "explicit_mutation_policy_not_configured", mutation, evidence: { connector_type: resolvedConnectorType, apply: true }, runtimePolicyResolution });
+    return makePreflightResult({ evidence: { operation: "connector_dispatch", connector_type: resolvedConnectorType, apply: false, reason: "preview_connector_dispatch_without_execution_policy", mutation_policy_requirement: mutation }, runtimePolicyResolution });
+  }
   const warnings = [];
   const errors = [];
   const enforcedBlockingPolicies = [];

@@ -311,6 +311,8 @@ export function buildTenantPlatformPluginRoutes() {
         targetResourceType: input.target_resource_type || input.targetResourceType || null,
         targetResourceUri: input.target_resource_uri || input.targetResourceUri || null,
         targetMode: input.target_mode || input.targetMode || "read_only",
+        requestId: req.headers["x-request-id"] || null,
+        correlationId: req.headers["x-correlation-id"] || req.headers["x-request-id"] || null,
       });
       return res.status(200).json({
         ...result,
