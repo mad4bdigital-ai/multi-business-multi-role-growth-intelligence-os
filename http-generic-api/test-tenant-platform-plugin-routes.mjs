@@ -24,6 +24,9 @@ import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRo
           status: "active",
         }]];
       }
+      if (sql.includes("UPDATE credential_intake_sessions") && sql.includes("superseded_by_new_session")) {
+        return [{ affectedRows: 2 }];
+      }
       if (sql.includes("INSERT INTO credential_intake_sessions")) return [{ affectedRows: 1 }];
       throw new Error(`Unexpected query: ${sql}`);
     },
@@ -55,6 +58,10 @@ import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRo
   assert.equal(JSON.parse(insert.params[18]).source, "tenant_safe_credential_intake");
   assert.equal(result.binding_context.connection_target_ref, "app:github");
   assert.equal(result.binding_context.purpose, "connect repository");
+  assert.equal(result.page_preflight.ok, true);
+  assert.equal(result.page_preflight.rendered, true);
+  assert.equal(result.page_preflight.superseded_pending_sessions, 2);
+  assert.equal(result.page_preflight.automatic_retry_after_render_failure, false);
 }
 
 {

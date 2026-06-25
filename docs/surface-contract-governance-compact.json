@@ -2,16 +2,16 @@
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
   "docs_completion_percent": 99.78,
-  "docs_complete_count": 452,
+  "docs_complete_count": 453,
   "docs_gap_count": 1,
   "queue_items": 1,
   "blocking_new_item_count": 1,
   "gate_ok": false,
   "top_actionable": [
     {
-      "migration_file": "1023_sprint69_resource_api_coverage_gate.sql",
-      "queue_class": "critical_review",
-      "score": 995,
+      "migration_file": "1025_sprint69_platform_degradation_prevention.sql",
+      "queue_class": "high_review",
+      "score": 582,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],

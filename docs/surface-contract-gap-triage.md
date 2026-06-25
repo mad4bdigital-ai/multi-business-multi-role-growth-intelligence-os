@@ -15,4 +15,4 @@
 
 ## Immediate review candidates
 
-- `1023_sprint69_resource_api_coverage_gate.sql` — critical_review, score 995; next: add targeted patch-index, parity, and governance documentation
+- `1025_sprint69_platform_degradation_prevention.sql` — high_review, score 582; next: add targeted patch-index, parity, and governance documentation

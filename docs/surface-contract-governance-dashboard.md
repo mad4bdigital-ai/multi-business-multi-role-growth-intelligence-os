@@ -14,4 +14,4 @@
 
 ## Top immediate items
 
-- `1023_sprint69_resource_api_coverage_gate.sql` — critical_review, add targeted patch-index, parity, and governance documentation
+- `1025_sprint69_platform_degradation_prevention.sql` — high_review, add targeted patch-index, parity, and governance documentation
