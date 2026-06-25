@@ -290,6 +290,21 @@ Each plane has its own authority, lifecycle, audit, versioning, and rollback. Th
 - **FR-098:** Tenant offboarding includes every owned Workspace and its dependent operational resources.
 - **FR-099:** Creating or owning a Tenant never grants authority in another Tenant or changes existing memberships.
 - **FR-100:** Commercial limits on owned Tenants and Workspaces are explained as entitlement restrictions and never presented as security or authorization failures.
+- **FR-101:** Access authority alone never authorizes consequential data processing; every operation must also pass data-governance eligibility.
+- **FR-102:** Data classification combines one sensitivity tier with zero or more category attributes, source/version evidence, and non-downgradable credential, secret, legal-hold, and regulated classifications.
+- **FR-103:** Every consequential data operation declares a registered processing purpose whose rules define eligible data classes, operations, audiences, providers/models, regions, lawful basis, consent, retention, derived-data creation, approvals, and opt-out behavior.
+- **FR-104:** Lawful-basis and consent evidence is purpose-bound, versioned, timestamped, revocable where applicable, and cannot override Platform, legal, security, contract, or Tenant prohibitions.
+- **FR-105:** Residency and transfer policy independently constrains storage, processing, providers/models, backups, exports, destinations, and cross-border mechanisms.
+- **FR-106:** Retention resolves by data class, purpose, Tenant/Brand/Workspace policy, artifact type, source contract, jurisdiction, subject request, and legal hold; retention expiry never overrides legal hold.
+- **FR-107:** Legal hold is an independent scoped overlay that prevents governed deletion or mutation without granting any new read authority.
+- **FR-108:** Access, export, correction, restriction, erasure, objection, and consent-withdrawal requests run as governed, identity-verified, auditable workflows with completion evidence.
+- **FR-109:** Provenance and disposition propagate correction, restriction, retraction, erasure, and consent withdrawal to raw records, summaries, embeddings, indexes, Agent memory, evaluation samples, analytics, aggregates, artifacts, provider copies, and backups.
+- **FR-110:** Derived data is never presumed anonymous solely because it was transformed; each dependent object receives an explicit delete, rebuild, invalidate, retract, anonymize, aggregate, hold, or minimal-tombstone disposition.
+- **FR-111:** External model/provider eligibility includes region, retention, provider training, subprocessors, contract/certification, security posture, deletion capability, zero-retention mode, and registered-purpose compatibility.
+- **FR-112:** Provider/model fallback blocks when it would weaken data-use, residency, transfer, retention, deletion, training, contract, or purpose requirements.
+- **FR-113:** Raw cross-Tenant content learning is forbidden; privacy-governed aggregate learning additionally requires an approved purpose, Tenant participation policy, minimum cohort, contribution limits, residency compatibility, re-identification safeguards, provenance, and quality/fairness evidence.
+- **FR-114:** Every consequential operation binds an immutable, explainable data-use decision and governance version vector into the Effective Runtime Manifest.
+- **FR-115:** The effective data-use decision applies the most restrictive applicable Platform, jurisdiction, Tenant, Brand, Workspace, delegated organizational, resource, subject, operation, provider/model, region, audience, and destination rule and fails closed on missing, stale, conflicting, revoked, or ambiguous evidence.
 
 ## 13. Extended non-functional requirements
 
