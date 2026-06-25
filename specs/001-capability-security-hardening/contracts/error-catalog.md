@@ -19,8 +19,11 @@
 | 409 | `CREDENTIAL_REQUIRED` | Policy requires a credential but no usable source resolved |
 | 409 | `DEDICATED_CONNECTION_REQUIRED` | Dedicated tenant policy forbids platform fallback and no usable dedicated connection resolved |
 | 503 | `CREDENTIAL_TARGET_AUTHORITY_UNAVAILABLE` | Target authority storage is unavailable; execution fails closed |
+| 503 | `CAPABILITY_KILL_SWITCH_ENABLED` | A server-side operational kill switch blocks the requested high-risk mutation while preserving read-only diagnostics |
 | 403 | `LOCAL_CONSENT_REQUIRED` | Local approval is required and absent |
 | 403 | `APPROVAL_REQUIRED` | Required approval is absent |
+| 403 | `mutation_policy_required` | State-changing capability lacks an explicit mutation policy; governed preflight denies execution |
+| 403 | `mutation_classification_required` | Capability mutation/read-only classification is absent; governed preflight denies execution |
 | 404 | `CAPABILITY_NOT_FOUND` | Selector cannot be resolved |
 | 404 | `RESOURCE_NOT_FOUND` | Public-safe resource lookup failure |
 | 409 | `POLICY_NOT_FOUND` | Capability lacks complete policy; execution denied |

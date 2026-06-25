@@ -4,6 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import { validateFeatureDirectory, validateRepository } from "./scripts/spec-kit-completion-gate.mjs";
 
+const FIXTURE_HEAD_REF = "gpt/spec-closeout";
+
 const policy = {
   schema_version: 1,
   policy_key: "spec_kit_completion_gate_v1",
@@ -33,7 +35,12 @@ function validCompletion(overrides = {}) {
     requirements: { migration: true, production_verification: true, post_merge_audit: true },
     delivery: {
       implementation_prs: [{ number: 100, status: "merged", merge_sha: "a".repeat(40) }],
-      closeout_pr: { number: "current", branch: "gpt/spec-closeout", role: "completion", status: "current_pr" },
+      closeout_pr: {
+        number: "current",
+        branch: process.env.GITHUB_HEAD_REF || "gpt/spec-closeout",
+        role: "completion",
+        status: "current_pr",
+      },
     },
     evidence: {
       ci: { status: "pass", head_sha: "b".repeat(40) },
@@ -59,18 +66,18 @@ function fixture(completion = validCompletion(), tasks = "- [x] Done\n", checkli
 
 {
   const root = fixture();
-  assert.deepEqual(validateFeatureDirectory("001-example", { root, policy }), []);
+  assert.deepEqual(validateFeatureDirectory("001-example", { root, policy, headRef: FIXTURE_HEAD_REF }), []);
 }
 
 {
   const root = fixture(validCompletion(), "- [ ] Pending\n");
-  assert(validateFeatureDirectory("001-example", { root, policy }).some((row) => row.type === "unresolved_completion_items"));
+  assert(validateFeatureDirectory("001-example", { root, policy, headRef: FIXTURE_HEAD_REF }).some((row) => row.type === "unresolved_completion_items"));
 }
 
 {
   const completion = validCompletion({ delivery_mode: "single_pr" });
   const root = fixture(completion);
-  assert(validateFeatureDirectory("001-example", { root, policy }).some((row) => row.type === "single_pr_has_post_merge_obligations"));
+  assert(validateFeatureDirectory("001-example", { root, policy, headRef: FIXTURE_HEAD_REF }).some((row) => row.type === "single_pr_has_post_merge_obligations"));
 }
 
 {
@@ -78,7 +85,7 @@ function fixture(completion = validCompletion(), tasks = "- [x] Done\n", checkli
     evidence: { ...validCompletion().evidence, post_merge_audit: { status: "completed_with_backlog", run_id: "audit-run", backlog_refs: [] } },
   });
   const root = fixture(completion);
-  assert(validateFeatureDirectory("001-example", { root, policy }).some((row) => row.type === "audit_backlog_not_tracked"));
+  assert(validateFeatureDirectory("001-example", { root, policy, headRef: FIXTURE_HEAD_REF }).some((row) => row.type === "audit_backlog_not_tracked"));
 }
 
 {
@@ -89,7 +96,7 @@ function fixture(completion = validCompletion(), tasks = "- [x] Done\n", checkli
 
 {
   const root = fixture(validCompletion({ status: "in_progress" }), "- [ ] Pending\n", "- [ ] Review pending\n");
-  assert.deepEqual(validateFeatureDirectory("001-example", { root, policy }), []);
+  assert.deepEqual(validateFeatureDirectory("001-example", { root, policy, headRef: FIXTURE_HEAD_REF }), []);
 }
 
 console.log("spec kit completion governance tests passed");

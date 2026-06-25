@@ -9,6 +9,7 @@
     "start": "node server.js",
     "test": "node scripts/run-test-manifest.mjs",
     "test:list": "node scripts/run-test-manifest.mjs --list",
+    "schemas:guard": "node test-custom-gpt-schemas.mjs && node test-platform-degradation-policy.mjs",
     "readiness:interruptions": "node scripts/interruption-readiness.mjs",
     "readiness:interruptions:ci": "node scripts/interruption-readiness.mjs --ci",
     "readiness:verify-plan": "node scripts/run-interruption-verification-plan.mjs",
