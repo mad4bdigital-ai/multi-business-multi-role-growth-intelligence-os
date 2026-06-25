@@ -16,8 +16,34 @@ Apply before architectural refactoring:
    - Cloudflare mutation
    - n8n run/activate/deactivate
    - raw credential-intake creation
-8. Alert on any tenant request that resolves to an admin-only alias.
 
+   Verified server-side switches:
+
+   | Capability group | Environment variable | Blocked mutations | Read-only operations preserved |
+   |---|---|---|---|
+   | Local shell | `CAPABILITY_KILL_SWITCH_LOCAL_SHELL` | `run`, `shell-fetch-upload` | `status`, `list` |
+   | Local file mutation | `CAPABILITY_KILL_SWITCH_LOCAL_FILE_MUTATION` | write/delete/remove/move/rename/directory mutation actions | list, drive discovery, repo discovery, read |
+   | Cloudflare mutation | `CAPABILITY_KILL_SWITCH_CLOUDFLARE_MUTATION` | `create_dns`, `delete_dns`, `purge_cache` | zone/DNS/tunnel reads |
+   | n8n mutation | `CAPABILITY_KILL_SWITCH_N8N_MUTATION` | start/stop/restart, activate/deactivate/run workflow | status, diagnostics, health, workflow/execution reads |
+   | Raw credential intake | `CAPABILITY_KILL_SWITCH_RAW_CREDENTIAL_INTAKE` | raw admin `/credential-intake/sessions` creation | tenant-safe Platform Plugin credential-intake flow |
+
+   Enabled switches return HTTP `503` with stable code `CAPABILITY_KILL_SWITCH_ENABLED`. Each switch is independently scoped, read at request time, defaults off for backward compatibility, and never emits secret values.
+8. Alert on any tenant request that resolves to an admin-only alias and on verified selector-parity mismatches.
+
+   Temporary containment alerts are append-only `audit_log` events with severity `high`:
+
+   | Alert code | Trigger | Audit action |
+   |---|---|---|
+   | `TENANT_TO_ADMIN_CAPABILITY_REQUEST` | A tenant principal resolves a requested tool to an admin/platform-only surface | `security_alert.platform_plugin.tenant_to_admin` |
+   | `SELECTOR_PARITY_MISMATCH` | A tool selector matches an active action key but lacks the required canonical tool-to-action policy mapping | `security_alert.platform_plugin.selector_parity_mismatch` |
+
+   Alerts contain bounded identifiers and policy reasons only, set `dispatch_blocked=true`, never include credentials or request payloads, and cannot weaken or interrupt the fail-closed decision if audit storage is unavailable.
+
+## Phase 0 validation record
+
+The merge evidence, named owners, rollback controls, and later-phase boundary are recorded in [`containment-validation.md`](./containment-validation.md). Phase 0 closure does not imply staging, deployment, or production-promotion approval.
+
+The complete tenant residual-risk baseline is preserved in [`tenant-reverification-unified-report-2026-06-23.md`](./tenant-reverification-unified-report-2026-06-23.md). Its open P0/P1/P2 findings remain rollout blockers unless a later governed task supplies implementation, automated evidence, and same-cycle reverification.
 ## Rollout stages
 
 ### Stage 0 — Inventory and containment

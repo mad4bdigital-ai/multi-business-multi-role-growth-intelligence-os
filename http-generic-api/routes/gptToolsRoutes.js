@@ -1557,6 +1557,37 @@ async function fetchTools(callerType) {
   return callerType === "admin" ? [...VIRTUAL_ADMIN_TOOLS, ...dbTools] : dbTools;
 }
 
+async function resolveToolPreflightDescriptor(callerType, toolKey) {
+  const normalizedToolKey = String(toolKey || "").trim();
+  if (!normalizedToolKey) return null;
+  if (callerType === "admin") {
+    const virtualTool = VIRTUAL_ADMIN_TOOLS.find((tool) => tool.name === normalizedToolKey);
+    if (virtualTool) {
+      return {
+        method: virtualTool.method || "VIRTUAL",
+        tags: Array.isArray(virtualTool.tags) ? virtualTool.tags : [],
+        source: "virtual_admin_tool_catalog",
+      };
+    }
+  }
+
+  const candidateTables = callerType === "tenant"
+    ? [TOOLS_TABLE.tenant, TOOLS_TABLE.admin]
+    : [TOOLS_TABLE.admin];
+  for (const table of candidateTables) {
+    const [rows] = await getPool().query(
+      `SELECT http_method, tags FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 1`,
+      [normalizedToolKey]
+    );
+    if (!rows?.[0]) continue;
+    return {
+      method: rows[0].http_method || "",
+      tags: String(rows[0].tags || "").split(",").map((tag) => tag.trim()).filter(Boolean),
+      source: table,
+    };
+  }
+  return null;
+}
 async function detectMissingRequiredArgs(callerType, toolKey, args) {
   // Virtual admin tools enforce their own schemas inside dispatchToolImpl;
   // skip up-front validation for them.
@@ -1587,7 +1618,16 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
 }
 
 async function dispatchTool(callerType, toolKey, args, req) {
-  assertPreflightAllowed(await evaluateGptToolDispatchPreflight({ callerType, toolKey, args }));
+  const descriptor = await resolveToolPreflightDescriptor(callerType, toolKey);
+  if (descriptor) {
+    assertPreflightAllowed(await evaluateGptToolDispatchPreflight({
+      callerType,
+      toolKey,
+      args,
+      method: descriptor.method,
+      tags: descriptor.tags,
+    }));
+  }
   const result = await dispatchToolImpl(callerType, toolKey, args, req);
   const responseOptions = args && typeof args === "object" ? args : {};
   const resultForClient = {

@@ -88,6 +88,7 @@ const blocked = await evaluateAppActionPreflight({
   appKey: "n8n",
   actionKey: "execute_workflow",
   args: {},
+  mutationRequired: true,
 }, deps);
 
 assert.equal(blocked.ok, false);
@@ -106,6 +107,7 @@ const allowed = await evaluateAppActionPreflight({
     allow_n8n_workflow_execution: true,
     execution_reason: "Approved explicit safe smoke run.",
   },
+  mutationRequired: true,
 }, deps);
 
 assert.equal(allowed.ok, true);

@@ -303,7 +303,9 @@ function makePool({
   assert.equal(dualSurfaceActionResult.canonical_policy.reason, "action_is_canonical_policy_key");
   assert.equal(dualSurfaceActionResult.credential_lookup.attempted, true);
   assert.equal(dualSurfaceActionResult.execution.will_execute, true);
+  assert.equal(dualSurfaceActionResult.security_alerts.scheduled_count, 0);
 
+  const parityAlerts = [];
   const toolPool = makePool({
     withToolBinding: true,
     toolBindingKey: "github.repo.read",
@@ -318,6 +320,7 @@ function makePool({
     userId: "user-1",
     agentId: "agent-1",
     principalClass: "tenant",
+    securityAlertWriter: (event) => parityAlerts.push(event),
   });
   assert.equal(dualSurfaceToolResult.allowed, false);
   assert.equal(dualSurfaceToolResult.surface_resolution.ok, true);
@@ -328,6 +331,11 @@ function makePool({
   assert.equal(dualSurfaceToolResult.credential_resolution.resolution_state, "not_evaluated");
   assert.equal(toolPool.calls.some((call) => call.sql.includes("FROM user_app_connections")), false);
   assert.equal(dualSurfaceToolResult.execution.will_execute, false);
+  assert.deepEqual(dualSurfaceToolResult.security_alerts.reason_codes, ["SELECTOR_PARITY_MISMATCH"]);
+  assert.equal(parityAlerts.length, 1);
+  assert.equal(parityAlerts[0].action, "security_alert.platform_plugin.selector_parity_mismatch");
+  assert.equal(parityAlerts[0].metadata.severity, "high");
+  assert.equal(parityAlerts[0].metadata.secrets_included, false);
 }
 
 {
@@ -338,6 +346,7 @@ function makePool({
     { toolSurface: "virtual_tool", toolExposureScope: "platform" },
   ];
   for (const surfaceCase of adminSurfaceCases) {
+    const adminAlerts = [];
     const pool = makePool({ withToolBinding: true, ...surfaceCase });
     const result = await resolvePlatformPluginExecution({
       pool,
@@ -347,6 +356,7 @@ function makePool({
       userId: "user-1",
       agentId: "agent-1",
       principalClass: "tenant",
+      securityAlertWriter: (event) => adminAlerts.push(event),
     });
     assert.equal(result.allowed, false);
     assert.equal(result.surface_resolution.ok, false);
@@ -358,6 +368,11 @@ function makePool({
     assert.equal(pool.calls.some((call) => call.sql.includes("FROM user_app_connections")), false);
     assert.equal(result.audit.read_model_tables.includes("user_app_connections"), false);
     assert.equal(result.execution.will_execute, false);
+    assert.deepEqual(result.security_alerts.reason_codes, ["TENANT_TO_ADMIN_CAPABILITY_REQUEST"]);
+    assert.equal(adminAlerts.length, 1);
+    assert.equal(adminAlerts[0].action, "security_alert.platform_plugin.tenant_to_admin");
+    assert.equal(adminAlerts[0].metadata.severity, "high");
+    assert.equal(adminAlerts[0].metadata.secrets_included, false);
   }
 }
 
