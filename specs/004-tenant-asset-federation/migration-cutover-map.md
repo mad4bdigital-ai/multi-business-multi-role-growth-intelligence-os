@@ -96,6 +96,23 @@ A policy family may have mixed status: some fields contextual, others legacy-onl
 5. Add C/D after simulation and canary infrastructure.
 6. Keep platform promotion admin-only.
 
+### Lane H — Contextual model governance
+
+1. Inventory current providers, endpoints/deployments, configured model IDs, task profiles, execution classes, `provider_order`, `free_first`, and allowlisted adapters.
+2. Normalize exact provider endpoint, model version, inference profile, region, data-processing, and commercial profile projections without changing routing.
+3. Register task classes and capability contracts and map current task profiles to compatibility records; unresolved mappings remain explicit migration debt.
+4. Register contextual model policies, optimization profiles, preference templates, evaluation suites, metrics/thresholds, readiness sources, lifecycle, fallback, and governance epochs.
+5. Import only provenance-valid historical evaluation/readiness/run evidence; do not infer certification from provider availability or popularity.
+6. Run model-selection preview in no-effect mode and compare against current routing for each task/risk/data/region/commercial family.
+7. Classify differences as exact match, contextual more restrictive, contextual more permissive, different candidate same eligibility, legacy missing context, contextual missing evidence, not comparable, or critical mismatch.
+8. Require zero contextual-more-permissive and critical mismatches before any family enforcement; more restrictive differences require product/governance review.
+9. Enable read-only explanations and candidate discovery for approved cohorts while current router remains execution authority.
+10. Canary selection for low-risk families with exact manifests, candidate-specific estimate/reservation, provider-call adapter binding, and rollback to the certified compatibility route.
+11. Progress high-risk and authority-sensitive families only after contextual evaluation, independent review, readiness, certified-equivalent fallback or explicit no-fallback, revocation, and DFR-006 safe-boundary evidence pass.
+12. Retire provider-order/free-first behavior per family only after parity, SLO, security, commercial, rollback, and historical reconstruction certification.
+
+No migration step invokes a provider/model merely to populate registry data, reads raw credentials, or silently changes customer billing/model preference.
+
 ## 4. Additive schema sequence
 
 Suggested migration sequence:
