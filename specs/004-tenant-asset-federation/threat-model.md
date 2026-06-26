@@ -231,6 +231,78 @@ Adaptive services, analytics, dashboards, caches, queues, and model providers ar
 
 **Mitigation:** branch-repair-first policy, governed reconciliation, expected SHAs, no-force updates, scope/ancestry readback, CI before merge.
 
+### T-029 — Access grant treated as purpose authorization
+
+**Threat:** a valid resource grant is reused to process data for an unregistered or prohibited purpose.
+
+**Mitigation:** authorization and data-use eligibility are independent mandatory planes; every consequential operation declares a registered purpose and binds a data-use decision before dispatch.
+
+### T-030 — Classification downgrade or label laundering
+
+**Threat:** a lower scope relabels credentials, secrets, regulated, restricted, or held data to bypass protection.
+
+**Mitigation:** protected classes are non-downgradable; assignments preserve source/version/provenance; conflicting or lower-confidence evidence resolves to the most restrictive result or blocks.
+
+### T-031 — Consent or lawful-basis laundering
+
+**Threat:** unrelated consent, stale consent, broad terms acceptance, or another audience/provider is reused as authorization.
+
+**Mitigation:** evidence is purpose/category/audience/provider bound where applicable, versioned, expiring/revocable, and cannot override Platform, law, security, contract, or Tenant prohibitions.
+
+### T-032 — Residency bypass through fallback or derived systems
+
+**Threat:** primary routing is compliant but fallback, embedding/indexing, backup, analytics, export, or subprocessors move data to an ineligible region.
+
+**Mitigation:** residency/transfer evaluation covers storage, processing, models/providers, indexes, backups, exports, destinations, and mechanisms before materialization; every fallback re-runs eligibility.
+
+### T-033 — Legal hold used as discovery or permanent-retention bypass
+
+**Threat:** hold authority is abused to read data, expand scope, avoid ordinary review, or retain unrelated data indefinitely.
+
+**Mitigation:** hold grants no read authority; scope is exact and versioned; creation/release is approval/audit gated; periodic review and disposition evidence are required.
+
+### T-034 — Incomplete correction or erasure
+
+**Threat:** primary records are corrected/deleted while summaries, embeddings, indexes, Agent memory, provider copies, evaluations, artifacts, analytics, or backups remain usable.
+
+**Mitigation:** typed lineage, itemized discovery, explicit disposition, provider deletion/readback, partial-completion status, and block on unresolved derived data.
+
+### T-035 — Transformation falsely treated as anonymization
+
+**Threat:** derived features, aggregates, embeddings, or summaries are declared anonymous without re-identification evidence.
+
+**Mitigation:** transform does not imply anonymity; approved anonymization evidence, cohort/privacy thresholds, lineage, purpose, residency, and retention remain required.
+
+### T-036 — Provider/model secondary use
+
+**Threat:** provider retains prompts/responses, trains on content, routes through subprocessors, or lacks deletion despite an inference grant.
+
+**Mitigation:** provider processing profiles and model-data-use policies independently gate inference, retention, evaluation, fine-tuning, provider training, memory, embeddings, deletion, and zero-retention requirements.
+
+### T-037 — Cross-Tenant learning reconstruction or domination
+
+**Threat:** raw content, small cohorts, dominant Tenant contributions, or repeated queries reveal Tenant-specific behavior or promote one Tenant's private pattern.
+
+**Mitigation:** raw cross-Tenant content is forbidden; minimum cohort, contribution/dominance, opt-out, residency, re-identification, provenance, quality, fairness, rate, and disclosure controls are mandatory.
+
+### T-038 — Stale data-use decision replay
+
+**Threat:** an allowed decision is replayed after consent withdrawal, policy/classification/hold change, provider-profile change, or for a different purpose, destination, audience, model, or resource.
+
+**Mitigation:** immutable request binding, short expiry, governance version vector, epoch invalidation, single-operation scope, and pre-dispatch revalidation.
+
+### T-039 — Privacy-request enumeration and overreach
+
+**Threat:** an operator or requester uses a subject request to discover unrelated resources, subjects, Tenants, or private content.
+
+**Mitigation:** verified identity, exact subject/object scope, scoped not-found behavior, least-content operator views, cross-Tenant edge rejection, and item-level audit/readback.
+
+### T-040 — Preview endpoint causes hidden effect
+
+**Threat:** data-use or disposition preview invokes providers, transfers content, reads credentials, deletes data, mutates classifications, or creates authority.
+
+**Mitigation:** preview uses read-only authorities, no-effect flags, transport/provider-call assertions, and tests proving zero external or persistent effect.
+
 ## 6. Abuse cases
 
 ### Malicious user profile
