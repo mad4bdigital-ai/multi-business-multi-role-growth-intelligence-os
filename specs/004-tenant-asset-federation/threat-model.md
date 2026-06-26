@@ -751,6 +751,14 @@ Residual risks require UI warnings, policy review, monitoring, calibration, and 
 - every posted commercial transaction is asset-consistent, immutable, and debit/credit balanced;
 - settlement never exceeds authorized customer liability without a separately approved overage reservation;
 - billing-profile, entitlement, estimate, and reservation previews prove zero financial, payment, provider, credential, or external side effect;
+- zero successful raw model/endpoint/adapter/code/secret injection or user preference floor bypass;
+- zero candidate selected or retained in fallback after any mandatory capability, data, region, risk, tool, output, evaluation, readiness, lifecycle, entitlement, or commercial gate fails;
+- high-risk scorecards satisfy deterministic and independent-review requirements and are never certified by a sole model judge;
+- zero stale/unknown readiness silently treated as ready and zero stale/drifting evaluation silently treated as current for high-risk use;
+- zero fallback downgrade and zero cross-candidate reservation reuse;
+- restriction/revocation invalidates affected caches, manifests, queued pre-dispatch work, and fallback sets within the approved emergency SLO;
+- selection explanations and candidate discovery expose no credentials, hidden provider contract terms, private evaluation data, prompts, or another Tenant's preferences;
+- model-selection and deprecation previews prove zero provider/model call, credential read, evaluation execution, commercial reservation, lifecycle mutation, or external write;
 - shadow critical mismatch count is zero before cutover;
 - path/candidate/rate limits proven under load;
 - rollback for profile, variant, experiment, and resolver cutover is tested;
