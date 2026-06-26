@@ -10,6 +10,9 @@ The platform must answer, without reading secrets:
 - Are contextual decisions consistent with legacy authorities during migration?
 - Are recommendations calibrated and producing verified outcomes?
 - Did a rollout or experiment improve value without degrading safety, cost, or latency?
+- Which task/capability contract, hard gates, evaluation, readiness, optimization, commercial evidence, and fallback set produced a model selection?
+- Are selected and fallback candidates current, independently eligible, commercially reserved, and safe for the exact context?
+- Is contextual model selection consistent with current provider-order/free-first routing during migration, and where is it intentionally more restrictive?
 - Can every consequential execution be reconstructed from immutable evidence?
 
 Observability is part of runtime correctness, not a dashboard-only concern.
