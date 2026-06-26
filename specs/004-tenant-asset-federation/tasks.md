@@ -46,7 +46,7 @@
 - [x] Add proposed authority-plane data structures and reuse boundaries.
 - [ ] Approve principal/group/service identity and delegation authority.
 - [ ] Approve tenant federation, ownership transfer, offboarding, export, legal hold, and erasure lifecycle.
-- [ ] Approve data-purpose, consent, classification, retention, residency, and jurisdiction rules.
+- [x] Approve data-purpose, consent/lawful-basis, classification, retention, residency/transfer, jurisdiction, legal-hold, privacy-request, derived-data, provider/model, and aggregate-learning rules.
 - [ ] Approve commercial entitlement, cost estimate, reservation, settlement, refund, and attribution contract.
 - [ ] Approve contextual model routing, fallback constraints, evaluation suites, and quality thresholds.
 - [ ] Approve universal operation, outbox/inbox, delivery, cancellation, compensation, and concurrency contract.
