@@ -138,6 +138,26 @@
 - [ ] Cross-Tenant lineage corruption, provider-copy, backup, and aggregate-learning isolation tests implemented.
 - [ ] Personal/company copy, export, correction, and erasure boundary tests implemented.
 
+## Commercial and metering isolation
+
+- [x] Every billing account, profile, meter event, estimate, reservation, settlement, ledger account, statement, invoice, dispute, and attribution row carries exact Tenant and billing-account scope.
+- [x] A billable owner differing from the execution Tenant requires a direct active commercial relationship and grants no data or resource access.
+- [x] Billing-profile discovery and customization expose only options allowed for the signed principal and exact billing account/context.
+- [x] Profile selections, budgets, alerts, attribution tags, included units, and meter rules cannot reference another Tenant's private objects or pricing terms.
+- [x] Meter event source context includes exact Tenant, account, operation, manifest, meter/version, unit, and deduplication scope.
+- [x] The same source event cannot create billable usage in more than one Tenant or billing account.
+- [x] Composite meter components cannot traverse cross-Tenant raw usage or reveal another Tenant's technical consumption.
+- [x] Shared meter/unit/rating definitions contain no Tenant-private price or usage values; price books and contracts remain scoped.
+- [x] Direct billing relationships are non-transitive and cannot cause a parent, manager, reseller, or white-label Tenant to inherit another relationship automatically.
+- [x] Cost attribution to Brand, Workspace, Department, Group, campaign, objective, principal, or project grants no liability, authority, or content visibility.
+- [x] Credits, monetary balances, included units, quotas, budgets, and postpaid limits cannot be reserved or settled across billing accounts without an explicit governed transfer/conversion contract.
+- [x] Ledger entries and balance projections use Tenant/account-leading keys and reject cross-account debit/credit lines except registered Platform clearing transactions.
+- [x] Statements and invoices expose only the caller's authorized account, safe meter labels, and scoped evidence; provider/internal costs remain protected unless policy allows disclosure.
+- [x] Usage disputes and refunds cannot enumerate or mutate another Tenant's events, settlements, or ledger entries.
+- [x] Commercial epoch and profile cache keys prevent decisions from one Tenant/account/profile/model/price version being reused in another.
+- [ ] Cross-Tenant meter replay, billing-owner confusion, profile leakage, invoice enumeration, and ledger cross-posting tests implemented.
+- [ ] Managed-service and reseller billing isolation tests implemented for direct and non-transitive relationships.
+
 ## Artifact and recovery isolation
 
 - [x] Provenance exposes safe source IDs/evidence without another tenant's private content.
