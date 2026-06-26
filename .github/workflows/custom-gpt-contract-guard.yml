@@ -4,23 +4,46 @@ on:
   pull_request:
     paths:
       - "http-generic-api/openapi*.yaml"
+      - "canonicals/openapi/**/*.yaml"
+      - "edge/activation-gateway/**"
+      - "http-generic-api/package.json"
+      - "http-generic-api/package-lock.json"
       - "http-generic-api/scripts/split-openapi.mjs"
+      - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
+      - "http-generic-api/scripts/openapi-builder-schema-guard.mjs"
       - "http-generic-api/test-custom-gpt-schemas.mjs"
+      - "http-generic-api/test-openapi-builder-schema-guard.mjs"
+      - "http-generic-api/test-tenant-activation-session-alias.mjs"
+      - "http-generic-api/test-activation-gateway.mjs"
+      - "http-generic-api/test-openapi-split-governance.mjs"
+      - "http-generic-api/test-openapi-split-regeneration-parity.mjs"
       - "http-generic-api/activationGuidanceService.js"
       - "http-generic-api/tenantActivationSnapshot.js"
       - "http-generic-api/platformDegradationPolicy.js"
       - "http-generic-api/routes/credentialIntakeRoutes.js"
       - "http-generic-api/routes/gptToolsRoutes.js"
+      - "http-generic-api/routes/tenantActivationOverlayRoutes.js"
+      - "http-generic-api/routes/rootDiscoveryRoutes.js"
+      - "http-generic-api/tenantGptOAuthPreset.js"
+      - "http-generic-api/test-platform-routes.mjs"
+      - ".github/workflows/openapi-auto-sync.yml"
       - ".github/workflows/custom-gpt-contract-guard.yml"
   push:
     branches: [main]
     paths:
       - "http-generic-api/openapi*.yaml"
+      - "canonicals/openapi/**/*.yaml"
+      - "http-generic-api/package.json"
+      - "http-generic-api/scripts/split-openapi.mjs"
+      - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
+      - "http-generic-api/scripts/openapi-builder-schema-guard.mjs"
       - "http-generic-api/activationGuidanceService.js"
       - "http-generic-api/tenantActivationSnapshot.js"
       - "http-generic-api/platformDegradationPolicy.js"
       - "http-generic-api/routes/credentialIntakeRoutes.js"
       - "http-generic-api/routes/gptToolsRoutes.js"
+      - ".github/workflows/openapi-auto-sync.yml"
+      - ".github/workflows/custom-gpt-contract-guard.yml"
   workflow_dispatch:
   schedule:
     - cron: "41 2 * * *"
@@ -46,9 +69,9 @@ jobs:
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
       - run: npm ci
-      - name: Enforce Builder-safe schemas and activation degradation policies
+      - name: Enforce canonical parity and Builder-safe schemas
         run: npm run schemas:guard
-      - name: Verify generated split-schema parity
+      - name: Verify split-schema governance and regeneration parity
         run: |
           node test-openapi-split-governance.mjs
           node test-openapi-split-regeneration-parity.mjs

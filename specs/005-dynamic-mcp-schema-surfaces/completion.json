@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "feature_key": "005-dynamic-mcp-schema-surfaces",
+  "title": "Dynamic MCP Schema Surfaces",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": false,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": "current",
+      "branch": "gpt/spec-kit-005-dynamic-mcp-schema-surfaces-20260625",
+      "role": "implementation",
+      "status": "current_pr"
+    }
+  },
+  "evidence": {
+    "local_validation": {
+      "status": "pass",
+      "tests": "536/536",
+      "architecture_validation": "173/173",
+      "schema_guard": "pass",
+      "canonical_check": "pass"
+    },
+    "production_rollout": {
+      "status": "pending",
+      "reason": "Activation Gateway deployment, DNS/TLS, dual-run, real tenant-JWT validation, rollback rehearsal, and post-merge audit remain intentionally deferred."
+    }
+  },
+  "secrets_included": false
+}
