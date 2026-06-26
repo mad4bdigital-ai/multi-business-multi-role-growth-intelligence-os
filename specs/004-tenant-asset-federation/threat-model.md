@@ -384,7 +384,18 @@ Expected: `CROSS_TENANT_COHORT_TOO_SMALL`, rate/disclosure controls apply, and n
 - experiment cohort isolation;
 - prompt injection in artifacts/logs;
 - rate-limit and expensive-preview abuse;
-- repository branch reconciliation and expected-SHA guards.
+- repository branch reconciliation and expected-SHA guards;
+- access-grant versus registered-purpose enforcement;
+- classification downgrade, conflict, and protected-category tests;
+- consent/lawful-basis scope, expiry, withdrawal, and replay tests;
+- storage/processing/model/provider/backup/export residency and transfer tests;
+- legal-hold scope, no-read-authority, release, and retention-conflict tests;
+- privacy-request identity, enumeration, exemption, item-discovery, and completion tests;
+- correction/restriction/erasure propagation across summaries, embeddings, indexes, Agent memory, evaluations, analytics, artifacts, provider copies, and backups;
+- provider training, retention, subprocessor, deletion, zero-retention, and fallback tests;
+- raw cross-Tenant rejection, minimum-cohort, dominance, repeated-query, re-identification, opt-out, quality, and fairness tests;
+- data-governance epoch drift and stale decision replay tests;
+- preview no-provider-call, no-credential-read, no-transfer, no-deletion, and no-mutation assertions.
 
 ## 8. Residual risks
 
