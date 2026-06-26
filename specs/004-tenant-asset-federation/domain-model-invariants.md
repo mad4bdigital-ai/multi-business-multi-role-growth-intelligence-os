@@ -111,6 +111,78 @@ Owns:
 
 Does not grant resource access, store credential values, create lawful basis, or override a legal hold. It is bound into the Effective Runtime Manifest and revalidated before consequential dispatch.
 
+### Billing Profile
+
+Versioned commercial configuration selected for one eligible billing account/context from an approved template.
+
+Owns:
+
+- template and version;
+- billing model and collection mode selections;
+- eligible meter bundle and price/rating references;
+- included units, delegated budgets/quotas, overage, alerts, statement grouping, and attribution settings;
+- field-level customization provenance, approval, validity, lifecycle, and checksum.
+
+Does not own prices, tax rules, FX rates, ledger accounts, payment credentials, billable ownership, or posted financial history. A profile cannot exceed contract, plan, Tenant, risk, accounting, payment, or Platform bounds.
+
+### Usage Meter Definition
+
+Versioned registered measurement contract for one stable meter key.
+
+Owns:
+
+- meter family and canonical unit;
+- aggregation mode;
+- source authority and allowed dimensions;
+- deduplication, verification, late-event, correction, reservability, billability, and pricing eligibility semantics;
+- lifecycle, compatibility, and checksum.
+
+Does not own Tenant-specific prices or raw usage values. Tokens are one meter family only.
+
+### Meter Event
+
+Immutable raw measurement for one exact Tenant, billing account, operation, manifest, meter/version, unit, source event, and evidence checksum.
+
+Corrections, retractions, or classification changes append linked events and never mutate the original measurement.
+
+### Commercial Decision
+
+Immutable explainable eligibility record for one exact actor/context, billing account, billable owner, billing profile, billing model, collection mode, entitlement, standing, meter/unit/rating/price versions, budgets/quotas, and commercial epoch.
+
+It determines allow, block, approval-required, or constrained eligibility. It does not reserve or post value.
+
+### Cost Estimate
+
+Immutable bounded forecast separating raw/normalized/included/billable quantities, expected and maximum customer charge, expected provider/internal cost, tax, discount, credit offset, asset type, confidence, price/rating versions, expiry, and checksum.
+
+It does not grant spend authority and cannot be reused after expiry or commercial-epoch drift.
+
+### Cost Reservation
+
+Atomic idempotent claim on available Credits, money, included units, budget, quota, or postpaid liability capacity for one operation and manifest.
+
+Owns:
+
+- billing owner/account/profile/model and settlement asset type;
+- estimate/version/checksum;
+- maximum units/amount and consumed/released portions;
+- idempotency request checksum;
+- expiry, commercial epoch, state, and evidence.
+
+It cannot change billing asset type or billable owner after activation.
+
+### Cost Settlement
+
+Immutable verified financial result linked to one operation, manifest, reservation, evidence set, and ledger transaction.
+
+Owns customer charge, provider/internal cost, tax/discount, included usage, released reservation, billability classification, and itemized source usage/outcome evidence.
+
+### Commercial Ledger Transaction
+
+Append-only balanced transaction containing one or more debit and credit entries in exactly one currency or one credit-unit family.
+
+Posted transactions are immutable. Refunds, corrections, disputes, chargebacks, expiries, and reversals use linked compensating transactions.
+
 ### Adaptive Change Proposal
 
 Governed hypothesis for improving experience, execution, or business outcome.
