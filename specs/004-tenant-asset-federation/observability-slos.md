@@ -544,4 +544,8 @@ Before each rollout stage:
 - no-secret assertions are active;
 - rollback signal and operator are identified;
 - deployment and registry SHAs/versions are visible;
+- task/capability, evaluation, scorecard, readiness, optimization, fallback, and model-governance-epoch versions are visible;
+- provider-order/free-first shadow parity is measured for the exact task/risk family before cutover;
+- selected and fallback candidate commercial reservation coverage is measured;
+- emergency restriction/revocation propagation and rollback are exercised;
 - post-release behavioral readback confirms expected traffic and decisions.
