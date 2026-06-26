@@ -23,8 +23,8 @@
 - [x] Merge latest `main` into the current branch with a signed no-force merge commit.
 - [x] Verify branch state is `ahead_only` with `behind_by=0`.
 - [x] Run required CI checks successfully after reconciliation.
-- [ ] Re-run final CI after the last documentation evidence commit.
-- [ ] Verify final tree scope and generated docs immediately before merge.
+- [x] Re-run final CI after the last documentation evidence commit.
+- [x] Verify final tree scope and generated docs for the DFR-003 design update; merge remains separately unauthorized.
 
 ## Deep design
 
