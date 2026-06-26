@@ -365,16 +365,82 @@ Credits, money, and usage units remain separate assets. A credits reservation ca
 
 ## 12. Model governance and evaluation
 
+### Task, capability, candidate, and selection surfaces
+
+- `GET /tenant/model-task-classes`
+- `GET /tenant/model-task-classes/{taskClassKey}`
+- `GET /tenant/model-capabilities`
+- `GET /tenant/model-capability-profiles`
 - `GET /tenant/model-candidates`
-- `POST /tenant/model-selections/preview`
+- `POST /tenant/model-selection-decisions/preview`
+- `GET /tenant/model-selection-decisions/{decisionId}`
+- `GET /tenant/model-selection-decisions/{decisionId}/explanation`
+- `GET /tenant/model-selection-decisions/{decisionId}/candidates`
+- `GET /tenant/model-selection-profiles`
+
+Candidate discovery requires a registered task/capability contract and exact Tenant/context/operation. It returns only candidates visible and eligible for safe discovery; it never exposes credentials, hidden provider contract terms, another Tenant's preferences, or unrestricted internal evaluation payloads.
+
+Model-selection preview evaluates lifecycle, capability/task, entitlement/authority, data use, provider retention/training/deletion, region/residency/transfer, risk/safety, tools, output contract, context/output limits, evaluation, readiness, incidents/deprecation, and provisional commercial eligibility before ranking.
+
+Preview returns:
+
+- exact candidate identities and versions;
+- hard-gate allow/block results and policy sources;
+- evaluation/scorecard/readiness versions, freshness, and confidence;
+- optimization profile, metrics, weights, ranks, and tie-break evidence;
+- selected candidate and independently eligible fallback set;
+- provisional customer charge/provider cost and reservation requirement;
+- exclusions with stable blocking codes;
+- model-governance epoch, expiry, checksum, and up to three recovery actions.
+
+Preview performs no provider/model call, credential read, evaluation execution, commercial reservation, invoice/payment action, lifecycle mutation, or external write.
+
+### User and delegated preferences
+
+- `GET /tenant/users/me/model-preferences`
+- `PATCH /tenant/users/me/model-preferences`
+- `POST /tenant/users/me/model-preferences/reset`
+- `GET /tenant/users/me/model-preferences/changes`
+- `GET /tenant/users/me/model-preferences/revisions`
+
+The preference schema is template/field allowlisted. When permitted, it may select an eligible optimization profile, preferred eligible provider/model, local-only/privacy-first behavior, lower maximum cost/latency, fallback disabled, or a low-risk eligible model pin.
+
+Preference mutation cannot submit raw unregistered model IDs/endpoints, lower quality/safety/data/region/evaluation/readiness floors, enable prohibited retention/training, change credentials, bypass commercial estimate/reservation, or create executable ranking formulas.
+
+### Admin model and provider governance
+
+- `GET /admin/model-providers`
+- `GET /admin/model-provider-endpoints`
+- `GET /admin/model-versions`
+- `GET /admin/model-inference-profiles`
 - `GET /admin/model-capability-profiles`
 - `GET /admin/model-context-policies`
+- `GET /admin/model-optimization-profiles`
+- `GET /admin/model-compatibility-certifications`
 - `GET /admin/model-evaluation-suites`
 - `POST /admin/model-evaluation-runs`
+- `GET /admin/model-evaluation-runs/{runId}`
+- `GET /admin/model-evaluation-runs/{runId}/results`
 - `GET /admin/model-quality-scorecards`
+- `GET /admin/model-readiness`
+- `GET /admin/model-drift-events`
+- `POST /admin/model-deprecation-runs/preview`
 - `POST /admin/model-deprecation-runs`
+- `GET /admin/model-deprecation-runs/{runId}`
+- `POST /admin/model-incident-restrictions`
+- `POST /admin/model-incident-restrictions/{restrictionId}/release`
 
-Model preview returns eligibility and evidence without credentials. It explains exclusions for policy, region, entitlement, capability, quality, cost, latency, evaluation, or provider readiness.
+Evaluation and readiness mutations require exact candidate/version/context, bounded schemas, dataset/provenance authority, idempotency, required approvals and separation of duties, audit, epoch invalidation, and same-cycle readback.
+
+Provider adapters are allowlisted backend implementations. Governance endpoints may bind registered adapter keys and no-secret endpoint/deployment profiles but cannot store arbitrary executable code, URLs, headers, or credential values.
+
+### Commercial and manifest integration
+
+The selected candidate and every approved fallback candidate require candidate-specific cost estimate/reservation evidence under DFR-004. One candidate's reservation cannot be silently reused by another.
+
+The Effective Runtime Manifest binds the model-selection decision, task/capability versions, exact provider endpoint/model/inference profile, data/region policy, evaluation/scorecard, readiness, optimization profile, exclusions, fallback set, commercial estimate/reservation, model-governance epoch, and expiry.
+
+Before provider dispatch, runtime revalidates lifecycle, incident/revocation, evaluation freshness, readiness, data/region, entitlement, reservation, fallback eligibility, expiry, and governance epoch.
 
 ## 13. Runtime operations and consistency
 
