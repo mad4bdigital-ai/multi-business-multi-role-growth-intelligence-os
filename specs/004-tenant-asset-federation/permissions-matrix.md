@@ -34,6 +34,16 @@ No plane silently substitutes for another.
 - `connection.configure`
 - `grant.manage`
 - `policy.manage`
+- `data_governance.classify`
+- `data_governance.manage_purpose`
+- `data_governance.manage_residency`
+- `data_governance.manage_retention`
+- `data_governance.manage_model_use`
+- `data_governance.preview_decision`
+- `data_governance.apply_disposition`
+- `legal_hold.manage`
+- `privacy_request.manage`
+- `cross_tenant_learning.manage_policy`
 - `adaptation.review`
 - `experiment.manage`
 - `platform_candidate.promote`
