@@ -184,7 +184,50 @@ May manage delegated Workspace settings, members/grants, bindings, tasks, schedu
 
 May define Tenant/Workspace types, creation hard bounds, regional/plan availability, risk/verification, personal-account policy, multi-Brand constraints, and lifecycle schemas. It cannot silently create Tenants for users or treat commercial restrictions as security grants.
 
-## 7. Composition profile permissions
+## 7. Data-governance permissions
+
+### Platform governance
+
+May define mandatory classification categories, prohibited uses, jurisdiction registry, policy schema/operators, provider/model minimum controls, legal-hold and audit floors, and cross-Tenant learning hard bounds. It may not use Platform scope to expose one Tenant's private content to another Tenant.
+
+### Tenant data-governance administrator
+
+May, within Platform and jurisdiction bounds:
+
+- assign or approve classifications;
+- publish Tenant purpose, residency/transfer, retention, and model-data-use policy;
+- manage eligible provider processing profiles and aggregate-learning participation;
+- create or release legal holds when separately authorized;
+- review privacy-request and disposition runs;
+- preview data-use decisions and explanations.
+
+May not grant resource access, weaken Platform/legal/security/contract floors, authorize cross-Tenant raw content use, read credential values, or use a legal hold as a discovery/read grant.
+
+### Brand or Workspace administrator
+
+May select or tighten eligible purposes, audiences, destinations, environments, providers/models, data classes, and retention behavior only where parent policy delegates that field. It cannot create a lawful basis, override a legal hold, authorize a prohibited transfer, or weaken Tenant/Platform policy.
+
+### Privacy operator
+
+May process identity-verified access, export, correction, restriction, erasure, objection, and consent-withdrawal requests within exact object scope. It receives the minimum content and evidence required for the workflow and cannot bypass ordinary object authority outside the request.
+
+### Legal-hold operator
+
+May create, change, or release an exact hold scope with required approval and audit. Hold authority prevents covered deletion or mutation but grants no new read, export, or processing authority.
+
+### Data subject or user
+
+May inspect applicable transparency, consent, preference, request, and status information; grant or withdraw consent where consent is the applicable basis; and submit supported privacy requests. A subject preference or consent cannot authorize a use prohibited by higher policy.
+
+### Runtime and Agent principals
+
+May only consume data when an immutable data-use decision allows the exact operation, purpose, provider/model, region, audience, destination, and retention context. They cannot self-classify data downward, invent purpose, create lawful basis, override hold, or reuse a decision across a changed governance epoch.
+
+### Cross-Tenant learning governance
+
+May approve only aggregate-learning policy and runs satisfying Platform hard bounds, Tenant participation, minimum cohort, contribution/dominance, residency, re-identification, provenance, quality, and fairness rules. Raw Tenant content and Tenant-specific examples remain forbidden.
+
+## 8. Composition profile permissions
 
 ### User
 
