@@ -24,6 +24,9 @@ The migration is projection-first, bridge-first, shadow-first, and family-by-fam
 | package variant tables | package customization | reusable variant concepts | preserve; add generic non-package variant layer |
 | preference tables | fragmented UX preferences | bridge to unified user runtime profile | read/merge then migrate selectively |
 | recommendation/intent/execution telemetry | signals/outcomes | adaptive evidence | preserve; add manifest attribution |
+| `ai_model_providers`, `ai_model_registry`, `agent_model_runs` | current provider/model/run authorities | compatibility sources plus exact provider/model-version projections | preserve; normalize provider endpoints, model versions, lifecycle, and historical evidence |
+| `platform_runtime_config.agent_model_runtime`, task profiles, `provider_order`, `free_first` | current routing/bootstrap behavior | compatibility router during DFR-005 shadow and family cutover | preserve; shadow contextual decisions; retire only after certified parity and rollback readiness |
+| allowlisted provider adapters | provider transport implementations | infrastructure adapters selected by governed model decisions | preserve in code; register adapter keys only; prohibit arbitrary endpoint/code/secret injection |
 
 ## 3. Migration lanes
 
