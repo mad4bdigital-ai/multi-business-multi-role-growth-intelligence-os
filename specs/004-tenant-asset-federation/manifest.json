@@ -19,19 +19,18 @@
     "direct_currency"
   ],
   "metering_model": "registry_driven_multi_dimensional_tokens_are_one_family",
+  "dfr_005_status": "approved_design_implementation_not_authorized",
+  "contextual_model_governance_model": "capability_first_policy_gated_evidence_ranked",
+  "model_selection_starting_authority": "registered_task_and_capability_contract",
+  "model_fallback_model": "immutable_independently_eligible_candidate_set",
   "current_branch_repair_preferred": true,
   "branch_reconciled": true,
-  "reconciled_main_sha": "a58da2b2dbd48272bdf3d83747c78d58c0d32166",
-  "reconciliation_merge_sha": "8eb2d4275b141b7c0cec96a3a360295ce6765ffa",
+  "reconciled_main_sha": "9b9463e6fd0764c554ff487b85bc9a11ad131797",
+  "reconciliation_merge_sha": "d1150cb50cef0fcad0bd073d703354bc0e44a190",
   "branch_state_after_reconciliation": "ahead_only",
   "branch_behind_by": 0,
-  "ci_gate_status": "pass",
-  "required_checks_passed": [
-    "Syntax Check",
-    "Architecture Drift Detection",
-    "Execution Resolver Gate",
-    "Unit & Integration Tests"
-  ],
+  "ci_gate_status": "pending_after_dfr_005_design_update",
+  "required_checks_passed": [],
   "automatic_tenant_asset_copies": false,
   "scope_layers": [
     "platform_mandatory",
