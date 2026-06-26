@@ -311,6 +311,84 @@ Adaptive services, analytics, dashboards, caches, queues, and model providers ar
 
 **Mitigation:** preview uses read-only authorities, no-effect flags, transport/provider-call assertions, and tests proving zero external or persistent effect.
 
+### T-041 — Commercial registry injection
+
+**Threat:** an administrator or compromised service registers an arbitrary formula, executable expression, unsupported billing model, fake unit, or unsafe state transition.
+
+**Mitigation:** typed registry schemas, approved semantic-engine keys, no SQL/JavaScript/shell expressions, compatibility validation, immutable versions, dual review for high-risk registries, activation audit, and unknown-key fail closed.
+
+### T-042 — Billing-profile privilege escalation
+
+**Threat:** a user edits hidden fields to lower price, raise limits, enable postpaid, change billable owner, bypass approval, or select an ineligible model.
+
+**Mitigation:** server-side template/version and field-allowlist validation, parent-bound resolution, typed values, object-level authority, conflict blocking, immutable active versions, epoch invalidation, and same-cycle readback.
+
+### T-043 — Billable-owner confused deputy
+
+**Threat:** management, support, ownership, reseller, or white-label relationships are treated as permission to charge another Tenant.
+
+**Mitigation:** one direct active commercial relationship and one explicit billable owner per reservation; non-transitive resolution; ambiguity blocks; attribution grants no liability or access.
+
+### T-044 — Meter event replay or source forgery
+
+**Threat:** an event is replayed, attributed to another Tenant/account, or submitted by an unauthorized source to inflate or suppress usage.
+
+**Mitigation:** exact Tenant/account/operation/manifest scope, registered source authority, globally stable source-event and dedupe keys, evidence checksum, replay-safe append, anomaly detection, and scoped audit.
+
+### T-045 — Unit, aggregation, or rating manipulation
+
+**Threat:** quantity scale, unit conversion, rounding, aggregation mode, included units, tiers, or price version is manipulated to change charges.
+
+**Mitigation:** versioned unit/meter/rating/price registries, integer/scaled-integer quantities, canonical conversion, immutable reservation price snapshot, deterministic rating, reconstruction tests, and unsupported conversion block.
+
+### T-046 — Concurrent double spend
+
+**Threat:** parallel operations reserve the same Credits, monetary balance, included units, quota, budget, or postpaid credit capacity.
+
+**Mitigation:** atomic compare-and-reserve or locking, version preconditions, itemized reservation lines, idempotency checksum, all-or-nothing rollback, and concurrency stress tests.
+
+### T-047 — Reservation replay, extension abuse, or stale dispatch
+
+**Threat:** a consumed/expired reservation is replayed, extended without authority, or used after standing/profile/price/epoch change.
+
+**Mitigation:** exact operation/manifest binding, state and expiry checks, bounded extension policy, commercial-epoch version vector, pre-dispatch revalidation, single logical settlement, and consumed-state rejection.
+
+### T-048 — Settlement inflation or asset substitution
+
+**Threat:** settlement exceeds authorized units/amount, changes Credits to money, uses unverified events, or converts provider cost into customer liability.
+
+**Mitigation:** reservation and asset-type match, verified usage/outcome and rating evidence, hard authorized maximum, approved overage only, customer/internal cost separation, deterministic recomputation, and block on missing evidence.
+
+### T-049 — Ledger imbalance or history tampering
+
+**Threat:** posted entries are edited/deleted, debits do not equal credits, currency and Credits are mixed, or balance projections hide missing transactions.
+
+**Mitigation:** append-only ledger, one asset family per transaction, balance validation before post, immutable checksum, compensating entries, source-to-ledger traceability, projection rebuild, period reconciliation, and restricted posting principal.
+
+### T-050 — Refund, dispute, or chargeback overreach
+
+**Threat:** refunds exceed net settled liability, target another account, duplicate prior refunds, or alter original usage/settlement history.
+
+**Mitigation:** exact source transaction, net-refundable calculation, idempotency, reason-code registry, approvals and separation of duties, compensating transaction, itemized readback, and cross-account rejection.
+
+### T-051 — Outcome-meter fraud or attribution gaming
+
+**Threat:** a user or source creates fake conversions, meetings, qualified leads, or repeated events to trigger outcome-based billing.
+
+**Mitigation:** registered verification authority, attribution and dispute windows, deduplication, anti-fraud signals, source assurance, delayed settlement where needed, review thresholds, and reversible compensating adjustment.
+
+### T-052 — Cross-Tenant commercial leakage
+
+**Threat:** profile discovery, price books, usage, invoices, meter events, internal provider cost, or ledger details leak across Tenants or managed-client relationships.
+
+**Mitigation:** Tenant/account-leading queries, scoped not-found behavior, direct commercial relationship without data access, safe labels, protected internal cost, separate admin surfaces, and cross-Tenant list/get/search/mutation tests.
+
+### T-053 — Past-due, grace, or preview bypass
+
+**Threat:** a user continues cost-bearing work while past due, or a profile/estimate/reservation preview performs a real reservation, charge, invoice, payment, provider call, or external write.
+
+**Mitigation:** registered standing policy, pre-reservation and pre-dispatch revalidation, no-effect preview transport assertions, payment-recovery-only allowlist, fraud/security override, and audit of blocked attempts.
+
 ## 6. Abuse cases
 
 ### Malicious user profile
