@@ -23,6 +23,7 @@ import {
 } from "../governedToolResponseChunkStore.js";
 import { runGovernedResponseChunkDurableRecoverySmoke } from "../governedResponseChunkDurableRecoverySmoke.js";
 import { bootstrapGovernedMigrationAuthorization } from "../governedMigrationAuthorizationBootstrap.js";
+import { runGovernedMigrationExecution } from "../governedMigrationExecutionTool.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import {
   capabilityEnvelopeError,
@@ -421,6 +422,27 @@ const VIRTUAL_ADMIN_TOOLS = [
         confirm: { type: "string" },
         capability_envelope_id: { type: "string" },
         decision_note: { type: "string", minLength: 20, maxLength: 1000 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "governed_migration_execute",
+    displayName: "Governed Migration Execute",
+    description: "Dry-run or apply one checksum-bound authorized migration through the governed runner. Apply requires exact typed confirmation, a ready platform_orchestration capability envelope, ledger persistence, and same-cycle schema readback.",
+    method: "VIRTUAL",
+    path: "internal://governed-migration-execute",
+    tags: ["admin", "migration", "mutation", "dry_run_default", "typed_confirmation", "capability_envelope", "same_cycle_readback", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["migration", "mode", "expected_checksum_sha256", "expected_statement_count"],
+      properties: {
+        migration: { type: "string", pattern: "^[A-Za-z0-9._-]+\\.sql$" },
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
+        expected_checksum_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        expected_statement_count: { type: "integer", minimum: 1, maximum: 5000 },
+        confirm: { type: "string" },
+        capability_envelope_id: { type: "string" },
       },
       additionalProperties: false,
     },
@@ -1718,6 +1740,48 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
           error: {
             code: err?.code || "governed_migration_authorization_bootstrap_failed",
             message: err?.message || "Governed migration authorization bootstrap failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
+  if (callerType === "admin" && toolKey === "governed_migration_execute") {
+    try {
+      const result = await runGovernedMigrationExecution(args || {}, {
+        authorizeApply: async (inspection) => {
+          const resolved = await resolveCapabilityExecutionEnvelope({
+            pool: getPool(),
+            source: args || {},
+            acceptedAppKeys: ["platform_orchestration"],
+            acceptedIntents: ["governed_migration_execute", "governed_migration_apply", "migration_apply", "governed_migration_runner"],
+            expectedTenantId: req?.auth?.tenant_id || PLATFORM_TENANT_ID,
+            expectedUserId: req?.auth?.user_id || "",
+            requireReadyForDispatch: true,
+            requireDispatchAllowed: true,
+            requireNoBlockingGaps: true,
+            requireNoSecrets: true,
+          });
+          if (!resolved.ok) {
+            throw capabilityEnvelopeError(resolved, "Governed migration apply requires a ready platform_orchestration capability envelope.");
+          }
+          await markCapabilityEnvelopeReferenced({
+            pool: getPool(),
+            envelopeId: resolved.envelope_id,
+            executionRef: `governed_migration_execute:${inspection.migration}`,
+          });
+          return resolved;
+        },
+      });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "governed_migration_execution_failed",
+            message: err?.message || "Governed migration execution failed.",
             details: err?.details,
           },
         },
