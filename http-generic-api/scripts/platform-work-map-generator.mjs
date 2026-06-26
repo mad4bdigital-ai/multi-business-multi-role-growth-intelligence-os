@@ -30,10 +30,13 @@ function rel(repoRoot, file) {
 
 function hashFiles(repoRoot, files) {
   const h = crypto.createHash("sha256");
-  for (const file of [...new Set(files)].sort()) {
-    h.update(rel(repoRoot, file));
+  const entries = [...new Set(files.filter(Boolean).map((file) => path.resolve(file)))]
+    .map((file) => ({ file, relative: rel(repoRoot, file) }))
+    .sort((left, right) => left.relative.localeCompare(right.relative));
+  for (const { file, relative } of entries) {
+    h.update(relative);
     h.update("\0");
-    h.update(readText(file));
+    h.update(readText(file).replace(/\r\n?/g, "\n"));
     h.update("\0");
   }
   return h.digest("hex");
