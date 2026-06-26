@@ -360,6 +360,78 @@ A consequential operation cannot use a data-use decision or manifest after any c
 
 Data-use and disposition previews perform no provider call, credential read, content transfer, deletion, mutation, model execution, external write, or authority grant.
 
+### INV-033 — Commercial semantics are registered
+
+Billing models, collection modes, units, meters, aggregation modes, rating models, price books, profile templates, customizable fields, reason codes, and lifecycle transitions resolve from versioned database authorities. Unknown or unsupported semantics fail closed.
+
+### INV-034 — User customization is bounded
+
+A user may select or tighten only template-exposed typed fields within contract, plan, Tenant, delegated, tax, accounting, payment, risk, and Platform bounds. User customization cannot invent price, meter, unit, formula, currency, FX, tax, ledger, billable owner, or credit-limit semantics.
+
+### INV-035 — Credits, money, and usage are distinct
+
+Credits, monetary assets, and usage quantities cannot be balanced or settled against one another without an explicit compatible conversion contract and current quote/version.
+
+### INV-036 — One direct billable owner
+
+Each cost-bearing operation resolves exactly one billing account and one billable owner through a direct active commercial relationship. Ownership, management, support, white-label, and attribution do not imply liability.
+
+### INV-037 — Tokens are not universal
+
+Tokens are one meter family. Every measured resource uses a registered meter/version, canonical unit, aggregation mode, source authority, and evidence contract appropriate to its domain.
+
+### INV-038 — Raw measurement is immutable
+
+Original meter events are append-only, deduplicated, Tenant/account scoped, and evidence linked. Corrections or retractions append new events and never overwrite source measurements.
+
+### INV-039 — Measurement and rating are separate
+
+Raw usage, normalized usage, included usage, billable usage, provider/internal cost, customer charge, reservation, settlement, and ledger posting remain separately reconstructable.
+
+### INV-040 — Composite meters preserve components
+
+A composite meter uses only registered typed operators and immutable versioned components. It cannot erase, mutate, or hide the raw component events used to derive billable usage.
+
+### INV-041 — Estimate is not authority
+
+A cost estimate is an expiring forecast and does not authorize execution, reservation, settlement, invoice, or payment collection.
+
+### INV-042 — Reservation precedes cost-bearing dispatch
+
+A consequential cost-bearing operation cannot dispatch without an active compatible reservation unless an explicit bounded postpaid policy permits the exact operation and liability capacity.
+
+### INV-043 — Reservation is atomic and single-asset
+
+One reservation atomically claims available capacity for one billing owner, account, profile, billing model, settlement asset, manifest, operation, and commercial epoch. Concurrent operations cannot consume the same capacity.
+
+### INV-044 — Streaming work is bounded
+
+Unknown or streaming usage consumes bounded reservation windows. Denied extension stops further cost-bearing work at the next safe boundary.
+
+### INV-045 — Settlement requires verified evidence
+
+Settlement requires current reservation, execution, usage/outcome, billability, rating/price, owner/account, manifest, and commercial-epoch evidence and cannot exceed authorization without a separately approved overage reservation.
+
+### INV-046 — Customer charge and provider cost differ
+
+Provider/internal cost does not automatically become customer liability. Unauthorized provider-cost, FX, or usage drift cannot silently increase the customer charge.
+
+### INV-047 — Ledger is immutable and balanced
+
+Every posted commercial transaction balances debit and credit within one currency or credit-unit family. Posted entries are never updated or deleted; corrections use compensating transactions.
+
+### INV-048 — Attribution grants nothing
+
+Cost attribution to Brand, Workspace, Department, Group, campaign, objective, principal, project, or custom cost center creates neither billing liability nor data/resource authority.
+
+### INV-049 — Commercial epoch consistency
+
+An operation cannot use a commercial decision, estimate, reservation, profile, price, meter, standing, or manifest after a contributing commercial authority version changes.
+
+### INV-050 — Commercial preview has no effect
+
+Billing-profile, entitlement, estimate, and reservation previews perform no reservation, charge, ledger posting, invoice, payment collection, provider call, credential read, or external write.
+
 ## 4. State machines
 
 ### Optional variant
