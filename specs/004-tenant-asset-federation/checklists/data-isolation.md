@@ -122,6 +122,22 @@
 - [x] Simulation and evaluation corpora remain tenant-scoped unless an approved aggregate dataset is used.
 - [x] Cross-tenant aggregation uses minimum cohorts, privacy policy, weighting, and opt-out controls where applicable.
 
+## Purpose-bound data isolation
+
+- [x] Every data-use decision is scoped to one authenticated Tenant context plus exact Brand/Workspace/resource/subject evidence where applicable.
+- [x] Access authority does not bypass purpose, classification, lawful-basis/consent, residency/transfer, retention, legal-hold, provider/model, audience, or destination policy.
+- [x] Classification assignments and purpose rules cannot reference another Tenant's private resource or policy authority.
+- [x] Personal and company contexts cannot silently exchange restricted data even when the same global user owns or belongs to both Tenants.
+- [x] Data-subject discovery and lineage traversal remain Tenant/object scoped and reject cross-Tenant edges.
+- [x] Correction, restriction, erasure, and consent-withdrawal propagation cannot mutate another Tenant's summaries, embeddings, indexes, Agent memory, evaluations, artifacts, provider copies, or backups.
+- [x] Legal hold scope is exact and cannot be used to discover or read data outside existing authority.
+- [x] Provider/model candidate selection removes ineligible regions, recipients, training modes, retention modes, and destinations before content or credentials are materialized.
+- [x] Raw cross-Tenant content is never an aggregate-learning input or output.
+- [x] Aggregate-learning evidence carries cohort, participation, contribution, privacy, residency, provenance, quality, and fairness versions without exposing Tenant-specific examples.
+- [x] Data-use and governance-epoch cache keys prevent a decision from one Tenant, purpose, subject, destination, or policy version being reused in another.
+- [ ] Cross-Tenant lineage corruption, provider-copy, backup, and aggregate-learning isolation tests implemented.
+- [ ] Personal/company copy, export, correction, and erasure boundary tests implemented.
+
 ## Artifact and recovery isolation
 
 - [x] Provenance exposes safe source IDs/evidence without another tenant's private content.
