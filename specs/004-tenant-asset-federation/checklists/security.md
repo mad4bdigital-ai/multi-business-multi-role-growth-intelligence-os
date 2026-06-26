@@ -157,6 +157,29 @@
 - [ ] Provider processing-profile certification and refresh process receives security review.
 - [ ] Aggregate-learning privacy and re-identification tests pass before any production use.
 
+## Dynamic Commercial and FinOps security
+
+- [x] Billing models, collection modes, units, meters, rating models, profile templates, customization fields, and state transitions resolve from versioned registries.
+- [x] Runtime rejects unregistered keys, arbitrary SQL/JavaScript/shell formulas, unsupported combinations, stale versions, and ambiguous profile resolution.
+- [x] User customization is field-allowlisted and cannot change prices, tax, FX, ledger accounts, billable owner, credit limit, posted entries, or protected contract fields.
+- [x] Credits, money, and usage units are separate assets and cannot be cross-settled without an approved conversion contract and current quote.
+- [x] Billing owner resolution is direct and non-transitive; ownership, management, support, white-label, and attribution do not imply billing liability.
+- [x] Meter events require authorized source, exact Tenant/account/operation/manifest scope, registered meter/version/unit, scaled quantity, dedupe key, and evidence checksum.
+- [x] Composite meters use registered typed operators and preserve raw component events.
+- [x] Outcome-based meters require verification, attribution window, deduplication, dispute, and anti-fraud evidence before billability.
+- [x] Atomic reservation prevents concurrent double-spend of balance, included units, quota, budget, or postpaid liability capacity.
+- [x] Reservation idempotency conflicts block when one key is reused with different input.
+- [x] Streaming reservation extensions are bounded and denied extension triggers safe-stop behavior.
+- [x] Customer charge is capped by authorization; provider/internal cost drift cannot silently increase customer liability.
+- [x] Settlement requires verified usage/outcome, reservation, price/rating, manifest, owner, and commercial-epoch evidence.
+- [x] Posted ledger entries are immutable, balanced, no-secret, and corrected only with compensating entries.
+- [x] Refund, adjustment, dispute, and chargeback cannot exceed net settled liability and require exact source transaction and reason authority.
+- [x] Past-due/grace/paused/cancelled policy cannot erase evidence, expose payment credentials, or bypass legally required export.
+- [x] Billing-profile, entitlement, estimate, and reservation previews perform no charge, reservation, invoice, payment, provider call, credential read, or external write.
+- [ ] Initial registry seed, price-book, tax, FX, overage, and standing policies receive accounting/security review.
+- [ ] Ledger chart, posting engine, period close, refund/dispute, and reconciliation receive accounting/security review.
+- [ ] Meter source trust, outcome fraud, replay, late-event, and double-spend tests pass before implementation.
+
 ## API and implementation
 
 - [x] All external input is validated.
