@@ -123,10 +123,12 @@ Suggested migration sequence:
 4. user runtime preference profiles;
 5. generic asset variants/patches/upgrades;
 6. effective runtime manifest ledger;
-7. adaptive proposals/simulations/experiments/measurements/promotion candidates;
-8. views for catalog, bridge parity, readiness, and adaptive health;
-9. indexes and retention metadata;
-10. feature/rollout registry rows.
+7. model task/capability, endpoint/model-version, inference-profile, context-policy, optimization, and preference authorities;
+8. model evaluation suite/dataset/metric/run/result, scorecard, readiness, selection, fallback, drift, incident, deprecation, and governance-epoch authorities;
+9. adaptive proposals/simulations/experiments/measurements/promotion candidates;
+10. views for catalog, bridge parity, model-selection parity/readiness, and adaptive health;
+11. indexes and retention metadata;
+12. feature/rollout registry rows.
 
 Each migration includes authorization metadata, preflight, indexes, rollback/disable strategy, and same-cycle schema readback.
 
