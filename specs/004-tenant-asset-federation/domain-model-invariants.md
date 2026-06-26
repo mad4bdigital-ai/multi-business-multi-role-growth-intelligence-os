@@ -227,7 +227,10 @@ A manifest checksum binds:
 principal + context target + authority epoch + registry snapshot
 + composition profile versions + policy atom versions
 + shared asset versions + variant versions + preference version
-+ normalized request + resolver version
++ data-use decision and governance version vector
++ commercial decision + billing profile/model/collection-mode versions
++ meter/unit/rating/price-book versions + estimate/reservation checksums
++ commercial epoch + normalized request + resolver version
 ```
 
 ## 3. Global invariants
