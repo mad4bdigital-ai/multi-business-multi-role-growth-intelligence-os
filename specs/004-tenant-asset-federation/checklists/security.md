@@ -138,6 +138,25 @@
 - [ ] Async/saga/outbox threat review completed.
 - [ ] Supply-chain and portability threat review completed.
 
+## Layered data-governance security
+
+- [x] Access grants and data-use eligibility are evaluated independently and both are required.
+- [x] Missing, stale, conflicting, revoked, or ambiguous classification, purpose, lawful-basis/consent, residency, retention, hold, provider/model, audience, or destination evidence fails closed.
+- [x] Classification override cannot downgrade credentials, secrets, legal holds, or mandatory regulated categories.
+- [x] Purpose is registered and material purpose drift cannot reuse an unrelated authorization.
+- [x] Consent cannot authorize a use prohibited by Platform, law, security, contract, or Tenant policy.
+- [x] Residency/transfer validation occurs before credential materialization, provider/model selection, indexing, export, or content transfer.
+- [x] Legal hold grants no read authority and retention expiry cannot override an active hold.
+- [x] Privacy-request and disposition workflows revalidate identity, object authority, holds, exemptions, provider copies, indexes, and backups.
+- [x] Derived data is not presumed anonymous because it was transformed.
+- [x] External provider/model fallback cannot weaken retention, training, deletion, region, contract, purpose, or zero-retention requirements.
+- [x] Raw cross-Tenant learning is forbidden; aggregate learning requires minimum cohort, contribution/dominance, opt-out, residency, re-identification, provenance, quality, and fairness controls.
+- [x] Data-governance epoch changes invalidate stale manifests before consequential dispatch.
+- [x] Preview routes perform no provider call, content transfer, deletion, model execution, credential read, or external write.
+- [ ] Jurisdiction policy packs and consent evidence schemas receive legal/security review before implementation.
+- [ ] Provider processing-profile certification and refresh process receives security review.
+- [ ] Aggregate-learning privacy and re-identification tests pass before any production use.
+
 ## API and implementation
 
 - [x] All external input is validated.
