@@ -12,19 +12,21 @@
   "runtime_files_included": false,
   "dfr_003_status": "approved_design_implementation_not_authorized",
   "data_governance_model": "layered_purpose_bound_most_restrictive_rule_wins",
+  "dfr_004_status": "approved_design_implementation_not_authorized",
+  "commercial_finops_model": "dynamic_registry_driven_user_configurable_reservation_first_double_entry",
+  "initial_billing_models": [
+    "credits",
+    "direct_currency"
+  ],
+  "metering_model": "registry_driven_multi_dimensional_tokens_are_one_family",
   "current_branch_repair_preferred": true,
   "branch_reconciled": true,
-  "reconciled_main_sha": "89c54872c18432b0b0f41c8963ed731f8f12751f",
-  "reconciliation_merge_sha": "94e345f9b3196451d2acc35c4559d554277a70bd",
+  "reconciled_main_sha": "a58da2b2dbd48272bdf3d83747c78d58c0d32166",
+  "reconciliation_merge_sha": "8eb2d4275b141b7c0cec96a3a360295ce6765ffa",
   "branch_state_after_reconciliation": "ahead_only",
   "branch_behind_by": 0,
-  "ci_gate_status": "pass",
-  "required_checks_passed": [
-    "Syntax Check",
-    "Architecture Drift Detection",
-    "Execution Resolver Gate",
-    "Unit & Integration Tests"
-  ],
+  "ci_gate_status": "pending_after_dfr_004_design_update",
+  "required_checks_passed": [],
   "automatic_tenant_asset_copies": false,
   "scope_layers": [
     "platform_mandatory",
