@@ -330,6 +330,33 @@ Each plane has its own authority, lifecycle, audit, versioning, and rollback. Th
 - **FR-138:** The Effective Runtime Manifest binds the commercial decision, billing profile/model, meter/unit/rating/price versions, estimate, reservation, budget/quota policies, standing, commercial epoch, and expiry.
 - **FR-139:** Existing plan, subscription, entitlement, credit, usage, quota, and budget authorities remain migration inputs or compatibility projections until shadow parity, ledger reconciliation, balance rebuild, concurrency tests, and cutover certification pass.
 - **FR-140:** Missing, stale, conflicting, ambiguous, or unregistered commercial, meter, unit, profile, pricing, billing-owner, reservation, or settlement evidence fails closed with stable structured errors.
+- **FR-141:** Model/provider selection starts from a registered task class and versioned capability contract rather than a raw model name, fixed provider order, or unregistered generic fallback.
+- **FR-142:** Each candidate identity binds provider, endpoint/deployment profile, exact model version or alias-resolution snapshot, inference profile, region, data-processing profile, and commercial price profile.
+- **FR-143:** Deterministic eligibility gates cover lifecycle, capability, task, entitlement, authority, data use, provider retention/training/deletion, region/residency/transfer, risk/safety, tools, output contract, context/output limits, readiness, evaluation, incident/deprecation, and commercial eligibility.
+- **FR-144:** A failed deterministic gate cannot be overridden by score, optimization weights, user preference, provider order, low cost, low latency, popularity, or availability alone.
+- **FR-145:** Only eligible candidates enter contextual ranking or fallback sets.
+- **FR-146:** Optimization profiles are registered, versioned, explainable, risk-scoped, confidence-aware, freshness-bounded, and define metric weights, floors, bounds, normalization, missing-evidence behavior, and deterministic tie-break policy.
+- **FR-147:** Candidate decisions preserve per-metric source, version, freshness, confidence, normalized value, weight, exclusion reason, and tie-break evidence rather than only an opaque composite score.
+- **FR-148:** Users and delegated administrators may select or customize only profile-exposed model preferences within Platform, Tenant, contract, data, safety, quality, region, evaluation, readiness, and commercial bounds.
+- **FR-149:** User preference may narrow or reorder eligible candidates but cannot introduce raw model IDs/endpoints, create eligibility, lower mandatory floors, change credentials, or bypass estimate/reservation.
+- **FR-150:** Every contextual model use requires applicable versioned evaluation-suite evidence by capability, task, language/locale, modality, domain/activity, risk, tool policy, output contract, data policy, and region.
+- **FR-151:** Evaluation suites define provenance-linked datasets, rubric, deterministic validators, human/model-judge policy, adversarial/regression cases, samples, metrics, thresholds, zero-tolerance failures, confidence, and freshness.
+- **FR-152:** A model judge cannot be the sole evaluation authority for high-risk or authority-sensitive tasks.
+- **FR-153:** Exact candidate quality scorecards record evaluation versions, sample/corpus scope, metrics/confidence, failures, latency, reliability, error/timeout, cost, regions/endpoints, validity, drift, and checksum.
+- **FR-154:** Stale, drifting, insufficient, failed, or revoked scorecards follow explicit risk-aware fail behavior and block high-risk/authority-sensitive use by default.
+- **FR-155:** Provider readiness is independent from quality and records credential readiness without secret values, endpoint/region, contract/certification, capacity/quota, rate limits, circuit breaker, recent success/error/timeout/latency, feature availability, incidents, freshness, and expiry.
+- **FR-156:** Stale or unknown readiness is never silently interpreted as ready; policy determines block, fresh validation, or certified fallback.
+- **FR-157:** Fallback is an immutable ordered set of independently eligible candidates and never an implicit next provider from a global list.
+- **FR-158:** Fallback cannot weaken capability, data, region, safety, tool, output, evaluation, readiness, lifecycle, entitlement, or commercial requirements.
+- **FR-159:** High-risk and authority-sensitive fallback is disabled by default unless the alternative is certified equivalent for the same mandatory contracts and evidence.
+- **FR-160:** Each selected or fallback candidate requires candidate-specific estimate and atomic reservation under DFR-004; one candidate's reservation cannot silently fund another.
+- **FR-161:** Model lifecycle supports discovered, registered, evaluating, certified, active, restricted, deprecated, blocked, retired, and emergency-revoked states with impact preview, migration, deadline, rollback/exception, and historical reconstruction.
+- **FR-162:** Model incidents, restrictions, revocations, material alias movement, policy/evaluation/readiness changes, and deprecation advance a model-governance epoch and invalidate affected decisions/manifests.
+- **FR-163:** Every model-selection decision is immutable, explainable, no-secret, expiring, reconstructable, and binds its candidate universe, gate evidence, ranking, selected exact candidate, fallback set, estimate/reservation, epoch, and checksum.
+- **FR-164:** The Effective Runtime Manifest binds the model-selection decision, task/capability versions, exact candidate, policy/data/region, evaluation/scorecard, readiness, optimization profile, exclusions, fallback, commercial evidence, epoch, and expiry and revalidates them before provider dispatch.
+- **FR-165:** Current provider-order, free-first, hardcoded provider/task lists, task profiles, model IDs, and provider adapters remain compatibility inputs/implementations until shadow parity, task/risk-family certification, cutover, and rollback readiness pass.
+- **FR-166:** Model-selection preview returns candidates, exclusions, gate/metric evidence, optimization, fallback, and provisional commercial effects while performing no provider/model call, credential read, evaluation execution, commercial reservation, lifecycle mutation, or external write.
+- **FR-167:** Missing, stale, conflicting, revoked, insufficient, ambiguous, or unregistered task, capability, policy, evaluation, readiness, lifecycle, selection, fallback, or commercial evidence fails closed with stable structured errors.
 
 ## 13. Extended non-functional requirements
 
