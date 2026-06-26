@@ -236,6 +236,58 @@ Legacy policy/grant paths remain authoritative until contextual parity and cutov
 
 Repository work repairs the current feature branch before creating a replacement branch whenever governed reconciliation demonstrates a safe no-force path.
 
+### INV-020 — Access is not processing eligibility
+
+A valid access grant is necessary but cannot authorize collection, use, transfer, inference, export, retention, learning, correction, restriction, or deletion without a compatible data-use decision.
+
+### INV-021 — Registered purpose required
+
+Every consequential data operation declares a registered purpose. Missing, materially mismatched, or disallowed purpose fails closed.
+
+### INV-022 — Most restrictive data rule wins
+
+The effective data-use result applies the most restrictive applicable Platform, jurisdiction, Tenant, Brand, Workspace, delegated organizational, resource, subject, operation, provider/model, region, audience, and destination rule.
+
+### INV-023 — Protected classifications cannot be downgraded
+
+Credentials, secrets, legal-hold coverage, and mandatory regulated categories cannot be weakened by local classification override, preference, variant, or inherited Blueprint.
+
+### INV-024 — Consent is bounded evidence
+
+Consent is purpose/category/audience/provider scoped where applicable, versioned, revocable, and cannot override Platform, legal, security, contract, or Tenant prohibitions.
+
+### INV-025 — Residency before materialization
+
+Storage, processing, provider/model, backup, export, and transfer eligibility is resolved before credential materialization, content transfer, indexing, model invocation, or provider dispatch.
+
+### INV-026 — Legal hold is not authority
+
+A legal hold may prevent covered deletion or mutation but never grants read, export, processing, or cross-scope discovery authority.
+
+### INV-027 — Derived data inherits obligations
+
+Summaries, embeddings, indexes, Agent memory, evaluations, analytics, aggregates, artifacts, provider copies, and backups retain lineage and explicit correction, restriction, retraction, erasure, or hold disposition obligations.
+
+### INV-028 — Transform does not imply anonymous
+
+Derived or transformed data is not considered anonymous without approved evidence and cannot escape source-purpose, retention, residency, subject, or lineage obligations by format change alone.
+
+### INV-029 — Provider fallback preserves data policy
+
+Fallback may occur only among providers/models that satisfy the same or stricter purpose, residency, transfer, retention, deletion, training, contract, security, and zero-retention requirements.
+
+### INV-030 — Raw cross-Tenant learning forbidden
+
+Raw Tenant content and Tenant-specific examples cannot be inputs to or outputs from cross-Tenant learning. Only governed aggregate evidence meeting participation, cohort, contribution, residency, re-identification, provenance, quality, and fairness requirements may be eligible.
+
+### INV-031 — Governance epoch consistency
+
+A consequential operation cannot use a data-use decision or manifest after any contributing classification, purpose, consent, lawful-basis, residency, transfer, retention, hold, provider/model, subject-request, or aggregate-learning policy version changes.
+
+### INV-032 — Preview has no effect
+
+Data-use and disposition previews perform no provider call, credential read, content transfer, deletion, mutation, model execution, external write, or authority grant.
+
 ## 4. State machines
 
 ### Optional variant
