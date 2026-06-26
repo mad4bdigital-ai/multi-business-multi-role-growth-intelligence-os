@@ -30,6 +30,45 @@ const DECLARED_MUTATION_POLICY_TAGS = new Set([
   "capability_envelope", "typed_confirmation", "approval_required", "readback",
   "same_cycle_readback", "dry_run_default", "preview_required", "rollback_required",
 ]);
+const READ_ONLY_FORWARDED_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+const STATE_CHANGING_FORWARDED_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+function normalizedPolicyTags(tags = []) {
+  return new Set((Array.isArray(tags) ? tags : String(tags || "").split(","))
+    .map((tag) => String(tag || "").trim().toLowerCase())
+    .filter(Boolean));
+}
+
+export function resolveGptToolInvocationMutationRequirement({ toolKey = "", args = {}, method = "", tags = [] } = {}) {
+  const normalizedToolKey = String(toolKey || "").trim();
+  const normalizedArgs = args && typeof args === "object" && !Array.isArray(args) ? args : {};
+  const normalizedMethod = String(method || "").trim().toUpperCase();
+  const normalizedTags = normalizedPolicyTags(tags);
+
+  if (normalizedToolKey === "admin_cloudflare") {
+    if (!["POST", "VIRTUAL"].includes(normalizedMethod)) return null;
+    const forwardedMethod = String(normalizedArgs.method || "GET").trim().toUpperCase();
+    if (READ_ONLY_FORWARDED_METHODS.has(forwardedMethod)) return false;
+    if (STATE_CHANGING_FORWARDED_METHODS.has(forwardedMethod)) return true;
+    return null;
+  }
+
+  if (normalizedToolKey === "cloudflare_tunnel_status") {
+    return ["POST", "VIRTUAL"].includes(normalizedMethod) ? false : null;
+  }
+
+  if (["POST", "VIRTUAL"].includes(normalizedMethod) && normalizedTags.has("dry_run_default_true")) {
+    const applyRequested = normalizedArgs.dry_run === false || normalizedArgs.apply === true || String(normalizedArgs.mode || "").trim().toLowerCase() === "apply";
+    return applyRequested;
+  }
+
+  const hasMutationTag = [...normalizedTags].some((tag) => MUTATION_POLICY_TAGS.has(tag));
+  if (["POST", "VIRTUAL"].includes(normalizedMethod) && !hasMutationTag && normalizedTags.has("dry_run") && normalizedTags.has("no_execution")) {
+    return false;
+  }
+
+  return null;
+}
 
 export function classifyMutationPolicyRequirement({ method = "", tags = [], mutationRequired = null } = {}) {
   if (mutationRequired === true) return { required: true, classification: "explicit_mutation" };
@@ -356,10 +395,13 @@ export async function evaluateSupportTicketExternalProviderGatePreflight({ chann
 }
 
 export async function evaluateGptToolDispatchPreflight({ callerType = "tenant", toolKey = "", args = {}, method = "", tags = [], mutationRequired = null, mutationPolicyDeclared = null } = {}, deps = {}) {
-  const mutation = classifyMutationPolicyRequirement({ method, tags, mutationRequired });
+  const invocationMutationRequired = mutationRequired === null
+    ? resolveGptToolInvocationMutationRequirement({ toolKey, args, method, tags })
+    : mutationRequired;
+  const mutation = classifyMutationPolicyRequirement({ method, tags, mutationRequired: invocationMutationRequired });
   const declaredMutationPolicy = hasDeclaredMutationPolicy({ tags, mutationPolicyDeclared });
   const { runtimePolicyResolution, policies } = await resolvePolicies({ execution_scope: ["gpt_tools_call", "tool_dispatch", toolKey].filter(Boolean), affects_layer: ["gptToolsRoutes", callerType].filter(Boolean) }, deps);
-  const evidence = { operation: "gpt_tools_call", caller_type: callerType, tool_key: toolKey, method: method || null, tags, mutation_policy_requirement: mutation, mutation_policy_declared: declaredMutationPolicy, matching_policy_count: policies.length };
+  const evidence = { operation: "gpt_tools_call", caller_type: callerType, tool_key: toolKey, method: method || null, tags, invocation_mutation_required: invocationMutationRequired, mutation_policy_requirement: mutation, mutation_policy_declared: declaredMutationPolicy, matching_policy_count: policies.length };
   if (mutation.required === null) return makeMutationPolicyBlock({ operation: "gpt_tools_call", reason: "mutation_classification_missing", mutation, evidence, runtimePolicyResolution });
   if (mutation.required && !declaredMutationPolicy) {
     return makeMutationPolicyBlock({ operation: "gpt_tools_call", reason: "explicit_mutation_policy_not_configured", mutation, evidence, runtimePolicyResolution });
