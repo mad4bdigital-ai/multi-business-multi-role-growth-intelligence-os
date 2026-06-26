@@ -180,5 +180,6 @@
 - [ ] Product terminology approved.
 - [ ] Typed field/operator registry approved.
 - [x] Layered purpose-bound privacy, consent/lawful-basis, retention, residency, model/provider data-use, lineage/disposition, and aggregate-learning policy approved at design level.
+- [x] Dynamic database-driven billing, user-configurable billing profiles, multi-dimensional metering, reservation-first settlement, and double-entry ledger policy approved at design level.
 - [ ] Initial pilot family and context approved.
 - [ ] Implementation scope authorized.
