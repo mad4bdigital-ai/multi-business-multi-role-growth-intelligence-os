@@ -134,6 +134,27 @@
 - [ ] Implement Workspace archive/deletion disposition and Tenant offboarding integration.
 - [ ] Add one-Tenant ownership, cross-Tenant rejection, access-chain, sandbox/production, plan-limit, and lifecycle tests.
 
+## Layered purpose-bound data governance
+
+- [x] Approve access-plus-data-use eligibility and most-restrictive-rule resolution.
+- [x] Approve sensitivity-tier plus category-attribute classification.
+- [x] Approve registered purpose, lawful-basis, consent, residency/transfer, retention, and legal-hold semantics.
+- [x] Approve privacy-request and derived-data lineage/disposition behavior.
+- [x] Approve provider/model data-use fields, compatible fallback restrictions, and zero-retention behavior.
+- [x] Forbid raw cross-Tenant learning and define privacy-governed aggregate-learning prerequisites.
+- [x] Define immutable data-use decisions, governance epochs, stable blocker codes, APIs, and acceptance cases.
+- [ ] Approve initial classification-category and purpose registry seed values for implementation.
+- [ ] Approve jurisdiction-specific lawful-basis, residency, transfer, and retention policy packs.
+- [ ] Approve consent UX, evidence schema, withdrawal propagation, and dispute/recovery behavior.
+- [ ] Approve provider data-processing profile certification and refresh ownership.
+- [ ] Approve exact minimum cohort, contribution/dominance, re-identification, fairness, and opt-out thresholds for aggregate learning.
+- [ ] Implement read-only classification, purpose, residency, retention, and provider-profile diagnostics.
+- [ ] Implement no-effect data-use decision preview and explanation.
+- [ ] Implement lineage discovery and derived-data disposition preview before any deletion apply.
+- [ ] Implement legal-hold and privacy-request lifecycle with object-level authorization and readback.
+- [ ] Add classification/purpose/consent/residency/retention/hold/provider/model/lineage/aggregate-learning tests.
+- [ ] Prove previews perform no provider call, transfer, deletion, credential read, or external write.
+
 ## Shared catalog
 
 - [ ] Design additive catalog migration.
