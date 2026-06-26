@@ -501,6 +501,69 @@ draft → previewed → review_required|ready → applying → completed|partial
 
 Apply requires a current preview checksum, exact authority, legal-hold revalidation, idempotency, approval where required, item-level outcomes, compensation/retry evidence, and same-cycle readback. Partial completion never reports the privacy or retention request as fully complete.
 
+### Billing profile
+
+```text
+draft → previewed → review_required|ready → active → superseded|disabled|archived
+```
+
+An active profile version is immutable. Editing creates a new draft. Publication validates template/version, field allowlist, parent bounds, billing-account eligibility, approvals, conflicts, and commercial-epoch impact.
+
+### Meter event
+
+```text
+received → validated → normalized → verified|rejected|review_required → aggregated → rated → billable|included|non_billable|disputed → settled
+```
+
+Correction or retraction creates a linked append-only event. Late events follow the registered meter-version policy and cannot rewrite a closed statement.
+
+### Cost estimate
+
+```text
+draft → calculated → valid → reserved|expired|invalidated
+```
+
+A changed billing profile, meter/unit, rating/price, standing, owner/account, entitlement, or commercial epoch invalidates the estimate.
+
+### Cost reservation
+
+```text
+pending → active → partially_consumed → settled
+   └────────────→ released|expired|cancelled|invalidated
+```
+
+Rules:
+
+- activation atomically claims capacity;
+- consumption cannot exceed authorization;
+- extension is explicit, bounded, idempotent, and policy checked;
+- settlement or terminal release returns unused capacity exactly once;
+- asset type, billing owner, account, profile, operation, manifest, and epoch cannot change after activation.
+
+### Cost settlement
+
+```text
+pending_verification → ready|review_required|blocked → posting → posted|partially_posted|failed
+```
+
+A settlement becomes `posted` only after balanced ledger readback. `partially_posted` cannot be represented as complete and requires reconciliation/compensation.
+
+### Refund, adjustment, or dispute
+
+```text
+requested → eligible|rejected|review_required → approved → posting → completed|failed
+```
+
+A posted result links a compensating transaction and never mutates the original settlement or meter event.
+
+### Invoice
+
+```text
+draft → open → partially_paid|paid|past_due|disputed → closed|written_off
+```
+
+Invoice state does not rewrite usage or ledger history. Payment collection stores provider references/evidence without raw payment credentials.
+
 ## 5. Transaction boundaries
 
 ### Profile publish
