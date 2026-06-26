@@ -175,6 +175,31 @@
 - [ ] Accounting chart, posting rules, period close, invoice, payment, refund, dispute, and reconciliation ownership approved.
 - [ ] Implementation and migration scope authorized.
 
+## Contextual Model Governance
+
+- [x] Selection begins with a registered task class and versioned capability contract.
+- [x] Candidate identity pins provider endpoint, exact model version or alias snapshot, inference profile, region, data-processing profile, and commercial profile.
+- [x] Deterministic lifecycle, capability, entitlement, authority, data, region, risk, tool, output, evaluation, readiness, incident/deprecation, and commercial gates execute before ranking.
+- [x] Scores, cost, latency, popularity, provider order, and user preference cannot override a failed gate.
+- [x] Only independently eligible candidates enter ranking and fallback sets.
+- [x] Optimization profiles are registered, versioned, explainable, confidence/freshness bounded, and deterministically tie-broken.
+- [x] User/Tenant preferences can narrow or reorder eligible candidates but cannot create eligibility or lower mandatory floors.
+- [x] Evaluation suites are contextual, provenance-linked, thresholded, confidence-bounded, freshness-bounded, and include zero-tolerance failures.
+- [x] High-risk evaluation cannot rely exclusively on a model judge.
+- [x] Exact candidate scorecards record evaluation, quality, reliability, latency, error, cost, region, validity, and drift evidence.
+- [x] Provider readiness is independent from quality and stale/unknown readiness follows explicit fail behavior.
+- [x] Fallback is an immutable ordered set of independently eligible candidates and cannot weaken any mandatory contract.
+- [x] High-risk/authority-sensitive fallback is disabled by default unless certified equivalent.
+- [x] Selected and fallback candidates require candidate-specific estimate and reservation under DFR-004.
+- [x] Lifecycle supports restriction, deprecation, emergency revocation, alias movement, drift, impact preview, migration, rollback, and historical evidence.
+- [x] Model-selection decision and Effective Runtime Manifest bind exact versions, evidence, fallback, commercial refs, epoch, and expiry.
+- [x] Current provider-order/free-first/task-profile routing remains compatibility-only until shadow parity and family-specific cutover.
+- [x] Preview performs no provider/model call, credential read, evaluation execution, commercial reservation, lifecycle mutation, or external write.
+- [ ] Initial task/capability/provider-endpoint/model-version/inference-profile registry seeds approved.
+- [ ] Initial evaluation datasets, rubrics, metrics, thresholds, sample sizes, zero-tolerance failures, confidence, and freshness approved.
+- [ ] Initial readiness sources/windows, optimization weights, preference templates, tie-breakers, and fallback equivalence rules approved.
+- [ ] Implementation and migration scope authorized.
+
 ## Review status
 
 - [ ] Product terminology approved.
