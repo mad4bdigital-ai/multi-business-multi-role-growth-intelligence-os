@@ -643,14 +643,64 @@ Specialized authorities remain specialized. Registries define allowed semantics 
 
 ### Model governance
 
-Existing `ai_model_registry`, `ai_model_providers`, runtime settings, and model-run ledgers are reused.
+The approved DFR-005 model is capability-first, policy-gated, evidence-ranked, evaluation/readiness bounded, commercially reserved, and fail-closed. Existing `ai_model_registry`, `ai_model_providers`, `agent_model_runs`, `platform_runtime_config.agent_model_runtime`, `intelligence_engines`, `intelligence_policies`, `skill_manifests`, and allowlisted provider adapters remain compatibility inputs or implementation surfaces until certified family-specific cutover.
 
-- `model_capability_profiles` — modality, language, context, tools, structured output, safety, latency, and data-handling capabilities;
-- `model_context_policies` — tenant/plan/activity/risk/region/provider/model eligibility and fallback constraints;
-- `model_evaluation_suites` — dataset, rubric, evaluator, metric, risk, locale, and minimum threshold;
-- `model_evaluation_runs` — exact model/prompt/tool/workflow versions, results, failures, and evidence;
-- `model_quality_scorecards` — bounded current quality, calibration, latency, reliability, cost, and freshness;
-- `model_deprecation_runs` — impacted assets, replacements, migration, deadlines, and rollback.
+#### Task and capability authorities
+
+- `model_task_class_registry` — stable task key, description, risk class, allowed modalities, default capability profile, required evaluation families, lifecycle, version, and status;
+- `model_capability_registry` — typed capability dimensions such as modality, language, context, structured output, tools, streaming, grounding, determinism, safety, latency, and reliability;
+- `model_capability_profiles` — versioned task/capability contract with required/optional dimensions, minimum/maximum bounds, output/tool contracts, risk, validity, and checksum;
+- `model_capability_profile_requirements` — normalized capability key, operator, required value/range/schema, mandatory flag, and explanation template.
+
+#### Provider endpoint, model-version, and inference-profile authorities
+
+- `model_provider_endpoint_profiles` — provider, allowlisted adapter key, endpoint/deployment identity, region, data-processing profile, contract/certification, feature support, readiness policy, lifecycle, and no-secret credential reference;
+- `model_versions` — exact provider/model version identity, family, release/retirement dates, alias relation, context/output limits, lifecycle, checksum, and provenance;
+- `model_alias_resolution_snapshots` — alias, exact resolved version, provider evidence, observed time, compatibility/evaluation effect, expiry, and checksum;
+- `model_inference_profile_registry` — bounded generation/reasoning/structured-output/tool/streaming parameters, supported model families, risk class, version, and status;
+- `model_compatibility_certifications` — exact model/version/endpoint/inference profile compatibility with capability, task, output, tool, region, and risk contracts.
+
+#### Context policy and optimization authorities
+
+- `model_context_policy_registry` — Platform, Tenant, plan, Brand, Workspace, activity, risk, data, region, audience, environment, and operation policy identity, priority, validity, and version;
+- `model_context_policy_rules` — typed allow/deny/require/restrict rules over provider/model/endpoint/capability/evaluation/readiness/fallback/commercial dimensions;
+- `model_optimization_profile_registry` — registered quality-first, balanced, cost-first, latency-first, privacy-first, local-only, reliability-first, or future compatible profile with risk applicability and status;
+- `model_optimization_profile_metrics` — metric key, weight, normalization/version, floor/ceiling, confidence treatment, freshness, missing-evidence behavior, and tie-break priority;
+- `principal_model_preferences` — user or delegated scoped preference selecting only eligible optimization/profile/provider/model/fallback/max-cost/max-latency choices with source authority, validity, and checksum.
+
+#### Evaluation and quality authorities
+
+- `model_evaluation_suite_registry` — stable suite family, capability/task/risk/locale/modality/domain applicability, owner, lifecycle, and status;
+- `model_evaluation_suite_versions` — immutable rubric, evaluator policy, validators, sample requirements, thresholds, zero-tolerance failures, confidence, freshness, and checksum;
+- `model_evaluation_dataset_refs` — provenance-linked bounded dataset reference, version, sensitivity, audience, license, residency, retention, and access policy without unrestricted raw payload;
+- `model_evaluation_metric_registry` — typed metric semantics, direction, scale, aggregation, confidence, comparability, and explanation;
+- `model_evaluation_thresholds` — suite/version/context metric floor/ceiling, zero-tolerance flag, risk behavior, and validity;
+- `model_evaluation_runs` — exact candidate, suite/dataset/prompt/tool/workflow versions, environment, region, status, evidence, and reproducibility checksum;
+- `model_evaluation_results` — per-case/per-metric result, validator/human/model-judge provenance, confidence, failure class, and evidence reference;
+- `model_quality_scorecards` — current bounded evaluation summary, samples, metrics/confidence, failures, latency/reliability/error/cost observations, regions/endpoints, validity, drift state, and checksum.
+
+#### Readiness, selection, and fallback authorities
+
+- `model_readiness_snapshots` — exact provider endpoint/model feature readiness, credential-presence flag without value, contract/certification, quota/capacity, rate limit, circuit breaker, recent success/error/timeout/latency, incident, observed time, expiry, and state;
+- `model_selection_decisions` — immutable Tenant/principal/context/operation, task/capability, candidate-universe snapshot, selected candidate, optimization profile, fallback set, commercial refs, epoch, expiry, explanation, and checksum;
+- `model_selection_candidate_evidence` — one row per candidate and gate/metric with eligibility, exclusion reason, policy/evaluation/readiness/commercial sources, normalized value, weight, rank, confidence, and freshness;
+- `model_fallback_sets` — immutable ordered fallback identity, task/capability/risk scope, safe-boundary policy, lifecycle, and checksum;
+- `model_fallback_candidates` — exact independently eligible candidate, order, equivalence certification, estimate/reservation requirements, and activation conditions.
+
+#### Drift, incidents, lifecycle, and invalidation
+
+- `model_drift_events` — candidate/metric/corpus/window, expected/observed delta, confidence, severity, affected contexts, action, and status;
+- `model_incident_restrictions` — provider/endpoint/model/version scope, security/privacy/safety/contract reason, restrict/revoke action, authority, effective period, and evidence;
+- `model_deprecation_runs` — impacted assets/Agents/workflows/profiles/manifests, replacements, deadline, shadow/canary evidence, rollback/exception, progress, and completion readback;
+- `model_governance_epochs` — invalidation after task/capability, policy, model lifecycle, alias resolution, evaluation, scorecard, readiness, incident, fallback, preference, or commercial compatibility change.
+
+#### Candidate identity and separation
+
+The exact candidate identity is provider + endpoint/deployment + model version + inference profile + region + data-processing profile + commercial price profile. Floating aliases are recorded through resolution snapshots.
+
+Hard eligibility evidence, contextual ranking, provider/internal cost, customer charge, estimate/reservation, provider dispatch, and outcome evidence remain distinct and reconstructable.
+
+Database policy may select only allowlisted provider adapters and bounded semantics. It cannot store or execute arbitrary URLs, headers, SQL, JavaScript, shell, model code, or credential values.
 
 ### Runtime orchestration and consistency
 
