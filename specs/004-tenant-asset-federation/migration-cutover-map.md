@@ -269,13 +269,15 @@ Examples:
 ## 10. Rollback hierarchy
 
 1. Stop adaptive experiments.
-2. Disable new profile/variant publication if implicated.
-3. Disable contextual consumer for affected family/cohort.
-4. Return to legacy authority where safe and certified.
-5. Invalidate affected manifests/caches.
-6. Revoke or expire canary approvals.
-7. Preserve evidence and compare before/after.
-8. Apply code/schema rollback only if consumer disablement is insufficient.
+2. Restrict or revoke an unsafe provider endpoint/model version and invalidate its fallback membership.
+3. Disable contextual model selection for the affected task/risk/data/region family and stop new selection decisions.
+4. Disable new profile/variant publication if implicated.
+5. Disable contextual consumer for the affected family/cohort.
+6. Return to the prior provider-order/free-first or legacy authority only where it is separately certified safe for the exact family; otherwise block.
+7. Invalidate affected model-selection decisions, reservations where required, manifests, caches, and queued pre-dispatch work.
+8. Revoke or expire canary approvals.
+9. Preserve evaluation, readiness, selection, run, and outcome evidence and compare before/after.
+10. Apply code/schema rollback only if consumer disablement and authority restriction are insufficient.
 
 Data is generally retained for audit; rollback does not delete tenant preferences or variants unless they are unsafe and separately handled.
 
