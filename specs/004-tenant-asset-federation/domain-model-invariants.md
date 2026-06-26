@@ -824,6 +824,43 @@ One logical posting boundary must:
 
 One transaction validates source settlement, net refundable amount, prior compensations, reason code, authority, approval, asset/currency, tax impact, and idempotency, then posts a balanced compensating transaction and readback. It never edits the source transaction.
 
+### Model policy or profile publish
+
+One transaction must:
+
+1. validate exact registry/profile version, owner scope, authority, schema, and adapter allowlist;
+2. reject raw endpoints, headers, executable expressions, secrets, unsupported candidate combinations, or weakened mandatory floors;
+3. validate affected task/capability, evaluation, readiness, fallback, and commercial compatibility;
+4. publish an immutable version and update only the authorized active pointer;
+5. advance the model-governance epoch and invalidate affected decisions/manifests;
+6. write audit and same-cycle readback.
+
+### Evaluation result and scorecard publication
+
+Evaluation ingestion atomically binds exact candidate, suite/dataset/prompt/tool/workflow/environment versions and immutable result evidence. Scorecard publication separately validates accepted runs, sample/confidence/freshness/threshold policy, zero-tolerance failures, separation of duties, and checksum before changing the current scorecard pointer.
+
+### Model selection decision creation
+
+One logical decision boundary must:
+
+1. resolve exact Tenant/principal/context/operation and registered task/capability contract;
+2. snapshot the candidate universe and contributing policy/data/commercial epochs;
+3. evaluate every mandatory gate with explicit source/version/freshness evidence;
+4. exclude ineligible candidates before any ranking;
+5. normalize/rank eligible candidates with the registered optimization profile and deterministic tie-breaker;
+6. construct an independently eligible fallback set with safe-boundary policy;
+7. bind candidate-specific estimate/reservation evidence where required;
+8. persist immutable candidate evidence, selected candidate, fallback, explanation, expiry, checksum, and readback;
+9. roll back the logical decision if evidence or commercial binding is incomplete.
+
+### Model incident restriction or revocation
+
+One transaction validates exact provider/endpoint/model/version scope, reason, authority, approval, effective time, review/expiry, and evidence, then publishes the restriction, advances the epoch, invalidates affected decisions/manifests/caches, and records impacted resources without deleting historical runs.
+
+### Model deprecation apply
+
+One transaction validates a current impact-preview checksum, replacement eligibility/certification, affected-resource inventory, deadline, exceptions, rollback, shadow/canary evidence, and approvals before activating the deprecation run and invalidating new-use paths.
+
 ### Dispatch
 
 The runtime transaction boundary covers internal execution planning and evidence, not the entire external provider operation. It must atomically bind the execution to one valid manifest before provider dispatch and later append result/readback evidence idempotently.
