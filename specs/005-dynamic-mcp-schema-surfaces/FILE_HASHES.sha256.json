@@ -3,6 +3,7 @@
   "checklists/release-readiness.md": "7bce31d39887a994c97a9c488d794cd6ff9bb75ed23257dd373531f75c3dbd81",
   "checklists/requirements.md": "23e5b7dfc43479401e64efbd1a98480ff9c6518b82ff4296e24b74359083691d",
   "checklists/security.md": "b2bf37529783ae5323ab55b9308c2d419836e668de3262d37bfc794ab97105a0",
+  "completion.json": "20c8559995c10c7eaa0b846d851f1dd03248a8ceb2fdd36eaf319482d927aca1",
   "contracts/activation-gateway-attestation.schema.json": "f2e90834296ccedec9eac9a49d0ad1378afeb9264bf443e0bb08250e45b73160",
   "contracts/activation-gateway-policy.schema.json": "19c0a481569fcbd0a26cc03f76682a9a83a665e4bb93f49a5a0d133df9685f8c",
   "contracts/mcp-facade.openapi.yaml": "2d9b4abb6f5515c69f9489cf877c79ffcaf14e68e687ffcf328ab578201664da",
