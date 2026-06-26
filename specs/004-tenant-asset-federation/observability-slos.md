@@ -203,6 +203,22 @@ platform_promotion_candidate_created
 - quota/budget blocks;
 - provider/runtime outages.
 
+### Contextual model governance
+
+- registered task/capability coverage by task and risk family;
+- candidate discovery count and eligible/excluded ratio;
+- exclusion count by lifecycle, capability, data, region, risk, tool, output, evaluation, readiness, entitlement, and commercial gate;
+- selected candidate distribution by provider endpoint, exact model version, inference profile, region, task, risk, Tenant cohort, and optimization profile;
+- evaluation coverage, freshness, sample/confidence sufficiency, zero-tolerance failures, and stale/drifting scorecards;
+- readiness current/degraded/not-ready/unknown/stale distribution and observation lag;
+- deterministic tie frequency and unresolved ambiguity count;
+- fallback-set coverage, activation rate, block/exhaustion rate, downgrade-attempt count, and candidate-specific reservation coverage;
+- provider-order/free-first versus contextual-selection parity and mismatch classification;
+- selection-decision and manifest reconstruction coverage;
+- alias movement, incident restriction, revocation propagation, deprecation progress, and epoch invalidation lag;
+- selected versus realized quality, latency, reliability, customer charge, and provider-cost calibration;
+- model preference adoption, reset, opt-out, and blocked escalation attempts.
+
 ### Personalization
 
 - preference profile adoption;
