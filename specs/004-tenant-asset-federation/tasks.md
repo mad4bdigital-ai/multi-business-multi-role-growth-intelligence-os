@@ -13,7 +13,7 @@
 - [x] Document current code and database evidence.
 - [x] Add current and target relationship diagrams.
 - [ ] Approve terminology and frozen decisions.
-- [ ] Approve privacy, consent, and promotion governance.
+- [x] Approve layered purpose-bound privacy, consent, retention, residency, model/provider data-use, derived-data disposition, and aggregate-learning governance.
 
 ## Repository continuity
 
