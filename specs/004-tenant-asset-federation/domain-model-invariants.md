@@ -89,9 +89,27 @@ Owns no durable secret. It resolves evidence from:
 
 ### Effective Runtime Manifest
 
-Immutable, no-secret attribution record combining context, authority, composition, assets, variants, preferences, and readiness.
+Immutable, no-secret attribution record combining context, authority, composition, assets, variants, preferences, readiness, and the exact data-use decision/version vector.
 
 It is a derived record, not a mutation authority.
+
+### Data-Use Decision
+
+Immutable, explainable eligibility record for one exact actor, context, resource/data reference, operation, purpose, audience, destination, provider/model, region, and policy snapshot.
+
+Owns:
+
+- classification and source versions;
+- registered purpose and allowed-use evidence;
+- lawful-basis and consent evidence where applicable;
+- residency and transfer result;
+- retention and legal-hold result;
+- provider/model data-processing result;
+- most-restrictive applicable policy sources;
+- allow, block, or restrict decision;
+- expiry, governance version vector, explanation, recovery actions, and checksum.
+
+Does not grant resource access, store credential values, create lawful basis, or override a legal hold. It is bound into the Effective Runtime Manifest and revalidated before consequential dispatch.
 
 ### Adaptive Change Proposal
 
