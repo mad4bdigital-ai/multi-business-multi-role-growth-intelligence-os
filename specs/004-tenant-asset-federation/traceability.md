@@ -89,6 +89,17 @@
 | Model/provider data use is separately eligible | governance decision 10; FR-111–FR-112 | region, retention, training, subprocessors, deletion, contract, zero-retention, and fallback tests |
 | Raw cross-Tenant learning is forbidden | governance decision 11; FR-113 | raw-content rejection, cohort, dominance, opt-out, residency, re-identification, and fairness tests |
 | Manifest binds immutable data-use decision and governance versions | governance decision 12, 15; FR-114–FR-115 | decision checksum, explanation, expiry, epoch invalidation, and pre-dispatch revalidation tests |
+| Commercial semantics are database-authoritative | `commercial-finops-decision.md` 2; FR-116–FR-117 | registry version, unknown key, compatibility, activation, and no-hardcoded-customer-rule tests |
+| Credits and money are distinct billing assets | commercial decision 3, 12; FR-117–FR-119 | credits, prepaid, postpaid, conversion-contract, FX, and asset-mismatch tests |
+| Users customize only template-exposed billing fields | commercial decision 4; FR-120–FR-121 | eligible option, allowlist, lower-limit, non-customizable field, conflict, and epoch tests |
+| One direct billable owner resolves per operation | commercial decision 5; FR-122 | direct contract, non-transitivity, missing/ambiguous owner, and attribution-no-liability tests |
+| Metering is multi-dimensional and tokens are one family | commercial decision 6–7; FR-123–FR-127 | operation/time/data/storage/compute/modality/seat/concurrency/channel/business/outcome tests |
+| Technical and billable usage remain explainable | commercial decision 6.4–6.5, 7; FR-126–FR-127 | raw event, composite component, correction, dedupe, late-event, and provenance tests |
+| Rating is separate from measurement and settlement | commercial decision 8–10; FR-128–FR-130 | included units, tiers, packages, commitments, tax/discount, provider-cost versus customer-charge tests |
+| Reservation is atomic and precedes cost-bearing dispatch | commercial decision 11; FR-131–FR-133 | idempotency conflict, concurrent balance/quota, expiry, extension, stop-boundary, and epoch tests |
+| Settlement requires verified evidence and authorized bounds | commercial decision 13; FR-134–FR-135 | usage/outcome verification, overage, release, partial charge, zero charge, and absorbed-cost tests |
+| Ledger is append-only and double-entry balanced | commercial decision 14–15; FR-136 | balanced posting, immutable history, compensating refund/adjustment/dispute/chargeback, and rebuild tests |
+| Standing and manifest linkage are explicit | commercial decision 16–17; FR-137–FR-140 | grace/past-due/paused/cancelled, manifest contribution, commercial epoch, and stable-error tests |
 
 ## Source-to-target traceability
 
