@@ -336,4 +336,8 @@ It never converts unavailable evidence into a false zero.
 - explanations reduce repeated permission/setup confusion;
 - recommendation acceptance is measured with result observation, not clicks alone;
 - personalization opt-out and history are discoverable;
+- eligible users can compare Credits and monetary options and understand reservation, included usage, and statement impact before selection;
+- billing customization exposes only registered allowed fields and explains disabled options through contract/policy evidence;
+- usage is presented through service-relevant meters beyond tokens while technical components remain explainable when permitted;
+- billing-profile preview predicts certified cases and causes no reservation, charge, invoice, payment, provider call, or external write;
 - advanced controls do not obstruct the default shared-asset journey.
