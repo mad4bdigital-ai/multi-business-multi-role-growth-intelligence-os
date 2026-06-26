@@ -217,7 +217,51 @@ The explanation includes:
 
 It never reveals hidden prompts, another user's private preference, or credential material.
 
-## 14. Progressive disclosure
+## 14. Journey L — Choose and customize billing behavior
+
+### Starting context
+
+A user or delegated commercial administrator opens `Billing preferences` for an eligible billing account or Workspace context.
+
+### Flow
+
+1. Platform loads the effective billing-profile template from the database and shows only eligible options.
+2. User compares available models, for example:
+   - Credits;
+   - Direct currency with prepaid balance;
+   - Direct currency with postpaid invoice, only when the contract permits it.
+3. Each option explains:
+   - settlement asset;
+   - included quantities and meter bundle;
+   - expected price/rating source;
+   - reservation behavior;
+   - overage and hard-stop behavior;
+   - statement/invoice implications;
+   - fields the user may customize.
+4. User may select eligible options and customize only allowed fields such as:
+   - presentation currency;
+   - budget alerts and notification cadence;
+   - cost-center or attribution labels;
+   - statement grouping and usage detail;
+   - a lower reservation ceiling;
+   - an eligible included-meter bundle.
+5. Platform previews the exact effective profile, conflicts, expected reservation asset, sample cost for representative meters, commercial-epoch impact, and no more than three recovery actions.
+6. Preview performs no reservation, charge, invoice, payment, provider call, credential read, or external write.
+7. Publication validates template/version, field allowlist, contract, plan, Tenant policy, delegated limits, standing, and approvals.
+8. Affected estimates and manifests invalidate after the new profile version becomes active.
+9. User can inspect history and return to an eligible parent/default profile through a governed selection change.
+
+### Meter experience
+
+The user sees business-relevant meters rather than a token-only view. Depending on the service, usage may be displayed as documents processed, audio/video seconds, storage over time, compute, Agent runs, API calls, seats, messages, leads enriched, reports generated, or verified outcomes.
+
+Advanced detail may disclose technical component meters such as input/output tokens, vector queries, GPU time, or storage bytes when policy permits, but customer billing remains tied to the registered billable meter and price version.
+
+### Forbidden experience
+
+The UI never offers free-form editing of price, tax, FX rate, unit conversion, ledger account, credit limit, billable owner, payment credential, or arbitrary formulas. A disabled option explains the governing contract or policy rather than pretending it is unavailable globally.
+
+## 15. Progressive disclosure
 
 ### Basic users see
 
