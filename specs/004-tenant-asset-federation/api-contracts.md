@@ -294,14 +294,74 @@ Export and import payloads are checksummed, versioned, bounded, and no-secret. E
 
 ## 11. Commercial and FinOps
 
+### Billing models, collection modes, and user-configurable profiles
+
+- `GET /tenant/billing/models`
+- `GET /tenant/billing/collection-modes`
+- `GET /tenant/billing/profile-templates`
+- `GET /tenant/billing/profile-templates/{templateId}`
+- `GET /tenant/billing/profiles`
+- `POST /tenant/billing/profiles`
+- `GET /tenant/billing/profiles/{profileId}`
+- `PATCH /tenant/billing/profiles/{profileId}`
+- `POST /tenant/billing/profiles/{profileId}/preview`
+- `POST /tenant/billing/profiles/{profileId}/publish`
+- `POST /tenant/billing/profile-selections`
+- `DELETE /tenant/billing/profile-selections/{selectionId}`
+- `GET /tenant/billing/profile-selections/effective`
+
+Profile discovery returns only models, modes, currencies/credit units, meter bundles, limits, fields, and options permitted by the signed principal's billing account, contract, subscription, Tenant policy, delegated scope, standing, and template version.
+
+Profile preview returns the effective billing model, collection mode, meters, units, included quantities, budgets, quotas, overage, price/rating references, alerts, approvals, conflicts, commercial-epoch impact, and up to three recovery actions. It performs no reservation, charge, invoice, payment collection, provider call, credential read, or external write.
+
+Profile mutation requires a current template/version, field-level customization allowlist, typed bounded values, exact object authority, idempotency, approval where required, audit, commercial-epoch invalidation, and same-cycle readback. Users cannot edit price, tax, FX, ledger, billable owner, credit limit, or non-customizable contract fields.
+
+### Meter and unit catalog
+
+- `GET /tenant/usage/meters`
+- `GET /tenant/usage/meters/{meterKey}`
+- `GET /tenant/usage/meters/{meterKey}/versions`
+- `GET /tenant/usage/units`
+- `GET /tenant/usage/aggregation-modes`
+- `GET /tenant/usage/summary`
+- `GET /tenant/usage/events`
+- `GET /tenant/usage/billable-records`
+- `GET /tenant/usage/composite-meters/{meterKey}/components`
+
+Catalog responses expose registered definitions, versions, canonical units, aggregation, reservability, billability, verification, late-event/correction, pricing eligibility, and safe examples. They do not expose another Tenant's usage or customer-specific hidden price terms.
+
+Usage-event writes are governed internal ingestion surfaces, not arbitrary tenant-client endpoints. Events require an authorized source, deduplication key, registered meter/version/unit, scaled integer quantity, evidence checksum, and exact Tenant/account/operation/manifest context.
+
+### Entitlement, estimate, and reservation
+
 - `GET /tenant/commercial-entitlements`
+- `POST /tenant/commercial-entitlement-decisions/preview`
 - `POST /tenant/runtime-cost-estimates`
+- `GET /tenant/runtime-cost-estimates/{estimateId}`
 - `POST /tenant/runtime-cost-reservations`
 - `GET /tenant/runtime-cost-reservations/{reservationId}`
+- `POST /tenant/runtime-cost-reservations/{reservationId}/extend`
 - `POST /tenant/runtime-cost-reservations/{reservationId}/release`
-- `GET /tenant/cost-attribution`
 
-A cost reservation binds the exact manifest, operation, currency, unit, amount, expiry, and idempotency key. Settlement/refund is performed by governed internal execution, not arbitrary clients.
+Estimate returns raw, normalized, included, and billable quantities; expected and maximum customer charge; expected internal/provider cost; tax/discount; billing model; collection mode; currency or credit unit; meter/unit/rating/price versions; confidence; checksum; and expiry.
+
+A reservation binds one exact manifest, operation, billable owner, billing account/profile/model, settlement asset type, meter lines, amount/units, budget/quota/standing policy versions, commercial epoch, expiry, and idempotency checksum. Reservation creation is atomic and fails when available budget, quota, balance, included units, or postpaid liability capacity is insufficient.
+
+### Settlement, statements, invoices, disputes, and attribution
+
+- `GET /tenant/runtime-cost-settlements/{settlementId}`
+- `GET /tenant/commercial-statements`
+- `GET /tenant/commercial-statements/{statementId}`
+- `GET /tenant/invoices`
+- `GET /tenant/invoices/{invoiceId}`
+- `GET /tenant/cost-attribution`
+- `POST /tenant/usage-disputes`
+- `GET /tenant/usage-disputes/{disputeId}`
+- `GET /tenant/refund-adjustment-runs/{runId}`
+
+Settlement and ledger posting are governed internal execution, not arbitrary tenant-client writes. Refunds, adjustments, disputes, and chargebacks require exact source transactions, stable reason codes, object authority, approvals, evidence, idempotency, compensating entries, and readback.
+
+Credits, money, and usage units remain separate assets. A credits reservation cannot be settled with money and a monetary reservation cannot be settled with credits without an explicit registered conversion contract and quote/version.
 
 ## 12. Model governance and evaluation
 
