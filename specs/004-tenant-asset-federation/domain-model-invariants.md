@@ -418,6 +418,25 @@ adaptive_proposal_created
 adaptive_experiment_started
 adaptive_experiment_rolled_back
 platform_promotion_candidate_created
+data_classification_changed
+processing_purpose_policy_changed
+consent_granted
+consent_withdrawn
+data_residency_policy_changed
+retention_assignment_changed
+legal_hold_created
+legal_hold_released
+data_subject_request_created
+data_subject_request_item_completed
+data_lineage_changed
+derived_data_disposition_started
+derived_data_disposition_completed
+provider_data_processing_profile_changed
+model_data_use_policy_changed
+data_use_decision_created
+data_governance_epoch_advanced
+cross_tenant_learning_policy_changed
+cross_tenant_learning_run_blocked
 ```
 
 Events contain IDs, versions, tenant scope, reason codes, and checksums; never secret payloads.
