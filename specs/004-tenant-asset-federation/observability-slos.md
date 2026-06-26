@@ -468,7 +468,12 @@ Span attributes use IDs, counts, versions, reason codes, and timing—not raw co
 - invalidation lag exceeds critical threshold;
 - p99 resolver latency sustained above budget;
 - widespread connection/certification failure;
-- calibration degradation causing harmful recommendations.
+- calibration degradation causing harmful recommendations;
+- model evaluation or readiness freshness below task/risk policy;
+- provider-order/free-first shadow comparison produces a contextual-more-permissive or critical mismatch;
+- fallback activation, block, or exhaustion exceeds baseline;
+- emergency revocation propagation or model-governance epoch invalidation exceeds SLO;
+- repeated selection ambiguity, alias movement, scorecard drift, or candidate-specific reservation failure.
 
 ### Medium
 
