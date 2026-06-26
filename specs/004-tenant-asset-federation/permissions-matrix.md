@@ -247,7 +247,60 @@ May only consume data when an immutable data-use decision allows the exact opera
 
 May approve only aggregate-learning policy and runs satisfying Platform hard bounds, Tenant participation, minimum cohort, contribution/dominance, residency, re-identification, provenance, quality, and fairness rules. Raw Tenant content and Tenant-specific examples remain forbidden.
 
-## 8. Composition profile permissions
+## 8. Commercial and FinOps permissions
+
+### Platform commercial governance
+
+May define and activate billing-model, collection-mode, currency, credit-unit, usage-unit, meter, aggregation, rating, price-book schema, profile-template, customizable-field, standing, reason-code, ledger-policy, and state-transition registries. It may define Platform hard bounds, accounting floors, tax/FX source policy, compatibility, and deprecation.
+
+May not use registry authority to expose another Tenant's private usage, silently change an already reserved price, mutate posted ledger entries, or bypass data, authorization, approval, fraud, or payment controls.
+
+### Billing-account owner or Tenant commercial administrator
+
+May, within Platform, contract, subscription, accounting, tax, risk, and payment bounds:
+
+- select allowed billing models and collection modes;
+- create or publish billing profiles from eligible templates;
+- configure delegated budgets, quotas, included units, overage, alerts, statement grouping, and attribution;
+- approve direct commercial relationships where separately authorized;
+- review estimates, reservations, settlements, statements, invoices, disputes, and adjustments;
+- choose stricter limits or require additional approval.
+
+May not invent prices, meters, units, formulas, currencies, FX rates, ledger accounts, tax behavior, or billable ownership outside registered authorities; raise contract ceilings; edit posted entries; or expose payment credentials.
+
+### Brand or Workspace commercial administrator
+
+May customize only delegated profile fields and lower limits for its exact scope, select eligible meter bundles, attribution tags, alerts, and approval thresholds, and inspect scoped usage/cost evidence. It cannot change billing owner/account, parent price book, tax, payment terms, credit limit, or another scope's profile.
+
+### End user
+
+May, when permitted by the active template and contract:
+
+- view eligible billing models, collection modes, meters, units, included quantities, and price explanations;
+- preview Credits versus Direct Monetary Billing;
+- select an eligible billing profile;
+- customize presentation currency, notification/alert preferences, statement grouping, attribution tags, and a lower personal reservation ceiling;
+- view own/scoped usage and submit a dispute.
+
+May not change price, tax, FX, credit conversion, billable owner, credit limit, overage hard maximum, ledger, invoice, payment collection, or non-customizable fields.
+
+### Meter source principal
+
+May submit or derive usage only through an approved internal ingestion contract for registered meter/version/unit and exact Tenant/account/operation/manifest scope. It cannot rate, settle, alter billing ownership, or replay an event to create duplicate billable usage.
+
+### Rating and settlement service principals
+
+May rate verified usage and create reservation/settlement proposals only from registered policies and exact versions. Settlement posting requires exact reservation, verified evidence, idempotency, commercial epoch, and ledger balancing. These principals cannot edit price books, approve their own high-risk adjustments, or access raw payment credentials.
+
+### Finance, refund, and dispute operators
+
+May review scoped statements, invoice, payment-result references, disputes, refunds, adjustments, and reconciliation evidence according to separation-of-duties policy. They cannot mutate original meter events or posted ledger entries; corrections use append-only events and compensating transactions.
+
+### Runtime and Agent principals
+
+May dispatch cost-bearing work only when the manifest binds an active compatible reservation and current commercial decision. They cannot self-select an ineligible model/profile, extend reservations beyond policy, create prices/meters, or continue after safe-stop when extension fails.
+
+## 9. Composition profile permissions
 
 ### User
 
