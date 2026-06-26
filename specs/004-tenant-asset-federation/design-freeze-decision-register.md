@@ -147,11 +147,27 @@ Required defaults:
 
 ### DFR-004 — Commercial and FinOps transaction
 
-**Question:** What is the authoritative sequence for entitlement, estimate, reservation, execution, settlement, refund, and cost attribution?
+**Approved decision:** Dynamic Reservation-First Double-Entry Commercial Transaction with Registry-Driven Billing, Metering, Rating, and User-Configurable Billing Profiles.
 
-**Required outcome:** idempotency, concurrency control, currency/unit rules, billing owner, overage/grace/past-due behavior, and manifest linkage.
+Required defaults:
 
-**Status:** open.
+- commercial configuration is database-authoritative through versioned registries and scoped policy rows;
+- initial billing models are Credits and Direct Monetary Billing, while future approved models may be activated through registered compatible semantics;
+- initial monetary collection modes are prepaid balance and postpaid invoice;
+- Credits, money, and usage units remain separate assets and cannot be mixed silently;
+- users may select or customize only fields exposed by an approved billing-profile template and within contract, plan, Tenant, risk, tax, accounting, payment, and Platform bounds;
+- Tokens are one meter family, not a universal unit; registered meters cover operation count, time, data volume, storage-time, compute, AI modalities, retrieval, seats/entities, concurrency, channels, business operations, and verified outcomes;
+- raw meter events, billable usage, rating, reservation, settlement, and ledger posting remain separately explainable;
+- every consequential cost-bearing operation resolves one billable owner, one billing account/profile, one billing model, one asset type, one manifest, and one commercial epoch;
+- estimate and atomic reservation precede execution unless an explicit bounded postpaid policy permits otherwise;
+- settlement requires verified usage/outcome evidence and cannot exceed authorized amount or units without approved overage;
+- posted commercial ledger entries are append-only and double-entry balanced; refunds and corrections use compensating entries;
+- existing plans, subscriptions, entitlements, credit, usage, quota, and budget authorities remain compatibility inputs until certified cutover;
+- missing, stale, conflicting, ambiguous, or unregistered commercial evidence fails closed.
+
+**Decision evidence:** `commercial-finops-decision.md`.
+
+**Status:** approved_design; implementation_not_authorized.
 
 ### DFR-005 — Contextual model governance
 
