@@ -333,6 +333,30 @@ previewed → ready|blocked → dispatched → completed|failed|partially_verifi
 
 A previewed manifest expires and cannot be promoted to dispatch after epoch/version drift.
 
+### Data-use decision
+
+```text
+previewed → allowed|restricted|blocked → bound_to_manifest → consumed|expired|invalidated
+```
+
+Rules:
+
+- `previewed` performs no effect and contains a bounded evidence snapshot;
+- `allowed` or `restricted` requires all mandatory evidence and the most-restrictive resolution result;
+- `blocked` records stable blocker codes and safe recovery actions;
+- `bound_to_manifest` links one exact actor/context/resource/operation/purpose/provider/destination request;
+- `consumed` does not authorize replay for another operation or destination;
+- expiry or governance-epoch drift moves the decision to `expired` or `invalidated` before dispatch;
+- a changed purpose, classification, consent, hold, region, provider/model, audience, or destination requires a new decision.
+
+### Derived-data disposition run
+
+```text
+draft → previewed → review_required|ready → applying → completed|partially_completed|failed|cancelled
+```
+
+Apply requires a current preview checksum, exact authority, legal-hold revalidation, idempotency, approval where required, item-level outcomes, compensation/retry evidence, and same-cycle readback. Partial completion never reports the privacy or retention request as fully complete.
+
 ## 5. Transaction boundaries
 
 ### Profile publish
