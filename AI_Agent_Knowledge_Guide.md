@@ -1145,3 +1145,11 @@ Controllers must not call repositories directly for resource workflows. Applicat
 Every new or modified feature under `specs/` is governed by `.specify/spec-kit-governance.json` and the changed-scope fail-closed gate `http-generic-api/scripts/spec-kit-completion-gate.mjs`. A governed feature must contain `spec.md`, `plan.md`, `tasks.md`, `completion.json`, and at least one checklist under `checklists/`.
 
 Use `single_pr` only when the feature has no migration, production-verification, or post-merge-audit obligation. Otherwise use `multi_pr`: implementation PRs deliver the behavior and a final closeout PR records CI, release readiness, merge, migration ledger, production parity, audit, and any tracked backlog. A feature marked complete cannot contain unresolved checkboxes.
+
+## Resource surface policy governance
+
+Every active table, view, and enabled Admin or Tenant tool must resolve through `platform_resource_surface_policy_registry`. The policy classifies the surface as resource-facing or internal and declares descriptor, operation, archive, and version requirements with a rationale.
+
+New relations and tools are fail-closed: the same change must add logical Resource API coverage or an explicit active surface-policy decision. Internal registries, logs, ledgers, read models, and tools use explicit `not_applicable` states rather than broad exemptions or artificial public descriptors.
+
+The live audit compares resource-facing policies with `platform_resource_type_registry` and `platform_resource_operation_registry`. Missing policies, missing required coverage, and mismatched resource keys are blocking findings. Physical archive/version columns are checked only when the declared strategy requires them. Migration 1025 performs the additive current-inventory backfill and lifecycle classification cleanup; production closure requires governed migration ledger evidence and a persisted zero-finding live audit.

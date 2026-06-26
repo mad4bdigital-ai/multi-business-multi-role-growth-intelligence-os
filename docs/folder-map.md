@@ -26,6 +26,7 @@ http-generic-api/
 ├─ openapi.yaml
 ├─ openapi.tenant-gpt.auth.yaml
 ├─ resource-api-coverage.manifest.json
+├─ resourceApiCoverageService.js
 └─ test-resource-api-*.mjs
 ```
 
@@ -61,7 +62,11 @@ Additive schema migrations and registry seed data. Destructive operations requir
 
 ### `scripts/`
 
-Repeatable CI and maintenance utilities, including changed-surface resource coverage detection.
+Repeatable CI and maintenance utilities, including changed-surface Resource API coverage detection.
+
+### Resource surface policy authority
+
+`resourceApiCoverageService.js`, `resource-api-coverage.manifest.json`, and `platform_resource_surface_policy_registry` jointly classify tables, views, and tools. A surface must either resolve to a logical resource or declare an explicit internal policy with rationale; broad implicit exemptions are not an architectural boundary.
 
 ### `.specify/` and `specs/`
 
