@@ -111,14 +111,33 @@ export async function inspectGovernedMigrationExecution(input = {}, deps = {}) {
   };
 }
 
+function extractRunnerPayload(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  if (typeof value.ok === "boolean") return value;
+  const nestedRaw = typeof value.message === "string" ? value.message.trim() : "";
+  if (!nestedRaw) return null;
+  try {
+    const nested = JSON.parse(nestedRaw);
+    return nested && typeof nested === "object" && !Array.isArray(nested) && typeof nested.ok === "boolean"
+      ? nested
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function parseRunnerOutput(stdout = "") {
   const raw = String(stdout || "").trim();
   if (!raw) throw toolError("governed_migration_runner_empty_output", "Governed migration runner returned no JSON output.", 502);
+  let parsed;
   try {
-    return JSON.parse(raw);
+    parsed = JSON.parse(raw);
   } catch {
     throw toolError("governed_migration_runner_invalid_output", "Governed migration runner returned invalid JSON output.", 502);
   }
+  const payload = extractRunnerPayload(parsed);
+  if (!payload) throw toolError("governed_migration_runner_invalid_output", "Governed migration runner returned an unsupported JSON envelope.", 502);
+  return payload;
 }
 
 function validateRunnerReadback(result, inspection) {
