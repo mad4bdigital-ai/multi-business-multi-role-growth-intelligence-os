@@ -183,6 +183,52 @@ Append-only balanced transaction containing one or more debit and credit entries
 
 Posted transactions are immutable. Refunds, corrections, disputes, chargebacks, expiries, and reversals use linked compensating transactions.
 
+### Model Capability Profile
+
+Versioned registered task/capability contract independent from any provider/model implementation.
+
+Owns required and optional modalities, languages, context/output bounds, structured-output/tool/streaming/grounding/determinism requirements, risk class, quality/reliability/latency floors, validity, lifecycle, and checksum.
+
+### Model Candidate
+
+Immutable contextual identity of one provider endpoint/deployment, exact model version or alias-resolution snapshot, inference profile, region, data-processing profile, and commercial profile.
+
+A candidate owns no credentials and grants no execution authority.
+
+### Model Evaluation Suite
+
+Versioned evaluation contract owning dataset references, rubric, deterministic validators, human/model-judge policy, adversarial/regression cases, sample requirements, metrics, thresholds, zero-tolerance failures, confidence, freshness, and checksum.
+
+### Model Quality Scorecard
+
+Immutable bounded summary for one exact candidate and contextual evaluation scope.
+
+Owns suite/run versions, sample/corpus scope, metric values/confidence, failure classes, latency/reliability/error/cost observations, regions/endpoints, validity, drift state, and checksum. It does not create eligibility by itself.
+
+### Model Readiness Snapshot
+
+Time-bounded no-secret operational evidence for one exact provider endpoint/model feature set.
+
+Owns credential-presence readiness without value, contract/certification, capacity/quota/rate-limit, circuit breaker, recent success/error/timeout/latency, feature availability, incident state, observed time, expiry, and readiness classification.
+
+### Model Selection Decision
+
+Immutable explainable decision for one exact Tenant/principal/context/operation and registered task/capability contract.
+
+Owns candidate-universe snapshot, deterministic gate results, policy/evaluation/readiness/commercial evidence, optimization profile and metrics, selected candidate, fallback set, model-governance epoch, expiry, explanation, and checksum.
+
+It does not store credentials, perform provider calls, run evaluation, or reserve cost by itself.
+
+### Model Fallback Set
+
+Immutable ordered set of independently eligible candidates bound to one task/capability/risk/data/commercial context and safe-boundary policy.
+
+It cannot include a candidate that failed any mandatory gate.
+
+### Model Deprecation Run
+
+Governed impact/migration workflow owning affected assets/Agents/workflows/profiles/manifests, replacement candidates, deadline, shadow/canary evidence, exceptions, rollback, progress, and completion readback.
+
 ### Adaptive Change Proposal
 
 Governed hypothesis for improving experience, execution, or business outcome.
