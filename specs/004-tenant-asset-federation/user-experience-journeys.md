@@ -359,7 +359,7 @@ Emergency revocation blocks new dispatch immediately and preserves historical ru
 - cross-scope impact;
 - rollout and rollback controls.
 
-## 16. Notification design
+## 17. Notification design
 
 Notifications are event- and preference-aware:
 
