@@ -8,7 +8,11 @@ const MANIFEST_PATH = path.join(ROOT, "resource-api-coverage.manifest.json");
 const ROUTE_PATH = path.join(ROOT, "routes", "resourceApiRoutes.js");
 const OPENAPI_PATH = path.join(ROOT, "openapi.yaml");
 const TENANT_OPENAPI_PATH = path.join(ROOT, "openapi.tenant-gpt.auth.yaml");
-const REQUIRED_STATES = new Set(["active", "existing_writer_only", "existing_runtime_only", "existing_workflows_only", "existing_decision_routes_only", "completed_state_only", "not_applicable", "not_yet_versioned", "blocked_by_policy", "migration_only"]);
+const REQUIRED_STATES = new Set([
+  "active", "existing_writer_only", "existing_runtime_only", "existing_workflows_only",
+  "existing_decision_routes_only", "completed_state_only", "readback_guarded",
+  "not_applicable", "not_yet_versioned", "blocked_by_policy", "migration_only",
+]);
 
 function fail(code, message, details = {}) {
   console.error(JSON.stringify({ ok: false, error: { code, message, details }, secrets_included: false }, null, 2));
@@ -39,8 +43,7 @@ function openApiHas(source, signature) {
 function gitChangedFiles() {
   const candidates = [
     process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}...HEAD` : null,
-    "origin/main...HEAD",
-    "HEAD~1...HEAD",
+    "origin/main...HEAD", "HEAD~1...HEAD",
   ].filter(Boolean);
   for (const range of candidates) {
     try {
@@ -59,6 +62,17 @@ function changedContent(files) {
   }).join("\n");
 }
 
+function declaredSurfacePolicies(source) {
+  const decisions = new Set();
+  const insertRe = /INSERT\s+INTO\s+platform_resource_surface_policy_registry\b[\s\S]*?(?:ON\s+DUPLICATE\s+KEY\s+UPDATE|;)/gi;
+  for (const blockMatch of source.matchAll(insertRe)) {
+    for (const row of blockMatch[0].matchAll(/["'](table|view|tool)["']\s*,\s*["']([A-Za-z0-9_]+)["']/g)) {
+      decisions.add(`${row[1]}:${row[2]}`);
+    }
+  }
+  return decisions;
+}
+
 const args = new Set(process.argv.slice(2));
 const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
 const routeSource = fs.readFileSync(ROUTE_PATH, "utf8");
@@ -66,6 +80,8 @@ const routes = routeSignatures(routeSource);
 const openapi = fs.readFileSync(OPENAPI_PATH, "utf8");
 const tenantOpenapi = fs.readFileSync(TENANT_OPENAPI_PATH, "utf8");
 const findings = [];
+
+if (manifest.new_feature_gate?.require_surface_policy_decision !== true) findings.push({ type: "surface_policy_gate_not_enabled" });
 
 for (const resource of manifest.resources || []) {
   if (!resource.resource_key || !Array.isArray(resource.source_tables) || !resource.operations) {
@@ -91,20 +107,24 @@ for (const signature of manifest.route_operations || []) {
 
 const changedFiles = args.has("--changed") || args.has("--ci") ? gitChangedFiles() : [];
 const combined = changedContent(changedFiles);
+const surfacePolicyDecisions = declaredSurfacePolicies(combined);
 if (combined) {
   const coveredTables = new Set((manifest.resources || []).flatMap((resource) => [...(resource.source_tables || []), ...(resource.read_models || [])]));
   const exemptionPatterns = (manifest.coverage_exemptions?.tables || []).map((row) => ({ ...row, re: new RegExp(row.pattern) }));
-  for (const match of combined.matchAll(/CREATE\s+(?:OR\s+REPLACE\s+)?(?:TABLE|VIEW)\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?([A-Za-z0-9_]+)[`"]?/gi)) {
-    const relation = match[1];
+  for (const match of combined.matchAll(/CREATE\s+(?:OR\s+REPLACE\s+)?(TABLE|VIEW)\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?([A-Za-z0-9_]+)[`"]?/gi)) {
+    const kind = match[1].toLowerCase();
+    const relation = match[2];
     const exempt = exemptionPatterns.some((row) => row.re.test(relation) && (!row.expires_on || new Date(`${row.expires_on}T23:59:59Z`) >= new Date()));
-    if (!coveredTables.has(relation) && !exempt) findings.push({ type: "new_relation_missing_resource_descriptor", relation });
+    if (!coveredTables.has(relation) && !exempt && !surfacePolicyDecisions.has(`${kind}:${relation}`)) {
+      findings.push({ type: "new_relation_missing_surface_policy_decision", surface_kind: kind, relation });
+    }
   }
 
   const manifestTools = new Set(manifest.tool_exports || []);
   for (const match of combined.matchAll(/(?:admin_platform_endpoint_tools|tenant_platform_endpoint_tools)[\s\S]{0,400}?['"]([a-z][a-z0-9_]{3,})['"]/gi)) {
     const toolKey = match[1];
-    if (!manifestTools.has(toolKey) && !["tool_key", "display_name", "description"].includes(toolKey)) {
-      findings.push({ type: "new_tool_missing_resource_operation", tool_key: toolKey });
+    if (!manifestTools.has(toolKey) && !surfacePolicyDecisions.has(`tool:${toolKey}`) && !["tool_key", "display_name", "description"].includes(toolKey)) {
+      findings.push({ type: "new_tool_missing_surface_policy_decision", tool_key: toolKey });
     }
   }
 
@@ -119,12 +139,10 @@ if (combined) {
   }
 }
 
-const unique = [...new Map(findings.map((finding) => [JSON.stringify(finding), finding])).values()];
+const unique = [...new Map(findings.map((row) => [JSON.stringify(row), row])).values()];
 if (unique.length) {
-  fail("resource_api_coverage_gate_failed", "New or declared feature surfaces are missing governed resource API coverage.", {
-    finding_count: unique.length,
-    findings: unique.slice(0, 200),
-    changed_files: changedFiles,
+  fail("resource_api_coverage_gate_failed", "New or declared feature surfaces are missing governed Resource API coverage or an explicit surface-policy decision.", {
+    finding_count: unique.length, findings: unique.slice(0, 200), changed_files: changedFiles,
   });
 }
 
@@ -134,6 +152,7 @@ console.log(JSON.stringify({
   resources: manifest.resources.length,
   route_operations: manifest.route_operations.length,
   tool_exports: manifest.tool_exports.length,
+  surface_policy_decisions: surfacePolicyDecisions.size,
   changed_files_checked: changedFiles.length,
   gate: "fail_closed",
   secrets_included: false,
