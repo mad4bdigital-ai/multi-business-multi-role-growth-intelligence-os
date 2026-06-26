@@ -600,6 +600,78 @@ Billing-profile or estimate preview attempts to create a reservation, invoice li
 
 Expected: no-effect assertion fails the request; no persistent or external side effect occurs.
 
+### Raw model injection
+
+User patches model preference with an arbitrary provider URL, unregistered model ID, or adapter name.
+
+Expected: schema and registry validation reject the request; no preference, credential, endpoint, or epoch state changes.
+
+### Cheap-model gate bypass
+
+A cost-first profile gives the cheapest model a dominant score although it fails groundedness or safety threshold.
+
+Expected: candidate is excluded before ranking and cannot appear in selected or fallback sets.
+
+### High-risk task laundering
+
+Caller labels an authority-sensitive planning operation as generic summarization.
+
+Expected: contextual classifier/policy detects incompatible risk/capability evidence and blocks or requires governed review.
+
+### Stale evaluation reuse
+
+Client replays a selection decision after its required scorecard expires or enters drifting state.
+
+Expected: epoch/version/freshness revalidation blocks with `MODEL_EVALUATION_STALE` or a stricter code.
+
+### Readiness spoof
+
+Provider health claims ready while tool use is unavailable and recent timeout/error evidence is stale or conflicting.
+
+Expected: readiness remains degraded/unknown or blocks; no provider dispatch occurs.
+
+### Fallback to prohibited region
+
+Primary endpoint fails and the next global provider-order candidate processes in an ineligible region.
+
+Expected: candidate is absent from the approved fallback set; execution blocks rather than downgrading policy.
+
+### Cross-candidate reservation reuse
+
+Fallback attempts to use the primary candidate's cost reservation.
+
+Expected: `MODEL_COST_RESERVATION_REQUIRED`; a new candidate-specific estimate/reservation is required.
+
+### Alias substitution
+
+A `latest` alias moves to an unevaluated model version after manifest creation.
+
+Expected: alias-resolution/epoch mismatch invalidates the decision and blocks dispatch.
+
+### Cross-Tenant selection-cache replay
+
+A cached selection decision for one Tenant/account is submitted under another Tenant sharing the same task class.
+
+Expected: context/checksum mismatch and scoped not-found behavior; no candidate, preference, evaluation, or commercial evidence leaks.
+
+### Judge-only authority-sensitive certification
+
+Evaluation submission contains only one model-judge result for an authority-sensitive task.
+
+Expected: scorecard publication blocks because deterministic and independent review requirements are unmet.
+
+### Revoked model in queued execution
+
+A model is revoked after the job is queued but before provider dispatch.
+
+Expected: pre-dispatch revalidation blocks, invalidates the manifest, and records safe failure/dead-letter evidence.
+
+### Preview with hidden model call
+
+Selection preview attempts to invoke a candidate for live scoring or read a credential.
+
+Expected: no-effect transport assertion fails; no model call, credential read, reservation, or external write occurs.
+
 ## 7. Security test classes
 
 - tenant crossover for every resource and route;
