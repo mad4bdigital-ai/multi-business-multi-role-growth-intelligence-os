@@ -11,9 +11,12 @@ This threat model covers:
 - optional variants;
 - connection and credential eligibility;
 - effective runtime manifests;
+- dynamic billing models and user-configurable billing profiles;
+- usage-unit, meter, aggregation, rating, and price-book registries;
+- raw meter events, billable usage, estimates, reservations, settlements, statements, invoices, disputes, and double-entry ledgers;
 - adaptive proposals, simulation, experiments, and platform promotion.
 
-It does not replace connector-, provider-, authentication-, infrastructure-, or deployment-specific threat models.
+It does not replace connector-, provider-, authentication-, payment-processor-, tax-, accounting-, infrastructure-, or deployment-specific threat models.
 
 ## 2. Protected assets
 
