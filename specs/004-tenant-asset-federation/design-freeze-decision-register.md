@@ -171,11 +171,28 @@ Required defaults:
 
 ### DFR-005 — Contextual model governance
 
-**Question:** How are models/providers selected by capability, task, tenant/plan, risk, data policy, region, quality, cost, latency, and readiness?
+**Approved decision:** Capability-First, Policy-Gated, Evidence-Ranked Model Governance.
 
-**Required outcome:** capability schema, policy authority, evaluation suites, fallback restrictions, deprecation, and manifest contribution.
+Required defaults:
 
-**Status:** open.
+- selection starts from a registered task and capability contract, never from a raw model name or global provider order;
+- exact candidates bind provider endpoint, model version, inference profile, region, data-processing profile, and commercial profile;
+- deterministic authority, data, region, risk, tool, output, evaluation, readiness, entitlement, lifecycle, and commercial gates execute before ranking;
+- scores, user preference, low cost, low latency, popularity, and provider order cannot override a failed gate;
+- only eligible candidates are ranked through a registered explainable optimization profile;
+- user/Tenant preferences may narrow or reorder eligible candidates but cannot create eligibility or lower mandatory floors;
+- every contextual use requires versioned evaluation suites, quality scorecards, confidence/freshness evidence, and independent readiness snapshots;
+- fallback is an immutable ordered set of independently eligible candidates, not the next provider in a global list;
+- high-risk and authority-sensitive fallback is disabled by default unless the alternative is certified equivalent;
+- selected and fallback candidates require candidate-specific commercial estimate and reservation under DFR-004;
+- model lifecycle supports restriction, deprecation, emergency revocation, drift, impact preview, migration, rollback, and historical reconstruction;
+- current `provider_order`, `free_first`, task profiles, and model IDs remain compatibility inputs until shadow parity and family-specific cutover;
+- the Effective Runtime Manifest binds the selection decision, exact candidate, policy/evaluation/readiness evidence, fallback set, estimate/reservation, epoch, and expiry;
+- missing, stale, conflicting, revoked, insufficient, or ambiguous mandatory evidence fails closed.
+
+**Decision evidence:** `model-governance-decision.md`.
+
+**Status:** approved_design; implementation_not_authorized.
 
 ### DFR-006 — Universal runtime operation contract
 
