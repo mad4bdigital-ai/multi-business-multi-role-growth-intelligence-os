@@ -689,6 +689,71 @@ draft → open → partially_paid|paid|past_due|disputed → closed|written_off
 
 Invoice state does not rewrite usage or ledger history. Payment collection stores provider references/evidence without raw payment credentials.
 
+### Model version
+
+```text
+discovered → registered → evaluating → certified → active
+→ restricted → deprecated → blocked → retired
+```
+
+Emergency path:
+
+```text
+registered|evaluating|certified|active|restricted|deprecated → revoked
+```
+
+A revoked version cannot return to active without a new governed version/certification record. Historical run evidence remains immutable.
+
+### Model evaluation run
+
+```text
+draft → queued → running → completed|partially_completed|failed|cancelled
+→ reviewed → accepted|rejected
+```
+
+Completion requires immutable per-case/per-metric results, evaluator provenance, dataset/suite/version checksums, and no-secret execution evidence. Partial completion cannot certify a candidate unless the suite explicitly allows and threshold evidence remains sufficient.
+
+### Model quality scorecard
+
+```text
+draft → review_required|ready → current → stale|drifting|failed|revoked|superseded
+```
+
+Publication requires accepted evaluation evidence, sample/confidence/freshness policy, required independent review, and exact candidate/context identity.
+
+### Model readiness snapshot
+
+```text
+observed → ready|degraded|not_ready|unknown → stale|superseded
+```
+
+Readiness is time-bounded evidence, not a durable provider entitlement or credential grant.
+
+### Model selection decision
+
+```text
+previewed → allowed|blocked|approval_required → commercially_reserved
+→ bound_to_manifest → dispatched|expired|invalidated
+```
+
+Rules:
+
+- `previewed` has no provider or commercial side effect;
+- `allowed` requires a non-empty eligible candidate set and deterministic tie resolution;
+- `commercially_reserved` binds candidate-specific estimate/reservation evidence;
+- `bound_to_manifest` fixes selected candidate, fallback set, versions, epoch, and expiry;
+- dispatch is single logical use for the exact operation unless DFR-006 explicitly authorizes replay/resume;
+- contributing policy/evaluation/readiness/lifecycle/commercial drift invalidates before dispatch.
+
+### Model deprecation run
+
+```text
+draft → previewed → review_required|ready → active
+→ migrating → completed|partially_completed|failed|cancelled
+```
+
+Completion requires affected-asset readback, replacement certification, deadline/new-use enforcement, rollback/exception accounting, manifest invalidation, and historical evidence preservation.
+
 ## 5. Transaction boundaries
 
 ### Profile publish
