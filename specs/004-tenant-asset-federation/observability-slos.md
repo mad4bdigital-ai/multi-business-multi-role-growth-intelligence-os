@@ -424,6 +424,19 @@ Span attributes use IDs, counts, versions, reason codes, and timing—not raw co
 - provider health;
 - approval and quota blockers.
 
+### Contextual Model Governance
+
+- task/capability registration and contextual coverage;
+- eligible/excluded candidate funnel and gate reasons;
+- selected provider endpoint/model-version/inference-profile distribution;
+- evaluation-suite and scorecard current/stale/drifting/failed coverage;
+- readiness current/degraded/not-ready/unknown/stale coverage and lag;
+- optimization-profile use, tie/ambiguity, and user-preference effects;
+- fallback coverage, activation, block/exhaustion, certified equivalence, and reservation status;
+- provider-order/free-first shadow parity and critical mismatches;
+- alias movement, incidents, restrictions, revocations, deprecation, and invalidation lag;
+- selected versus realized quality, latency, reliability, customer charge, and provider cost.
+
 ### Adaptive Growth
 
 - opportunities by objective;
