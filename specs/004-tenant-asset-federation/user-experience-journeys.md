@@ -261,7 +261,75 @@ Advanced detail may disclose technical component meters such as input/output tok
 
 The UI never offers free-form editing of price, tax, FX rate, unit conversion, ledger account, credit limit, billable owner, payment credential, or arbitrary formulas. A disabled option explains the governing contract or policy rather than pretending it is unavailable globally.
 
-## 15. Progressive disclosure
+## 15. Journey M — Choose contextual model behavior
+
+### Starting context
+
+A user or delegated administrator opens `Model preferences` for an eligible Tenant, Workspace, activity, Agent, or task context.
+
+### Flow
+
+1. Platform resolves the registered task class, capability contract, data-use policy, region, risk, entitlement, and billing context.
+2. UI shows eligible optimization profiles such as:
+   - quality first;
+   - balanced;
+   - cost first;
+   - latency first;
+   - privacy first;
+   - local only;
+   - reliability first.
+3. Each profile explains mandatory floors, metrics/weights, expected quality/latency/cost trade-offs, data/region behavior, and fallback policy.
+4. When permitted, the user may:
+   - select an eligible optimization profile;
+   - prefer an eligible provider/model;
+   - request privacy-first or local-only behavior;
+   - set lower personal maximum cost or latency;
+   - disable fallback;
+   - pin an eligible exact model version for a low-risk task.
+5. The user cannot enter a raw model ID, provider endpoint, credential, arbitrary ranking formula, or lower a mandatory quality/safety/data/region/tool/output/evaluation/readiness floor.
+6. Preview displays:
+   - exact eligible candidates and versions;
+   - candidates excluded by each hard gate;
+   - evaluation/scorecard/readiness freshness and confidence;
+   - optimization metrics, weights, rank, and deterministic tie-break evidence;
+   - selected candidate and independently eligible fallback set;
+   - provisional customer charge, provider/internal cost, and reservation requirement;
+   - model-governance epoch, expiry, and recovery actions.
+7. Preview performs no provider/model call, credential read, evaluation execution, commercial reservation, lifecycle mutation, or external write.
+8. Publishing a preference creates a new immutable preference revision and invalidates affected previews/manifests when required.
+9. Before provider dispatch, runtime revalidates exact model/version, data/region policy, scorecard, readiness, lifecycle/incident state, reservation, fallback, and governance epoch.
+10. If the selected candidate becomes unavailable before output begins, runtime uses only a manifest-bound eligible fallback or blocks.
+11. If output or tool effects already began, UI reports that automatic model switching is unsafe and follows DFR-006 restart/resume/compensation policy.
+
+### Explanation experience
+
+The default explanation is concise:
+
+```text
+Selected: Candidate A
+Why: passed all mandatory gates; highest balanced score
+Fallback: Candidate B, before-output only
+Cost authorization: reserved
+Evidence freshness: current
+```
+
+Advanced detail exposes safe metric/evidence references without credentials, private prompts, hidden provider contract terms, another Tenant's preferences, or unrestricted evaluation content.
+
+### Incident and deprecation experience
+
+When a model is restricted, revoked, or deprecated, affected users see:
+
+- the exact impacted task/context;
+- whether new use is blocked;
+- eligible replacements;
+- migration deadline;
+- fallback availability;
+- cost/quality/latency differences;
+- rollback or exception status where permitted.
+
+Emergency revocation blocks new dispatch immediately and preserves historical run evidence.
+
+## 16. Progressive disclosure
 
 ### Basic users see
 
