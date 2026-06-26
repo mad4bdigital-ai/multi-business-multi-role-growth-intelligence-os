@@ -273,6 +273,29 @@ Initial targets are design proposals and require benchmark validation.
 
 These align with the current Dynamic Container rollout registry budgets but must be measured against seeded production-like data.
 
+### Model selection preview SLO
+
+Initial design targets, subject to benchmark validation:
+
+- preview availability: 99.9% monthly;
+- p95 latency: ≤ 250 ms for cached current evaluation/readiness evidence and bounded candidate sets;
+- p99 latency: ≤ 750 ms;
+- exact task/capability contract resolution: 100%;
+- mandatory-gate evidence coverage for eligible candidates: 100%;
+- selected/fallback candidates with current evaluation, readiness, lifecycle, and commercial evidence: 100%;
+- candidate exclusions with stable reason code and source/version evidence: 100%;
+- deterministic replay mismatch for identical version vectors: 0;
+- provider/model calls, credential reads, evaluation executions, reservations, lifecycle mutations, or external writes during preview: 0.
+
+### Model revocation and invalidation SLO
+
+- emergency restriction/revocation publication to new selection decisions: immediate after committed authority readback;
+- affected manifest/cache invalidation target: ≤ 30 seconds;
+- queued pre-dispatch revalidation coverage: 100%;
+- dispatch using a revoked exact model version after effective revocation: 0;
+- fallback-set removal/invalidation for revoked candidates: 100%;
+- historical decision/run reconstruction after revocation or retirement: 100%.
+
 ### Mutation SLO
 
 For profile, preference, variant, and connection-binding mutations:
