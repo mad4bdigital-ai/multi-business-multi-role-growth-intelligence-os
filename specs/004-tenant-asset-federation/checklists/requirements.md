@@ -134,6 +134,24 @@
 - [ ] P0 fail-closed and degraded-mode behavior approved.
 - [ ] Initial evaluation suites and thresholds approved.
 
+## Layered purpose-bound data governance
+
+- [x] Access authority is necessary but insufficient for consequential data use.
+- [x] Classification uses sensitivity tiers plus category attributes and non-downgradable protected classes.
+- [x] Every consequential use declares a registered purpose with eligible classes, operations, audiences, destinations, providers/models, regions, retention, and approvals.
+- [x] Lawful-basis and consent evidence is versioned, purpose-bound, and revocable where applicable.
+- [x] Residency covers storage, processing, models/providers, backups, exports, and cross-border transfer mechanisms.
+- [x] Retention and legal hold are independent; hold prevents scoped deletion without granting read authority.
+- [x] Privacy requests cover access, export, correction, restriction, erasure, objection, and consent withdrawal.
+- [x] Lineage and disposition cover summaries, embeddings, indexes, Agent memory, evaluations, analytics, aggregates, artifacts, provider copies, and backups.
+- [x] Provider/model data-use policy covers prompt/response retention, evaluation, training, fine-tuning, embeddings, Agent memory, provider training, deletion, and zero-retention mode.
+- [x] Raw cross-Tenant learning is forbidden and aggregate learning is privacy/cohort/contribution/residency/fairness governed.
+- [x] Every consequential operation binds an immutable data-use decision and governance version vector into the manifest.
+- [x] Most-restrictive applicable rule wins and missing, stale, conflicting, revoked, or ambiguous evidence fails closed.
+- [ ] Initial classification, purpose, lawful-basis, retention, and jurisdiction policy-pack seeds approved for implementation.
+- [ ] Exact aggregate-learning cohort, contribution, re-identification, fairness, and opt-out thresholds approved.
+- [ ] Implementation and migration scope authorized.
+
 ## Review status
 
 - [ ] Product terminology approved.
