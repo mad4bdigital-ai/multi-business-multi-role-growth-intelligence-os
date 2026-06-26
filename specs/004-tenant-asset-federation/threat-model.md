@@ -28,6 +28,11 @@ It does not replace connector-, provider-, authentication-, payment-processor-, 
 - business/brand content and proprietary workflows;
 - effective decision integrity;
 - approval and quota controls;
+- billing-account and billable-owner integrity;
+- billing-profile and commercial-policy integrity;
+- meter/unit/rating/price-book integrity;
+- raw usage and billable-usage evidence;
+- balances, reservations, settlements, ledger, invoice, refund, dispute, and attribution integrity;
 - execution and outcome evidence;
 - experiment and recommendation trust;
 - cross-tenant isolation.
