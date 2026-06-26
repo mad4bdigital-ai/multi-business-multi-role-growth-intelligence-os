@@ -524,6 +524,13 @@ Runbooks must cover:
 - adaptive experiment rollback;
 - platform promotion containment;
 - feature-family cutover rollback;
+- task/capability misclassification or candidate-empty incidents;
+- evaluation poisoning, stale scorecard, or drift containment;
+- readiness spoofing, provider outage, circuit-breaker, and fallback exhaustion;
+- emergency model restriction/revocation and queued-work invalidation;
+- alias movement and unevaluated version substitution;
+- model-selection shadow mismatch and compatibility-router rollback;
+- deprecation replacement, exception, and rollback;
 - repository branch reconciliation.
 
 ## 13. Release observability gates
