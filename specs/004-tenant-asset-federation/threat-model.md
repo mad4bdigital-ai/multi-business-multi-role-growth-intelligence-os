@@ -535,7 +535,20 @@ Expected: no-effect assertion fails the request; no persistent or external side 
 - provider training, retention, subprocessor, deletion, zero-retention, and fallback tests;
 - raw cross-Tenant rejection, minimum-cohort, dominance, repeated-query, re-identification, opt-out, quality, and fairness tests;
 - data-governance epoch drift and stale decision replay tests;
-- preview no-provider-call, no-credential-read, no-transfer, no-deletion, and no-mutation assertions.
+- preview no-provider-call, no-credential-read, no-transfer, no-deletion, and no-mutation assertions;
+- billing-model, collection-mode, profile-template, and customization-field registry schema/compatibility tests;
+- unknown semantic key and arbitrary expression rejection tests;
+- user billing-profile allowlist, parent-bound, conflict, and non-customizable field tests;
+- direct/non-transitive billable-owner and managed-service/reseller relationship tests;
+- Credits/money/usage-unit separation and conversion-contract tests;
+- meter source authority, unit/scale, dimension, deduplication, correction, late-event, and composite-component tests;
+- outcome verification, attribution-window, duplicate, dispute, and fraud tests;
+- included-unit, tier, package, commitment, rounding, rating, price-version, and provider-cost/customer-charge tests;
+- atomic reservation double-spend, idempotency conflict, expiry, extension, release, and safe-stop stress tests;
+- settlement authorization, overage, asset match, evidence, partial-posting, and commercial-epoch tests;
+- double-entry balance, immutable posting, projection rebuild, refund, dispute, chargeback, period-close, and reconciliation tests;
+- grace, past-due, paused, cancelled, fraud/security standing, and payment-recovery allowlist tests;
+- billing-profile, entitlement, estimate, and reservation preview no-charge/no-reservation/no-invoice/no-payment assertions.
 
 ## 8. Residual risks
 
