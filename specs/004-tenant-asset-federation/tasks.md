@@ -155,6 +155,32 @@
 - [ ] Add classification/purpose/consent/residency/retention/hold/provider/model/lineage/aggregate-learning tests.
 - [ ] Prove previews perform no provider call, transfer, deletion, credential read, or external write.
 
+## Dynamic Commercial and FinOps transaction
+
+- [x] Approve registry-driven billing models and collection modes with Credits and Direct Monetary Billing as initial models.
+- [x] Approve database-authoritative units, meters, aggregation modes, rating models, price books, profile templates, customizable fields, and state transitions.
+- [x] Approve user-configurable billing profiles constrained by contract, plan, Tenant policy, delegated limits, field allowlists, and most-restrictive resolution.
+- [x] Approve multi-dimensional metering beyond tokens, including operations, duration, data volume, storage-time, compute, AI modalities, retrieval, seats/entities, concurrency, channels, business operations, and verified outcomes.
+- [x] Separate raw technical usage, billable usage, rating, customer charge, provider/internal cost, reservation, settlement, and ledger posting.
+- [x] Approve one billable owner/account/profile/model/asset/manifest/epoch per reservation and direct non-transitive billing relationships.
+- [x] Approve atomic reservation, bounded streaming extensions, overage controls, settlement verification, unused-capacity release, and stable commercial blockers.
+- [x] Approve immutable balanced double-entry ledger and compensating refund/adjustment/dispute/chargeback entries.
+- [x] Approve manifest linkage, commercial epochs, compatibility projections, APIs, acceptance cases, and fail-closed behavior.
+- [ ] Approve initial active billing-model, collection-mode, currency, credit-unit, unit, meter, aggregation, rating, and reason-code registry seed rows.
+- [ ] Approve initial billing-profile templates and field customization allowlists by plan and service mode.
+- [ ] Approve initial price books, included-unit bundles, tax/discount behavior, overage rates, grace/past-due policies, and FX sources.
+- [ ] Approve direct `bills_for`, reseller, managed-service, and cost-sharing commercial relationship schemas and conflict rules.
+- [ ] Approve accounting chart, ledger account families, posting rules, period close, reconciliation, and audit ownership.
+- [ ] Approve outcome-meter verification, attribution windows, deduplication, dispute windows, and fraud controls.
+- [ ] Implement read-only registry, profile-template, meter/unit, and price-book diagnostics.
+- [ ] Implement no-effect billing-profile, entitlement, estimate, and reservation previews.
+- [ ] Implement immutable meter ingestion, deduplication, correction, aggregation, verification, and billable-usage derivation.
+- [ ] Implement atomic reservation with concurrency, idempotency, expiry, extension, release, and commercial-epoch validation.
+- [ ] Implement settlement, double-entry posting, balance projections, invoice, refund/adjustment, dispute, and readback.
+- [ ] Build compatibility bridges from plans, subscriptions, entitlements, credits, usage, quotas, and budget authorities.
+- [ ] Add profile allowlist, model/asset mismatch, meter/unit, double-spend, streaming extension, late-event, ledger-balance, refund, past-due, and no-effect preview tests.
+- [ ] Prove runtime contains no customer-specific hardcoded prices, meters, units, billing models, or commercial exceptions.
+
 ## Shared catalog
 
 - [ ] Design additive catalog migration.
