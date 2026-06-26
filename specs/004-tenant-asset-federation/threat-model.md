@@ -711,7 +711,20 @@ Expected: no-effect transport assertion fails; no model call, credential read, r
 - settlement authorization, overage, asset match, evidence, partial-posting, and commercial-epoch tests;
 - double-entry balance, immutable posting, projection rebuild, refund, dispute, chargeback, period-close, and reconciliation tests;
 - grace, past-due, paused, cancelled, fraud/security standing, and payment-recovery allowlist tests;
-- billing-profile, entitlement, estimate, and reservation preview no-charge/no-reservation/no-invoice/no-payment assertions.
+- billing-profile, entitlement, estimate, and reservation preview no-charge/no-reservation/no-invoice/no-payment assertions;
+- task-class and capability-contract registration, ambiguity, laundering, and risk-escalation tests;
+- raw model/endpoint/adapter/header/code/secret injection rejection tests;
+- exact candidate identity, alias-resolution, version substitution, and commercial-profile binding tests;
+- deterministic lifecycle/capability/data/region/risk/tool/output/evaluation/readiness/entitlement/commercial gate precedence tests;
+- optimization normalization, floors, confidence, freshness, missing evidence, tie-break, and preference-bound tests;
+- evaluation dataset provenance, contamination, leakage, hidden holdout, deterministic validator, human review, model-judge bias, zero-tolerance, sample, and confidence tests;
+- quality scorecard current/stale/drifting/insufficient/failed/revoked state tests;
+- readiness source, credential-presence, region, quota/capacity, rate-limit, circuit-breaker, feature availability, incident, stale/unknown, and spoofing tests;
+- independently eligible fallback, high-risk certified-equivalence, downgrade prevention, exhaustion, and safe-boundary tests;
+- candidate-specific estimate/reservation, provider-cost/customer-charge, and cross-candidate reuse tests;
+- selection-cache Tenant/context/purpose/region/risk/commercial isolation and replay tests;
+- restriction/revocation/deprecation/alias-movement epoch propagation, queued-job, cache, manifest, and historical reconstruction tests;
+- selection/deprecation preview no-provider-call, no-credential-read, no-evaluation-run, no-reservation, no-lifecycle-mutation, and no-external-write assertions.
 
 ## 8. Residual risks
 
