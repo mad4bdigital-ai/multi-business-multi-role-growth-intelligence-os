@@ -589,6 +589,51 @@ One transaction must:
 6. invalidate affected manifests;
 7. audit/read back.
 
+### Billing-profile publish
+
+One transaction must:
+
+1. validate billing-account/context ownership and exact template/version;
+2. validate every changed field against the customization registry and parent limits;
+3. resolve model/mode/meter/rating/price compatibility and standing;
+4. detect equal-ranked conflicts and required approvals;
+5. publish an immutable active profile version and update its active pointer;
+6. advance the commercial epoch and invalidate affected estimates/manifests;
+7. write audit and same-cycle readback.
+
+### Atomic cost reservation
+
+One transaction must:
+
+1. validate the current commercial decision, estimate, manifest, owner/account/profile/model, asset type, standing, and epoch;
+2. lock or compare-and-swap every affected balance/quota/budget/included-unit/liability projection;
+3. verify available capacity after posted settlements, active reservations, and committed liabilities;
+4. create one idempotent reservation and itemized reservation lines;
+5. decrement or mark reserved capacity exactly once;
+6. record expiry, safe-stop/extension behavior, audit, and readback;
+7. roll back all claims if any line cannot reserve.
+
+### Meter ingestion and rating
+
+Raw event ingestion atomically validates source, scope, meter/version/unit, scaled quantity, dimensions, deduplication key, and evidence before append. Rating reads immutable events/aggregates and writes derived billable records without mutating source measurements.
+
+### Settlement and ledger posting
+
+One logical posting boundary must:
+
+1. lock/check reservation and settlement idempotency;
+2. revalidate operation/manifest, owner/account/profile/model, commercial epoch, verified usage/outcome, price/rating, overage, and standing policy;
+3. calculate customer charge and provider/internal cost separately;
+4. create one balanced append-only ledger transaction and entries;
+5. create invoice/statement references where applicable;
+6. consume authorized reservation and release unused capacity exactly once;
+7. persist item-level evidence, audit, and same-cycle balance/ledger readback;
+8. expose partial failure as reconciliation-required rather than complete.
+
+### Refund or adjustment posting
+
+One transaction validates source settlement, net refundable amount, prior compensations, reason code, authority, approval, asset/currency, tax impact, and idempotency, then posts a balanced compensating transaction and readback. It never edits the source transaction.
+
 ### Dispatch
 
 The runtime transaction boundary covers internal execution planning and evidence, not the entire external provider operation. It must atomically bind the execution to one valid manifest before provider dispatch and later append result/readback evidence idempotently.
