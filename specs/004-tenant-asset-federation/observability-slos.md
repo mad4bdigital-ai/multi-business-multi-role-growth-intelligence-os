@@ -94,6 +94,35 @@ execution_failed
 readback_verified
 ```
 
+### Contextual model governance
+
+```text
+model_task_class_resolved
+model_capability_contract_resolved
+model_candidate_discovered
+model_candidate_excluded
+model_candidate_ranked
+model_selection_previewed
+model_selection_allowed
+model_selection_blocked
+model_selection_decision_created
+model_preference_changed
+model_evaluation_started
+model_evaluation_completed
+model_scorecard_published
+model_scorecard_stale
+model_drift_detected
+model_readiness_observed
+model_readiness_degraded
+model_fallback_selected
+model_fallback_blocked
+model_version_restricted
+model_version_revoked
+model_deprecation_started
+model_deprecation_completed
+model_governance_epoch_advanced
+```
+
 ### Adaptive growth
 
 ```text
