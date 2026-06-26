@@ -333,6 +333,42 @@ Client resubmits an approval-bound write after role/policy change.
 
 Expected: manifest/epoch mismatch or consumed/expired approval blocks.
 
+### Purpose laundering
+
+User with CRM read permission submits customer records to a model under an unrelated `product_improvement` purpose.
+
+Expected: `PROCESSING_PURPOSE_NOT_ALLOWED`; no content transfer, provider call, credential read, or derived artifact creation.
+
+### Consent replay after withdrawal
+
+Client reuses a previously allowed marketing decision after consent withdrawal.
+
+Expected: governance epoch/version mismatch blocks; dependent derived-data disposition is queued or required.
+
+### Residency bypass through fallback
+
+Preferred model is unavailable and fallback would process outside the allowed region or retain prompts.
+
+Expected: fallback excluded; operation blocks rather than weakening residency or zero-retention requirements.
+
+### Legal-hold overreach
+
+Operator creates a broad hold and attempts to use it to list or read unrelated customer records.
+
+Expected: hold creation requires exact scope and approval; ordinary object authorization still blocks read/discovery.
+
+### Incomplete erasure claim
+
+Primary record is deleted while embedding, Agent memory, provider copy, and backup item remain unresolved.
+
+Expected: request remains partially completed or blocked; completion certificate is not issued.
+
+### Small-cohort aggregate query
+
+Analyst repeatedly queries aggregate learning for a cohort below threshold to infer one Tenant's behavior.
+
+Expected: `CROSS_TENANT_COHORT_TOO_SMALL`, rate/disclosure controls apply, and no output is persisted or promoted.
+
 ## 7. Security test classes
 
 - tenant crossover for every resource and route;
