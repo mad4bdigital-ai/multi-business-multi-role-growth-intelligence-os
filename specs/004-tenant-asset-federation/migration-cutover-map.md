@@ -349,6 +349,9 @@ Migration is complete only when:
 - user preferences and optional variants are available without authority escalation;
 - executions link to effective manifests;
 - adaptive proposals use measured evidence;
+- model selection for each migrated task/risk family starts from registered capability contracts, uses current evaluation/readiness evidence, independently eligible fallback, candidate-specific commercial authorization, and reconstructable manifests;
+- provider-order/free-first and hardcoded task/model behavior is retired only for certified families and remains documented compatibility debt elsewhere;
+- emergency model restriction/revocation, drift, deprecation, alias movement, rollback, and historical reconstruction are operational;
 - all target families are cut over or explicitly retained as legacy with documented debt;
 - operational dashboards, SLOs, rollback, and runbooks are active;
 - deprecated authorities are retired only through separate approved work.
