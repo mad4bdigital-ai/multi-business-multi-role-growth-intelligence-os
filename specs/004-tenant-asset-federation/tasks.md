@@ -181,6 +181,34 @@
 - [ ] Add profile allowlist, model/asset mismatch, meter/unit, double-spend, streaming extension, late-event, ledger-balance, refund, past-due, and no-effect preview tests.
 - [ ] Prove runtime contains no customer-specific hardcoded prices, meters, units, billing models, or commercial exceptions.
 
+## Contextual Model Governance
+
+- [x] Approve capability-first, policy-gated, evidence-ranked model/provider selection.
+- [x] Approve exact candidate identity across provider endpoint, model version, inference profile, region, data-processing profile, and commercial profile.
+- [x] Approve registered task classes and versioned capability contracts as the selection starting point.
+- [x] Approve deterministic lifecycle, capability, entitlement, authority, data, region, risk, tool, output, evaluation, readiness, incident/deprecation, and commercial gates before ranking.
+- [x] Approve explainable optimization profiles and bounded user/Tenant preferences that cannot create eligibility or lower mandatory floors.
+- [x] Approve contextual evaluation suites, provenance-linked datasets, metric thresholds, zero-tolerance failures, scorecards, freshness, confidence, and drift states.
+- [x] Approve readiness snapshots independent from quality and explicit stale/unknown behavior.
+- [x] Approve immutable independently eligible fallback sets, high-risk certified equivalence, and candidate-specific estimate/reservation.
+- [x] Approve restriction, deprecation, emergency revocation, alias movement, impact preview, migration, rollback, and model-governance epochs.
+- [x] Approve selection-decision and Effective Runtime Manifest linkage, stable errors, no-effect preview, migration compatibility, acceptance, and threat boundaries.
+- [ ] Approve initial task-class, capability, metric, optimization-profile, lifecycle, and error registry seed values.
+- [ ] Approve initial provider endpoint/deployment profiles, exact model-version inventory, inference profiles, alias policy, and region/data-processing contracts.
+- [ ] Approve evaluation datasets, rubrics, deterministic validators, human/model-judge policy, thresholds, sample sizes, zero-tolerance failures, and freshness by task/risk family.
+- [ ] Approve readiness sources, observation windows, circuit-breaker policy, stale/unknown behavior, and incident authority.
+- [ ] Approve user/Tenant model-preference templates and customizable field allowlists.
+- [ ] Approve optimization normalization, metric weights/floors, confidence handling, and deterministic tie-breakers.
+- [ ] Approve fallback safe boundaries, certified-equivalence rules, and DFR-006 handoff after partial output/tool effects.
+- [ ] Implement read-only task/capability, candidate, evaluation, scorecard, readiness, lifecycle, and policy projections.
+- [ ] Implement no-effect model-selection and deprecation previews.
+- [ ] Implement immutable candidate gate/ranking evidence, selection decisions, fallback sets, and governance epochs.
+- [ ] Integrate candidate-specific DFR-004 estimate/reservation and pre-dispatch revalidation.
+- [ ] Build shadow comparison against current `provider_order`, `free_first`, task profiles, model IDs, and provider adapters.
+- [ ] Add capability/data/region/tool/output/evaluation/readiness/commercial exclusion, preference escalation, fallback, drift, revocation, alias, and preview-no-effect tests.
+- [ ] Prove no registry path can inject arbitrary provider URL/header/code/secret or bypass allowlisted adapters.
+- [ ] Certify and cut over task/risk families independently with rollback; remove compatibility routing only after parity.
+
 ## Shared catalog
 
 - [ ] Design additive catalog migration.
