@@ -1,0 +1,202 @@
+import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
+const API_DIR = path.dirname(fileURLToPath(import.meta.url));
+const DEFAULT_MIGRATIONS_DIR = path.join(API_DIR, "migrations");
+const DEFAULT_RUNNER_PATH = path.join(API_DIR, "scripts", "governed-migration-runner.mjs");
+const MIGRATION_PATTERN = /^[A-Za-z0-9._-]+\.sql$/;
+const SHA256_PATTERN = /^[0-9a-f]{64}$/;
+
+function toolError(code, message, status = 400, details = undefined) {
+  const error = new Error(message);
+  error.code = code;
+  error.status = status;
+  if (details !== undefined) error.details = details;
+  return error;
+}
+
+export function governedMigrationApplyConfirmation(migration = "") {
+  const normalized = String(migration || "")
+    .replace(/\.sql$/i, "")
+    .replace(/[^A-Za-z0-9]+/g, "_")
+    .toUpperCase();
+  return `APPLY_${normalized}`;
+}
+
+export function splitGovernedMigrationStatements(sql = "") {
+  const boundaryStart = "(?:CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:TABLE|VIEW)|CREATE\\s+(?:UNIQUE\\s+)?INDEX|INSERT\\s+(?:IGNORE\\s+)?INTO|UPDATE\\s+`?[A-Za-z0-9_]+`?|ALTER\\s+TABLE|DROP\\s+TABLE|TRUNCATE\\s+TABLE|DELETE\\s+FROM)\\b";
+  const interStatementTrivia = "(?:\\s|--[^\\n]*(?:\\n|$)|/\\*[\\s\\S]*?\\*/)*";
+  const statementBoundary = new RegExp(`;${interStatementTrivia}(?=${interStatementTrivia}(?:${boundaryStart})|$)`, "i");
+  return String(sql || "").split(statementBoundary).map((statement) => statement.trim()).filter(Boolean);
+}
+
+function normalizeInput(input = {}) {
+  const migration = String(input.migration || "").trim();
+  const mode = String(input.mode || "dry_run").trim().toLowerCase();
+  const expectedChecksum = String(input.expected_checksum_sha256 || "").trim().toLowerCase();
+  const expectedStatementCount = Number(input.expected_statement_count);
+
+  if (!MIGRATION_PATTERN.test(migration) || path.basename(migration) !== migration) {
+    throw toolError("invalid_migration_filename", "migration must be one repository migration filename ending in .sql.");
+  }
+  if (!["dry_run", "apply"].includes(mode)) {
+    throw toolError("invalid_migration_execution_mode", "mode must be dry_run or apply.");
+  }
+  if (!SHA256_PATTERN.test(expectedChecksum)) {
+    throw toolError("invalid_expected_migration_checksum", "expected_checksum_sha256 must be a lowercase SHA-256 value.");
+  }
+  if (!Number.isInteger(expectedStatementCount) || expectedStatementCount < 1 || expectedStatementCount > 5000) {
+    throw toolError("invalid_expected_statement_count", "expected_statement_count must be an integer from 1 to 5000.");
+  }
+
+  return {
+    migration,
+    mode,
+    expectedChecksum,
+    expectedStatementCount,
+    confirm: String(input.confirm || "").trim(),
+    capabilityEnvelopeId: String(input.capability_envelope_id || "").trim(),
+  };
+}
+
+export async function inspectGovernedMigrationExecution(input = {}, deps = {}) {
+  const normalized = normalizeInput(input);
+  const migrationsDir = deps.migrationsDir || DEFAULT_MIGRATIONS_DIR;
+  const migrationPath = path.join(migrationsDir, normalized.migration);
+  const sql = await (deps.readFile || fs.readFile)(migrationPath, "utf8");
+  const checksum = createHash("sha256").update(sql, "utf8").digest("hex");
+  const statementCount = splitGovernedMigrationStatements(sql).length;
+
+  if (checksum !== normalized.expectedChecksum) {
+    throw toolError("migration_checksum_mismatch", "Merged migration checksum does not match the approved checksum.", 409, {
+      migration: normalized.migration,
+      expected_checksum_sha256: normalized.expectedChecksum,
+      actual_checksum_sha256: checksum,
+      secrets_included: false,
+    });
+  }
+  if (statementCount !== normalized.expectedStatementCount) {
+    throw toolError("migration_statement_count_mismatch", "Merged migration statement count does not match the approved count.", 409, {
+      migration: normalized.migration,
+      expected_statement_count: normalized.expectedStatementCount,
+      actual_statement_count: statementCount,
+      secrets_included: false,
+    });
+  }
+
+  const requiredConfirmation = governedMigrationApplyConfirmation(normalized.migration);
+  if (normalized.mode === "apply" && normalized.confirm !== requiredConfirmation) {
+    throw toolError("migration_apply_confirmation_required", `Apply requires confirm=${requiredConfirmation}.`, 409, {
+      migration: normalized.migration,
+      required_confirmation: requiredConfirmation,
+      secrets_included: false,
+    });
+  }
+  if (normalized.mode === "apply" && !normalized.capabilityEnvelopeId) {
+    throw toolError("migration_apply_capability_envelope_required", "Apply requires capability_envelope_id.", 403);
+  }
+
+  return {
+    ...normalized,
+    migrationPath,
+    migration_checksum_sha256: checksum,
+    statement_count: statementCount,
+    required_confirmation: requiredConfirmation,
+    secrets_included: false,
+  };
+}
+
+function parseRunnerOutput(stdout = "") {
+  const raw = String(stdout || "").trim();
+  if (!raw) throw toolError("governed_migration_runner_empty_output", "Governed migration runner returned no JSON output.", 502);
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw toolError("governed_migration_runner_invalid_output", "Governed migration runner returned invalid JSON output.", 502);
+  }
+}
+
+function validateRunnerReadback(result, inspection) {
+  if (!result || result.ok !== true) {
+    throw toolError("governed_migration_runner_blocked", "Governed migration runner did not return a successful result.", 409, result || undefined);
+  }
+  if (String(result.migration || "") !== inspection.migration) {
+    throw toolError("governed_migration_runner_migration_mismatch", "Runner migration readback does not match the requested migration.", 502);
+  }
+  if (String(result.migration_checksum_sha256 || "").toLowerCase() !== inspection.migration_checksum_sha256) {
+    throw toolError("governed_migration_runner_checksum_mismatch", "Runner checksum readback does not match the approved checksum.", 502);
+  }
+  if (Number(result.statement_count ?? result.statements_executed) !== inspection.statement_count) {
+    throw toolError("governed_migration_runner_statement_count_mismatch", "Runner statement-count readback does not match the approved count.", 502);
+  }
+
+  if (inspection.mode === "dry_run") {
+    if (result.applies_sql !== false || result.mode !== "dry_run") {
+      throw toolError("governed_migration_dry_run_contract_violation", "Dry-run result must confirm applies_sql=false.", 502);
+    }
+    return;
+  }
+
+  if (result.mode !== "apply" || result.applies_sql !== true || Number(result.statements_executed) !== inspection.statement_count) {
+    throw toolError("governed_migration_apply_readback_failed", "Apply readback did not confirm all approved statements were executed.", 502);
+  }
+  if (result.ledger?.recorded !== true || !result.ledger?.run_id) {
+    throw toolError("governed_migration_ledger_readback_failed", "Apply readback did not confirm a governed migration ledger row.", 502);
+  }
+  const requiredObjects = Array.isArray(result.requirements?.schema_objects) ? result.requirements.schema_objects : [];
+  const afterObjects = new Set(Array.isArray(result.after_schema_objects) ? result.after_schema_objects : []);
+  const missingObjects = requiredObjects.filter((name) => !afterObjects.has(name));
+  if (missingObjects.length) {
+    throw toolError("governed_migration_schema_readback_failed", "Apply readback is missing required schema objects.", 502, {
+      missing_schema_objects: missingObjects,
+      secrets_included: false,
+    });
+  }
+}
+
+export async function runGovernedMigrationExecution(input = {}, deps = {}) {
+  const inspection = await inspectGovernedMigrationExecution(input, deps);
+  let capability = null;
+  if (inspection.mode === "apply") {
+    if (typeof deps.authorizeApply !== "function") {
+      throw toolError("governed_migration_apply_authorizer_missing", "Apply authorization callback is required.", 500);
+    }
+    capability = await deps.authorizeApply(inspection);
+  }
+
+  const runnerPath = deps.runnerPath || DEFAULT_RUNNER_PATH;
+  const args = [runnerPath, `--migration=${inspection.migration}`, inspection.mode === "apply" ? "--apply" : "--dry-run"];
+  if (inspection.mode === "apply") args.push(`--confirm=${inspection.required_confirmation}`);
+  const execute = deps.execFile || execFileAsync;
+  let execution;
+  try {
+    execution = await execute(process.execPath, args, {
+      cwd: deps.apiDir || API_DIR,
+      timeout: Number(deps.timeoutMs || 300000),
+      maxBuffer: Number(deps.maxBuffer || 4 * 1024 * 1024),
+      windowsHide: true,
+    });
+  } catch (error) {
+    throw toolError("governed_migration_runner_failed", "Governed migration runner process failed.", 502, {
+      exit_code: error?.code ?? error?.exitCode ?? null,
+      secrets_included: false,
+    });
+  }
+
+  const result = parseRunnerOutput(execution?.stdout);
+  validateRunnerReadback(result, inspection);
+  return {
+    ...result,
+    execution_mode: inspection.mode,
+    capability_envelope_id: capability?.envelope_id || null,
+    checksum_verified_before_execution: true,
+    statement_count_verified_before_execution: true,
+    same_cycle_readback_verified: true,
+    secrets_included: false,
+  };
+}
