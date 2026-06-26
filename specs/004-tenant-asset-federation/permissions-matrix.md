@@ -12,6 +12,7 @@
 | Variant | Has an authorized scope customized an asset? | optional variant and patches |
 | Readiness | Can the operation run now? | connection, installation, credential eligibility, certification, quota, approval |
 | Data governance | May this authorized data be processed for this exact purpose, audience, destination, provider/model, region, and retention context? | classification, purpose, lawful-basis/consent, residency/transfer, retention/legal-hold, lineage/disposition, provider/model, and data-use decision authorities |
+| Commercial and FinOps | Is this exact operation entitled, measurable, priced, funded/reservable, billable, and settleable for one account/profile/model/asset/manifest? | billing account/owner, model/profile, meter/unit, rating/price, entitlement, estimate, reservation, settlement, ledger, standing, and commercial-epoch authorities |
 | Adaptation | Should a change be proposed? | adaptive proposal and experiment authorities |
 
 No plane silently substitutes for another.
