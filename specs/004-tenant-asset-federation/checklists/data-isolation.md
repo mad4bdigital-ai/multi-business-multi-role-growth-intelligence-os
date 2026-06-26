@@ -158,6 +158,25 @@
 - [ ] Cross-Tenant meter replay, billing-owner confusion, profile leakage, invoice enumeration, and ledger cross-posting tests implemented.
 - [ ] Managed-service and reseller billing isolation tests implemented for direct and non-transitive relationships.
 
+## Model governance isolation
+
+- [x] Every model preference, selection decision, candidate evidence row, fallback set, evaluation run, scorecard, readiness snapshot, and incident/deprecation scope carries exact Tenant/context or explicit Platform ownership.
+- [x] Candidate discovery returns only options eligible for the signed principal's Tenant, plan, data policy, region, risk, commercial account, and exact context.
+- [x] A shared model/provider/capability definition contains no Tenant-private prompt, usage, price term, evaluation sample, preference, or credential value.
+- [x] Tenant-scoped optimization preferences and model pins cannot affect another Tenant or Platform defaults.
+- [x] Evaluation datasets and results apply object-level authority, purpose, sensitivity, residency, retention, and audience policy before access or reuse.
+- [x] Cross-Tenant aggregate quality evidence may be used only through approved privacy-governed aggregation and cannot expose raw Tenant content or identifiable examples.
+- [x] Provider endpoint profiles and readiness snapshots expose only no-secret status and exact eligible scope; credential values remain in connection/vault authorities.
+- [x] Candidate evidence and explanations redact hidden provider contract terms and another Tenant's private commercial or evaluation data.
+- [x] A model-selection decision from one Tenant/context/account cannot be reused in another because cache/manifest identity includes Tenant, principal, context, data-use decision, commercial refs, and governance epoch.
+- [x] Fallback sets are bound to the same Tenant/context/capability/data/commercial scope and cannot cross to another Tenant's endpoint, credential, reservation, or policy.
+- [x] Managed-service, reseller, parent, support, or white-label relationships do not imply access to client model preferences, evaluation data, readiness, prompts, or credentials.
+- [x] Model run and outcome evidence remains Tenant-scoped even when the same shared model version is used across multiple Tenants.
+- [x] Historical selection evidence preserves exact scope and cannot be globally exposed merely because a model becomes deprecated or retired.
+- [x] Model incident restrictions may be Platform-wide or exactly scoped but never silently broaden Tenant data visibility.
+- [ ] Cross-Tenant candidate-list leakage, preference reuse, evaluation-sample exposure, readiness inference, fallback substitution, and selection-cache poisoning tests implemented.
+- [ ] Managed-service and shared-provider isolation tests implemented for model selection, runs, outcomes, and commercial reservations.
+
 ## Artifact and recovery isolation
 
 - [x] Provenance exposes safe source IDs/evidence without another tenant's private content.
