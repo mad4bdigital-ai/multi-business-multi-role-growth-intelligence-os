@@ -65,6 +65,24 @@ function fakeResult(mode) {
 }
 
 {
+  const structuredEnvelope = {
+    timestamp: "2026-06-26T14:35:39.644Z",
+    level: "LOG",
+    message: JSON.stringify(fakeResult("dry_run"), null, 2),
+  };
+  const result = await runGovernedMigrationExecution(baseInput(), {
+    execFile: async () => ({
+      stdout: JSON.stringify(structuredEnvelope),
+      stderr: "",
+    }),
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.mode, "dry_run");
+  assert.equal(result.applies_sql, false);
+  assert.equal(result.same_cycle_readback_verified, true);
+}
+
+{
   let executed = false;
   await assert.rejects(
     () => runGovernedMigrationExecution({ ...baseInput("apply"), confirm: "WRONG" }, {
