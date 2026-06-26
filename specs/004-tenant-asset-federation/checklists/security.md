@@ -180,6 +180,29 @@
 - [ ] Ledger chart, posting engine, period close, refund/dispute, and reconciliation receive accounting/security review.
 - [ ] Meter source trust, outcome fraud, replay, late-event, and double-spend tests pass before implementation.
 
+## Contextual Model Governance security
+
+- [x] Task classes, capabilities, provider endpoints, model versions, inference profiles, context policies, optimization profiles, evaluation suites, scorecards, readiness, fallback, incidents, and lifecycle resolve from versioned authorities.
+- [x] Runtime rejects unregistered task classes, raw model IDs/endpoints, arbitrary formulas, unsupported combinations, stale versions, and ambiguous selection.
+- [x] Database rows can select only allowlisted provider adapter keys and cannot introduce arbitrary URLs, headers, SQL, JavaScript, shell, executable model code, or secrets.
+- [x] Hard eligibility gates execute before ranking and cannot be bypassed by score, preference, provider order, cost, latency, or availability.
+- [x] Model preference is field-allowlisted and cannot lower data, region, safety, quality, tool, output, evaluation, readiness, lifecycle, or commercial floors.
+- [x] Exact candidate identity pins endpoint/deployment, model version or alias snapshot, inference profile, region, data-processing profile, and commercial profile.
+- [x] Evaluation datasets/results are provenance-linked, access-controlled, residency/retention constrained, and do not expose another Tenant's private content.
+- [x] Model-judge evidence is separated from deterministic and human evidence and cannot solely certify high-risk tasks.
+- [x] Scorecard freshness, confidence, sample coverage, zero-tolerance failures, and drift are enforced by task/risk policy.
+- [x] Readiness snapshots expose no credential values and distinguish ready, degraded, not-ready, unknown, and stale.
+- [x] Fallback candidates independently pass all hard gates and cannot be inferred from a global provider list.
+- [x] Authority-sensitive fallback requires certified equivalence and is disabled by default.
+- [x] Candidate-specific estimate/reservation prevents cross-candidate cost authorization reuse.
+- [x] Pre-dispatch revalidation blocks revoked, restricted, deprecated, stale-evaluation, unready, region-ineligible, or epoch-stale candidates.
+- [x] Restriction/revocation and material alias movement invalidate affected decisions/manifests without deleting historical evidence.
+- [x] Selection decisions and manifests are immutable, expiring, explainable, checksummed, and no-secret.
+- [x] Selection preview performs no provider/model call, credential read, evaluation execution, reservation, lifecycle mutation, or external write.
+- [ ] Initial registry seeds, evaluation suites, readiness sources, optimization metrics, and fallback equivalence receive security/data/accounting review.
+- [ ] Prompt injection, evaluation poisoning, benchmark leakage, readiness spoofing, preference escalation, fallback downgrade, and adapter injection tests pass before implementation.
+- [ ] Emergency revocation, cache invalidation, stale manifest, and historical reconstruction exercises pass before enforcement.
+
 ## API and implementation
 
 - [x] All external input is validated.
