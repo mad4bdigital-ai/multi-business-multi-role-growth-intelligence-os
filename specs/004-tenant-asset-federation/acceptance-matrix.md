@@ -158,6 +158,30 @@
 | Classification, purpose, or lawful-basis evidence is ambiguous | Most-restrictive evaluation fails closed and records the conflicting sources |
 | Personal Workspace attempts to receive restricted company data | Transfer/copy blocks under Tenant, audience, purpose, and destination policy despite user ownership of the personal context |
 | Data-use preview is requested | It returns classification, purpose, basis/consent, residency, retention/hold, provider/model, audience/destination, policy sources, blockers, checksum, and expiry without any provider call, deletion, transfer, or external write |
+| Billing account permits Credits and Direct Monetary Billing | User can preview and select either eligible model; effective price, reservation asset, collection mode, included units, and maximum charge are explained before publish |
+| Billing account permits prepaid only | User attempt to select postpaid invoice blocks with `COLLECTION_MODE_NOT_ALLOWED` and does not alter the active profile |
+| User customizes a billing profile | Only template-exposed typed fields such as eligible model, presentation currency, alerts, attribution tags, lower reservation ceiling, and statement grouping can change |
+| User attempts to edit a price, tax rule, FX rate, ledger account, billable owner, credit limit, or non-customizable field | Mutation blocks with `BILLING_PROFILE_FIELD_NOT_CUSTOMIZABLE` and preserves the prior profile/version |
+| Two equal-ranked billing profiles select incompatible models | Resolution blocks with `BILLING_PROFILE_AMBIGUOUS` and explains both sources |
+| Same operation is priced with Credits and money in separate previews | Each preview uses its own price-book lines and settlement asset; neither assumes a fixed credit-to-currency equivalence |
+| Direct currency operation uses prepaid balance | Reservation atomically moves monetary capacity from available to reserved before execution and releases unused amount after settlement |
+| Direct currency operation uses postpaid invoice | Reservation atomically consumes authorized liability capacity and settlement creates an invoice line without reading payment credentials |
+| Credits operation is settled with money or monetary operation with Credits | Settlement blocks with `SETTLEMENT_ASSET_TYPE_MISMATCH` unless an explicit conversion contract and valid quote exist |
+| Audio transcription is consumed | Raw usage records `transcription_second` or `audio_input_second`; rating may produce Credits or monetary charge according to the selected profile |
+| Image generation is consumed | Meter uses registered image generation/megapixel units instead of text tokens |
+| Storage is consumed across time | Meter aggregates canonical `byte_hour` usage rather than a one-time ambiguous GB count |
+| Compute-heavy Agent run is consumed | Technical meters record vCPU, memory, GPU, and duration while the customer-facing billable meter may remain one Agent task |
+| Customer is charged per processed document | Raw token, vector, compute, and storage events remain immutable while a registered composite `document_processed` meter produces billable usage |
+| Customer is charged for a verified outcome | Settlement waits for registered verification, attribution window, deduplication, and dispute evidence before counting the outcome |
+| Included subscription units exist | Included quantity is deducted from normalized usage before Credits or monetary rating; included use does not become a third settlement asset |
+| Two concurrent operations target the same remaining balance or quota | Exactly one or a bounded allowed subset reserves capacity; no double spend occurs |
+| Streaming operation exceeds its reservation window | Runtime requests a bounded extension and stops at the next safe boundary when extension is denied |
+| Provider cost exceeds the authorized customer maximum | Customer charge remains capped; the difference is recorded as Platform-absorbed cost or review, not silently billed |
+| Raw meter event is replayed | Deduplication returns the existing logical event and creates no duplicate billable usage |
+| Meter correction arrives after statement close | Append-only correction and current-period adjustment are created; the closed statement is not rewritten |
+| Billing account becomes past due | New cost-bearing reservations block by default while payment recovery, support, and legally required export remain available |
+| Meter, price, profile, contract, standing, or commercial policy changes after manifest preview | Commercial epoch invalidates the stale manifest and dispatch blocks with `COMMERCIAL_EPOCH_CHANGED` |
+| Billing-profile preview is requested | It returns eligible options, effective limits, meter/unit/rating/price versions, expected reservation, conflicts, and recovery actions without charge, reservation, invoice, payment, provider call, or external write |
 
 ## Success thresholds before enforcement
 
