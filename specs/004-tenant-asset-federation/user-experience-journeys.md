@@ -371,7 +371,7 @@ Notifications are event- and preference-aware:
 
 Recommendations cannot use urgency language unless an actual deadline or risk exists.
 
-## 17. Accessibility and localization
+## 18. Accessibility and localization
 
 - all statuses use text plus icon, not color only;
 - explanations support RTL and localized dates/numbers;
