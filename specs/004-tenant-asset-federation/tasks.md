@@ -47,7 +47,7 @@
 - [ ] Approve principal/group/service identity and delegation authority.
 - [ ] Approve tenant federation, ownership transfer, offboarding, export, legal hold, and erasure lifecycle.
 - [x] Approve data-purpose, consent/lawful-basis, classification, retention, residency/transfer, jurisdiction, legal-hold, privacy-request, derived-data, provider/model, and aggregate-learning rules.
-- [ ] Approve commercial entitlement, cost estimate, reservation, settlement, refund, and attribution contract.
+- [x] Approve dynamic database-driven billing models, user-configurable billing profiles, multi-dimensional meters/units, entitlement, estimate, atomic reservation, settlement, refund, double-entry ledger, and attribution contract.
 - [ ] Approve contextual model routing, fallback constraints, evaluation suites, and quality thresholds.
 - [ ] Approve universal operation, outbox/inbox, delivery, cancellation, compensation, and concurrency contract.
 - [ ] Approve artifact/knowledge provenance, verification, correction, retraction, and disposition schema.
