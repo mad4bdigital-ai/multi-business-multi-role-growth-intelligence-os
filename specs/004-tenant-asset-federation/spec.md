@@ -305,6 +305,31 @@ Each plane has its own authority, lifecycle, audit, versioning, and rollback. Th
 - **FR-113:** Raw cross-Tenant content learning is forbidden; privacy-governed aggregate learning additionally requires an approved purpose, Tenant participation policy, minimum cohort, contribution limits, residency compatibility, re-identification safeguards, provenance, and quality/fairness evidence.
 - **FR-114:** Every consequential operation binds an immutable, explainable data-use decision and governance version vector into the Effective Runtime Manifest.
 - **FR-115:** The effective data-use decision applies the most restrictive applicable Platform, jurisdiction, Tenant, Brand, Workspace, delegated organizational, resource, subject, operation, provider/model, region, audience, and destination rule and fails closed on missing, stale, conflicting, revoked, or ambiguous evidence.
+- **FR-116:** Commercial models, collection modes, units, meters, aggregation modes, rating models, price books, profile templates, customization fields, reason codes, and state transitions are versioned database authorities rather than customer-specific hardcoded logic.
+- **FR-117:** Initial billing models support Credits and Direct Monetary Billing; future models require registered compatible semantics, review, and activation evidence.
+- **FR-118:** Monetary collection supports prepaid balance and postpaid invoice as registered modes, with account standing and credit-limit policy evaluated independently.
+- **FR-119:** Credits, money, and usage units are distinct assets; settlement cannot cross asset types without an explicit conversion contract and quote/version.
+- **FR-120:** Users may select or customize billing profiles only through template-exposed fields and within Platform, contract, subscription, Tenant, tax, accounting, payment, risk, and approval bounds.
+- **FR-121:** Billing-profile resolution follows Platform hard bounds, billing-account contract, subscription, Tenant, delegated Brand/Workspace budget, capability/meter override, eligible user selection, and presentation preference; the most restrictive applicable limit wins.
+- **FR-122:** Each cost-bearing operation resolves exactly one billing account and billable owner; ownership, management, support, white-label, or attribution does not imply billing responsibility.
+- **FR-123:** Tokens are one meter family only; registry-driven metering supports operation count, duration, data volume, storage-time, compute, AI modalities, retrieval/vector, seats/entities, capacity/concurrency, channels, business operations, and verified outcomes.
+- **FR-124:** Units use canonical integer or scaled-integer representations with registered conversion, rounding, minimum increment, and display rules; ambiguous unit conversions are rejected.
+- **FR-125:** Meter versions declare source authority, aggregation mode, deduplication, verification, late-event, correction, reservability, billability, and pricing eligibility.
+- **FR-126:** Technical meter events and customer-billable usage remain separate; composite meters preserve their immutable component events and use only registered typed operators.
+- **FR-127:** Raw meter events are immutable, deduplicated, evidence-linked, and corrected through append-only correction events.
+- **FR-128:** Rating resolves included units, bundles, tiers, commitments, overage, discounts, tax, and price-book versions after measurement and before settlement.
+- **FR-129:** Provider/internal cost and customer charge are calculated and audited separately.
+- **FR-130:** Every consequential cost-bearing operation produces an immutable estimate with expected and maximum units/charge, billing asset, pricing/rating versions, confidence, and expiry.
+- **FR-131:** Dispatch requires an atomic active reservation bound to one manifest, billing owner, billing profile, billing model, asset type, commercial epoch, and idempotency checksum unless a registered bounded postpaid policy explicitly allows otherwise.
+- **FR-132:** Concurrent reservations cannot consume the same available budget, quota, balance, credit limit, or included units; compare-and-reserve or equivalent atomic concurrency is mandatory.
+- **FR-133:** Streaming or unknown usage consumes bounded reservation windows and must stop at the next safe boundary when extension is denied.
+- **FR-134:** Settlement requires verified execution, usage/outcome, reservation, rating, and billability evidence; it cannot exceed authorized amount or units without separately approved overage.
+- **FR-135:** Unused reservation is released after settlement, expiry, cancellation, or invalidation according to registered lifecycle rules.
+- **FR-136:** Commercial posting is append-only, double-entry balanced, and correction/refund/dispute/chargeback uses compensating entries rather than mutation of posted history.
+- **FR-137:** Grace, past-due, paused, cancelled, fraud, and security states are registry-driven and cannot erase posted evidence or silently grant new spend authority.
+- **FR-138:** The Effective Runtime Manifest binds the commercial decision, billing profile/model, meter/unit/rating/price versions, estimate, reservation, budget/quota policies, standing, commercial epoch, and expiry.
+- **FR-139:** Existing plan, subscription, entitlement, credit, usage, quota, and budget authorities remain migration inputs or compatibility projections until shadow parity, ledger reconciliation, balance rebuild, concurrency tests, and cutover certification pass.
+- **FR-140:** Missing, stale, conflicting, ambiguous, or unregistered commercial, meter, unit, profile, pricing, billing-owner, reservation, or settlement evidence fails closed with stable structured errors.
 
 ## 13. Extended non-functional requirements
 
