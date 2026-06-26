@@ -256,6 +256,14 @@ Examples:
 - rollback flag tested;
 - operator and owner identified;
 - release readiness and explicit approval recorded;
+- applicable task/capability mappings complete and unregistered/raw model paths blocked;
+- exact endpoint/model-version/inference-profile inventory and adapter allowlist complete;
+- evaluation/scorecard/readiness evidence current for the task/risk/data/region family;
+- contextual-more-permissive and critical model-selection mismatch count zero;
+- selected and fallback candidates independently pass all mandatory gates;
+- candidate-specific estimate/reservation coverage 100% for cost-bearing execution;
+- high-risk certified-equivalence or explicit no-fallback policy verified;
+- emergency restriction/revocation, queued-work invalidation, alias movement, and deprecation rollback tested;
 - post-cutover readback confirms expected decision mix.
 
 ## 10. Rollback hierarchy
