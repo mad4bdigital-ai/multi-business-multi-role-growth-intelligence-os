@@ -390,6 +390,96 @@ Adaptive services, analytics, dashboards, caches, queues, and model providers ar
 
 **Mitigation:** registered standing policy, pre-reservation and pre-dispatch revalidation, no-effect preview transport assertions, payment-recovery-only allowlist, fraud/security override, and audit of blocked attempts.
 
+### T-054 — Raw model or endpoint injection
+
+**Threat:** a user or registry writer submits an unregistered model ID, arbitrary provider URL/header, executable adapter expression, or secret-like value to bypass governed providers.
+
+**Mitigation:** exact typed registries, allowlisted backend adapter keys, no arbitrary URL/header/code/secret fields, schema validation, object authority, immutable versions, and unknown-key fail closed.
+
+### T-055 — Task or capability laundering
+
+**Threat:** a high-risk request is misclassified as a low-risk generic task to unlock cheaper, less safe, or less evaluated models.
+
+**Mitigation:** registered task classifier evidence, request/context-derived risk, non-user-overridable mandatory capability fields, policy cross-checks, ambiguity block, and audit of task-class overrides.
+
+### T-056 — Optimization or preference escalation
+
+**Threat:** a user manipulates weights, floors, tie-breakers, provider preference, cost ceiling, or fallback settings to force an ineligible candidate.
+
+**Mitigation:** template/field allowlists, bounded typed values, parent hard floors, eligible-set-only ranking, deterministic tie-break registry, immutable profile versions, and same-cycle readback.
+
+### T-057 — Evaluation dataset poisoning or benchmark leakage
+
+**Threat:** test data is manipulated, contaminated with production secrets, leaked to a candidate, or selected to overstate quality and safety.
+
+**Mitigation:** dataset provenance, sensitivity/residency/retention policy, access control, immutable versions, contamination checks, hidden holdouts, adversarial cases, independent review, and leakage monitoring.
+
+### T-058 — Model-judge bias or collusion
+
+**Threat:** one model judge favors related candidates, reproduces benchmark artifacts, or becomes the sole authority for high-risk certification.
+
+**Mitigation:** judge provenance, multi-evaluator policy, deterministic validators, independent human review where required, conflict disclosure, calibration, and prohibition on judge-only high-risk certification.
+
+### T-059 — Scorecard staleness or selective evidence
+
+**Threat:** outdated, low-sample, cherry-picked, or partial evaluation results are presented as current eligibility evidence.
+
+**Mitigation:** minimum sample/coverage, confidence intervals, required metric set, freshness expiry, zero-tolerance failure handling, contextual applicability, immutable run lineage, and block on missing/stale evidence.
+
+### T-060 — Readiness spoofing
+
+**Threat:** a provider or service reports ready despite missing credentials, wrong region, exhausted capacity, disabled tools, incident, high error rate, or stale observation.
+
+**Mitigation:** multi-source readiness evidence, no-secret credential-presence checks, bounded observation windows, circuit-breaker and telemetry correlation, signed/source-attributed snapshots, and stale/unknown policy.
+
+### T-061 — Fallback downgrade
+
+**Threat:** runtime switches to a cheaper or available model that weakens data policy, region, safety, tools, structured output, evaluation, readiness, or commercial authorization.
+
+**Mitigation:** immutable independently eligible fallback set, exact candidate evidence, certified equivalence for high-risk tasks, candidate-specific estimate/reservation, pre-fallback revalidation, and block on exhaustion.
+
+### T-062 — Alias drift or model-version substitution
+
+**Threat:** a mutable alias silently resolves to a materially different or unevaluated model version after selection.
+
+**Mitigation:** exact version pin or alias-resolution snapshot, provider provenance, compatibility/evaluation check, epoch invalidation, expiry, and block on material unreviewed movement.
+
+### T-063 — Selection-cache poisoning or cross-context replay
+
+**Threat:** a decision cached for one Tenant, purpose, region, risk, capability, or billing account is reused in another context.
+
+**Mitigation:** cache identity includes Tenant/principal/context/operation, task/capability, data-use decision, region, commercial refs, policy/evaluation/readiness versions, epoch, expiry, and checksum.
+
+### T-064 — Commercial authorization mismatch
+
+**Threat:** a selected or fallback candidate uses another candidate's estimate/reservation or a provider-cost change is converted into customer liability.
+
+**Mitigation:** candidate-specific estimate/reservation, exact asset/account/manifest binding, customer-charge cap, provider-cost separation, and new reservation for fallback.
+
+### T-065 — Incident or revocation propagation failure
+
+**Threat:** a revoked/restricted candidate remains usable through stale manifests, caches, queued jobs, or fallback sets.
+
+**Mitigation:** model-governance epoch advancement, cache/manifest/queue invalidation, pre-dispatch lifecycle revalidation, dead-letter review, and historical evidence without new-use authority.
+
+### T-066 — Unsafe deprecation replacement
+
+**Threat:** a deprecated model is bulk-replaced by a candidate that is not equivalent for task, data, region, tools, output, quality, or cost.
+
+**Mitigation:** impact preview, replacement eligibility and certification, task/risk-family shadow/canary evidence, deadline, exceptions, rollback, and per-context validation.
+
+### T-067 — Selection explanation leakage
+
+**Threat:** candidate explanations reveal credentials, hidden provider contract terms, another Tenant's preferences/evaluations, private prompts, or sensitive dataset contents.
+
+**Mitigation:** safe evidence references, scoped redaction, no-secret response contracts, internal-versus-tenant views, object authorization, and disclosure tests.
+
+### T-068 — Preview or evaluation hidden side effect
+
+**Threat:** selection/deprecation preview invokes a provider, reads credentials, runs evaluation, reserves cost, changes lifecycle, or writes externally.
+
+**Mitigation:** read-only authorities, no-effect execution mode, transport/provider-call assertions, mutation guards, and tests proving zero side effects.
+
 ## 6. Abuse cases
 
 ### Malicious user profile
