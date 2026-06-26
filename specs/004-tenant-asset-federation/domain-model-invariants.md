@@ -481,6 +481,82 @@ An operation cannot use a commercial decision, estimate, reservation, profile, p
 
 Billing-profile, entitlement, estimate, and reservation previews perform no reservation, charge, ledger posting, invoice, payment collection, provider call, credential read, or external write.
 
+### INV-051 — Selection starts from capability
+
+Model/provider selection begins with a registered task class and versioned capability contract. A raw model name, mutable alias, global provider order, or convenience default cannot substitute for that contract.
+
+### INV-052 — Candidate identity is exact
+
+A candidate binds provider endpoint/deployment, exact model version or alias-resolution snapshot, inference profile, region, data-processing profile, and commercial profile. Consequential execution cannot use a partially specified candidate.
+
+### INV-053 — Hard gates precede ranking
+
+Lifecycle, capability, entitlement, authority, data, region, risk, tool, output, evaluation, readiness, incident/deprecation, and commercial gates execute before optimization. Score, preference, cost, latency, popularity, availability, or provider order cannot override a failed gate.
+
+### INV-054 — Ranking includes only eligible candidates
+
+Only candidates that independently pass every mandatory gate may enter the ranked set or fallback set.
+
+### INV-055 — Preference does not create eligibility
+
+User or Tenant preference may narrow, reorder, or disable eligible options but cannot introduce a raw candidate, lower mandatory floors, weaken data/safety/region/tool/output policy, modify credentials, or bypass commercial reservation.
+
+### INV-056 — Evaluation is contextual and bounded
+
+Evaluation evidence is bound to exact candidate, task/capability, locale, modality, domain, risk, tool/output, data, region, suite, dataset, metric, threshold, confidence, and freshness versions.
+
+### INV-057 — High-risk certification is plural
+
+A model judge cannot be the sole certification authority for high-risk or authority-sensitive use. Applicable deterministic and independent human or governed review evidence is required by policy.
+
+### INV-058 — Readiness and quality are independent
+
+A high-quality candidate may be operationally unready, and a ready candidate may lack sufficient quality evidence. Neither plane substitutes for the other.
+
+### INV-059 — Stale evidence is explicit
+
+Stale, unknown, drifting, insufficient, failed, or revoked evaluation/readiness evidence follows explicit task/risk policy and is never silently interpreted as current or eligible.
+
+### INV-060 — Fallback is pre-certified
+
+Fallback is an immutable ordered set of independently eligible exact candidates. It is never inferred from a global provider list at failure time.
+
+### INV-061 — Fallback cannot downgrade
+
+Fallback cannot weaken capability, data, region, safety, tools, output contract, evaluation, readiness, lifecycle, entitlement, or commercial authorization.
+
+### INV-062 — High-risk fallback is opt-in by certification
+
+Authority-sensitive and other high-risk tasks have fallback disabled unless an alternative is certified equivalent for the same mandatory contracts and evidence.
+
+### INV-063 — Commercial authority is candidate-specific
+
+Each selected or fallback candidate requires its own estimate and active reservation. One candidate's reservation cannot finance another candidate.
+
+### INV-064 — Selection decision is immutable evidence
+
+A model-selection decision records the candidate universe, gate evidence, metric evidence, ranking, selected candidate, fallback set, commercial references, epoch, expiry, explanation, and checksum. It grants neither credentials nor provider-call authority.
+
+### INV-065 — Provider adapters are allowlisted code
+
+Database registries may select an approved adapter key and bounded profile but cannot introduce arbitrary endpoints, headers, executable code, SQL, JavaScript, shell, model code, or secret values.
+
+### INV-066 — Model lifecycle invalidates stale execution
+
+Restriction, deprecation, revocation, material alias movement, policy change, evaluation/scorecard change, readiness change, incident, fallback change, or commercial compatibility change advances the model-governance epoch where applicable.
+
+### INV-067 — Pre-dispatch revalidation is mandatory
+
+Before every provider call, runtime revalidates lifecycle, incident/revocation, evaluation freshness, readiness, data/region, entitlement, commercial reservation, fallback eligibility, expiry, and model-governance epoch.
+
+### INV-068 — Partial-output switching is not implicit
+
+After streamed output, content, state, or tool effects begin, switching models is not an automatic fallback. DFR-006 determines restart, resume, idempotency, compensation, and duplicate-effect behavior.
+
+### INV-069 — Model preview has no effect
+
+Model-selection and deprecation previews perform no provider/model call, credential read, evaluation execution, commercial reservation, lifecycle mutation, or external write.
+
 ## 4. State machines
 
 ### Optional variant
