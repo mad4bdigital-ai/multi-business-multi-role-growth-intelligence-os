@@ -455,7 +455,11 @@ Span attributes use IDs, counts, versions, reason codes, and timing—not raw co
 - mandatory policy bypass;
 - provider write without valid manifest/approval;
 - stale revoked authority dispatch;
-- experiment cohort breach.
+- experiment cohort breach;
+- provider dispatch using a revoked exact model version;
+- selected or fallback candidate bypassed a mandatory data, region, safety, evaluation, readiness, lifecycle, or commercial gate;
+- raw provider endpoint/adapter/code/secret injection accepted;
+- model-selection preview caused a provider call, credential read, reservation, lifecycle mutation, or external write.
 
 ### High
 
