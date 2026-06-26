@@ -327,7 +327,7 @@ The UI distinguishes:
 
 It never converts unavailable evidence into a false zero.
 
-## 18. Product success criteria
+## 19. Product success criteria
 
 - user reaches first shared ready asset without variant creation;
 - setup blockers are correctly classified;
