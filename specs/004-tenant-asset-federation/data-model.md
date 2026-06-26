@@ -564,13 +564,82 @@ Specialized domain tables retain their records. These authorities govern eligibi
 
 ### Commercial and FinOps
 
-Existing plans, subscriptions, entitlements, quotas, usage, credits, and `budget_quota_authority_registry` remain sources.
+The approved DFR-004 model is database-authoritative, registry-driven, user-configurable within governed templates, reservation-first, and double-entry. Existing plans, subscriptions, entitlements, quotas, usage, credits, and `budget_quota_authority_registry` remain migration inputs and compatibility projections until certified cutover.
 
-- `runtime_cost_estimates` — units, currency, model/provider/action inputs, confidence, and expiry;
-- `runtime_cost_reservations` — idempotent reserved amount/units tied to manifest and operation;
-- `runtime_cost_settlements` — realized cost, provider evidence, refund/adjustment, and ledger refs;
-- `commercial_entitlement_bindings` — plan/tenant/asset/capability/operation availability;
-- `cost_attribution_ledger` — user/workspace/brand/activity/objective attribution.
+#### Billing ownership and account authorities
+
+- `billing_accounts` — billing identity, owning Tenant, status/standing, default currency, tax/payment profile references, credit limit, statement cycle, and commercial epoch;
+- `billing_owner_assignments` — versioned legal/contractual billable owner with validity, authority, approval, and checksum;
+- `commercial_relationship_bindings` — direct non-transitive `bills_for`, reseller, managed-service, or cost-sharing contract with exact scope, limits, validity, and settlement responsibility;
+- `billing_account_model_bindings` — allowed billing models, collection modes, currencies/credit units, fallback order, effective dates, and contract/version evidence.
+
+#### Dynamic model and customization registries
+
+- `billing_model_registry` — registered billing model semantics, supported asset types, reservation/settlement capabilities, compatibility, version, and status;
+- `collection_mode_registry` — prepaid, postpaid, or future registered collection semantics, required standing/payment evidence, lifecycle, and compatibility;
+- `billing_profile_template_registry` — reusable Platform/contract/plan templates, allowed models, meter bundles, price/rating references, parent limits, and status;
+- `billing_profile_customization_field_registry` — typed customizable path, value schema, allowed operators/options, min/max, delegation ceiling, explanation, and risk class;
+- `billing_profiles` — Tenant, billing-account, Brand, Workspace, group, or user-scoped profile instance with template/version, selected model/mode, meter bundle, limits, approvals, lifecycle, and checksum;
+- `billing_profile_selections` — principal/context selection of one eligible profile with priority, validity, and source authority;
+- `billing_profile_meter_rules` — per-profile included units, hard/soft limits, overage, display, rating/price binding, and delegation behavior;
+- `billing_profile_alert_rules` — threshold, channel, cadence, recipients, severity, and status;
+- `commercial_policy_operator_registry` — typed commercial operators such as deny-wins, minimum ceiling, explicit grant, priority select, and block-on-ambiguity;
+- `commercial_state_transition_registry` — allowed lifecycle transitions and required authority/approval/readback by resource class;
+- `commercial_reason_code_registry` — stable reason/adjustment/refund/dispute codes and required evidence.
+
+#### Currency, credit, and conversion authorities
+
+- `currency_registry` — ISO currency key, exponent, validity, rounding, display, and settlement support;
+- `credit_unit_registry` — non-currency credit-unit identity, issuer, expiry/transfer/refund policy, precision, and status;
+- `credit_conversion_contracts` — explicit money-credit conversion terms, price/version, direction, scope, validity, and approval;
+- `fx_quote_registry` — base/quote currency, rate, source, quoted/expiry time, contract scope, and checksum.
+
+#### Metering and units
+
+- `usage_unit_registry` — canonical unit family, conversion ratio, quantity scale, rounding, minimum increment, and display semantics;
+- `usage_meter_registry` — stable meter key/family, source authority, billability/reservability/pricing eligibility, current version, and status;
+- `usage_meter_versions` — unit, aggregation mode, deduplication, verification, late-event/correction, dimensions, lifecycle, and checksum;
+- `usage_meter_dimension_registry` — allowed dimension keys, value schema, cardinality limits, privacy class, and attribution behavior;
+- `meter_aggregation_mode_registry` — registered `sum`, `maximum`, `minimum`, `latest`, `unique_count`, `duration`, `time_integral`, and `verified_count` semantics;
+- `usage_meter_events` — immutable raw measurement with Tenant/account/operation/manifest, meter/version, unit, scaled quantity, source event, dedupe key, evidence, and timestamps;
+- `usage_meter_event_corrections` — append-only correction/retraction/reclassification linked to original event and authority;
+- `usage_meter_aggregates` — rebuildable scoped/period projections with source range/checksum and version;
+- `composite_meter_definitions` — customer-facing composite meter/version, registered operator/formula, packaging, rounding, and checksum;
+- `composite_meter_components` — component meter/version, weight/operator, inclusion rule, and provenance;
+- `usage_verification_runs` — outcome/delivery/quality verification, duplicate checks, attribution window, evidence, and decision;
+- `billable_usage_records` — derived included, billable, non-billable, disputed, or adjusted quantity with rating inputs and provenance.
+
+#### Rating and pricing
+
+- `rating_model_registry` — registered typed rating semantics and supported meter/model combinations;
+- `price_book_registry` — owner/scope, billing model, contract family, lifecycle, and current version;
+- `price_book_versions` — effective period, currency/credit unit, tax/discount policy, rounding, approval, and checksum;
+- `price_book_rate_lines` — meter/version, unit, tier/package/commitment/outcome/pass-through rule, quantity range, price, included behavior, and conditions;
+- `commercial_entitlement_decisions` — immutable account/profile/plan/capability/meter eligibility, limits, standing, policy sources, decision, expiry, and version vector.
+
+#### Estimate, reservation, and settlement
+
+- `runtime_cost_estimates` — immutable account/profile/model, customer/internal totals, tax/discount/credit offset, price/rating versions, confidence, expiry, and checksum;
+- `runtime_cost_estimate_lines` — meter/version, raw/normalized/included/billable quantities, expected/maximum units, customer charge, internal cost, asset type, and evidence;
+- `runtime_cost_reservations` — idempotent atomic reservation bound to manifest, operation, billable owner, profile/model, commercial epoch, asset type, amount/units, expiry, and state;
+- `runtime_cost_reservation_lines` — meter, included-unit, budget, quota, credit, prepaid balance, or postpaid liability capacity consumed/released;
+- `runtime_cost_settlements` — verified settlement classification, reservation/operation/manifest, account/owner, totals, released difference, evidence, and ledger transaction;
+- `runtime_cost_settlement_lines` — verified usage/outcome, customer charge, internal/provider cost, tax/discount, billability, asset type, and source meter records.
+
+#### Ledger, invoices, adjustments, and attribution
+
+- `commercial_ledger_accounts` — typed Tenant/Platform subledger account, currency or credit unit, owner, normal balance, status, and version;
+- `commercial_ledger_transactions` — append-only balanced transaction identity, type, source resource, period, status, approval, checksum, and reversal link;
+- `commercial_ledger_entries` — debit/credit line, ledger account, amount/quantity, currency/credit unit, attribution, and source evidence;
+- `commercial_refund_adjustment_runs` — request/eligibility/review/approval/posting/completion lifecycle and compensating transaction;
+- `usage_dispute_runs` — disputed events/records, evidence, provisional treatment, decision, adjustment, and communication state;
+- `invoice_accounts`, `invoice_runs`, and `invoice_lines` — postpaid statement, tax, terms, due date, settlement lines, collection status, and readback;
+- `payment_collection_events` — authorized payment attempt/result/reference evidence without raw payment credentials;
+- `cost_attribution_ledger` — user, Workspace, Brand, Department, Group, campaign, objective, project, and custom registered cost-center attribution; attribution grants no liability or authority;
+- `commercial_policy_epochs` — invalidation after account, contract, profile, meter, price, standing, budget/quota, conversion, or ledger-policy change;
+- `commercial_balance_projections` — rebuildable available/reserved/consumed/receivable projections derived from the ledger.
+
+Specialized authorities remain specialized. Registries define allowed semantics and customization without creating an unrestricted EAV, SQL-expression, JavaScript, shell, or arbitrary financial mutation surface.
 
 ### Model governance
 
