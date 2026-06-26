@@ -569,6 +569,12 @@ Residual risks require UI warnings, policy review, monitoring, calibration, and 
 - mandatory-policy bypass test suite passes;
 - no stale manifest dispatch after authority change;
 - all consequential approvals are exact, expiring, and auditable;
+- zero successful billing-profile field escalation or cross-Tenant billing-owner substitution;
+- zero duplicate billable usage from replayed meter events;
+- zero negative balance or double spend under concurrent reservation stress;
+- every posted commercial transaction is asset-consistent, immutable, and debit/credit balanced;
+- settlement never exceeds authorized customer liability without a separately approved overage reservation;
+- billing-profile, entitlement, estimate, and reservation previews prove zero financial, payment, provider, credential, or external side effect;
 - shadow critical mismatch count is zero before cutover;
 - path/candidate/rate limits proven under load;
 - rollback for profile, variant, experiment, and resolver cutover is tested;
