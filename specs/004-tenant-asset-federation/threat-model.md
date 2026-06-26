@@ -14,6 +14,7 @@ This threat model covers:
 - dynamic billing models and user-configurable billing profiles;
 - usage-unit, meter, aggregation, rating, and price-book registries;
 - raw meter events, billable usage, estimates, reservations, settlements, statements, invoices, disputes, and double-entry ledgers;
+- contextual model task/capability, provider endpoint, exact model version, inference profile, policy, optimization, evaluation, scorecard, readiness, selection, fallback, drift, incident, and deprecation authorities;
 - adaptive proposals, simulation, experiments, and platform promotion.
 
 It does not replace connector-, provider-, authentication-, payment-processor-, tax-, accounting-, infrastructure-, or deployment-specific threat models.
