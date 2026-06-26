@@ -455,6 +455,60 @@ Analyst repeatedly queries aggregate learning for a cohort below threshold to in
 
 Expected: `CROSS_TENANT_COHORT_TOO_SMALL`, rate/disclosure controls apply, and no output is persisted or promoted.
 
+### Hidden billing-profile escalation
+
+User submits a profile patch containing `unitPrice`, `postpaidCreditLimit`, `billableOwnerTenantId`, or another field not exposed by the selected template.
+
+Expected: `BILLING_PROFILE_FIELD_NOT_CUSTOMIZABLE`; active profile/version, price, owner, and commercial epoch remain unchanged.
+
+### Cross-Tenant billable-owner substitution
+
+Managed-service operator replaces the direct client's billing account with an unrelated Tenant account sharing the same parent organization.
+
+Expected: direct relationship validation fails with scoped not-found or `BILLING_OWNER_MISSING`; no reservation or cross-Tenant discovery occurs.
+
+### Meter replay
+
+Compromised source resubmits the same provider delivery event with a new client request ID.
+
+Expected: stable source-event/deduplication identity returns the existing logical event and creates no duplicate billable usage or settlement.
+
+### Unit-scale manipulation
+
+Client reports `90.5 seconds` using a floating quantity or labels bytes as gigabytes to reduce measured usage.
+
+Expected: boundary rejects non-registered unit/scale; canonical integer/scaled-integer conversion is required and no billable record is produced.
+
+### Concurrent last-balance reservation
+
+Two operations simultaneously reserve the last available Credits or prepaid monetary amount.
+
+Expected: atomic reservation permits only the capacity actually available; no negative balance or double spend occurs.
+
+### Settlement asset swap
+
+Credits reservation is submitted for monetary settlement after execution because the cash price is lower.
+
+Expected: `SETTLEMENT_ASSET_TYPE_MISMATCH`; reservation remains unchanged and no ledger transaction posts.
+
+### Provider-cost inflation
+
+Provider evidence reports a cost above the customer-authorized maximum without approved overage.
+
+Expected: customer charge remains capped; excess becomes Platform-absorbed cost or manual review, with separate internal-cost evidence.
+
+### Ledger imbalance attempt
+
+Posting request contains unequal debits/credits or mixes USD and Credits in the same transaction.
+
+Expected: transaction is rejected before post; balances/projections remain unchanged and audit records the failed attempt.
+
+### Preview with hidden reservation
+
+Billing-profile or estimate preview attempts to create a reservation, invoice line, payment attempt, or provider call.
+
+Expected: no-effect assertion fails the request; no persistent or external side effect occurs.
+
 ## 7. Security test classes
 
 - tenant crossover for every resource and route;
