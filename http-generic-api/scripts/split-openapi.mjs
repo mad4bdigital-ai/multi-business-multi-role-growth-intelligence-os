@@ -1,33 +1,32 @@
-import fs from "fs";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import YAML from "yaml";
-import path from "path";
 
-// GPT schema architecture:
-//   one server URL per action schema; never mix hosts in one dispatcher schema.
-//   openapi.custom-gpt.auth-dispatcher.yaml  — admin dispatcher on auth.mad4b.com
-//   openapi.tenant-gpt.auth.yaml             — tenant dispatcher on auth.mad4b.com
-//   openapi.gpt-action.dev-dispatcher.yaml   — dev dispatcher on dev.mad4b.com
-//   openapi.gpt-action.local-connector.yaml  — connector dispatcher on connector.mad4b.com
-//
-// Source-of-truth rule:
-//   split schemas must be generated from operations present in openapi.yaml.
-//   Tenant aliases use x-tenant-gpt-operationId on the main operation.
-//
-// Run: node scripts/split-openapi.mjs
-
-const SOURCE_OPENAPI_FILE = "openapi.yaml";
-const AUTH_DISPATCHER_SCHEMA_FILE = "openapi.custom-gpt.auth-dispatcher.yaml";
-const TENANT_AUTH_SCHEMA_FILE = "openapi.tenant-gpt.auth.yaml";
-const AUTH_DISPATCHER_HOST = "auth.mad4b.com";
-const AUTH_DISPATCHER_TAGS = new Set(["activation", "admin-control", "system-layer"]);
-const MAX_OPERATIONS = 30;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const API_ROOT = path.resolve(__dirname, "..");
+const REPO_ROOT = path.resolve(API_ROOT, "..");
+const SOURCE_OPENAPI_FILE = path.join(API_ROOT, "openapi.yaml");
+const SURFACE_REGISTRY_FILE = path.join(REPO_ROOT, "canonicals", "openapi", "custom-gpt-surfaces.yaml");
 const METHOD_NAMES = new Set(["get", "post", "put", "delete", "patch", "options", "head", "trace"]);
-const CUSTOM_GPT_SECURITY_SCHEME = "backendBearerAuth";
-const CUSTOM_GPT_DESCRIPTION_LIMIT = 300;
-const CUSTOM_GPT_REQUIRED_SECURITY = [{ [CUSTOM_GPT_SECURITY_SCHEME]: [] }];
+const DESCRIPTION_LIMIT = 300;
+
+function cliValue(name) {
+  const inline = process.argv.find((arg) => String(arg).startsWith(`${name}=`));
+  if (inline) return inline.slice(name.length + 1);
+  const index = process.argv.indexOf(name);
+  return index >= 0 ? process.argv[index + 1] : "";
+}
+
+const OUTPUT_DIR = path.resolve(cliValue("--output-dir") || API_ROOT);
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function outputPath(file) {
+  fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+  return path.join(OUTPUT_DIR, file);
 }
 
 function collectOperations(doc) {
@@ -50,108 +49,49 @@ function tenantOperationId(operation) {
 
 function validateUniqueTenantAliases(sourceOperations) {
   const byAlias = new Map();
-  for (const op of sourceOperations) {
-    const alias = op.operation?.["x-tenant-gpt-operationId"];
+  for (const entry of sourceOperations) {
+    const alias = entry.operation?.["x-tenant-gpt-operationId"];
     if (!alias) continue;
-    const key = String(alias).trim();
-    if (!key) continue;
-    const entries = byAlias.get(key) || [];
-    entries.push(`${op.method.toUpperCase()} ${op.pathKey} (${op.operation?.operationId || "missing operationId"})`);
-    byAlias.set(key, entries);
+    const list = byAlias.get(alias) || [];
+    list.push(`${entry.method.toUpperCase()} ${entry.pathKey}`);
+    byAlias.set(alias, list);
   }
   const duplicates = [...byAlias.entries()].filter(([, entries]) => entries.length > 1);
   if (duplicates.length > 0) {
-    throw new Error(`Duplicate x-tenant-gpt-operationId aliases in ${SOURCE_OPENAPI_FILE}: ${
-      duplicates.map(([alias, entries]) => `${alias} => ${entries.join(", ")}`).join("; ")
-    }`);
+    throw new Error(`Duplicate tenant aliases: ${duplicates.map(([id, entries]) => `${id} => ${entries.join(", ")}`).join("; ")}`);
   }
 }
 
 function countOperations(paths) {
-  let n = 0;
-  for (const pathItem of Object.values(paths || {})) {
-    n += Object.keys(pathItem || {}).filter((m) => METHOD_NAMES.has(m)).length;
+  let count = 0;
+  for (const item of Object.values(paths || {})) {
+    count += Object.keys(item || {}).filter((method) => METHOD_NAMES.has(method)).length;
   }
-  return n;
+  return count;
 }
 
-function collectTags(paths, tags = []) {
-  const referenced = new Set();
-  for (const pathItem of Object.values(paths || {})) {
-    for (const operation of Object.values(pathItem || {})) {
-      if (!operation || typeof operation !== "object" || !Array.isArray(operation.tags)) continue;
-      for (const tag of operation.tags) referenced.add(tag);
+function collectTags(paths, sourceTags = []) {
+  const names = new Set();
+  for (const item of Object.values(paths || {})) {
+    for (const [method, operation] of Object.entries(item || {})) {
+      if (!METHOD_NAMES.has(method) || !Array.isArray(operation?.tags)) continue;
+      for (const tag of operation.tags) names.add(tag);
     }
   }
-  const known = tags.filter((t) => referenced.has(t.name));
-  const knownNames = new Set(known.map((t) => t.name));
-  const inferred = [...referenced].filter((n) => !knownNames.has(n)).sort().map((n) => ({ name: n }));
-  return [...known, ...inferred];
-}
-
-function trimDescription(value) {
-  if (typeof value !== "string" || value.length <= CUSTOM_GPT_DESCRIPTION_LIMIT) return value;
-  return `${value.slice(0, CUSTOM_GPT_DESCRIPTION_LIMIT - 1).trimEnd()}.`;
-}
-
-function normalizeDescriptions(value) {
-  if (!value || typeof value !== "object") return;
-  if (Array.isArray(value)) { for (const item of value) normalizeDescriptions(item); return; }
-  if (typeof value.description === "string") value.description = trimDescription(value.description);
-  for (const child of Object.values(value)) normalizeDescriptions(child);
+  const known = sourceTags.filter((entry) => names.has(entry.name));
+  const knownNames = new Set(known.map((entry) => entry.name));
+  return [...known, ...[...names].filter((name) => !knownNames.has(name)).sort().map((name) => ({ name }))];
 }
 
 function resolveLocalRef(doc, ref) {
   if (typeof ref !== "string" || !ref.startsWith("#/")) return null;
-  const parts = ref.slice(2).split("/").map((p) => p.replace(/~1/g, "/").replace(/~0/g, "~"));
+  const parts = ref.slice(2).split("/").map((part) => part.replace(/~1/g, "/").replace(/~0/g, "~"));
   let current = doc;
   for (const part of parts) {
     if (!current || typeof current !== "object" || !(part in current)) return null;
     current = current[part];
   }
   return current;
-}
-
-function normalizeRequestBody(doc, operation) {
-  let schema = operation?.requestBody?.content?.["application/json"]?.schema;
-  if (!schema || typeof schema !== "object") return;
-  if (schema.$ref) {
-    const resolved = resolveLocalRef(doc, schema.$ref);
-    if (resolved) {
-      schema = clone(resolved);
-      operation.requestBody.content["application/json"].schema = schema;
-    }
-  }
-  if (Array.isArray(schema.oneOf)) {
-    const obj = schema.oneOf.find((o) => o && typeof o === "object" && o.type === "object");
-    if (obj) operation.requestBody.content["application/json"].schema = obj;
-  }
-  const paramNames = new Set(
-    (operation.parameters || [])
-      .filter((p) => p && typeof p === "object" && typeof p.name === "string")
-      .map((p) => p.name)
-  );
-  if (schema.type === "object" && schema.properties && paramNames.size > 0) {
-    for (const name of paramNames) delete schema.properties[name];
-    if (Array.isArray(schema.required)) {
-      schema.required = schema.required.filter((n) => !paramNames.has(n));
-      if (schema.required.length === 0) delete schema.required;
-    }
-  }
-}
-
-function normalizeObjects(value) {
-  if (!value || typeof value !== "object") return;
-  if (Array.isArray(value)) { for (const item of value) normalizeObjects(item); return; }
-  if (value.type === "object" && !("properties" in value)) value.properties = {};
-  for (const child of Object.values(value)) normalizeObjects(child);
-}
-
-function normalizeTenantToolCallBody(operation) {
-  if (operation?.operationId !== "callTool") return;
-  const schema = operation.requestBody?.content?.["application/json"]?.schema;
-  if (!schema || typeof schema !== "object" || schema.type !== "object" || !schema.properties) return;
-  delete schema.properties.arguments;
 }
 
 function collectLocalRefs(value, refs = new Set()) {
@@ -170,200 +110,231 @@ function refName(ref, prefix) {
 }
 
 function pruneComponents(doc) {
-  const refs = collectLocalRefs({ paths: doc.paths, components: { responses: doc.components?.responses || {} } });
+  const refs = collectLocalRefs({ paths: doc.paths, responses: doc.components?.responses || {} });
   let changed = true;
   while (changed) {
     changed = false;
-    for (const ref of Array.from(refs)) {
-      const target = resolveLocalRef(doc, ref);
+    for (const ref of [...refs]) {
       const before = refs.size;
-      collectLocalRefs(target, refs);
+      collectLocalRefs(resolveLocalRef(doc, ref), refs);
       if (refs.size !== before) changed = true;
     }
   }
-
-  const keepSchemas = new Set(Array.from(refs).map((ref) => refName(ref, "#/components/schemas/")).filter(Boolean));
-  const keepResponses = new Set(Array.from(refs).map((ref) => refName(ref, "#/components/responses/")).filter(Boolean));
-
+  const schemaNames = new Set([...refs].map((ref) => refName(ref, "#/components/schemas/")).filter(Boolean));
+  const responseNames = new Set([...refs].map((ref) => refName(ref, "#/components/responses/")).filter(Boolean));
   if (doc.components?.schemas) {
-    doc.components.schemas = Object.fromEntries(
-      Object.entries(doc.components.schemas).filter(([key]) => keepSchemas.has(key))
-    );
+    doc.components.schemas = Object.fromEntries(Object.entries(doc.components.schemas).filter(([name]) => schemaNames.has(name)));
   }
   if (doc.components?.responses) {
-    doc.components.responses = Object.fromEntries(
-      Object.entries(doc.components.responses).filter(([key]) => keepResponses.has(key))
-    );
+    doc.components.responses = Object.fromEntries(Object.entries(doc.components.responses).filter(([name]) => responseNames.has(name)));
   }
 }
 
-function normalizeDoc(doc, sourceDoc) {
-  if (doc.components?.securitySchemes) {
-    doc.components.securitySchemes = { [CUSTOM_GPT_SECURITY_SCHEME]: doc.components.securitySchemes[CUSTOM_GPT_SECURITY_SCHEME] };
+function trimDescriptions(value) {
+  if (!value || typeof value !== "object") return;
+  if (Array.isArray(value)) {
+    for (const item of value) trimDescriptions(item);
+    return;
   }
-  doc.security = clone(CUSTOM_GPT_REQUIRED_SECURITY);
-  for (const pathItem of Object.values(doc.paths || {})) {
-    for (const [method, operation] of Object.entries(pathItem || {})) {
-      if (!METHOD_NAMES.has(method) || !operation || typeof operation !== "object") continue;
-      operation.security = clone(CUSTOM_GPT_REQUIRED_SECURITY);
-      normalizeRequestBody(sourceDoc || doc, operation);
+  if (typeof value.description === "string" && value.description.length > DESCRIPTION_LIMIT) {
+    value.description = `${value.description.slice(0, DESCRIPTION_LIMIT - 1).trimEnd()}.`;
+  }
+  for (const child of Object.values(value)) trimDescriptions(child);
+}
+
+function normalizeObjects(value) {
+  if (!value || typeof value !== "object") return;
+  if (Array.isArray(value)) {
+    for (const item of value) normalizeObjects(item);
+    return;
+  }
+  if (value.type === "object" && !("properties" in value)) value.properties = {};
+  for (const child of Object.values(value)) normalizeObjects(child);
+}
+
+function normalizeRequestBody(sourceDoc, operation) {
+  let schema = operation?.requestBody?.content?.["application/json"]?.schema;
+  if (!schema || typeof schema !== "object") return;
+  if (schema.$ref) {
+    const resolved = resolveLocalRef(sourceDoc, schema.$ref);
+    if (resolved) {
+      schema = clone(resolved);
+      operation.requestBody.content["application/json"].schema = schema;
     }
   }
-  pruneComponents(doc);
-  normalizeDescriptions(doc);
-  normalizeObjects(doc);
+  if (Array.isArray(schema.oneOf)) {
+    const objectSchema = schema.oneOf.find((candidate) => candidate?.type === "object");
+    if (objectSchema) {
+      schema = clone(objectSchema);
+      operation.requestBody.content["application/json"].schema = schema;
+    }
+  }
+  const parameterNames = new Set((operation.parameters || [])
+    .filter((parameter) => parameter && typeof parameter.name === "string")
+    .map((parameter) => parameter.name));
+  if (schema.type === "object" && schema.properties && parameterNames.size > 0) {
+    for (const name of parameterNames) delete schema.properties[name];
+    if (Array.isArray(schema.required)) {
+      schema.required = schema.required.filter((name) => !parameterNames.has(name));
+      if (schema.required.length === 0) delete schema.required;
+    }
+  }
 }
 
-function buildDoc(sourceDoc, operations, { host, title, summary, description }) {
+function normalizeTenantToolCallBody(operation) {
+  if (operation?.operationId !== "callTool") return;
+  const schema = operation.requestBody?.content?.["application/json"]?.schema;
+  if (schema?.type === "object" && schema.properties) delete schema.properties.arguments;
+}
+
+function selectOperations(sourceOperations, surfaceKey, surface) {
+  const selector = surface.selector || {};
+  if (Array.isArray(selector.operation_ids)) {
+    const byId = new Map(sourceOperations.map((entry) => [entry.operation?.operationId, entry]));
+    const missing = selector.operation_ids.filter((id) => !byId.has(id));
+    if (missing.length > 0) throw new Error(`${surfaceKey}: source operationIds missing: ${missing.join(", ")}`);
+    return selector.operation_ids.map((id) => ({ ...byId.get(id), operation: clone(byId.get(id).operation) }));
+  }
+  if (Array.isArray(selector.tenant_operation_ids)) {
+    const byTenantId = new Map();
+    for (const entry of sourceOperations) {
+      const id = tenantOperationId(entry.operation);
+      if (id) byTenantId.set(id, entry);
+    }
+    const missing = selector.tenant_operation_ids.filter((id) => !byTenantId.has(id));
+    if (missing.length > 0) throw new Error(`${surfaceKey}: tenant operationIds missing: ${missing.join(", ")}`);
+    return selector.tenant_operation_ids.map((id) => {
+      const source = byTenantId.get(id);
+      const entry = { ...source, operation: clone(source.operation) };
+      entry.operation.operationId = id;
+      delete entry.operation["x-tenant-gpt-operationId"];
+      return entry;
+    });
+  }
+  if (Array.isArray(selector.include_tags)) {
+    const tags = new Set(selector.include_tags);
+    const respectExclusions = selector.respect_source_exclusions !== false;
+    return sourceOperations
+      .filter((entry) => tags.has(entry.primaryTag))
+      .filter((entry) => !respectExclusions || (entry.operation?.["x-custom-gpt-exclude"] !== true && entry.operation?.["x-gpt-action-exclude"] !== true))
+      .map((entry) => ({ ...entry, operation: clone(entry.operation) }));
+  }
+  throw new Error(`${surfaceKey}: selector must define operation_ids, tenant_operation_ids, or include_tags`);
+}
+
+function applySecurityProfile(doc, sourceDoc, surface) {
+  doc.components = doc.components || {};
+  if (surface.auth_profile === "admin_service") {
+    const sourceScheme = sourceDoc.components?.securitySchemes?.backendBearerAuth;
+    if (!sourceScheme) throw new Error("backendBearerAuth missing from source OpenAPI");
+    doc.components.securitySchemes = { backendBearerAuth: clone(sourceScheme) };
+    doc.security = [{ backendBearerAuth: [] }];
+    for (const item of Object.values(doc.paths || {})) {
+      for (const [method, operation] of Object.entries(item || {})) {
+        if (METHOD_NAMES.has(method)) operation.security = [{ backendBearerAuth: [] }];
+      }
+    }
+    return;
+  }
+  if (surface.auth_profile === "tenant_oauth") {
+    const tenantConfig = sourceDoc["x-tenant-gpt-auth"];
+    if (!tenantConfig?.security_scheme || !Array.isArray(tenantConfig.security)) {
+      throw new Error("x-tenant-gpt-auth security configuration missing from source OpenAPI");
+    }
+    const schemeName = String(tenantConfig.security_scheme_name || "userBearerAuth");
+    doc.components.securitySchemes = { [schemeName]: clone(tenantConfig.security_scheme) };
+    doc.security = clone(tenantConfig.security);
+    if (tenantConfig.action_auth_preset) doc["x-gpt-action-auth-preset"] = clone(tenantConfig.action_auth_preset);
+    for (const item of Object.values(doc.paths || {})) {
+      for (const [method, operation] of Object.entries(item || {})) {
+        if (!METHOD_NAMES.has(method)) continue;
+        operation.security = clone(tenantConfig.security);
+        normalizeTenantToolCallBody(operation);
+      }
+    }
+    return;
+  }
+  throw new Error(`Unsupported generated auth profile: ${surface.auth_profile}`);
+}
+
+function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface) {
   const paths = {};
-  for (const op of operations) {
-    if (!paths[op.pathKey]) {
-      paths[op.pathKey] = {};
-      if (Array.isArray(op.pathItem.parameters)) paths[op.pathKey].parameters = clone(op.pathItem.parameters);
+  for (const entry of selectedOperations) {
+    if (!paths[entry.pathKey]) {
+      paths[entry.pathKey] = {};
+      if (Array.isArray(entry.pathItem.parameters)) paths[entry.pathKey].parameters = clone(entry.pathItem.parameters);
     }
-    paths[op.pathKey][op.method] = clone(op.operation);
+    paths[entry.pathKey][entry.method] = clone(entry.operation);
   }
   const doc = clone(sourceDoc);
-  doc.info = { ...doc.info, title, summary, description };
-  doc.servers = [{ url: `https://${host}`, description: title }];
-  doc.tags = collectTags(paths, doc.tags || []);
+  doc.info = {
+    ...doc.info,
+    title: surface.info?.title || `${sourceDoc.info?.title || "Platform API"} - ${surfaceKey}`,
+    summary: surface.info?.summary || `Generated ${surfaceKey} Custom GPT surface.`,
+    description: surface.info?.description || `Generated from ${path.relative(REPO_ROOT, SOURCE_OPENAPI_FILE)} and ${path.relative(REPO_ROOT, SURFACE_REGISTRY_FILE)}.`,
+  };
+  doc.servers = [{ url: surface.server_url, description: `${surfaceKey} surface` }];
   doc.paths = paths;
+  doc.tags = collectTags(paths, sourceDoc.tags || []);
   delete doc["x-tenant-gpt-auth"];
-  normalizeDoc(doc, sourceDoc);
+  for (const item of Object.values(doc.paths || {})) {
+    for (const [method, operation] of Object.entries(item || {})) {
+      if (!METHOD_NAMES.has(method)) continue;
+      normalizeRequestBody(sourceDoc, operation);
+    }
+  }
+  applySecurityProfile(doc, sourceDoc, surface);
+  pruneComponents(doc);
+  trimDescriptions(doc);
+  normalizeObjects(doc);
   return doc;
 }
 
-function generateAuthDispatcher(sourceDoc, sourceOperations) {
-  const operations = sourceOperations.filter((op) =>
-    AUTH_DISPATCHER_TAGS.has(op.primaryTag) &&
-    op.operation?.["x-custom-gpt-exclude"] !== true &&
-    op.operation?.["x-gpt-action-exclude"] !== true
-  );
-  if (operations.length === 0) {
-    console.warn("No admin-control/activation/system-layer operations found — auth-dispatcher not generated.");
-    return;
+function validateGeneratedDoc(doc, sourceDoc, surfaceKey, surface) {
+  const sourcePairs = new Set(collectOperations(sourceDoc).map((entry) => `${entry.method.toUpperCase()} ${entry.pathKey}`));
+  const seenIds = new Set();
+  for (const entry of collectOperations(doc)) {
+    const pair = `${entry.method.toUpperCase()} ${entry.pathKey}`;
+    if (!sourcePairs.has(pair)) throw new Error(`${surfaceKey}: generated path/method not in source: ${pair}`);
+    const id = entry.operation?.operationId;
+    if (!id) throw new Error(`${surfaceKey}: missing operationId for ${pair}`);
+    if (seenIds.has(id)) throw new Error(`${surfaceKey}: duplicate operationId ${id}`);
+    seenIds.add(id);
   }
-
-  const doc = buildDoc(sourceDoc, operations, {
-    host: AUTH_DISPATCHER_HOST,
-    title: `${sourceDoc.info?.title || "Platform API"} - Auth Dispatcher Admin Control Actions`,
-    summary: "Admin GPT action schema — MCP-like dispatcher for activation, admin control, and system layer.",
-    description: `Single-host admin GPT schema generated from ${SOURCE_OPENAPI_FILE}. Dispatches activation, admin-control, and system-layer routes via ${AUTH_DISPATCHER_HOST}.`
-  });
-
-  validateSplitOperationsComeFromSource(doc, sourceDoc, AUTH_DISPATCHER_SCHEMA_FILE);
   const count = countOperations(doc.paths);
-  const outPath = path.resolve(`./${AUTH_DISPATCHER_SCHEMA_FILE}`);
-  fs.writeFileSync(outPath, YAML.stringify(doc, { lineWidth: -1, aliasDuplicateObjects: false }), "utf8");
-  console.log(`Generated ${outPath} (${count} operations) -> https://${AUTH_DISPATCHER_HOST}`);
+  const hardLimit = Number(surface.hard_operation_limit || 30);
+  const warningLimit = Number(surface.warning_operation_limit || hardLimit);
+  if (count > hardLimit) throw new Error(`${surfaceKey}: ${count} operations exceeds hard limit ${hardLimit}`);
+  if (count > warningLimit) console.warn(`${surfaceKey}: ${count} operations exceeds warning limit ${warningLimit}`);
+  return count;
 }
 
-function buildDocFromTenantOperationIds(sourceDoc, sourceOperations, operationIds, { host, title, summary, description }) {
-  validateUniqueTenantAliases(sourceOperations);
-  const byTenantId = new Map();
-  for (const op of sourceOperations) {
-    const id = tenantOperationId(op.operation);
-    if (id) byTenantId.set(id, op);
+function generateConfiguredSurfaces(sourceDoc, sourceOperations, registry) {
+  const generated = [];
+  for (const [surfaceKey, surface] of Object.entries(registry.surfaces || {})) {
+    if (surface.mode !== "generated_from_openapi") continue;
+    const selected = selectOperations(sourceOperations, surfaceKey, surface);
+    const doc = buildSurfaceDoc(sourceDoc, selected, surfaceKey, surface);
+    const count = validateGeneratedDoc(doc, sourceDoc, surfaceKey, surface);
+    const target = outputPath(surface.output_file);
+    fs.writeFileSync(target, YAML.stringify(doc, { lineWidth: -1, aliasDuplicateObjects: false }), "utf8");
+    generated.push({ surfaceKey, file: surface.output_file, server: surface.server_url, count, authProfile: surface.auth_profile });
+    console.log(`Generated ${target} (${count} operations) -> ${surface.server_url}`);
   }
-  const missing = operationIds.filter((id) => !byTenantId.has(id));
-  if (missing.length > 0) {
-    throw new Error(`Configured tenant operationIds are missing from ${SOURCE_OPENAPI_FILE}: ${missing.join(", ")}`);
-  }
-  const operations = operationIds.map((id) => {
-    const op = byTenantId.get(id);
-    const cloned = { ...op, operation: clone(op.operation) };
-    cloned.operation.operationId = id;
-    delete cloned.operation["x-tenant-gpt-operationId"];
-    return cloned;
-  });
-  return buildDoc(sourceDoc, operations, { host, title, summary, description });
-}
-
-function normalizeTenantDoc(doc, sourceDoc, config) {
-  const schemeName = String(config.security_scheme_name || "userBearerAuth").trim();
-  doc.components = doc.components || {};
-  doc.components.securitySchemes = { [schemeName]: clone(config.security_scheme) };
-  doc.security = clone(config.security);
-  if (config.action_auth_preset && typeof config.action_auth_preset === "object") {
-    doc["x-gpt-action-auth-preset"] = clone(config.action_auth_preset);
-  }
-  for (const pathItem of Object.values(doc.paths || {})) {
-    for (const [method, operation] of Object.entries(pathItem || {})) {
-      if (!METHOD_NAMES.has(method) || !operation || typeof operation !== "object") continue;
-      operation.security = clone(config.security);
-      normalizeRequestBody(sourceDoc, operation);
-      normalizeTenantToolCallBody(operation);
-    }
-  }
-  normalizeDescriptions(doc);
-  normalizeObjects(doc);
-}
-
-function validateSplitOperationsComeFromSource(splitDoc, sourceDoc, schemaName) {
-  const sourcePairs = new Set();
-  const sourceIds = new Set();
-  for (const op of collectOperations(sourceDoc)) {
-    sourcePairs.add(`${op.method.toUpperCase()} ${op.pathKey}`);
-    if (op.operation?.operationId) sourceIds.add(op.operation.operationId);
-    const alias = tenantOperationId(op.operation);
-    if (alias) sourceIds.add(alias);
-  }
-  const failures = [];
-  for (const op of collectOperations(splitDoc)) {
-    const pair = `${op.method.toUpperCase()} ${op.pathKey}`;
-    const operationId = op.operation?.operationId;
-    if (!sourcePairs.has(pair)) failures.push(`${schemaName}: split-only path/method ${pair}`);
-    if (operationId && !sourceIds.has(operationId)) failures.push(`${schemaName}: split-only operationId ${operationId}`);
-  }
-  if (failures.length > 0) {
-    throw new Error(`OpenAPI split governance failed: ${failures.join("; ")}`);
-  }
-}
-
-function generateTenantAuthSchema(sourceDoc, sourceOperations) {
-  const config = sourceDoc["x-tenant-gpt-auth"];
-  if (!config || typeof config !== "object") throw new Error("x-tenant-gpt-auth missing from openapi.yaml.");
-  if (!config.security_scheme || typeof config.security_scheme !== "object") throw new Error("x-tenant-gpt-auth.security_scheme required.");
-  if (!Array.isArray(config.security) || config.security.length === 0) throw new Error("x-tenant-gpt-auth.security required.");
-  if (!Array.isArray(config.tenant_operation_ids) || config.tenant_operation_ids.length === 0) {
-    throw new Error("x-tenant-gpt-auth.tenant_operation_ids required. Tenant split schemas must be generated from main openapi.yaml operationIds or x-tenant-gpt-operationId aliases.");
-  }
-
-  const tenantOperationIds = config.tenant_operation_ids.map((id) => String(id).trim()).filter(Boolean);
-  const schemaInfo = config.schema_info && typeof config.schema_info === "object" ? config.schema_info : {};
-  const doc = buildDocFromTenantOperationIds(sourceDoc, sourceOperations, tenantOperationIds, {
-    host: AUTH_DISPATCHER_HOST,
-    title: schemaInfo.title || `${sourceDoc.info?.title || "Platform API"} - Tenant GPT Auth Actions`,
-    summary: schemaInfo.summary || "Tenant GPT schema generated from main OpenAPI using x-tenant-gpt-auth.tenant_operation_ids.",
-    description: schemaInfo.description || "Tenant MCP schema. Use connect_activate with tool_args.mode and integration_modes. Also supports Platform Plugin catalog, install, and resolve."
-  });
-  if (schemaInfo.version) doc.info.version = schemaInfo.version;
-  if (config.server_description && doc.servers?.[0]) doc.servers[0].description = String(config.server_description);
-  normalizeTenantDoc(doc, sourceDoc, config);
-  validateSplitOperationsComeFromSource(doc, sourceDoc, TENANT_AUTH_SCHEMA_FILE);
-
-  const count = countOperations(doc.paths);
-  if (count > MAX_OPERATIONS) throw new Error(`${TENANT_AUTH_SCHEMA_FILE} has ${count} operations; max is ${MAX_OPERATIONS}.`);
-  const tenantPath = path.resolve(`./${TENANT_AUTH_SCHEMA_FILE}`);
-  fs.writeFileSync(tenantPath, YAML.stringify(doc, { lineWidth: -1, aliasDuplicateObjects: false }), "utf8");
-  console.log(`Generated ${tenantPath} (${count} operations) -> ${doc.servers?.[0]?.url || "tenant auth"}`);
+  return generated;
 }
 
 function main() {
-  const openApiPath = path.resolve(`./${SOURCE_OPENAPI_FILE}`);
-  if (!fs.existsSync(openApiPath)) { console.error(`Could not find ${SOURCE_OPENAPI_FILE}`); process.exit(1); }
-
-  const sourceDoc = YAML.parse(fs.readFileSync(openApiPath, "utf8"));
-  const sourceOperations = collectOperations(sourceDoc);
-
-  generateAuthDispatcher(sourceDoc, sourceOperations);
-  generateTenantAuthSchema(sourceDoc, sourceOperations);
-
-  console.log("\nDone. Active GPT schemas:");
-  console.log("  openapi.custom-gpt.auth-dispatcher.yaml  — admin dispatcher (auth.mad4b.com)");
-  console.log("  openapi.tenant-gpt.auth.yaml             — tenant dispatcher (auth.mad4b.com)");
-  console.log("  openapi.gpt-action.dev-dispatcher.yaml   — dev dispatcher (dev.mad4b.com, hand-maintained)");
-  console.log("  openapi.gpt-action.local-connector.yaml  — connector dispatcher (connector.mad4b.com, hand-maintained)");
+  if (!fs.existsSync(SOURCE_OPENAPI_FILE)) throw new Error(`Missing ${SOURCE_OPENAPI_FILE}`);
+  if (!fs.existsSync(SURFACE_REGISTRY_FILE)) throw new Error(`Missing ${SURFACE_REGISTRY_FILE}`);
+  const sourceDoc = YAML.parse(fs.readFileSync(SOURCE_OPENAPI_FILE, "utf8"));
+  const registry = YAML.parse(fs.readFileSync(SURFACE_REGISTRY_FILE, "utf8"));
+  validateUniqueTenantAliases(collectOperations(sourceDoc));
+  const generated = generateConfiguredSurfaces(sourceDoc, collectOperations(sourceDoc), registry);
+  console.log(`\nGenerated ${generated.length} registry-owned OpenAPI surfaces.`);
+  for (const item of generated) console.log(`  ${item.file} - ${item.surfaceKey} (${item.authProfile}, ${item.count} operations)`);
+  console.log("  openapi.gpt-action.local-connector.yaml - copied from canonicals/openapi/local-connector.openapi.yaml by the schema orchestrator");
+  console.log("  openapi.gpt-action.dev-dispatcher.yaml - externally managed development surface");
 }
 
 main();
