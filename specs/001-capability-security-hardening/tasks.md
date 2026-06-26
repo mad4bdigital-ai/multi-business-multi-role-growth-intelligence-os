@@ -21,16 +21,16 @@
 
 ## Phase 1 — Repository and registry discovery
 
-- [ ] **T010** Inspect live repository canonicals and map current dispatcher, resolver, credential, approval, device, and audit modules.
-- [ ] **T011** Inventory every active action/tool/intent alias and surface.
-- [ ] **T012** Identify all dual-surface capabilities and compare current policies.
-- [ ] **T013** Identify tenant-visible administrative capabilities.
-- [ ] **T014** Inventory state-changing capabilities without complete mutation policy.
-- [ ] **T015** Inventory credential binding states and current resolver semantics.
-- [ ] **T016** Inventory device state fields, heartbeat source, and connector identity model.
-- [ ] **T017** Establish resolver p50/p95/p99 baseline and request volume.
-- [ ] **T018** Confirm database migration, test, feature-flag, and OpenAPI build mechanisms.
-- [ ] **T019** Update this plan where live repository facts differ; retain constitution constraints.
+- [x] **T010** Inspect live repository canonicals and map current dispatcher, resolver, credential, approval, device, and audit modules.
+- [x] **T011** Inventory every active action/tool/intent alias and surface.
+- [x] **T012** Identify all dual-surface capabilities and compare current policies.
+- [x] **T013** Identify tenant-visible administrative capabilities.
+- [x] **T014** Inventory state-changing capabilities without complete mutation policy.
+- [x] **T015** Inventory credential binding states and current resolver semantics.
+- [x] **T016** Inventory device state fields, heartbeat source, and connector identity model.
+- [x] **T017** Establish resolver p50/p95/p99 baseline and request volume.
+- [x] **T018** Confirm database migration, test, feature-flag, and OpenAPI build mechanisms.
+- [x] **T019** Update this plan where live repository facts differ; retain constitution constraints.
 
 ## Phase 2 — Canonical capability domain
 
@@ -48,22 +48,7 @@
 - [ ] **T028** Implement `MISSING_CAPABILITY_SELECTOR`. `[FR-001]`
 - [ ] **T029** Implement `AMBIGUOUS_CAPABILITY_SELECTOR`. `[FR-002]`
 - [ ] **T030** Reject unknown request fields where security strictness applies.
-- [ ] **T031** Remove silent selector precedence from every dispatcher path.
-- [ ] **T032** Add compatibility telemetry for legacy clients.
-- [ ] **T033** Add API integration tests for selector cases. `[A01-A05]`
-
-## Phase 4 — Security decision engine
-
-- [ ] **T034** Create `SecurityDecision` and `GateResult` domain models. `[FR-015]`
-- [ ] **T035** Implement principal and tenant authorization evaluator. `[FR-009-FR-014]`
-- [ ] **T036** Implement surface exposure evaluator. `[FR-010, FR-011]`
-- [ ] **T037** Implement target-resource ownership abstraction. `[FR-012, FR-013]`
-- [ ] **T038** Integrate skill evaluation as a separate gate.
-- [ ] **T039** Implement fail-closed policy completeness validator. `[FR-016, FR-021]`
-- [ ] **T040** Implement `dispatch_ready` invariant. `[FR-017]`
-- [ ] **T041** Ensure preview mode cannot execute. `[FR-018]`
-- [ ] **T042** Fix explicit tool requests incorrectly classified as `no_action_requested`. `[FR-020]`
-- [ ] **T043** Route action and tool surfaces through the same application use case.
+- [ ] **T031** Route action and tool surfaces through the same application use case.
 - [ ] **T044** Add decision-engine unit tests for all gate-state combinations. `[C01-C07]`
 - [ ] **T045** Add property test: no allowed decision contains an unevaluated required gate.
 
