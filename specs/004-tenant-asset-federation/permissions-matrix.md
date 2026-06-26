@@ -321,6 +321,70 @@ May review scoped statements, invoice, payment-result references, disputes, refu
 
 May dispatch cost-bearing work only when the manifest binds an active compatible reservation and current commercial decision. They cannot self-select an ineligible model/profile, extend reservations beyond policy, create prices/meters, or continue after safe-stop when extension fails.
 
+## Contextual Model Governance permissions
+
+### Platform model-governance administrator
+
+May define and version task classes, capability dimensions/profiles, provider endpoint/deployment profiles, exact model versions, inference profiles, context-policy schemas, optimization profiles, evaluation-suite schemas, metric semantics, lifecycle, and compatibility contracts.
+
+May not use registry authority to bypass data governance, commercial reservation, credential isolation, evaluation evidence, approval, separation of duties, or provider adapter allowlists.
+
+### Tenant model-policy administrator
+
+May, within Platform, contract, plan, data, region, safety, quality, and commercial bounds:
+
+- select allowed optimization profiles and fallback behavior;
+- define stricter task/model/provider/region restrictions;
+- configure eligible user/delegated preference templates;
+- require higher evaluation/readiness floors or disable fallback;
+- inspect scoped candidate, selection, scorecard, readiness, drift, and deprecation evidence.
+
+May not register raw provider endpoints/models, lower mandatory floors, modify Platform evaluation results, expose credentials, authorize prohibited data use, or select another Tenant's private endpoint/profile.
+
+### End user
+
+May, when the active template permits:
+
+- view eligible candidates and exclusion explanations;
+- preview model selection;
+- select an eligible optimization profile;
+- prefer an eligible provider/model;
+- request local-only/privacy-first behavior;
+- set lower personal cost/latency ceilings;
+- disable fallback or pin an eligible low-risk candidate.
+
+May not submit raw unregistered IDs/endpoints, lower mandatory floors, override data/region/tool/output policy, change evaluation/readiness evidence, bypass reservation, or modify credentials.
+
+### Evaluation designer and runner
+
+The designer may create versioned evaluation-suite drafts, dataset references, rubrics, metrics, thresholds, validators, sample policy, and freshness requirements. The runner may execute an approved suite against exact candidate versions and persist immutable results.
+
+Neither role may unilaterally publish a high-risk scorecard when separation of duties requires independent review. Evaluation access does not grant production-dispatch or provider-policy authority.
+
+### Evaluation reviewer / scorecard publisher
+
+May review suite/run provenance, deterministic/human/model-judge evidence, confidence, failures, thresholds, and drift before publishing a bounded scorecard. Cannot alter source results, candidate identity, or commercial evidence.
+
+### Readiness publisher
+
+May publish no-secret endpoint/model readiness from approved health, quota, capacity, incident, latency, and feature sources. Cannot expose credential values or mark readiness contrary to source evidence.
+
+### Incident and revocation operator
+
+May apply exact provider/endpoint/model/version restrictions or emergency revocation with reason, authority, effective scope, expiry/review, audit, and readback. Cannot delete historical evidence or silently broaden data access.
+
+### Deprecation operator
+
+May preview and manage approved deprecation runs, replacements, deadlines, shadow/canary evidence, migration state, rollback, and exceptions. Cannot force a replacement that fails contextual gates.
+
+### Selection runtime principal
+
+May construct candidate sets, apply deterministic gates, rank eligible candidates, create immutable selection decisions, and request candidate-specific commercial estimate/reservation. It cannot create policy, evaluation, readiness, or credentials, and cannot dispatch a candidate absent current manifest-bound evidence.
+
+### Provider adapter runtime principal
+
+May invoke only the exact manifest-bound, pre-dispatch-revalidated provider endpoint/model/inference profile through an allowlisted backend adapter and resolved credential reference. It cannot choose a different candidate or fallback independently.
+
 ## 9. Composition profile permissions
 
 ### User
