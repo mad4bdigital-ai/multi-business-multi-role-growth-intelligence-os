@@ -51,6 +51,7 @@ No silent self-modification is allowed. High-risk policy, authority, credential,
 - `principal-authority-decision.md` — approved configurable federated principal authority with Brand-scoped Departments above Groups.
 - `member-invitation-onboarding-model.md` — approved Google/email invitation flow that links one global user identity to exact Tenant/Brand/Workspace/Department/Group/Role scopes without creating a Tenant automatically, plus optional isolated personal workspaces and active-context switching.
 - `tenant-workspace-boundary-decision.md` — approved distinction between Tenant ownership/governance and Workspace operations, including explicit user Tenant creation rights, personal/company coexistence, Workspace types/bindings, lifecycle, commercial limits, and implementation dependencies.
+- `data-governance-decision.md` — approved Layered Purpose-Bound Data Governance: access authority is necessary but insufficient; classification, purpose, lawful basis/consent, residency/transfer, retention/legal hold, provider/model controls, lineage/disposition, and the most restrictive rule determine eligibility.
 - `design-freeze-decision-register.md` — frozen/approved decisions plus remaining P0/P1/P2 decisions, closure evidence, and the rule that write enforcement cannot freeze before unresolved P0 boundaries close.
 - `data-model.md` — reused and new authorities across all fourteen platform planes.
 - `resolution-algorithm.md` — deterministic effective-context resolution.
