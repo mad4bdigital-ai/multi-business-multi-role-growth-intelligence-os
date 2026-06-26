@@ -78,6 +78,18 @@
 | Multi-Brand Workspace is opt-in and same-Tenant only | boundary decision 13; FR-093–FR-094 | disabled-default, same-Tenant validation, policy conflict, provenance, and cross-Tenant rejection tests |
 | Workspace and Tenant lifecycles remain separate | boundary decision 14; FR-097–FR-098 | Workspace disposition, Brand preservation, Tenant offboarding, and dependent-resource tests |
 
+| Access authority alone does not authorize data processing | `data-governance-decision.md` 1–2; `spec.md` FR-101, FR-115 | access-plus-purpose eligibility and fail-closed decision tests |
+| Classification is sensitivity plus category attributes | governance decision 3; FR-102 | assignment, non-downgrade, secret/credential, and regulated-category tests |
+| Every consequential use declares a registered purpose | governance decision 4; FR-103 | missing, disallowed, audience, sink, and purpose-drift tests |
+| Lawful basis and consent are purpose-bound and revocable | governance decision 5; FR-104 | consent grant/version/withdrawal, lawful-basis, and invalidation tests |
+| Residency and transfer constrain every destination | governance decision 6; FR-105 | storage, processing, model, provider, backup, export, and cross-border tests |
+| Retention and legal hold are independently governed | governance decision 7; FR-106–FR-107 | expiry, hold scope, no-read-authority, release, and disposition tests |
+| Privacy requests discover primary and derived data | governance decision 8–9; FR-108–FR-110 | access/export/correction/restriction/erasure/objection and item-readback tests |
+| Derived objects preserve lineage and explicit disposition | governance decision 9; FR-109–FR-110 | summary, embedding, index, Agent-memory, evaluation, artifact, provider-copy, and backup propagation tests |
+| Model/provider data use is separately eligible | governance decision 10; FR-111–FR-112 | region, retention, training, subprocessors, deletion, contract, zero-retention, and fallback tests |
+| Raw cross-Tenant learning is forbidden | governance decision 11; FR-113 | raw-content rejection, cohort, dominance, opt-out, residency, re-identification, and fairness tests |
+| Manifest binds immutable data-use decision and governance versions | governance decision 12, 15; FR-114–FR-115 | decision checksum, explanation, expiry, epoch invalidation, and pre-dispatch revalidation tests |
+
 ## Source-to-target traceability
 
 | Existing authority | Target role |
