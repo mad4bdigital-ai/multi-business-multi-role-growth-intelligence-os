@@ -68,7 +68,9 @@ const SCOPES_BY_HOST = {
     primary_paths: ["/connect/status", "/connect/activate", "/connect/device-install"],
     schema_variants: {
       tenant: "openapi.tenant-gpt.auth.yaml",
-      admin: "openapi.custom-gpt.auth-dispatcher.yaml"
+      tenant_activation: "openapi.tenant-gpt.activation.yaml",
+      admin: "openapi.custom-gpt.auth-dispatcher.yaml",
+      admin_activation: "openapi.custom-gpt.activation-admin.yaml"
     }
   },
   "ops.mad4b.com": {

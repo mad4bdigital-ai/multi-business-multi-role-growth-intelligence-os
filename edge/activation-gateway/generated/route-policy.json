@@ -1,0 +1,313 @@
+{
+  "content_hash_sha256": "961c765e2d9eee8b1892e73a3b250e4dbb7a949c05b4e47e0c5ac1d563611aba",
+  "deployment_signature_required": true,
+  "manifest_version": 1,
+  "mutation_stale_policy": "deny",
+  "policy_key": "activation_gateway",
+  "public_host": "activation.mad4b.com",
+  "read_stale_grace_seconds": 0,
+  "routes": [
+    {
+      "allowed_query_parameters": [
+        "attention_limit",
+        "profile"
+      ],
+      "auth_profiles": [
+        "admin_service"
+      ],
+      "method": "GET",
+      "mutation": false,
+      "operation_ids": [
+        "readActivationAwareness"
+      ],
+      "path": "/activation/awareness",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "activation_admin"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [
+        "container_key",
+        "cursor",
+        "limit",
+        "section_key",
+        "snapshot_id",
+        "tab_key"
+      ],
+      "auth_profiles": [
+        "admin_service"
+      ],
+      "method": "GET",
+      "mutation": false,
+      "operation_ids": [
+        "readActivationDynamicTabDetail"
+      ],
+      "path": "/activation/dynamic-tabs/detail",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "activation_admin"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [],
+      "auth_profiles": [
+        "admin_service"
+      ],
+      "method": "POST",
+      "mutation": true,
+      "operation_ids": [
+        "runHardActivation"
+      ],
+      "path": "/activation/hard-run",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "activation_admin"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [],
+      "auth_profiles": [
+        "admin_service"
+      ],
+      "method": "POST",
+      "mutation": true,
+      "operation_ids": [
+        "runLegacyFullHardActivation"
+      ],
+      "path": "/activation/hard-run/legacy-full",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "activation_admin"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [],
+      "auth_profiles": [
+        "admin_service"
+      ],
+      "method": "GET",
+      "mutation": false,
+      "operation_ids": [
+        "getActivationHardRunSummary"
+      ],
+      "path": "/activation/hard-run/summary",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "activation_admin"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [
+        "cursor",
+        "include_resolved",
+        "lifecycle_status",
+        "limit",
+        "lookback_hours",
+        "q",
+        "severity",
+        "source_type"
+      ],
+      "auth_profiles": [
+        "admin_service"
+      ],
+      "method": "GET",
+      "mutation": false,
+      "operation_ids": [
+        "readActivationOperationalAttention"
+      ],
+      "path": "/activation/operational-attention",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "activation_admin"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [],
+      "auth_profiles": [
+        "admin_service"
+      ],
+      "method": "GET",
+      "mutation": false,
+      "operation_ids": [
+        "getActivationPlatformAccess"
+      ],
+      "path": "/activation/platform-access",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "activation_admin"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [],
+      "auth_profiles": [
+        "admin_service"
+      ],
+      "method": "POST",
+      "mutation": true,
+      "operation_ids": [
+        "acknowledgeActivationRun"
+      ],
+      "path": "/activation/runs/{runId}/ack",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "activation_admin"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [
+        "include_raw",
+        "limit",
+        "offset",
+        "raw_max_chars",
+        "tenant_id",
+        "user_id"
+      ],
+      "auth_profiles": [
+        "admin_service"
+      ],
+      "method": "GET",
+      "mutation": false,
+      "operation_ids": [
+        "getActivationSessionContext"
+      ],
+      "path": "/activation/session-context",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "activation_admin"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [
+        "attention_limit",
+        "profile"
+      ],
+      "auth_profiles": [
+        "tenant_oauth"
+      ],
+      "method": "GET",
+      "mutation": false,
+      "operation_ids": [
+        "readTenantActivationAwareness"
+      ],
+      "path": "/tenant/activation/awareness",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "tenant_activation"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [
+        "container_key",
+        "cursor",
+        "limit",
+        "section_key",
+        "snapshot_id",
+        "tab_key"
+      ],
+      "auth_profiles": [
+        "tenant_oauth"
+      ],
+      "method": "GET",
+      "mutation": false,
+      "operation_ids": [
+        "readTenantActivationDynamicTabDetail"
+      ],
+      "path": "/tenant/activation/dynamic-tabs/detail",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "tenant_activation"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [
+        "cursor",
+        "include_resolved",
+        "lifecycle_status",
+        "limit",
+        "lookback_hours",
+        "q",
+        "severity",
+        "source_type"
+      ],
+      "auth_profiles": [
+        "tenant_oauth"
+      ],
+      "method": "GET",
+      "mutation": false,
+      "operation_ids": [
+        "readTenantActivationOperationalAttention"
+      ],
+      "path": "/tenant/activation/operational-attention",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "tenant_activation"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [
+        "close_previous_sessions",
+        "container_key",
+        "conversation_ref",
+        "date_range",
+        "idempotency_key",
+        "limit",
+        "max_response_chars",
+        "offset",
+        "response_profile",
+        "reuse_window_hours",
+        "session_policy",
+        "tab",
+        "tab_key"
+      ],
+      "auth_profiles": [
+        "tenant_oauth"
+      ],
+      "method": "GET",
+      "mutation": false,
+      "operation_ids": [
+        "activateSession"
+      ],
+      "path": "/tenant/activation/session-context",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "tenant_activation"
+      ],
+      "timeout_ms": 30000
+    }
+  ],
+  "secrets_included": false,
+  "signature_algorithm": "Ed25519",
+  "source_registry": "canonicals/openapi/custom-gpt-surfaces.yaml",
+  "source_surfaces": [
+    "activation_admin",
+    "tenant_activation"
+  ],
+  "surface_registry_version": 1,
+  "upstream_origin": "https://auth.mad4b.com"
+}

@@ -1,13 +1,14 @@
 # Tenant GPT OAuth Preset
 
-Tenant Custom GPT assistants must use the Mad4B tenant OAuth client preset for all `/connect/*`, tenant `/system/*`, app-connection, and local-connector provisioning calls. The preset is source-owned in `http-generic-api/openapi.yaml` under `x-tenant-gpt-auth.action_auth_preset`, generated into `http-generic-api/openapi.tenant-gpt.auth.yaml` as `x-gpt-action-auth-preset`, and exposed live at `https://auth.mad4b.com/tenant-gpt/oauth-preset`.
+Tenant Custom GPT assistants use one governed Mad4B OAuth client across two separate Action schemas: Tenant Core on `auth.mad4b.com` and Tenant Activation on `activation.mad4b.com`. The preset is source-owned in `http-generic-api/openapi.yaml` under `x-tenant-gpt-auth.action_auth_preset`, generated into both tenant schemas as `x-gpt-action-auth-preset`, and exposed live at `https://auth.mad4b.com/tenant-gpt/oauth-preset`.
 
 The canonical Tenant GPT Action configuration is:
 
 | GPT Builder field | Value |
 |---|---|
 | Authentication Type | `OAuth` |
-| Schema URL | `https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml` |
+| Tenant Core Schema URL | `https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml` |
+| Tenant Activation Schema URL | `https://auth.mad4b.com/openapi.tenant-gpt.activation.yaml` |
 | Preset URL | `https://auth.mad4b.com/tenant-gpt/oauth-preset` |
 | Client ID | `mad4b-tenant-gpt` |
 | Client Secret | Use the DB-backed default stored under `platform_runtime_config.config_key = tenant_gpt.oauth.client` |
@@ -15,6 +16,8 @@ The canonical Tenant GPT Action configuration is:
 | Token URL | `https://auth.mad4b.com/auth/oauth/token` |
 | Token Exchange Method | `Default (POST request)` |
 | Allowed Callback URL | `https://chat.openai.com/aip/g-d36db295032b9022dd77233041763f513e8ba5fa/oauth/callback` |
+
+Configure both Action connections with the same Client ID, Client Secret, authorization URL, token URL, scopes, and callback allowlist. The schemas remain separate because they use different public servers and operation budgets. The Activation Gateway forwards allowed requests to `auth.mad4b.com`; it does not mint tokens or make business authorization decisions.
 
 Scopes:
 

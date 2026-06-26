@@ -67,6 +67,30 @@ Repeatable CI and maintenance utilities, including changed-surface resource cove
 
 The Spec Kit constitution, reusable templates, approved feature specifications, plans, tasks, data models, contracts, machine-readable `completion.json` records, and feature-specific checklists. Any new or modified Spec Kit is subject to the changed-scope completion gate.
 
+## OpenAPI canonical and generated artifacts
+
+### `canonicals/openapi/`
+
+Git-controlled source contracts that are not derived from `http-generic-api/openapi.yaml`. The Local Connector contract lives here because it has a separate host, authentication profile, and device-plane ownership boundary.
+
+### `http-generic-api/scripts/generate-custom-gpt-schemas.mjs`
+
+The single write/check orchestrator for active Custom GPT schemas. It generates into a temporary directory, validates every artifact, and writes committed files only after validation succeeds.
+
+### `http-generic-api/scripts/openapi-builder-schema-guard.mjs`
+
+Recursive OpenAPI 3.1 contract validation for request, response, component, array, reference, and property schemas. Empty YAML property schemas and unresolved local references are release-blocking.
+
+### Generated `http-generic-api/openapi.*.yaml` files
+
+Published action schemas are generated artifacts. Do not hand-edit them. Update `openapi.yaml` or the relevant file under `canonicals/openapi/`, run `npm run schemas:generate`, and commit both the canonical and generated output.
+
+### `edge/activation-gateway/`
+
+Stateless Activation transport boundary deployed separately from the auth application. It consumes the generated route policy, enforces signed policy freshness and bounded host/path/method/query/header rules, and forwards allowed requests only to `auth.mad4b.com`. It must not connect to MySQL, resolve tenant membership, decrypt credentials, select providers, or implement Activation business logic.
+
+The committed `generated/route-policy.json` file is produced from the Activation Admin and Tenant Activation OpenAPI surfaces. Edit `canonicals/openapi/custom-gpt-surfaces.yaml` or `http-generic-api/openapi.yaml`, not the generated policy directly.
+
 ## Dependency direction
 
 ```text
