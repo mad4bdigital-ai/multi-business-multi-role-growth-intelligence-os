@@ -152,6 +152,29 @@
 - [ ] Exact aggregate-learning cohort, contribution, re-identification, fairness, and opt-out thresholds approved.
 - [ ] Implementation and migration scope authorized.
 
+## Dynamic Commercial and FinOps
+
+- [x] Commercial semantics are database-authoritative through versioned registries and specialized scoped records.
+- [x] Initial billing models include Credits and Direct Monetary Billing, with future compatible models activated through registry governance.
+- [x] Initial monetary collection modes include prepaid balance and postpaid invoice.
+- [x] Credits, money, and usage units are separate assets with explicit conversion contracts where allowed.
+- [x] Users customize only template-exposed typed billing-profile fields within contract, plan, Tenant, delegated, risk, tax, accounting, and payment bounds.
+- [x] Billing profile resolution uses most-restrictive limits and blocks equal-ranked incompatible selections.
+- [x] One direct non-transitive billable owner and billing account resolve per cost-bearing operation.
+- [x] Tokens are one meter family; operation, duration, data, storage-time, compute, AI modality, retrieval, seat/entity, concurrency, channel, business-operation, and verified-outcome meters are supported.
+- [x] Units, conversions, scaling, rounding, minimum increments, aggregation, deduplication, correction, verification, late events, and composite-meter semantics are registered and versioned.
+- [x] Raw technical usage, billable usage, rating, provider/internal cost, customer charge, estimate, reservation, settlement, and ledger posting remain separately explainable.
+- [x] Included units apply before Credits or monetary rating and do not become a third settlement asset.
+- [x] Reservation is atomic, idempotent, concurrency-safe, expiry/epoch bound, and mandatory before cost-bearing dispatch unless bounded postpaid policy explicitly allows otherwise.
+- [x] Streaming usage uses bounded reservation extension and safe-stop behavior.
+- [x] Settlement requires verified usage/outcome evidence and cannot exceed authorization without approved overage.
+- [x] Ledger posting is append-only, double-entry balanced, and corrections/refunds/disputes use compensating entries.
+- [x] Grace, past-due, paused, cancelled, fraud, and security behavior is registered and fail-closed.
+- [x] Manifest binds billing profile/model, meters/units, rating/price, estimate, reservation, standing, policy versions, and commercial epoch.
+- [ ] Initial registry seed values, profile templates, price books, tax/discount, FX, overage, and standing policies approved for implementation.
+- [ ] Accounting chart, posting rules, period close, invoice, payment, refund, dispute, and reconciliation ownership approved.
+- [ ] Implementation and migration scope authorized.
+
 ## Review status
 
 - [ ] Product terminology approved.
