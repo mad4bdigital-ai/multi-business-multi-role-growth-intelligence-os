@@ -408,4 +408,10 @@ It never converts unavailable evidence into a false zero.
 - billing customization exposes only registered allowed fields and explains disabled options through contract/policy evidence;
 - usage is presented through service-relevant meters beyond tokens while technical components remain explainable when permitted;
 - billing-profile preview predicts certified cases and causes no reservation, charge, invoice, payment, provider call, or external write;
+- eligible users can compare optimization profiles and candidate trade-offs without seeing unregistered or ineligible models;
+- every selected candidate and exclusion has a concise explanation plus safe advanced evidence;
+- user preferences can narrow or reorder eligible candidates but cannot lower mandatory quality, safety, data, region, tool, output, evaluation, readiness, or commercial floors;
+- high-risk fallback behavior is explicit, certified where allowed, and never silently inferred from provider order;
+- restriction, revocation, deprecation, alias movement, and readiness degradation produce actionable impact and replacement guidance;
+- model-selection preview predicts certified cases and causes no provider/model call, credential read, evaluation execution, reservation, lifecycle mutation, or external write;
 - advanced controls do not obstruct the default shared-asset journey.
