@@ -183,6 +183,28 @@
 | Meter, price, profile, contract, standing, or commercial policy changes after manifest preview | Commercial epoch invalidates the stale manifest and dispatch blocks with `COMMERCIAL_EPOCH_CHANGED` |
 | Billing-profile preview is requested | It returns eligible options, effective limits, meter/unit/rating/price versions, expected reservation, conflicts, and recovery actions without charge, reservation, invoice, payment, provider call, or external write |
 
+| Registered summarization task requests a model | Resolver starts from the versioned task/capability contract and never from a raw model name or global provider order |
+| Cheapest candidate is below the groundedness or safety floor | Candidate is excluded before cost-first ranking and cannot be restored by user preference |
+| User selects `privacy_first` | Only already eligible candidates are reordered; residency, retention, training, safety, and quality gates remain unchanged |
+| User submits a raw model ID or provider endpoint | Preference mutation blocks and preserves the prior preference/version |
+| Candidate supports the task but not required structured output or tools | It is excluded with `MODEL_OUTPUT_CONTRACT_UNSUPPORTED` or `MODEL_TOOL_POLICY_INCOMPATIBLE` |
+| High-quality candidate is outside the permitted region | It is excluded before ranking with `MODEL_REGION_INELIGIBLE` |
+| Provider endpoint is ready but evaluation evidence is stale for an authority-sensitive task | Selection blocks with `MODEL_EVALUATION_STALE` unless an independently certified equivalent fallback is allowed |
+| Evaluation passes but provider readiness is stale or unknown | Policy requests fresh readiness, uses only a certified fallback, or blocks; stale is never interpreted as ready |
+| Two candidates are equal after all registered tie-breakers | Preview blocks with `MODEL_SELECTION_AMBIGUOUS` and explains both candidates |
+| Global provider order places an ineligible provider first | Provider is absent from the eligible ranked set and fallback set |
+| Selected candidate cannot obtain cost reservation | Dispatch does not start; another candidate is considered only when pre-approved as fallback and receives a new estimate/reservation |
+| Fallback candidate would weaken data retention, region, tool, output, quality, or safety requirements | Fallback is excluded with stable evidence and execution blocks when no valid candidate remains |
+| Authority-sensitive operation has no certified-equivalent fallback | Fallback is disabled and provider failure blocks rather than silently switching models |
+| Provider outage occurs before dispatch | Runtime revalidates readiness and uses only the manifest-bound fallback or blocks |
+| Model begins streaming or emits tool calls before failure | Runtime does not automatically switch models; DFR-006 restart/resume/compensation policy governs the next action |
+| Mutable model alias resolves to a new version | Alias snapshot, compatibility, evaluation, and governance epoch determine whether the old decision remains valid |
+| Model version is emergency revoked | Affected decisions/manifests invalidate; new dispatch blocks while historical run evidence remains reconstructable |
+| Model is deprecated with active Agents/workflows | Deprecation preview lists affected assets, replacements, deadlines, shadow/canary evidence, rollback, and exceptions before apply |
+| Production outcomes show quality drift | A drift event triggers review/re-evaluation and does not silently rewrite the prior scorecard or selection policy |
+| Tenant chooses a lower maximum cost or latency | Preference narrows eligible candidates but cannot raise contract limits or lower mandatory floors |
+| Model-selection preview is requested | It returns gates, candidates, exclusions, evaluation/readiness evidence, ranking, fallback, provisional commercial effects, epoch, and expiry without provider call, credential read, evaluation run, reservation, or external write |
+
 ## Success thresholds before enforcement
 
 - zero cross-tenant leakage in tests and shadow evidence;
