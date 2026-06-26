@@ -101,6 +101,18 @@
 | Ledger is append-only and double-entry balanced | commercial decision 14–15; FR-136 | balanced posting, immutable history, compensating refund/adjustment/dispute/chargeback, and rebuild tests |
 | Standing and manifest linkage are explicit | commercial decision 16–17; FR-137–FR-140 | grace/past-due/paused/cancelled, manifest contribution, commercial epoch, and stable-error tests |
 
+| Selection begins from task/capability contract | `model-governance-decision.md` 1, 4; FR-141–FR-143 | registered-task, capability-profile, unregistered-task, exact-candidate, and contract-mismatch tests |
+| Deterministic model gates precede ranking | model decision 5; FR-143–FR-145 | data/region/risk/tool/output/evaluation/readiness/entitlement/lifecycle/commercial exclusion tests |
+| Ranking is evidence-based and explainable | model decision 6; FR-146–FR-147 | metric source/version/freshness/confidence/weight, tie-break, and opaque-score rejection tests |
+| User model preference is bounded | model decision 7; FR-148–FR-149 | eligible preference, raw-ID rejection, floor protection, lower cost/latency, local-only, and fallback-disable tests |
+| Evaluation is contextual and governed | model decision 8–9; FR-150–FR-154 | dataset provenance, deterministic validator, human/model-judge, threshold, zero-tolerance, freshness, scorecard, and drift tests |
+| Readiness is independent from quality | model decision 10; FR-155–FR-156 | credential-presence, endpoint/region, capacity, circuit-breaker, incident, stale/unknown, and freshness tests |
+| Fallback is independently eligible | model decision 11–12; FR-157–FR-160 | same-gate, certified-equivalence, high-risk-disabled, candidate-specific estimate/reservation, and exhaustion tests |
+| Lifecycle supports deprecation and revocation | model decision 13; FR-161–FR-162 | impact-preview, replacement, deadline, shadow/canary, rollback, restriction, revoke, alias movement, and epoch tests |
+| Selection decision and manifest are immutable | model decision 15; FR-163–FR-164 | candidate-universe, exact version, policy/evaluation/readiness, fallback, commercial refs, checksum, expiry, and pre-dispatch tests |
+| Current routing remains a compatibility bridge | model decision 2, 20; FR-165 | provider-order/free-first shadow parity, task/risk-family cutover, rollback, and hardcoded-list removal gate tests |
+| Model-selection preview has no effect | model decision 16; FR-166–FR-167 | no provider/model call, credential read, evaluation execution, reservation, lifecycle mutation, or external write tests |
+
 ## Source-to-target traceability
 
 | Existing authority | Target role |
