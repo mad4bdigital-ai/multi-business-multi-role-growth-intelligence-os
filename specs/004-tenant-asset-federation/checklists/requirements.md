@@ -156,6 +156,6 @@
 
 - [ ] Product terminology approved.
 - [ ] Typed field/operator registry approved.
-- [ ] Privacy and consent policy approved.
+- [x] Layered purpose-bound privacy, consent/lawful-basis, retention, residency, model/provider data-use, lineage/disposition, and aggregate-learning policy approved at design level.
 - [ ] Initial pilot family and context approved.
 - [ ] Implementation scope authorized.
