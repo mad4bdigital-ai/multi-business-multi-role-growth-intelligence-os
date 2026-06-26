@@ -227,8 +227,11 @@ tenant/cohort
 + asset family
 + operation class
 + context type
++ task class and capability profile/version where applicable
++ risk/data/region family where applicable
++ model optimization profile/version where applicable
 + composition profile/version
-+ resolver version
++ resolver/model-selection version
 ```
 
 Examples:
