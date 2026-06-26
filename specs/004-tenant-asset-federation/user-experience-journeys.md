@@ -291,7 +291,7 @@ The UI never offers free-form editing of price, tax, FX rate, unit conversion, l
 - cross-scope impact;
 - rollout and rollback controls.
 
-## 15. Notification design
+## 16. Notification design
 
 Notifications are event- and preference-aware:
 
