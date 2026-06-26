@@ -89,9 +89,9 @@ Owns no durable secret. It resolves evidence from:
 
 ### Effective Runtime Manifest
 
-Immutable, no-secret attribution record combining context, authority, composition, assets, variants, preferences, readiness, and the exact data-use decision/version vector.
+Immutable, no-secret attribution record combining context, authority, composition, assets, variants, preferences, readiness, the exact data-use decision/version vector, and the exact commercial decision, billing profile/model, meter/unit/rating/price versions, estimate, reservation, standing, and commercial epoch.
 
-It is a derived record, not a mutation authority.
+It is a derived record, not an authority, reservation, settlement, ledger, invoice, or payment mutation surface.
 
 ### Data-Use Decision
 
