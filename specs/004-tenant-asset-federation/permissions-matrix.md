@@ -11,6 +11,7 @@
 | Preference | What does the user prefer among allowed results? | user runtime preference profile |
 | Variant | Has an authorized scope customized an asset? | optional variant and patches |
 | Readiness | Can the operation run now? | connection, installation, credential eligibility, certification, quota, approval |
+| Data governance | May this authorized data be processed for this exact purpose, audience, destination, provider/model, region, and retention context? | classification, purpose, lawful-basis/consent, residency/transfer, retention/legal-hold, lineage/disposition, provider/model, and data-use decision authorities |
 | Adaptation | Should a change be proposed? | adaptive proposal and experiment authorities |
 
 No plane silently substitutes for another.
