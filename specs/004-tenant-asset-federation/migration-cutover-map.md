@@ -235,6 +235,11 @@ Comparisons classify:
 - `different_reason_same_decision`;
 - `legacy_missing_context`;
 - `contextual_missing_bridge`;
+- `durable_missing_history`;
+- `durable_missing_effect_evidence`;
+- `durable_nondeterministic`;
+- `durable_duplicate_effect_risk`;
+- `durable_changed_terminal_outcome`;
 - `not_comparable`;
 - `critical_mismatch`.
 
