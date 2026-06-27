@@ -27,6 +27,12 @@ The migration is projection-first, bridge-first, shadow-first, and family-by-fam
 | `ai_model_providers`, `ai_model_registry`, `agent_model_runs` | current provider/model/run authorities | compatibility sources plus exact provider/model-version projections | preserve; normalize provider endpoints, model versions, lifecycle, and historical evidence |
 | `platform_runtime_config.agent_model_runtime`, task profiles, `provider_order`, `free_first` | current routing/bootstrap behavior | compatibility router during DFR-005 shadow and family cutover | preserve; shadow contextual decisions; retire only after certified parity and rollback readiness |
 | allowlisted provider adapters | provider transport implementations | infrastructure adapters selected by governed model decisions | preserve in code; register adapter keys only; prohibit arbitrary endpoint/code/secret injection |
+| job repository, job queue, async runner, attempts/status fields | current asynchronous delivery/retry behavior | compatibility Activity/attempt/queue projections | preserve; classify operation/effect families, idempotency, retry stage, deadlines, and terminal outcomes; shadow before cutover |
+| `execution_plans`, `execution_plan_steps`, `execution_plan_events` | sequential orchestration, claim token, approval and step history | compatibility Workflow/Activity/history projections | preserve; map deterministic step/event semantics, claims to leases/fencing, and unresolved effects explicitly |
+| workflow runs and step runs | workflow execution evidence | compatibility Workflow/Activity/Effect run projections | preserve history; bind exact manifest, attempts, effects, verification, and outcome dimensions where evidence exists |
+| approval holds and scheduled/deferred work | waits and gates | durable signals/timers/dependencies/approval events | preserve; map exact expiry, consumption, idempotency, and authority; do not infer approval from status labels |
+| email/notification/webhook and other surface Outboxes | surface-specific event delivery | compatibility sources before shared transactional Outbox/Inbox adoption | preserve; register transport event identity/schema, deduplication, delivery attempts, dead-letter, and redrive semantics |
+| execution logs and provider references | audit/result evidence | Workflow history/Effect verification and reconciliation inputs | preserve append-only evidence; import only deterministic, no-secret, provenance-valid links; unknown outcomes remain explicit |
 
 ## 3. Migration lanes
 
