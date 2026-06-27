@@ -905,7 +905,24 @@ Expected: no-effect assertion fails; no execution, queue delivery, reservation, 
 - candidate-specific estimate/reservation, provider-cost/customer-charge, and cross-candidate reuse tests;
 - selection-cache Tenant/context/purpose/region/risk/commercial isolation and replay tests;
 - restriction/revocation/deprecation/alias-movement epoch propagation, queued-job, cache, manifest, and historical reconstruction tests;
-- selection/deprecation preview no-provider-call, no-credential-read, no-evaluation-run, no-reservation, no-lifecycle-mutation, and no-external-write assertions.
+- selection/deprecation preview no-provider-call, no-credential-read, no-evaluation-run, no-reservation, no-lifecycle-mutation, and no-external-write assertions;
+- Workflow definition/version, history sequence/checksum, snapshot rebuild, and deterministic replay mismatch tests;
+- registry handler allowlist, build digest, unsupported semantic key, arbitrary code/URL/header/secret injection rejection tests;
+- scoped idempotency same-payload replay, changed-payload conflict, retention-window, and cross-Tenant collision tests;
+- Activity lease expiry, heartbeat, ownership transfer, stale fencing token, and duplicate Worker commit tests;
+- Effect commit-boundary, provider-idempotency, transport-success/business-failure, and immutable dispatch-evidence tests;
+- timeout/reset/5xx before-versus-after-dispatch and reconcile-before-retry tests;
+- verification/reconciliation source, freshness, quorum, forgery, confirmed-effect/no-effect/unknown/conflict tests;
+- retry class, full-jitter, Retry-After, attempts/elapsed/deadline, circuit breaker, quota, reservation, and recovery tests;
+- durable timer restart, duplicate firing, missed timer, signal/callback spoof/replay/expiry, approval, and dependency quorum tests;
+- cancellation before/after commit, child propagation, abort support, reservation release, irreversible effect, and truthful outcome tests;
+- Outbox atomicity, Inbox deduplication, payload conflict, consumer rollback, transport dead-letter, and redrive tests;
+- Saga dependency ordering, reversible-effect selection, idempotent compensation, over-compensation, and compensation failure tests;
+- recovery-case ownership, allowed action, manual intervention, cross-Tenant scope, SLA, and closure-with-unresolved-effect tests;
+- checkpoint verification, stale/current manifest, new replay identity, immutable source history, and duplicate-effect prevention tests;
+- queue service-class authority, Tenant/resource/provider concurrency, priority aging, starvation, admission, backpressure, and reserved recovery capacity tests;
+- model fallback before-output, visible stream, committed Tool/external Effect, remaining-work checkpoint, and candidate-specific reservation tests;
+- cancel/resume/replay/recovery/redrive preview no-Activity, no-provider/model/tool-call, no-credential-read, no-queue-publish, no-reservation, no-compensation, and no-external-write assertions.
 
 ## 8. Residual risks
 
