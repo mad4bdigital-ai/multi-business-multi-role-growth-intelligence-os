@@ -410,6 +410,64 @@ May construct candidate sets, apply deterministic gates, rank eligible candidate
 
 May invoke only the exact manifest-bound, pre-dispatch-revalidated provider endpoint/model/inference profile through an allowlisted backend adapter and resolved credential reference. It cannot choose a different candidate or fallback independently.
 
+## Durable Workflow and Effect Commit permissions
+
+### Platform runtime-governance administrator
+
+May define and version Workflow, Activity, Effect, event, state, transition, timer, signal, retry, cancellation, compensation, reconciliation, checkpoint, replay, recovery, queue, concurrency, fairness, and reason-code schemas and policies.
+
+May not use registry authority to inject executable code, arbitrary endpoints/headers, credentials, provider/model payloads, or bypass authorization, data, model, commercial, approval, audit, or handler certification.
+
+### Workflow-definition publisher
+
+May publish an immutable deterministic Workflow definition only after schema, command/event compatibility, replay determinism, Activity/Effect allowlist, deadline/cancellation/recovery, and migration checks pass. Cannot certify its own executable handler where separation of duties applies.
+
+### Activity-handler certifier
+
+May certify an allowlisted code handler/build digest for exact Activity types, input/output schemas, Effect classes, environments, and runtime versions. It cannot publish arbitrary code through the registry or grant production dispatch authority.
+
+### Effect-contract administrator
+
+May define bounded commit boundaries, idempotency, verification, reconciliation, cancellation, compensation, retention, and evidence for an exact Effect type/provider family. It cannot expose credentials, authorize prohibited provider/data use, or mark uncertain non-idempotent Effects as safe retries without evidence.
+
+### Workflow requester / end user
+
+May create an eligible Workflow, inspect own/scoped history and Effects, send an allowed signal, request cancellation, and request resume/replay previews where the Workflow policy permits.
+
+May not choose unregistered handlers, alter history, force retry, edit Effect state, bypass deadline/reservation, broaden a child Workflow, or redrive transport artifacts.
+
+### Workflow decision service principal
+
+May replay immutable history, resolve registered transitions/policies, append deterministic decision events, schedule Activities/timers/dependencies, and create recovery requirements. It cannot execute provider Effects, read credentials, or invent unregistered commands.
+
+### Activity Worker principal
+
+May claim only an eligible queued Activity through a bounded lease, execute its allowlisted handler, record attempt/dispatch/result evidence, heartbeat, and commit using the current fencing token. It cannot select another Activity/Effect type, modify policy, or commit after lease loss.
+
+### Verification and reconciliation principal
+
+May run only registered verification/reconciliation strategies against exact Effect IDs and safe provider references. It can classify confirmed-effect, confirmed-no-effect, still-unknown, conflicting-evidence, or manual-review-required, but cannot rewrite original dispatch evidence.
+
+### Compensation principal
+
+May execute only a registered compensation Activity for an exact committed reversible Effect with current authority, approvals, dependency order, deadline, and commercial/data policy. It cannot erase history or compensate unrelated Effects.
+
+### Runtime recovery operator
+
+May inspect assigned recovery cases, preview allowed actions, request reconciliation, approved replay, compensation, or manual resolution, and record evidence. It cannot run arbitrary commands, edit history, declare success without verification, or access another Tenant's case.
+
+### Transport dead-letter operator
+
+May inspect and redrive scoped Outbox/Inbox/queue/callback/notification artifacts after a no-effect redrive preview and current consumer/schema compatibility. This authority does not permit replaying the business Workflow or repeating an external Effect.
+
+### Queue/concurrency/fairness administrator
+
+May define bounded service classes, Tenant/resource/provider limits, priority aging, admission, backpressure, and reserved recovery capacity. It cannot use priority or capacity settings to bypass authority, approval, safety, data/model governance, or commercial reservation.
+
+### Determinism reviewer
+
+May inspect definition/history compatibility and replay-command differences using safe checksums/evidence. It cannot mutate history or approve a mismatch as equivalent without a new compatible definition/version and governed migration.
+
 ## 9. Composition profile permissions
 
 ### User
