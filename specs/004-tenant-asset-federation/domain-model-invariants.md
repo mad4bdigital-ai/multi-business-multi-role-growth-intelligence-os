@@ -878,6 +878,76 @@ draft → previewed → review_required|ready → active
 
 Completion requires affected-asset readback, replacement certification, deadline/new-use enforcement, rollback/exception accounting, manifest invalidation, and historical evidence preservation.
 
+### Durable Workflow
+
+```text
+requested → validated → admitted → running
+running → waiting_timer|waiting_signal|waiting_dependency|awaiting_approval|backpressured
+running → reconciling|compensating|cancel_requested|recovery_required
+running|waiting_*|reconciling|compensating → completed|recovery_required
+```
+
+Outcome remains separate from lifecycle and may be success, success-with-warnings, partial-success, failure-no-effect, failure-with-effects, cancelled-no-effect, cancelled-with-effects, compensated, compensation-failed, indeterminate, or expired.
+
+A terminal history event is immutable. Replay creates a linked Workflow rather than reopening the terminal Workflow.
+
+### Runtime Activity
+
+```text
+scheduled → queued → leased → running → dispatching → verifying → succeeded
+                   ├→ retry_scheduled → queued
+                   ├→ reconciliation_required
+                   ├→ cancelled_before_dispatch
+                   └→ failed|lease_lost|recovery_required
+```
+
+Every attempt is immutable. A new retry creates a new attempt under the same Activity and stable logical Effect identity.
+
+### Runtime Effect
+
+```text
+not_started → prepared → dispatching → accepted|committed
+accepted|committed → verified
+prepared|dispatching|accepted → confirmed_no_effect|outcome_unknown
+committed|verified → compensating → compensated|compensation_failed
+outcome_unknown → reconciling → confirmed_no_effect|committed|verified|outcome_unknown|recovery_required
+```
+
+The registered Effect Contract controls legal transitions and required evidence.
+
+### Workflow timer
+
+```text
+scheduled → armed → fired|cancelled|expired|missed → processed
+```
+
+Firing is idempotent. A missed timer follows its registered recovery/transition policy and is not silently discarded.
+
+### Workflow signal
+
+```text
+received → validated → accepted|rejected|expired|duplicate → processed
+```
+
+Duplicate processing returns the original logical transition result.
+
+### Runtime recovery case
+
+```text
+open → investigating → action_previewed → reconciliation|compensation|replay|manual_resolution
+→ resolved|partially_resolved|escalated|expired
+```
+
+Resolution requires itemized unresolved Effect readback. Closing a case cannot relabel unknown Effects as no-effect.
+
+### Transport dead letter
+
+```text
+created → review_required|redrive_eligible|blocked → redriving → delivered|failed|quarantined|resolved
+```
+
+Redrive applies only to the transport artifact and cannot repeat the business Effect without independent Workflow authority.
+
 ## 5. Transaction boundaries
 
 ### Profile publish
