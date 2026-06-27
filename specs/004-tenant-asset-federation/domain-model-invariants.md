@@ -1055,6 +1055,56 @@ One transaction validates exact provider/endpoint/model/version scope, reason, a
 
 One transaction validates a current impact-preview checksum, replacement eligibility/certification, affected-resource inventory, deadline, exceptions, rollback, shadow/canary evidence, and approvals before activating the deprecation run and invalidating new-use paths.
 
+### Workflow creation
+
+One transaction must:
+
+1. validate registered Workflow type/definition, exact Tenant/principal/context, authority, manifest, deadlines, service class, policies, concurrency, and commercial evidence;
+2. compare-and-create the scoped idempotency identity and request checksum;
+3. create the Workflow root record and first immutable history event;
+4. create required reservation/dependency references without executing Activities;
+5. insert the initial Outbox record in the same transaction;
+6. return the existing logical Workflow for same-key same-checksum reuse;
+7. roll back all writes on conflict or incomplete evidence.
+
+### Workflow decision append
+
+One deterministic decision boundary reads a contiguous history sequence and exact compatible definition version, computes commands, then atomically appends new decision events, timers/signals/dependencies/Activity schedules, projection updates, and Outbox records using an expected-history-sequence precondition. Concurrent decisions cannot both append at the same sequence.
+
+### Activity claim and completion
+
+Claim atomically checks queue eligibility, deadlines, authority/epoch, concurrency/admission, prior terminal state, and lease availability, then issues one lease with a monotonic fencing token and records an attempt.
+
+Completion validates the same live lease/fencing token, immutable attempt identity, Effect evidence, result schema/checksum, and deadline before appending completion/failure history and releasing queue/concurrency capacity. A stale owner cannot commit.
+
+### Effect dispatch and verification
+
+Before dispatch, one local transaction validates the Effect Contract, stable Effect/idempotency identity, manifest, data/model/commercial readiness, retry budget, deadline, lease/fencing, and records `dispatching` plus immutable dispatch evidence.
+
+Provider execution is external to the transaction. Subsequent acknowledgement, reference, verification, reconciliation, or failure evidence is appended idempotently. A local failure after provider dispatch cannot erase uncertainty or automatically mark no-effect.
+
+### Reconciliation result
+
+One transaction binds the exact Effect/dispatch, reconciliation policy/version, lookup keys, evidence, and outcome. Only `confirmed_no_effect` or contract-proven idempotency can authorize retry; `confirmed_effect` advances verification/completion; unknown/conflicting outcomes create or update recovery.
+
+### Compensation scheduling and completion
+
+Scheduling identifies committed reversible Effects, registered compensation handlers, dependency-safe order, authority/approval, deadlines, and idempotency. Completion appends a new compensation Effect and verification evidence without mutating source Effect/history. Failure itemizes unresolved Effects and creates recovery.
+
+### Checkpoint and replay
+
+Checkpoint creation atomically binds a verified history sequence, projection checksum, committed Effects, remaining work, manifest/version vector, sensitivity, expiry, and replay policy.
+
+Replay apply validates a current no-effect preview checksum, source checkpoint, current authority/manifest/policies/reservations, known Effects, safe remaining Activities, approvals, and new idempotency identity, then creates a new linked Workflow. It never edits the source Workflow.
+
+### Outbox delivery and Inbox processing
+
+Outbox claim uses lease/fencing and immutable event identity. Consumer processing atomically checks `consumer_key + event_id`, payload checksum, applies its local logical Effect, and records Inbox completion. Duplicate same-checksum delivery returns the prior result; checksum mismatch blocks.
+
+### Transport dead-letter redrive
+
+Redrive validates the exact transport artifact, schema/consumer compatibility, current authority, prior attempts, no business-Effect duplication, and preview checksum before creating a new delivery attempt. It cannot invoke a Workflow replay or external Effect directly.
+
 ### Dispatch
 
 The runtime transaction boundary covers internal execution planning and evidence, not the entire external provider operation. It must atomically bind the execution to one valid manifest before provider dispatch and later append result/readback evidence idempotently.
