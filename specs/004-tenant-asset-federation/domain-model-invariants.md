@@ -597,6 +597,90 @@ After streamed output, content, state, or tool effects begin, switching models i
 
 Model-selection and deprecation previews perform no provider/model call, credential read, evaluation execution, commercial reservation, lifecycle mutation, or external write.
 
+### INV-070 — Workflow history is authoritative
+
+Durable Workflow state is reconstructed from immutable ordered history. Snapshots, queues, caches, and projections are rebuildable accelerators and cannot override history.
+
+### INV-071 — Workflow decisions are deterministic
+
+The same compatible Workflow definition/version and history must produce the same logical commands. Nondeterminism blocks and enters recovery rather than silently accepting divergent state.
+
+### INV-072 — Dynamic semantics are typed and bounded
+
+Workflow, Activity, Effect, retry, timer, signal, cancellation, compensation, reconciliation, replay, recovery, concurrency, and fairness semantics resolve from versioned typed registries. Unknown semantics fail closed.
+
+### INV-073 — Executable code is allowlisted
+
+Database rows may select certified handler/adapter keys and bounded parameters but cannot introduce executable code, arbitrary URLs/headers, SQL, JavaScript, shell, model code, or credential values.
+
+### INV-074 — Child Workflows cannot broaden
+
+A child Workflow inherits or tightens parent Tenant, authority, data/model/commercial, deadline, risk, cancellation, and credential boundaries.
+
+### INV-075 — Activity delivery is at least once
+
+An Activity may be delivered or attempted more than once. Correctness depends on stable Activity/Effect identity, idempotency, verification, fencing, and reconciliation rather than a single-delivery assumption.
+
+### INV-076 — Effect identity is stable
+
+One logical Effect keeps the same Effect ID/key and provider idempotency key across attempts. A retry cannot create a new logical identity for the same intended Effect.
+
+### INV-077 — Idempotency binds request checksum
+
+The same scoped idempotency key and checksum return the original logical result. Reuse with changed input blocks and creates no new Effect.
+
+### INV-078 — Stale lease cannot commit
+
+Every state-changing Activity commit requires a live lease and current monotonic fencing token. A stale Worker cannot update history, results, or Effect evidence.
+
+### INV-079 — Transport success is not Effect success
+
+An HTTP/provider acknowledgement does not prove business success unless the registered Effect verification policy is satisfied.
+
+### INV-080 — Uncertain Effects reconcile before retry
+
+If request transmission may have begun and Effect outcome is not proven, the Workflow schedules reconciliation before retry unless the Effect Contract proves idempotent repeatability.
+
+### INV-081 — Retry is deadline and budget bounded
+
+Retry cannot exceed absolute Workflow/Activity deadline, attempt/elapsed budget, circuit-breaker policy, quota, commercial reservation, or governance epochs.
+
+### INV-082 — Timers and signals are durable
+
+Timers, callbacks, approvals, cancellation requests, and other signals are persisted, typed, scoped, idempotent, and survive Worker/deployment restart.
+
+### INV-083 — Cancellation cannot erase Effects
+
+Cancellation prevents new unsafe work and may schedule compensation, but committed, visible, commercial, human, or irreversible Effects remain explicit.
+
+### INV-084 — Outbox and Inbox are transactionally deduplicated
+
+Workflow event/outbox publication shares one local transaction, and consumer Inbox completion shares the consumer Effect transaction where possible. Duplicate delivery cannot repeat the logical Effect.
+
+### INV-085 — Business recovery is not transport dead letter
+
+A business Workflow enters an explicit recovery case for uncertain or unresolved Effects. Dead letters are limited to transport artifacts and cannot redefine Workflow outcome.
+
+### INV-086 — Compensation is a new Effect
+
+Compensation is an idempotent, verified Effect linked to the original committed Effect. It never deletes or rewrites the source history.
+
+### INV-087 — Partial success is itemized
+
+Partial success enumerates required/optional step outcomes and committed, verified, compensated, uncompensated, and unknown Effects plus manual actions.
+
+### INV-088 — Replay creates a new Workflow
+
+Replay or recovery does not mutate the source Workflow. It creates a new linked identity from a verified checkpoint under current manifest, authority, policy, and commercial evidence.
+
+### INV-089 — Model fallback respects commit boundaries
+
+A fallback model cannot silently continue user-visible output or repeat a committed Tool/external Effect. It receives only an authorized verified checkpoint and remaining work.
+
+### INV-090 — Runtime previews have no effect
+
+Cancel, resume, replay, recovery, reconciliation-action, and redrive previews perform no Activity execution, provider/model/tool call, credential read, queue publish, commercial reservation, compensation, replay, lifecycle mutation, or external write.
+
 ## 4. State machines
 
 ### Optional variant
