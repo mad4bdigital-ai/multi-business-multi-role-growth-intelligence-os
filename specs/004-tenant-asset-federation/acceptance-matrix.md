@@ -205,6 +205,35 @@
 | Tenant chooses a lower maximum cost or latency | Preference narrows eligible candidates but cannot raise contract limits or lower mandatory floors |
 | Model-selection preview is requested | It returns gates, candidates, exclusions, evaluation/readiness evidence, ranking, fallback, provisional commercial effects, epoch, and expiry without provider call, credential read, evaluation run, reservation, or external write |
 
+| Workflow request repeats the same scoped idempotency key and checksum | Original logical Workflow and current outcome are returned without duplicate Activity or Effect |
+| Same idempotency key is reused with different input | Request blocks with `WORKFLOW_IDEMPOTENCY_CONFLICT` and neither history nor external state changes |
+| Workflow replay uses the same history and definition version | The same logical commands are produced; any divergence blocks with `WORKFLOW_NONDETERMINISTIC_REPLAY` |
+| Registry row references an unknown or unapproved handler key | Publication or dispatch blocks with `ACTIVITY_HANDLER_NOT_ALLOWED`; no arbitrary code, URL, header, or secret is used |
+| Worker lease expires and a newer Worker claims the Activity | Old Worker commit is rejected by monotonic fencing token |
+| Provider timeout occurs before request transmission begins | Registered policy may schedule a bounded retry within deadline/reservation limits |
+| Provider timeout occurs after transmission begins | Effect becomes uncertain and reconciliation runs before any retry |
+| Reconciliation confirms the provider Effect exists | Workflow verifies and completes or advances without dispatching the Effect again |
+| Reconciliation confirms no Effect occurred | Retry may be scheduled only according to the registered retry policy |
+| Reconciliation remains uncertain after the bounded window | Workflow enters `recovery_required`; it is not falsely marked failed-no-effect or retried blindly |
+| HTTP 200 is returned but business verification fails | Effect remains unverified and Workflow follows the registered reconciliation/recovery path |
+| Workflow timer is pending during Worker or deployment restart | Timer remains durable and fires exactly once logically through history/inbox deduplication |
+| Duplicate callback or signal is received | Registered signal idempotency returns the original processing result without duplicate transition |
+| Cancellation arrives before any Effect dispatch | New work stops, unused reservations release, and outcome records `cancelled_no_effect` |
+| Cancellation arrives after a user-visible or irreversible Effect | Workflow exposes committed Effects and records cancelled-with-effects, compensation, or manual recovery as applicable |
+| Multi-step Workflow fails after reversible Effects commit | Registered compensation Activities execute in dependency-safe reverse order and preserve original history |
+| Compensation itself fails | Workflow enters recovery with unresolved Effects, owner, SLA, and permitted next actions |
+| Outbox message is delivered twice | Inbox unique identity prevents duplicate logical consumer Effect |
+| Transport delivery exhausts retries | Transport artifact is dead-lettered while the business Workflow retains its own accurate recovery/outcome state |
+| Queue is saturated for one large Tenant | Registered fairness/admission policy applies backpressure without starving other Tenants or bypassing priority bounds |
+| Child Workflow is created | It inherits or tightens parent authority, deadline, data/model/commercial policy, and cannot broaden scope |
+| Replay is requested after authority or manifest changes | Preview reports incompatibility or requires a new current manifest; source history remains unchanged |
+| Model A fails before any committed output | Eligible Model B may run only after revalidation and a new candidate-specific estimate/reservation |
+| Model A already streamed content to the user | Model B cannot silently continue the same output; partial completion, explicit restart, or superseding artifact is required |
+| A Tool Effect is already committed before model fallback | Verified checkpoint includes the Effect and fallback executes remaining work only |
+| Resume/replay/cancel/recovery preview is requested | It returns history, Effects, blockers, costs, and allowed actions without Activity execution, queue publish, provider/model call, credential read, reservation, compensation, or external write |
+| Workflow history projection or snapshot is lost | Current state is rebuilt from immutable ordered history with matching checksum |
+| Required Workflow/Activity/Effect policy evidence is stale or ambiguous | Dispatch fails closed with a stable structured error |
+
 ## Success thresholds before enforcement
 
 - zero cross-tenant leakage in tests and shadow evidence;
