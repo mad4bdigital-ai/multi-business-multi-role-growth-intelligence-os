@@ -442,18 +442,82 @@ The Effective Runtime Manifest binds the model-selection decision, task/capabili
 
 Before provider dispatch, runtime revalidates lifecycle, incident/revocation, evaluation freshness, readiness, data/region, entitlement, reservation, fallback eligibility, expiry, and governance epoch.
 
-## 13. Runtime operations and consistency
+## 13. Deterministic durable Workflows and Effect Commit
 
-- `POST /tenant/runtime-operations`
-- `GET /tenant/runtime-operations/{operationId}`
-- `POST /tenant/runtime-operations/{operationId}/cancel`
-- `POST /tenant/runtime-operations/{operationId}/resume`
-- `GET /tenant/runtime-operations/{operationId}/events`
-- `GET /admin/runtime-dead-letters`
-- `POST /admin/runtime-dead-letters/{deadLetterId}/replay`
-- `GET /admin/runtime-sagas/{sagaId}`
+### Tenant Workflow lifecycle
 
-Creation requires an idempotency key and declares deadline, delivery semantics, retry class, cancellation policy, and compensation profile where applicable. `202 Accepted` is used for queued operations with a status resource.
+- `POST /tenant/runtime-workflows`
+- `GET /tenant/runtime-workflows/{workflowId}`
+- `GET /tenant/runtime-workflows/{workflowId}/history`
+- `GET /tenant/runtime-workflows/{workflowId}/activities`
+- `GET /tenant/runtime-workflows/{workflowId}/effects`
+- `GET /tenant/runtime-workflows/{workflowId}/checkpoints`
+- `GET /tenant/runtime-workflows/{workflowId}/dependencies`
+- `GET /tenant/runtime-workflows/{workflowId}/explanation`
+- `POST /tenant/runtime-workflows/{workflowId}/signals`
+- `POST /tenant/runtime-workflows/{workflowId}/cancel-preview`
+- `POST /tenant/runtime-workflows/{workflowId}/cancel`
+- `POST /tenant/runtime-workflows/{workflowId}/resume-preview`
+- `POST /tenant/runtime-workflows/{workflowId}/resume`
+- `POST /tenant/runtime-workflows/{workflowId}/replay-preview`
+- `POST /tenant/runtime-workflows/{workflowId}/replays`
+
+Creation requires a registered Workflow type/definition, exact manifest, scoped idempotency key, request checksum, absolute deadline, service class, priority within policy, cancellation/retry/compensation/concurrency policy versions, and applicable commercial reservation.
+
+`202 Accepted` returns a durable Workflow status resource. Reuse of the same scoped idempotency key and checksum returns the existing logical Workflow; changed input returns conflict.
+
+Workflow reads expose separate lifecycle, outcome, Effect, and verification states; history sequence/checksum; current timers/signals/dependencies; Activity attempts; Effect commit/verification/reconciliation/compensation evidence; recovery state; and up to three permitted recovery actions. Responses contain no credentials or unrestricted provider payloads.
+
+Retry is not an unrestricted tenant endpoint. The Workflow engine schedules retries only from registered policy and recorded Effect state. Resume/replay/cancel requests require exact authority, version preconditions, idempotency, current manifest/governance epochs, preview checksum, approval where required, and same-cycle readback.
+
+### Signals and cancellation
+
+Signals use registered signal type/version, sender authority, idempotency key, payload checksum, and expiry. Duplicate signals return the original logical processing outcome. Unknown, stale, unauthorized, or incompatible signal types block.
+
+Cancellation preview returns whether work is undispatched, cooperative-cancellable, compensation-required, non-cancellable-after-commit, or manual-only; committed/irreversible Effects; reservations to release; child Workflows; and expected final outcome. Apply never claims that committed effects were rolled back unless compensation is verified.
+
+### Effect and reconciliation evidence
+
+- `GET /tenant/runtime-workflows/{workflowId}/effects/{effectId}`
+- `GET /tenant/runtime-workflows/{workflowId}/effects/{effectId}/dispatches`
+- `GET /tenant/runtime-workflows/{workflowId}/effects/{effectId}/verification`
+- `GET /tenant/runtime-workflows/{workflowId}/effects/{effectId}/reconciliation`
+- `GET /tenant/runtime-workflows/{workflowId}/effects/{effectId}/compensation`
+
+Effect views return registered Effect Contract/version, stable logical identity, commit boundary, provider/reference evidence in safe form, idempotency support, verification state, uncertainty, compensation, and recovery linkage. They do not expose credential values, hidden provider headers, or another Tenant's evidence.
+
+### Admin recovery and transport operations
+
+- `GET /admin/runtime-recovery-cases`
+- `GET /admin/runtime-recovery-cases/{caseId}`
+- `POST /admin/runtime-recovery-cases/{caseId}/action-preview`
+- `POST /admin/runtime-recovery-cases/{caseId}/reconcile`
+- `POST /admin/runtime-recovery-cases/{caseId}/replay`
+- `POST /admin/runtime-recovery-cases/{caseId}/resolve`
+- `GET /admin/runtime-transport-dead-letters`
+- `GET /admin/runtime-transport-dead-letters/{deadLetterId}`
+- `POST /admin/runtime-transport-dead-letters/{deadLetterId}/redrive-preview`
+- `POST /admin/runtime-transport-dead-letters/{deadLetterId}/redrive`
+- `GET /admin/runtime-workflows/{workflowId}/determinism`
+- `GET /admin/runtime-workflows/{workflowId}/leases`
+- `GET /admin/runtime-queues/health`
+- `GET /admin/runtime-concurrency/health`
+
+Business Workflow failures use recovery cases. Dead-letter endpoints are limited to transport artifacts such as Outbox/Inbox messages, queue tasks, callbacks, or notifications.
+
+Recovery/replay/redrive mutations require exact source object authority, current evidence, bounded registered action, idempotency, separation of duties/approval where required, no-secret audit, and readback. A replay creates a new linked Workflow and never mutates original history.
+
+### Preview no-effect contract
+
+Cancel, resume, replay, recovery-action, and redrive previews perform no Activity execution, provider/model/tool call, credential read, queue publication, commercial reservation, compensation, replay, lifecycle mutation, or external write. Preview may read safe current authority, history, Effect, verification, reconciliation, reservation, and readiness evidence only.
+
+### Manifest and model fallback integration
+
+The Effective Runtime Manifest binds Workflow/definition, Activity/Effect policies, retry/cancellation/compensation/reconciliation versions, selected model/fallback set, commercial estimate/reservation, deadlines, governance epochs, and expiry.
+
+Before Activity dispatch, runtime revalidates lease/fencing ownership, manifest, authority, data/model/commercial policy, Effect Contract, deadline, retry budget, concurrency/admission, reservation, and governance epochs.
+
+Once user-visible output or a Tool/external Effect is committed, model fallback cannot silently continue or repeat that Effect. Any restart/resume requires a verified checkpoint, remaining-work contract, eligible candidate, and new candidate-specific estimate/reservation.
 
 ## 14. Artifacts, knowledge, and provenance
 
