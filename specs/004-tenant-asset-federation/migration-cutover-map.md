@@ -313,16 +313,20 @@ Examples:
 
 ## 10. Rollback hierarchy
 
-1. Stop adaptive experiments.
-2. Restrict or revoke an unsafe provider endpoint/model version and invalidate its fallback membership.
-3. Disable contextual model selection for the affected task/risk/data/region family and stop new selection decisions.
-4. Disable new profile/variant publication if implicated.
-5. Disable contextual consumer for the affected family/cohort.
-6. Return to the prior provider-order/free-first or legacy authority only where it is separately certified safe for the exact family; otherwise block.
-7. Invalidate affected model-selection decisions, reservations where required, manifests, caches, and queued pre-dispatch work.
-8. Revoke or expire canary approvals.
-9. Preserve evaluation, readiness, selection, run, and outcome evidence and compare before/after.
-10. Apply code/schema rollback only if consumer disablement and authority restriction are insufficient.
+1. Stop adaptive experiments and disable new canary admissions for the affected operation/effect family.
+2. Stop new durable Workflow creation or Activity dispatch for the affected family while preserving active history and recovery access.
+3. Restrict or revoke an unsafe Workflow definition, Activity handler build, Effect Contract, provider endpoint, or model version and advance the applicable governance epoch.
+4. Quarantine uncertain/duplicate-risk Effects, pause automatic retries/compensation/redrives, and route active work to bounded reconciliation or recovery.
+5. Disable contextual model selection for the affected task/risk/data/region family and stop new selection decisions where implicated.
+6. Disable new profile/variant publication if implicated.
+7. Disable contextual/durable consumers for the affected family/cohort and preserve transactional Outbox/Inbox/history evidence.
+8. Return to the prior job/plan/run/provider-order/free-first or legacy authority only where it is separately certified safe for the exact family and known committed Effects; otherwise block.
+9. Invalidate affected model selections, manifests, checkpoints, caches, queued pre-dispatch work, timers/signals, and reservations where required without deleting source history.
+10. Revoke or expire canary approvals and release only proven-unused commercial/resource reservations.
+11. Preserve Workflow history, Activity attempts, Effect dispatch/verification/reconciliation/compensation, recovery, transport, model, and outcome evidence and compare before/after.
+12. Rebuild projections/snapshots from history and verify zero lost or duplicated logical Effects.
+13. Keep recovery/system-critical capacity available for reconciliation, compensation, customer-visible status, and operator actions.
+14. Apply code/schema rollback only if consumer disablement, handler/definition restriction, and authority rollback are insufficient.
 
 Data is generally retained for audit; rollback does not delete tenant preferences or variants unless they are unsafe and separately handled.
 
