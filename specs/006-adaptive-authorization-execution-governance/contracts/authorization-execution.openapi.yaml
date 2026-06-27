@@ -1,0 +1,349 @@
+openapi: 3.1.0
+info:
+  title: Adaptive Authorization and Execution Governance
+  version: 0.1.0-draft
+  description: Design contract for side-effect-free authorization decisions, execution envelopes, scoped approvals, governed dispatch, and evidence readback.
+servers:
+  - url: https://auth.mad4b.com
+tags:
+  - name: authorization
+  - name: execution-governance
+security:
+  - backendBearerAuth: []
+  - userJwtAuth: []
+paths:
+  /authorization/decisions:
+    post:
+      tags: [authorization]
+      operationId: createAuthorizationDecision
+      summary: Evaluate a subject-action-resource-context request without execution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AuthorizationDecisionRequest'}
+      responses:
+        '200':
+          description: Decision created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorizationDecision'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /execution-envelopes:
+    post:
+      tags: [execution-governance]
+      operationId: createExecutionEnvelope
+      summary: Create a short-lived envelope from an eligible authorization decision
+      parameters:
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [decisionId, request]
+              properties:
+                decisionId: {type: string}
+                request: {type: object, additionalProperties: true}
+      responses:
+        '201':
+          description: Envelope created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ExecutionEnvelope'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /execution-envelopes/{envelopeId}:
+    get:
+      tags: [execution-governance]
+      operationId: getExecutionEnvelope
+      summary: Read a no-secret execution envelope
+      parameters:
+        - name: envelopeId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Envelope
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ExecutionEnvelope'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /execution-envelopes/{envelopeId}/approval-decisions:
+    post:
+      tags: [execution-governance]
+      operationId: createApprovalDecision
+      summary: Approve or reject exactly one scoped execution envelope
+      parameters:
+        - name: envelopeId
+          in: path
+          required: true
+          schema: {type: string}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [decision]
+              properties:
+                decision: {type: string, enum: [approved, rejected]}
+                typedConfirmation: {type: string, maxLength: 256}
+                note: {type: string, maxLength: 1000}
+      responses:
+        '201':
+          description: Append-only approval decision recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [approvalDecisionId, envelopeId, state, secretsIncluded]
+                properties:
+                  approvalDecisionId: {type: string}
+                  envelopeId: {type: string}
+                  state: {type: string, enum: [approved, rejected]}
+                  expiresAt: {type: [string, 'null'], format: date-time}
+                  secretsIncluded: {type: boolean, const: false}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /executions:
+    post:
+      tags: [execution-governance]
+      operationId: createGovernedExecution
+      summary: Dispatch an approved and current envelope through a certified adapter
+      parameters:
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [envelopeId]
+              properties:
+                envelopeId: {type: string}
+                dryRun: {type: boolean, default: false}
+      responses:
+        '202':
+          description: Execution accepted
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Execution'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /executions/{executionId}:
+    get:
+      tags: [execution-governance]
+      operationId: getGovernedExecution
+      summary: Read execution state
+      parameters:
+        - name: executionId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Execution
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Execution'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /executions/{executionId}/evidence:
+    get:
+      tags: [execution-governance]
+      operationId: listExecutionEvidence
+      summary: List bounded no-secret execution evidence
+      parameters:
+        - name: executionId
+          in: path
+          required: true
+          schema: {type: string}
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 25}
+        - name: cursor
+          in: query
+          schema: {type: string}
+      responses:
+        '200':
+          description: Evidence page
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items, page, secretsIncluded]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/ExecutionEvidence'}
+                  page: {$ref: '#/components/schemas/CursorPage'}
+                  secretsIncluded: {type: boolean, const: false}
+components:
+  securitySchemes:
+    backendBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key
+    userJwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: User JWT
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string, minLength: 16, maxLength: 200}
+  schemas:
+    Subject:
+      type: object
+      additionalProperties: false
+      required: [type, id]
+      properties:
+        type: {type: string, enum: [user, agent, service]}
+        id: {type: string}
+    Action:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: {type: string}
+    Resource:
+      type: object
+      additionalProperties: false
+      required: [type, id]
+      properties:
+        type: {type: string}
+        id: {type: string}
+        revision: {type: [string, 'null']}
+    AuthorizationDecisionRequest:
+      type: object
+      additionalProperties: false
+      required: [subject, action, resource]
+      properties:
+        subject: {$ref: '#/components/schemas/Subject'}
+        action: {$ref: '#/components/schemas/Action'}
+        resource: {$ref: '#/components/schemas/Resource'}
+        context: {type: object, additionalProperties: true}
+        explain: {type: boolean, default: false}
+    AuthorizationDecision:
+      type: object
+      additionalProperties: false
+      required: [decisionId, decision, capability, states, obligations, blockingGaps, revisions, expiresAt, secretsIncluded]
+      properties:
+        decisionId: {type: string}
+        decision: {type: string, enum: [allowed, denied, conditional]}
+        capability:
+          type: object
+          additionalProperties: false
+          required: [id, key, version]
+          properties:
+            id: {type: string}
+            key: {type: string}
+            version: {type: integer, minimum: 1}
+        states:
+          type: object
+          additionalProperties: false
+          required: [binding, grant, authorization, approval]
+          properties:
+            binding: {type: string, enum: [resolved, ambiguous, missing, stale]}
+            grant: {type: string, enum: [active, revoked, expired, suspended, not_required]}
+            authorization: {type: string, enum: [allowed, denied, conditional, not_evaluated]}
+            approval: {type: string, enum: [not_required, required, approved, rejected, expired, stale]}
+        obligations: {type: array, items: {type: string}}
+        blockingGaps: {type: array, items: {type: string}}
+        revisions:
+          type: object
+          additionalProperties: false
+          required: [policy, relationships]
+          properties:
+            policy: {type: string}
+            relationships: {type: string}
+        expiresAt: {type: string, format: date-time}
+        secretsIncluded: {type: boolean, const: false}
+    ExecutionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [envelopeId, decisionId, state, requestHash, adapter, expiresAt, singleUse, secretsIncluded]
+      properties:
+        envelopeId: {type: string}
+        decisionId: {type: string}
+        state: {type: string, enum: [ready_for_dispatch, ready_requires_approval, blocked, consumed, expired, stale, revoked]}
+        requestHash: {type: string, pattern: '^[a-f0-9]{64}$'}
+        adapter:
+          type: object
+          additionalProperties: false
+          required: [key, version]
+          properties:
+            key: {type: string}
+            version: {type: string}
+        expiresAt: {type: string, format: date-time}
+        singleUse: {type: boolean}
+        secretsIncluded: {type: boolean, const: false}
+    Execution:
+      type: object
+      additionalProperties: false
+      required: [executionId, envelopeId, state, verificationState, secretsIncluded]
+      properties:
+        executionId: {type: string}
+        envelopeId: {type: string}
+        state: {type: string, enum: [not_started, queued, running, succeeded, failed, compensated]}
+        verificationState: {type: string, enum: [not_applicable, acknowledged, observed, verified, incomplete, mismatched]}
+        createdAt: {type: string, format: date-time}
+        secretsIncluded: {type: boolean, const: false}
+    ExecutionEvidence:
+      type: object
+      additionalProperties: false
+      required: [evidenceId, type, evidenceHash, observedAt, secretsIncluded]
+      properties:
+        evidenceId: {type: string}
+        type: {type: string, enum: [acknowledged, resource_observed, state_verified, effect_verified, compensated, incomplete, mismatched]}
+        sourceRef: {type: [string, 'null']}
+        evidenceHash: {type: string, pattern: '^[a-f0-9]{64}$'}
+        observedAt: {type: string, format: date-time}
+        secretsIncluded: {type: boolean, const: false}
+    CursorPage:
+      type: object
+      additionalProperties: false
+      required: [hasMore]
+      properties:
+        nextCursor: {type: [string, 'null']}
+        hasMore: {type: boolean}
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code: {type: string}
+            message: {type: string}
+            details: {type: array, items: {type: object, additionalProperties: true}}
+            requestId: {type: string}
+  responses:
+    BadRequest:
+      description: Invalid request
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
+    Unauthorized:
+      description: Authentication required
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
+    Forbidden:
+      description: Authenticated but not authorized
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
+    NotFound:
+      description: Resource not found
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
+    Conflict:
+      description: Stale, ambiguous, replayed, or incompatible state
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
