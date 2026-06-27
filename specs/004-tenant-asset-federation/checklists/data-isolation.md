@@ -177,6 +177,25 @@
 - [ ] Cross-Tenant candidate-list leakage, preference reuse, evaluation-sample exposure, readiness inference, fallback substitution, and selection-cache poisoning tests implemented.
 - [ ] Managed-service and shared-provider isolation tests implemented for model selection, runs, outcomes, and commercial reservations.
 
+## Durable Workflow and Effect isolation
+
+- [x] Every Workflow, Activity, Attempt, Effect, timer, signal, dependency, checkpoint, recovery case, replay, queue assignment, lease, and transport record carries exact Tenant ownership or explicit Platform scope.
+- [x] Workflow history, idempotency, cache, queue, and replay identities include Tenant/account, principal/context, Workflow/Effect type, target resource, manifest, and governance epochs.
+- [x] A Workflow, checkpoint, Activity result, Effect reference, reservation, or recovery case from one Tenant cannot be reused under another Tenant.
+- [x] Child Workflows inherit the parent Tenant and cannot cross Tenant boundaries through dependencies, signals, callbacks, or compensation.
+- [x] Shared Workflow/Activity/Effect definitions contain no Tenant-private input, prompt, output, provider reference, commercial term, or credential value.
+- [x] History and Effect explanations expose only object-authorized safe evidence and redact private payloads, credentials, hidden provider headers, and another Tenant's state.
+- [x] Outbox/Inbox consumer keys, queue assignments, leases, fencing tokens, and dead letters preserve Tenant/resource scope and cannot deduplicate or redrive across Tenants.
+- [x] Signals and callbacks validate target Workflow Tenant/context and sender authority before appending history.
+- [x] Recovery operators see only cases within delegated scope; managed-service/support relationships do not imply raw history, payload, Effect, or credential access.
+- [x] Compensation and replay remain bound to original Tenant ownership, known Effects, current manifest, and exact commercial account.
+- [x] Model fallback checkpoints expose only authorized verified state and remaining work, never credential values or another Candidate/Tenant's hidden context.
+- [x] Cross-Tenant fairness may use privacy-safe aggregate queue metrics but cannot expose Workflow payloads or allow one Tenant to claim another Tenant's work.
+- [x] Platform-wide incidents may restrict handler/Effect types globally without broadening Tenant data visibility.
+- [x] Historical Workflow evidence retains its original Tenant/context even after deletion, retirement, replay, or migration, subject to DFR-003 retention/disposition rules.
+- [ ] Cross-Tenant idempotency collision, queue claim, signal spoof, checkpoint reuse, replay, compensation, recovery-case disclosure, and dead-letter redrive tests implemented.
+- [ ] Managed-service and shared-provider isolation tests implemented across Workflow history, Effects, reservations, model fallback, and manual recovery.
+
 ## Artifact and recovery isolation
 
 - [x] Provenance exposes safe source IDs/evidence without another tenant's private content.
