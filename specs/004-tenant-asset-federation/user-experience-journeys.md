@@ -329,7 +329,107 @@ When a model is restricted, revoked, or deprecated, affected users see:
 
 Emergency revocation blocks new dispatch immediately and preserves historical run evidence.
 
-## 16. Progressive disclosure
+## 16. Journey N — Track, cancel, resume, or recover durable work
+
+### Starting context
+
+A user starts or opens a long-running, multi-step, approval-gated, model-driven, or externally effectful Workflow.
+
+### Progress experience
+
+The status surface distinguishes:
+
+```text
+queued or backpressured
+running
+waiting for timer/dependency/approval
+retry scheduled
+verifying external effect
+reconciling uncertain outcome
+cancel requested
+compensating
+partially succeeded
+recovery required
+completed
+```
+
+It never collapses an uncertain or partially committed operation into generic `failed` or `cancelled`.
+
+The default view shows:
+
+- current business step and safe status;
+- deadline and next durable timer where relevant;
+- whether an external or user-visible Effect may have occurred;
+- reserved versus consumed/released commercial capacity;
+- approval/dependency blockers;
+- up to three allowed next actions.
+
+Advanced detail shows safe Workflow history, Activity attempts, committed/verified/unknown/compensated Effects, retry classification, checkpoint, and policy/version evidence without credentials, hidden provider payloads, or another Tenant's data.
+
+### Cancellation flow
+
+1. User requests cancellation preview.
+2. Platform classifies the Workflow as:
+   - cancellable before dispatch;
+   - cancellable at a safe boundary;
+   - cancellation requires compensation;
+   - non-cancellable after commit;
+   - manual review required.
+3. Preview lists child Workflows, committed/irreversible Effects, reservations to release, possible compensation, and expected final outcome.
+4. Preview performs no cancellation, Activity, provider/model/tool call, queue publish, reservation, compensation, or external write.
+5. Apply appends a durable cancellation signal and returns the same Workflow status resource.
+6. UI never promises rollback for a committed Effect unless compensation is later verified.
+
+### Outcome-unknown flow
+
+When a provider timeout occurs after dispatch may have begun:
+
+```text
+Verifying whether the external action completed
+```
+
+The UI does not invite immediate retry. It shows the reconciliation window, evidence source, and whether manual review may be needed.
+
+Results are explained as:
+
+- Effect confirmed and verified;
+- no Effect confirmed, retry may be eligible;
+- still unknown, recovery required;
+- conflicting evidence, manual review required.
+
+### Partial-success and compensation flow
+
+The user sees itemized:
+
+- required steps completed;
+- optional steps completed;
+- committed Effects;
+- compensated Effects;
+- uncompensated or irreversible Effects;
+- unknown Effects;
+- remaining work and manual actions.
+
+Compensation appears as a new action and result, not deletion of the original history.
+
+### Resume and replay flow
+
+1. User requests resume/replay preview.
+2. Platform validates exact authority, current manifest/policies, checkpoint freshness, known prior Effects, deadlines, reservation, and safe remaining Activities.
+3. Preview explains whether the action continues the same Workflow where allowed or creates a new linked replay Workflow.
+4. Replay always creates a new identity and links to the source; the original timeline remains immutable.
+5. Changed or incompatible policies block with a safe explanation rather than silently reproducing historical behavior.
+
+### Model fallback flow
+
+- Before any committed output or Tool Effect, an eligible fallback may be selected after new estimate/reservation.
+- After visible streaming output, UI ends the partial response or offers an explicit restart/superseding response; it never presents two models as one uninterrupted answer.
+- After a committed Tool/external Effect, fallback receives a verified checkpoint and remaining work only.
+
+### Recovery-operator experience
+
+Authorized operators see an assigned recovery case containing safe evidence, unresolved Effects, owner/SLA, permitted actions, and required approvals. Actions are constrained to registered reconciliation, compensation, replay, or manual-resolution types. Free-form command execution is never offered.
+
+## 17. Progressive disclosure
 
 ### Basic users see
 
