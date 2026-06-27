@@ -614,7 +614,11 @@ Span attributes use IDs, counts, versions, reason codes, and timing—not raw co
 - catalog projection lag;
 - low result-observed coverage;
 - repeated user dismissal/opt-out;
-- adaptation proposal backlog.
+- adaptation proposal backlog;
+- increasing Workflow idempotency conflicts or duplicate callback/signal rates;
+- checkpoint expiry, resume/replay preview blocks, or manual recovery backlog rising;
+- queue age, backpressure, timer lag, or optional compensation latency approaching budget;
+- current jobs/plans/runs versus durable Workflow not-comparable migration debt increasing.
 
 Alerts include tenant-safe context, runbook link, recent deployment/config change, and rollback action.
 
