@@ -209,6 +209,41 @@
 - [ ] Prove no registry path can inject arbitrary provider URL/header/code/secret or bypass allowlisted adapters.
 - [ ] Certify and cut over task/risk families independently with rollback; remove compatibility routing only after parity.
 
+## Deterministic Durable Workflow and Effect Commit
+
+- [x] Approve deterministic durable Workflow history as the source of truth.
+- [x] Approve separation of Workflow decisions, at-least-once Activities, and independently tracked Effects.
+- [x] Approve fully registry-driven Workflow, Activity, Effect, retry, timer, signal, cancellation, compensation, reconciliation, replay, recovery, queue, concurrency, and fairness semantics.
+- [x] Approve allowlisted executable handlers/adapters and prohibit database-injected code, endpoints, headers, or secrets.
+- [x] Approve scoped idempotency, stable Effect identity, provider idempotency-key reuse, and changed-payload conflicts.
+- [x] Approve immutable ordered history, deterministic replay, rebuildable snapshots, and nondeterminism blocking.
+- [x] Approve bounded leases, heartbeats, and monotonic fencing tokens.
+- [x] Approve Effect commit states, verification, and reconcile-before-retry for uncertain external outcomes.
+- [x] Approve durable timers, signals, approvals, callbacks, and dependencies.
+- [x] Approve cooperative cancellation, explicit committed Effects, and verified compensation.
+- [x] Approve transactional Outbox/Inbox and separation of transport dead letters from business recovery.
+- [x] Approve dynamic concurrency, fairness, priority aging, admission, and backpressure policies.
+- [x] Approve Saga/Workflow compensation, partial-success evidence, and recovery cases.
+- [x] Approve checkpoint-based replay/resume and safe model fallback after committed output or Tool Effects.
+- [x] Approve stable errors, API direction, compatibility migration, no-effect previews, and acceptance boundaries.
+- [ ] Approve initial Workflow/Activity/Effect type, state, event, transition, timer, signal, and reason-code registry seeds.
+- [ ] Approve initial handler allowlist, build-digest certification, and semantic compatibility matrix.
+- [ ] Approve initial Effect Contracts, commit boundaries, verification and reconciliation policies by provider/action family.
+- [ ] Approve initial retry/error, cancellation, compensation, checkpoint, replay, and recovery policy values.
+- [ ] Approve service classes, concurrency keys/limits, fairness weights, priority aging, admission, backpressure, and recovery capacity.
+- [ ] Approve history/event retention, snapshot cadence, idempotency windows, uncertainty windows, and dead-letter retention.
+- [ ] Implement read-only projections over existing jobs, execution plans/steps/events, workflow/step runs, approval holds, Outboxes, and execution logs.
+- [ ] Implement deterministic shadow replay and compare commands/state against current orchestration.
+- [ ] Implement append-only Workflow history, snapshots, timers, signals, dependencies, and governance epochs.
+- [ ] Implement Activity attempts, leases, fencing tokens, results, and queue assignments.
+- [ ] Implement Effect Ledger, dispatch, verification, reconciliation, and compensation evidence.
+- [ ] Implement transactional Outbox/Inbox, transport dead letters, redrive previews, and consumer deduplication.
+- [ ] Implement recovery cases, manual intervention, checkpoint, replay/resume previews, and immutable linked replay.
+- [ ] Integrate DFR-004 reservations and DFR-005 model fallback boundaries.
+- [ ] Add idempotency, deterministic replay, stale lease, uncertain Effect, duplicate delivery, cancellation, compensation, recovery, fairness, cross-Tenant, and no-effect preview tests.
+- [ ] Prove no registry path can inject arbitrary handler code, SQL, JavaScript, shell, URL, header, model code, or credential value.
+- [ ] Canary low-risk operation/effect families and cut over only after parity, uncertainty, recovery, rollback, and historical reconstruction pass.
+
 ## Shared catalog
 
 - [ ] Design additive catalog migration.
