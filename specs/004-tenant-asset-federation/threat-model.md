@@ -481,6 +481,102 @@ Adaptive services, analytics, dashboards, caches, queues, and model providers ar
 
 **Mitigation:** read-only authorities, no-effect execution mode, transport/provider-call assertions, mutation guards, and tests proving zero side effects.
 
+### T-069 — Workflow history tampering or sequence fork
+
+**Threat:** an actor edits/deletes events, appends two decisions at the same sequence, or serves a forged snapshot to alter the reconstructed outcome.
+
+**Mitigation:** append-only ordered history, expected-sequence compare-and-append, event/snapshot checksums, causal links, restricted writers, rebuild verification, and audit.
+
+### T-070 — Nondeterministic replay laundering
+
+**Threat:** mutable configuration, wall-clock reads, randomness, or changed code produces different commands during replay and the difference is silently accepted.
+
+**Mitigation:** exact definition/engine versions, recorded time/random inputs, deterministic command checksum, compatibility policy, mismatch block, and governed migration/recovery.
+
+### T-071 — Registry-to-code injection
+
+**Threat:** a registry row introduces executable code, arbitrary handler, URL/header, SQL, JavaScript, shell, model code, or credential material.
+
+**Mitigation:** typed bounded schemas, allowlisted certified handler keys/build digests, no executable payload fields, secret-like-key rejection, publication review, and unknown-key fail closed.
+
+### T-072 — Idempotency-key collision or payload substitution
+
+**Threat:** an attacker reuses another request's key, changes payload under the same key, or shortens retention to create duplicate Effects.
+
+**Mitigation:** Tenant/account/type/target-scoped key, request checksum, stable original result, conflict on changed input, retention through replay/dispute/uncertainty windows, and scoped audit.
+
+### T-073 — Stale Worker commit after lease loss
+
+**Threat:** a delayed Worker commits output or Effect evidence after another Worker acquires the Activity.
+
+**Mitigation:** bounded leases, monotonic fencing tokens on every state-changing commit, heartbeat validation, stale-token rejection, and duplicate-attempt telemetry.
+
+### T-074 — Blind retry after uncertain Effect
+
+**Threat:** timeout/reset/5xx after transmission causes a second payment, message, publication, Tool call, or provider mutation.
+
+**Mitigation:** dispatch-start evidence, Effect commit states, reconcile-before-retry classification, stable provider idempotency key, bounded uncertainty window, and recovery when proof is unavailable.
+
+### T-075 — Forged verification or reconciliation
+
+**Threat:** a compromised service reports confirmed success/no-effect without authoritative readback to force completion or retry.
+
+**Mitigation:** registered source/validator allowlists, immutable evidence references, quorum/confidence where required, source freshness, conflict classification, separation of duties, and review for high-risk Effects.
+
+### T-076 — Signal, callback, or approval replay/spoofing
+
+**Threat:** duplicate, expired, cross-Tenant, wrong-Workflow, or unauthorized signals trigger transitions multiple times.
+
+**Mitigation:** typed versioned signal schema, target Workflow/Tenant binding, sender authority, nonce/idempotency/checksum, expiry, duplicate-result replay, and scoped not-found behavior.
+
+### T-077 — Timer manipulation or loss
+
+**Threat:** process-local timers disappear, fire twice, fire early/late, or are edited to bypass deadlines, approval, reservation, or retry windows.
+
+**Mitigation:** durable timer rows/history, authoritative UTC evidence, unique logical firing, deadline/reservation revalidation, missed-timer policy, lease/fencing, and restart recovery tests.
+
+### T-078 — Cancellation hides committed Effects
+
+**Threat:** UI/API reports cancelled while emails, content, charges, Tool calls, or provider writes already occurred.
+
+**Mitigation:** separate lifecycle/outcome/effect states, commit ledger, cancellation preview, safe-boundary policy, itemized committed Effects, compensation where possible, and no generic cancelled-only result.
+
+### T-079 — Compensation abuse or over-compensation
+
+**Threat:** compensation targets the wrong Effect, executes twice, deletes valuable state, or exceeds original financial/operational scope.
+
+**Mitigation:** exact source Effect, registered compensation handler/policy, stable idempotency, dependency order, authority/approval, amount/scope ceiling, verification, and immutable source history.
+
+### T-080 — Outbox/Inbox duplication, conflict, or omission
+
+**Threat:** local state commits without event, duplicate delivery repeats consumer Effects, or same event ID carries a changed payload.
+
+**Mitigation:** state+Outbox atomic transaction, consumer Effect+Inbox completion transaction, unique consumer/event key, payload checksum conflict, at-least-once delivery, and delivery/reconciliation metrics.
+
+### T-081 — Recovery or replay privilege escalation
+
+**Threat:** operator uses recovery to bypass current policy, replay another Tenant's Workflow, repeat committed Effects, or use stale checkpoints/reservations.
+
+**Mitigation:** exact object authority, no-effect preview, verified checkpoint, current manifest/policies/epochs, known Effect ledger, new identity/idempotency, approvals/SoD, and immutable source history.
+
+### T-082 — Transport dead-letter confused with business replay
+
+**Threat:** redriving an Outbox/queue item is treated as authority to rerun the business operation or external Effect.
+
+**Mitigation:** distinct transport/business resources and permissions, redrive preview, Inbox deduplication, Effect-state check, and prohibition on direct business replay from DLQ.
+
+### T-083 — Queue starvation, priority abuse, or noisy-neighbor capture
+
+**Threat:** one Tenant or high-priority class monopolizes Workers/provider capacity, starving recovery or other Tenants.
+
+**Mitigation:** scoped concurrency, weighted fairness, priority aging, bounded priorities, admission/backpressure, reserved recovery/system capacity, and starvation alerts.
+
+### T-084 — Unsafe model fallback after committed output/Tool Effect
+
+**Threat:** a fallback model silently continues visible output, repeats a Tool call, receives unauthorized hidden state, or reuses the first model's reservation.
+
+**Mitigation:** Effect commit boundaries, verified checkpoint, remaining-work contract, DFR-005 eligibility, new candidate reservation, no credential transfer, explicit restart/superseding artifact, and duplicate-Effect block.
+
 ## 6. Abuse cases
 
 ### Malicious user profile
