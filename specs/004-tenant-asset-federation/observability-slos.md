@@ -334,6 +334,39 @@ Initial design targets, subject to benchmark validation:
 - fallback-set removal/invalidation for revoked candidates: 100%;
 - historical decision/run reconstruction after revocation or retirement: 100%.
 
+### Durable Workflow decision and delivery SLO
+
+Initial design targets, subject to benchmark and fault-injection validation:
+
+- Workflow creation and status-read availability: 99.95% monthly for admitted operation families;
+- immutable history append and state/outbox atomicity: 100%;
+- deterministic replay match for certified definition/history pairs: 100%;
+- Workflow/Activity/Effect/manifest/policy correlation coverage: 100% for consequential operations;
+- Activity claim commits with valid lease and current fencing token: 100%;
+- successful stale-fencing commit: 0;
+- duplicate logical Effect under retry, callback, redrive, recovery, or replay: 0;
+- durable timer logical firing loss: 0; duplicate logical timer transition: 0;
+- Outbox event creation with committed state transition: 100%;
+- Inbox deduplication for duplicate same-checksum delivery: 100%;
+- p95 decision append latency excluding external Activity work: ≤ 250 ms;
+- p99 decision append latency excluding external Activity work: ≤ 750 ms;
+- p95 admitted interactive Activity queue wait under provisioned capacity: ≤ 2 seconds;
+- recovery/system-critical reserved-capacity availability: 99.95% monthly.
+
+### Effect uncertainty, recovery, and cancellation SLO
+
+- uncertain external Effects routed to reconciliation before retry: 100%;
+- blind retry after transmission-start uncertainty: 0;
+- Effect verification/reconciliation source/version evidence coverage: 100%;
+- critical financial/publish/delete/irreversible Effect outcome-unknown alert initiation: ≤ 30 seconds after classification;
+- recovery case owner/SLA assignment: ≤ 60 seconds after case creation;
+- cancellation result with itemized committed/unknown/compensated Effects: 100%;
+- compensation linked to exact source Effect and separately verified: 100%;
+- transport dead letters mislabeled as business Workflow outcome: 0;
+- replay/resume preserving immutable source history and new linked identity: 100%;
+- model fallback repeating committed visible output, Tool call, or external Effect: 0;
+- cancel/resume/replay/recovery/redrive preview external or persistent side effects: 0.
+
 ### Mutation SLO
 
 For profile, preference, variant, and connection-binding mutations:
