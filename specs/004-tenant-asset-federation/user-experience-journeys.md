@@ -459,7 +459,7 @@ Authorized operators see an assigned recovery case containing safe evidence, unr
 - cross-scope impact;
 - rollout and rollback controls.
 
-## 17. Notification design
+## 18. Notification design
 
 Notifications are event- and preference-aware:
 
