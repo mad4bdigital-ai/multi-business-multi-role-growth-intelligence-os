@@ -694,4 +694,11 @@ Before each rollout stage:
 - provider-order/free-first shadow parity is measured for the exact task/risk family before cutover;
 - selected and fallback candidate commercial reservation coverage is measured;
 - emergency restriction/revocation propagation and rollback are exercised;
+- Workflow definition, handler build, Effect Contract, retry/cancellation/reconciliation/compensation, queue/concurrency/fairness, and runtime-governance-epoch versions are visible;
+- deterministic replay and history/snapshot reconstruction pass for the exact operation/effect family;
+- idempotency, stale-fencing, uncertain-Effect, Outbox/Inbox duplicate, timer/signal restart, cancellation, compensation, recovery, and replay fault-injection tests pass;
+- current jobs/plans/runs versus durable Workflow shadow parity is measured with zero more-permissive, lost-Effect, changed-terminal-outcome, or critical mismatch;
+- queue fairness, backpressure, starvation, and reserved recovery capacity are exercised under representative Tenant/provider load;
+- model fallback after visible output or committed Tool/external Effect is blocked or restarted through a verified checkpoint and new reservation;
+- recovery ownership/SLA, runbooks, transport dead-letter redrive, and rollback flags are exercised;
 - post-release behavioral readback confirms expected traffic and decisions.
