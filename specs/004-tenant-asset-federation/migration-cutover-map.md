@@ -401,6 +401,11 @@ Migration is complete only when:
 - model selection for each migrated task/risk family starts from registered capability contracts, uses current evaluation/readiness evidence, independently eligible fallback, candidate-specific commercial authorization, and reconstructable manifests;
 - provider-order/free-first and hardcoded task/model behavior is retired only for certified families and remains documented compatibility debt elsewhere;
 - emergency model restriction/revocation, drift, deprecation, alias movement, rollback, and historical reconstruction are operational;
+- every migrated operation/effect family runs through a registered deterministic Workflow definition, certified Activity handler, explicit Effect Contract, scoped idempotency, deadlines, retry/cancellation/reconciliation/compensation/recovery policy, and reconstructable immutable history;
+- Activity leases/fencing, durable timers/signals/dependencies, transactional Outbox/Inbox, verification, reconciliation, compensation, checkpoints/replay, transport dead letters, and recovery ownership are operational and observable;
+- current jobs/plans/runs/outboxes are retired only for certified families and remain documented compatibility debt elsewhere;
+- zero accepted nondeterminism, successful stale-fencing commit, duplicate logical Effect, blind retry after uncertain dispatch, lost committed Effect, cross-Tenant replay, or unsafe model fallback is demonstrated;
+- queue admission, concurrency, fairness, priority aging, backpressure, and reserved recovery capacity meet approved SLOs under representative load;
 - all target families are cut over or explicitly retained as legacy with documented debt;
 - operational dashboards, SLOs, rollback, and runbooks are active;
 - deprecated authorities are retired only through separate approved work.
