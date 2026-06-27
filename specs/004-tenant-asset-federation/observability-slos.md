@@ -239,6 +239,24 @@ platform_promotion_candidate_created
 - selected versus realized quality, latency, reliability, customer charge, and provider-cost calibration;
 - model preference adoption, reset, opt-out, and blocked escalation attempts.
 
+### Durable Workflow and Effect Commit
+
+- registered Workflow/Activity/Effect definition and handler-certification coverage by operation/effect family;
+- Workflow creation, completion, partial-success, recovery-required, cancellation, expiry, and indeterminate rates;
+- deterministic replay coverage and command/history checksum mismatch count;
+- Activity queue wait, lease acquisition, heartbeat, retry, lease-loss, stale-fencing rejection, and attempt distributions;
+- Effect dispatch, acknowledgement, verification, confirmed-effect, confirmed-no-effect, outcome-unknown, and reconciliation latency/rate;
+- blind-retry prevention count and uncertain-Effect recovery age;
+- idempotency duplicate-hit, changed-payload conflict, provider-key reuse, and duplicate logical Effect count;
+- durable timer firing lag, duplicate/missed timer rate, signal/callback duplicate/expiry/rejection rate, and dependency wait age;
+- cancellation before/after commit, reservations released, compensation scheduled/succeeded/failed, and irreversible Effect counts;
+- Outbox publication/delivery lag, duplicate delivery, Inbox deduplication/conflict, transport dead-letter age, and redrive outcomes;
+- recovery-case volume, owner/SLA age, unresolved Effect count, action preview/apply, escalation, and resolution outcomes;
+- checkpoint freshness, resume/replay preview pass/block, replay linkage, and duplicate-effect prevention coverage;
+- queue depth/age by service class/Tenant/provider, admission/block/backpressure, priority aging, starvation, and reserved recovery capacity;
+- current jobs/plans/runs versus durable Workflow shadow parity and mismatch classification;
+- model fallback before-output versus blocked-after-committed-effect and candidate-specific reservation coverage.
+
 ### Personalization
 
 - preference profile adoption;
