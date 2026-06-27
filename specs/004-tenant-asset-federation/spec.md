@@ -357,6 +357,39 @@ Each plane has its own authority, lifecycle, audit, versioning, and rollback. Th
 - **FR-165:** Current provider-order, free-first, hardcoded provider/task lists, task profiles, model IDs, and provider adapters remain compatibility inputs/implementations until shadow parity, task/risk-family certification, cutover, and rollback readiness pass.
 - **FR-166:** Model-selection preview returns candidates, exclusions, gate/metric evidence, optimization, fallback, and provisional commercial effects while performing no provider/model call, credential read, evaluation execution, commercial reservation, lifecycle mutation, or external write.
 - **FR-167:** Missing, stale, conflicting, revoked, insufficient, ambiguous, or unregistered task, capability, policy, evaluation, readiness, lifecycle, selection, fallback, or commercial evidence fails closed with stable structured errors.
+- **FR-168:** Long-running, asynchronous, multi-step, resumable, approval-gated, commercially reserved, model-driven, or externally effectful work is represented as a durable Workflow reconstructed from immutable ordered history.
+- **FR-169:** Workflow decision logic is deterministic, versioned, replayable, and separated from Activity execution and Effect commitment.
+- **FR-170:** Workflow, Activity, Effect, event, state, transition, timer, signal, retry, cancellation, compensation, reconciliation, replay, recovery, queue, concurrency, and fairness semantics resolve from typed versioned database registries.
+- **FR-171:** Database authorities may select only allowlisted Workflow, Activity, Effect, and adapter handler keys and cannot introduce arbitrary SQL, JavaScript, shell, URLs, headers, executable code, model code, or credential values.
+- **FR-172:** Each Workflow binds exact Tenant/principal/context, Workflow definition version, manifest, idempotency identity, request checksum, deadline, service class, concurrency key, cancellation/retry/compensation policies, commercial reservation, and governance epochs.
+- **FR-173:** Child Workflows inherit or tighten parent authority, data, model, commercial, deadline, risk, and cancellation bounds and cannot broaden them implicitly.
+- **FR-174:** Workflow history is append-only, ordered, schema-versioned, checksummed, causally linked, and remains the source of truth; snapshots are rebuildable accelerators only.
+- **FR-175:** Deterministic replay must produce the same logical commands from the same history and definition version; nondeterminism blocks with explicit recovery evidence.
+- **FR-176:** Lifecycle state, outcome class, Effect state, and verification state remain separate and reconstructable rather than compressed into generic success/failure/cancelled statuses.
+- **FR-177:** Every Activity attempt records immutable attempt identity, queue/service class, lease, monotonic fencing token, deadline, retry classification, timestamps, result/error checksum, and source Worker evidence.
+- **FR-178:** A stale or lease-lost Worker cannot commit state or Effect evidence with an older fencing token.
+- **FR-179:** Scoped idempotency binds Tenant/account, Workflow/Activity/Effect type, target resource, key, and request checksum; key reuse with changed input blocks as conflict.
+- **FR-180:** Provider idempotency keys and logical Effect IDs remain stable across attempts, and evidence is retained through replay, dispute, retention, and uncertainty windows.
+- **FR-181:** Effect Contracts classify read-only, internal transactional, external idempotent, external reconcilable, external non-idempotent, human-visible, commercial, and irreversible effects with explicit commit boundaries and evidence rules.
+- **FR-182:** Transport success alone does not prove business success; each Effect follows a registered verification policy.
+- **FR-183:** Retry classification distinguishes never, immediate, backoff, dependency, approval, reconcile-before-retry, and manual-recovery-only behavior and cannot rely solely on HTTP status.
+- **FR-184:** An external timeout or transport failure after transmission begins is reconciled before retry unless the Effect Contract proves idempotent repeatability.
+- **FR-185:** Retry policies enforce full-jitter backoff, `Retry-After`, attempt/elapsed budgets, absolute deadlines, circuit breakers, reservation/quota limits, and recovery behavior.
+- **FR-186:** Durable timers, signals, approvals, callbacks, and dependencies survive Worker or deployment restart and use typed versioned idempotent contracts.
+- **FR-187:** Cancellation is a durable cooperative signal with registered safe-boundary, compensate, non-cancellable-after-commit, or manual behavior and cannot erase committed effects.
+- **FR-188:** Transactional Outbox insertion occurs with the local Workflow/event transaction, delivery is at least once, and Inbox deduplication prevents duplicate logical consumer effects.
+- **FR-189:** Transport dead letters apply to messages, queue tasks, callbacks, or deliveries; business Workflows use governed recovery cases with explicit unresolved Effects and owners.
+- **FR-190:** Concurrency and fairness policies are database-driven and may enforce Tenant, account, resource, provider, Workflow/Activity/Effect type, service-class, priority-aging, admission, and backpressure limits without bypassing authority or safety.
+- **FR-191:** Multi-effect operations use versioned Saga/Workflow definitions with dependencies, commit boundaries, verification, retry classes, safe cancellation boundaries, and compensation Activities.
+- **FR-192:** Compensation is a new idempotent verified Effect that preserves original history and never masquerades as a distributed rollback.
+- **FR-193:** Partial-success results enumerate required/optional successes, failed steps, committed, verified, compensated, uncompensated, and outcome-unknown Effects plus manual actions.
+- **FR-194:** Reconciliation produces confirmed-effect, confirmed-no-effect, still-unknown, conflicting-evidence, or manual-review outcomes and controls subsequent retry or recovery.
+- **FR-195:** Replay and resume require a no-effect preview, verified checkpoint, current manifest/authority/policies, known prior Effects, safe remaining Activities, and valid commercial reservation.
+- **FR-196:** Replay creates a new linked Workflow and idempotency identity and never mutates the source Workflow history.
+- **FR-197:** Before any committed output or Tool Effect, an eligible model fallback may run only after DFR-005 revalidation and candidate-specific estimate/reservation.
+- **FR-198:** Once user-visible output or a Tool/external Effect is committed, model fallback cannot silently continue or repeat the Effect; restart, superseding artifact, verified checkpoint, and remaining-work rules apply.
+- **FR-199:** Current jobs, job queues, sequential plans, workflow/step runs, approval holds, surface-specific Outboxes, execution logs, and adapter retry policies remain compatibility inputs until family-specific shadow parity and cutover pass.
+- **FR-200:** Missing, stale, conflicting, unsupported, ambiguous, or unregistered Workflow, Activity, Effect, retry, timer, signal, lease, fencing, verification, reconciliation, compensation, replay, recovery, manifest, or commercial evidence fails closed with stable structured errors.
 
 ## 13. Extended non-functional requirements
 
