@@ -769,6 +769,90 @@ Selection preview attempts to invoke a candidate for live scoring or read a cred
 
 Expected: no-effect transport assertion fails; no model call, credential read, reservation, or external write occurs.
 
+### Changed-payload idempotency replay
+
+Client reuses a successful Workflow idempotency key with a modified target or payload.
+
+Expected: `WORKFLOW_IDEMPOTENCY_CONFLICT`; the original Workflow/effects remain unchanged and no new Activity is scheduled.
+
+### Stale Worker commit
+
+Worker A loses its lease, Worker B claims the Activity, then Worker A submits a successful result.
+
+Expected: `ACTIVITY_FENCING_TOKEN_STALE`; Worker A's result/effects are rejected and preserved only as audit evidence.
+
+### Timeout after provider dispatch
+
+Connection drops after request transmission but before response.
+
+Expected: Effect enters outcome-unknown/reconciliation-required; no blind retry occurs.
+
+### Forged confirmed-no-effect
+
+Compromised reconciliation service reports no Effect without an approved provider readback source.
+
+Expected: evidence validation fails; uncertainty remains and Workflow enters or stays in recovery.
+
+### Duplicate callback
+
+Provider sends the same successful callback multiple times with the same event ID.
+
+Expected: Inbox deduplication returns the first result and appends no duplicate transition or settlement.
+
+### Cross-Tenant signal injection
+
+User submits a cancellation/approval signal to a Workflow owned by another Tenant.
+
+Expected: scoped not-found or authorization denial; target history remains unchanged.
+
+### Timer restart recovery
+
+Worker crashes after a durable retry timer is armed but before it fires.
+
+Expected: timer survives restart and creates one logical firing/transition only.
+
+### Cancellation after irreversible Effect
+
+User cancels after a message is delivered or content is publicly published.
+
+Expected: committed Effect is disclosed; result is not generic cancelled-no-effect; compensation/manual recovery follows registered policy.
+
+### Double compensation
+
+Recovery operator submits compensation twice for the same committed Effect.
+
+Expected: stable compensation idempotency returns the first logical result and does not over-correct.
+
+### Dead-letter business replay confusion
+
+Operator redrives a queue message whose business Effect is already committed.
+
+Expected: redrive preview blocks or Inbox deduplicates; no business Workflow replay or duplicate Effect occurs.
+
+### Cross-Tenant checkpoint replay
+
+Operator attempts to resume a Workflow using another Tenant's checkpoint.
+
+Expected: scope/checksum/manifest mismatch blocks without leaking checkpoint or Effect contents.
+
+### Unsafe model continuation
+
+Model A has streamed output and executed a Tool; runtime attempts to continue silently with Model B.
+
+Expected: `MODEL_FALLBACK_UNSAFE_AFTER_EFFECT`; explicit partial completion/restart and verified remaining-work checkpoint are required.
+
+### Queue priority capture
+
+Tenant marks all batch work system-critical to monopolize Workers.
+
+Expected: service-class authority and bounded priority/fairness policy reject or normalize requests and preserve other Tenant capacity.
+
+### Preview with hidden Workflow execution
+
+Replay or recovery preview schedules an Activity, publishes an Outbox event, or reads a credential.
+
+Expected: no-effect assertion fails; no execution, queue delivery, reservation, compensation, or external write occurs.
+
 ## 7. Security test classes
 
 - tenant crossover for every resource and route;
