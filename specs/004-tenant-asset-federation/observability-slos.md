@@ -576,7 +576,14 @@ Span attributes use IDs, counts, versions, reason codes, and timing—not raw co
 - provider dispatch using a revoked exact model version;
 - selected or fallback candidate bypassed a mandatory data, region, safety, evaluation, readiness, lifecycle, or commercial gate;
 - raw provider endpoint/adapter/code/secret injection accepted;
-- model-selection preview caused a provider call, credential read, reservation, lifecycle mutation, or external write.
+- model-selection preview caused a provider call, credential read, reservation, lifecycle mutation, or external write;
+- divergent Workflow replay accepted or history sequence/checksum fork detected;
+- stale-fencing-token Activity commit accepted;
+- duplicate irreversible, financial, publish, delete, visible-output, Tool, or external Effect detected;
+- blind retry after transmission-start uncertainty;
+- cross-Tenant Workflow, signal, checkpoint, recovery, replay, queue claim, or transport redrive success;
+- registry-loaded arbitrary handler code, URL, header, SQL, shell, model code, or secret;
+- runtime preview caused Activity execution, queue publication, reservation, compensation, replay, credential read, or external write.
 
 ### High
 
