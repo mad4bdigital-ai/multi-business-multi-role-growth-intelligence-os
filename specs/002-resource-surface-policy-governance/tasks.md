@@ -11,14 +11,17 @@
 - [x] T007 Resolve assets and approvals revisions strategy as `readback_guarded`.
 - [x] T008 Add deterministic unit and regression tests.
 - [x] T009 Add ADR, canonicals, and Knowledge Guide updates.
+- [x] T010 Exclude explicitly classified recovery snapshots from the scoped-table primary-key finding only.
+- [x] T011 Add migration 1026 to align declared archive states with the resource manifest.
+- [x] T012 Resolve prior open findings only after a persisted complete zero-finding audit.
 
 ## Delivery and verification
 
-- [ ] T020 Obtain CI green status on the implementation PR.
+- [x] T020 Obtain CI green status on the implementation PR.
 - [ ] T021 Obtain release readiness pass.
-- [ ] T022 Merge the implementation PR through governed finalization.
-- [ ] T023 Authorize and apply migration 1025 with ledger readback.
+- [x] T022 Merge the implementation PR through governed finalization.
+- [x] T023 Authorize and apply migration 1025 with ledger readback.
 - [ ] T024 Verify production commit parity.
-- [ ] T025 Run and persist the post-merge live audit.
+- [x] T025 Run and persist the post-merge live audit.
 - [ ] T026 Confirm zero unresolved policy findings.
 - [ ] T027 Open and merge the final closeout PR.
