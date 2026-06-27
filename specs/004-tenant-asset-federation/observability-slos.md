@@ -39,6 +39,11 @@ model_evaluation_run_id / scorecard_id when applicable
 model_readiness_snapshot_id when applicable
 model_fallback_set_id when applicable
 runtime_cost_estimate_id / reservation_id when applicable
+runtime_workflow_id / root_workflow_id when applicable
+runtime_activity_id / attempt_id when applicable
+runtime_effect_id when applicable
+runtime_checkpoint_id / recovery_case_id when applicable
+runtime_outbox_event_id / inbox_event_id when applicable
 execution_id
 approval_hold_id when applicable
 adaptive_proposal_id / experiment_id when applicable
