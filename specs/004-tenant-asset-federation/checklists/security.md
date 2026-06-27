@@ -203,6 +203,31 @@
 - [ ] Prompt injection, evaluation poisoning, benchmark leakage, readiness spoofing, preference escalation, fallback downgrade, and adapter injection tests pass before implementation.
 - [ ] Emergency revocation, cache invalidation, stale manifest, and historical reconstruction exercises pass before enforcement.
 
+## Deterministic Durable Workflow security
+
+- [x] Workflow/Activity/Effect definitions, handlers, states, transitions, events, timers, signals, retries, cancellation, compensation, reconciliation, replay, recovery, concurrency, fairness, and dead-letter reasons resolve from versioned typed authorities.
+- [x] Registry publication rejects arbitrary SQL, JavaScript, shell, URLs, headers, executable payloads, model code, provider code, and secret-like values.
+- [x] Handler keys resolve only to allowlisted certified code/build digests with compatible semantic versions.
+- [x] Workflow history is append-only, ordered, checksummed, causally linked, and replayed under the exact compatible definition version.
+- [x] Determinism mismatches block and create recovery evidence rather than silently mutating state.
+- [x] Activity commits require a live lease and current monotonic fencing token.
+- [x] Scoped idempotency includes Tenant/account, type, target, key, and request checksum; changed-payload reuse blocks.
+- [x] Provider idempotency and logical Effect IDs remain stable across retries and recovery.
+- [x] Effect commit boundary, verification, reconciliation, and compensation evidence are explicit and immutable.
+- [x] Timeout or transport failure after dispatch cannot trigger blind retry for an uncertain external Effect.
+- [x] Retry policies respect deadlines, reservation/quota budgets, circuit breakers, `Retry-After`, and maximum attempts/elapsed time.
+- [x] Timers/signals/callbacks are typed, idempotent, scoped, expiring, and durable across restarts.
+- [x] Cancellation cannot erase or hide committed/human-visible/irreversible Effects.
+- [x] Transactional Outbox/Inbox prevents lost local events and duplicate consumer Effects.
+- [x] Transport dead letters contain no secrets and are not confused with business recovery.
+- [x] Recovery actions, replay, resume, redrive, reconciliation, and manual intervention require exact object authority, bounded action types, approvals where required, audit, and readback.
+- [x] Child Workflows cannot broaden parent authority, data/model/commercial scope, deadline, risk, or credential access.
+- [x] Model fallback cannot repeat committed visible output, Tool calls, or external Effects.
+- [x] Preview endpoints perform zero Activity execution, provider/model/tool call, credential read, queue publish, reservation, compensation, replay, or external write.
+- [ ] Initial handler allowlist, Effect Contracts, retry/reconciliation/compensation policies, and recovery actions receive security/data/commercial review.
+- [ ] Stale lease, replay poisoning, history tampering, signal spoofing, callback replay, outbox duplication, reconciliation forgery, compensation abuse, queue starvation, and registry injection tests pass before implementation.
+- [ ] Disaster restart, timer recovery, exact replay, recovery ownership, and emergency disable/rollback exercises pass before enforcement.
+
 ## API and implementation
 
 - [x] All external input is validated.
