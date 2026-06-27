@@ -667,6 +667,16 @@ Runbooks must cover:
 - alias movement and unevaluated version substitution;
 - model-selection shadow mismatch and compatibility-router rollback;
 - deprecation replacement, exception, and rollback;
+- Workflow history fork, checksum mismatch, snapshot rebuild, or nondeterministic replay;
+- Activity lease loss, stale fencing rejection, Worker duplication, and retry-budget exhaustion;
+- uncertain external Effect, reconcile-before-retry, verification conflict, and manual evidence review;
+- durable timer loss/lag, duplicate signal/callback, missed approval/dependency, and restart recovery;
+- cancellation after committed/irreversible Effect, compensation failure, and partial-success communication;
+- Outbox/Inbox lag/conflict, transport dead-letter quarantine/redrive, and duplicate-effect containment;
+- recovery-case ownership/SLA escalation, checkpoint invalidation, replay/resume block, and manual intervention;
+- queue starvation, Tenant noisy-neighbor capture, fairness/backpressure, and reserved recovery-capacity restoration;
+- unsafe model fallback after visible output or committed Tool/external Effect;
+- jobs/plans/runs shadow mismatch and durable Workflow family rollback;
 - repository branch reconciliation.
 
 ## 13. Release observability gates
