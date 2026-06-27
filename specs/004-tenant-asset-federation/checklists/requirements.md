@@ -200,6 +200,36 @@
 - [ ] Initial readiness sources/windows, optimization weights, preference templates, tie-breakers, and fallback equivalence rules approved.
 - [ ] Implementation and migration scope authorized.
 
+## Deterministic Durable Workflow and Effect Commit
+
+- [x] Durable Workflow history is the authoritative source of truth and snapshots are rebuildable.
+- [x] Workflow decision logic is deterministic and separated from Activity execution and Effect commitment.
+- [x] Workflow, Activity, Effect, event, transition, timer, signal, retry, cancellation, compensation, reconciliation, replay, recovery, queue, concurrency, and fairness semantics are database-driven and versioned.
+- [x] Executable handlers/adapters remain allowlisted code and cannot be injected through registry rows.
+- [x] Workflow identity binds Tenant/principal/context, definition, manifest, idempotency, deadline, policies, concurrency, reservations, and governance epochs.
+- [x] Child Workflows cannot broaden parent authority, data/model/commercial, deadline, or risk bounds.
+- [x] Lifecycle, outcome, Effect, and verification states remain separate and explainable.
+- [x] Activity attempts use bounded leases and monotonic fencing tokens.
+- [x] Scoped idempotency and stable Effect/provider keys prevent duplicate logical work.
+- [x] Effect Contracts define classification, commit boundaries, verification, reconciliation, retry, cancellation, compensation, retention, and evidence.
+- [x] Uncertain external outcomes reconcile before retry unless the contract proves safe idempotency.
+- [x] Retry policies are error/effect aware and enforce attempt, elapsed, deadline, circuit-breaker, quota, and reservation budgets.
+- [x] Timers, signals, callbacks, approvals, and dependencies are durable and idempotent.
+- [x] Cancellation is cooperative and exposes committed or irreversible Effects.
+- [x] Transactional Outbox/Inbox provides at-least-once transport with consumer deduplication.
+- [x] Business recovery is separate from transport dead letters.
+- [x] Dynamic concurrency, fairness, priority aging, admission, and backpressure do not bypass authority or safety.
+- [x] Sagas compensate committed reversible Effects through new verified Activities and preserve history.
+- [x] Partial success, outcome unknown, compensation failure, and manual actions are explicit.
+- [x] Replay creates a new linked Workflow from a verified checkpoint and never mutates source history.
+- [x] Model fallback cannot repeat committed user-visible output, Tool calls, or external Effects.
+- [x] Resume/replay/cancel/recovery previews perform no execution, provider/model call, credential read, queue publish, reservation, compensation, or external write.
+- [ ] Initial Workflow/Activity/Effect/state/event/transition/timer/signal registry seeds approved.
+- [ ] Initial handler allowlist, Effect Contracts, verification/reconciliation, retry/cancellation/compensation, and recovery policies approved.
+- [ ] Initial queue service classes, concurrency/fairness/admission/backpressure policy approved.
+- [ ] History/idempotency/evidence/dead-letter retention and snapshot/checkpoint cadence approved.
+- [ ] Implementation and migration scope authorized.
+
 ## Review status
 
 - [ ] Product terminology approved.
