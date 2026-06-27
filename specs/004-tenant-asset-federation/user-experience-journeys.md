@@ -514,4 +514,12 @@ It never converts unavailable evidence into a false zero.
 - high-risk fallback behavior is explicit, certified where allowed, and never silently inferred from provider order;
 - restriction, revocation, deprecation, alias movement, and readiness degradation produce actionable impact and replacement guidance;
 - model-selection preview predicts certified cases and causes no provider/model call, credential read, evaluation execution, reservation, lifecycle mutation, or external write;
+- long-running work exposes truthful queued, waiting, retrying, reconciling, compensating, partial-success, recovery-required, and completed states rather than generic failure labels;
+- users can distinguish confirmed no-effect, committed Effect, and outcome-unknown without needing internal transport knowledge;
+- cancellation preview identifies committed/irreversible Effects, reservations to release, and compensation requirements before apply;
+- duplicate requests, callbacks, or signals do not create duplicate logical work or duplicate visible Effects;
+- recovery operators receive only registered bounded actions with ownership, SLA, evidence, and required approval, never free-form execution;
+- replay/resume creates or uses the correct durable identity and preserves the original Workflow timeline;
+- model fallback never silently combines multiple models after visible output or repeats a committed Tool/external Effect;
+- cancel, resume, replay, recovery, reconciliation-action, and redrive previews cause no Activity execution, provider/model/tool call, credential read, queue publication, reservation, compensation, replay, or external write;
 - advanced controls do not obstruct the default shared-asset journey.
