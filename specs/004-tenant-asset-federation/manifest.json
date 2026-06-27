@@ -31,17 +31,12 @@
   "business_failure_model": "governed_recovery_distinct_from_transport_dead_letter",
   "current_branch_repair_preferred": true,
   "branch_reconciled": true,
-  "reconciled_main_sha": "753f730c8bb6d56846952e9691401d22d497858d",
-  "reconciliation_merge_sha": "4fee1a95505022d5f75c6a70ffb89aba460df7e6",
+  "reconciled_main_sha": "f2c8ff997d79f1a679e68dcffe6cbd84b3086a80",
+  "reconciliation_merge_sha": "482e151583f734fb4c8d0e56097bf2cfee9ed13d",
   "branch_state_after_reconciliation": "ahead_only",
   "branch_behind_by": 0,
-  "ci_gate_status": "pass",
-  "required_checks_passed": [
-    "Syntax Check",
-    "Architecture Drift Detection",
-    "Execution Resolver Gate",
-    "Unit & Integration Tests"
-  ],
+  "ci_gate_status": "pending_after_dfr_006_design_update",
+  "required_checks_passed": [],
   "automatic_tenant_asset_copies": false,
   "scope_layers": [
     "platform_mandatory",
