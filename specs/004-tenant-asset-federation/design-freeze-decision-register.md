@@ -196,11 +196,31 @@ Required defaults:
 
 ### DFR-006 — Universal runtime operation contract
 
-**Question:** What delivery, idempotency, deadline, cancellation, retry, compensation, concurrency, fairness, and partial-success semantics apply to all effectful operations?
+**Approved decision:** Fully Dynamic Deterministic Durable Workflow and Effect Commit Protocol.
 
-**Required outcome:** operation state machine, outbox/inbox, dead letter, saga, reservation/lock, replay and recovery rules.
+Required defaults:
 
-**Status:** open.
+- long-running or effectful work is represented as a durable Workflow reconstructed from immutable ordered history;
+- deterministic Workflow decisions are separated from at-least-once Activity execution and independently tracked Effects;
+- Workflow, Activity, Effect, retry, timer, signal, cancellation, compensation, reconciliation, replay, concurrency, fairness, and recovery semantics are versioned database authorities;
+- executable handlers and provider adapters remain allowlisted code and cannot be injected through database rows;
+- exact logical Effect identity and scoped idempotency remain stable across attempts;
+- uncertain external outcomes require reconciliation before retry unless a registered contract proves idempotent repeatability;
+- lifecycle, outcome, effect, and verification states remain separate and explainable;
+- Workers use bounded leases and monotonic fencing tokens; stale owners cannot commit;
+- timers, signals, approvals, and dependencies are durable and survive Worker/deployment restart;
+- transactional Outbox/Inbox provides at-least-once delivery with consumer deduplication;
+- cancellation is cooperative and cannot hide committed or irreversible effects;
+- multi-effect work uses versioned Saga/Workflow definitions and verified compensation Activities rather than distributed rollback assumptions;
+- business failures enter governed recovery cases, while transport dead letters remain limited to messages/tasks/deliveries;
+- replay creates a new linked Workflow from a verified checkpoint and never mutates prior history;
+- model fallback cannot silently repeat committed user-visible output, Tool calls, or external effects;
+- current jobs, sequential plans, workflow/step runs, approval holds, surface Outboxes, and adapter retry behavior remain compatibility inputs until family-specific cutover;
+- missing, stale, conflicting, unsupported, or ambiguous mandatory runtime evidence fails closed.
+
+**Decision evidence:** `durable-workflow-effect-commit-decision.md`.
+
+**Status:** approved_design; implementation_not_authorized.
 
 ### DFR-007 — Artifact and knowledge provenance
 
