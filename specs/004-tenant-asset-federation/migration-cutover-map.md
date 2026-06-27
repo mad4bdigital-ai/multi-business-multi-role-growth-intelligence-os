@@ -119,6 +119,25 @@ A policy family may have mixed status: some fields contextual, others legacy-onl
 
 No migration step invokes a provider/model merely to populate registry data, reads raw credentials, or silently changes customer billing/model preference.
 
+### Lane I — Deterministic durable Workflow and Effect Commit
+
+1. Inventory every asynchronous/long-running/effectful operation across jobs, queues, execution plans/steps/events, workflow/step runs, approval holds, scheduled work, surface Outboxes, callbacks, execution logs, provider references, and retry policies.
+2. Classify each operation into Workflow, Activity, and Effect types; record current idempotency, deadline, retry, cancellation, commit-boundary, verification, reconciliation, compensation, concurrency, fairness, and recovery semantics without inventing missing evidence.
+3. Register typed versioned Workflow/Activity/Effect/state/event/transition/timer/signal/error/retry/cancellation/compensation/reconciliation/checkpoint/replay/recovery/queue/concurrency/fairness authorities and allowlisted handler/build compatibility.
+4. Add read-only compatibility projections over current jobs/plans/runs/outboxes and preserve source identities, attempts, timestamps, approvals, claims, provider references, and terminal outcomes.
+5. Run deterministic shadow replay from projected history and compare commands, waits, deadlines, retries, outcomes, and Effect classifications against current behavior.
+6. Classify differences as exact match, durable more restrictive, durable more permissive, different reason same safe outcome, missing history, missing Effect evidence, nondeterministic, not comparable, or critical mismatch.
+7. Require zero durable-more-permissive, lost committed Effect, duplicate logical Effect, changed terminal outcome, accepted nondeterminism, cross-Tenant scope, or critical mismatch before enforcement.
+8. Introduce append-only Workflow history, snapshots, durable timers/signals/dependencies, governance epochs, and transactional Outbox/Inbox with consumers disabled or shadow-only.
+9. Introduce Activity attempts, bounded leases, monotonic fencing tokens, queue/service-class assignments, and no-effect handlers for selected low-risk families.
+10. Introduce Effect Ledger, provider idempotency/reference binding, verification, reconcile-before-retry, compensation, checkpoints, recovery cases, and transport dead letters by effect family.
+11. Execute fault-injection for crash-before/after dispatch, local commit failure after provider success, duplicate callback/delivery, stale Worker, timer restart, cancellation after commit, compensation failure, queue saturation, and cross-Tenant replay.
+12. Canary low-risk read-only/internal-idempotent families first; progress to external idempotent/reconcilable effects only after exact parity, SLO, commercial/data/model integration, recovery, and rollback certification.
+13. Progress external non-idempotent, financial, publish, delete, human-visible, irreversible, and authority-sensitive families only after explicit Effect Contracts, independent review, zero blind retry, reconciliation/manual recovery, and DFR-004/DFR-005 integration pass.
+14. Retire current job/plan/run/outbox behavior per family only after no active legacy consumers, historical reconstruction, disaster restart, transport redrive, recovery ownership, and rollback pass.
+
+No migration step replays a business Effect, invokes a provider/model/tool, reads credentials, changes billing, runs compensation, or redrives transport merely to populate target authorities. Unknown historical outcomes remain `unknown` or migration debt rather than being inferred as success/no-effect.
+
 ## 4. Additive schema sequence
 
 Suggested migration sequence:
