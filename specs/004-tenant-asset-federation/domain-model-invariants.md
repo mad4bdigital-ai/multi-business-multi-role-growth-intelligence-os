@@ -229,6 +229,46 @@ It cannot include a candidate that failed any mandatory gate.
 
 Governed impact/migration workflow owning affected assets/Agents/workflows/profiles/manifests, replacement candidates, deadline, shadow/canary evidence, exceptions, rollback, progress, and completion readback.
 
+### Durable Workflow
+
+Deterministic long-running decision aggregate reconstructed from immutable ordered history.
+
+Owns Workflow identity, definition/version, Tenant/principal/context, manifest, idempotency, deadlines, policies, timers, signals, dependencies, lifecycle/outcome projection, governance epochs, and history checksum.
+
+It schedules Activities but does not directly call providers, read credentials, or mutate external state.
+
+### Runtime Activity
+
+At-least-once execution unit bound to one Workflow and one allowlisted handler/type/policy version.
+
+Owns Activity identity, input/output checksums, attempt history, queue/service class, lease/fencing evidence, deadline, retry/cancellation/concurrency policy, results, and linked Effects.
+
+### Runtime Effect
+
+Stable logical internal/external/human-visible/commercial result of an Activity.
+
+Owns Effect type/contract version, logical key, target, expected checksum, provider idempotency/reference evidence, commit state, verification, reconciliation, compensation, retention, and recovery linkage.
+
+An Effect never stores credential values and is not considered successful from transport status alone.
+
+### Workflow Checkpoint
+
+Immutable verified resumable state at an exact Workflow history sequence.
+
+Owns state checksum, committed Effect references, remaining-work summary, manifest/authority/version vector, sensitivity, expiry, and compatible replay policy. It contains neither unverified process memory nor secrets.
+
+### Runtime Recovery Case
+
+Governed business-recovery aggregate for retry exhaustion, uncertain outcome, compensation failure, incompatible schema, changed authority/manifest, or manual decision.
+
+Owns unresolved Effects, evidence, owner, severity, SLA, permitted actions, review/expiry, resolution, and checksum. It is distinct from transport dead letters.
+
+### Transport Dead Letter
+
+Failed Outbox/Inbox/queue/callback/notification delivery record with source identity, schema/checksum, attempts, failure class, redrive eligibility, owner, retention, and safe evidence.
+
+It does not represent the business Workflow outcome and grants no authority to repeat an external Effect.
+
 ### Adaptive Change Proposal
 
 Governed hypothesis for improving experience, execution, or business outcome.
