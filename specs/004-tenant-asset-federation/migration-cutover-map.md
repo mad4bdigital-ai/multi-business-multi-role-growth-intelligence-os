@@ -150,10 +150,12 @@ Suggested migration sequence:
 6. effective runtime manifest ledger;
 7. model task/capability, endpoint/model-version, inference-profile, context-policy, optimization, and preference authorities;
 8. model evaluation suite/dataset/metric/run/result, scorecard, readiness, selection, fallback, drift, incident, deprecation, and governance-epoch authorities;
-9. adaptive proposals/simulations/experiments/measurements/promotion candidates;
-10. views for catalog, bridge parity, model-selection parity/readiness, and adaptive health;
-11. indexes and retention metadata;
-12. feature/rollout registry rows.
+9. Workflow/Activity/Effect/state/event/transition/timer/signal/error/retry/cancellation/compensation/reconciliation/checkpoint/replay/recovery/queue/concurrency/fairness registries and certified handler metadata;
+10. durable Workflow history/snapshots/timers/signals/dependencies, Activity attempts/leases/results, Effect dispatch/verification/reconciliation/compensation, Outbox/Inbox, checkpoints/recovery/replay, transport dead letters, queues/rate/concurrency, and runtime-governance epochs;
+11. adaptive proposals/simulations/experiments/measurements/promotion candidates;
+12. views for catalog, bridge parity, model-selection parity/readiness, durable Workflow shadow parity/recovery, and adaptive health;
+13. indexes, partitioning, archival, and retention metadata;
+14. feature/rollout registry rows.
 
 Each migration includes authorization metadata, preflight, indexes, rollback/disable strategy, and same-cycle schema readback.
 
