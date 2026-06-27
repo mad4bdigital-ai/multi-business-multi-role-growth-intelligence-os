@@ -410,6 +410,13 @@ No budget applies to:
 - unapproved consequential write;
 - stale revoked authority dispatch;
 - unreconstructable critical execution;
+- divergent deterministic replay accepted as valid;
+- successful stale-fencing commit;
+- duplicate irreversible, financial, publish, delete, user-visible, Tool, or external Effect;
+- blind retry of an uncertain non-idempotent external Effect;
+- committed Effect hidden by generic failed/cancelled status;
+- cross-Tenant Workflow, signal, checkpoint, recovery, replay, queue claim, or dead-letter redrive;
+- arbitrary executable handler/endpoint/header/secret loaded from registry configuration;
 - destructive experiment outside exact cohort.
 
 One verified occurrence triggers containment and rollout rollback.
