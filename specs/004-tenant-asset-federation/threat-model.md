@@ -957,6 +957,18 @@ Residual risks require UI warnings, policy review, monitoring, calibration, and 
 - restriction/revocation invalidates affected caches, manifests, queued pre-dispatch work, and fallback sets within the approved emergency SLO;
 - selection explanations and candidate discovery expose no credentials, hidden provider contract terms, private evaluation data, prompts, or another Tenant's preferences;
 - model-selection and deprecation previews prove zero provider/model call, credential read, evaluation execution, commercial reservation, lifecycle mutation, or external write;
+- zero accepted arbitrary Workflow/Activity/Effect handler code, endpoint, header, SQL, JavaScript, shell, model code, or secret injection;
+- deterministic replay mismatch count is zero for certified Workflow definition/history pairs;
+- zero successful stale-lease or stale-fencing-token commit;
+- zero duplicate logical Effect under same idempotency/effect identity across retry, callback, redrive, recovery, or replay tests;
+- every uncertain external Effect reconciles or enters recovery before retry; no blind retry after transmission-start uncertainty;
+- every committed Effect has required verification evidence or an explicit unresolved/recovery state;
+- cancellation, partial success, compensation, and recovery expose all committed, uncompensated, and unknown Effects;
+- zero cross-Tenant Workflow, signal, checkpoint, recovery, replay, queue-claim, or dead-letter redrive access;
+- Outbox state/event atomicity and Inbox duplicate-effect protection pass fault-injection tests;
+- fairness/admission tests prove bounded noisy-neighbor impact and preserved recovery/system capacity;
+- model fallback never repeats committed user-visible output, Tool calls, or external Effects and never reuses another candidate's reservation;
+- cancel/resume/replay/recovery/redrive previews prove zero Activity execution, provider/model/tool call, credential read, queue publish, reservation, compensation, replay, lifecycle mutation, or external write;
 - shadow critical mismatch count is zero before cutover;
 - path/candidate/rate limits proven under load;
 - rollback for profile, variant, experiment, and resolver cutover is tested;
