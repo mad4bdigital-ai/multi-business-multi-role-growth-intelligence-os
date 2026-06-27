@@ -1,0 +1,35 @@
+{
+  "spec_kit": "006-platform-dynamic-workflow-runtime",
+  "version": "0.1.0",
+  "status": "ready_for_review",
+  "created_at": "2026-06-27",
+  "base_commit": "a58da2b2dbd48272bdf3d83747c78d58c0d32166",
+  "branch": "gpt/006-platform-dynamic-workflow-runtime",
+  "dependencies": [
+    {
+      "spec": "004-shared-assets-scope-inheritance",
+      "pull_request": 1898,
+      "head_sha": "24ce7f5a29e30d9b091e73dcf9557f0a0add84a5",
+      "merge_assumed": false
+    },
+    {
+      "spec": "005-dynamic-tool-schema-surfaces-activation-gateway",
+      "pull_request": 1917,
+      "head_sha": "1f41bae8d95fb9e84cd188e0956b6891637b62be",
+      "merge_assumed": false
+    }
+  ],
+  "production_mutation_authorized": false,
+  "provider_execution_authorized": false,
+  "database_migration_included": false,
+  "contracts": [
+    "contracts/workflow-runtime.openapi.yaml"
+  ],
+  "required_reviews": [
+    "architecture",
+    "security",
+    "api-contract",
+    "database",
+    "runtime-operations"
+  ]
+}
