@@ -597,7 +597,15 @@ Span attributes use IDs, counts, versions, reason codes, and timing—not raw co
 - provider-order/free-first shadow comparison produces a contextual-more-permissive or critical mismatch;
 - fallback activation, block, or exhaustion exceeds baseline;
 - emergency revocation propagation or model-governance epoch invalidation exceeds SLO;
-- repeated selection ambiguity, alias movement, scorecard drift, or candidate-specific reservation failure.
+- repeated selection ambiguity, alias movement, scorecard drift, or candidate-specific reservation failure;
+- Effect outcome-unknown or reconciliation age exceeds policy for a critical operation;
+- Workflow recovery case lacks owner/SLA or contains unresolved critical Effects beyond threshold;
+- Outbox delivery lag, Inbox conflict, or transport dead-letter volume exceeds baseline;
+- durable timer firing lag, missed timer, or duplicate logical transition exceeds threshold;
+- Activity lease-loss/stale-fencing rejection or retry-budget exhaustion spikes;
+- compensation failure, cancellation-with-effects, or partial-success rate exceeds family baseline;
+- queue starvation, fairness breach, or recovery/system-critical reserved capacity falls below minimum;
+- durable Workflow shadow comparison is more permissive, loses an Effect, or changes a terminal outcome.
 
 ### Medium
 
