@@ -480,7 +480,7 @@ Recommendations cannot use urgency language unless an actual deadline or risk ex
 - diff and graph views have accessible table alternatives;
 - user language preference never changes canonical IDs or policy evaluation.
 
-## 19. Empty, loading, and degraded states
+## 20. Empty, loading, and degraded states
 
 The UI distinguishes:
 
