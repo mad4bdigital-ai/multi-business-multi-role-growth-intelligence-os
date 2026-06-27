@@ -131,6 +131,47 @@ model_deprecation_completed
 model_governance_epoch_advanced
 ```
 
+### Durable Workflow and Effect Commit
+
+```text
+runtime_workflow_requested
+runtime_workflow_validated
+runtime_workflow_admitted
+runtime_workflow_decision_appended
+runtime_workflow_waiting
+runtime_workflow_cancel_requested
+runtime_workflow_completed
+runtime_workflow_recovery_required
+runtime_activity_scheduled
+runtime_activity_claimed
+runtime_activity_lease_lost
+runtime_activity_retry_scheduled
+runtime_activity_completed
+runtime_effect_prepared
+runtime_effect_dispatch_started
+runtime_effect_reference_observed
+runtime_effect_verified
+runtime_effect_outcome_unknown
+runtime_effect_reconciliation_started
+runtime_effect_reconciliation_completed
+runtime_effect_compensation_started
+runtime_effect_compensation_completed
+runtime_timer_scheduled
+runtime_timer_fired
+runtime_signal_received
+runtime_checkpoint_created
+runtime_replay_started
+runtime_recovery_case_created
+runtime_recovery_case_resolved
+runtime_outbox_delivery_attempted
+runtime_inbox_event_deduplicated
+runtime_transport_dead_letter_created
+runtime_transport_dead_letter_redriven
+runtime_queue_backpressure_applied
+runtime_fencing_commit_rejected
+runtime_governance_epoch_advanced
+```
+
 ### Adaptive growth
 
 ```text
