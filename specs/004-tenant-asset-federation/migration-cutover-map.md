@@ -262,8 +262,11 @@ tenant/cohort
 + task class and capability profile/version where applicable
 + risk/data/region family where applicable
 + model optimization profile/version where applicable
++ Workflow/Activity/Effect family and definition/contract versions where applicable
++ retry/cancellation/reconciliation/compensation/recovery policy versions where applicable
++ queue/service class/concurrency/fairness policy versions where applicable
 + composition profile/version
-+ resolver/model-selection version
++ resolver/model-selection/durable-runtime version
 ```
 
 Examples:
