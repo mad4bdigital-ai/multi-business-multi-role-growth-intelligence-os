@@ -113,6 +113,24 @@
 | Current routing remains a compatibility bridge | model decision 2, 20; FR-165 | provider-order/free-first shadow parity, task/risk-family cutover, rollback, and hardcoded-list removal gate tests |
 | Model-selection preview has no effect | model decision 16; FR-166–FR-167 | no provider/model call, credential read, evaluation execution, reservation, lifecycle mutation, or external write tests |
 
+| Durable Workflow history is authoritative | `durable-workflow-effect-commit-decision.md` 1, 5; FR-168–FR-175 | ordered history, replay determinism, snapshot rebuild, schema/version, and nondeterminism-block tests |
+| Dynamic registries define bounded semantics | durable decision 2; FR-170–FR-171 | registry versioning, unsupported handler, arbitrary code/URL/header/secret injection, and compatibility tests |
+| Workflow/Activity/Effect are separated | durable decision 3; FR-169, FR-176 | decision-only replay, at-least-once Activity, stable Effect identity, and state-dimension tests |
+| Scoped idempotency prevents duplicate logical work | durable decision 8; FR-179–FR-180 | same-key same-payload, changed-payload conflict, provider-key stability, and retention-window tests |
+| Effect commit protocol controls uncertainty | durable decision 9, 17; FR-181–FR-184, FR-194 | commit-boundary, verification, timeout-after-dispatch, reconcile-before-retry, confirmed/no-effect/unknown tests |
+| Leases and fencing prevent stale writes | durable decision 7; FR-177–FR-178 | lease expiry, heartbeat, owner reassignment, stale token commit, and duplicate Worker tests |
+| Retry is policy and Effect aware | durable decision 10; FR-183–FR-185 | error classification, full jitter, Retry-After, deadline, budget, circuit breaker, quota/reservation, and manual-only tests |
+| Timers/signals/dependencies are durable | durable decision 11; FR-186 | restart survival, duplicate signal, stale schema, approval expiry, dependency quorum, and missed timer tests |
+| Cancellation exposes committed Effects | durable decision 12; FR-187 | before-dispatch, cooperative boundary, compensate, too-late, child propagation, and irreversible-effect tests |
+| Outbox/Inbox ensures transport durability | durable decision 13; FR-188–FR-189 | atomic append/outbox, duplicate delivery, checksum conflict, consumer transaction, dead-letter separation, and redrive tests |
+| Concurrency and fairness are governed | durable decision 14; FR-190 | Tenant/resource/provider limits, priority aging, recovery capacity, starvation, admission, and backpressure tests |
+| Sagas compensate rather than rewrite | durable decision 15; FR-191–FR-193 | dependency order, committed-effect selection, idempotent compensation, compensation failure, and partial-success tests |
+| Recovery differs from transport dead letter | durable decision 16; FR-189, FR-193–FR-194 | retry exhausted, outcome unknown, compensation failed, owner/SLA, manual action, and message DLQ tests |
+| Replay/resume use verified checkpoints | durable decision 18; FR-195–FR-196 | preview no-effect, checkpoint validity, new identity, current manifest/policy, known Effects, and immutable source history tests |
+| Model fallback respects committed Effects | durable decision 19; FR-197–FR-198 | before-output fallback, visible stream, Tool Effect, remaining work, new reservation, and superseding artifact tests |
+| Existing runtime remains compatibility authority until cutover | durable decision 20, 25; FR-199 | jobs/plans/outboxes shadow parity, family canary, rollback, and historical reconstruction tests |
+| Missing runtime evidence fails closed | durable decision 22–23; FR-200 | stale/ambiguous registry, lease, Effect Contract, verification, recovery, manifest, and commercial evidence tests |
+
 ## Source-to-target traceability
 
 | Existing authority | Target role |
