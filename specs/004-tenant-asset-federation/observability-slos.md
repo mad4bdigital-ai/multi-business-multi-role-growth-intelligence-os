@@ -538,6 +538,22 @@ Span attributes use IDs, counts, versions, reason codes, and timing—not raw co
 - alias movement, incidents, restrictions, revocations, deprecation, and invalidation lag;
 - selected versus realized quality, latency, reliability, customer charge, and provider cost.
 
+### Durable Workflow and Effect Commit
+
+- Workflow volume/state/outcome by type, Tenant, risk, and operation family;
+- deterministic replay coverage and mismatch/nondeterminism incidents;
+- Activity queue age, attempts, retry classes, lease loss, stale-fencing rejection, and Worker health;
+- Effect commit/verification/reconciliation funnel and outcome-unknown age;
+- idempotency hits/conflicts and duplicate logical Effect prevention;
+- timers/signals/dependencies, callback duplicates, missed/late firing, and approval waits;
+- cancellation before/after commit, reservation release, compensation success/failure, and partial-success inventory;
+- Outbox/Inbox lag, duplicate delivery, transport dead letters, redrive status, and schema conflicts;
+- recovery cases by reason, owner/SLA, unresolved Effects, permitted action, and resolution age;
+- checkpoint/replay/resume coverage and immutable-source-history verification;
+- queue/service-class/Tenant/provider depth, concurrency saturation, fairness, starvation, backpressure, and reserved recovery capacity;
+- current jobs/plans/runs versus durable Workflow shadow parity and family cutover status;
+- model fallback blocked after committed output/Tool Effect and new-reservation coverage.
+
 ### Adaptive Growth
 
 - opportunities by objective;
