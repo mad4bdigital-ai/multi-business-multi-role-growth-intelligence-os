@@ -702,15 +702,90 @@ Hard eligibility evidence, contextual ranking, provider/internal cost, customer 
 
 Database policy may select only allowlisted provider adapters and bounded semantics. It cannot store or execute arbitrary URLs, headers, SQL, JavaScript, shell, model code, or credential values.
 
-### Runtime orchestration and consistency
+### Deterministic durable Workflow and Effect Commit authorities
 
-- `runtime_operations` — universal operation identity, exact manifest, state, deadline, cancellation, and idempotency;
-- `runtime_operation_outbox` — transactionally emitted no-secret events;
-- `runtime_operation_inbox` — consumer deduplication and processing result;
-- `runtime_dead_letters` — failed event/operation, attempts, classification, and recovery owner;
-- `runtime_saga_instances` and `runtime_saga_steps` — multi-step effects and compensations;
-- `runtime_resource_reservations` — cost, quota, lock, provider slot, and other bounded reservations;
-- `runtime_concurrency_policies` — tenant/resource/action limits, priority, fairness, and backpressure.
+The approved DFR-006 model is fully registry-driven, append-only, deterministic at the Workflow-decision layer, at-least-once at the Activity-delivery layer, and explicit about Effect uncertainty. Existing jobs, queues, execution plans/steps/events, workflow/step runs, approval holds, surface Outboxes, execution logs, and adapter retry behavior remain compatibility inputs until certified family cutover.
+
+#### Dynamic semantic registries
+
+- `runtime_workflow_type_registry` — stable Workflow type key, owner, risk class, default definition/policies, applicable contexts, lifecycle, and version;
+- `runtime_workflow_definition_versions` — immutable deterministic definition, compatible engine version, allowed commands/events/Activities, replay compatibility, validity, and checksum;
+- `runtime_workflow_state_registry` — lifecycle/outcome/effect/verification state semantics, terminality, allowed audiences, and status;
+- `runtime_workflow_event_type_registry` — event schema, source authority, causation requirements, redaction class, replay semantics, and version;
+- `runtime_workflow_transition_registry` — source state, event/condition, target state, required evidence, approvals, side-effect prohibition/allowance, and handler semantic key;
+- `runtime_workflow_signal_type_registry` — typed signal schema, sender authority, idempotency, expiry, duplicate behavior, and target Workflow types;
+- `runtime_workflow_timer_type_registry` — durable timer class, scheduling rule, deadline interaction, missed-timer behavior, and compatible transitions;
+- `runtime_activity_type_registry` — Activity key, handler key, supported Effect classes, default policies, input/output schemas, risk, and lifecycle;
+- `runtime_activity_handler_registry` — allowlisted code handler identity, package/build digest, capabilities, compatibility, certification, and status without executable payload;
+- `runtime_activity_policy_versions` — timeout, retry, lease, cancellation, verification, concurrency, queue, and evidence requirements;
+- `runtime_effect_type_registry` — stable Effect type, effect class, sensitivity, commit-boundary family, verification/reconciliation/compensation requirements, and status;
+- `runtime_effect_contract_versions` — exact target semantics, preparation, dispatch, idempotency, commit boundaries, provider reference, verification, reconciliation, cancellation, compensation, retention, and checksum;
+- `runtime_effect_commit_state_registry` — `not_started`, `prepared`, `dispatching`, `accepted`, `committed`, `verified`, `confirmed_no_effect`, `outcome_unknown`, `compensating`, `compensated`, and failure semantics;
+- `runtime_effect_verification_policy_registry` — authoritative validators/readback sources, quorum, evidence freshness, confidence, and failure behavior;
+- `runtime_effect_reconciliation_policy_registry` — lookup/readback strategies, polling windows, terminal outcomes, manual-review thresholds, and retry eligibility;
+- `runtime_retry_class_registry` — `never_retry`, immediate, backoff, dependency, approval, reconcile-before-retry, and manual-only semantics;
+- `runtime_retry_policy_versions` — attempts, elapsed/deadline budgets, backoff/jitter, `Retry-After`, circuit breaker, reservation/quota behavior, and recovery action;
+- `runtime_error_class_registry` — stable error classification, retry class, effect uncertainty, severity, disclosure, and operator action;
+- `runtime_cancellation_policy_registry` — before-dispatch, cooperative-boundary, compensate, non-cancellable-after-commit, or manual-only behavior;
+- `runtime_compensation_policy_registry` — eligible Effect classes, handler key, dependency ordering, deadline, approvals, verification, and recovery behavior;
+- `runtime_checkpoint_policy_registry` — checkpoint schema, verified-state requirements, allowed context/effect references, retention, and resume/replay compatibility;
+- `runtime_replay_policy_registry` — eligibility, required preview/approval, new identity, source checkpoint, current-policy validation, and duplicate-effect protections;
+- `runtime_recovery_reason_registry` — retry exhaustion, outcome unknown, compensation failure, schema incompatibility, authority/manifest change, manual decision, and owner/SLA defaults;
+- `runtime_queue_service_class_registry` — interactive, standard, batch, recovery, system-critical, and future registered classes with bounded priority behavior;
+- `runtime_concurrency_policy_registry` — Tenant/account/resource/provider/type/service-class concurrency key, limit, lease behavior, and admission result;
+- `runtime_fairness_policy_registry` — bounded weights, priority aging, reserved recovery capacity, starvation prevention, and backpressure behavior;
+- `runtime_dead_letter_reason_registry` — transport-specific reasons, retry/redrive constraints, owner, retention, and disclosure;
+- `runtime_operation_reason_code_registry` — stable cancellation, compensation, replay, recovery, and manual-intervention reasons;
+- `runtime_governance_epoch_sources` — contributing authority families that advance Workflow invalidation epochs.
+
+#### Durable Workflow history
+
+- `runtime_workflows` — Workflow/root/parent/operation identity, Tenant/principal/context, type/definition version, manifest, idempotency, service class, priority, deadlines, policies, concurrency key, commercial/model/data/runtime epochs, lifecycle/outcome projections, and checksum;
+- `runtime_workflow_events` — immutable ordered sequence, event type/schema version, source, causation/correlation IDs, policy/version vector, payload/evidence checksum, and observed/recorded time;
+- `runtime_workflow_snapshots` — rebuildable acceleration snapshot with history sequence/checksum, definition version, and projection checksum;
+- `runtime_workflow_timers` — timer type, scheduled/expiry times, state, firing event, missed behavior, and lease/fencing evidence;
+- `runtime_workflow_signals` — signal type/version, sender authority, idempotency/checksum, received/processed state, expiry, and resulting event;
+- `runtime_workflow_dependencies` — parent/child or Workflow/Activity dependency, required/optional/quorum semantics, deadline, status, and evidence.
+
+#### Activities and attempts
+
+- `runtime_activities` — Workflow step/Activity identity, type/policy versions, input checksum, target/effect refs, deadline, queue/service class, retry/cancellation/concurrency policy, lifecycle, and output checksum;
+- `runtime_activity_attempts` — immutable attempt number, Worker identity, lease/fencing refs, start/dispatch/ack/verify timestamps, error/retry class, result/evidence checksum, and terminal classification;
+- `runtime_activity_leases` — Activity/concurrency key, owner, issued/expires/heartbeat, monotonic fencing token, status, and revocation reason;
+- `runtime_activity_results` — immutable structured result, required/optional outputs, warnings, effect refs, verification state, and checksum.
+
+#### Effect Ledger and evidence
+
+- `runtime_effects` — stable logical Effect ID/key, Workflow/Activity, type/contract version, target resource/provider, expected checksum, provider idempotency key, current effect/verification/compensation state, retention, and no-secret metadata;
+- `runtime_effect_dispatches` — attempt-specific preparation/transmission/acceptance/provider-reference evidence, commit boundary, timestamps, response checksum, and uncertainty classification;
+- `runtime_effect_verification_runs` — policy/version, validators/readback sources, evidence, result, confidence, freshness, and checksum;
+- `runtime_effect_reconciliation_runs` — strategy/policy, stable lookup keys, attempts, evidence, outcome (`confirmed_effect`, `confirmed_no_effect`, `still_unknown`, `conflicting_evidence`, `manual_review_required`), and next action;
+- `runtime_effect_compensation_runs` — source Effect, compensation Activity/Effect, policy, approvals, dependency order, result, verification, unresolved state, and checksum.
+
+#### Messaging and transport durability
+
+- `runtime_outbox` — transactionally emitted event identity, Workflow/event refs, schema version, payload checksum, availability, delivery attempts, lease/fencing, state, and destination class;
+- `runtime_inbox` — consumer/event unique identity, payload checksum, processing state, result checksum, first/last observed times, and conflict evidence;
+- `runtime_transport_dead_letters` — Outbox/Inbox/queue/callback/notification source, failure class, attempts, payload checksum/ref, owner, retention, redrive eligibility, and recovery evidence.
+
+#### Checkpoints, replay, and recovery
+
+- `runtime_checkpoints` — Workflow/history sequence, verified state checksum, committed Effect refs, remaining-work summary, authority/manifest/version vector, sensitivity, expiry, and compatible replay policy;
+- `runtime_recovery_cases` — Workflow/effect scope, reason, severity, unresolved/committed effects, reconciliation/compensation evidence, owner, SLA, allowed actions, review/expiry, and checksum;
+- `runtime_manual_interventions` — recovery case, requested action, authority/approval, operator evidence, outcome, and readback;
+- `runtime_replay_runs` — source/new Workflow, reason, preview/checkpoint checksum, new idempotency, current manifest/policies, approvals, result, and evidence.
+
+#### Queue, concurrency, and rate authorities
+
+- `runtime_task_queues` — queue key, service class, compatible Activity types, capacity, ownership, environment/region, lifecycle, and health policy;
+- `runtime_queue_assignments` — Activity/queue binding, reason, priority/age evidence, admission state, and version;
+- `runtime_rate_limit_buckets` — scoped token/leaky bucket state for Tenant/account/resource/provider/type with policy/version and rebuild evidence;
+- `runtime_concurrency_leases` — scoped concurrency key, holder Workflow/Activity, fencing token, expiry, and release evidence;
+- `runtime_governance_epochs` — invalidation after Workflow/Activity/Effect definition, policy, handler, manifest, authority, data, model, commercial, retry, cancellation, compensation, reconciliation, or recovery change.
+
+#### Determinism and execution safety
+
+Workflow history is authoritative. Snapshots, queue state, and projections are rebuildable. Lifecycle, outcome, Effect, and verification states remain distinct. All executable handlers/adapters are allowlisted code; registry rows select only supported semantic keys and bounded parameters. Business recovery is distinct from transport dead letters, and replay creates a new linked Workflow rather than rewriting history.
 
 ### Artifact and knowledge provenance
 
