@@ -13,6 +13,9 @@ The platform must answer, without reading secrets:
 - Which task/capability contract, hard gates, evaluation, readiness, optimization, commercial evidence, and fallback set produced a model selection?
 - Are selected and fallback candidates current, independently eligible, commercially reserved, and safe for the exact context?
 - Is contextual model selection consistent with current provider-order/free-first routing during migration, and where is it intentionally more restrictive?
+- Which Workflow definition/history, Activity attempts, leases/fencing, timers/signals, Effects, verification/reconciliation, compensation, recovery, and transport evidence produced the current runtime outcome?
+- Did any uncertain external Effect reconcile before retry, and can every duplicate delivery or callback be proven logically deduplicated?
+- Are queue admission, concurrency, priority, fairness, and backpressure behaving within Tenant/resource/provider bounds without starvation?
 - Can every consequential execution be reconstructed from immutable evidence?
 
 Observability is part of runtime correctness, not a dashboard-only concern.
