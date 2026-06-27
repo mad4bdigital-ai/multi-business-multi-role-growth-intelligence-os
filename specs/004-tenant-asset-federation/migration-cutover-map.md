@@ -299,6 +299,16 @@ Examples:
 - candidate-specific estimate/reservation coverage 100% for cost-bearing execution;
 - high-risk certified-equivalence or explicit no-fallback policy verified;
 - emergency restriction/revocation, queued-work invalidation, alias movement, and deprecation rollback tested;
+- Workflow/Activity/Effect definitions, handler builds, commit boundaries, and policy versions are registered and certified for the exact family;
+- deterministic replay, history/snapshot reconstruction, and expected-sequence append pass with zero accepted nondeterminism;
+- scoped idempotency, stable provider/effect keys, duplicate callback/delivery, and changed-payload conflict tests pass;
+- Activity leases/fencing, timer/signal restart, Outbox/Inbox atomicity, and consumer deduplication fault-injection pass;
+- uncertain external outcomes reconcile before retry, and zero blind retry or lost committed Effect is observed;
+- cancellation, partial success, compensation, recovery ownership/SLA, checkpoint/replay, and transport dead-letter redrive are exercised;
+- durable-more-permissive, duplicate-effect-risk, changed-terminal-outcome, and critical mismatch count is zero;
+- queue admission, Tenant/resource/provider concurrency, fairness, priority aging, starvation, backpressure, and reserved recovery capacity meet SLO;
+- model fallback after visible output or committed Tool/external Effect is blocked or uses verified remaining-work restart plus new reservation;
+- rollback to the prior certified family authority is tested without deleting Workflow/Effect history;
 - post-cutover readback confirms expected decision mix.
 
 ## 10. Rollback hierarchy
