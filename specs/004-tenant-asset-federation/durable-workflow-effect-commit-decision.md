@@ -286,7 +286,7 @@ retention/expiry policy
 Rules:
 
 - same key and same checksum return the original logical operation and outcome;
-- same key with a different checksum blocks with `OPERATION_IDEMPOTENCY_CONFLICT`;
+- same key with a different checksum blocks with `WORKFLOW_IDEMPOTENCY_CONFLICT`;
 - Step/Activity/Effect keys are deterministically derived from root Workflow, step key, and logical effect key;
 - provider idempotency keys remain stable across attempts;
 - idempotency evidence is retained through the maximum replay, dispute, retention, and provider uncertainty window;
