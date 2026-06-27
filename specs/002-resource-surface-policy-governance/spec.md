@@ -23,6 +23,8 @@ Require every table, view, and enabled tool to have an explicit Resource API exp
 - Evaluate descriptor, operation, archive, and version requirements from policy states.
 - Resolve current `runtime_unclassified` lifecycle metadata through a deterministic metadata-only backfill.
 - Preserve structured findings, bounded output, persistence, and no-secret guarantees.
+- Treat explicitly classified recovery/repair snapshots as non-runtime surfaces for scoped primary-key integrity checks while keeping ordinary scoped runtime tables fail-closed.
+- Resolve historical open coverage findings only after a persisted `complete` zero-finding run.
 - Preserve existing HTTP routes and OpenAPI contracts.
 
 ## Non-goals
