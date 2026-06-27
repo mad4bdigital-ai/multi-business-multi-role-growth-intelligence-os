@@ -78,9 +78,11 @@ const archiveDryRun = await evaluateGptToolDispatchPreflight({ callerType: "admi
 assert.equal(archiveDryRun.ok, true);
 assert.equal(archiveDryRun.classification, "allow");
 
-const archiveApply = await evaluateGptToolDispatchPreflight({ callerType: "admin", toolKey: "gpt_session_archive_backfill", method: "POST", tags: ["read_write", "dry_run_default_true"], args: { dry_run: false } }, emptyPolicyDeps);
-assert.equal(archiveApply.ok, false);
-assert.deepEqual(archiveApply.errors, ["mutation_policy_required"]);
+const archiveApply = await evaluateGptToolDispatchPreflight({ callerType: "admin", toolKey: "gpt_session_archive_backfill", method: "POST", tags: ["read_write", "dry_run_default_true", "dry_run_default", "readback"], args: { dry_run: false } }, emptyPolicyDeps);
+assert.equal(archiveApply.ok, true);
+assert.equal(archiveApply.classification, "allow_with_declared_mutation_policy");
+assert.equal(archiveApply.evidence.invocation_mutation_required, true);
+assert.equal(archiveApply.evidence.mutation_policy_declared, true);
 
 const cloudflareRead = await evaluateGptToolDispatchPreflight({ callerType: "admin", toolKey: "admin_cloudflare", method: "POST", tags: ["admin", "cloudflare"], args: { method: "GET" } }, emptyPolicyDeps);
 assert.equal(cloudflareRead.ok, true);

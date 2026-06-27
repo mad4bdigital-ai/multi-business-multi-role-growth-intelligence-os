@@ -826,6 +826,8 @@ Do not assume a write is safe merely because the intended value looks correct.
 
 ### Mutation checklist
 
+Apply-capable POST or virtual tools must declare an explicit mutation-policy marker that matches the implemented contract. A descriptor with `read_write` and `dry_run_default_true` alone remains fail-closed for apply. Use truthful markers such as `dry_run_default`, `readback`, `same_cycle_readback`, `typed_confirmation`, or `capability_envelope`; never add approval or envelope tags unless the route actually enforces them. The GPT session archive backfill tool uses `dry_run_default` plus bounded `readback` and remains admin-only and no-secret.
+
 Before governed writes:
 1. Resolve the target table, sheet, document, repo path, or provider endpoint from registry authority.
 2. Confirm the actor, tenant, brand, or target context.
