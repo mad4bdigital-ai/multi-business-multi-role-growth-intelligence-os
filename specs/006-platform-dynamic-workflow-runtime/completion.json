@@ -24,7 +24,7 @@
         "branch": "gpt/006-authority-scope-foundation",
         "role": "authority_scope_foundation",
         "status": "ci_passed_review_pending",
-        "last_verified_head_sha": "6ed292eb454be5099248b58451085e37d3752bad",
+        "verification_reference": "github_pr_ci_gate:1941",
         "base_branch": "gpt/006-platform-dynamic-workflow-runtime",
         "enforcement_mode": "shadow_only",
         "migration_executed": false
@@ -67,7 +67,7 @@
       "required_checks": 4,
       "successful_checks": 4,
       "failed_checks": 0,
-      "last_verified_head_sha": "6ed292eb454be5099248b58451085e37d3752bad"
+      "verification_reference": "github_pr_ci_gate:1941"
     },
     "release_readiness": {
       "status": "pending",
