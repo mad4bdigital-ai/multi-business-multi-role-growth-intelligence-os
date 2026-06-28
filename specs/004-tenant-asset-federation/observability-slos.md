@@ -779,6 +779,14 @@ Span attributes use IDs, counts, versions, reason codes, and timing—not raw co
 - Activity lease-loss/stale-fencing rejection or retry-budget exhaustion spikes;
 - compensation failure, cancellation-with-effects, or partial-success rate exceeds family baseline;
 - queue starvation, fairness breach, or recovery/system-critical reserved capacity falls below minimum;
+- checksum mismatch, source-attestation revocation, transparency proof age/fork, or provenance incompleteness exceeds critical-family threshold;
+- high-risk Claim contradiction, citation invalidation, unsupported generated claim, or reviewer-independence failure remains unresolved beyond policy;
+- trust/freshness/license/policy assessment coverage drops below task/risk requirement or more-permissive Policy Envelope attempts spike;
+- Knowledge Index build/membership/model-profile mismatch, stale/invalidated index use, or poisoned-source detection exceeds baseline;
+- retrieval evidence reconstruction fails or gate-before-rank exclusion mismatch appears;
+- correction/retraction/disposition propagation lag exceeds SLO or unresolved critical descendants lack owner/SLA;
+- selective-disclosure denied/leak attempt or projection reconstruction mismatch exceeds threshold;
+- compatibility projection is more permissive, loses source/version/evidence, or promotes incomplete provenance;
 - durable Workflow shadow comparison is more permissive, loses an Effect, or changes a terminal outcome.
 
 ### Medium
