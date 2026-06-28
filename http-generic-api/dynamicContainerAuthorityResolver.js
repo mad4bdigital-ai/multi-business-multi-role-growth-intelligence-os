@@ -489,6 +489,28 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
   const secretCheck = validateNoSecretMetadata(rawInput);
   if (!secretCheck.ok) throw stableError("container_secret_field_forbidden", "Secret-like fields are forbidden in container authority requests.", secretCheck.violations);
 
+  let authorityScopeShadow;
+  try {
+    authorityScopeShadow = await resolveAuthorityScopeShadow({
+      principal:input.principal,
+      tenantId:input.tenantId,
+      requestId:input.requestId
+    });
+  } catch (error) {
+    const code = String(error?.code || "AUTHORITY_SCOPE_SHADOW_UNRESOLVED");
+    authorityScopeShadow = {
+      status:"unresolved",
+      enforcementMode:"shadow_only",
+      authorityGranted:false,
+      comparisonStatus:"unresolved",
+      mismatchCodes:[code],
+      error:{ code,status:Number(error?.status || 500) },
+      providerCallMade:false,
+      credentialPayloadRead:false,
+      secretsIncluded:false
+    };
+  }
+
   const idempotencyScope = `container-resolution:${input.tenantId}:${input.principal.type}:${input.principal.id}`;
   const idempotencyRequestSha256 = stableSha256({
     principal:input.principal,
