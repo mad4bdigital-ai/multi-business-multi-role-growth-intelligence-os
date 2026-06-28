@@ -530,6 +530,17 @@ No budget applies to:
 - committed Effect hidden by generic failed/cancelled status;
 - cross-Tenant Workflow, signal, checkpoint, recovery, replay, queue claim, or dead-letter redrive;
 - arbitrary executable handler/endpoint/header/secret loaded from registry configuration;
+- in-place mutation of an immutable Artifact/Knowledge Version or accepted checksum substitution;
+- invalid/revoked/forked required attestation or transparency proof accepted as eligible;
+- signature validity presented as factual truth or publication approval;
+- prohibited provenance cycle, forged cross-Tenant derivation, or hidden material contradiction accepted;
+- composite trust score overriding mandatory authenticity, factual-support, license, policy, audience, freshness, review, or retraction failure;
+- derived Policy Envelope made less restrictive without approved verified declassification;
+- unauthorized selective-disclosure evidence/content/identity/graph-shape exposure;
+- retracted/stale/private/unlicensed source retrieved or cited after eligibility gating;
+- generated high-risk factual claim presented as supported without policy-required exact evidence;
+- correction rewriting prior Version or retraction/attestation revocation failing to block new critical use;
+- legal-hold protected content deletion or minimal tombstone retaining erased payload;
 - destructive experiment outside exact cohort.
 
 One verified occurrence triggers containment and rollout rollback.
