@@ -519,19 +519,130 @@ Before Activity dispatch, runtime revalidates lease/fencing ownership, manifest,
 
 Once user-visible output or a Tool/external Effect is committed, model fallback cannot silently continue or repeat that Effect. Any restart/resume requires a verified checkpoint, remaining-work contract, eligible candidate, and new candidate-specific estimate/reservation.
 
-## 14. Artifacts, knowledge, and provenance
+## 14. Policy-Bound Verifiable Artifacts and Knowledge
+
+### Artifact identities and immutable versions
 
 - `GET /tenant/artifacts`
 - `GET /tenant/artifacts/{artifactId}`
-- `GET /tenant/artifacts/{artifactId}/provenance`
-- `GET /tenant/artifacts/{artifactId}/verification`
-- `GET /tenant/artifacts/{artifactId}/changes`
-- `GET /tenant/artifacts/{artifactId}/revisions`
-- `POST /tenant/artifacts/{artifactId}/corrections`
-- `POST /tenant/artifacts/{artifactId}/retractions`
-- `GET /tenant/knowledge-index-versions`
+- `GET /tenant/artifacts/{artifactId}/versions`
+- `GET /tenant/artifact-versions/{versionId}`
+- `GET /tenant/artifact-versions/{versionId}/representations`
+- `GET /tenant/artifact-versions/{versionId}/changes`
+- `GET /tenant/artifact-versions/{versionId}/revisions`
 
-Content responses apply audience, sensitivity, purpose, residency, and object-level authorization. Provenance routes return safe source identifiers and evidence, not another tenant's private content.
+List/read filters may include Artifact type, lifecycle, owner scope, classification, audience, trust eligibility, freshness, correction/retraction, knowledge membership, and updated/observed time. Unsupported filters are rejected.
+
+Artifact Version responses expose stable logical/version identities, canonical and stored-representation checksums, schema/media metadata, lifecycle, safe producer/source references, trust/policy/freshness summaries, and governance epoch. They never return raw signing keys, storage credentials, hidden provider headers, or unauthorized content.
+
+Mutable file IDs, URLs, aliases, or timestamps are presented as representations/source references and never as sufficient immutable version identity.
+
+### Provenance, claims, evidence, and citations
+
+- `GET /tenant/artifact-versions/{versionId}/provenance`
+- `GET /tenant/artifact-versions/{versionId}/provenance/projection`
+- `GET /tenant/artifact-versions/{versionId}/claims`
+- `GET /tenant/artifact-claims/{claimId}`
+- `GET /tenant/artifact-claims/{claimId}/relations`
+- `GET /tenant/artifact-claims/{claimId}/evidence`
+- `GET /tenant/artifact-claims/{claimId}/citations`
+- `GET /tenant/artifact-citations/{citationId}`
+
+Provenance reads require exact object authority plus a registered selective-disclosure profile. Responses may return opaque evidence/source references, checksums, source classes, relation types, trust results, and material contradiction indicators without exposing restricted source content or identity.
+
+Claim and citation reads preserve exact Artifact/Source Versions and locators. A floating URL or mutable latest alias is disclosed as non-versioned evidence and cannot be represented as a verified immutable citation.
+
+### Attestations and transparency
+
+- `GET /tenant/artifact-versions/{versionId}/attestations`
+- `GET /tenant/artifact-versions/{versionId}/transparency`
+- `GET /tenant/artifact-transparency-roots/{rootId}`
+- `GET /tenant/artifact-transparency-roots/{rootId}/witnesses`
+
+Tenant-visible responses expose signing identity class, authority/trust domain, algorithm/key reference in safe form, signed checksum, issue/expiry/revocation, validation result, transparency sequence/root proof, and witness result. They do not expose private keys, raw certificates beyond approved disclosure, or another Tenant's hidden signer identity.
+
+Invalid, revoked, expired, or missing mandatory attestations/proofs are explicit eligibility blockers.
+
+### Trust, verification, policy, freshness, and reproducibility
+
+- `GET /tenant/artifact-versions/{versionId}/trust`
+- `GET /tenant/artifact-versions/{versionId}/verification`
+- `GET /tenant/artifact-versions/{versionId}/policy-envelope`
+- `GET /tenant/artifact-versions/{versionId}/freshness`
+- `GET /tenant/artifact-versions/{versionId}/reproducibility`
+- `GET /tenant/artifact-reproduction-runs/{runId}`
+- `POST /tenant/artifact-versions/{versionId}/eligibility-decisions/preview`
+
+Trust responses preserve independent identity, integrity, source-authority, provenance, citation, factual-support, methodology, freshness, license, policy, reproducibility, human-review, and corroboration dimensions. Composite ranking never hides a failed mandatory dimension.
+
+Eligibility preview evaluates exact version, object authority, purpose/data use, integrity/authenticity, provenance/contradictions, trust policy, freshness/effective time, audience/selective disclosure, license/attribution, residency/transfer, retention/legal hold/subject restrictions, correction/retraction/dependency invalidation, manifest, and governance epoch.
+
+Preview performs no content write, signing, transformation, publication, correction, retraction, deletion, index/embedding build, model/provider call, credential read, cache invalidation, notification, or external write.
+
+### Correction, retraction, and disposition
+
+- `POST /tenant/artifacts/{artifactId}/correction-runs/preview`
+- `POST /tenant/artifacts/{artifactId}/correction-runs`
+- `GET /tenant/artifact-correction-runs/{runId}`
+- `POST /tenant/artifacts/{artifactId}/retraction-runs/preview`
+- `POST /tenant/artifacts/{artifactId}/retraction-runs`
+- `GET /tenant/artifact-retraction-runs/{runId}`
+- `POST /tenant/artifact-versions/{versionId}/disposition-runs/preview`
+- `POST /tenant/artifact-versions/{versionId}/disposition-runs`
+- `GET /tenant/artifact-disposition-runs/{runId}`
+- `GET /tenant/artifact-versions/{versionId}/dependency-impact`
+
+Correction preview returns proposed new version/checksum, changed claims/citations/policy/trust, impacted descendants, publication requirements, index/cache rebuild/invalidation, notifications, and governance-epoch effect. Apply creates a new immutable version and never edits the source version.
+
+Retraction preview returns exact affected versions/claims/chunks/embeddings/indexes/retrievals/manifests/caches/memory/evaluations/exports/provider copies/backups/promotion candidates, allowed historical retention, notification/rebuild/restriction actions, and rollback limits.
+
+Disposition follows DFR-003 and requires legal-hold/retention/subject-right revalidation, exact authority, preview checksum, idempotency, approvals/separation of duties where required, durable Workflow/Effect evidence under DFR-006, governance-epoch invalidation, and same-cycle readback.
+
+### Knowledge sources, builds, indexes, and retrieval
+
+- `GET /tenant/knowledge-sources`
+- `GET /tenant/knowledge-sources/{sourceId}`
+- `GET /tenant/knowledge-sources/{sourceId}/versions`
+- `GET /tenant/knowledge-chunks/{chunkVersionId}`
+- `GET /tenant/knowledge-embeddings/{embeddingVersionId}`
+- `GET /tenant/knowledge-indexes`
+- `GET /tenant/knowledge-indexes/{indexId}`
+- `GET /tenant/knowledge-indexes/{indexId}/versions`
+- `GET /tenant/knowledge-index-versions/{versionId}`
+- `GET /tenant/knowledge-index-versions/{versionId}/memberships`
+- `GET /tenant/knowledge-retrieval-evidence/{evidenceId}`
+
+Knowledge Index responses bind exact source/chunk/embedding/model/profile/filter/retrieval/reranking versions, checksums, classification/audience/license/residency, freshness, lifecycle, and invalidation state.
+
+Retrieval evidence exposes the signed principal/context/purpose, query or intent checksum, eligible and excluded index/source versions, retrieved chunks/locators, scores/reranking evidence, claim/citation set, trust/freshness decisions, manifest, epochs, and expiry subject to selective disclosure.
+
+Retrieval rank cannot override authority, purpose, data, audience, license, freshness, verification, correction, retraction, or trust gates.
+
+### Admin/governance surfaces
+
+- `GET /admin/artifact-sources`
+- `GET /admin/artifact-attestation-policies`
+- `GET /admin/artifact-transparency/health`
+- `GET /admin/artifact-trust-policies`
+- `POST /admin/artifact-verification-runs`
+- `GET /admin/artifact-verification-runs/{runId}`
+- `POST /admin/artifact-reproduction-runs`
+- `GET /admin/artifact-reproduction-runs/{runId}`
+- `GET /admin/artifact-provenance/health`
+- `GET /admin/knowledge-index-builds`
+- `POST /admin/knowledge-index-builds/preview`
+- `POST /admin/knowledge-index-builds`
+- `GET /admin/artifact-invalidation-events`
+
+Governance mutations require exact version/source/handler/model/policy identities, bounded schemas, idempotency, object authority, approvals and separation of duties where required, audit, governance-epoch invalidation, and readback.
+
+Registries may bind only allowlisted schemas, canonicalizers, verification methods, transformation handlers, signing providers, storage adapters, model profiles, retrieval/reranking policies, and policy operators. They cannot carry arbitrary executable code, SQL, shell, URLs, headers, or credential values.
+
+### Manifest integration
+
+The Effective Runtime Manifest binds exact Artifact/Source/Claim/Citation/Chunk/Embedding/Index Versions, checksums, attestations/transparency proofs, provenance graph checksum, transformation/reproducibility manifests, trust/policy/freshness decisions, retrieval evidence, correction/retraction/disposition state, artifact-governance epoch, and expiry.
+
+Before consequential use or publication, runtime revalidates version existence, checksum, source/attestation revocation, trust/freshness, policy/license/audience eligibility, correction/retraction/invalidation, and governance epoch.
 
 ## 15. Environment, supply chain, compatibility, and resilience
 
