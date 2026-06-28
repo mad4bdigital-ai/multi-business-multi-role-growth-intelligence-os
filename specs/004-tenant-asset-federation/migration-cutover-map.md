@@ -145,6 +145,28 @@ No migration step invokes a provider/model merely to populate registry data, rea
 
 No migration step replays a business Effect, invokes a provider/model/tool, reads credentials, changes billing, runs compensation, or redrives transport merely to populate target authorities. Unknown historical outcomes remain `unknown` or migration debt rather than being inferred as success/no-effect.
 
+### Lane J — Policy-Bound Verifiable Artifact and Knowledge Fabric
+
+1. Inventory every current Artifact and knowledge surface, including `output_artifacts`, output sinks, JSON assets/subject links, memory scope/state, platform graph evidence, session Drive artifacts, session summaries, documents, prompts, reports, datasets, evaluation samples, knowledge registries, and any vector/search/index surfaces.
+2. Classify each family by logical Artifact identity, content/representation behavior, canonicalization possibility, Tenant/Platform ownership, source/version evidence, producer/run/manifest, schema/media type, sensitivity, audience, license, freshness, retention/legal hold, publication state, and downstream dependencies.
+3. Register typed versioned Artifact, schema, source identity, attestation, transparency, provenance, claim/relation/citation, trust/verification, Policy Envelope, reproducibility, Knowledge Source/Chunk/Embedding/Index/Retrieval, correction/retraction/disposition, and governance-epoch authorities with allowlisted handlers only.
+4. Add read-only compatibility projections that preserve exact source IDs, current scope/ownership, payload/reference checksums, file/provider references, producer/session/run evidence, and explicit `unknown`/`incomplete` fields. Never invent source identity, signature, license, trust, freshness, claim support, or publication approval.
+5. Define canonicalization and representation-equivalence rules per Artifact/media family. Where canonicalization is not proven, retain stored-object checksum and mark canonical equivalence unavailable rather than merging versions.
+6. Generate stable logical Artifact identities only from deterministic source keys and scope. Create immutable Version projections only when exact content/version/checksum evidence exists; mutable current URLs/files remain non-versioned Source Evidence.
+7. Validate source identities, signer trust domains, attestation/key lifecycle, transparency sequence/root/witness behavior, and no-secret integration in shadow/no-effect mode before critical-family use.
+8. Project provenance edges only from typed evidence and exact versions. Map graph/memory/subject links as context or weak relation candidates unless they satisfy exact-version provenance constraints.
+9. Introduce Claim/Evidence/Citation projections for selected low-risk document/report families and preserve unsupported, contradicted, mutable-source, invalid-locator, and hidden-by-disclosure states explicitly.
+10. Run multi-dimensional trust, freshness, license, audience, Policy Envelope inheritance, reproducibility, and publication eligibility in shadow mode against current access/publishing behavior.
+11. Build no-effect Knowledge Source/Chunk/Embedding/Index plans with exact source memberships, chunk locators, profiles, model/version references, policy/trust/freshness, and checksums. Do not generate embeddings or invoke providers/models merely for backfill or shadow comparison.
+12. Compare target eligibility/retrieval/publication/correction/retraction behavior against current surfaces and classify exact match, target more restrictive, target more permissive, wrong version/checksum, missing provenance, invented evidence, lost lineage, policy/trust mismatch, citation mismatch, disclosure mismatch, not comparable, or critical mismatch.
+13. Require zero target-more-permissive, invented-evidence, wrong-version/checksum, cross-Tenant scope, hidden material contradiction, lost retraction/hold, unauthorized disclosure, or critical mismatch before family enforcement.
+14. Enable read-only Artifact/Version/provenance/trust/policy/Knowledge explanations for approved cohorts using selective-disclosure profiles while current stores remain source authority.
+15. Canary low-risk internal Artifact reads and immutable version creation first. Progress claim/citation publication, Knowledge builds, retrieval evidence, correction, retraction, and disposition only after exact identity, policy/trust, propagation, recovery, SLO, security, and rollback certification.
+16. Exercise fault-injection for stored-content substitution, signer revocation, transparency fork, provenance cycle, citation drift, trust-score bypass, false declassification, selective-disclosure leak, poisoned index membership, alias movement, stale/retracted retrieval, queued-publication race, legal-hold conflict, partial erasure, and dependency-invalidation failure.
+17. Retire current read/write authority per Artifact/Knowledge family only after no active legacy consumers, historical reconstruction, exact source/version/checksum parity, correction/retraction/disposition propagation, index rebuild, disaster recovery, selective-disclosure, and rollback pass.
+
+No migration step signs content, invokes a provider/model, generates embeddings, publishes, corrects, retracts, erases, invalidates caches, notifies users, or writes externally merely to populate target authorities. Unknown historical evidence remains explicit migration debt.
+
 ## 4. Additive schema sequence
 
 Suggested migration sequence:
