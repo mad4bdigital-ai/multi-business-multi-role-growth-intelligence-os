@@ -866,6 +866,20 @@ Runbooks must cover:
 - recovery-case ownership/SLA escalation, checkpoint invalidation, replay/resume block, and manual intervention;
 - queue starvation, Tenant noisy-neighbor capture, fairness/backpressure, and reserved recovery-capacity restoration;
 - unsafe model fallback after visible output or committed Tool/external Effect;
+- Artifact checksum mismatch, representation substitution, canonicalization disagreement, and immutable-version containment;
+- source identity/key compromise, attestation expiry/revocation, signer-scope breach, and emergency Artifact-epoch invalidation;
+- transparency-log fork/omission/backdating, root/witness verification failure, and independent consistency recovery;
+- provenance poisoning, prohibited cycle, orphan source/version, and cross-Tenant derivation containment;
+- high-risk Claim contradiction, unsupported/irrelevant citation, locator drift, reviewer conflict, and publication containment;
+- trust-policy misconfiguration, score laundering, stale assessment, missing dimension, and eligibility rollback;
+- Policy Envelope inheritance conflict, false declassification/redaction/anonymization, license/audience/residency/hold breach, and rollback;
+- selective-disclosure leak, graph-shape inference, incorrect omission, and projection-key/profile rollback;
+- reproducibility mismatch, dependency/build/prompt/model drift, environment loss, and honest reclassification;
+- poisoned Knowledge Source/Chunk/Embedding/Index membership, alias movement, build checksum mismatch, and prior-version rollback;
+- gate-before-rank failure, retracted/private/unlicensed retrieval, unsupported generated claim, and evidence reconstruction;
+- correction/retraction/attestation-revocation propagation failure across indexes, caches, manifests, queues, memory, evaluations, exports, provider copies, backups, and promotion candidates;
+- DFR-003 disposition, legal-hold conflict, minimal-tombstone violation, partial deletion, and recovery;
+- compatibility output/JSON/Drive/graph/memory projection mismatch and Artifact/Knowledge family rollback;
 - jobs/plans/runs shadow mismatch and durable Workflow family rollback;
 - repository branch reconciliation.
 
