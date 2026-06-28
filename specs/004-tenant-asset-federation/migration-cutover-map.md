@@ -432,6 +432,34 @@ Startup/readiness check marks feature unavailable; no silent fallback to permiss
 
 Feature-family flag returns traffic to previous authority; manifests preserve evidence.
 
+### Artifact checksum or version regression
+
+Disable target-family consumers and new publication, preserve immutable Versions/content objects/transparency evidence, compare canonical/stored checksums, quarantine mismatched representations, and return reads only to the prior separately certified authority. Never rewrite the affected Version in place.
+
+### Source identity, attestation, or transparency failure
+
+Restrict the signer/source/key/attestation profile, advance the Artifact governance epoch, block new critical use, invalidate dependent manifests/indexes/retrievals, preserve the disputed proof, compare independent roots/witnesses, and require governed recovery before reinstatement.
+
+### Provenance, Claim, citation, trust, or policy regression
+
+Block the affected family/use case, preserve support and contradiction evidence, disable more-permissive projections, re-run exact-version validation, and require corrected Version/policy/assessment publication rather than editing prior evidence.
+
+### Knowledge build or retrieval regression
+
+Stop new Index activation and affected retrievals, retain the prior certified Index Version if still eligible, quarantine poisoned/mismatched membership, rebuild from exact authorized source/chunk/embedding/model/profile evidence, and verify gate-before-rank and retrieval reconstruction before resume.
+
+### Correction or retraction propagation failure
+
+Keep the source Version restricted for new use, open a DFR-006 recovery case, assign every unresolved descendant and notification an owner/SLA, block affected indexes/manifests/queued publication, and never declare completion until itemized propagation readback passes.
+
+### Disposition or legal-hold conflict
+
+Pause uncertain deletion/anonymization/provider-copy/backup actions, preserve per-object outcomes and minimal no-content tombstones, revalidate DFR-003 retention/hold/subject authority, and route partial completion to governed recovery without broadening read access.
+
+### Selective-disclosure regression
+
+Disable the affected audience projection, return the most restrictive safe view or block, preserve projection/profile/checksum evidence, investigate content/identity/graph-shape leakage, and require disclosure-specific tests before reactivation.
+
 ### Main/branch repository drift
 
 Repair current branch first through governed reconciliation, expected SHAs, merge/fast-forward or scoped no-force patch, CI, and ancestry readback.
