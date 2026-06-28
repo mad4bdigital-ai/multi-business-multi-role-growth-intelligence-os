@@ -905,4 +905,13 @@ Before each rollout stage:
 - queue fairness, backpressure, starvation, and reserved recovery capacity are exercised under representative Tenant/provider load;
 - model fallback after visible output or committed Tool/external Effect is blocked or restarted through a verified checkpoint and new reservation;
 - recovery ownership/SLA, runbooks, transport dead-letter redrive, and rollback flags are exercised;
+- Artifact type/schema/canonicalization, source identity/attestation/transparency, provenance/claim/citation, trust/policy/freshness, reproducibility, Knowledge build/retrieval, correction/retraction/disposition, and Artifact-governance-epoch versions are visible;
+- exact Artifact/Source/Claim/Citation/Chunk/Embedding/Index version and checksum reconstruction passes for the target family;
+- canonical-versus-stored checksum, signature/key revocation, transparency fork/omission, provenance cycle, citation drift, trust-score bypass, policy laundering, selective-disclosure leakage, poisoned index, gate-before-rank, unsupported claim, and cross-Tenant inference tests pass;
+- correction/retraction/attestation-revocation propagation and DFR-003 disposition/legal-hold/minimal-tombstone fault-injection pass for every registered descendant family;
+- current output/JSON/Drive/graph/memory/knowledge compatibility projections show zero more-permissive, invented-evidence, wrong-version, lost-lineage, or critical mismatch before cutover;
+- active Knowledge Index Versions have exact source/chunk/embedding/model/profile membership, rollback, rebuild, and historical reconstruction evidence;
+- preview no-effect assertions cover eligibility, correction, retraction, disposition, index-build, reproduction, and provenance projection;
+- selective-disclosure profiles and operator/auditor/legal/regulator views are tested for authorized evidence and no graph-shape or hidden-source leakage;
+- emergency source/signer/attestation/retraction restriction propagation and Artifact-governance epoch rollback are exercised;
 - post-release behavioral readback confirms expected traffic and decisions.
