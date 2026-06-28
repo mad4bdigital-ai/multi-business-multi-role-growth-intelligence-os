@@ -429,7 +429,96 @@ Compensation appears as a new action and result, not deletion of the original hi
 
 Authorized operators see an assigned recovery case containing safe evidence, unresolved Effects, owner/SLA, permitted actions, and required approvals. Actions are constrained to registered reconciliation, compensation, replay, or manual-resolution types. Free-form command execution is never offered.
 
-## 17. Progressive disclosure
+## 17. Journey O — Inspect, trust, correct, or retract knowledge
+
+### Starting context
+
+A user opens a generated report, knowledge result, source document, or answer containing factual claims and citations.
+
+### Default trust view
+
+The interface shows independent status dimensions rather than one `verified` badge:
+
+```text
+content integrity
+authenticated source
+claim support
+freshness
+license/use eligibility
+policy/audience eligibility
+reproducibility
+publication state
+```
+
+A concise summary may read:
+
+```text
+Content unchanged: verified
+Source identity: verified
+Claims: 8 supported, 1 qualified, 1 contradicted
+Freshness: current for this task
+Use: internal only
+Reproducibility: semantic
+```
+
+A valid signature is never displayed as `factually true`, and a readable Artifact is never described as exportable or reusable unless license/policy permits it.
+
+### Claim and citation flow
+
+1. User selects one claim.
+2. UI shows claim type, support state, effective context, freshness, and review status.
+3. Citations open against the exact immutable Source Version and locator.
+4. Material supporting and contradicting evidence is shown according to the user's selective-disclosure profile.
+5. A mutable URL or latest alias is labeled non-versioned unless an exact captured version exists.
+6. Unsupported model-generated text is labeled assumption, estimate, opinion, recommendation, prediction, or unsupported fact according to policy.
+
+### Provenance flow
+
+Basic view explains:
+
+- who or what produced the Version;
+- exact source/version count;
+- transformation class;
+- whether attestations/transparency proofs are valid;
+- whether any evidence is hidden by disclosure policy;
+- whether the Version has been corrected, superseded, restricted, or retracted.
+
+Advanced view exposes an accessible graph/table of exact version-to-version edges, manifests, checksums, trust dimensions, policy inheritance, and reproducibility evidence without private sources, signer secrets, hidden prompts, or another Tenant's data.
+
+### Knowledge retrieval flow
+
+For a search or generated answer, the user may inspect:
+
+- exact Knowledge Index Version;
+- retrieved Chunk Versions and locators;
+- eligibility exclusions and stable reasons;
+- scores/reranking evidence where permitted;
+- citation coverage and unsupported claims;
+- freshness and Artifact-governance epoch.
+
+The UI never implies that high relevance overrode privacy, license, audience, freshness, or retraction rules.
+
+### Correction flow
+
+1. Authorized user selects `Report a correction` or `Propose corrected version`.
+2. Preview identifies changed content/claims/citations, proposed new Version/checksum, affected indexes/caches/manifests/outputs, publication review, and notifications.
+3. Preview performs no write, signing, model/provider call, index rebuild, invalidation, or notification.
+4. Apply creates a new immutable Version and explicit `corrects`/`supersedes` relation.
+5. Historical outputs remain linked to the original Version and receive impact/review status rather than silent rewriting.
+
+### Retraction and restriction flow
+
+1. Authorized requester chooses exact Version, Claim, or Index scope and reason.
+2. Preview shows new-use block, affected descendants, emergency restriction behavior, notifications, rebuild/review actions, retained audit evidence, and erasure distinction.
+3. Apply requires separation of duties where policy demands it.
+4. UI immediately distinguishes `restricted`, `retracted`, `superseded`, and `erased/tombstoned` states.
+5. Retraction never claims content was erased; erasure follows DFR-003 and legal-hold rules.
+
+### Selective disclosure
+
+Public, Tenant, operator, auditor, legal, and regulator views may differ. Omitted or redacted evidence is explicitly indicated. The interface never presents a selective projection as complete provenance when material evidence is hidden.
+
+## 18. Progressive disclosure
 
 ### Basic users see
 
