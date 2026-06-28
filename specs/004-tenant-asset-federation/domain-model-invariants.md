@@ -269,6 +269,66 @@ Failed Outbox/Inbox/queue/callback/notification delivery record with source iden
 
 It does not represent the business Workflow outcome and grants no authority to repeat an external Effect.
 
+### Artifact
+
+Stable logical identity for a report, document, dataset, source, prompt, image, transcript, generated result, knowledge source, evaluation set, or exported package.
+
+Owns Artifact ID/type/owner/current-version pointer/lifecycle/governance epoch but not mutable content.
+
+### Artifact Version
+
+Immutable content-addressed version of one Artifact.
+
+Owns canonical/stored checksums, schema/media representations, source/version vector, producer/manifest, policy envelope, freshness, trust summaries, lifecycle, and transparency references. Content change creates another Version.
+
+### Source Identity and Attestation
+
+Registered source/signer identity and exact cryptographic statement over an Artifact Version, transformation, verification, publication, correction, retraction, or disposition event.
+
+Owns authority/trust domain, algorithm/key reference, signed checksum, issuance/expiry/revocation, validation, and transparency inclusion without raw signing keys.
+
+### Artifact Claim
+
+Addressable statement, measurement, estimate, assumption, opinion, recommendation, prediction, policy, legal, or commercial assertion inside one exact Artifact Version.
+
+Owns canonical checksum, locator, semantic type, context, support/contradiction relations, confidence/review, and usage limits.
+
+### Artifact Policy Envelope
+
+Immutable version-specific bundle of classification, purpose, audience, ownership/license, attribution, transformation/model use, residency, retention/legal hold, publication/export, and selective-disclosure constraints.
+
+Derived Envelopes are conservative and cannot be weakened without verified approved declassification.
+
+### Artifact Trust Assessment
+
+Independent multi-dimensional evaluation of identity, integrity, source authority, provenance, citation, factual support, methodology, freshness, license, policy, reproducibility, human review, and corroboration under one trust policy/version.
+
+A composite value is optional and cannot override mandatory dimensions.
+
+### Reproducibility Manifest
+
+Immutable exact source/handler/model/prompt/parameter/environment/runtime definition used to produce a Version or Knowledge Build.
+
+Owns deterministic/nondeterministic inputs, canonicalization, expected comparison class, checksum, and linked reproduction runs.
+
+### Knowledge Build
+
+Versioned Source/Chunk/Embedding/Index aggregate.
+
+Owns exact source memberships, locators, chunking/normalization/redaction, embedding model/profile, retrieval/reranking, policy/trust/freshness, build checksum, lifecycle, and invalidation state.
+
+### Retrieval Evidence
+
+Immutable evidence for one consequential retrieval or answer context.
+
+Owns query/intent checksum, principal/context/purpose, eligible/excluded sources/indexes, exact chunks/locators, scores/reranking, claims/citations, manifest, trust/freshness decisions, epoch, and expiry.
+
+### Artifact Correction/Retraction/Disposition Run
+
+Governed durable operation that creates a corrected Version, blocks new eligible use, or propagates DFR-003 disposition through dependencies.
+
+Owns exact source scope, impact graph, actions, approvals, notifications, lifecycle, checksums, and readback without rewriting prior history.
+
 ### Adaptive Change Proposal
 
 Governed hypothesis for improving experience, execution, or business outcome.
