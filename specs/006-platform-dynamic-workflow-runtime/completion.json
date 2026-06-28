@@ -5,11 +5,11 @@
   "status": "in_progress",
   "delivery_mode": "multi_pr",
   "current_increment": {
-    "phase": "Deep design and implementation gap analysis",
+    "phase": "Authority Scope foundation implementation",
     "design_version": "0.3.0",
     "pull_request": 1929,
     "branch": "gpt/006-platform-dynamic-workflow-runtime",
-    "implementation_started": false,
+    "implementation_started": true,
     "production_activation_authorized": false
   },
   "requirements": {
@@ -18,7 +18,18 @@
     "post_merge_audit": true
   },
   "delivery": {
-    "implementation_prs": [],
+    "implementation_prs": [
+      {
+        "number": 1941,
+        "branch": "gpt/006-authority-scope-foundation",
+        "role": "authority_scope_foundation",
+        "status": "ci_passed_review_pending",
+        "head_sha": "400aa1895ae1a261afa598f750a288210aef0a91",
+        "base_branch": "gpt/006-platform-dynamic-workflow-runtime",
+        "enforcement_mode": "shadow_only",
+        "migration_executed": false
+      }
+    ],
     "closeout_pr": {
       "number": "current",
       "branch": "gpt/006-platform-dynamic-workflow-runtime",
@@ -35,15 +46,31 @@
       "github_readback": "pass"
     },
     "implementation": {
-      "status": "pending",
-      "reason": "Existing Sprint69 tenant-scoped container authority must be reconciled with the platform-principal and platform-owned-resource model before runtime implementation."
+      "status": "in_progress",
+      "current_pr": 1941,
+      "slice": "authority_scope_foundation",
+      "ci_status": "pass",
+      "mergeable_state": "clean",
+      "scope": [
+        "domain_invariants",
+        "shadow_resolver",
+        "sql_repository",
+        "additive_migration",
+        "activation_surface_manifest",
+        "tests"
+      ],
+      "production_effect": "none"
     },
     "ci": {
-      "status": "pending",
-      "reason": "This manifest is added to satisfy the changed-scope Spec Kit completion gate; subsequent CI evidence will be recorded after checks complete."
+      "status": "pass",
+      "pull_request": 1941,
+      "required_checks": 4,
+      "successful_checks": 4,
+      "failed_checks": 0
     },
     "release_readiness": {
-      "status": "pending"
+      "status": "pending",
+      "reason": "Design approval, implementation review, governed migration execution, shadow comparison, and production verification remain outstanding."
     }
   },
   "secrets_included": false

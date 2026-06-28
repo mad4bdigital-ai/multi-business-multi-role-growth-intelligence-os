@@ -215,4 +215,27 @@ assert.ok(
   "app action authorization preflight must run before credential access",
 );
 
+const envelopeBootstrapMigration = await import("node:fs/promises").then(({ readFile }) =>
+  readFile(new URL("./migrations/315_sprint69_capability_envelope_bootstrap_policy_declaration.sql", import.meta.url), "utf8")
+);
+const dryRunBootstrapTags = [
+  "admin", "capability_resolution", "dry_run", "preview_only", "no_mutation",
+  "no_execution", "no_secrets", "authority_graph", "managed_dedicated_dynamic",
+];
+assert.deepEqual(
+  classifyMutationPolicyRequirement({ method: "POST", tags: dryRunBootstrapTags }),
+  { required: false, classification: "read_only_tag" },
+);
+for (const expected of [
+  "capability_resolution_dry_run",
+  "preview_only,no_mutation,no_execution",
+  "'target_execution_allowed',false",
+  "'provider_calls_allowed',false",
+  "'credential_payloads_read',false",
+  "'secrets_included',false",
+  "20260625_repository_mutation_descriptor_policy_recovery.sql",
+]) {
+  assert(envelopeBootstrapMigration.includes(expected), `D-001 migration must include: ${expected}`);
+}
+assert.doesNotMatch(envelopeBootstrapMigration, /WHERE tool_key = 'capability_resolution_envelope_(?:create|approve)'/);
 console.log("explicit mutation policy fail-closed tests passed");

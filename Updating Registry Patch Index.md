@@ -1643,3 +1643,8 @@ Documents and aligns PR #1270 / migration `906_sprint68_ticket_external_delivery
 - `governedMigrationReconciliationRuntime.js` connects the existing reconciler to the Dynamic Audit startup/interval cycle under its MySQL advisory lock. It delegates only to `governed-migration-reconciler.mjs`; it never executes raw SQL.
 - Automatic apply remains deny-by-default: exact active rule, DB authorization, static preflight `pass`, typed runner confirmation, ledger evidence, and same-cycle schema readback are mandatory. Missing evidence produces blocked or skipped status.
 - Runtime rollout must prove schema readiness, record-only reconciliation of the original migration, idempotent second-cycle behavior, SQL persistence before `chunk_id`, cache-miss recovery, Unicode reconstruction, expiry handling, and no-secret enforcement.
+
+## Sprint 69 passive capability-resolution dry-run descriptor
+
+- `315_sprint69_capability_envelope_bootstrap_policy_declaration.sql` closes only the remaining passive POST classification gap for `capability_resolution_dry_run`. It adds `preview_only`, `no_mutation`, and `no_execution` registry metadata without changing envelope create/approve or repository mutation authority.
+- Migration execution is registry-only and declares `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`. Production apply remains governed-runner, authorization, preflight, checksum, typed-confirmation, and same-cycle-readback gated.

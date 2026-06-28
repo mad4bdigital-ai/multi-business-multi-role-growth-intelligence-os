@@ -519,6 +519,7 @@ export const testCommands = [
   "node test-execution-job-tick-admin.mjs",
   "node test-dynamic-capability-audit-foundation.mjs",
   "node test-platform-capability-reports.mjs",
+  "node test-phase1-capability-discovery-report.mjs",
   "node test-capability-assurance-graph.mjs",
   "node test-dependency-performance-diagnostic-triage.mjs",
   "node test-agent-intelligence-runtime.mjs",
