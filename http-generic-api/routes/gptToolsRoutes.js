@@ -1705,7 +1705,7 @@ async function dispatchTool(callerType, toolKey, args, req) {
   const responseOptions = args && typeof args === "object" ? args : {};
   const resultForClient = {
     ...result,
-    body: toolKey === "response_chunk_read"
+    body: !shouldChunkDispatchedToolResponse(toolKey)
       ? result?.body
       : await maybeChunkToolResponseBody(result?.body, {
           ...responseOptions,
