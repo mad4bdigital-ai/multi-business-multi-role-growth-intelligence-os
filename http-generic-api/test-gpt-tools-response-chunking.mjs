@@ -91,6 +91,17 @@ async function main() {
   const requestedTtl = resolveToolResponseChunkTtlMs({ response_options: { max_chars: 5000, chunk_ttl_minutes: 45 } }, JSON.stringify(largeBody).length);
   assert.ok(requestedTtl >= 45 * 60 * 1000);
 
+  assert.equal(shouldChunkDispatchedToolResponse("response_chunk_read"), false);
+  assert.equal(shouldChunkDispatchedToolResponse("activation_awareness_read_api"), true);
+
+  const topLevelChunk = await maybeChunkToolResponseBody(largeBody, {
+    max_response_chars: 5000,
+    chunk_ttl_minutes: 45,
+    source_tool_key: "test_top_level_response_chunking",
+  }, deps);
+  assert.equal(topLevelChunk.response_chunked, true, "top-level response options must be honored");
+  assert.ok(topLevelChunk.cache.ttl_ms >= 45 * 60 * 1000);
+
   assert.equal(evictToolResponseChunkMemoryCache(firstChunk.chunk_id), true);
   const recoveredFirstChunk = await readCachedToolResponseChunk({
     chunk_id: firstChunk.chunk_id,
