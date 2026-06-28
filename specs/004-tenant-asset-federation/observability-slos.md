@@ -800,6 +800,11 @@ Span attributes use IDs, counts, versions, reason codes, and timing—not raw co
 - increasing Workflow idempotency conflicts or duplicate callback/signal rates;
 - checkpoint expiry, resume/replay preview blocks, or manual recovery backlog rising;
 - queue age, backpressure, timer lag, or optional compensation latency approaching budget;
+- incomplete provenance, unsupported Claim, invalid citation, stale trust assessment, or non-reproducible build debt increasing;
+- Knowledge Source/Chunk/Embedding/Index rebuild backlog, alias-movement review, or retrieval-evidence retention nearing threshold;
+- correction/retraction/disposition review queue, notification backlog, or non-critical propagation lag increasing;
+- selective-disclosure projection denials, omissions, or audience-policy conflicts increasing;
+- current output/JSON/Drive/graph/memory stores versus target Artifact/Knowledge not-comparable migration debt increasing;
 - current jobs/plans/runs versus durable Workflow not-comparable migration debt increasing.
 
 Alerts include tenant-safe context, runbook link, recent deployment/config change, and rollback action.
