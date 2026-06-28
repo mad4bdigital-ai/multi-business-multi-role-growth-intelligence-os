@@ -224,11 +224,27 @@ Required defaults:
 
 ### DFR-007 — Artifact and knowledge provenance
 
-**Question:** What fields and authorities prove source, transformation, verification, freshness, sensitivity, audience, license, correction, retraction, retention, and erasure?
+**Approved decision:** Policy-Bound, Cryptographically Attested, Claim-Level Verifiable Knowledge Fabric.
 
-**Required outcome:** immutable artifact version/provenance schema and propagation rules.
+Required defaults:
 
-**Status:** open.
+- Artifacts have stable logical identities and immutable content-addressed versions with separate canonical-content and stored-representation checksums;
+- source identity, content integrity, publisher authenticity, factual support, provenance completeness, freshness, license compatibility, policy eligibility, reproducibility, and publication approval remain separate evidence dimensions;
+- critical source, ingestion, transformation, verification, publication, correction, retraction, and disposition events may carry cryptographic attestations and tamper-evident transparency records;
+- claim-level support, contradiction, qualification, supersession, context, and exact citation locators remain addressable and versioned;
+- trust is a multi-dimensional vector; weighted ranking cannot override a failed mandatory trust/policy dimension;
+- every derived Artifact Version carries a conservative Policy Envelope at least as restrictive as applicable source and destination policies unless approved declassification evidence exists;
+- reproducibility manifests bind exact source versions, handler/model/prompt/template versions, parameters, environment, runtime manifest, and deterministic/nondeterministic classification;
+- provenance supports selective-disclosure projections without fabricating lineage or exposing restricted source content;
+- chunks, embeddings, indexes, retrieval/reranking evidence, and generated answer citations bind exact source/build/model versions;
+- corrections create new versions, retractions prevent new eligible use, and erasure/disposition propagates through derived artifacts, indexes, memory, evaluations, caches, provider copies, exports, and backups under DFR-003;
+- signatures prove signer control, not truth; checksums prove integrity, not authenticity; access does not imply license; verification does not imply publication approval;
+- current `output_artifacts`, `json_assets`, scope links, platform graph, session Drive artifacts, and knowledge surfaces remain compatibility sources until family-specific provenance parity and cutover;
+- missing, stale, conflicting, revoked, unsupported, insufficient, or ambiguous mandatory provenance/trust/policy evidence fails closed.
+
+**Decision evidence:** `artifact-knowledge-provenance-decision.md`.
+
+**Status:** approved_design; implementation_not_authorized.
 
 ### DFR-008 — Temporal, environment, region, and jurisdiction model
 
