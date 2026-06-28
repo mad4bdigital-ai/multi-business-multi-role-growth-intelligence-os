@@ -10,12 +10,17 @@
     "post_merge_audit": true
   },
   "delivery": {
+    "specification_branch": {
+      "branch": "gpt/repo-patch/20260627213639-readme.md-spec-initialize-adaptive-authorization-governanc",
+      "head_sha": "0b7f77323c5086b0e1495696492852666243242b",
+      "status": "branch_ready_no_pr"
+    },
     "implementation_prs": [],
     "closeout_pr": {
-      "number": "current",
-      "branch": "gpt/repo-patch/20260627213639-readme.md-spec-initialize-adaptive-authorization-governanc",
-      "role": "specification",
-      "status": "current_pr"
+      "number": null,
+      "branch": null,
+      "role": "completion",
+      "status": "pending"
     }
   },
   "evidence": {
@@ -30,7 +35,7 @@
     },
     "production_rollout": {
       "status": "pending",
-      "reason": "Implementation, migration, shadow parity, canary enforcement, production verification, rollback rehearsal, and post-merge audit are outside the specification commit."
+      "reason": "Implementation, migration, shadow parity, canary enforcement, production verification, rollback rehearsal, and post-merge audit are outside the specification branch."
     }
   },
   "sensitive_values_included": false
