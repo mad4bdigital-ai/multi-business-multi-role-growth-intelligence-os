@@ -6401,6 +6401,14 @@ paths:
         - in: query
           name: attention_limit
           schema: { type: integer, minimum: 1, maximum: 20, default: 10 }
+        - in: query
+          name: max_response_chars
+          description: Maximum serialized characters returned inline before a governed chunk continuation envelope is returned.
+          schema: { type: integer, minimum: 5000, maximum: 150000, default: 45000 }
+        - in: query
+          name: chunk_ttl_minutes
+          description: Requested lifetime for the durable response chunk cache.
+          schema: { type: integer, minimum: 5, maximum: 120, default: 20 }
       responses:
         '200':
           description: Activation awareness readback.
