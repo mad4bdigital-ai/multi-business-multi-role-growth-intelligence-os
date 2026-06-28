@@ -7266,6 +7266,7 @@ paths:
         - { name: tab_key, in: query, schema: { type: string } }
         - { name: date_range, in: query, schema: { type: string } }
         - { name: max_response_chars, in: query, schema: { type: integer, minimum: 5000, maximum: 150000, default: 40000 } }
+        - { name: chunk_ttl_minutes, in: query, description: Requested lifetime for the durable response chunk cache., schema: { type: integer, minimum: 5, maximum: 120, default: 20 } }
         - { name: session_policy, in: query, schema: { type: string, enum: [reuse_or_create, create_new, reuse_only, read_only], default: reuse_or_create } }
         - { name: idempotency_key, in: query, schema: { type: string, maxLength: 180 } }
         - { name: conversation_ref, in: query, schema: { type: string, maxLength: 500 } }
