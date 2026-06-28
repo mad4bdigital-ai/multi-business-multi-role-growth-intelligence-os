@@ -500,6 +500,15 @@ Migration is complete only when:
 - current jobs/plans/runs/outboxes are retired only for certified families and remain documented compatibility debt elsewhere;
 - zero accepted nondeterminism, successful stale-fencing commit, duplicate logical Effect, blind retry after uncertain dispatch, lost committed Effect, cross-Tenant replay, or unsafe model fallback is demonstrated;
 - queue admission, concurrency, fairness, priority aging, backpressure, and reserved recovery capacity meet approved SLOs under representative load;
+- every migrated Artifact family uses stable logical identities and immutable content-addressed Versions with certified canonical/stored checksums, schemas, representations, source/version evidence, and reconstructable manifests;
+- critical source identities, attestations, transparency entries/roots/witnesses, revocation, and no-secret signing integration are operational and independently verifiable;
+- exact-version provenance, Claim/Evidence/Contradiction/Citation graphs, mandatory trust dimensions, freshness, license, Policy Envelope inheritance, selective disclosure, reproducibility, and publication decisions are operational and observable;
+- every migrated Knowledge family uses exact versioned Sources, Chunks, Embeddings, Index memberships, model/profile identities, retrieval/reranking policies, and immutable Retrieval Evidence;
+- correction creates new immutable Versions, retraction/attestation revocation blocks new eligible use, and dependency invalidation reaches every registered cache, index, manifest, queue, memory, evaluation, export, provider copy, backup, and promotion candidate within approved SLOs;
+- DFR-003 disposition and legal-hold handling provides itemized delete/rebuild/invalidate/retract/anonymize/aggregate/archive/hold/notify/minimal-tombstone outcomes with no erased payload retained and no hold-derived read authority;
+- current output/JSON/Drive/graph/memory/knowledge authorities are retired only for certified families and remain documented compatibility debt elsewhere;
+- zero accepted checksum substitution, in-place Version mutation, invalid/revoked proof, signature-as-truth, prohibited provenance cycle, hidden material contradiction, trust-score override, policy laundering, disclosure leak, poisoned index, gate-before-rank bypass, unsupported high-risk claim, lost retraction/hold, cross-Tenant evidence inference, or invented backfill evidence is demonstrated;
+- Artifact/Knowledge dashboards, SLOs, propagation/recovery ownership, runbooks, disaster reconstruction, prior-version rollback, and historical evidence readback are active;
 - all target families are cut over or explicitly retained as legacy with documented debt;
 - operational dashboards, SLOs, rollback, and runbooks are active;
 - deprecated authorities are retired only through separate approved work.
