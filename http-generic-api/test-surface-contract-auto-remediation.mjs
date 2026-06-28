@@ -151,10 +151,15 @@ assert(discovery.includes("verified_static_no_external_side_effects"));
 
 const workflow = readFileSync("../.github/workflows/surface-contract-auto-remediation.yml", "utf8");
 assert(workflow.includes("schedule:"), "automation must run on a schedule");
-assert(workflow.includes("Enforce documentation-only mutation boundary"));
+assert(workflow.includes("Enforce documentation and generated-evidence mutation boundary"));
 assert(workflow.includes("git status --porcelain=v1 -z"), "workflow must parse changed paths with NUL delimiters");
 assert(workflow.includes('changed+=("${entry:3}")'), "workflow must preserve spaces in repository paths");
 assert(!workflow.includes("git status --porcelain | sed"), "quoted porcelain paths must not be parsed with sed");
+assert(workflow.includes("specs/[0-9][0-9][0-9]-*/manifest.json"), "workflow must allow only numbered Spec Kit manifest evidence");
+assert(workflow.includes("':(glob)specs/[0-9][0-9][0-9]-*/manifest.json'"), "workflow must stage the same narrow Spec Kit manifest pathspec");
+assert(!workflow.includes("specs/*/manifest.json"), "workflow must not allow broad single-level Spec Kit manifests");
+assert(!workflow.includes("specs/**/manifest.json"), "workflow must not allow recursive Spec Kit manifests");
+assert(workflow.includes("git add --"), "workflow must terminate git options before governed pathspecs");
 assert(workflow.includes("auto_merge_eligible"));
 assert(workflow.includes('if gh pr merge "$PR_URL" --auto --squash; then'), "auto-merge requests must not fail the workflow when repository auto-merge is disabled");
 assert(workflow.includes("Repository auto-merge is unavailable; the remediation PR remains open for governed review."), "workflow must leave a clear governed-review fallback warning");

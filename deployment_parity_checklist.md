@@ -45,6 +45,7 @@ For `1024_sprint69_openapi_endpoint_inventory_sync.sql`, release parity requires
 - `1025_sprint69_resource_surface_policy_governance.sql` — SHA-256 `59b615774d0f9ff7ba43d646c8aa3cdcdd2eaa59cd9c5de5253768982b5c5493`; surfaces: tools=2, policies=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding.
 - `20260615_tenant_growth_dashboard_product.sql` — SHA-256 `c4a2a2d19c1d0cb1270597df810b03bce6f30e5800df782b627b25b2a5edba59`; surfaces: tools=6, views=3; static preflight: pass/0; runtime reviews: verify_readback_view, verify_tool_registry_binding.
 - `20260625_repository_mutation_descriptor_policy_recovery.sql` — SHA-256 `9aa9b798a5f5d5f42f90f0f7f7f9b46a19599c81aaac5333393034667a0fc003`; surfaces: tools=7, views=1; static preflight: pass/0; runtime reviews: verify_readback_view, verify_tool_registry_binding.
+- `20260627_activation_gateway_rollout_surface.sql` — SHA-256 `60febc2c4ec53e45a9ccc3bf40c52bd2e013b1b60ec1ce9a80c2ec0a7e500189`; surfaces: tools=15, views=4, policies=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_readback_view, verify_tool_registry_binding.
 - `308_sprint69_activation_guidance_intelligence.sql` — SHA-256 `dde33c80a6a38b9968c76f30b12e6091b5ac794c707080c8f57d78c589df5077`; surfaces: routes=2; static preflight: pass/0; runtime reviews: none.
 - `308_sprint69_dynamic_governed_migration_reconciliation.sql` — SHA-256 `0635ebaa25216ae9e2da27b4ba08da697f14e36a73e289d3e7985878f8022fb4`; surfaces: tools=5; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
 - `309_sprint69_activation_guidance_invocation_registry.sql` — SHA-256 `1d74f06f2c6003a4a4ca78bbbe1972a2cb47ddcddeace35df847a8c4442ec28a`; surfaces: tools=5; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
@@ -338,3 +339,8 @@ Safety contract: `no_provider_call`, `no_credential_payload_read`, `no_raw_secre
 - [ ] A second automatic cycle is idempotent: no migration is replayed, no duplicate ledger row is created, and no raw SQL path is used.
 - [ ] Runtime smoke proves a chunk is persisted before `chunk_id`, the local cache entry is evicted, the next read recovers from MySQL, SHA-256/byte integrity passes, expiry extends, and Unicode JSON reconstructs exactly.
 - [ ] Production logs and scheduler summaries contain no raw response payloads, migration output, credentials, authorization headers, or secret-bearing chunk rows.
+
+## Sprint 69 passive capability-resolution dry-run descriptor
+
+- `315_sprint69_capability_envelope_bootstrap_policy_declaration.sql` closes only the remaining passive POST classification gap for `capability_resolution_dry_run`. It adds `preview_only`, `no_mutation`, and `no_execution` registry metadata without changing envelope create/approve or repository mutation authority.
+- Migration execution is registry-only and declares `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`. Production apply remains governed-runner, authorization, preflight, checksum, typed-confirmation, and same-cycle-readback gated.
