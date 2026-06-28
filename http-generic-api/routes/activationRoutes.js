@@ -1861,11 +1861,19 @@ export function buildActivationRoutes(deps) {
   router.get("/activation/session-context", requireBackendApiKey, async (req, res) => {
     try {
       const context = await buildActivationSessionContext(req);
-      return res.status(200).json({
+      const responseBody = {
         ok: true,
         activation_layer: "session_context",
         ...context
+      };
+      const transportBody = await maybeChunkToolResponseBody(responseBody, {
+        response_options: {
+          max_response_chars: req.query.max_response_chars,
+          chunk_ttl_minutes: req.query.chunk_ttl_minutes,
+        },
+        source_tool_key: "activation_session_context_read_api",
       });
+      return res.status(200).json(transportBody);
     } catch (err) {
       return res.status(err.status || 500).json({
         ok: false,
