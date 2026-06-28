@@ -147,6 +147,7 @@
     "commercial-finops-decision.md",
     "model-governance-decision.md",
     "durable-workflow-effect-commit-decision.md",
+    "artifact-knowledge-provenance-decision.md",
     "design-freeze-decision-register.md",
     "data-model.md",
     "resolution-algorithm.md",
