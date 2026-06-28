@@ -532,6 +532,7 @@ export const testCommands = [
   "node test-platform-routes.mjs",
   "node test-activation-drive-probe-action-context.mjs",
   "node test-test-manifest-runner.mjs",
+  "node test-authority-scope-foundation.mjs",
   "node test-platform-engine-validator-runner.mjs",
   "node test-hybrid-local-managed-agent-runtime.mjs",
   "node test-multi-surface-agent-runtime.mjs",
