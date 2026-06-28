@@ -1481,8 +1481,14 @@ async function storeToolResponseForChunks(body, optionsSource = {}, deps = {}) {
   return { chunkId, serialized, ttlMs, expiresAt: new Date(durable.expires_at).getTime() };
 }
 
+export function shouldChunkDispatchedToolResponse(toolKey = "") {
+  return String(toolKey || "").trim() !== "response_chunk_read";
+}
+
 export async function maybeChunkToolResponseBody(body, optionsSource = {}, deps = {}) {
-  const options = normalizeResponseOptions(optionsSource?.response_options || optionsSource?._response || {});
+  const options = normalizeResponseOptions(
+    optionsSource?.response_options || optionsSource?._response || optionsSource || {}
+  );
   const serialized = JSON.stringify(body ?? {});
   if (serialized.length <= options.maxChars) return body;
   const { chunkId } = await storeToolResponseForChunks(body, optionsSource, deps);
@@ -1701,10 +1707,12 @@ async function dispatchTool(callerType, toolKey, args, req) {
   const responseOptions = args && typeof args === "object" ? args : {};
   const resultForClient = {
     ...result,
-    body: await maybeChunkToolResponseBody(result?.body, {
-      ...responseOptions,
-      source_tool_key: toolKey,
-    }),
+    body: shouldChunkDispatchedToolResponse(toolKey)
+      ? await maybeChunkToolResponseBody(result?.body, {
+          ...responseOptions,
+          source_tool_key: toolKey,
+        })
+      : result?.body,
   };
   // Best-effort: archive the dispatch as a tool turn so admin GPT sessions get a
   // complete transcript without depending on the GPT calling writeSessionTurn.
