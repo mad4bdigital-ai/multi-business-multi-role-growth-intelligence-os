@@ -702,6 +702,21 @@ Span attributes use IDs, counts, versions, reason codes, and timing—not raw co
 - current jobs/plans/runs versus durable Workflow shadow parity and family cutover status;
 - model fallback blocked after committed output/Tool Effect and new-reservation coverage.
 
+### Verifiable Artifact and Knowledge Fabric
+
+- Artifact/version/content-object coverage by family, Tenant, schema, lifecycle, canonicalization profile, and checksum state;
+- source identity/attestation/transparency validity, revocation, root/witness coverage, proof age, and fork/omission incidents;
+- provenance graph completeness, orphan/cycle blocks, edge families, path depth, and reconstruction checksum;
+- Claims by type/support/contradiction/qualification/supersession, citation coverage/locator validity, and unsupported high-risk claims;
+- trust dimensions and mandatory-gate failures by task/risk/use/audience, freshness/confidence, and score-bypass attempts;
+- Policy Envelope inheritance, conflicts, declassification/redaction/anonymization decisions, and more-permissive blocks;
+- reproducibility coverage and bit/semantic/bounded-nondeterministic/not-reproducible results;
+- Knowledge Source/Chunk/Embedding/Index build health, exact membership, model/profile versions, active/stale/restricted/invalidated state, and rebuild backlog;
+- retrieval eligibility/exclusion funnel, retrieved sources/chunks, reranking, citation coverage, unsupported generated claims, and evidence reconstruction;
+- correction/retraction/disposition impact, propagation lag/completeness, unresolved descendants, notification/rebuild/recovery, and legal-hold/tombstone outcomes;
+- selective-disclosure projection coverage, omissions/redactions, denied/leak attempts, and audience reconstruction;
+- compatibility-store parity, incomplete/unknown provenance debt, and family cutover status.
+
 ### Adaptive Growth
 
 - opportunities by objective;
