@@ -339,3 +339,8 @@ Safety contract: `no_provider_call`, `no_credential_payload_read`, `no_raw_secre
 - [ ] A second automatic cycle is idempotent: no migration is replayed, no duplicate ledger row is created, and no raw SQL path is used.
 - [ ] Runtime smoke proves a chunk is persisted before `chunk_id`, the local cache entry is evicted, the next read recovers from MySQL, SHA-256/byte integrity passes, expiry extends, and Unicode JSON reconstructs exactly.
 - [ ] Production logs and scheduler summaries contain no raw response payloads, migration output, credentials, authorization headers, or secret-bearing chunk rows.
+
+## Sprint 69 passive capability-resolution dry-run descriptor
+
+- `315_sprint69_capability_envelope_bootstrap_policy_declaration.sql` closes only the remaining passive POST classification gap for `capability_resolution_dry_run`. It adds `preview_only`, `no_mutation`, and `no_execution` registry metadata without changing envelope create/approve or repository mutation authority.
+- Migration execution is registry-only and declares `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`. Production apply remains governed-runner, authorization, preflight, checksum, typed-confirmation, and same-cycle-readback gated.
