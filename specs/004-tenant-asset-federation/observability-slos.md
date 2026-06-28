@@ -313,6 +313,23 @@ platform_promotion_candidate_created
 - current jobs/plans/runs versus durable Workflow shadow parity and mismatch classification;
 - model fallback before-output versus blocked-after-committed-effect and candidate-specific reservation coverage.
 
+### Verifiable Artifact and Knowledge Fabric
+
+- Artifact logical/version coverage by family, Tenant, schema, lifecycle, canonicalization profile, and content-addressed storage state;
+- canonical versus stored checksum verification pass/fail/mismatch and representation-equivalence distribution;
+- source identity assurance, attestation valid/invalid/expired/revoked, signing-domain coverage, transparency inclusion/root/witness coverage, fork/omission detection, and proof age;
+- provenance edge coverage by type, orphan-source/target count, incomplete lineage, prohibited-cycle blocks, traversal depth/path/candidate limits, and graph reconstruction checksum;
+- Claim count by type/support state, contradiction/qualification/supersession rate, citation coverage, locator validation, irrelevant/unsupported citation rate, reviewer independence, and material-evidence omission;
+- trust-assessment coverage by task/risk/use/audience, per-dimension pass/fail/unknown/stale/conflict, zero-tolerance failures, composite-score bypass attempts, confidence, freshness, and expiry;
+- Policy Envelope inheritance coverage, conflict/declassification/redaction/anonymization decisions, derived-more-permissive block count, audience/license/residency/retention/legal-hold failures;
+- reproducibility-manifest coverage, exact dependency capture, bit/semantic/bounded-nondeterministic/not-reproducible classifications, difference magnitude, and reproduction drift;
+- Knowledge Source/Chunk/Embedding/Index coverage, build duration/failure, exact membership, source/chunk locator integrity, model/profile version coverage, alias movement, active/stale/restricted/invalidated distribution, and rebuild age;
+- retrieval candidate eligibility/exclusion, source/index/chunk distribution, scores/reranking, citation/claim coverage, unsupported generated claim rate, gate-before-rank bypass attempts, and evidence reconstruction coverage;
+- correction/retraction/disposition volume, impact-graph size, propagation lag/completeness, partial/recovery-required state, notification, cache/index/manifest/queue/memory/evaluation/export/provider-copy/backup invalidation, and unresolved descendants;
+- Artifact governance epoch propagation, stale-manifest/index/retrieval/pre-publication block count, and emergency revocation/retraction invalidation lag;
+- current output/JSON/Drive/graph/memory/knowledge stores versus target Artifact/Knowledge projection parity, incomplete evidence debt, and family cutover status;
+- selective-disclosure projection coverage, redaction/omission count, contradiction-disclosure compliance, denied/leak attempts, and projection checksum reconstruction.
+
 ### Personalization
 
 - preference profile adoption;
