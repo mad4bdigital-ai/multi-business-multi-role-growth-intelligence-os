@@ -578,6 +578,114 @@ Adaptive services, analytics, dashboards, caches, queues, and model providers ar
 
 **Mitigation:** Effect commit boundaries, verified checkpoint, remaining-work contract, DFR-005 eligibility, new candidate reservation, no credential transfer, explicit restart/superseding artifact, and duplicate-Effect block.
 
+### T-085 — Artifact version or checksum substitution
+
+**Threat:** an actor replaces stored bytes, canonical content, schema, or a current-version pointer while preserving a familiar filename/URI/Artifact ID.
+
+**Mitigation:** immutable version rows, separate canonical/stored checksums, content-addressed objects, expected-version writes, representation-equivalence validation, transparency entries, and pre-use checksum readback.
+
+### T-086 — Source identity or signing-key compromise
+
+**Threat:** a stolen/over-broad signing identity attests malicious content or a signer issues attestations outside its authority.
+
+**Mitigation:** registered trust domains and scopes, HSM/KMS-backed keys outside registries, short-lived/rotatable key references, issuance policy, revocation, transparency inclusion, anomaly detection, separation of duties, and emergency epoch invalidation.
+
+### T-087 — Signature-valid content presented as true
+
+**Threat:** a valid source/publisher signature is used to bypass factual support, methodology, freshness, license, or publication review.
+
+**Mitigation:** independent trust dimensions and mandatory gates; signature validity contributes only authenticity/integrity and cannot set claim support or publication eligibility.
+
+### T-088 — Transparency-log fork, omission, or backdating
+
+**Threat:** an operator maintains inconsistent log views, omits a retraction/revocation, reorders entries, or backdates a root.
+
+**Mitigation:** append-only hash-linked sequence, expected prior hash, periodic signed roots, independent witnesses, range/inclusion proofs, monotonic sequence/time evidence, gossip/audit comparison, and block on fork/missing proof.
+
+### T-089 — Provenance graph poisoning or cycle
+
+**Threat:** forged `derived_from`, `cites`, `corrects`, or `supersedes` edges make an ineligible source appear authoritative or create cycles that hide origin.
+
+**Mitigation:** typed source/target constraints, exact-version object authority, edge provenance/checksum, acyclic derivation validation, bounded traversal, source-attestation revalidation, and no partial allow.
+
+### T-090 — Claim support or contradiction suppression
+
+**Threat:** a curator removes opposing evidence, assigns a broad Artifact-wide verified label, or uses a confidence score to hide unsupported claims.
+
+**Mitigation:** append-only claim/evidence relations, material-contradiction disclosure floor, independent reviewers for high-risk claims, immutable assessment versions, per-claim support state, and score-non-override rules.
+
+### T-091 — Citation drift or locator forgery
+
+**Threat:** a citation points to mutable/latest content, an invalid page/range/row, or a different source version after publication.
+
+**Mitigation:** exact immutable Source Version, locator schema/checksum, captured excerpt checksum where permitted, source availability/freshness, revalidation, and explicit unresolved/non-versioned classification.
+
+### T-092 — Trust-score laundering
+
+**Threat:** high values in easy dimensions compensate for failed license, policy, authenticity, review, freshness, or factual-support requirements.
+
+**Mitigation:** mandatory dimension floors and zero-tolerance conditions execute before any weighted ranking; assessment evidence preserves per-dimension source, confidence, freshness, and reason.
+
+### T-093 — Policy-envelope laundering or false declassification
+
+**Threat:** summarization, redaction, format conversion, translation, or anonymization is used to remove source restrictions and mark content public/trainable/exportable.
+
+**Mitigation:** conservative inheritance, exact source envelope set, registered transformation/declassification authority, proof and verification, destination/use policy, approval, epoch invalidation, and block on missing source policy.
+
+### T-094 — Selective-disclosure leakage or fabricated completeness
+
+**Threat:** a public/Tenant projection reveals private source identity/content, graph shape, reviewer, contract, or restricted contradiction—or hides omissions while claiming complete provenance.
+
+**Mitigation:** registered audience profiles, field-level disclosure, opaque references, omission/redaction checksum, contradiction disclosure floor, object authorization at every node/edge, and projection-specific audit/tests.
+
+### T-095 — Reproducibility-manifest tampering
+
+**Threat:** source order, handler/model/prompt versions, parameters, seeds, environment, or canonicalization are altered to make a build appear reproducible.
+
+**Mitigation:** immutable signed/checksummed manifests, exact dependency/build digests, environment capture, output comparison policy, independent reproduction runs, and transparent difference classification.
+
+### T-096 — Poisoned source, chunk, embedding, or index membership
+
+**Threat:** unauthorized or malicious content is inserted into a Knowledge build, chunks are detached from source locators, or embeddings/index aliases substitute unevaluated versions.
+
+**Mitigation:** exact source eligibility freeze, membership checksums, chunk locator validation, model/profile pinning, provenance/policy/trust gates before build, immutable index versions, adversarial ingestion tests, and no alias mutation in place.
+
+### T-097 — Retrieval/reranking bypass
+
+**Threat:** high relevance or a manipulated score causes a retracted, stale, private, unlicensed, or purpose-ineligible source to enter results.
+
+**Mitigation:** eligibility gates before retrieval/ranking, immutable excluded-candidate reasons, bounded score features, index/source epoch keys, pre-answer revalidation, and zero rank override of hard gates.
+
+### T-098 — Unsupported generated claim laundering
+
+**Threat:** a generated answer presents inference, opinion, or model hallucination as sourced fact or attaches irrelevant citations.
+
+**Mitigation:** claim-level citation mapping, support validators, entailment/rubric checks with independent review where required, explicit unsupported/assumption/opinion/prediction labels, and publication block by risk policy.
+
+### T-099 — Retraction or correction propagation race
+
+**Threat:** cached retrieval, queued generation, active manifests, exports, memory, or provider copies continue using a version after correction/retraction/attestation revocation.
+
+**Mitigation:** Artifact governance epoch, dependency-invalidation Outbox, pre-use/pre-publication revalidation, cache/index/queue invalidation, bounded emergency SLO, active-use impact tracking, and recovery for partial propagation.
+
+### T-100 — Erasure versus legal-hold confusion
+
+**Threat:** content is deleted despite a valid hold, retained indefinitely without hold, or a tombstone preserves erased payload/identifiers beyond policy.
+
+**Mitigation:** DFR-003 itemized disposition, legal-hold revalidation, minimal no-content tombstone schema, per-object outcome/readback, retention review, and separation between hold, access, retraction, and erasure authority.
+
+### T-101 — Cross-Tenant provenance or evidence inference
+
+**Threat:** object IDs, checksums, citations, graph traversal, trust scores, index membership, retrieval exclusions, or opaque references reveal another Tenant's content or relationships.
+
+**Mitigation:** signed-principal Tenant resolution, scope-leading lookups, node/edge object authorization, scoped not-found behavior, projection-specific disclosure, non-enumerable IDs/rate limits, and cross-Tenant inference tests.
+
+### T-102 — Preview or backfill hidden effects/evidence invention
+
+**Threat:** eligibility/correction/retraction/disposition/index-build/reproduction preview or migration backfill signs, transforms, indexes, calls models/providers, invalidates caches, notifies users, writes externally, or invents missing source/license/verification evidence.
+
+**Mitigation:** read-only no-effect mode, transport/mutation assertions, explicit `unknown`/`incomplete` migration states, no provider/model/credential access, idempotent dry-run evidence, and tests proving zero hidden effect or fabricated proof.
+
 ## 6. Abuse cases
 
 ### Malicious user profile
