@@ -131,6 +131,23 @@
 | Existing runtime remains compatibility authority until cutover | durable decision 20, 25; FR-199 | jobs/plans/outboxes shadow parity, family canary, rollback, and historical reconstruction tests |
 | Missing runtime evidence fails closed | durable decision 22–23; FR-200 | stale/ambiguous registry, lease, Effect Contract, verification, recovery, manifest, and commercial evidence tests |
 
+| Stable Artifact identity and immutable versions | `artifact-knowledge-provenance-decision.md` 2; FR-201–FR-203 | logical/version identity, canonical/stored checksums, representation equivalence, immutable correction, and mutable-location rejection tests |
+| Source authenticity and integrity remain distinct | provenance decision 3; FR-204–FR-206 | source identity, signature/key revocation, checksum, transparency sequence/root/witness, expiry, and no-secret tests |
+| Claim-level epistemic graph preserves disagreement | provenance decision 4; FR-207–FR-208 | claim type/location/checksum, support, contradiction, qualification, supersession, context, and score-non-override tests |
+| Citations target immutable evidence | provenance decision 5; FR-209–FR-210 | page/range/JSON Pointer/row/timestamp/chunk/commit locators, floating source, checksum, license, and disclosure tests |
+| Trust is multi-dimensional and gate-first | provenance decision 6; FR-211–FR-212 | mandatory dimension, threshold, confidence, freshness, human review, corroboration, missing evidence, and composite-score tests |
+| Knowledge builds are reproducible | provenance decision 7; FR-213–FR-214 | ordered source set, handler/model/prompt/parameter/environment, seeds, canonicalization, reproduction classification, and difference tests |
+| Artifact versions carry conservative policy | provenance decision 8; FR-215–FR-217 | classification, purpose, audience, license, model use, residency, retention, legal hold, inheritance, declassification, and separation tests |
+| Provenance supports selective disclosure | provenance decision 9; FR-218 | public/Tenant/operator/auditor/legal projections, opaque evidence, redaction, contradiction floor, and cross-Tenant leakage tests |
+| Knowledge objects are exact-version artifacts | provenance decision 10; FR-219–FR-221 | source/chunk/embedding/index identity, profile/model alias capture, membership, checksums, policy, freshness, and invalidation tests |
+| Retrieval is evidence-bearing and gate-first | provenance decision 11; FR-222–FR-224 | query/context/purpose, candidates/exclusions, chunks/scores/reranking, claims/citations, unsupported claim, and rank-bypass tests |
+| Correction and retraction preserve history | provenance decision 12; FR-225–FR-226 | new version, corrects/supersedes, impact graph, new-use block, cache/index/manifest invalidation, and notification tests |
+| Erasure/disposition propagates under DFR-003 | provenance decision 13; FR-227–FR-228 | delete/rebuild/invalidate/retract/anonymize/aggregate/archive/hold/tombstone propagation and legal-hold tests |
+| Eligibility and manifest bind exact evidence | provenance decision 16–17; FR-229–FR-231 | resolver gates, exact versions/checksums, attestations, trust/policy/freshness, retraction, epoch, expiry, and pre-use revalidation tests |
+| Registry semantics are bounded and allowlisted | provenance decision 14; FR-232 | schema/canonicalizer/verification/handler/signing/storage/model/policy allowlist and arbitrary code/URL/header/secret rejection tests |
+| Current artifact stores remain compatibility inputs | provenance decision 22; FR-233–FR-234 | output/JSON/Drive/graph/memory projection, incomplete provenance, no invented evidence, shadow parity, and family cutover tests |
+| Missing provenance evidence fails closed | provenance decision 19–20; FR-235 | missing/stale/conflicting/revoked/unsupported/ambiguous source, claim, citation, attestation, trust, policy, index, retrieval, and epoch tests |
+
 ## Source-to-target traceability
 
 | Existing authority | Target role |
