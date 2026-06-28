@@ -548,7 +548,7 @@ Public, Tenant, operator, auditor, legal, and regulator views may differ. Omitte
 - cross-scope impact;
 - rollout and rollback controls.
 
-## 18. Notification design
+## 19. Notification design
 
 Notifications are event- and preference-aware:
 
