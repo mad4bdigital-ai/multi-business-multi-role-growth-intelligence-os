@@ -16,6 +16,10 @@ The platform must answer, without reading secrets:
 - Which Workflow definition/history, Activity attempts, leases/fencing, timers/signals, Effects, verification/reconciliation, compensation, recovery, and transport evidence produced the current runtime outcome?
 - Did any uncertain external Effect reconcile before retry, and can every duplicate delivery or callback be proven logically deduplicated?
 - Are queue admission, concurrency, priority, fairness, and backpressure behaving within Tenant/resource/provider bounds without starvation?
+- Which exact Artifact/Source/Claim/Citation/Chunk/Embedding/Index versions, checksums, attestations, provenance edges, trust dimensions, Policy Envelopes, reproducibility manifests, and retrieval evidence produced a knowledge result?
+- Can integrity, source authenticity, factual support, freshness, license, policy eligibility, reproducibility, and publication state be distinguished without collapsing them into one score?
+- Did correction, retraction, attestation revocation, expiry, or erasure propagate to every affected index, cache, manifest, queued output, memory, evaluation, export, provider copy, backup, and promotion candidate?
+- Are selective-disclosure projections complete for their declared audience without leaking hidden source content, identity, reviewer, contract, or graph shape?
 - Can every consequential execution be reconstructed from immutable evidence?
 
 Observability is part of runtime correctness, not a dashboard-only concern.
