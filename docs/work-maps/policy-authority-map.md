@@ -188,6 +188,7 @@ flowchart TD
 | `governed_repository_engine_v6_policy_v1` | 1 |
 | `governed_repository_intelligence_engine_policy_v1` | 1 |
 | `governed_repository_mutation_plan_v6_policy_v1` | 1 |
+| `growth_audit_evidence_admin_tenant_policy_v1` | 1 |
 | `hostinger_deploy_release_apply_policy_v1` | 4 |
 | `hostinger_restart_app_apply_policy_v1` | 3 |
 | `intelligence_policy_rules_required_policy_v1` | 1 |
