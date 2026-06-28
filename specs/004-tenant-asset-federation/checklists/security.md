@@ -228,6 +228,29 @@
 - [ ] Stale lease, replay poisoning, history tampering, signal spoofing, callback replay, outbox duplication, reconciliation forgery, compensation abuse, queue starvation, and registry injection tests pass before implementation.
 - [ ] Disaster restart, timer recovery, exact replay, recovery ownership, and emergency disable/rollback exercises pass before enforcement.
 
+## Verifiable Artifact and Knowledge security
+
+- [x] Artifact identity, version, content object, representation, source, attestation, provenance, claim, citation, trust, policy, reproducibility, knowledge build, retrieval, and lifecycle authorities are typed and versioned.
+- [x] Content integrity, signer authenticity, factual support, policy eligibility, license, freshness, and publication approval cannot be conflated.
+- [x] Canonical and stored checksums are validated independently and unknown canonicalization profiles fail closed.
+- [x] Source/signing identities bind registered trust domains, scoped authority, algorithm/key references, expiry/revocation, and no raw signing secrets.
+- [x] Critical transparency entries are append-only, hash-linked, root-verified, and witnessable; fork/missing-proof conditions are explicit.
+- [x] Provenance edge types constrain source/target versions and prevent prohibited derivation cycles.
+- [x] Claim support, contradiction, qualification, context, reviewer, and evidence remain visible and cannot be hidden by a trust score.
+- [x] Citation locators validate exact immutable source versions and audience/license/disclosure constraints.
+- [x] Trust policies enforce mandatory dimensions, thresholds, confidence, freshness, corroboration, and zero-tolerance failures before ranking.
+- [x] Policy inheritance applies the most restrictive source/destination controls and declassification requires registered transformation, authority, verification, and approval.
+- [x] Selective disclosure cannot expose private source content/identity or fabricate a complete lineage when evidence is omitted.
+- [x] Reproducibility manifests bind exact sources, handlers/builds, models, prompts/templates, parameters, environment, and nondeterministic inputs.
+- [x] Knowledge chunks/embeddings/indexes/retrievals bind exact source/build/model versions and reject mutable alias substitution.
+- [x] Correction, retraction, and disposition preserve immutable history and invalidate affected descendants, caches, indexes, manifests, and promotion candidates.
+- [x] Retraction cannot masquerade as erasure; Legal Hold grants no read authority; minimal tombstones contain no erased content.
+- [x] Registry publication rejects arbitrary code, SQL, JavaScript, shell, URLs, headers, signing keys, provider payloads, and secret-like values.
+- [x] Artifact/knowledge preview endpoints are no-effect and cannot sign, transform, publish, correct, retract, delete, index, call models/providers, read credentials, invalidate, notify, or write externally.
+- [ ] Signature/key compromise, revoked attestation, transparency fork, checksum substitution, provenance cycle, citation drift, trust-score bypass, policy laundering, selective-disclosure leak, poisoned index, stale alias, and retraction-race tests pass.
+- [ ] Cross-Tenant artifact/version/claim/citation/provenance/index/retrieval/disposition access and inference tests pass.
+- [ ] Disaster rebuild, transparency-root recovery, index rebuild, correction/retraction propagation, erasure/legal-hold, and rollback exercises pass before enforcement.
+
 ## API and implementation
 
 - [x] All external input is validated.
