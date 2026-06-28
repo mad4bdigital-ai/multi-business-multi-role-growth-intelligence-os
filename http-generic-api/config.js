@@ -112,6 +112,16 @@ export const SQL_CACHE_TABLE_BLOCKLIST =
   String(process.env.SQL_CACHE_TABLE_BLOCKLIST || "").trim();
 export const SQL_CACHE_TABLE_POLICIES_JSON =
   String(process.env.SQL_CACHE_TABLE_POLICIES_JSON || "{}").trim();
+export const SQL_CACHE_RUNTIME_POLICY_CONFIG_KEY =
+  String(process.env.SQL_CACHE_RUNTIME_POLICY_CONFIG_KEY || "sql_cache_policy_v2")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "_") || "sql_cache_policy_v2";
+export const SQL_CACHE_POLICY_REFRESH_SECONDS =
+  positiveNumberEnv("SQL_CACHE_POLICY_REFRESH_SECONDS", 15, {
+    min: 1,
+    max: 3_600,
+  });
 
 export const EXECUTION_LOG_UNIFIED_SPREADSHEET_ID = ACTIVITY_SPREADSHEET_ID;
 export const JSON_ASSET_REGISTRY_SPREADSHEET_ID = REGISTRY_SPREADSHEET_ID;
