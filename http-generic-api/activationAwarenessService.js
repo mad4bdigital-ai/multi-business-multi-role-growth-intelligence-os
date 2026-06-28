@@ -520,11 +520,10 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
     ),
     groupedCount("v_activation_agent_catalog", "health_status", tenantWhere, tenantParams),
     safeRows(
-      `SELECT CASE WHEN requires_approval = 1 THEN 'requires_approval' ELSE grant_status END AS group_value,
-              COUNT(*) AS count
+      `SELECT grant_status, requires_approval, COUNT(*) AS count
          FROM v_activation_agent_skill_grants
         WHERE ${tenantWhere}
-        GROUP BY CASE WHEN requires_approval = 1 THEN 'requires_approval' ELSE grant_status END`,
+        GROUP BY grant_status, requires_approval`,
       tenantParams
     ),
     safeRows(
