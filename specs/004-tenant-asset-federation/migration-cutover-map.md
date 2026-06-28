@@ -271,6 +271,18 @@ Comparisons classify:
 - `durable_nondeterministic`;
 - `durable_duplicate_effect_risk`;
 - `durable_changed_terminal_outcome`;
+- `artifact_target_more_restrictive`;
+- `artifact_target_more_permissive`;
+- `artifact_wrong_version_or_checksum`;
+- `artifact_missing_provenance`;
+- `artifact_invented_evidence`;
+- `artifact_lost_lineage`;
+- `artifact_trust_or_policy_mismatch`;
+- `artifact_citation_mismatch`;
+- `artifact_selective_disclosure_mismatch`;
+- `artifact_retraction_or_hold_mismatch`;
+- `knowledge_index_membership_mismatch`;
+- `knowledge_retrieval_gate_mismatch`;
 - `not_comparable`;
 - `critical_mismatch`.
 
