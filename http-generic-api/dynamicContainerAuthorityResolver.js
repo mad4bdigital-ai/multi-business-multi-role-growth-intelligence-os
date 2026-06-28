@@ -672,5 +672,6 @@ export const _testingDynamicContainerAuthorityResolver = {
   resolveClassifications,
   resolveDimensionRequest,
   compareShadowDecision,
+  persistAuthorityScopeShadowEvidenceFailOpen,
   resolutionCache
 };
