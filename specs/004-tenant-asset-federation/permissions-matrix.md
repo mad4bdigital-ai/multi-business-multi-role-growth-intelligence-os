@@ -500,6 +500,90 @@ May define bounded service classes, Tenant/resource/provider limits, priority ag
 
 May inspect definition/history compatibility and replay-command differences using safe checksums/evidence. It cannot mutate history or approve a mismatch as equivalent without a new compatible definition/version and governed migration.
 
+## Verifiable Artifact and Knowledge permissions
+
+### Platform Artifact-governance administrator
+
+May define typed Artifact, schema, provenance, claim, relation, citation, trust, attestation, transparency, policy-envelope, reproducibility, Knowledge build, correction, retraction, and disposition registries and hard bounds.
+
+May not use registry authority to inject executable code, arbitrary endpoints/headers, signing keys, credentials, unrestricted model behavior, or bypass data/license/publication/retention controls.
+
+### Source-identity administrator
+
+May register and verify source identities, trust domains, authority scope, assurance, lifecycle, key/certificate references, and revocation evidence. It cannot assert factual truth or publish an Artifact solely from identity verification.
+
+### Artifact ingester / producer
+
+May create a logical Artifact and immutable Version through an approved ingestion/transformation handler, bind exact source/checksum/manifest/policy evidence, and request verification. It cannot edit a published version, self-verify mandatory dimensions, or broaden inherited policy.
+
+### Attestation issuer
+
+May issue only registered attestation types for exact versions/checksums within its signing authority and trust domain. It cannot access raw private keys through the registry or issue publication/truth claims outside its scope.
+
+### Attestation verifier / transparency operator
+
+May verify signatures, expiry/revocation, log inclusion, roots, and witnesses and publish no-secret validation evidence. It cannot rewrite log history, suppress a fork, or convert signature validity into factual support.
+
+### Claim and citation curator
+
+May create or review claim objects, support/contradiction relations, and exact citation locators within authorized content. It cannot alter source versions, hide material contradiction, or cite inaccessible evidence as publicly disclosed.
+
+### Trust-policy administrator
+
+May define task/risk/use/audience trust dimensions, thresholds, freshness, confidence, corroboration, review, and zero-tolerance conditions. It cannot make a composite score override mandatory policy/license/data/retraction gates.
+
+### Artifact verifier / reviewer
+
+May execute registered verification policies against exact versions/claims/evidence and record results. High-risk review follows separation of duties; a producer or model judge cannot be the sole mandatory authority where policy forbids it.
+
+### Publication reviewer
+
+May approve or block one exact Version for one channel/audience/purpose after integrity, source, claim, trust, Brand, safety, license, data, and freshness gates pass. Publication authority grants neither content ownership nor source modification.
+
+### Policy-envelope administrator
+
+May define conservative inheritance, destination/use constraints, and approved declassification/redaction/anonymization paths. It cannot weaken source restrictions without exact transformation, verification, legal/data authority, and approval.
+
+### Selective-disclosure administrator
+
+May define audience-specific provenance projections and opaque-reference/redaction behavior. It cannot fabricate lineage, hide material contradiction, expose another Tenant's evidence, or represent omitted proof as complete.
+
+### Reproduction operator
+
+May run an approved reproduction manifest with exact source/handler/model/prompt/parameter/environment versions and record differences. It cannot replace the original Artifact or promote a failed reproduction silently.
+
+### Knowledge-source/index administrator
+
+May register eligible Knowledge Sources and initiate versioned Chunk/Embedding/Index builds using approved profiles. It cannot inject arbitrary source memberships, model aliases, provider endpoints, or bypass policy/trust/freshness gates.
+
+### Knowledge publisher
+
+May activate one exact Index Version after build integrity, membership, source eligibility, embedding/model, retrieval/reranking, data/license/audience/freshness, rollback, and verification gates pass. It cannot mutate the active version in place.
+
+### Artifact reader / end user
+
+May read only authorized Artifact Versions, Claims, Citations, Trust/Policy summaries, Indexes, and Retrieval Evidence through the applicable selective-disclosure profile. Read authority does not grant export, redistribution, training, correction, retraction, or disposition rights.
+
+### Correction requester / applier
+
+A requester may propose corrected claims/content and impact evidence. An authorized applier may create a new immutable corrected Version after review. Neither role may edit the source Version or silently rewrite historical outputs.
+
+### Retraction requester / applier
+
+A requester may raise evidence for restricting/retracting exact Versions/Claims/Indexes. An authorized applier may block new eligible use and initiate dependency invalidation/notification after required review. Retraction authority does not grant erasure authority.
+
+### Disposition operator
+
+May preview and apply only DFR-003-authorized delete, rebuild, invalidate, retract, anonymize, aggregate, archive, hold, notify, or minimal-tombstone actions with exact scope, legal-hold/retention revalidation, approvals, durable Workflow evidence, and readback.
+
+### Auditor / legal / regulator viewer
+
+May inspect only the exact evidence and selective-disclosure projection delegated to that role. Audit/legal access is not an unrestricted content or credential grant and remains purpose, scope, retention, and jurisdiction bound.
+
+### Separation of duties
+
+For critical families, one principal cannot alone act as producer, mandatory verifier, publication approver, correction/retraction final approver, disposition executor, and transparency witness for the same Version. Emergency restriction may be immediate but remains reviewable and cannot erase evidence.
+
 ## 9. Composition profile permissions
 
 ### User
