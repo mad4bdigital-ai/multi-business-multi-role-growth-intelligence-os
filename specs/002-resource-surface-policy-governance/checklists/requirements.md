@@ -21,10 +21,10 @@
 - [x] Pure policy evaluator covers positive and negative paths.
 - [x] Changed-scope gate requires descriptor or explicit policy.
 - [x] Migration and manifest consistency are tested.
-- [ ] CI passes.
+- [x] CI passes.
 - [ ] Release readiness passes.
-- [ ] Implementation PR is merged.
-- [ ] Migration 1025 is applied with governed ledger evidence.
+- [x] Implementation PR is merged.
+- [x] Migration 1025 is applied with governed ledger evidence.
 - [ ] Production parity is verified.
 - [ ] Persisted live audit reports zero unresolved findings.
 - [ ] Final closeout PR is merged.

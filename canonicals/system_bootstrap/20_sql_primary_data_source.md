@@ -89,6 +89,8 @@ Governed Migration Idempotency and Preflight
 
 The governed migration runner may apply SQL only when authorization exists, the static preflight status is `pass`, typed confirmation matches, and same-cycle ledger/readback evidence is available. A `warn` or `fail` preflight must never be bypassed by direct DB execution.
 
+Interactive Admin execution must use the virtual tool `governed_migration_execute`, not freeform DB SQL or the generic `admin_control` surface. The tool validates the merged file checksum and statement count before spawning the fixed runner, defaults to `dry_run`, and requires a ready `platform_orchestration` Capability Resolution Envelope plus deterministic `APPLY_<MIGRATION>` confirmation for apply. Successful apply must confirm every approved statement, a migration-ledger row, and all declared schema objects in the same cycle.
+
 Schema-alignment changes that require `ALTER TABLE ... MODIFY` must use `information_schema`-guarded dynamic SQL. An already-aligned rerun must resolve to a read-only `SELECT`; a missing or incompatible column must fail closed through the attempted governed alteration or an explicit signal. Raw top-level `ALTER TABLE ... MODIFY` statements that trigger manual-idempotency warnings are not production-applicable until rewritten and covered by regression tests.
 
 Empowering GPT-Initiated Migration Repair

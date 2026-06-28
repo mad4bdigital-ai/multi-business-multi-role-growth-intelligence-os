@@ -72,6 +72,46 @@ Repeatable CI and maintenance utilities, including changed-surface Resource API 
 
 The Spec Kit constitution, reusable templates, approved feature specifications, plans, tasks, data models, contracts, machine-readable `completion.json` records, and feature-specific checklists. Any new or modified Spec Kit is subject to the changed-scope completion gate.
 
+## OpenAPI canonical and generated artifacts
+
+### `canonicals/openapi/`
+
+Git-controlled source contracts that are not derived from `http-generic-api/openapi.yaml`. The Local Connector contract lives here because it has a separate host, authentication profile, and device-plane ownership boundary.
+
+### `edge/activation-gateway/`
+
+Canonical Cloudflare Worker source, generated route policy, runtime enforcement, and deployment runbook for the Activation Gateway. This source is not imported directly by the auth-host service image.
+
+### `http-generic-api/activation-gateway-runtime/`
+
+Generated service-local copy of the Worker modules and route policy used by the governed rollout tools. It exists because the auth-host Docker image copies only `http-generic-api`. Do not edit it directly; regenerate with `npm run activation-gateway:bundle:sync` and enforce parity with `npm run activation-gateway:bundle:check`.
+
+### `http-generic-api/activationGatewayRolloutTool.js`
+
+Application/infrastructure boundary for read-only rollout planning and approval-gated workers.dev dark deployment. It owns exact resource validation, signed attestation checks, single-use envelope claiming, secret-safe Cloudflare calls, awaited audit evidence, smoke readback, and rollback. DNS and custom-domain operations are outside its authority.
+
+### `http-generic-api/scripts/sync-activation-gateway-runtime-bundle.mjs`
+
+Deterministic write/check generator that copies the canonical Worker modules and route policy into the service-local runtime bundle and records stable SHA-256 evidence.
+
+### `http-generic-api/scripts/generate-custom-gpt-schemas.mjs`
+
+The single write/check orchestrator for active Custom GPT schemas. It generates into a temporary directory, validates every artifact, and writes committed files only after validation succeeds.
+
+### `http-generic-api/scripts/openapi-builder-schema-guard.mjs`
+
+Recursive OpenAPI 3.1 contract validation for request, response, component, array, reference, and property schemas. Empty YAML property schemas and unresolved local references are release-blocking.
+
+### Generated `http-generic-api/openapi.*.yaml` files
+
+Published action schemas are generated artifacts. Do not hand-edit them. Update `openapi.yaml` or the relevant file under `canonicals/openapi/`, run `npm run schemas:generate`, and commit both the canonical and generated output.
+
+### `edge/activation-gateway/`
+
+Stateless Activation transport boundary deployed separately from the auth application. It consumes the generated route policy, enforces signed policy freshness and bounded host/path/method/query/header rules, and forwards allowed requests only to `auth.mad4b.com`. It must not connect to MySQL, resolve tenant membership, decrypt credentials, select providers, or implement Activation business logic.
+
+The committed `generated/route-policy.json` file is produced from the Activation Admin and Tenant Activation OpenAPI surfaces. Edit `canonicals/openapi/custom-gpt-surfaces.yaml` or `http-generic-api/openapi.yaml`, not the generated policy directly.
+
 ## Dependency direction
 
 ```text

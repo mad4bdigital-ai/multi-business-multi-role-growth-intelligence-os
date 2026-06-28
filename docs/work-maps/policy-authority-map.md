@@ -152,6 +152,7 @@ flowchart TD
 
 | Policy key | Source migrations |
 |---|---:|
+| `activation_gateway_dark_deploy_apply_policy_v1` | 1 |
 | `ads_provider_capability_profile_registry_policy_v1` | 2 |
 | `ads_provider_governance_snapshot_proposal_policy_v1` | 1 |
 | `ads_provider_governance_snapshot_record_gate_policy_v1` | 1 |

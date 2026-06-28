@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 import { getPool } from "../db.js";
 import { getGitHubAppInstallationToken } from "../githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
-import { writeAuditLogAsync } from "../auditLogger.js";
+import { writeAuditLog, writeAuditLogAsync } from "../auditLogger.js";
 import { recordGptSessionTurn } from "../sessionArchiveService.js";
 import {
   findActiveGrantForTool,
@@ -23,6 +23,8 @@ import {
 } from "../governedToolResponseChunkStore.js";
 import { runGovernedResponseChunkDurableRecoverySmoke } from "../governedResponseChunkDurableRecoverySmoke.js";
 import { bootstrapGovernedMigrationAuthorization } from "../governedMigrationAuthorizationBootstrap.js";
+import { runGovernedMigrationExecution } from "../governedMigrationExecutionTool.js";
+import { buildActivationGatewayRolloutPlan, runActivationGatewayDarkDeploy } from "../activationGatewayRolloutTool.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import {
   capabilityEnvelopeError,
@@ -368,6 +370,52 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "activation_gateway_rollout_plan",
+    displayName: "Activation Gateway Rollout Plan",
+    description: "Admin-only read-only rollout plan for the Activation Gateway Cloudflare Worker. Validates generated policy hash, signed deployment attestation, workspace and exact Worker resource binding, workers.dev readiness, previous deployment rollback target, and feature-gate state. Never uploads code, writes secrets, enables a subdomain, changes DNS, or binds a custom domain.",
+    method: "VIRTUAL",
+    path: "internal://activation-gateway-rollout-plan",
+    tags: ["activation_gateway", "cloudflare", "rollout", "read_only", "diagnostics", "dry_run", "no_execution", "no_external_write", "no_dns", "no_custom_domain", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["account_id", "expected_source_commit"],
+      properties: {
+        account_id: { type: "string", pattern: "^[a-f0-9]{32}$" },
+        script_name: { type: "string", const: "mad4b-activation-gateway" },
+        expected_source_commit: { type: "string", pattern: "^[a-f0-9]{40}$" },
+        expected_policy_hash: { type: "string", pattern: "^[a-f0-9]{64}$" },
+        workspace_id: { type: "string" },
+        resource_binding_id: { type: "string" },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "activation_gateway_dark_deploy",
+    displayName: "Activation Gateway Dark Deploy",
+    description: "Admin-only governed workers.dev dark deployment for the Activation Gateway. Defaults to dry-run. Apply requires an exact policy hash and source commit, signed Ed25519 attestation, active exact Worker resource binding, approved single-use capability envelope, execution nonce, typed confirmation derived from the policy hash, enabled feature flag, same-cycle Cloudflare inventory, awaited audit evidence, secret-safe Worker upload, workers.dev health/ready readback, and automatic rollback. DNS and custom-domain binding are forbidden.",
+    method: "VIRTUAL",
+    path: "internal://activation-gateway-dark-deploy",
+    tags: ["activation_gateway", "cloudflare", "rollout", "mutation", "dry_run_default", "dry_run_default_true", "typed_confirmation", "capability_envelope", "same_cycle_readback", "rollback_required", "no_dns", "no_custom_domain", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["mode", "account_id", "expected_source_commit", "expected_policy_hash"],
+      properties: {
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
+        account_id: { type: "string", pattern: "^[a-f0-9]{32}$" },
+        script_name: { type: "string", const: "mad4b-activation-gateway" },
+        expected_source_commit: { type: "string", pattern: "^[a-f0-9]{40}$" },
+        expected_policy_hash: { type: "string", pattern: "^[a-f0-9]{64}$" },
+        workspace_id: { type: "string" },
+        resource_binding_id: { type: "string" },
+        capability_envelope_id: { type: "string" },
+        execution_nonce: { type: "string", minLength: 8, maxLength: 128, pattern: "^[A-Za-z0-9._:-]+$" },
+        confirm: { type: "string" },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "response_chunk_read",
     displayName: "Read Tool Response Chunk",
     description: "Read the next chunk of an oversized governed tool response. Reads the in-process cache first and recovers from durable MySQL storage after cache loss or process restart.",
@@ -421,6 +469,27 @@ const VIRTUAL_ADMIN_TOOLS = [
         confirm: { type: "string" },
         capability_envelope_id: { type: "string" },
         decision_note: { type: "string", minLength: 20, maxLength: 1000 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "governed_migration_execute",
+    displayName: "Governed Migration Execute",
+    description: "Dry-run or apply one checksum-bound authorized migration through the governed runner. Apply requires exact typed confirmation, a ready platform_orchestration capability envelope, ledger persistence, and same-cycle schema readback.",
+    method: "VIRTUAL",
+    path: "internal://governed-migration-execute",
+    tags: ["admin", "migration", "mutation", "dry_run_default", "typed_confirmation", "capability_envelope", "same_cycle_readback", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["migration", "mode", "expected_checksum_sha256", "expected_statement_count"],
+      properties: {
+        migration: { type: "string", pattern: "^[A-Za-z0-9._-]+\\.sql$" },
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
+        expected_checksum_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        expected_statement_count: { type: "integer", minimum: 1, maximum: 5000 },
+        confirm: { type: "string" },
+        capability_envelope_id: { type: "string" },
       },
       additionalProperties: false,
     },
@@ -1673,6 +1742,54 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     return { status: 200, body: { ok: true, name: toolKey, result: await buildPlatformCapabilityLiveReport(args) } };
   }
 
+  if (callerType === "admin" && toolKey === "activation_gateway_rollout_plan") {
+    try {
+      const result = await buildActivationGatewayRolloutPlan(args || {}, {
+        pool: getPool(),
+        auth: req?.auth || {},
+        env: process.env,
+      });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "activation_gateway_rollout_plan_failed", message: err?.message || "Activation Gateway rollout plan failed.", details: err?.details } },
+      };
+    }
+  }
+
+  if (callerType === "admin" && toolKey === "activation_gateway_dark_deploy") {
+    try {
+      const result = await runActivationGatewayDarkDeploy(args || {}, {
+        pool: getPool(),
+        auth: req?.auth || {},
+        env: process.env,
+        audit: async (entry = {}) => writeAuditLog({
+          tenant_id: req?.auth?.tenant_id || null,
+          workspace_id: args?.workspace_id || null,
+          actor_id: req?.auth?.user_id || null,
+          actor_type: req?.auth?.mode || "backend_api_key",
+          user_id: req?.auth?.user_id || null,
+          request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
+          action: entry.action || "activation_gateway.dark_deploy",
+          resource_type: entry.resource_type || "cloudflare_worker",
+          resource_id: entry.resource_id || "mad4b-activation-gateway",
+          after_json: entry.payload || { secrets_included: false },
+          ip_address: req?.ip || null,
+          user_agent: req?.headers?.["user-agent"] || null,
+          metadata: { source_tool_key: toolKey, secrets_included: false },
+          outcome: String(entry.action || "").endsWith("_failed") ? "failed" : "succeeded",
+        }),
+      });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "activation_gateway_dark_deploy_failed", message: err?.message || "Activation Gateway dark deploy failed.", details: err?.details } },
+      };
+    }
+  }
+
   if (callerType === "admin" && toolKey === "response_chunk_read") {
     return { status: 200, body: await readCachedToolResponseChunk(args) };
   }
@@ -1718,6 +1835,48 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
           error: {
             code: err?.code || "governed_migration_authorization_bootstrap_failed",
             message: err?.message || "Governed migration authorization bootstrap failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
+  if (callerType === "admin" && toolKey === "governed_migration_execute") {
+    try {
+      const result = await runGovernedMigrationExecution(args || {}, {
+        authorizeApply: async (inspection) => {
+          const resolved = await resolveCapabilityExecutionEnvelope({
+            pool: getPool(),
+            source: args || {},
+            acceptedAppKeys: ["platform_orchestration"],
+            acceptedIntents: ["governed_migration_execute", "governed_migration_apply", "migration_apply", "governed_migration_runner"],
+            expectedTenantId: req?.auth?.tenant_id || PLATFORM_TENANT_ID,
+            expectedUserId: req?.auth?.user_id || "",
+            requireReadyForDispatch: true,
+            requireDispatchAllowed: true,
+            requireNoBlockingGaps: true,
+            requireNoSecrets: true,
+          });
+          if (!resolved.ok) {
+            throw capabilityEnvelopeError(resolved, "Governed migration apply requires a ready platform_orchestration capability envelope.");
+          }
+          await markCapabilityEnvelopeReferenced({
+            pool: getPool(),
+            envelopeId: resolved.envelope_id,
+            executionRef: `governed_migration_execute:${inspection.migration}`,
+          });
+          return resolved;
+        },
+      });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "governed_migration_execution_failed",
+            message: err?.message || "Governed migration execution failed.",
             details: err?.details,
           },
         },

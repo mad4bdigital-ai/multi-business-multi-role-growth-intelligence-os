@@ -88,3 +88,7 @@ Cloudflare error `1033` and HTTP `530` are transient-retry candidates, not immed
 - recovered classification requires same-cycle passing health evidence; installer generation is forbidden when a retry succeeds
 
 The SQL runtime authority is `execution_policies` row `Local Connector Recovery Governance / Cloudflare 1033 Retry Before Repair`, registered by `1015_sprint69_local_connector_transient_retry_policy.sql`.
+
+## Tool Descriptor Mutation Policy Declaration
+
+Apply-capable `POST` or virtual tools must declare at least one mutation-policy marker recognized by governed preflight. `read_write` classifies a tool as mutating but does not itself authorize apply. Descriptors must use truthful contract markers such as `dry_run_default`, `readback`, `same_cycle_readback`, `typed_confirmation`, or `capability_envelope`; tags that are not enforced by the route are forbidden. `gpt_session_archive_backfill` defaults to dry-run, performs bounded admin-only apply, and must declare `dry_run_default` plus `readback` while retaining `dry_run_default_true`, `admin`, and `no_secrets`.

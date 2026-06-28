@@ -159,6 +159,14 @@ section("GET /openapi*.yaml - public scoped schemas");
   ok("tenant GPT schema includes OAuth authorization URL", tenantSchema.text.includes("authorizationUrl: https://auth.mad4b.com/auth/oauth/authorize"));
   ok("tenant GPT schema includes linked tenant scope", tenantSchema.text.includes("https://auth.mad4b.com/scopes/tenant.links"));
 
+  const tenantActivationSchema = await getTextWithHost("/openapi.tenant-gpt.activation.yaml", "auth.mad4b.com");
+  ok("auth host serves tenant Activation schema", tenantActivationSchema.status === 200, `got ${tenantActivationSchema.status}`);
+  ok("tenant Activation schema targets activation host", tenantActivationSchema.text.includes("url: https://activation.mad4b.com"));
+
+  const adminActivationSchema = await getTextWithHost("/openapi.custom-gpt.activation-admin.yaml", "auth.mad4b.com");
+  ok("auth host serves admin Activation schema", adminActivationSchema.status === 200, `got ${adminActivationSchema.status}`);
+  ok("admin Activation schema targets activation host", adminActivationSchema.text.includes("url: https://activation.mad4b.com"));
+
   const wrongHost = await getTextWithHost("/openapi.tenant-gpt.auth.yaml", "api.mad4b.com");
   ok("wrong host cannot fetch tenant schema", wrongHost.status === 404, `got ${wrongHost.status}`);
 }
@@ -171,6 +179,8 @@ section("GET /tenant-gpt/oauth-preset - public auth preset");
   ok("tenant OAuth preset has client id", r.body.preset?.client_id === "mad4b-tenant-gpt", JSON.stringify(r.body));
   ok("tenant OAuth preset has authorize URL", r.body.preset?.authorization_url === "https://auth.mad4b.com/auth/oauth/authorize", JSON.stringify(r.body));
   ok("tenant OAuth preset has token URL", r.body.preset?.token_url === "https://auth.mad4b.com/auth/oauth/token", JSON.stringify(r.body));
+  ok("tenant OAuth preset advertises Tenant Core schema", r.body.preset?.schema_urls?.tenant_core === "https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml", JSON.stringify(r.body));
+  ok("tenant OAuth preset advertises Tenant Activation schema", r.body.preset?.activation_schema_url === "https://auth.mad4b.com/openapi.tenant-gpt.activation.yaml", JSON.stringify(r.body));
   ok("tenant OAuth preset has linked scopes", r.body.preset?.scope_links?.includes("https://auth.mad4b.com/scopes/tenant.links"), JSON.stringify(r.body));
 
   const wrongHost = await getWithHost("/tenant-gpt/oauth-preset", "api.mad4b.com");
