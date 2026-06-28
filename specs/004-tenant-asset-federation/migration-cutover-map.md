@@ -181,10 +181,12 @@ Suggested migration sequence:
 8. model evaluation suite/dataset/metric/run/result, scorecard, readiness, selection, fallback, drift, incident, deprecation, and governance-epoch authorities;
 9. Workflow/Activity/Effect/state/event/transition/timer/signal/error/retry/cancellation/compensation/reconciliation/checkpoint/replay/recovery/queue/concurrency/fairness registries and certified handler metadata;
 10. durable Workflow history/snapshots/timers/signals/dependencies, Activity attempts/leases/results, Effect dispatch/verification/reconciliation/compensation, Outbox/Inbox, checkpoints/recovery/replay, transport dead letters, queues/rate/concurrency, and runtime-governance epochs;
-11. adaptive proposals/simulations/experiments/measurements/promotion candidates;
-12. views for catalog, bridge parity, model-selection parity/readiness, durable Workflow shadow parity/recovery, and adaptive health;
-13. indexes, partitioning, archival, and retention metadata;
-14. feature/rollout registry rows.
+11. Artifact type/schema/identity/version/content-object/representation, source identity/attestation/transparency, provenance/claim/relation/citation, trust/verification/freshness, Policy Envelope/selective disclosure, and reproducibility authorities;
+12. Knowledge Source/Chunk/Embedding/Index/membership/Retrieval Evidence, correction/retraction/disposition/dependency-invalidation, and Artifact-governance authorities;
+13. adaptive proposals/simulations/experiments/measurements/promotion candidates;
+14. views for catalog, bridge parity, model-selection parity/readiness, durable Workflow shadow parity/recovery, Artifact/Knowledge parity/trust/propagation, and adaptive health;
+15. indexes, partitioning, archival, content-addressed storage metadata, transparency-proof retention, and evidence-retention metadata;
+16. feature/rollout registry rows.
 
 Each migration includes authorization metadata, preflight, indexes, rollback/disable strategy, and same-cycle schema readback.
 
