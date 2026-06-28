@@ -244,6 +244,40 @@
 - [ ] Prove no registry path can inject arbitrary handler code, SQL, JavaScript, shell, URL, header, model code, or credential value.
 - [ ] Canary low-risk operation/effect families and cut over only after parity, uncertainty, recovery, rollback, and historical reconstruction pass.
 
+## Policy-Bound Verifiable Artifact and Knowledge Fabric
+
+- [x] Approve stable Artifact identities and immutable content-addressed versions.
+- [x] Approve separate canonical-content and stored-representation checksums.
+- [x] Approve source identity, integrity, authenticity, provenance, truth support, freshness, license, policy, reproducibility, and publication as separate dimensions.
+- [x] Approve cryptographic attestations and tamper-evident transparency roots/witnesses for critical families without requiring a public blockchain.
+- [x] Approve claim/evidence/contradiction/citation graph with exact immutable source locators.
+- [x] Approve multi-dimensional trust policies whose mandatory gates cannot be overridden by composite score.
+- [x] Approve reproducibility manifests and bit/semantic/bounded-nondeterministic/not-reproducible classifications.
+- [x] Approve conservative Policy Envelopes and explicit declassification/redaction/anonymization evidence.
+- [x] Approve selective-disclosure provenance profiles for public, Tenant, operator, auditor, legal, and regulator audiences.
+- [x] Approve exact-version Knowledge Source, Chunk, Embedding, Index, and Retrieval Evidence authorities.
+- [x] Approve correction as a new version, retraction as new-use block, and DFR-003 disposition propagation without rewriting permitted history.
+- [x] Approve manifest binding, stable errors, API direction, compatibility migration, previews, and acceptance boundaries.
+- [ ] Approve initial Artifact/Schema/Claim/Relation/Attestation/Trust/Provenance/Knowledge lifecycle registry seeds.
+- [ ] Approve initial source-identity trust domains, signing providers, algorithms, key rotation/revocation, transparency root cadence, and witness policy.
+- [ ] Approve initial canonicalization rules and semantic-equivalence classes by Artifact/media family.
+- [ ] Approve trust policies/thresholds by task, risk, audience, publication, training/evaluation, and legal/financial use.
+- [ ] Approve initial Policy Envelope inheritance/declassification operators and selective-disclosure profiles.
+- [ ] Approve initial citation locator schemas, claim extraction/review policy, contradiction handling, and unsupported-claim behavior.
+- [ ] Approve reproducibility requirements, tolerance methods, environment capture, and retention by build family.
+- [ ] Approve Knowledge chunking/normalization/redaction/embedding/index/retrieval/reranking profile registries.
+- [ ] Approve correction/retraction/disposition impact, notification, rebuild, cache invalidation, provider-copy, and backup policies.
+- [ ] Implement read-only compatibility projections over output artifacts, JSON assets, scope links, graph evidence, session Drive artifacts, summaries, and knowledge surfaces.
+- [ ] Implement Artifact identity/version/content-object/representation authorities and exact checksums.
+- [ ] Implement source identities, attestations, transparency log/roots/witness validation, and revocation.
+- [ ] Implement provenance/claim/evidence/citation graph with cycle and locator validation.
+- [ ] Implement trust/verification/policy/freshness/reproducibility/eligibility resolution and explanations.
+- [ ] Implement versioned Knowledge Source/Chunk/Embedding/Index builds and immutable retrieval evidence.
+- [ ] Implement correction/retraction/dependency invalidation and DFR-003 disposition propagation.
+- [ ] Add integrity/authenticity separation, forged signature, transparency fork, provenance cycle, citation drift, trust gate, policy inheritance, cross-Tenant disclosure, stale index, retraction propagation, and preview no-effect tests.
+- [ ] Prove no registry path can inject arbitrary code, SQL, shell, URL, header, credential, signing key, or unrestricted model/provider behavior.
+- [ ] Canary low-risk internal Artifact families and cut over only after parity, rebuild, retraction/disposition, rollback, and historical reconstruction pass.
+
 ## Shared catalog
 
 - [ ] Design additive catalog migration.
