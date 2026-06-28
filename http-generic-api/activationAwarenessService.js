@@ -411,8 +411,10 @@ export function deriveOperationalBlockedSurfaces({ results = {}, counts = {} } =
   });
   add("skills", [
     results.skills?.ok !== true ? "source_unavailable" : null,
-    safeNumber(counts.skills?.requires_approval) > 0 ? "approval_required" : null,
-  ].filter(Boolean), { requires_approval: results.skills?.ok === true ? safeNumber(counts.skills?.requires_approval) : null });
+  ].filter(Boolean), {
+    active_grants: results.skills?.ok === true ? safeNumber(counts.skills?.active) : null,
+    requires_approval: results.skills?.ok === true ? safeNumber(counts.skillApprovals?.requires_approval) : null,
+  });
   add("freshness", [
     results.freshness?.ok !== true ? "source_unavailable" : null,
     safeNumber(counts.freshness?.failed) > 0 ? "freshness_failed" : null,
