@@ -16,6 +16,7 @@ import {
   updateOperationalAlertLifecycle,
 } from "../operationalAlertService.js";
 import { acknowledgeActivationRun } from "../activationSessionLifecycleService.js";
+import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const ALLOWED_PROFILES = new Set(["evidence", "summary", "dashboard", "diagnostic", "full"]);
