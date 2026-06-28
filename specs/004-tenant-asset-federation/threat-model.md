@@ -16,6 +16,7 @@ This threat model covers:
 - raw meter events, billable usage, estimates, reservations, settlements, statements, invoices, disputes, and double-entry ledgers;
 - contextual model task/capability, provider endpoint, exact model version, inference profile, policy, optimization, evaluation, scorecard, readiness, selection, fallback, drift, incident, and deprecation authorities;
 - durable Workflow definitions/history, Activities/attempts, Effects, leases/fencing, timers/signals, idempotency, verification/reconciliation, Outbox/Inbox, compensation, checkpoints/replay, recovery, transport dead letters, queues, concurrency, and fairness authorities;
+- Artifact identities/versions/content/representations, source identities, attestations/transparency, provenance/claims/citations, trust/verification/policy/freshness, reproducibility, Knowledge Sources/Chunks/Embeddings/Indexes/Retrieval Evidence, correction/retraction/disposition, and Artifact-governance authorities;
 - adaptive proposals, simulation, experiments, and platform promotion.
 
 It does not replace connector-, provider-, authentication-, payment-processor-, tax-, accounting-, infrastructure-, or deployment-specific threat models.
