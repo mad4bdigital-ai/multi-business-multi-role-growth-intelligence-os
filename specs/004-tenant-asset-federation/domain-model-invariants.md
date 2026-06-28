@@ -741,6 +741,106 @@ A fallback model cannot silently continue user-visible output or repeat a commit
 
 Cancel, resume, replay, recovery, reconciliation-action, and redrive previews perform no Activity execution, provider/model/tool call, credential read, queue publish, commercial reservation, compensation, replay, lifecycle mutation, or external write.
 
+### INV-091 — Artifact content versions are immutable
+
+A logical Artifact may advance its current-version pointer, but a content-bearing Artifact Version and its canonical checksum never change in place.
+
+### INV-092 — Location is not version identity
+
+Filename, URI, Drive file ID, database row ID, provider alias, or modified timestamp cannot substitute for exact Artifact Version and content checksum.
+
+### INV-093 — Canonical and stored integrity remain separate
+
+Canonical-content and stored-representation checksums are independently recorded and verified. Representation equivalence requires a registered canonicalization profile.
+
+### INV-094 — Integrity, authenticity, truth, and eligibility are distinct
+
+A checksum does not prove source identity or truth; a valid signature does not prove factual support; factual support does not grant access, license, or publication authority.
+
+### INV-095 — Attestations are exact and revocable
+
+An attestation binds one exact version/event/checksum, signer authority, trust domain, algorithm/key reference, issuance, expiry, and revocation state. Raw signing keys never enter the fabric.
+
+### INV-096 — Critical transparency is tamper-evident
+
+Required transparency entries are ordered and hash-linked and their roots/witnesses are verifiable. Missing, forked, invalid, or revoked required proof blocks eligible use.
+
+### INV-097 — Provenance edges bind exact versions
+
+Every derivation/transformation/citation/index relation links exact immutable versions and registered edge semantics. Prohibited derivation cycles fail closed.
+
+### INV-098 — Claims preserve contradiction
+
+Support, contradiction, qualification, context, and supersession remain separately addressable. A score or Artifact-wide label cannot hide material conflicting evidence.
+
+### INV-099 — Consequential citations are immutable-addressed
+
+A high-risk citation targets an exact Source Version and validated locator. Floating mutable references cannot satisfy mandatory support evidence.
+
+### INV-100 — Trust is dimensioned and gate-first
+
+Mandatory trust dimensions are evaluated independently. Composite ranking is permitted only after every mandatory gate passes.
+
+### INV-101 — Policy inheritance is conservative
+
+A derived Artifact Policy Envelope is at least as restrictive as all applicable source and destination policies unless a registered verified approved declassification transformation proves otherwise.
+
+### INV-102 — Selective disclosure cannot fabricate lineage
+
+Audience projections may redact or replace evidence with opaque references, but omissions are explicit and material contradiction cannot be concealed as complete provenance.
+
+### INV-103 — Reproducibility binds exact build inputs
+
+Reproducibility evidence records ordered source versions, handlers/builds, models/profiles, prompts/templates, parameters, environment, runtime manifest, canonicalization, and nondeterministic inputs.
+
+### INV-104 — Reproduction never rewrites origin
+
+A reproduction run creates new evidence and classification and cannot replace or mutate the original Artifact Version or build record.
+
+### INV-105 — Knowledge chunks and embeddings are versioned derivatives
+
+Every Chunk Version binds exact Source Version/locator/profile; every Embedding Version binds exact Chunk/model/profile/preprocessing/dimensions/checksum.
+
+### INV-106 — Knowledge indexes are immutable builds
+
+An Index Version binds exact source/chunk/embedding membership, build/filter/retrieval/reranking/policy versions, checksum, and lifecycle. Alias movement cannot mutate an existing build.
+
+### INV-107 — Retrieval ranking follows eligibility
+
+Authority, purpose, data, audience, license, freshness, trust, correction, retraction, and invalidation gates execute before relevance/reranking.
+
+### INV-108 — Generated claims expose support state
+
+Consequential generated factual claims link exact evidence or remain explicitly unsupported, assumption, estimate, opinion, recommendation, or prediction.
+
+### INV-109 — Correction creates a new version
+
+Correction cannot edit a prior Version. It creates a new Version and explicit corrects/supersedes relations while historical consumers retain original evidence.
+
+### INV-110 — Retraction blocks new use without erasing history
+
+Retraction advances the Artifact epoch and prevents new eligible use while retaining only policy-permitted historical/audit evidence.
+
+### INV-111 — Retraction and erasure are distinct
+
+Erasure/disposition follows DFR-003 and may retain only permitted minimal no-content tombstones; retraction alone does not delete content.
+
+### INV-112 — Dependency invalidation propagates
+
+Correction, restriction, consent withdrawal, retraction, expiry, attestation revocation, and erasure propagate to affected chunks, embeddings, indexes, retrievals, manifests, caches, memory, evaluations, exports, provider copies, backups, and promotion candidates.
+
+### INV-113 — Registry configuration is non-executable
+
+Artifact/knowledge registries select allowlisted schemas, canonicalizers, verification/transformation/signing/storage/model/retrieval/policy handlers and cannot inject arbitrary code, SQL, shell, URLs, headers, or secrets.
+
+### INV-114 — Backfill never invents evidence
+
+Unknown source, signature, license, freshness, verification, claim support, ownership, or provenance remains explicit migration debt and cannot be promoted by inference.
+
+### INV-115 — Artifact previews have no effect
+
+Eligibility, correction, retraction, disposition, index-build, provenance-projection, and reproduction previews perform no content write, signing, transformation, publication, correction, retraction, deletion, indexing/embedding, model/provider call, credential read, cache invalidation, notification, or external write.
+
 ## 4. State machines
 
 ### Optional variant
