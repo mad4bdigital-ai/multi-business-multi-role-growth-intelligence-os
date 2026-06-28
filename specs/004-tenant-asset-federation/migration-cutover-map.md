@@ -359,6 +359,18 @@ Examples:
 - queue admission, Tenant/resource/provider concurrency, fairness, priority aging, starvation, backpressure, and reserved recovery capacity meet SLO;
 - model fallback after visible output or committed Tool/external Effect is blocked or uses verified remaining-work restart plus new reservation;
 - rollback to the prior certified family authority is tested without deleting Workflow/Effect history;
+- Artifact type/schema/logical identity/immutable Version/canonical and stored checksum/representation rules are registered and certified for the exact family;
+- exact Tenant/Platform ownership, source identity/version, producer/run/manifest, sensitivity, audience, license, freshness, retention/legal hold, and publication evidence is complete or explicitly blocked as unknown;
+- required attestation/signing trust domain, algorithm/key lifecycle, transparency sequence/root/witness, revocation, and no-secret checks pass;
+- provenance edge and Claim/Evidence/Citation schemas, exact Source Version locators, material contradiction visibility, cycle rejection, and graph reconstruction pass;
+- mandatory trust dimensions, freshness, license, Policy Envelope inheritance, declassification, selective-disclosure, reproducibility, and publication gates pass with zero score override;
+- Knowledge Source/Chunk/Embedding/Index/Retrieval exact memberships, checksums, model/profile versions, policy/trust/freshness, alias movement, rebuild, and rollback pass;
+- target-more-permissive, invented-evidence, wrong-version/checksum, lost-lineage, hidden-contradiction, retraction/hold mismatch, disclosure mismatch, and critical mismatch count is zero;
+- correction creates a new immutable Version and correction/retraction/attestation-revocation propagation reaches all registered descendants within SLO;
+- DFR-003 disposition, legal-hold, subject-right, minimal no-content tombstone, provider-copy, backup, notification, partial/recovery, and per-object readback tests pass;
+- compatibility backfill demonstrates no invented source, signature, license, verification, freshness, claim support, ownership, trust, or publication evidence;
+- eligibility/correction/retraction/disposition/index-build/reproduction/provenance-projection previews prove zero write, signing, transformation, publication, indexing/embedding, provider/model call, credential read, invalidation, notification, or external effect;
+- rollback to the prior certified Artifact/Knowledge authority preserves all immutable Version, attestation/transparency, provenance, Claim/Citation, correction/retraction/disposition, and retrieval evidence and never re-enables a retracted or revoked source;
 - post-cutover readback confirms expected decision mix.
 
 ## 10. Rollback hierarchy
