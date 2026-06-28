@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "feature_key": "006-sql-cache-resilience",
+  "title": "SQL Cache Resilience and Registry Read Optimization",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "implementation_prs": [],
+    "closeout_pr": null
+  },
+  "evidence": {
+    "specification": {
+      "status": "prepared",
+      "branch": "gpt/006-sql-cache-resilience-20260628",
+      "base_sha": "948b628b8c65c5f511edbe91d443b994855b4b42"
+    },
+    "implementation": { "status": "pending" },
+    "production_verification": { "status": "pending" },
+    "post_merge_audit": { "status": "pending" }
+  },
+  "secrets_included": false
+}
