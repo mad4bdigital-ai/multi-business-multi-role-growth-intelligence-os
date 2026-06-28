@@ -331,6 +331,10 @@ function testRepositoryContracts() {
   assert.match(awarenessService, /connected_system_count: connectedSystemCount/);
   assert.match(awarenessService, /connectedSystemCount = systems\.ok \? safeNumber\(systemCounts\.active\) : null/);
   assert.match(awarenessService, /blocked_surfaces: blockedSurfaces/);
+  assert.match(awarenessService, /GROUP BY grant_status, requires_approval/);
+  assert.match(awarenessService, /active_skill_grant_count/);
+  assert.match(awarenessService, /approval_required_skill_grant_count/);
+  assert.doesNotMatch(awarenessService, /CASE WHEN requires_approval = 1 THEN 'requires_approval' ELSE grant_status END/);
   assert.match(awarenessService, /complete_awareness_with_blocked_surfaces/);
   assert.doesNotMatch(awarenessService, /const authorizationVisibility = 100;/);
   assert.doesNotMatch(awarenessService, /blocked_surfaces: 0,/);
