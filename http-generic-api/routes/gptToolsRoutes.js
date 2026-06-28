@@ -1705,10 +1705,12 @@ async function dispatchTool(callerType, toolKey, args, req) {
   const responseOptions = args && typeof args === "object" ? args : {};
   const resultForClient = {
     ...result,
-    body: await maybeChunkToolResponseBody(result?.body, {
-      ...responseOptions,
-      source_tool_key: toolKey,
-    }),
+    body: shouldChunkDispatchedToolResponse(toolKey)
+      ? await maybeChunkToolResponseBody(result?.body, {
+          ...responseOptions,
+          source_tool_key: toolKey,
+        })
+      : result?.body,
   };
   // Best-effort: archive the dispatch as a tool turn so admin GPT sessions get a
   // complete transcript without depending on the GPT calling writeSessionTurn.
