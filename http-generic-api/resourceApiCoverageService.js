@@ -32,6 +32,30 @@ function surfacePolicyKey(surfaceKind, surfaceRef) {
   return `${String(surfaceKind)}:${String(surfaceRef)}`;
 }
 
+export function isRecoverySnapshotSurface({ surfaceRef, policy = null, lifecycle = null } = {}) {
+  const usageStatus = String(lifecycle?.usage_status || "").trim();
+  return policy?.exposure_class === "recovery_snapshot"
+    || usageStatus === "backup_snapshot"
+    || usageStatus === "repair_snapshot"
+    || BACKUP_TABLE_RE.test(String(surfaceRef || ""));
+}
+
+export function requiresScopedPrimaryKey({
+  surfaceRef,
+  policy = null,
+  lifecycle = null,
+  hasScope = false,
+  hasPrimaryKey = false,
+} = {}) {
+  return Number(hasScope) === 1
+    && Number(hasPrimaryKey) !== 1
+    && !isRecoverySnapshotSurface({ surfaceRef, policy, lifecycle });
+}
+
+export function shouldResolvePriorCoverageFindings({ status, findingsTotal } = {}) {
+  return status === "complete" && Number(findingsTotal) === 0;
+}
+
 function finding(severity, findingType, surfaceKind, surfaceRef, message, resourceKey = null) {
   return {
     severity,
@@ -303,7 +327,13 @@ export async function runLiveResourceCoverageAudit(pool, {
         "Base table is not registered in database_table_lifecycle_registry."
       ));
     }
-    if (kind === "table" && Number(row.has_scope) === 1 && Number(row.has_primary_key) !== 1) {
+    if (kind === "table" && requiresScopedPrimaryKey({
+      surfaceRef: name,
+      policy,
+      lifecycle: life,
+      hasScope: row.has_scope,
+      hasPrimaryKey: row.has_primary_key,
+    })) {
       add(finding(
         "high",
         "scoped_table_missing_primary_key",
@@ -380,6 +410,14 @@ export async function runLiveResourceCoverageAudit(pool, {
           [row.finding_id, runId, row.severity, row.finding_type, row.surface_kind, row.surface_ref, row.resource_key, row.message]
         );
       }
+      if (shouldResolvePriorCoverageFindings({ status, findingsTotal: findings.length })) {
+        await pool.query(
+          `UPDATE platform_resource_coverage_findings
+              SET status='resolved', resolved_at=COALESCE(resolved_at,CURRENT_TIMESTAMP)
+            WHERE status='open' AND run_id<>?`,
+          [runId]
+        );
+      }
     } catch (error) {
       counts.persistence_warning = error.message;
       runId = null;
@@ -414,5 +452,8 @@ export const _testingResourceCoverageService = {
   OPERATION_REQUIREMENTS,
   SCOPE_COLUMNS,
   VERSION_REQUIREMENTS,
+  isRecoverySnapshotSurface,
+  requiresScopedPrimaryKey,
+  shouldResolvePriorCoverageFindings,
   surfacePolicyKey,
 };

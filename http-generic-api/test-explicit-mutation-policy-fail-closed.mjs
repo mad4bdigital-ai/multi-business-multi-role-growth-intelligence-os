@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   classifyMutationPolicyRequirement,
+  resolveGptToolInvocationMutationRequirement,
   hasDeclaredMutationPolicy,
   evaluateRepositoryMutationPreflight,
   evaluateRepoPatchApplyPreflight,
@@ -42,6 +43,19 @@ assert.deepEqual(classifyMutationPolicyRequirement({ method: "POST", tags: ["mut
 assert.equal(hasDeclaredMutationPolicy({ tags: ["mutation", "capability_envelope", "readback"] }), true);
 assert.equal(hasDeclaredMutationPolicy({ tags: ["mutation"] }), false);
 
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "capability_resolution_dry_run", method: "POST", tags: ["dry_run", "no_execution"] }), false);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "gpt_session_archive_backfill", method: "POST", tags: ["read_write", "dry_run_default_true"], args: {} }), false);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "gpt_session_archive_backfill", method: "POST", tags: ["read_write", "dry_run_default_true"], args: { dry_run: true } }), false);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "gpt_session_archive_backfill", method: "POST", tags: ["read_write", "dry_run_default_true"], args: { dry_run: false } }), true);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_cloudflare", method: "POST", args: { method: "GET" } }), false);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_cloudflare", method: "POST", args: { method: "POST" } }), true);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "cloudflare_tunnel_status", method: "POST" }), false);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_cloudflare", method: "DELETE", args: { method: "GET" } }), null);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "cloudflare_tunnel_status", method: "DELETE" }), null);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "untrusted_post", method: "POST", args: { dry_run: true } }), null);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "unsafe_delete", method: "DELETE", tags: ["dry_run", "no_execution"] }), null);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "conflicting_descriptor", method: "POST", tags: ["mutation", "dry_run", "no_execution"] }), null);
+
 const repositoryMutation = await evaluateRepositoryMutationPreflight({ operation: "github_pr_merge" }, emptyPolicyDeps);
 assert.equal(repositoryMutation.ok, false);
 assert.deepEqual(repositoryMutation.errors, ["mutation_policy_required"]);
@@ -54,6 +68,33 @@ assert.deepEqual(repoPatch.errors, ["mutation_policy_required"]);
 const readOnlyTool = await evaluateGptToolDispatchPreflight({ callerType: "tenant", toolKey: "read_status", method: "GET", tags: ["read_only"] }, emptyPolicyDeps);
 assert.equal(readOnlyTool.ok, true);
 assert.equal(readOnlyTool.classification, "allow");
+
+const capabilityDryRun = await evaluateGptToolDispatchPreflight({ callerType: "admin", toolKey: "capability_resolution_dry_run", method: "POST", tags: ["dry_run", "no_execution"] }, emptyPolicyDeps);
+assert.equal(capabilityDryRun.ok, true);
+assert.equal(capabilityDryRun.classification, "allow");
+assert.equal(capabilityDryRun.evidence.invocation_mutation_required, false);
+
+const archiveDryRun = await evaluateGptToolDispatchPreflight({ callerType: "admin", toolKey: "gpt_session_archive_backfill", method: "POST", tags: ["read_write", "dry_run_default_true"], args: { dry_run: true } }, emptyPolicyDeps);
+assert.equal(archiveDryRun.ok, true);
+assert.equal(archiveDryRun.classification, "allow");
+
+const archiveApply = await evaluateGptToolDispatchPreflight({ callerType: "admin", toolKey: "gpt_session_archive_backfill", method: "POST", tags: ["read_write", "dry_run_default_true", "dry_run_default", "readback"], args: { dry_run: false } }, emptyPolicyDeps);
+assert.equal(archiveApply.ok, true);
+assert.equal(archiveApply.classification, "allow_with_declared_mutation_policy");
+assert.equal(archiveApply.evidence.invocation_mutation_required, true);
+assert.equal(archiveApply.evidence.mutation_policy_declared, true);
+
+const cloudflareRead = await evaluateGptToolDispatchPreflight({ callerType: "admin", toolKey: "admin_cloudflare", method: "POST", tags: ["admin", "cloudflare"], args: { method: "GET" } }, emptyPolicyDeps);
+assert.equal(cloudflareRead.ok, true);
+assert.equal(cloudflareRead.classification, "allow");
+
+const cloudflareWrite = await evaluateGptToolDispatchPreflight({ callerType: "admin", toolKey: "admin_cloudflare", method: "POST", tags: ["admin", "cloudflare"], args: { method: "PATCH" } }, emptyPolicyDeps);
+assert.equal(cloudflareWrite.ok, false);
+assert.deepEqual(cloudflareWrite.errors, ["mutation_policy_required"]);
+
+const dryRunBypassAttempt = await evaluateGptToolDispatchPreflight({ callerType: "admin", toolKey: "untrusted_post", method: "POST", tags: [], args: { dry_run: true } }, emptyPolicyDeps);
+assert.equal(dryRunBypassAttempt.ok, false);
+assert.deepEqual(dryRunBypassAttempt.errors, ["mutation_policy_required"]);
 
 const undeclaredMutationTool = await evaluateGptToolDispatchPreflight({ callerType: "admin", toolKey: "unsafe_write", method: "POST", tags: ["mutation"] }, emptyPolicyDeps);
 assert.equal(undeclaredMutationTool.ok, false);

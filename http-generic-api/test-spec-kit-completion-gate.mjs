@@ -37,7 +37,7 @@ function validCompletion(overrides = {}) {
       implementation_prs: [{ number: 100, status: "merged", merge_sha: "a".repeat(40) }],
       closeout_pr: {
         number: "current",
-        branch: process.env.GITHUB_HEAD_REF || "gpt/spec-closeout",
+        branch: FIXTURE_HEAD_REF,
         role: "completion",
         status: "current_pr",
       },

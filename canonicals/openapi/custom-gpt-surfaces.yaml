@@ -1,0 +1,130 @@
+version: 1
+source_openapi: http-generic-api/openapi.yaml
+surfaces:
+  admin_core:
+    mode: generated_from_openapi
+    output_file: openapi.custom-gpt.auth-dispatcher.yaml
+    server_url: https://auth.mad4b.com
+    auth_profile: admin_service
+    hard_operation_limit: 30
+    warning_operation_limit: 24
+    info:
+      title: Growth Intelligence Platform - Admin Core Actions
+      summary: Admin and system MCP facades without Activation routes.
+      description: Stable Admin Core transport for governed admin-control and system-layer operations. Dynamic MCP tool schemas remain SQL-driven.
+    selector:
+      include_tags: [admin-control, system-layer]
+      respect_source_exclusions: true
+
+  activation_admin:
+    mode: generated_from_openapi
+    output_file: openapi.custom-gpt.activation-admin.yaml
+    server_url: https://activation.mad4b.com
+    auth_profile: admin_service
+    hard_operation_limit: 20
+    warning_operation_limit: 16
+    gateway_policy: activation_gateway
+    info:
+      title: Growth Intelligence Platform - Activation Admin Actions
+      summary: Admin/service Activation orchestration and read surfaces.
+      description: Activation-only admin transport. Authentication and business authorization remain on auth.mad4b.com.
+    selector:
+      operation_ids:
+        - getActivationHardRunSummary
+        - readActivationAwareness
+        - readActivationOperationalAttention
+        - readActivationDynamicTabDetail
+        - acknowledgeActivationRun
+        - runLegacyFullHardActivation
+        - runHardActivation
+        - getActivationSessionContext
+        - getActivationPlatformAccess
+
+  tenant_core:
+    mode: generated_from_openapi
+    output_file: openapi.tenant-gpt.auth.yaml
+    server_url: https://auth.mad4b.com
+    auth_profile: tenant_oauth
+    hard_operation_limit: 30
+    warning_operation_limit: 26
+    info:
+      title: Growth Intelligence Platform - Tenant Core Actions
+      summary: Tenant resources, dashboard, session, plugin, and SQL-driven MCP facades without Activation routes.
+      description: Tenant Core transport. Tenant identity is derived from OAuth JWT. Use listTools then callTool for SQL-registered tools such as connect_activate, passing mode and integration_modes through tool_args.
+    selector:
+      tenant_operation_ids:
+        - getMeWorkspacesTenantIdResources
+        - getMeWorkspacesTenantIdResourcesResourceKey
+        - postMeWorkspacesTenantIdResourcesResourceKey
+        - getMeWorkspacesTenantIdResourcesResourceKeyResourceId
+        - patchMeWorkspacesTenantIdResourcesResourceKeyResourceId
+        - deleteMeWorkspacesTenantIdResourcesResourceKeyResourceId
+        - postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore
+        - getMeWorkspacesTenantIdResourcesResourceKeyResourceIdPermissions
+        - getMeWorkspacesTenantIdResourcesResourceKeyResourceIdRevisions
+        - getMeWorkspacesTenantIdResourcesResourceKeyResourceIdChanges
+        - getMeWorkspacesTenantIdResourceChanges
+        - getMeWorkspacesTenantIdOperationsOperationId
+        - getTenantGrowthDashboard
+        - getTenantGrowthDashboardTab
+        - getTenantDashboardPreferences
+        - updateTenantDashboardPreferences
+        - getTenantGrowthDigest
+        - previewTenantGrowthAction
+        - recordTenantGrowthRecommendationFeedback
+        - listLocalGatewayTools
+        - listTools
+        - callTool
+        - tenantPlatformPluginCatalog
+        - tenantPlatformPluginInstall
+        - tenantPlatformPluginCredentialIntakeSessionCreate
+        - tenantPlatformPluginResolve
+        - writeSessionTurn
+        - endSession
+
+  tenant_activation:
+    mode: generated_from_openapi
+    output_file: openapi.tenant-gpt.activation.yaml
+    server_url: https://activation.mad4b.com
+    auth_profile: tenant_oauth
+    hard_operation_limit: 10
+    warning_operation_limit: 8
+    gateway_policy: activation_gateway
+    info:
+      title: Growth Intelligence Platform - Tenant Activation Actions
+      summary: Tenant-scoped Activation session, awareness, attention, and dynamic-tab reads.
+      description: Tenant Activation transport. Tenant and user identity are derived from OAuth JWT and revalidated by auth.mad4b.com.
+    selector:
+      tenant_operation_ids:
+        - activateSession
+        - readTenantActivationOperationalAttention
+        - readTenantActivationAwareness
+        - readTenantActivationDynamicTabDetail
+
+  local_connector_admin:
+    mode: canonical_copy
+    canonical_file: canonicals/openapi/local-connector.openapi.yaml
+    output_file: openapi.gpt-action.local-connector.yaml
+    server_url: https://connector.mad4b.com
+    auth_profile: device_admin
+    hard_operation_limit: 30
+    warning_operation_limit: 24
+
+  development:
+    mode: externally_managed
+    output_file: openapi.gpt-action.dev-dispatcher.yaml
+    server_url: https://dev.mad4b.com
+    auth_profile: development
+    hard_operation_limit: 30
+    warning_operation_limit: 24
+
+gateway_policies:
+  activation_gateway:
+    public_host: activation.mad4b.com
+    upstream_origin: https://auth.mad4b.com
+    output_file: edge/activation-gateway/generated/route-policy.json
+    request_body_limit_bytes: 1048576
+    response_body_limit_bytes: 5242880
+    timeout_ms: 30000
+    mutation_stale_policy: deny
+    read_stale_grace_seconds: 0

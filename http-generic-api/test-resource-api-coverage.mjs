@@ -2,13 +2,14 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { RESOURCE_DESCRIPTORS, decodePageToken, descriptor, encodePageToken } from "./src/domain/resourceApi/resourceCatalog.js";
-import { _testingResourceCoverageService, evaluateResourceSurfacePolicy } from "./resourceApiCoverageService.js";
+import { _testingResourceCoverageService, evaluateResourceSurfacePolicy, isRecoverySnapshotSurface, requiresScopedPrimaryKey, shouldResolvePriorCoverageFindings } from "./resourceApiCoverageService.js";
 
 const manifest = JSON.parse(readFileSync("resource-api-coverage.manifest.json", "utf8"));
 const routeSource = readFileSync("routes/resourceApiRoutes.js", "utf8");
 const repositorySource = readFileSync("src/infrastructure/resourceApi/resourceRepository.js", "utf8");
 const migration = readFileSync("migrations/1023_sprint69_resource_api_coverage_gate.sql", "utf8");
 const surfacePolicyMigration = readFileSync("migrations/1025_sprint69_resource_surface_policy_governance.sql", "utf8");
+const auditCloseoutMigration = readFileSync("migrations/1026_sprint69_resource_coverage_audit_closeout.sql", "utf8");
 const auditScript = readFileSync("scripts/resource-api-coverage-audit.mjs", "utf8");
 const spec = readFileSync("../specs/001-resource-api-coverage/spec.md", "utf8");
 
@@ -38,6 +39,10 @@ assert(surfacePolicyMigration.includes("CREATE TABLE IF NOT EXISTS platform_reso
 assert(surfacePolicyMigration.includes("resource_surface_policy_backfill_v1"));
 assert(surfacePolicyMigration.includes("internal_surfaces_require_explicit_not_applicable"));
 assert(!/\b(?:DROP|TRUNCATE|DELETE\s+FROM)\b/i.test(surfacePolicyMigration));
+assert(auditCloseoutMigration.includes("completed_state_only"));
+assert(auditCloseoutMigration.includes("blocked_by_policy"));
+assert(auditCloseoutMigration.includes("migration_only"));
+assert(!/\b(?:DROP|TRUNCATE|DELETE\s+FROM)\b/i.test(auditCloseoutMigration));
 assert(auditScript.includes("new_relation_missing_surface_policy_decision"));
 assert(spec.includes("No feature without resource API coverage"));
 
@@ -48,6 +53,14 @@ assert.deepEqual(evaluateResourceSurfacePolicy({ surfaceKind: "table", surfaceRe
 assert(evaluateResourceSurfacePolicy({ surfaceKind: "table", surfaceRef: "unclassified_table", policy: null }).some((row) => row.finding_type === "missing_resource_surface_policy"));
 assert(evaluateResourceSurfacePolicy({ surfaceKind: "table", surfaceRef: "workspace_assets", policy: resourcePolicy, descriptor: { resource_key: "assets", operation_policy: { archive: "active", revisions: "not_yet_versioned" } }, coveredRelation: true }).some((row) => row.finding_type === "resource_version_strategy_unresolved"));
 assert(evaluateResourceSurfacePolicy({ surfaceKind: "tool", surfaceRef: "example_resource_tool", policy: { ...internalPolicy, exposure_class: "resource_tool", resource_key: "assets", operation_requirement: "required" }, coveredTool: false }).some((row) => row.finding_type === "tool_not_linked_to_resource_operation"));
+
+assert.equal(isRecoverySnapshotSurface({ surfaceRef: "collation_backup_demo", policy: { exposure_class: "recovery_snapshot" }, lifecycle: { usage_status: "backup_snapshot" } }), true);
+assert.equal(isRecoverySnapshotSurface({ surfaceRef: "workspace_assets", policy: resourcePolicy, lifecycle: { usage_status: "runtime_canonical" } }), false);
+assert.equal(requiresScopedPrimaryKey({ surfaceRef: "collation_backup_demo", policy: { exposure_class: "recovery_snapshot" }, lifecycle: { usage_status: "backup_snapshot" }, hasScope: 1, hasPrimaryKey: 0 }), false);
+assert.equal(requiresScopedPrimaryKey({ surfaceRef: "workspace_assets", policy: resourcePolicy, lifecycle: { usage_status: "runtime_canonical" }, hasScope: 1, hasPrimaryKey: 0 }), true);
+assert.equal(shouldResolvePriorCoverageFindings({ status: "complete", findingsTotal: 0 }), true);
+assert.equal(shouldResolvePriorCoverageFindings({ status: "debt_detected", findingsTotal: 1 }), false);
+assert.equal(shouldResolvePriorCoverageFindings({ status: "complete", findingsTotal: 1 }), false);
 
 const output = execFileSync(process.execPath, ["scripts/resource-api-coverage-audit.mjs"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 const result = JSON.parse(output.trim());
