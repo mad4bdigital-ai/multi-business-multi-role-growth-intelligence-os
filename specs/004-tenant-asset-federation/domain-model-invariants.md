@@ -1108,6 +1108,83 @@ created → review_required|redrive_eligible|blocked → redriving → delivered
 
 Redrive applies only to the transport artifact and cannot repeat the business Effect without independent Workflow authority.
 
+### Artifact Version
+
+```text
+discovered → ingested → validated
+validated → verification_required|verified
+verified → publication_required|published
+published|verified → stale|restricted|superseded|corrected|retracted
+any non-erased state → disposition_pending
+→ content_erased_with_tombstone|archived
+```
+
+The Version record remains immutable. Lifecycle transitions append evidence and may advance the logical Artifact current-version pointer or governance epoch.
+
+### Attestation
+
+```text
+issued → pending_verification → valid|invalid|expired|revoked
+valid → expired|revoked
+```
+
+Revocation never removes the original attestation; it adds signed revocation/validation evidence and invalidates dependent eligibility where required.
+
+### Claim
+
+```text
+drafted → extracted|review_required → supported|partially_supported|unsupported|contradicted
+supported|partially_supported → stale|qualified|superseded|retracted
+```
+
+Multiple support and contradiction relations may coexist. Claim state is contextual to policy/version and does not rewrite source content.
+
+### Trust Assessment
+
+```text
+requested → evaluating → eligible|ineligible|insufficient_evidence|conflicting_evidence
+eligible → stale|revoked|invalidated
+```
+
+Dimension results remain immutable for the assessment run; changed evidence creates a new assessment.
+
+### Knowledge Index Version
+
+```text
+draft → building → validating → active
+active → stale|restricted|invalidated|rebuilding|retired
+stale|invalidated → rebuilding|retired
+retired → archived
+```
+
+A rebuild creates a new Index Version; it never edits active membership or embedding identities in place.
+
+### Correction run
+
+```text
+requested → previewed → review_required|approved → creating_version → verified → published|completed
+any pre-completion state → rejected|cancelled|failed
+```
+
+Completion requires exact new Version readback and impact/invalidation evidence.
+
+### Retraction run
+
+```text
+requested → previewed → review_required|approved → restricting → invalidating_dependencies → notifying → completed
+any pre-completion state → rejected|cancelled|failed|recovery_required
+```
+
+Emergency restriction may precede review for critical harm but cannot erase history or skip subsequent audit/review.
+
+### Artifact disposition run
+
+```text
+requested → previewed → approval_required|approved → executing → verifying → completed|partially_completed|recovery_required
+```
+
+Each affected object records delete/rebuild/invalidate/retract/anonymize/aggregate/archive/hold/notify/tombstone outcome separately.
+
 ## 5. Transaction boundaries
 
 ### Profile publish
