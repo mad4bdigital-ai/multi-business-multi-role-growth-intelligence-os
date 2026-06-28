@@ -12,8 +12,7 @@
   "delivery": {
     "specification_branch": {
       "branch": "gpt/repo-patch/20260627213639-readme.md-spec-initialize-adaptive-authorization-governanc",
-      "head_sha": "0b7f77323c5086b0e1495696492852666243242b",
-      "status": "branch_ready_no_pr"
+      "status": "deep_design_ready_no_pr"
     },
     "implementation_prs": [],
     "closeout_pr": {
@@ -25,17 +24,47 @@
   },
   "evidence": {
     "specification": {
-      "status": "draft_created",
+      "status": "deep_design_complete",
+      "documents": {
+        "top_level_specification": true,
+        "architecture_decision_record": true,
+        "logical_data_model": true,
+        "draft_openapi_3_1_contract": true,
+        "formal_decision_model": true,
+        "invariants_and_state_machines": true,
+        "threat_model": true,
+        "consistency_and_reconciliation": true,
+        "adapter_contract_and_certification": true,
+        "testing_and_parity_strategy": true,
+        "rollout_pr_sequence": true,
+        "operational_model": true,
+        "api_error_catalog": true,
+        "implementation_boundaries": true,
+        "storage_and_migration_plan": true,
+        "end_to_end_flows": true,
+        "deep_task_breakdown": true
+      },
       "auth_host_only": true,
       "local_device_operations": false,
       "provider_mutations": false
     },
     "implementation": {
-      "status": "pending"
+      "status": "pending",
+      "next_pr_scope": "state_semantics_and_operational_projections",
+      "provider_mutation_allowed": false,
+      "enforcement_change_allowed": false,
+      "new_authority_tables_allowed": false
+    },
+    "pull_request": {
+      "status": "blocked_missing_registered_auth_host_pr_creation_surface"
+    },
+    "ci": {
+      "status": "not_run",
+      "reason": "No pull request or governed branch CI run has been created."
     },
     "production_rollout": {
       "status": "pending",
-      "reason": "Implementation, migration, shadow parity, canary enforcement, production verification, rollback rehearsal, and post-merge audit are outside the specification branch."
+      "reason": "Implementation, authority mapping, migration, shadow parity, canary enforcement, production verification, rollback rehearsal, and post-merge audit are outside the specification branch."
     }
   },
   "sensitive_values_included": false
