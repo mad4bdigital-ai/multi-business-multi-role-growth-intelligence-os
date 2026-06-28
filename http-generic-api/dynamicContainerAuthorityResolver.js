@@ -587,7 +587,8 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
     requestId:input.requestId,
     idempotencyKey:input.idempotencyKey,
     expiresAt:new Date(now().getTime()+5*60*1000).toISOString(),
-    cacheHit
+    cacheHit,
+    authorityScopeShadow
   };
   await persistResolution(resolution);
   const policy = await readPolicy().catch(() => null);
@@ -597,7 +598,11 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
     containerCount:resolution.containerPaths.flatMap(path => path.containerIds).length,
     relationshipCount:resolution.containerPaths.flatMap(path => path.relationshipIds).length,
     pathCount:resolution.containerPaths.length,candidateBindingCount:resolution.effectiveBindings.length,
-    durationMs,withinBudget:!policy || durationMs<=Number(policy.p99_budget_ms || 400),metadata:{ cacheHit }
+    durationMs,withinBudget:!policy || durationMs<=Number(policy.p99_budget_ms || 400),metadata:{
+      cacheHit,
+      authorityScopeShadowStatus:authorityScopeShadow?.status || "unresolved",
+      authorityScopeShadowComparison:authorityScopeShadow?.comparisonStatus || "unresolved"
+    }
   }).catch(() => null);
   if (input.mode === "shadow") {
     const comparison = compareShadowDecision(input.legacyDecision,resolution.decision);
