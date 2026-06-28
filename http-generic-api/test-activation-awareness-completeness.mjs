@@ -219,6 +219,15 @@ function testCompletenessAndAwareness() {
 }
 
 function testOperationalCountIntegrityAndBlockedSurfaceDetails() {
+  const skillProjection = _testingActivationAwareness.deriveSkillGrantProjection([
+    { grant_status: "active", requires_approval: 1, count: 10 },
+    { grant_status: "active", requires_approval: 0, count: 69 },
+    { grant_status: "revoked", requires_approval: 1, count: 2 },
+  ]);
+  assert.equal(skillProjection.total, 81);
+  assert.deepEqual(skillProjection.grant_status, { active: 79, revoked: 2 });
+  assert.deepEqual(skillProjection.approval, { requires_approval: 10, no_approval_required: 69 });
+
   const blocked = deriveOperationalBlockedSurfaces({
     results: {
       systems: { ok: true },
@@ -232,16 +241,16 @@ function testOperationalCountIntegrityAndBlockedSurfaceDetails() {
       systems: { active: 3, pending: 28, error: 0 },
       tasks: { blocked: 3, open: 17 },
       agents: { active: 252, degraded: 0, offline: 0 },
-      skills: { active: 79, requires_approval: 10 },
+      skills: { active: 79, revoked: 2 },
+      skillApprovals: { requires_approval: 10, no_approval_required: 69 },
       freshness: {},
       signals: {},
     },
   });
-  assert.deepEqual(blocked.map((item) => item.surface_key), ["connectors", "tasks", "skills"]);
+  assert.deepEqual(blocked.map((item) => item.surface_key), ["connectors", "tasks"]);
   assert.deepEqual(blocked[0].reasons, ["pending_installations"]);
   assert.deepEqual(blocked[0].metrics, { active: 3, pending: 28, error: 0 });
   assert.deepEqual(blocked[1].reasons, ["blocked_tasks"]);
-  assert.deepEqual(blocked[2].reasons, ["approval_required"]);
   assert.equal(blocked.every((item) => item.secrets_included === false), true);
 
   const unavailable = deriveOperationalBlockedSurfaces({
@@ -251,6 +260,18 @@ function testOperationalCountIntegrityAndBlockedSurfaceDetails() {
   assert.equal(unavailable[0].surface_key, "connectors");
   assert.deepEqual(unavailable[0].reasons, ["source_unavailable"]);
   assert.deepEqual(unavailable[0].metrics, { active: null, pending: null, error: null });
+
+  const unavailableSkills = deriveOperationalBlockedSurfaces({
+    results: { skills: { ok: false } },
+    counts: { skills: {}, skillApprovals: {} },
+  });
+  assert.deepEqual(unavailableSkills[0], {
+    surface_key: "skills",
+    status: "blocked",
+    reasons: ["source_unavailable"],
+    metrics: { active_grants: null, requires_approval: null },
+    secrets_included: false,
+  });
 }
 
 function testIdempotencyAndInputNormalization() {
