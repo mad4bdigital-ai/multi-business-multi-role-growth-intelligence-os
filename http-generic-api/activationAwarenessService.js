@@ -378,6 +378,30 @@ function aggregateRows(rows, key, accepted = null) {
   return output;
 }
 
+export function deriveSkillGrantProjection(rows = []) {
+  const grantStatus = {};
+  let total = 0;
+  let requiresApproval = 0;
+  let noApprovalRequired = 0;
+  for (const row of rows) {
+    const count = safeNumber(row.count || 0);
+    const status = String(row.grant_status ?? "unknown");
+    grantStatus[status] = (grantStatus[status] || 0) + count;
+    total += count;
+    if (status !== "active") continue;
+    if (safeNumber(row.requires_approval) === 1) requiresApproval += count;
+    else noApprovalRequired += count;
+  }
+  return {
+    total,
+    grant_status: grantStatus,
+    approval: {
+      requires_approval: requiresApproval,
+      no_approval_required: noApprovalRequired,
+    },
+  };
+}
+
 export function deriveOperationalBlockedSurfaces({ results = {}, counts = {} } = {}) {
   const highSeveritySignals = Object.entries(counts.signals || {})
     .filter(([key]) => /^(critical|high):/i.test(key))
