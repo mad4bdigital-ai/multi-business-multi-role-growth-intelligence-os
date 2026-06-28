@@ -255,7 +255,13 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
 
   router.get("/activation/awareness", ...adminGuards, async (req, res) => {
     try {
-      return res.status(200).json(await buildAwarenessResponse(req, true));
+      const responseBody = await buildAwarenessResponse(req, true);
+      const transportBody = await chunkActivationAwarenessResponse(
+        responseBody,
+        req,
+        "activation_awareness_read_api"
+      );
+      return res.status(200).json(transportBody);
     } catch (err) {
       return errorResponse(res, err, "activation_awareness_read_failed");
     }
