@@ -58,7 +58,7 @@ jobs:
           node test-surface-contract-discovery.mjs
           node test-surface-contract-governance-loop.mjs
 
-      - name: Enforce documentation-only mutation boundary
+      - name: Enforce documentation and generated-evidence mutation boundary
         id: changes
         shell: bash
         run: |
@@ -78,6 +78,7 @@ jobs:
               "docs/ai-docs-agent-governance.md"|\
               "docs/auto-docs-agent/README.md"|\
               "docs/change-documentation-governance.md"|\
+              specs/[0-9][0-9][0-9]-*/manifest.json|\
               docs/surface-contract-*.json|\
               docs/surface-contract-*.md)
                 ;;
@@ -104,12 +105,13 @@ jobs:
           git config user.name "surface-contract-agent[bot]"
           git config user.email "surface-contract-agent[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          git add \
+          git add -- \
             "Updating Registry Patch Index.md" \
             "deployment_parity_checklist.md" \
             "docs/ai-docs-agent-governance.md" \
             "docs/auto-docs-agent/README.md" \
             "docs/change-documentation-governance.md" \
+            ':(glob)specs/[0-9][0-9][0-9]-*/manifest.json' \
             docs/surface-contract-*.json \
             docs/surface-contract-*.md
           git commit -m "Surface contract agent: remediate documentation and safety evidence"
