@@ -991,6 +991,7 @@ export const _testingActivationAwareness = {
   stripSensitive,
   quoteIdentifier,
   safeColumns,
+  deriveSkillGrantProjection,
   defaultDeliveryMode,
   defaultDedupeScope,
   badgeForTab,
