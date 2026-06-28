@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "feature_key": "006-platform-dynamic-workflow-runtime",
+  "title": "Platform Dynamic Workflow Runtime",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "current_increment": {
+    "phase": "Deep design and implementation gap analysis",
+    "design_version": "0.3.0",
+    "pull_request": 1929,
+    "branch": "gpt/006-platform-dynamic-workflow-runtime",
+    "implementation_started": false,
+    "production_activation_authorized": false
+  },
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": "current",
+      "branch": "gpt/006-platform-dynamic-workflow-runtime",
+      "role": "design_and_planning",
+      "status": "current_pr"
+    }
+  },
+  "evidence": {
+    "design_validation": {
+      "status": "pass",
+      "manifest_version": "0.3.0",
+      "openapi_contracts": 2,
+      "documented_paths": 22,
+      "github_readback": "pass"
+    },
+    "implementation": {
+      "status": "pending",
+      "reason": "Existing Sprint69 tenant-scoped container authority must be reconciled with the platform-principal and platform-owned-resource model before runtime implementation."
+    },
+    "ci": {
+      "status": "pending",
+      "reason": "This manifest is added to satisfy the changed-scope Spec Kit completion gate; subsequent CI evidence will be recorded after checks complete."
+    },
+    "release_readiness": {
+      "status": "pending"
+    }
+  },
+  "secrets_included": false
+}
