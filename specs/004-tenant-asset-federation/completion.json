@@ -35,9 +35,9 @@
       "behind_by": 0
     },
     "ci": {
-      "status": "pending",
-      "head_sha": null,
-      "checks_passed": 0,
+      "status": "pass",
+      "head_sha": "963861e32817cc11e97aea744934c9407253ef91",
+      "checks_passed": 4,
       "checks_total": 4
     }
   },
