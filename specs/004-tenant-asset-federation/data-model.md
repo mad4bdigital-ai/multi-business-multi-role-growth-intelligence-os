@@ -787,15 +787,110 @@ The approved DFR-006 model is fully registry-driven, append-only, deterministic 
 
 Workflow history is authoritative. Snapshots, queue state, and projections are rebuildable. Lifecycle, outcome, Effect, and verification states remain distinct. All executable handlers/adapters are allowlisted code; registry rows select only supported semantic keys and bounded parameters. Business recovery is distinct from transport dead letters, and replay creates a new linked Workflow rather than rewriting history.
 
-### Artifact and knowledge provenance
+### Policy-Bound Verifiable Artifact and Knowledge Fabric
 
-Existing `output_artifacts`, JSON assets, graph evidence, and runtime verification remain sources.
+The approved DFR-007 authority is database-driven, versioned, content-addressed, claim-level, policy-carrying, selectively disclosed, and tamper-evident. Existing `output_artifacts`, `json_assets`, `json_asset_subject_links`, `memory_scope_links`, `platform_graph_*`, `session_drive_artifacts`, session summaries, Drive references, knowledge surfaces, and execution evidence remain compatibility inputs until family-specific cutover.
 
-- `artifact_versions` — immutable schema version, content checksum, manifest, source run, sensitivity, audience, license, freshness, and verification;
-- `artifact_provenance_edges` — derived-from, cites, transforms, supersedes, corrects, or retracts;
-- `artifact_verification_runs` — validators, results, confidence, and evidence;
-- `knowledge_index_versions` — source set, chunking/embedding model, retrieval policy, and invalidation state;
-- `artifact_data_disposition_runs` — retention, export, correction, retraction, and erasure propagation.
+#### Artifact identity, versions, and representations
+
+- `artifact_type_registry` — stable Artifact family, canonicalization class, content/representation behavior, risk, required trust/policy dimensions, lifecycle, version, and status;
+- `artifact_schema_registry` — schema identity/version, media/encoding constraints, validation method, compatibility pointer, lifecycle, and checksum;
+- `artifact_registry` — stable logical Artifact identity, Tenant/Platform ownership, canonical type, title/key, origin class, current-version pointer, lifecycle, and authority epoch;
+- `artifact_versions` — immutable Artifact Version, type/schema versions, canonical-content checksum, content length/media/encoding, source/version vector, producer Workflow/Activity/Agent/Model/Tool, runtime manifest, lifecycle, and governance epoch;
+- `artifact_content_objects` — content-addressed storage object reference, storage adapter/key, stored-representation checksum, byte size, encryption/classification reference, residency, retention, legal-hold state, and integrity observation without raw credentials;
+- `artifact_representations` — exact version-to-representation relation for source, normalized, redacted, rendered, thumbnail, export, archive, or future registered formats with checksum and semantic-equivalence class.
+
+Artifact identity is stable while every content-bearing version is immutable. Filename, mutable URI, Drive file ID, database row ID, alias, or modified timestamp is never sufficient version identity.
+
+#### Source identity, attestations, and transparency
+
+- `artifact_source_identity_registry` — registered person, organization, Tenant, service, provider, repository, database, device, instrument, publication, or external authority identity, trust domain, assurance, lifecycle, and verification evidence;
+- `artifact_attestation_type_registry` — source identity, ingestion, integrity, transformation, verification, publication, correction, retraction, disposition, and future typed attestation semantics;
+- `artifact_identity_attestations` — exact source/version, signer identity and authority, key/certificate reference, algorithm, signed checksum, issued/expiry/revocation, trust domain, validation result, and no-secret evidence;
+- `artifact_integrity_attestations` — exact content/representation/transformation checksum, signer, validation method, observed time, status, and evidence;
+- `artifact_transparency_log` — append-only sequence, entry type, exact Artifact/Version/Attestation/event reference, prior-entry hash, entry hash, observed time, and disclosure class;
+- `artifact_transparency_roots` — periodic range/sequence root, Merkle root or equivalent proof, signer, algorithm, validity, and checksum;
+- `artifact_transparency_witnesses` — independent witness identity, witnessed root/range, signature reference, status, and verification result.
+
+Raw signing keys and secrets are never stored in these authorities. Transparency is tamper-evident and does not require a public blockchain.
+
+#### Provenance, transformations, and source evidence
+
+- `artifact_provenance_edge_type_registry` — typed `derived_from`, `transformed_from`, `summarizes`, `extracts_from`, `chunks`, `embeds`, `indexes`, `cites`, `quotes`, `aggregates`, `translates`, `redacts`, `anonymizes`, `corrects`, `supersedes`, `retracts`, `invalidates`, `exports`, `copies_to_provider`, and `restores_from_backup` semantics with source/target constraints and transitivity/cycle rules;
+- `artifact_provenance_edges` — exact source and target Artifact Version IDs, edge type/version, source locator, transformation run, authority/purpose, confidence, lifecycle, and checksum;
+- `artifact_source_evidence` — exact source identity/version, observed/effective/freshness evidence, retrieval/import method, source locator, access/availability state, and evidence checksum;
+- `artifact_transformation_runs` — immutable Workflow/Activity/handler/model/tool/prompt/template/input/output versions, parameters, source ordering, manifest, environment, status, and reproducibility checksum.
+
+Provenance edges bind exact versions rather than floating logical Artifacts. Cycles are prohibited except explicitly registered non-derivation relation families.
+
+#### Claim, evidence, contradiction, and citation graph
+
+- `artifact_claim_type_registry` — fact, estimate, measurement, assumption, opinion, recommendation, prediction, policy, legal, commercial, and future typed claim semantics;
+- `artifact_claims` — exact Artifact Version, canonical claim text/value checksum, structured subject/predicate/object where applicable, locator, semantic type, effective context, confidence evidence, review state, and usage limits;
+- `artifact_claim_relation_type_registry` — supported-by, contradicted-by, derived-from, qualifies, supersedes, equivalent-to, aggregates, and valid-under-context semantics;
+- `artifact_claim_relations` — exact source/target Claim IDs, relation type/version, direction, conditions, confidence, validity, evidence, and checksum;
+- `artifact_claim_evidence` — Claim to exact Source/Artifact Version evidence, support/contradiction class, verification method, confidence, freshness, reviewer, and result;
+- `artifact_citations` — Claim/Artifact Version to exact Source Version and locator, locator type/value/checksum, quote/excerpt checksum where permitted, audience/license/disclosure state, and validation result.
+
+Contradictory evidence is preserved and eligible resolvers can inspect support, contradiction, qualification, and context rather than a single hidden score.
+
+#### Trust, verification, and publication
+
+- `artifact_trust_dimension_registry` — identity, integrity, source authority, provenance completeness, citation coverage, factual support, methodological quality, freshness, license compatibility, policy eligibility, reproducibility, human review, corroboration, and future typed dimensions;
+- `artifact_trust_policy_versions` — task/risk/publication/audience/use applicability, mandatory dimensions, thresholds, confidence/freshness, zero-tolerance conditions, missing-evidence behavior, and checksum;
+- `artifact_trust_assessments` — exact Artifact/Version/Claim/Index scope, trust policy/version, per-dimension results and evidence, eligibility, explanation, expiry, and checksum;
+- `artifact_verification_policy_registry` — registered validators, source/evidence requirements, reviewer/quorum, independence, freshness, risk behavior, and lifecycle;
+- `artifact_verification_runs` — exact target/version, policy/version, validator/reviewer/model/tool versions, evidence set, status, observed time, and reproducibility checksum;
+- `artifact_verification_results` — per-check/per-dimension result, confidence, supporting/conflicting evidence, freshness, failure class, and checksum;
+- `artifact_publication_decisions` — exact version, channel/audience/purpose, Brand/safety/license/trust/policy evidence, decision, approver, expiry, and checksum;
+- `artifact_freshness_policies` — source/artifact/claim/index family, observed/effective/fresh-until behavior, refresh/reverification triggers, stale handling, and version.
+
+Verification and publication remain separate. A composite trust score can rank already eligible objects but cannot override a failed mandatory dimension.
+
+#### Policy envelopes and inheritance
+
+- `artifact_policy_envelopes` — immutable exact-version policy references for classification, purpose/lawful basis/consent, audience, ownership/license, attribution, transformations, inference/embedding/evaluation/training, residency/transfer, retention/legal hold/subject restrictions, publication, export, and disclosure;
+- `artifact_policy_inheritance_runs` — exact source envelope set, destination/use policy, registered conservative operators, resulting envelope, declassification/redaction/anonymization evidence, conflicts, decision, and checksum;
+- `artifact_selective_disclosure_profiles` — audience class, allowed provenance/claim/evidence/identity fields, opaque-reference behavior, contradiction disclosure floor, redaction templates, and version;
+- `artifact_provenance_projections` — exact target/audience/profile, included/omitted/redacted evidence refs, omission reasons, projection checksum, expiry, and no-secret disclosure evidence.
+
+Derived policy is at least as restrictive as applicable source and destination policies unless an approved verified declassification transformation proves otherwise.
+
+#### Reproducibility
+
+- `artifact_reproducibility_manifests` — exact ordered sources, transformation definition, handler/build digest, provider/model/inference profile, prompt/template checksum, parameters, environment/tool dependencies, runtime manifest, seeds/recorded nondeterministic inputs, canonicalization rules, expected result class, and checksum;
+- `artifact_reproduction_runs` — source manifest, new run/workflow, exact inputs/dependencies, produced version, comparison method, bit/semantic/tolerance differences, classification, reviewer, status, and evidence.
+
+Reproduction results classify `bit_reproducible`, `semantically_reproducible`, `bounded_nondeterministic`, or `not_reproducible` and never overwrite the original build.
+
+#### Versioned knowledge builds and retrieval evidence
+
+- `knowledge_source_registry` — logical knowledge source identity, owner, source class, authority, default policy/trust/freshness requirements, lifecycle, and current-version pointer;
+- `knowledge_source_versions` — exact Artifact Version/source snapshot, observed/effective/freshness, ingestion evidence, policy/trust, lifecycle, and checksum;
+- `knowledge_chunk_versions` — exact Source Version and locator, chunking/normalization/redaction profile versions, canonical text/content checksum, sequence/overlap, sensitivity/audience/license, and lifecycle;
+- `knowledge_embedding_versions` — exact Chunk Version, preprocessing, provider/endpoint/model/version/inference profile, vector dimensions, distance semantics, embedding checksum/storage reference, policy, and lifecycle;
+- `knowledge_index_registry` — logical index identity, Tenant/Platform ownership, purpose/audience, index family, lifecycle, and current-version pointer;
+- `knowledge_index_versions` — immutable exact source membership/build/filter decisions, normalization/redaction/chunking/embedding profiles, retrieval/reranking policy versions, index checksum, classification/audience/license/residency, freshness, lifecycle, and invalidation state;
+- `knowledge_index_memberships` — exact Index Version to Source/Chunk/Embedding Version membership, inclusion/exclusion reason, priority, policy/trust decision, and checksum;
+- `knowledge_retrieval_evidence` — query/intent checksum, Tenant/principal/context/purpose, eligible/excluded indexes/sources, selected Index Versions, retrieved Chunk Versions/locators, scores/reranking, Claim/Citation set, manifest, trust/freshness decisions, epoch, expiry, and checksum.
+
+No mutable index alias or embedding model alias is used without exact captured version resolution.
+
+#### Correction, retraction, disposition, and invalidation
+
+- `artifact_correction_runs` — source version, proposed corrected version, claim/evidence changes, impact graph, approvals, publication decision, status, checksum, and readback;
+- `artifact_retraction_runs` — exact version/claim/index scope, reason/authority, effective time, affected descendants/manifests/caches/users, invalidation/notification plan, status, and evidence;
+- `artifact_disposition_runs` — DFR-003 governed delete, rebuild, invalidate, retract, anonymize, aggregate, archive, retain-under-hold, notify, or minimal-tombstone plan/apply evidence;
+- `artifact_dependency_invalidation_events` — source change/revocation/retraction/expiry and affected Artifact, Claim, Chunk, Embedding, Index, Retrieval, Manifest, Cache, Memory, Evaluation, Export, Provider Copy, Backup, and Promotion Candidate references;
+- `artifact_governance_epochs` — invalidation after type/schema, source identity, attestation, transparency root, provenance, claim/citation, trust/verification, policy, freshness, reproducibility, index/retrieval, correction/retraction, or disposition change.
+
+Correction creates a new immutable version. Retraction blocks new eligible use. Erasure/disposition propagates under DFR-003 and may retain only permitted minimal no-content tombstones.
+
+#### Compatibility and execution safety
+
+Existing specialized stores remain specialized compatibility sources. The target fabric links them through exact version/checksum and source evidence rather than copying all payloads into one unrestricted table.
+
+Registry data may select only allowlisted schemas, canonicalizers, verification methods, transformation handlers, signing providers, storage adapters, model profiles, retrieval/reranking policies, and policy operators. It cannot execute arbitrary SQL, JavaScript, shell, URLs, headers, model code, or credential values.
 
 ### Temporal, environment, region, and jurisdiction
 
