@@ -1145,6 +1145,25 @@ Expected: no-effect assertion fails; no persistent/external action occurs and pr
 - checkpoint verification, stale/current manifest, new replay identity, immutable source history, and duplicate-effect prevention tests;
 - queue service-class authority, Tenant/resource/provider concurrency, priority aging, starvation, admission, backpressure, and reserved recovery capacity tests;
 - model fallback before-output, visible stream, committed Tool/external Effect, remaining-work checkpoint, and candidate-specific reservation tests;
+- Artifact logical/version identity, canonical versus stored checksum, representation equivalence, immutable current-version pointer, and content-substitution tests;
+- source identity/trust domain/signer scope, algorithm/key reference, rotation, expiry, revocation, forged signature, and compromised-key containment tests;
+- transparency sequence/prior-hash/inclusion/range/root/witness, omission, split-view, fork, backdating, recovery, and audit tests;
+- provenance edge source/target/version authority, cycle, forged derivation, source availability, confidence, and bounded traversal tests;
+- Claim type/location/checksum, support/contradiction/qualification/context/supersession, reviewer independence, and material-evidence omission tests;
+- citation page/range/JSON Pointer/row/timestamp/image/chunk/commit locator, mutable-source drift, excerpt checksum, audience/license, and support-relevance tests;
+- trust-dimension floor, zero-tolerance, confidence/freshness, missing/conflicting evidence, score laundering, and cross-use policy tests;
+- conservative Policy Envelope inheritance, destination/use restriction, declassification/redaction/anonymization proof, purpose/license/audience/residency/retention/hold tests;
+- selective-disclosure public/Tenant/operator/auditor/legal/regulator projection, opaque reference, omission checksum, contradiction floor, and graph-shape leakage tests;
+- reproducibility exact source order, handler/build, model/profile, prompt/template, parameters, environment, seeds/nondeterminism, canonicalization, comparison, and classification tests;
+- Knowledge Source/Chunk/Embedding/Index exact-version, locator, membership, alias movement, poisoned source, model/profile substitution, build checksum, and immutable activation tests;
+- retrieval gate-before-rank, eligible/excluded candidate evidence, score/reranking manipulation, stale/retracted/private/unlicensed source, unsupported generated claim, and citation alignment tests;
+- correction new-version, corrects/supersedes, historical consumer impact, publication, notification, and rollback tests;
+- retraction emergency restriction, epoch/cache/index/manifest/queue/memory/evaluation/export/provider-copy/backup invalidation, partial propagation, and recovery tests;
+- DFR-003 disposition legal-hold/retention/subject-right, minimal no-content tombstone, per-object outcome, backup/provider-copy, and no-new-read-authority tests;
+- cross-Tenant Artifact/Version/Source/Claim/Citation/provenance/trust/index/retrieval/checksum/opaque-reference inference and mutation tests;
+- compatibility backfill unknown/incomplete evidence, no invented source/signature/license/trust/freshness, shadow parity, and family cutover tests;
+- registry schema/canonicalizer/verifier/handler/signing/storage/model/retrieval/policy allowlist and arbitrary code/SQL/shell/URL/header/key/secret rejection tests;
+- artifact eligibility/correction/retraction/disposition/index-build/reproduction/provenance-projection preview no-content-write, no-signing, no-transform, no-publication, no-index/embedding, no-provider/model-call, no-credential-read, no-invalidation, no-notification, and no-external-write assertions;
 - cancel/resume/replay/recovery/redrive preview no-Activity, no-provider/model/tool-call, no-credential-read, no-queue-publish, no-reservation, no-compensation, and no-external-write assertions.
 
 ## 8. Residual risks
