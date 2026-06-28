@@ -13,6 +13,7 @@ import {
 import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
 
 const TENANT_ACTIVATION_SESSION_QUERY_ALLOWLIST = new Set([
+  "chunk_ttl_minutes",
   "close_previous_sessions",
   "container_key",
   "conversation_ref",
