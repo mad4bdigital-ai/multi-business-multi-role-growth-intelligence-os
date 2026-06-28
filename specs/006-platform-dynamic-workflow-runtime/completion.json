@@ -5,7 +5,7 @@
   "status": "in_progress",
   "delivery_mode": "multi_pr",
   "current_increment": {
-    "phase": "Authority Scope foundation implementation",
+    "phase": "Authority Scope shadow integration",
     "design_version": "0.3.0",
     "pull_request": 1929,
     "branch": "gpt/006-platform-dynamic-workflow-runtime",
@@ -28,6 +28,16 @@
         "base_branch": "gpt/006-platform-dynamic-workflow-runtime",
         "enforcement_mode": "shadow_only",
         "migration_executed": false
+      },
+      {
+        "number": 1945,
+        "branch": "gpt/006-authority-scope-shadow-integration",
+        "role": "authority_scope_shadow_integration",
+        "status": "ci_passed_review_pending",
+        "verification_reference": "github_pr_ci_gate:1945",
+        "base_branch": "gpt/006-authority-scope-foundation",
+        "enforcement_mode": "shadow_only",
+        "migration_executed": false
       }
     ],
     "closeout_pr": {
@@ -47,8 +57,11 @@
     },
     "implementation": {
       "status": "in_progress",
-      "current_pr": 1941,
-      "slice": "authority_scope_foundation",
+      "current_pr": 1945,
+      "slices": [
+        "authority_scope_foundation",
+        "authority_scope_shadow_integration"
+      ],
       "ci_status": "pass",
       "mergeable_state": "clean",
       "scope": [
@@ -57,21 +70,26 @@
         "sql_repository",
         "additive_migration",
         "activation_surface_manifest",
+        "container_resolver_shadow_bridge",
+        "shadow_comparison_telemetry",
         "tests"
       ],
       "production_effect": "none"
     },
     "ci": {
       "status": "pass",
-      "pull_request": 1941,
-      "required_checks": 4,
-      "successful_checks": 4,
+      "pull_requests": [1941, 1945],
+      "required_checks_per_pr": 4,
+      "successful_checks_per_pr": 4,
       "failed_checks": 0,
-      "verification_reference": "github_pr_ci_gate:1941"
+      "verification_references": [
+        "github_pr_ci_gate:1941",
+        "github_pr_ci_gate:1945"
+      ]
     },
     "release_readiness": {
       "status": "pending",
-      "reason": "Design approval, implementation review, governed migration execution, shadow comparison, and production verification remain outstanding."
+      "reason": "Design approval, implementation reviews, governed migration execution, deployed shadow observation, and production verification remain outstanding."
     }
   },
   "secrets_included": false
