@@ -310,8 +310,13 @@ tenant/cohort
 + Workflow/Activity/Effect family and definition/contract versions where applicable
 + retry/cancellation/reconciliation/compensation/recovery policy versions where applicable
 + queue/service class/concurrency/fairness policy versions where applicable
++ Artifact/Source/Claim/Citation/Knowledge family and schema/type versions where applicable
++ canonicalization/representation and source-identity/attestation/transparency policy versions where applicable
++ trust/verification/freshness/Policy Envelope/selective-disclosure/reproducibility versions where applicable
++ Chunk/Embedding/Index/retrieval/reranking profile versions where applicable
++ correction/retraction/disposition/dependency-invalidation policy versions where applicable
 + composition profile/version
-+ resolver/model-selection/durable-runtime version
++ resolver/model-selection/durable-runtime/artifact-knowledge version
 ```
 
 Examples:
