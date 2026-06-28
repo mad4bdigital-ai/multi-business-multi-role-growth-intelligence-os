@@ -607,7 +607,7 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
   }
   if (!evidence) throw stableError("container_authority_epoch_changed", "Resolution could not stabilize on one authority epoch.");
 
-  const resolution = {
+  let resolution = {
     ...evidence,
     resolutionId:randomUUID(),
     requestId:input.requestId,
@@ -617,6 +617,15 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
     authorityScopeShadow
   };
   await persistResolution(resolution);
+  resolution = {
+    ...resolution,
+    authorityScopeShadow:await persistAuthorityScopeShadowEvidenceFailOpen({
+      persist:persistAuthorityScopeShadow,
+      input,
+      resolution,
+      shadow:authorityScopeShadow
+    })
+  };
   const policy = await readPolicy().catch(() => null);
   const durationMs = performance.now()-startedAt;
   await recordPerformance({
