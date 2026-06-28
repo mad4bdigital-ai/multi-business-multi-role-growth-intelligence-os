@@ -635,8 +635,9 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
     pathCount:resolution.containerPaths.length,candidateBindingCount:resolution.effectiveBindings.length,
     durationMs,withinBudget:!policy || durationMs<=Number(policy.p99_budget_ms || 400),metadata:{
       cacheHit,
-      authorityScopeShadowStatus:authorityScopeShadow?.status || "unresolved",
-      authorityScopeShadowComparison:authorityScopeShadow?.comparisonStatus || "unresolved"
+      authorityScopeShadowStatus:resolution.authorityScopeShadow?.status || "unresolved",
+      authorityScopeShadowComparison:resolution.authorityScopeShadow?.comparisonStatus || "unresolved",
+      authorityScopeShadowPersistence:resolution.authorityScopeShadow?.evidencePersistenceStatus || "failed"
     }
   }).catch(() => null);
   if (input.mode === "shadow") {
