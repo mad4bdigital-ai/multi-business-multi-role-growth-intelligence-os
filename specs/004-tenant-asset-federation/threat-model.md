@@ -962,6 +962,120 @@ Replay or recovery preview schedules an Activity, publishes an Outbox event, or 
 
 Expected: no-effect assertion fails; no execution, queue delivery, reservation, compensation, or external write occurs.
 
+### Filename-preserving content substitution
+
+Attacker replaces a stored file while preserving its URI, filename, and logical Artifact ID.
+
+Expected: canonical/stored checksum mismatch blocks use; current-version pointer and prior Version remain unchanged; integrity incident and dependency impact are recorded.
+
+### Valid signature on unsupported claim
+
+A trusted publisher signs a report containing a claim with no supporting evidence.
+
+Expected: authenticity passes but factual-support/claim gate remains unsupported and publication/use blocks where required.
+
+### Revoked signer replay
+
+Client submits an old attestation after the signing identity/key has been revoked.
+
+Expected: attestation validation returns revoked, Artifact epoch invalidates dependent manifests/indexes, and no new eligible use occurs.
+
+### Transparency split view
+
+Compromised operator serves one root to auditors and another to runtime while omitting a retraction entry.
+
+Expected: sequence/root/witness comparison detects fork or missing inclusion proof; critical use blocks and incident response starts.
+
+### Forged `derived_from` edge
+
+Tenant user links a private authoritative source from another Tenant to its own generated report to raise trust.
+
+Expected: source/target object authorization and Tenant-scope validation reject the edge without revealing source metadata.
+
+### Contradiction suppression
+
+Curator deletes or hides evidence contradicting a high-impact claim and republishes only a composite trust score.
+
+Expected: append-only relation history and required contradiction disclosure prevent publication; audit identifies omitted material evidence.
+
+### Citation-to-latest drift
+
+Published answer cites a mutable URL whose contents change after verification.
+
+Expected: immutable source capture is required for high-risk support; old citation remains bound to captured checksum and new content requires a new Source Version.
+
+### Trust-score hard-gate bypass
+
+Artifact scores highly on freshness and human review but fails license compatibility.
+
+Expected: `ARTIFACT_LICENSE_INCOMPATIBLE`; score is not computed as an override and export/publication remains blocked.
+
+### Summary policy laundering
+
+Restricted customer data is summarized and marked public because obvious identifiers were removed.
+
+Expected: derived Policy Envelope remains at least as restrictive; public use requires registered declassification/anonymization evidence and approval.
+
+### Provenance projection leak
+
+Public projection exposes a private reviewer name, hidden source URL, or graph edge count that identifies a Tenant source.
+
+Expected: selective-disclosure validation blocks or redacts the field, records omission reason/checksum, and returns no graph-shape side channel.
+
+### Reproducibility manifest substitution
+
+Operator reruns with a newer model or changed prompt but claims equivalence to the original build.
+
+Expected: exact model/prompt/environment mismatch creates a distinct reproduction run and cannot be classified bit-reproducible.
+
+### Poisoned index membership
+
+Compromised builder injects an unauthorized chunk after source eligibility freeze.
+
+Expected: membership/build checksum and policy/trust validation fail; Index Version does not activate and active prior version remains unchanged.
+
+### Rank-before-policy retrieval
+
+Highly similar retracted chunk ranks first in vector search.
+
+Expected: retraction/epoch eligibility excludes it before ranking; retrieval evidence records the exclusion and no answer cites it.
+
+### Irrelevant citation laundering
+
+Generated answer attaches a real citation that does not support the stated claim.
+
+Expected: claim-citation support validation fails; claim remains unsupported or output blocks according to risk/publication policy.
+
+### Retraction race with queued generation
+
+Source is retracted after a Workflow is queued but before answer publication.
+
+Expected: pre-publication epoch revalidation blocks the queued output and records dependency invalidation/recovery evidence.
+
+### Overbroad erasure tombstone
+
+Disposition writes original text, personal identifiers, or source URL into the retained tombstone.
+
+Expected: minimal-tombstone schema validation rejects the write; erased content is not retained through metadata.
+
+### Cross-Tenant checksum probe
+
+Caller probes whether a known checksum, citation, or source exists in another Tenant.
+
+Expected: scoped not-found/denial and non-enumerable/rate-limited behavior reveal neither existence nor relationship.
+
+### Backfill invents provenance
+
+Migration maps old `output_artifacts` rows to a trusted publisher and license despite absent evidence.
+
+Expected: rows remain `provenance_incomplete`/unknown; no signature, license, verification, trust, or publication evidence is synthesized.
+
+### Preview with hidden index build
+
+Index-build or correction preview generates embeddings, signs a Version, invalidates a cache, or notifies users.
+
+Expected: no-effect assertion fails; no persistent/external action occurs and preview evidence is discarded or marked failed.
+
 ## 7. Security test classes
 
 - tenant crossover for every resource and route;
