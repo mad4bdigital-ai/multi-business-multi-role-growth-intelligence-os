@@ -234,6 +234,37 @@
 | Workflow history projection or snapshot is lost | Current state is rebuilt from immutable ordered history with matching checksum |
 | Required Workflow/Activity/Effect policy evidence is stale or ambiguous | Dispatch fails closed with a stable structured error |
 
+| Existing Artifact content is changed | A new immutable Artifact Version is created; prior version/checksum/history remain unchanged |
+| Two stored representations encode the same canonical content | They may link to one Artifact Version only when canonicalization proves semantic equivalence and each stored checksum remains distinct |
+| Client supplies only a mutable URL, Drive file ID, or latest alias as high-risk evidence | Eligibility blocks until an exact captured version and checksum are available |
+| Artifact checksum is valid but source identity attestation is missing | Integrity may pass while authenticity remains failed/unknown; mandatory authenticity use blocks |
+| Source signature is valid but the claim is unsupported | Authenticity remains valid while factual-support gate fails; signature cannot promote the claim |
+| Required transparency entry/root proof is missing or invalid | Critical Artifact use/publication blocks with `ARTIFACT_TRANSPARENCY_PROOF_INVALID` |
+| Provenance graph attempts a prohibited derivation cycle | Publication/build blocks with `ARTIFACT_PROVENANCE_CYCLE`; no partial graph becomes authoritative |
+| One Artifact contains supported and contradicted claims | Claim states remain independently visible; Artifact-wide score cannot hide contradiction |
+| Citation targets a floating page without immutable capture | Citation is classified unresolved/non-versioned and cannot satisfy high-risk support requirements |
+| Citation locator no longer matches captured Source Version | Validation blocks with `CITATION_LOCATOR_INVALID`; source content is not silently reinterpreted |
+| Trust composite score is high but a mandatory license or policy dimension fails | Artifact remains ineligible; ranking cannot override the hard gate |
+| Financial/legal/publication use has insufficient freshness or review | Risk-specific trust policy blocks even if the same version remains eligible for bounded historical/internal use |
+| Reproduction with exact manifest yields identical output | Run is classified bit-reproducible and links to the original without rewriting it |
+| Reproduction differs within registered semantic tolerance | Run is classified semantically reproducible or bounded nondeterministic with difference evidence |
+| Derived summary omits visible sensitive fields | It does not become public automatically; inherited Policy Envelope remains restrictive until verified declassification |
+| User can read an Artifact but license forbids redistribution | Read remains object-authorized; export/publication/derivative use blocks separately |
+| Public provenance projection is requested for private source evidence | Projection returns allowed opaque proof/checksum/status and explicit omissions without leaking content or fabricating lineage |
+| Knowledge chunk is built | It binds exact Source Version, locator, chunking/normalization/redaction profile versions, policy, and checksum |
+| Embedding model alias moved since index build | Existing Embedding/Index Version retains captured exact model/profile; new build requires new version/evaluation |
+| Source is retracted after index publication | Affected chunks/embeddings/indexes/retrieval sets/manifests/caches invalidate and cannot serve new eligible use |
+| Retrieval ranks a highly relevant but audience-ineligible source first | Source is excluded before ranking; retrieval evidence records the stable exclusion reason |
+| Generated answer states a factual claim without supporting citation | Claim is marked unsupported/assumption/opinion/prediction or the output blocks according to risk policy |
+| Correction is applied to a published Artifact | New Version is created with `corrects` relation; historical outputs preserve old version and receive impact/review state |
+| Retraction is requested | Preview identifies descendants and actions; apply blocks new eligible use without erasing permitted audit history |
+| Erasure applies while Legal Hold covers one descendant | Eligible content is deleted/rebuilt elsewhere while held scope remains retained-under-hold with no new read authority |
+| Backfill lacks reliable source or license evidence | Record is marked provenance/license incomplete; evidence is never invented or silently promoted |
+| Registry row attempts arbitrary transformation code, URL, header, or secret | Validation rejects publication; only allowlisted handlers/providers/operators may be selected |
+| Eligibility preview is requested | It returns integrity/authenticity/provenance/trust/policy/freshness/license/retraction evidence without signing, writing, indexing, model call, credential read, invalidation, notification, or external effect |
+| Cross-Tenant caller requests Artifact provenance | Object authorization returns scoped not-found/denial and leaks neither source identity nor graph shape |
+| Artifact governance epoch changes before consequential use | Manifest revalidation blocks stale use with `ARTIFACT_GOVERNANCE_EPOCH_CHANGED` |
+
 ## Success thresholds before enforcement
 
 - zero cross-tenant leakage in tests and shadow evidence;
