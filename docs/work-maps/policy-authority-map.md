@@ -162,6 +162,7 @@ flowchart TD
 | `agent_governance_runtime_policy_v1` | 1 |
 | `budget_quota_authority_registry_policy_v1` | 2 |
 | `canonical_agent_runtime_policy_v1` | 1 |
+| `capability_resolution_dry_run_descriptor_policy_v1` | 1 |
 | `capability_resolution_envelope_approval_tool_policy_v1` | 1 |
 | `capability_resolution_envelope_ledger_policy_v1` | 1 |
 | `database_lifecycle_report_snapshot_schedule_policy_v1` | 3 |
