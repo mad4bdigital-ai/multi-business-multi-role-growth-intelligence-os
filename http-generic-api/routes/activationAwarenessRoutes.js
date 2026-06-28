@@ -179,6 +179,16 @@ async function buildAwarenessResponse(req, isAdmin) {
   };
 }
 
+export async function chunkActivationAwarenessResponse(body, req, sourceToolKey, deps = {}) {
+  return maybeChunkToolResponseBody(body, {
+    response_options: {
+      max_response_chars: req?.query?.max_response_chars,
+      chunk_ttl_minutes: req?.query?.chunk_ttl_minutes,
+    },
+    source_tool_key: sourceToolKey,
+  }, deps);
+}
+
 async function detailResponse(req, isAdmin) {
   const containerKey = queryText(req.query.container_key, 240);
   const tabKey = queryText(req.query.tab_key, 180);
