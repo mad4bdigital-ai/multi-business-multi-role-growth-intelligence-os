@@ -1486,7 +1486,9 @@ export function shouldChunkDispatchedToolResponse(toolKey = "") {
 }
 
 export async function maybeChunkToolResponseBody(body, optionsSource = {}, deps = {}) {
-  const options = normalizeResponseOptions(optionsSource?.response_options || optionsSource?._response || {});
+  const options = normalizeResponseOptions(
+    optionsSource?.response_options || optionsSource?._response || optionsSource || {}
+  );
   const serialized = JSON.stringify(body ?? {});
   if (serialized.length <= options.maxChars) return body;
   const { chunkId } = await storeToolResponseForChunks(body, optionsSource, deps);
