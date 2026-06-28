@@ -48,6 +48,14 @@ runtime_activity_id / attempt_id when applicable
 runtime_effect_id when applicable
 runtime_checkpoint_id / recovery_case_id when applicable
 runtime_outbox_event_id / inbox_event_id when applicable
+artifact_id / artifact_version_id when applicable
+artifact_claim_id / citation_id when applicable
+artifact_attestation_id / transparency_root_id when applicable
+artifact_trust_assessment_id / policy_envelope_id when applicable
+artifact_reproducibility_manifest_id / reproduction_run_id when applicable
+knowledge_source_version_id / chunk_version_id / embedding_version_id when applicable
+knowledge_index_version_id / retrieval_evidence_id when applicable
+artifact_correction_run_id / retraction_run_id / disposition_run_id when applicable
 execution_id
 approval_hold_id when applicable
 adaptive_proposal_id / experiment_id when applicable
