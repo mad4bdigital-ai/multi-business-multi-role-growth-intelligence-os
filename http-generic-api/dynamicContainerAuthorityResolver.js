@@ -440,6 +440,30 @@ function compareShadowDecision(legacyDecision, containerDecision) {
     : { status:"mismatch", mismatchCodes:[`legacy_${normalizedLegacy}_container_${normalizedContainer}`] };
 }
 
+async function persistAuthorityScopeShadowEvidenceFailOpen({ persist, input, resolution, shadow }) {
+  try {
+    const persisted = await persist({
+      tenantId:input.tenantId,
+      requestId:input.requestId,
+      resolutionId:resolution.resolutionId,
+      principal:input.principal,
+      targetContainerId:input.targetContainerId,
+      authorityScopeShadow:shadow
+    });
+    return Object.freeze({
+      ...shadow,
+      evidencePersistenceStatus:String(persisted?.status || "persisted"),
+      evidenceId:persisted?.evidenceId || null
+    });
+  } catch (error) {
+    return Object.freeze({
+      ...shadow,
+      evidencePersistenceStatus:"failed",
+      evidencePersistenceErrorCode:String(error?.code || "SHADOW_EVIDENCE_WRITE_FAILED")
+    });
+  }
+}
+
 function cacheGet(key, epoch, nowMs) {
   const item = resolutionCache.get(key);
   if (!item || item.authorityEpoch !== epoch || item.expiresAtMs <= nowMs) {
