@@ -1481,6 +1481,10 @@ async function storeToolResponseForChunks(body, optionsSource = {}, deps = {}) {
   return { chunkId, serialized, ttlMs, expiresAt: new Date(durable.expires_at).getTime() };
 }
 
+export function shouldChunkDispatchedToolResponse(toolKey = "") {
+  return String(toolKey || "").trim() !== "response_chunk_read";
+}
+
 export async function maybeChunkToolResponseBody(body, optionsSource = {}, deps = {}) {
   const options = normalizeResponseOptions(optionsSource?.response_options || optionsSource?._response || {});
   const serialized = JSON.stringify(body ?? {});
