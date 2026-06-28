@@ -440,6 +440,46 @@ Initial design targets, subject to benchmark and fault-injection validation:
 - model fallback repeating committed visible output, Tool call, or external Effect: 0;
 - cancel/resume/replay/recovery/redrive preview external or persistent side effects: 0.
 
+### Verifiable Artifact and Knowledge SLO
+
+Initial design targets, subject to benchmark and fault-injection validation:
+
+- Artifact/version read availability: 99.95% monthly for certified families;
+- immutable Artifact Version in-place mutation: 0;
+- canonical/stored checksum coverage for consequential Versions: 100%;
+- checksum mismatch accepted as eligible: 0;
+- exact source/version/provenance reconstruction coverage for consequential use: 100%;
+- required source identity/attestation/transparency proof coverage for critical families: 100%;
+- invalid, expired, revoked, forked, or missing required proof accepted: 0;
+- prohibited provenance cycle accepted: 0;
+- consequential factual claims with policy-required exact citations/support evidence: 100%;
+- mandatory trust-dimension evidence coverage for eligible objects: 100%;
+- composite score override of a failed mandatory trust/policy/license/audience/freshness/retraction gate: 0;
+- derived Policy Envelope less restrictive without approved verified declassification: 0;
+- selective-disclosure projection reconstruction from source evidence/profile/checksum: 100%;
+- unauthorized evidence/content/identity/graph-shape disclosure: 0;
+- certified reproducibility manifests with exact source/handler/model/prompt/parameter/environment evidence: 100%;
+- active Knowledge Index Versions with exact source/chunk/embedding/model/profile membership checksums: 100%;
+- retracted/stale/private/unlicensed source entering retrieval after eligibility gates: 0;
+- generated high-risk factual claims lacking required support/citation state: 0;
+- p95 indexed Artifact/Version/provenance summary read latency: ≤ 400 ms;
+- p95 bounded trust/eligibility preview latency with current cached evidence: ≤ 500 ms;
+- p99 bounded trust/eligibility preview latency: ≤ 1.5 seconds.
+
+### Correction, retraction, and disposition propagation SLO
+
+- correction creates a new immutable Version and exact `corrects`/`supersedes` relation: 100%;
+- emergency retraction/attestation revocation blocks new manifest/index/retrieval/publication decisions immediately after authority readback;
+- affected cache/manifest/queued pre-publication invalidation target: ≤ 30 seconds;
+- affected active Index Version restriction/invalidation target: ≤ 60 seconds for critical families;
+- dependency-impact discovery coverage for registered descendant families: 100%;
+- propagation task creation for every affected descendant: 100%;
+- unresolved critical descendants without assigned recovery owner/SLA: 0;
+- minimal tombstones retaining erased content/personal payload: 0;
+- legal-hold protected object deletion: 0;
+- disposition completion with per-object outcome/readback evidence: 100%;
+- correction/retraction/disposition/index-build/reproduction/provenance-projection preview external or persistent side effects: 0.
+
 ### Mutation SLO
 
 For profile, preference, variant, and connection-binding mutations:
