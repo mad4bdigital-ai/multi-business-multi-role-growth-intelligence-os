@@ -196,6 +196,27 @@
 - [ ] Cross-Tenant idempotency collision, queue claim, signal spoof, checkpoint reuse, replay, compensation, recovery-case disclosure, and dead-letter redrive tests implemented.
 - [ ] Managed-service and shared-provider isolation tests implemented across Workflow history, Effects, reservations, model fallback, and manual recovery.
 
+## Verifiable Artifact, Knowledge, and Provenance isolation
+
+- [x] Every Artifact, Version, Content Object, Representation, Source, Attestation, Claim, Citation, Trust Assessment, Policy Envelope, Knowledge Build, Retrieval Evidence, Correction, Retraction, and Disposition record carries exact Tenant ownership or explicit Platform scope.
+- [x] Shared logical definitions contain no Tenant-private payloads, signing secrets, restricted source evidence, private citations, or customer-specific policy terms.
+- [x] Artifact/version identity, checksums, cache keys, index memberships, retrieval evidence, and governance epochs include Tenant/scope where required and cannot collide across Tenants.
+- [x] One Tenant cannot attach, cite, index, embed, retrieve, correct, retract, disposition, export, or publish another Tenant's Artifact Version without an explicit authorized cross-boundary contract and eligible data/license policy.
+- [x] Provenance graph traversal applies object authorization at every node/edge and returns scoped not-found or selectively disclosed evidence rather than graph-shape leakage.
+- [x] Claims and citations expose only eligible source content/locators; opaque evidence references do not become a side channel to private identities or URLs.
+- [x] Public/Tenant/operator/auditor/legal/regulator provenance projections are independently authorized and checksummed.
+- [x] Trust scores, confidence, verification, and source classes cannot reveal another Tenant's raw evidence, usage, model prompts, contractual terms, or reviewer identity.
+- [x] Knowledge chunks, embeddings, indexes, and retrieval candidates retain exact Tenant/purpose/audience/license/residency policy and cannot mix unauthorized source memberships.
+- [x] Cross-Tenant aggregate knowledge requires DFR-003 approved purpose/cohort/privacy controls and never exposes raw Tenant content or Tenant-specific examples.
+- [x] Correction/retraction/invalidation propagates only through authorized dependency edges while still blocking affected hidden descendants from use.
+- [x] Erasure removes eligible content from primary and derived surfaces while minimal tombstones retain no erased payload and remain access-controlled.
+- [x] Legal Hold prevents scoped disposition but grants no provenance/content/index/retrieval read authority.
+- [x] Source/signing identities and transparency witnesses may be shared only through approved disclosure profiles; raw key material is never Tenant-visible.
+- [x] Compatibility projections from output/JSON/Drive/graph/memory stores preserve original Tenant/scope and do not promote unknown ownership to Platform-global.
+- [x] Provider/model/index/storage adapters receive only manifest-authorized Artifact Versions and no credentials or unrelated Tenant evidence.
+- [ ] Cross-Tenant provenance traversal, citation inference, checksum collision, scope-link misuse, index-membership poisoning, retrieval leakage, correction/retraction, erasure tombstone, and export tests implemented.
+- [ ] Shared source, managed-service, auditor, legal, regulator, and cross-Tenant aggregate disclosure tests implemented across all projections.
+
 ## Artifact and recovery isolation
 
 - [x] Provenance exposes safe source IDs/evidence without another tenant's private content.
