@@ -20,6 +20,7 @@ import {
   storeIdempotentResult
 } from "./dynamicContainerAuthorityRepository.js";
 import { resolveAuthorityScopeShadowContext } from "./authorityScopeShadowBridge.js";
+import { persistAuthorityScopeShadowEvidence } from "./authorityScopeShadowEvidence.js";
 
 export const CONTAINER_AUTHORITY_RESOLVER_VERSION = "dynamic-container-authority-v1";
 const resolutionCache = new Map();
