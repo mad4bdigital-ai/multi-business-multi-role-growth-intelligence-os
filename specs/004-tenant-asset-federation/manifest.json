@@ -41,13 +41,8 @@
   "reconciliation_merge_sha": "69bec7a5eb8896cfd7bd93a5302caf74a040f061",
   "branch_state_after_reconciliation": "ahead_only",
   "branch_behind_by": 0,
-  "ci_gate_status": "pass",
-  "required_checks_passed": [
-    "Syntax Check",
-    "Architecture Drift Detection",
-    "Execution Resolver Gate",
-    "Unit & Integration Tests"
-  ],
+  "ci_gate_status": "pending_after_dfr_007_design_update",
+  "required_checks_passed": [],
   "automatic_tenant_asset_copies": false,
   "scope_layers": [
     "platform_mandatory",
