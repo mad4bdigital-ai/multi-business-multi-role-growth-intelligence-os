@@ -289,8 +289,10 @@ Comparisons classify:
 Rules:
 
 - more permissive is blocking until reviewed;
+- Artifact/Knowledge target-more-permissive, invented-evidence, wrong-version/checksum, cross-Tenant scope, lost-lineage, hidden-contradiction, retraction/hold mismatch, unauthorized disclosure, and critical mismatches are blocking with zero tolerance;
+- incomplete/missing provenance and not-comparable rows remain explicit debt and cannot be counted as successful parity;
+- a target-more-restrictive result may be acceptable only with product, data, legal/license, and governance review appropriate to the family;
 - critical mismatch tolerance is zero;
-- more restrictive may be acceptable only with product/governance review;
 - not-comparable rows contribute to migration debt, not success rate.
 
 ## 8. Cutover unit
