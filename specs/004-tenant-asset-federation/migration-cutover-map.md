@@ -375,20 +375,24 @@ Examples:
 
 ## 10. Rollback hierarchy
 
-1. Stop adaptive experiments and disable new canary admissions for the affected operation/effect family.
-2. Stop new durable Workflow creation or Activity dispatch for the affected family while preserving active history and recovery access.
-3. Restrict or revoke an unsafe Workflow definition, Activity handler build, Effect Contract, provider endpoint, or model version and advance the applicable governance epoch.
-4. Quarantine uncertain/duplicate-risk Effects, pause automatic retries/compensation/redrives, and route active work to bounded reconciliation or recovery.
-5. Disable contextual model selection for the affected task/risk/data/region family and stop new selection decisions where implicated.
-6. Disable new profile/variant publication if implicated.
-7. Disable contextual/durable consumers for the affected family/cohort and preserve transactional Outbox/Inbox/history evidence.
-8. Return to the prior job/plan/run/provider-order/free-first or legacy authority only where it is separately certified safe for the exact family and known committed Effects; otherwise block.
-9. Invalidate affected model selections, manifests, checkpoints, caches, queued pre-dispatch work, timers/signals, and reservations where required without deleting source history.
-10. Revoke or expire canary approvals and release only proven-unused commercial/resource reservations.
-11. Preserve Workflow history, Activity attempts, Effect dispatch/verification/reconciliation/compensation, recovery, transport, model, and outcome evidence and compare before/after.
-12. Rebuild projections/snapshots from history and verify zero lost or duplicated logical Effects.
-13. Keep recovery/system-critical capacity available for reconciliation, compensation, customer-visible status, and operator actions.
-14. Apply code/schema rollback only if consumer disablement, handler/definition restriction, and authority rollback are insufficient.
+1. Stop adaptive experiments and disable new canary admissions for the affected operation/effect or Artifact/Knowledge family.
+2. Stop new Artifact/Knowledge publication, Index activation, correction, retraction, disposition, or retrieval use for the affected family while preserving read-only history and recovery access.
+3. Restrict the affected Source Identity, signer/key reference, attestation type, Artifact/Schema Version, provenance/claim/citation policy, trust policy, Policy Envelope operator, transformation handler, Knowledge build profile, Index Version, or retrieval policy and advance the Artifact governance epoch.
+4. Immediately block new use of retracted, revoked, checksum-mismatched, transparency-forked, policy-laundered, poisoned, or disclosure-unsafe Versions and quarantine uncertain descendants.
+5. Pause automatic rebuild, re-embedding, correction propagation, notification, provider-copy deletion, or erasure actions when their scope/effect is uncertain and route them to DFR-006 recovery.
+6. Stop new durable Workflow creation or Activity dispatch for the affected family while preserving active history and recovery access.
+7. Restrict or revoke an unsafe Workflow definition, Activity handler build, Effect Contract, provider endpoint, or model version and advance the applicable governance epoch.
+8. Quarantine uncertain/duplicate-risk Effects, pause automatic retries/compensation/redrives, and route active work to bounded reconciliation or recovery.
+9. Disable contextual model selection for the affected task/risk/data/region family and stop new selection decisions where implicated.
+10. Disable new profile/variant publication if implicated.
+11. Disable contextual/durable/Artifact/Knowledge consumers for the affected family/cohort and preserve transactional Outbox/Inbox/history/transparency/provenance evidence.
+12. Return to the prior certified output/JSON/Drive/graph/memory/knowledge or job/plan/run/provider-order/free-first authority only where it is separately safe for the exact family and does not re-enable a revoked/retracted/ineligible source or lose a committed Effect; otherwise block.
+13. Invalidate affected Artifact/Knowledge retrievals, Index Versions, model selections, manifests, checkpoints, caches, queued pre-dispatch/pre-publication work, timers/signals, and reservations where required without deleting source history.
+14. Revoke or expire canary approvals and release only proven-unused commercial/resource reservations.
+15. Preserve Artifact Versions, content checksums, attestations/transparency, provenance, Claims/Citations, trust/policy/reproducibility, Knowledge builds/retrievals, correction/retraction/disposition, Workflow/Effect, model, and outcome evidence and compare before/after.
+16. Rebuild projections, snapshots, indexes, and selective-disclosure views only from immutable authorized evidence and verify zero lost lineage, hidden contradiction, re-enabled retraction, or duplicate logical Effect.
+17. Keep recovery/system-critical capacity available for reconciliation, compensation, retraction propagation, index/cache invalidation, customer-visible status, notification, and operator actions.
+18. Apply code/schema rollback only if consumer disablement, handler/profile restriction, and authority rollback are insufficient.
 
 Data is generally retained for audit; rollback does not delete tenant preferences or variants unless they are unsafe and separately handled.
 
