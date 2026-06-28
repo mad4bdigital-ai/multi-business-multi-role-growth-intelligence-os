@@ -77,6 +77,41 @@ export const SQL_TOOL_CACHE_TTL_SECONDS =
   positiveNumberEnv("SQL_TOOL_CACHE_TTL_SECONDS", 30, { min: 0 });
 export const SQL_CONNECTOR_CACHE_TTL_SECONDS =
   positiveNumberEnv("SQL_CONNECTOR_CACHE_TTL_SECONDS", 30, { min: 0 });
+export const SQL_CACHE_KEY_VERSION =
+  String(process.env.SQL_CACHE_KEY_VERSION || "v2")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "_") || "v2";
+export const SQL_CACHE_MAX_VALUE_BYTES =
+  positiveNumberEnv("SQL_CACHE_MAX_VALUE_BYTES", 1_048_576, {
+    min: 1_024,
+    max: 8_388_608,
+  });
+export const SQL_CACHE_OVERSIZE_COOLDOWN_SECONDS =
+  positiveNumberEnv("SQL_CACHE_OVERSIZE_COOLDOWN_SECONDS", 300, {
+    min: 0,
+    max: 86_400,
+  });
+export const SQL_CACHE_CIRCUIT_BREAKER_SECONDS =
+  positiveNumberEnv("SQL_CACHE_CIRCUIT_BREAKER_SECONDS", 15, {
+    min: 0,
+    max: 3_600,
+  });
+export const SQL_CACHE_SINGLE_FLIGHT_ENABLED =
+  String(process.env.SQL_CACHE_SINGLE_FLIGHT_ENABLED || "TRUE")
+    .trim()
+    .toUpperCase() !== "FALSE";
+export const SQL_CACHE_RUNTIME_STATE_MAX_ENTRIES =
+  positiveNumberEnv("SQL_CACHE_RUNTIME_STATE_MAX_ENTRIES", 1_000, {
+    min: 10,
+    max: 10_000,
+  });
+export const SQL_CACHE_TABLE_ALLOWLIST =
+  String(process.env.SQL_CACHE_TABLE_ALLOWLIST || "").trim();
+export const SQL_CACHE_TABLE_BLOCKLIST =
+  String(process.env.SQL_CACHE_TABLE_BLOCKLIST || "").trim();
+export const SQL_CACHE_TABLE_POLICIES_JSON =
+  String(process.env.SQL_CACHE_TABLE_POLICIES_JSON || "{}").trim();
 
 export const EXECUTION_LOG_UNIFIED_SPREADSHEET_ID = ACTIVITY_SPREADSHEET_ID;
 export const JSON_ASSET_REGISTRY_SPREADSHEET_ID = REGISTRY_SPREADSHEET_ID;
