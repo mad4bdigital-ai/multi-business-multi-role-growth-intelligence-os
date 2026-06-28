@@ -829,6 +829,9 @@ Dashboards distinguish zero, unknown, unavailable, stale, and not applicable.
 - authority decisions and consequential executions are not sampled out;
 - high-volume field-level traces may be sampled only after the immutable manifest preserves the decision;
 - security and approval evidence follow required retention;
+- consequential Artifact Version creation, checksum verification, source/attestation/transparency validation, provenance/claim/citation, trust/policy/publication, reproducibility, Knowledge build/retrieval, correction/retraction/disposition, and governance-epoch evidence is never sampled out;
+- selective-disclosure telemetry records IDs, reason codes, and checksums rather than hidden evidence content;
+- raw content, claims, citations, query text, embeddings, and reviewer identity are not added to metrics/logs unless an approved purpose, retention, and disclosure policy explicitly requires them;
 - user preference history follows privacy/retention policy;
 - adaptive raw events may be aggregated and minimized after attribution windows;
 - no retention policy deletes evidence required to reconstruct an active approval, variant, or experiment.
