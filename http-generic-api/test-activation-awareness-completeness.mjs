@@ -281,7 +281,10 @@ function testIdempotencyAndInputNormalization() {
 function testRepositoryContracts() {
   const index = read("./routes/index.js");
   const hardRoutes = read("./routes/activationHardRunRoutes.js");
+  const activationRoutes = read("./routes/activationRoutes.js");
   const awarenessRoutes = read("./routes/activationAwarenessRoutes.js");
+  const tenantOverlayRoutes = read("./routes/tenantActivationOverlayRoutes.js");
+  const gptToolsRoutes = read("./routes/gptToolsRoutes.js");
   const dynamicTabs = read("./activationDynamicTabsEvidence.js");
   const awarenessService = read("./activationAwarenessService.js");
   const migration = read("./migrations/310_sprint69_activation_awareness_completeness_control_plane.sql");
