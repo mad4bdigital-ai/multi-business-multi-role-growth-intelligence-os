@@ -328,7 +328,13 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
 
   router.get("/tenant/activation/awareness", requireTenantUserJwt, async (req, res) => {
     try {
-      return res.status(200).json(await buildAwarenessResponse(req, false));
+      const responseBody = await buildAwarenessResponse(req, false);
+      const transportBody = await chunkActivationAwarenessResponse(
+        responseBody,
+        req,
+        "tenant_activation_awareness_read_api"
+      );
+      return res.status(200).json(transportBody);
     } catch (err) {
       return errorResponse(res, err, "tenant_activation_awareness_read_failed");
     }
