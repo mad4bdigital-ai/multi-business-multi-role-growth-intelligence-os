@@ -746,6 +746,17 @@ Span attributes use IDs, counts, versions, reason codes, and timing—not raw co
 - blind retry after transmission-start uncertainty;
 - cross-Tenant Workflow, signal, checkpoint, recovery, replay, queue claim, or transport redrive success;
 - registry-loaded arbitrary handler code, URL, header, SQL, shell, model code, or secret;
+- immutable Artifact/Knowledge Version mutated in place or checksum substitution accepted;
+- required attestation/transparency proof invalid, revoked, forked, omitted, or expired but Artifact remained eligible;
+- signature validity treated as factual support or publication approval;
+- prohibited provenance cycle, forged cross-Tenant derivation, or hidden material contradiction accepted;
+- composite trust score overrode mandatory authenticity, factual-support, license, policy, audience, freshness, review, or retraction failure;
+- derived Policy Envelope weakened without approved verified declassification;
+- selective-disclosure projection exposed unauthorized content, identity, reviewer, contract, or graph shape;
+- retracted/private/unlicensed/stale source entered consequential retrieval or citation after eligibility gating;
+- critical retraction/attestation revocation failed to block new use within SLO;
+- legal-hold protected object deleted or minimal tombstone retained erased payload;
+- artifact preview caused content write, signing, transformation, publication, correction, retraction, deletion, indexing/embedding, provider/model call, credential read, invalidation, notification, or external write;
 - runtime preview caused Activity execution, queue publication, reservation, compensation, replay, credential read, or external write.
 
 ### High
