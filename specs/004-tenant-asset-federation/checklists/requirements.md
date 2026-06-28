@@ -230,6 +230,31 @@
 - [ ] History/idempotency/evidence/dead-letter retention and snapshot/checkpoint cadence approved.
 - [ ] Implementation and migration scope authorized.
 
+## Policy-Bound Verifiable Artifact and Knowledge Fabric
+
+- [x] Stable logical Artifact identities and immutable content-addressed versions are defined.
+- [x] Canonical-content and stored-representation checksums remain separate.
+- [x] Source identity, integrity, authenticity, provenance, factual support, freshness, license, policy, reproducibility, and publication remain independent dimensions.
+- [x] Cryptographic attestations and tamper-evident transparency records are defined without requiring a public blockchain.
+- [x] Claims, support, contradiction, qualification, supersession, context, evidence, and citations are addressable and versioned.
+- [x] Consequential citations target exact immutable Source Versions and locators.
+- [x] Trust policies are multi-dimensional and gate-first; composite score cannot override mandatory failure.
+- [x] Reproducibility manifests bind exact source, handler/model, prompt/template, parameter, environment, and runtime versions.
+- [x] Policy Envelopes inherit the most restrictive source/destination constraints unless verified declassification exists.
+- [x] Selective-disclosure provenance preserves material lineage and contradiction without leaking restricted evidence.
+- [x] Knowledge Sources, Chunks, Embeddings, Indexes, memberships, and Retrieval Evidence use exact immutable versions.
+- [x] Correction creates a new version; retraction blocks new eligible use; erasure/disposition propagates under DFR-003.
+- [x] Effective Runtime Manifest and pre-use revalidation bind exact evidence and Artifact governance epoch.
+- [x] Current output/JSON/Drive/graph/memory/knowledge stores remain compatibility sources until certified cutover.
+- [x] Preview APIs perform no content write, signing, publication, correction, retraction, deletion, indexing, model/provider call, credential read, invalidation, notification, or external write.
+- [ ] Initial Artifact/Schema/Claim/Relation/Attestation/Trust/Knowledge registry seeds approved.
+- [ ] Signing trust domains, algorithms, rotation/revocation, transparency cadence, and witnesses approved.
+- [ ] Canonicalization and semantic-equivalence profiles approved by media/artifact family.
+- [ ] Trust thresholds, citation rules, policy inheritance, declassification, and selective disclosure approved by risk/use.
+- [ ] Reproducibility and Knowledge chunking/embedding/index/retrieval profiles approved.
+- [ ] Correction/retraction/disposition propagation, notification, and rollback rules approved.
+- [ ] Implementation, migrations, indexing/backfill, publication, and production enforcement separately authorized.
+
 ## Review status
 
 - [ ] Product terminology approved.
