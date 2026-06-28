@@ -1342,6 +1342,59 @@ Outbox claim uses lease/fencing and immutable event identity. Consumer processin
 
 Redrive validates the exact transport artifact, schema/consumer compatibility, current authority, prior attempts, no business-Effect duplication, and preview checksum before creating a new delivery attempt. It cannot invoke a Workflow replay or external Effect directly.
 
+### Artifact identity and Version creation
+
+One transaction must:
+
+1. validate Artifact type/schema, owner/Tenant, source identity, exact canonicalization profile, policy envelope, classification, and manifest;
+2. canonicalize through an allowlisted handler and compute canonical/stored checksums;
+3. compare-and-create or resolve the stable logical Artifact identity and immutable Version identity;
+4. create content-object/representation references without exposing credentials;
+5. append source/ingestion/transformation provenance and required attestations/transparency entry;
+6. create initial lifecycle/trust/verification requirements and governance epoch evidence;
+7. insert required DFR-006 Outbox event in the same local transaction;
+8. roll back all local writes on checksum, source, schema, authority, policy, or idempotency conflict.
+
+Same exact version/checksum reuse returns the existing logical Version. Changed canonical content never mutates it.
+
+### Attestation and transparency append
+
+Attestation issue atomically binds exact target/checksum, signer authority/trust domain, key reference/algorithm, issue/expiry, signed statement, and transparency-log entry. Root publication atomically binds an exact contiguous log range and proof. External signing/KMS execution follows DFR-006 Effect semantics; local failure after signing cannot discard uncertainty.
+
+### Claim, relation, and citation publication
+
+One transaction validates exact Artifact/Source Versions, claim/citation schemas, locators, object authority, audience/license/disclosure, relation constraints, contradiction visibility, and checksums before appending claims/relations/citations. It cannot overwrite an existing claim revision or source locator.
+
+### Trust and eligibility decision
+
+A trust assessment transaction binds one exact target/version, trust policy/version, complete per-dimension evidence/result set, freshness, conflicts, mandatory failures, eligibility, explanation, expiry, and checksum. Composite ranking is calculated only after mandatory gates pass.
+
+### Policy inheritance
+
+One transaction reads exact immutable source Policy Envelopes and destination/use policy, applies registered conservative operators, records conflicts/declassification evidence, creates the derived Envelope, and advances relevant governance evidence. Missing or incompatible mandatory source policy rolls back the derived Version/publication decision.
+
+### Knowledge build
+
+Before build, one transaction freezes exact eligible Source Versions, policy/trust/freshness decisions, chunking/normalization/redaction/embedding/retrieval/reranking profiles, model selection/reservation where applicable, and a reproducibility manifest.
+
+Build Activities may create Chunk/Embedding/Index candidates, but activation occurs only after checksums, membership, source locators, model/profile identity, verification, policy, and index-build readback are atomically committed for a new Index Version. Existing active Index Versions remain unchanged.
+
+### Retrieval evidence
+
+A consequential retrieval decision atomically binds query/intent checksum, principal/context/purpose, eligible/excluded source/index candidates, selected exact Index/Chunk Versions, scores/reranking, claims/citations, trust/freshness/policy decisions, manifest, expiry, and checksum before generated consequential output is finalized.
+
+### Correction
+
+Correction apply validates current preview checksum, source Version, proposed canonical content/new Version identity, changed claims/citations/policy/trust, approvals, publication requirements, dependency impact, and idempotency. It atomically creates the new Version and corrects/supersedes relations and advances the Artifact pointer/epoch without editing the source Version.
+
+### Retraction and dependency invalidation
+
+Retraction apply atomically marks the exact scope ineligible for new use, appends retraction evidence/transparency entry, advances the epoch, creates dependency-invalidation events, and schedules DFR-006 Activities for cache/index/manifest/memory/evaluation/export/provider-copy/backup restriction, rebuild, or notification. Partial external completion remains explicit and recoverable.
+
+### Disposition
+
+Disposition apply requires current DFR-003 preview checksum, exact authority, retention/legal-hold/subject-right revalidation, idempotency, approvals, and durable Workflow evidence. Per-object results are appended separately. Erasure of content never deletes required minimal no-content tombstone or permitted transparency/audit evidence, and held objects remain unreadable unless separately authorized.
+
 ### Dispatch
 
 The runtime transaction boundary covers internal execution planning and evidence, not the entire external provider operation. It must atomically bind the execution to one valid manifest before provider dispatch and later append result/readback evidence idempotently.
