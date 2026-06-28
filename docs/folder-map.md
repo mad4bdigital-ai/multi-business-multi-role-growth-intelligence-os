@@ -78,6 +78,22 @@ The Spec Kit constitution, reusable templates, approved feature specifications, 
 
 Git-controlled source contracts that are not derived from `http-generic-api/openapi.yaml`. The Local Connector contract lives here because it has a separate host, authentication profile, and device-plane ownership boundary.
 
+### `edge/activation-gateway/`
+
+Canonical Cloudflare Worker source, generated route policy, runtime enforcement, and deployment runbook for the Activation Gateway. This source is not imported directly by the auth-host service image.
+
+### `http-generic-api/activation-gateway-runtime/`
+
+Generated service-local copy of the Worker modules and route policy used by the governed rollout tools. It exists because the auth-host Docker image copies only `http-generic-api`. Do not edit it directly; regenerate with `npm run activation-gateway:bundle:sync` and enforce parity with `npm run activation-gateway:bundle:check`.
+
+### `http-generic-api/activationGatewayRolloutTool.js`
+
+Application/infrastructure boundary for read-only rollout planning and approval-gated workers.dev dark deployment. It owns exact resource validation, signed attestation checks, single-use envelope claiming, secret-safe Cloudflare calls, awaited audit evidence, smoke readback, and rollback. DNS and custom-domain operations are outside its authority.
+
+### `http-generic-api/scripts/sync-activation-gateway-runtime-bundle.mjs`
+
+Deterministic write/check generator that copies the canonical Worker modules and route policy into the service-local runtime bundle and records stable SHA-256 evidence.
+
 ### `http-generic-api/scripts/generate-custom-gpt-schemas.mjs`
 
 The single write/check orchestrator for active Custom GPT schemas. It generates into a temporary directory, validates every artifact, and writes committed files only after validation succeeds.
