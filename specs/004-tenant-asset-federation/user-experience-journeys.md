@@ -611,4 +611,13 @@ It never converts unavailable evidence into a false zero.
 - replay/resume creates or uses the correct durable identity and preserves the original Workflow timeline;
 - model fallback never silently combines multiple models after visible output or repeats a committed Tool/external Effect;
 - cancel, resume, replay, recovery, reconciliation-action, and redrive previews cause no Activity execution, provider/model/tool call, credential read, queue publication, reservation, compensation, replay, or external write;
+- users can distinguish content integrity, source authenticity, claim support, freshness, license/use eligibility, policy/audience eligibility, reproducibility, and publication state without one misleading `verified` badge;
+- every consequential claim exposes its support/contradiction state and exact immutable citations or an explicit unsupported/assumption/opinion/estimate/prediction label;
+- trust explanations show mandatory failed dimensions separately and never imply a high composite score overrides license, audience, policy, freshness, or retraction;
+- provenance views disclose omitted/redacted evidence explicitly and leak no unauthorized source identity, content, reviewer, contract, or graph shape;
+- users can inspect exact Source/Chunk/Embedding/Index versions and understand why relevant sources were excluded before ranking;
+- correction preview identifies the proposed new Version, changed claims/citations/policy/trust, affected descendants, publication review, and notifications before apply;
+- corrections create new immutable Versions and preserve historical outputs rather than silently rewriting them;
+- retraction/restriction status blocks new eligible use and is visibly distinct from supersession, correction, erasure, and legal hold;
+- artifact eligibility, correction, retraction, disposition, index-build, reproduction, and provenance-projection previews cause no content write, signing, transformation, publication, correction, retraction, deletion, indexing/embedding, provider/model call, credential read, invalidation, notification, or external write;
 - advanced controls do not obstruct the default shared-asset journey.
