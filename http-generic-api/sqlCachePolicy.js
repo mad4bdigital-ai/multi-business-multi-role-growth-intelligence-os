@@ -125,6 +125,10 @@ export function resolveSqlCacheTablePolicy(
     allowlistSource = SQL_CACHE_TABLE_ALLOWLIST,
     blocklistSource = SQL_CACHE_TABLE_BLOCKLIST,
     policySource = SQL_CACHE_TABLE_POLICIES_JSON,
+    globalMaxValueBytes = SQL_CACHE_MAX_VALUE_BYTES,
+    globalOversizeCooldownSeconds = SQL_CACHE_OVERSIZE_COOLDOWN_SECONDS,
+    keyVersion = SQL_CACHE_KEY_VERSION,
+    globalEnabled = true,
   } = {}
 ) {
   const table = normalizeSqlCachePart(tableName);
@@ -133,8 +137,12 @@ export function resolveSqlCacheTablePolicy(
   const parsedPolicies = parseSqlCacheTablePolicies(policySource);
   const override = parsedPolicies.policies[table] || {};
 
-  let enabled = DEFAULT_CACHEABLE_TABLES.has(table);
-  let reason = enabled ? "default_allowlist" : "not_default_cacheable";
+  let enabled = Boolean(globalEnabled && DEFAULT_CACHEABLE_TABLES.has(table));
+  let reason = !globalEnabled
+    ? "runtime_policy_disabled"
+    : enabled
+      ? "default_allowlist"
+      : "not_default_cacheable";
 
   if (allowlist.size > 0) {
     enabled = allowlist.has(table);
@@ -151,6 +159,11 @@ export function resolveSqlCacheTablePolicy(
     reason = "configured_blocklist";
   }
 
+  if (!globalEnabled) {
+    enabled = false;
+    reason = "runtime_policy_disabled";
+  }
+
   if (SECURITY_DENIED_TABLES.has(table)) {
     enabled = false;
     reason = "security_denylist";
@@ -164,10 +177,18 @@ export function resolveSqlCacheTablePolicy(
       override.ttl_seconds ??
       boundedInteger(requestedTtlSeconds, 0, { min: 0, max: 86_400 }),
     max_value_bytes:
-      override.max_value_bytes ?? SQL_CACHE_MAX_VALUE_BYTES,
+      override.max_value_bytes ??
+      boundedInteger(globalMaxValueBytes, SQL_CACHE_MAX_VALUE_BYTES, {
+        min: MIN_CACHE_VALUE_BYTES,
+        max: SQL_CACHE_MAX_VALUE_BYTES,
+      }),
     oversize_cooldown_seconds:
-      override.oversize_cooldown_seconds ?? SQL_CACHE_OVERSIZE_COOLDOWN_SECONDS,
-    key_version: SQL_CACHE_KEY_VERSION,
+      override.oversize_cooldown_seconds ??
+      boundedInteger(globalOversizeCooldownSeconds, SQL_CACHE_OVERSIZE_COOLDOWN_SECONDS, {
+        min: 0,
+        max: 86_400,
+      }),
+    key_version: normalizeSqlCachePart(keyVersion) || SQL_CACHE_KEY_VERSION,
     policy_source_valid: parsedPolicies.valid,
     policy_error_code: parsedPolicies.error_code,
     security_denied: SECURITY_DENIED_TABLES.has(table),
