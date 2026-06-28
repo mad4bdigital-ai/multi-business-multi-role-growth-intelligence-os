@@ -7183,6 +7183,14 @@ paths:
           in: query
           schema: { type: integer, default: 4000, maximum: 20000 }
           description: Maximum characters per raw dump field when include_raw=true.
+        - name: max_response_chars
+          in: query
+          schema: { type: integer, minimum: 5000, maximum: 150000, default: 45000 }
+          description: Maximum serialized characters returned inline before a governed chunk continuation envelope is returned.
+        - name: chunk_ttl_minutes
+          in: query
+          schema: { type: integer, minimum: 5, maximum: 120, default: 20 }
+          description: Requested lifetime for the durable response chunk cache.
       responses:
         "200":
           description: Session history and related platform scopes
