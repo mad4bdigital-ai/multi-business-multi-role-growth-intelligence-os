@@ -493,6 +493,7 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
   const readIdempotency = dependencies.readIdempotency || readIdempotentResult;
   const storeIdempotency = dependencies.storeIdempotency || storeIdempotentResult;
   const resolveAuthorityScopeShadow = dependencies.resolveAuthorityScopeShadow || resolveAuthorityScopeShadowContext;
+  const persistAuthorityScopeShadow = dependencies.persistAuthorityScopeShadowEvidence || persistAuthorityScopeShadowEvidence;
   const enforcementEnabled = dependencies.enforcementEnabled ?? String(process.env.DYNAMIC_CONTAINER_AUTHORITY_ENFORCEMENT || "false").toLowerCase() === "true";
 
   const input = {
