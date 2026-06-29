@@ -1213,7 +1213,8 @@ internal static class Program
                 {
                     if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized && response.StatusCode != System.Net.HttpStatusCode.Forbidden)
                     {
-                        RegisterDesktopCommandPollFailure("HTTP " + (int)response.StatusCode + " " + response.StatusCode, text);
+                        var failure = AutopilotNetworkRecovery.ClassifyHttp(response.StatusCode, text);
+                            RegisterDesktopCommandPollFailure(failure.Message, failure.Diagnostic);
                     }
                     return;
                 }
