@@ -29,9 +29,10 @@ internal static class Program
     private const string N8nUserFolder = @"D:\n8n-data";
 
     [STAThread]
-    private static void Main()
+    private static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        if (WindowsAppRegistration.TryHandleCommandLine(args, Application.ExecutablePath)) return;
         if (TryBootstrapInstallFromPortablePath()) return;
 
         CloseExistingLocalManagerProcesses();
