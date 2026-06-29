@@ -1721,6 +1721,11 @@ async function dispatchTool(callerType, toolKey, args, req) {
       args,
       method: descriptor.method,
       tags: descriptor.tags,
+      principal: {
+        is_admin: callerType === "admin",
+        tenant_id: req?.auth?.tenant_id || req?.user?.tenant_id || null,
+        user_id: req?.auth?.user_id || req?.user?.user_id || null,
+      },
     }));
   }
   const result = await dispatchToolImpl(callerType, toolKey, args, req);
