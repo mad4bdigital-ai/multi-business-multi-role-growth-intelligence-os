@@ -4517,6 +4517,8 @@ paths:
         '404': { description: Resource not found }
         '409': { description: Operation conflicts with lifecycle or policy }
   # END RESOURCE API COVERAGE
+  /admin/cache/sql-policy:
+    $ref: './openapi/sql-cache-policy.yaml#/sqlCachePolicy'
   /admin/openapi-registry-sync/status:
     $ref: './openapi/openapi-registry-sync.yaml#/openApiRegistrySyncStatus'
   /admin/openapi-registry-sync:
