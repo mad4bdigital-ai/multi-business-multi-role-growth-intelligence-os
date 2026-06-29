@@ -1,0 +1,176 @@
+schemas:
+  SqlCacheTablePolicy:
+    type: object
+    additionalProperties: false
+    properties:
+      enabled: { type: boolean }
+      ttl_seconds: { type: integer, minimum: 0, maximum: 86400 }
+      max_value_bytes: { type: integer, minimum: 1024, maximum: 8388608 }
+      oversize_cooldown_seconds: { type: integer, minimum: 0, maximum: 86400 }
+
+  SqlCachePolicyPatch:
+    type: object
+    additionalProperties: false
+    properties:
+      enabled: { type: boolean }
+      key_version:
+        type: string
+        maxLength: 48
+        pattern: '^[a-zA-Z0-9_-]+$'
+      max_value_bytes: { type: integer, minimum: 1024, maximum: 8388608 }
+      oversize_cooldown_seconds: { type: integer, minimum: 0, maximum: 86400 }
+      circuit_breaker_seconds: { type: integer, minimum: 0, maximum: 3600 }
+      single_flight_enabled: { type: boolean }
+      table_allowlist: { type: string, maxLength: 4000 }
+      table_blocklist: { type: string, maxLength: 4000 }
+      table_policies:
+        type: object
+        maxProperties: 200
+        additionalProperties:
+          $ref: '#/schemas/SqlCacheTablePolicy'
+
+  SqlCachePolicy:
+    allOf:
+      - $ref: '#/schemas/SqlCachePolicyPatch'
+      - type: object
+        required:
+          - policy_key
+          - revision
+          - enabled
+          - key_version
+          - max_value_bytes
+          - circuit_breaker_seconds
+          - single_flight_enabled
+          - source
+          - secrets_included
+        properties:
+          policy_key: { type: string }
+          revision: { type: integer, minimum: 0 }
+          source:
+            type: string
+            enum: [mysql_primary, environment_fallback, dry_run]
+          stale: { type: boolean }
+          loaded_at: { type: [string, 'null'], format: date-time }
+          updated_at: { type: [string, 'null'], format: date-time }
+          updated_by: { type: [string, 'null'] }
+          secrets_included: { type: boolean, const: false }
+
+  SqlCachePolicyResponse:
+    type: object
+    additionalProperties: true
+    required: [ok, policy, secrets_included]
+    properties:
+      ok: { type: boolean, const: true }
+      policy: { $ref: '#/schemas/SqlCachePolicy' }
+      runtime:
+        type: object
+        additionalProperties: true
+      secrets_included: { type: boolean, const: false }
+
+  ErrorResponse:
+    type: object
+    additionalProperties: false
+    required: [ok, error, secrets_included]
+    properties:
+      ok: { type: boolean, const: false }
+      error:
+        type: object
+        additionalProperties: true
+        required: [code, message]
+        properties:
+          code: { type: string }
+          message: { type: string }
+          details:
+            type: array
+            items:
+              type: object
+              additionalProperties: true
+          requestId: { type: [string, 'null'] }
+      secrets_included: { type: boolean, const: false }
+
+responses:
+  ValidationError:
+    description: Request validation failed.
+    content:
+      application/json:
+        schema: { $ref: '#/schemas/ErrorResponse' }
+  Unauthorized:
+    description: Backend authentication is missing or invalid.
+    content:
+      application/json:
+        schema: { $ref: '#/schemas/ErrorResponse' }
+  Forbidden:
+    description: The authenticated principal is not an administrator.
+    content:
+      application/json:
+        schema: { $ref: '#/schemas/ErrorResponse' }
+  Conflict:
+    description: The expected revision no longer matches the MySQL policy row.
+    content:
+      application/json:
+        schema: { $ref: '#/schemas/ErrorResponse' }
+  ServiceUnavailable:
+    description: MySQL runtime policy authority is temporarily unavailable.
+    content:
+      application/json:
+        schema: { $ref: '#/schemas/ErrorResponse' }
+
+sqlCachePolicy:
+  get:
+    operationId: getSqlCacheRuntimePolicy
+    summary: Read the effective SQL cache runtime policy
+    description: Returns the MySQL-primary policy or the bounded last-known-good/environment fallback. No secret values are returned.
+    tags: [admin-control, cache]
+    x-registry-exposure: admin_tool
+    x-registry-tool-key: sql_cache_runtime_policy_get
+    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    parameters:
+      - in: query
+        name: refresh
+        schema: { type: boolean, default: false }
+        description: Force a same-cycle MySQL refresh.
+    responses:
+      '200':
+        description: Effective runtime policy and freshness metadata.
+        content:
+          application/json:
+            schema: { $ref: '#/schemas/SqlCachePolicyResponse' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '503': { $ref: '#/responses/ServiceUnavailable' }
+  patch:
+    operationId: updateSqlCacheRuntimePolicy
+    summary: Partially update the SQL cache runtime policy
+    description: Uses optimistic concurrency and supports a no-write dry run.
+    tags: [admin-control, cache]
+    x-registry-exposure: admin_tool
+    x-registry-tool-key: sql_cache_runtime_policy_update
+    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [expected_revision, policy]
+            properties:
+              expected_revision:
+                type: integer
+                minimum: 0
+              dry_run:
+                type: boolean
+                default: false
+              policy:
+                $ref: '#/schemas/SqlCachePolicyPatch'
+    responses:
+      '200':
+        description: Dry-run preview or updated policy.
+        content:
+          application/json:
+            schema: { $ref: '#/schemas/SqlCachePolicyResponse' }
+      '400': { $ref: '#/responses/ValidationError' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '409': { $ref: '#/responses/Conflict' }
+      '503': { $ref: '#/responses/ServiceUnavailable' }
