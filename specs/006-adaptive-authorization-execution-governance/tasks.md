@@ -42,3 +42,16 @@
 - [x] T060 Select `multi_pr` delivery.
 - [ ] T061 Record implementation, migration, rollout, and closeout PR evidence.
 - [ ] T062 Resolve all checklists and run `spec-kit-completion-gate.mjs --changed` before closeout.
+
+## Delivery evidence and handoff
+
+- [x] D001 Merge PR1 state semantics and operational projections as PR #1936.
+- [x] D002 Record PR1 merge SHA `809e81f9dc3c9198a2a4c2d45b4cd4177ef7b158`.
+- [x] D003 Record four successful required CI checks and verified merge ancestry.
+- [x] D004 Delete the merged source branch and the two verified-equivalent PR1936 resolution branches.
+- [x] D005 Review the two older orphan reconciliation branches against current `main`.
+- [x] D006 Repair the historical test blob on both orphan branches and delete them through governed superseded cleanup.
+- [x] D007 Record branch repair, deletion, ambiguous-transport readback, and PR1 handoff evidence in PR #1967.
+- [ ] D008 Complete T005 and T006, then start PR2 for canonical capability and alias resolution.
+
+See `handoff-report-2026-06-29.md` for branch-level evidence, stop conditions, and the next execution boundary.
