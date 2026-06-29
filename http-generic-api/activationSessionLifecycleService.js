@@ -218,6 +218,64 @@ export async function resolveActivationSessionLifecycle({
   };
 }
 
+export async function readActivationRunArchive(pool, { runId, subject = {} } = {}) {
+  const normalizedRunId = normalizeText(runId, 64);
+  if (!normalizedRunId) {
+    const err = new Error("run_id is required");
+    err.status = 400;
+    err.code = "activation_run_id_required";
+    throw err;
+  }
+
+  const isAdmin = subject.is_admin === true;
+  const tenantId = normalizeText(subject.tenant_id, 64);
+  const userId = normalizeText(subject.user_id, 64);
+  if (!isAdmin && (!tenantId || !userId)) {
+    const err = new Error("Tenant and user identity are required to read an activation archive.");
+    err.status = 403;
+    err.code = "activation_run_archive_subject_required";
+    throw err;
+  }
+
+  const scopeSql = isAdmin ? "" : "AND BINARY r.tenant_id = BINARY ? AND BINARY r.user_id = BINARY ?";
+  const params = isAdmin ? [normalizedRunId] : [normalizedRunId, tenantId, userId];
+  const result = await querySafe(
+    pool,
+    `SELECT r.run_id, r.session_id, r.tenant_id, r.user_id, r.snapshot_id,
+            r.response_profile, r.run_status, r.validation_state, r.evidence_state,
+            r.delivery_state, r.consumer_ack_state, r.created_at, r.updated_at,
+            s.workspace_key, s.brand_key, s.session_status, s.archive_status,
+            s.turn_count, s.started_at, s.ended_at,
+            s.drive_export_id, s.drive_export_url, s.drive_doc_id, s.drive_doc_url,
+            s.drive_jsonl_id, s.drive_jsonl_url
+       FROM activation_runs r
+       JOIN customer_sessions s ON BINARY s.session_id = BINARY r.session_id
+      WHERE BINARY r.run_id = BINARY ?
+        ${scopeSql}
+      LIMIT 1`,
+    params,
+  );
+  if (!result.ok) {
+    const err = new Error(result.error?.message || "Activation archive lookup failed.");
+    err.status = 500;
+    err.code = result.error?.code || "activation_run_archive_lookup_failed";
+    throw err;
+  }
+
+  return {
+    ok: true,
+    found: result.rows.length > 0,
+    run_id: normalizedRunId,
+    archive: result.rows[0] || null,
+    authorization: {
+      scope: isAdmin ? "platform_admin" : "tenant_user_owner",
+      tenant_id: isAdmin ? null : tenantId,
+      user_id: isAdmin ? null : userId,
+    },
+    secrets_included: false,
+  };
+}
+
 export async function markActivationRunPrepared(pool, {
   runId,
   snapshotId = null,
