@@ -5,6 +5,7 @@ const script = readFileSync("scripts/capability-resolution-envelope-apply-author
 const migration = readFileSync("migrations/902_sprint68_dynamic_capability_apply_authorization_policy.sql", "utf8");
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 const adminCli = readFileSync("routes/adminCliRoutes.js", "utf8");
+const gptTools = readFileSync("routes/gptToolsRoutes.js", "utf8");
 const snapshotRecord = readFileSync("adsProviderGovernanceSnapshotRecord.js", "utf8");
 
 for (const expected of [
