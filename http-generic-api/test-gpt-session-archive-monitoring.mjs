@@ -49,6 +49,7 @@ assert.ok(runner.includes("229_sprint67_gpt_session_archive_monitoring.sql"));
 assert.ok(runner.includes("245_sprint68_gpt_tool_archive_pinning_monitoring.sql"));
 assert.ok(runner.includes("249_sprint68_gpt_archive_backfill_conversation_ref_monitoring.sql"));
 assert.ok(runner.includes("250_sprint68_gpt_conversation_capture_contract_monitoring.sql"));
+assert.ok(runner.includes("1028_sprint69_gpt_session_archive_actionable_ref_metrics.sql"));
 assert.ok(readiness.includes("229_sprint67_gpt_session_archive_monitoring.sql"));
 assert.ok(readiness.includes("245_sprint68_gpt_tool_archive_pinning_monitoring.sql"));
 assert.ok(readiness.includes("249_sprint68_gpt_archive_backfill_conversation_ref_monitoring.sql"));
