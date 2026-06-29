@@ -452,6 +452,25 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "capability_resolution_envelope_apply_authorize",
+    displayName: "Apply-Authorize Capability Resolution Envelope",
+    description: "Apply-authorize one ready capability resolution envelope through the dynamic capability apply policy. Creates internal approval evidence only; no provider call, external write, credential payload read, or secret return.",
+    method: "VIRTUAL",
+    path: "internal://capability-resolution-envelope-apply-authorize",
+    tags: ["admin", "capability_resolution", "apply_authorization", "state_changing", "approval_required", "readback", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["envelope_id", "decision_note"],
+      properties: {
+        envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+        authorized_by: { type: "string", minLength: 1, maxLength: 64 },
+        decision_note: { type: "string", minLength: 20, maxLength: 512 },
+        ttl_minutes: { type: "integer", minimum: 5, maximum: 240, default: 60 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "governed_migration_authorization_bootstrap",
     displayName: "Governed Migration Authorization Bootstrap",
     description: "Authorize one checksum-bound additive migration for the governed runner without executing migration SQL. Requires exact checksum, statement count, merged PR evidence, typed confirmation, a ready capability envelope, zero-risk preflight, and same-cycle authorization readback.",
