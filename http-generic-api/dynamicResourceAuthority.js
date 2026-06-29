@@ -161,10 +161,7 @@ export async function resolveDynamicResourceAuthority({
                  b.tenant_id IS NOT NULL DESC,
                  b.updated_at DESC
         LIMIT 20`,
-      [
-        resourceType, resourceUri, tenantId, workspaceId, userId,
-        sourceSystemId, sourceSystemId, sourceInstallationId, sourceInstallationId,
-      ],
+      [resourceType, resourceUri, tenantId, workspaceId, userId, sourceSystemId, sourceSystemId, sourceInstallationId, sourceInstallationId],
     );
   } catch {
     return decision({ ok: false, required: true, reasonCode: "resource_authority_registry_unavailable", context: normalizedContext });
@@ -196,14 +193,7 @@ export async function resolveDynamicResourceAuthority({
       if (!ownerGrant) continue;
     }
 
-    return decision({
-      ok: true,
-      required: true,
-      reasonCode: "dynamic_resource_authority_granted",
-      context: normalizedContext,
-      binding,
-      ownerGrant,
-    });
+    return decision({ ok: true, required: true, reasonCode: "dynamic_resource_authority_granted", context: normalizedContext, binding, ownerGrant });
   }
 
   return decision({ ok: false, required: true, reasonCode: "dynamic_resource_authority_denied", context: normalizedContext });
