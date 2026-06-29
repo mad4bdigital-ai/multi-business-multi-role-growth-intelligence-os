@@ -316,6 +316,7 @@ export const testCommands = [
   "node test-create-admin-script.mjs",
   "node test-job-runner.mjs",
   "node test-queue-redis-status-redaction.mjs",
+  "node test-sql-cache-runtime-policy.mjs",
   "node test-status-database-lifecycle-component.mjs",
   "node test-execution-routing.mjs",
   "node test-provider-fetch-timeout.mjs",

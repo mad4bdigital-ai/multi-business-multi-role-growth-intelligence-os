@@ -61,10 +61,11 @@
       }
     ],
     "closeout_pr": {
-      "number": "current",
+      "number": 1929,
       "branch": "gpt/006-platform-dynamic-workflow-runtime",
       "role": "design_and_planning",
-      "status": "current_pr"
+      "status": "merged",
+      "merge_sha": "8c5e50c131b1b21f0b915b7b01a97f17b1c823a5"
     }
   },
   "evidence": {
