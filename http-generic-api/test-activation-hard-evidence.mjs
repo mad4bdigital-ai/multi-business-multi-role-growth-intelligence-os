@@ -146,6 +146,7 @@ assert.equal(missingProvider.activation_complete, false);
 assert.equal(missingProvider.reason_code, 'degraded_missing_provider_bootstrap_evidence');
 
 const activationRoutes = readFileSync('routes/activationRoutes.js', 'utf8');
+const activationHardRunRoutes = readFileSync('routes/activationHardRunRoutes.js', 'utf8');
 const migration = readFileSync('migrations/165_sprint65_hard_activation_and_tenant_surface.sql', 'utf8');
 const openapi = readFileSync('openapi.yaml', 'utf8');
 assert(activationRoutes.includes('/activation/hard-run'), 'hard activation route must exist');
