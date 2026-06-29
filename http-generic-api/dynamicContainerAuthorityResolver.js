@@ -19,6 +19,8 @@ import {
   recordContainerPerformanceSample,
   storeIdempotentResult
 } from "./dynamicContainerAuthorityRepository.js";
+import { resolveAuthorityScopeShadowContext } from "./authorityScopeShadowBridge.js";
+import { persistAuthorityScopeShadowEvidence } from "./authorityScopeShadowEvidence.js";
 
 export const CONTAINER_AUTHORITY_RESOLVER_VERSION = "dynamic-container-authority-v1";
 const resolutionCache = new Map();
@@ -438,6 +440,30 @@ function compareShadowDecision(legacyDecision, containerDecision) {
     : { status:"mismatch", mismatchCodes:[`legacy_${normalizedLegacy}_container_${normalizedContainer}`] };
 }
 
+async function persistAuthorityScopeShadowEvidenceFailOpen({ persist, input, resolution, shadow }) {
+  try {
+    const persisted = await persist({
+      tenantId:input.tenantId,
+      requestId:input.requestId,
+      resolutionId:resolution.resolutionId,
+      principal:input.principal,
+      targetContainerId:input.targetContainerId,
+      authorityScopeShadow:shadow
+    });
+    return Object.freeze({
+      ...shadow,
+      evidencePersistenceStatus:String(persisted?.status || "persisted"),
+      evidenceId:persisted?.evidenceId || null
+    });
+  } catch (error) {
+    return Object.freeze({
+      ...shadow,
+      evidencePersistenceStatus:"failed",
+      evidencePersistenceErrorCode:String(error?.code || "SHADOW_EVIDENCE_WRITE_FAILED")
+    });
+  }
+}
+
 function cacheGet(key, epoch, nowMs) {
   const item = resolutionCache.get(key);
   if (!item || item.authorityEpoch !== epoch || item.expiresAtMs <= nowMs) {
@@ -466,6 +492,8 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
   const readPolicy = dependencies.readPolicy || readContainerRolloutPolicy;
   const readIdempotency = dependencies.readIdempotency || readIdempotentResult;
   const storeIdempotency = dependencies.storeIdempotency || storeIdempotentResult;
+  const resolveAuthorityScopeShadow = dependencies.resolveAuthorityScopeShadow || resolveAuthorityScopeShadowContext;
+  const persistAuthorityScopeShadow = dependencies.persistAuthorityScopeShadowEvidence || persistAuthorityScopeShadowEvidence;
   const enforcementEnabled = dependencies.enforcementEnabled ?? String(process.env.DYNAMIC_CONTAINER_AUTHORITY_ENFORCEMENT || "false").toLowerCase() === "true";
 
   const input = {
@@ -486,6 +514,28 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
   if (input.mode === "enforce" && !enforcementEnabled) throw stableError("effective_context_blocked", "Container authority enforcement is disabled; use preview or shadow mode.");
   const secretCheck = validateNoSecretMetadata(rawInput);
   if (!secretCheck.ok) throw stableError("container_secret_field_forbidden", "Secret-like fields are forbidden in container authority requests.", secretCheck.violations);
+
+  let authorityScopeShadow;
+  try {
+    authorityScopeShadow = await resolveAuthorityScopeShadow({
+      principal:input.principal,
+      tenantId:input.tenantId,
+      requestId:input.requestId
+    });
+  } catch (error) {
+    const code = String(error?.code || "AUTHORITY_SCOPE_SHADOW_UNRESOLVED");
+    authorityScopeShadow = {
+      status:"unresolved",
+      enforcementMode:"shadow_only",
+      authorityGranted:false,
+      comparisonStatus:"unresolved",
+      mismatchCodes:[code],
+      error:{ code,status:Number(error?.status || 500) },
+      providerCallMade:false,
+      credentialPayloadRead:false,
+      secretsIncluded:false
+    };
+  }
 
   const idempotencyScope = `container-resolution:${input.tenantId}:${input.principal.type}:${input.principal.id}`;
   const idempotencyRequestSha256 = stableSha256({
@@ -557,15 +607,25 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
   }
   if (!evidence) throw stableError("container_authority_epoch_changed", "Resolution could not stabilize on one authority epoch.");
 
-  const resolution = {
+  let resolution = {
     ...evidence,
     resolutionId:randomUUID(),
     requestId:input.requestId,
     idempotencyKey:input.idempotencyKey,
     expiresAt:new Date(now().getTime()+5*60*1000).toISOString(),
-    cacheHit
+    cacheHit,
+    authorityScopeShadow
   };
   await persistResolution(resolution);
+  resolution = {
+    ...resolution,
+    authorityScopeShadow:await persistAuthorityScopeShadowEvidenceFailOpen({
+      persist:persistAuthorityScopeShadow,
+      input,
+      resolution,
+      shadow:authorityScopeShadow
+    })
+  };
   const policy = await readPolicy().catch(() => null);
   const durationMs = performance.now()-startedAt;
   await recordPerformance({
@@ -573,7 +633,12 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
     containerCount:resolution.containerPaths.flatMap(path => path.containerIds).length,
     relationshipCount:resolution.containerPaths.flatMap(path => path.relationshipIds).length,
     pathCount:resolution.containerPaths.length,candidateBindingCount:resolution.effectiveBindings.length,
-    durationMs,withinBudget:!policy || durationMs<=Number(policy.p99_budget_ms || 400),metadata:{ cacheHit }
+    durationMs,withinBudget:!policy || durationMs<=Number(policy.p99_budget_ms || 400),metadata:{
+      cacheHit,
+      authorityScopeShadowStatus:resolution.authorityScopeShadow?.status || "unresolved",
+      authorityScopeShadowComparison:resolution.authorityScopeShadow?.comparisonStatus || "unresolved",
+      authorityScopeShadowPersistence:resolution.authorityScopeShadow?.evidencePersistenceStatus || "failed"
+    }
   }).catch(() => null);
   if (input.mode === "shadow") {
     const comparison = compareShadowDecision(input.legacyDecision,resolution.decision);
@@ -607,5 +672,6 @@ export const _testingDynamicContainerAuthorityResolver = {
   resolveClassifications,
   resolveDimensionRequest,
   compareShadowDecision,
+  persistAuthorityScopeShadowEvidenceFailOpen,
   resolutionCache
 };
