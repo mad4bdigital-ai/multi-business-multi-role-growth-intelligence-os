@@ -32,6 +32,13 @@ assert.ok(captureContractMigration.includes("conversation_capture_missing_after_
 assert.ok(captureContractMigration.includes("tool_turns > 0"));
 assert.ok(captureContractMigration.includes("user_turns = 0 OR assistant_turns = 0"));
 assert.ok(captureContractMigration.includes("2026-06-09 00:00:00"));
+assert.ok(actionableRefMetricsMigration.includes("CREATE OR REPLACE VIEW `v_gpt_session_archive_monitoring_summary`"));
+assert.ok(actionableRefMetricsMigration.includes("issue_code = 'missing_conversation_ref'"));
+assert.ok(actionableRefMetricsMigration.includes("sessions_without_active_ref_observed"));
+assert.ok(actionableRefMetricsMigration.includes("sessions_without_active_ref_non_actionable"));
+assert.ok(actionableRefMetricsMigration.includes("COUNT(DISTINCT session_id)"));
+assert.doesNotMatch(actionableRefMetricsMigration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
+assert.doesNotMatch(actionableRefMetricsMigration, /conversation_url|share_url|content_preview|`content`/i);
 assert.ok(migration.includes("secrets_included"));
 assert.ok(migration.includes("t.session_id COLLATE utf8mb4_uca1400_ai_ci = s.session_id"));
 assert.ok(migration.includes("r.session_id COLLATE utf8mb4_uca1400_ai_ci = s.session_id"));
