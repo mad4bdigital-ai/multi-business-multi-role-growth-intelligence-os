@@ -39,18 +39,92 @@ function normalizedPolicyTags(tags = []) {
     .filter(Boolean));
 }
 
+function stripLeadingSqlComments(value = "") {
+  let text = String(value || "").trimStart();
+  while (text) {
+    const lineComment = text.match(/^(?:--[^\r\n]*(?:\r?\n|$)|#[^\r\n]*(?:\r?\n|$))/);
+    if (lineComment) {
+      text = text.slice(lineComment[0].length).trimStart();
+      continue;
+    }
+    const blockComment = text.match(/^\/\*[\s\S]*?\*\//);
+    if (blockComment) {
+      text = text.slice(blockComment[0].length).trimStart();
+      continue;
+    }
+    break;
+  }
+  return text.trim();
+}
+
+function classifyAdminControlMutationRequirement(args = {}) {
+  const tool = String(args.tool || "").trim().toLowerCase();
+  const action = String(args.action || "run").trim().toLowerCase();
+
+  if (tool === "db") {
+    const sql = stripLeadingSqlComments(args.sql);
+    if (!sql) return null;
+    const statements = sql
+      .split(/;(?=(?:[^']*'[^']*')*[^']*$)/)
+      .map((statement) => statement.trim())
+      .filter(Boolean);
+    if (statements.length !== 1) return true;
+    const statement = statements[0];
+    if (/^(?:SELECT|SHOW|DESCRIBE|DESC|EXPLAIN)\b/i.test(statement)) {
+      const statefulRead = /\bINTO\s+(?:OUTFILE|DUMPFILE)\b|\bFOR\s+UPDATE\b|\bLOCK\s+IN\s+SHARE\s+MODE\b|:=|\bGET_LOCK\s*\(|\bRELEASE_LOCK\s*\(/i;
+      return statefulRead.test(statement);
+    }
+    if (/^(?:INSERT|UPDATE|DELETE|REPLACE|CREATE|ALTER|DROP|TRUNCATE|RENAME|GRANT|REVOKE|CALL|SET|LOAD|LOCK|UNLOCK|START|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)\b/i.test(statement)) {
+      return true;
+    }
+    return null;
+  }
+
+  if (tool === "hostinger" || tool === "cloudflare") {
+    const forwardedMethod = String(args.method || "GET").trim().toUpperCase();
+    if (READ_ONLY_FORWARDED_METHODS.has(forwardedMethod)) return false;
+    if (STATE_CHANGING_FORWARDED_METHODS.has(forwardedMethod)) return true;
+    return null;
+  }
+
+  if (tool === "env") {
+    if (["list", "get", "status"].includes(action)) return false;
+    if (["set", "unset"].includes(action)) return true;
+    return null;
+  }
+
+  if (tool === "shell") {
+    if (["list", "status"].includes(action)) return false;
+    if (action === "run") return true;
+    return null;
+  }
+
+  if (tool === "windows_app") {
+    if (["list", "status", "authorize"].includes(action)) return false;
+    if (action === "launch") return true;
+    return null;
+  }
+
+  return null;
+}
+
 export function resolveGptToolInvocationMutationRequirement({ toolKey = "", args = {}, method = "", tags = [] } = {}) {
   const normalizedToolKey = String(toolKey || "").trim();
   const normalizedArgs = args && typeof args === "object" && !Array.isArray(args) ? args : {};
   const normalizedMethod = String(method || "").trim().toUpperCase();
   const normalizedTags = normalizedPolicyTags(tags);
 
-  if (normalizedToolKey === "admin_cloudflare") {
+  if (["admin_cloudflare", "admin_hostinger"].includes(normalizedToolKey)) {
     if (!["POST", "VIRTUAL"].includes(normalizedMethod)) return null;
     const forwardedMethod = String(normalizedArgs.method || "GET").trim().toUpperCase();
     if (READ_ONLY_FORWARDED_METHODS.has(forwardedMethod)) return false;
     if (STATE_CHANGING_FORWARDED_METHODS.has(forwardedMethod)) return true;
     return null;
+  }
+
+  if (normalizedToolKey === "admin_control") {
+    if (!["POST", "VIRTUAL"].includes(normalizedMethod)) return null;
+    return classifyAdminControlMutationRequirement(normalizedArgs);
   }
 
   if (normalizedToolKey === "cloudflare_tunnel_status") {
