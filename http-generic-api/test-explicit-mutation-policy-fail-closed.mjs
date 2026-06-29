@@ -49,6 +49,17 @@ assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "gpt_session
 assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "gpt_session_archive_backfill", method: "POST", tags: ["read_write", "dry_run_default_true"], args: { dry_run: false } }), true);
 assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_cloudflare", method: "POST", args: { method: "GET" } }), false);
 assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_cloudflare", method: "POST", args: { method: "POST" } }), true);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_hostinger", method: "POST", args: { method: "GET" } }), false);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_hostinger", method: "POST", args: { method: "PATCH" } }), true);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_control", method: "POST", args: { tool: "db", sql: "SELECT policy_key FROM sql_cache_runtime_policies LIMIT 1" } }), false);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_control", method: "POST", args: { tool: "db", sql: "SELECT policy_key FROM sql_cache_runtime_policies FOR UPDATE" } }), true);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_control", method: "POST", args: { tool: "db", sql: "UPDATE sql_cache_runtime_policies SET revision = revision + 1" } }), true);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_control", method: "POST", args: { tool: "shell", action: "list" } }), false);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_control", method: "POST", args: { tool: "shell", action: "run" } }), true);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_control", method: "POST", args: { tool: "env", action: "get" } }), false);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_control", method: "POST", args: { tool: "env", action: "set" } }), true);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_control", method: "POST", args: { tool: "hostinger", method: "GET" } }), false);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_control", method: "POST", args: { tool: "hostinger", method: "POST" } }), true);
 assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "cloudflare_tunnel_status", method: "POST" }), false);
 assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_cloudflare", method: "DELETE", args: { method: "GET" } }), null);
 assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "cloudflare_tunnel_status", method: "DELETE" }), null);
