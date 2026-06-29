@@ -19,6 +19,7 @@ import {
   recordContainerPerformanceSample,
   storeIdempotentResult
 } from "./dynamicContainerAuthorityRepository.js";
+import { resolveAuthorityScopeShadowContext } from "./authorityScopeShadowBridge.js";
 
 export const CONTAINER_AUTHORITY_RESOLVER_VERSION = "dynamic-container-authority-v1";
 const resolutionCache = new Map();
@@ -466,6 +467,7 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
   const readPolicy = dependencies.readPolicy || readContainerRolloutPolicy;
   const readIdempotency = dependencies.readIdempotency || readIdempotentResult;
   const storeIdempotency = dependencies.storeIdempotency || storeIdempotentResult;
+  const resolveAuthorityScopeShadow = dependencies.resolveAuthorityScopeShadow || resolveAuthorityScopeShadowContext;
   const enforcementEnabled = dependencies.enforcementEnabled ?? String(process.env.DYNAMIC_CONTAINER_AUTHORITY_ENFORCEMENT || "false").toLowerCase() === "true";
 
   const input = {
@@ -486,6 +488,28 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
   if (input.mode === "enforce" && !enforcementEnabled) throw stableError("effective_context_blocked", "Container authority enforcement is disabled; use preview or shadow mode.");
   const secretCheck = validateNoSecretMetadata(rawInput);
   if (!secretCheck.ok) throw stableError("container_secret_field_forbidden", "Secret-like fields are forbidden in container authority requests.", secretCheck.violations);
+
+  let authorityScopeShadow;
+  try {
+    authorityScopeShadow = await resolveAuthorityScopeShadow({
+      principal:input.principal,
+      tenantId:input.tenantId,
+      requestId:input.requestId
+    });
+  } catch (error) {
+    const code = String(error?.code || "AUTHORITY_SCOPE_SHADOW_UNRESOLVED");
+    authorityScopeShadow = {
+      status:"unresolved",
+      enforcementMode:"shadow_only",
+      authorityGranted:false,
+      comparisonStatus:"unresolved",
+      mismatchCodes:[code],
+      error:{ code,status:Number(error?.status || 500) },
+      providerCallMade:false,
+      credentialPayloadRead:false,
+      secretsIncluded:false
+    };
+  }
 
   const idempotencyScope = `container-resolution:${input.tenantId}:${input.principal.type}:${input.principal.id}`;
   const idempotencyRequestSha256 = stableSha256({
@@ -563,7 +587,8 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
     requestId:input.requestId,
     idempotencyKey:input.idempotencyKey,
     expiresAt:new Date(now().getTime()+5*60*1000).toISOString(),
-    cacheHit
+    cacheHit,
+    authorityScopeShadow
   };
   await persistResolution(resolution);
   const policy = await readPolicy().catch(() => null);
@@ -573,7 +598,11 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
     containerCount:resolution.containerPaths.flatMap(path => path.containerIds).length,
     relationshipCount:resolution.containerPaths.flatMap(path => path.relationshipIds).length,
     pathCount:resolution.containerPaths.length,candidateBindingCount:resolution.effectiveBindings.length,
-    durationMs,withinBudget:!policy || durationMs<=Number(policy.p99_budget_ms || 400),metadata:{ cacheHit }
+    durationMs,withinBudget:!policy || durationMs<=Number(policy.p99_budget_ms || 400),metadata:{
+      cacheHit,
+      authorityScopeShadowStatus:authorityScopeShadow?.status || "unresolved",
+      authorityScopeShadowComparison:authorityScopeShadow?.comparisonStatus || "unresolved"
+    }
   }).catch(() => null);
   if (input.mode === "shadow") {
     const comparison = compareShadowDecision(input.legacyDecision,resolution.decision);
