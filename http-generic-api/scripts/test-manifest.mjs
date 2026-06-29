@@ -511,6 +511,7 @@ export const testCommands = [
   "node test-runtime-policy-reconciliation.mjs",
   "node test-runtime-policy-resolver.mjs",
   "node test-explicit-mutation-policy-fail-closed.mjs",
+  "node test-sql-cache-admin-tool-export.mjs",
   "node test-repository-mutation-descriptor-policy-recovery.mjs",
   "node test-capability-kill-switch-policy.mjs",
   "node test-platform-plugin-security-alerts.mjs",

@@ -40,6 +40,60 @@ function normalizedPolicyTags(tags = []) {
     .filter(Boolean));
 }
 
+function stripLeadingSqlComments(value = "") {
+  let text = String(value || "").trimStart();
+  while (text) {
+    const lineComment = text.match(/^(?:--[^\r\n]*(?:\r?\n|$)|#[^\r\n]*(?:\r?\n|$))/);
+    if (lineComment) {
+      text = text.slice(lineComment[0].length).trimStart();
+      continue;
+    }
+    const blockComment = text.match(/^\/\*[\s\S]*?\*\//);
+    if (blockComment) {
+      text = text.slice(blockComment[0].length).trimStart();
+      continue;
+    }
+    break;
+  }
+  return text.trim();
+}
+
+function classifyAdminControlMutationRequirement(args = {}) {
+  const tool = String(args.tool || "").trim().toLowerCase();
+  const action = String(args.action || "run").trim().toLowerCase();
+
+  if (tool === "db") {
+    return classifyAdminControlDbSql(args.sql).mutation_required;
+  }
+
+  if (tool === "hostinger" || tool === "cloudflare") {
+    const forwardedMethod = String(args.method || "GET").trim().toUpperCase();
+    if (READ_ONLY_FORWARDED_METHODS.has(forwardedMethod)) return false;
+    if (STATE_CHANGING_FORWARDED_METHODS.has(forwardedMethod)) return true;
+    return null;
+  }
+
+  if (tool === "env") {
+    if (["list", "get", "status"].includes(action)) return false;
+    if (["set", "unset"].includes(action)) return true;
+    return null;
+  }
+
+  if (tool === "shell") {
+    if (["list", "status"].includes(action)) return false;
+    if (action === "run") return true;
+    return null;
+  }
+
+  if (tool === "windows_app") {
+    if (["list", "status", "authorize"].includes(action)) return false;
+    if (action === "launch") return true;
+    return null;
+  }
+
+  return null;
+}
+
 function splitSqlStatementsForPolicy(sql = "") {
   const statements = [];
   let current = "";
@@ -82,15 +136,19 @@ export function classifyAdminControlDbSql(sql = "") {
   const statements = splitSqlStatementsForPolicy(sql);
   if (!statements.length) return { mutation_required: null, classification: "sql_missing", statement_count: 0 };
   if (statements.length > 1) return { mutation_required: true, classification: "multi_statement_sql", statement_count: statements.length };
-  const statement = statements[0].trim();
+  const statement = stripLeadingSqlComments(statements[0]);
   const keyword = (statement.match(/^([A-Za-z]+)/)?.[1] || "").toUpperCase();
   const reads = new Set(["SELECT", "SHOW", "DESCRIBE", "DESC", "EXPLAIN"]);
-  const mutations = new Set(["INSERT", "UPDATE", "DELETE", "REPLACE", "MERGE", "UPSERT", "CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME", "GRANT", "REVOKE", "SET", "CALL", "DO", "LOAD", "BEGIN", "START", "COMMIT", "ROLLBACK", "SAVEPOINT", "LOCK", "UNLOCK"]);
-  if (reads.has(keyword)) return { mutation_required: false, classification: "single_statement_read_sql", statement_count: 1 };
+  const mutations = new Set(["INSERT", "UPDATE", "DELETE", "REPLACE", "MERGE", "UPSERT", "CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME", "GRANT", "REVOKE", "SET", "CALL", "DO", "LOAD", "BEGIN", "START", "COMMIT", "ROLLBACK", "SAVEPOINT", "RELEASE", "LOCK", "UNLOCK"]);
+  const statefulRead = /\bINTO\s+(?:OUTFILE|DUMPFILE)\b|\bFOR\s+UPDATE\b|\bLOCK\s+IN\s+SHARE\s+MODE\b|:=|\bGET_LOCK\s*\(|\bRELEASE_LOCK\s*\(/i;
+  const stateful = statefulRead.test(statement);
+  if (reads.has(keyword)) {
+    return { mutation_required: stateful, classification: stateful ? "stateful_read_sql" : "single_statement_read_sql", statement_count: 1 };
+  }
   if (keyword === "WITH") {
     const normalized = statement.toUpperCase();
     if (/\b(INSERT|UPDATE|DELETE|REPLACE|MERGE)\b/.test(normalized)) return { mutation_required: true, classification: "cte_mutation_sql", statement_count: 1 };
-    if (/\bSELECT\b/.test(normalized)) return { mutation_required: false, classification: "cte_read_sql", statement_count: 1 };
+    if (/\bSELECT\b/.test(normalized)) return { mutation_required: stateful, classification: stateful ? "cte_stateful_read_sql" : "cte_read_sql", statement_count: 1 };
     return { mutation_required: null, classification: "cte_sql_unclassified", statement_count: 1 };
   }
   if (mutations.has(keyword)) return { mutation_required: true, classification: "single_statement_mutation_sql", statement_count: 1 };
@@ -103,16 +161,17 @@ export function resolveGptToolInvocationMutationRequirement({ toolKey = "", args
   const normalizedMethod = String(method || "").trim().toUpperCase();
   const normalizedTags = normalizedPolicyTags(tags);
 
-  if (normalizedToolKey === "admin_control" && String(normalizedArgs.tool || "").trim().toLowerCase() === "db") {
-    return classifyAdminControlDbSql(normalizedArgs.sql).mutation_required;
-  }
-
-  if (normalizedToolKey === "admin_cloudflare") {
+  if (["admin_cloudflare", "admin_hostinger"].includes(normalizedToolKey)) {
     if (!["POST", "VIRTUAL"].includes(normalizedMethod)) return null;
     const forwardedMethod = String(normalizedArgs.method || "GET").trim().toUpperCase();
     if (READ_ONLY_FORWARDED_METHODS.has(forwardedMethod)) return false;
     if (STATE_CHANGING_FORWARDED_METHODS.has(forwardedMethod)) return true;
     return null;
+  }
+
+  if (normalizedToolKey === "admin_control") {
+    if (!["POST", "VIRTUAL"].includes(normalizedMethod)) return null;
+    return classifyAdminControlMutationRequirement(normalizedArgs);
   }
 
   if (normalizedToolKey === "cloudflare_tunnel_status") {

@@ -27,6 +27,8 @@ for (const sql of [
 }
 
 for (const sql of [
+  "SELECT * FROM activation_runs FOR UPDATE",
+  "SELECT * FROM activation_runs INTO OUTFILE '/tmp/archive.csv'",
   "UPDATE activation_runs SET run_status = 'done' WHERE run_id = ?",
   "WITH target AS (SELECT run_id FROM activation_runs) UPDATE activation_runs SET run_status='done'",
   "SELECT 1; UPDATE activation_runs SET run_status='done'",
