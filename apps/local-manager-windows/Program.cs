@@ -29,9 +29,10 @@ internal static class Program
     private const string N8nUserFolder = @"D:\n8n-data";
 
     [STAThread]
-    private static void Main()
+    private static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        if (WindowsAppRegistration.TryHandleCommandLine(args, Application.ExecutablePath)) return;
         if (TryBootstrapInstallFromPortablePath()) return;
 
         CloseExistingLocalManagerProcesses();
@@ -82,7 +83,11 @@ internal static class Program
     {
         var currentPath = Path.GetFullPath(Application.ExecutablePath);
         var installedPath = Path.GetFullPath(InstalledExePath);
-        if (PathsEqual(currentPath, installedPath)) return false;
+        if (PathsEqual(currentPath, installedPath))
+        {
+            WindowsAppRegistration.EnsureRegistered(installedPath, Application.ProductVersion);
+            return false;
+        }
 
         try
         {
@@ -106,6 +111,7 @@ internal static class Program
             }
 
             if (lastError is not null) throw lastError;
+            WindowsAppRegistration.EnsureRegistered(installedPath, Application.ProductVersion);
             Process.Start(new ProcessStartInfo { FileName = installedPath, UseShellExecute = true, WorkingDirectory = ProgramInstallRoot, Verb = "open" });
             return true;
         }
@@ -160,6 +166,8 @@ internal static class Program
         private bool _desktopCommandPollRunning;
         private int _desktopCommandPollFailureCount;
         private DateTimeOffset _desktopCommandPollBackoffUntil = DateTimeOffset.MinValue;
+        private bool _autopilotRecoveryRunning;
+        private bool _autopilotRecoveryAttempted;
         private readonly Label _status;
         private readonly Label _pairingCode;
         private readonly ProgressBar _progress;
@@ -265,7 +273,9 @@ internal static class Program
             {
                 EnsureLocalFiles(_status);
                 ShowTokenStatus();
-                await CheckAndInstallUpdateAsync(false); StartDesktopCommandPolling();
+                await CheckAndInstallUpdateAsync(false);
+                await RunStartupAutopilotAsync();
+                StartDesktopCommandPolling();
             };
         }
 
@@ -416,6 +426,7 @@ internal static class Program
                         token_plaintext_shown = false,
                         secrets_included = false
                     }, _json);
+                    await RunStartupAutopilotAsync();
                     return;
                 }
 
@@ -471,6 +482,53 @@ internal static class Program
             catch (Exception ex)
             {
                 _status.Text = label + " failed: " + ex.Message;
+            }
+        }
+
+        private async Task RunStartupAutopilotAsync()
+        {
+            if (_autopilotRecoveryRunning || _autopilotRecoveryAttempted) return;
+            var token = LoadDeviceToken(false);
+            if (string.IsNullOrWhiteSpace(token)) return;
+
+            _autopilotRecoveryAttempted = true;
+            _autopilotRecoveryRunning = true;
+            try
+            {
+                var footprint = await LocalConnectorFootprint.AssessAsync();
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    autopilot = "local_connector_footprint",
+                    repair_required = footprint.RepairRequired,
+                    repair_suggested = footprint.RepairSuggested,
+                    cloudflared_present = footprint.CloudflaredPresent,
+                    cloudflared_running = footprint.CloudflaredRunning,
+                    connector_service_present = footprint.ConnectorServicePresent,
+                    connector_service_running = footprint.ConnectorServiceRunning,
+                    reason = footprint.Reason,
+                    token_plaintext_shown = false,
+                    secrets_included = false
+                }, _json);
+
+                if (footprint.RepairRequired)
+                {
+                    _status.Text = "Autopilot detected a fresh or formatted Windows installation. Restoring the signed local connector now…";
+                    await RepairConnectorAsync();
+                    return;
+                }
+
+                if (footprint.RepairSuggested)
+                {
+                    _status.Text = "Autopilot detected stopped connector services. Use Repair connector if they do not recover.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "Autopilot footprint check failed: " + ex.Message;
+            }
+            finally
+            {
+                _autopilotRecoveryRunning = false;
             }
         }
 
