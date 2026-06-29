@@ -34,13 +34,13 @@
 
 ## Phase 2 — Canonical capability domain
 
-- [ ] **T020** Create `CanonicalCapability` domain model. `[FR-003, FR-006]`
-- [ ] **T021** Create `CapabilityAlias` model with one-active-alias-to-one-capability invariant. `[FR-004, FR-005]`
-- [ ] **T022** Create canonical/surface policy composition rules. `[FR-007, FR-010]`
-- [ ] **T023** Add registry migrations and backfill plan for existing aliases.
-- [ ] **T024** Build registry integrity checks for duplicate/missing mappings.
-- [ ] **T025** Add admin report for alias inventory, dual-surface capabilities, and policy completeness.
-- [ ] **T026** Add unit tests for alias normalization, integrity, and dual-surface parity. `[FR-008, A01-A08]`
+- [x] **T020** Create `CanonicalCapability` domain model. `[FR-003, FR-006]`
+- [x] **T021** Create `CapabilityAlias` model with one-active-alias-to-one-capability invariant. `[FR-004, FR-005]`
+- [x] **T022** Create canonical/surface policy composition rules. `[FR-007, FR-010]`
+- [x] **T023** Add registry migrations and backfill plan for existing aliases.
+- [x] **T024** Build registry integrity checks for duplicate/missing mappings.
+- [x] **T025** Add admin report for alias inventory, dual-surface capabilities, and policy completeness.
+- [x] **T026** Add unit tests for alias normalization, integrity, and dual-surface parity. `[FR-008, A01-A08]`
 
 ## Phase 3 — Strict request contract
 
