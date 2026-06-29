@@ -5,11 +5,12 @@
   "status": "in_progress",
   "delivery_mode": "multi_pr",
   "current_increment": {
-    "phase": "Authority Scope shadow readiness evaluation",
+    "phase": "post_merge_runtime_validation",
     "design_version": "0.3.0",
-    "pull_request": 1929,
-    "branch": "gpt/006-platform-dynamic-workflow-runtime",
+    "pull_request": null,
+    "branch": "gpt/006-authority-scope-closeout",
     "implementation_started": true,
+    "implementation_merged": true,
     "production_activation_authorized": false
   },
   "requirements": {
@@ -23,9 +24,10 @@
         "number": 1941,
         "branch": "gpt/006-authority-scope-foundation",
         "role": "authority_scope_foundation",
-        "status": "ci_passed_review_pending",
+        "status": "merged",
         "verification_reference": "github_pr_ci_gate:1941",
-        "base_branch": "gpt/006-platform-dynamic-workflow-runtime",
+        "base_branch": "main",
+        "merge_sha": "b315af10713268919be2f5c734103fcee944508e",
         "enforcement_mode": "shadow_only",
         "migration_executed": false
       },
@@ -33,9 +35,10 @@
         "number": 1945,
         "branch": "gpt/006-authority-scope-shadow-integration",
         "role": "authority_scope_shadow_integration",
-        "status": "ci_passed_review_pending",
+        "status": "merged",
         "verification_reference": "github_pr_ci_gate:1945",
-        "base_branch": "gpt/006-authority-scope-foundation",
+        "base_branch": "main",
+        "merge_sha": "71ef9dea87472babe07d150bceb07316826d85e6",
         "enforcement_mode": "shadow_only",
         "migration_executed": false
       },
@@ -43,9 +46,10 @@
         "number": 1949,
         "branch": "gpt/006-authority-scope-shadow-evidence",
         "role": "authority_scope_shadow_evidence",
-        "status": "ci_passed_review_pending",
+        "status": "merged",
         "verification_reference": "github_pr_ci_gate:1949",
-        "base_branch": "gpt/006-authority-scope-shadow-integration",
+        "base_branch": "main",
+        "merge_sha": "520416ba7da14fccd2782867aa33ccc9f8be94b1",
         "enforcement_mode": "shadow_only",
         "migration_executed": false
       },
@@ -53,19 +57,26 @@
         "number": 1955,
         "branch": "gpt/006-authority-scope-shadow-readiness",
         "role": "authority_scope_shadow_readiness",
-        "status": "ci_passed_review_pending",
+        "status": "merged",
         "verification_reference": "github_pr_ci_gate:1955",
-        "base_branch": "gpt/006-authority-scope-shadow-evidence",
+        "base_branch": "main",
+        "merge_sha": "d4cd8210aa70fcd85125bd0550a7324b649f9636",
         "enforcement_mode": "shadow_only",
         "migration_executed": false
       }
     ],
-    "closeout_pr": {
+    "design_pr": {
       "number": 1929,
       "branch": "gpt/006-platform-dynamic-workflow-runtime",
       "role": "design_and_planning",
       "status": "merged",
       "merge_sha": "8c5e50c131b1b21f0b915b7b01a97f17b1c823a5"
+    },
+    "runtime_closeout_pr": {
+      "number": "pending",
+      "branch": "gpt/006-authority-scope-closeout",
+      "role": "runtime_validation_and_closeout",
+      "status": "in_progress"
     }
   },
   "evidence": {
@@ -77,8 +88,8 @@
       "github_readback": "pass"
     },
     "implementation": {
-      "status": "in_progress",
-      "current_pr": 1955,
+      "status": "merged_pending_runtime_validation",
+      "current_pr": null,
       "slices": [
         "authority_scope_foundation",
         "authority_scope_shadow_integration",
@@ -86,7 +97,7 @@
         "authority_scope_shadow_readiness"
       ],
       "ci_status": "pass",
-      "mergeable_state": "clean",
+      "mergeable_state": "merged",
       "scope": [
         "domain_invariants",
         "shadow_resolver",
@@ -117,9 +128,24 @@
         "github_pr_ci_gate:1955"
       ]
     },
+    "migration": {
+      "status": "pending",
+      "files": [
+        "20260628_authority_scope_registry_foundation.sql",
+        "20260628_authority_scope_shadow_evidence.sql",
+        "20260629_authority_scope_shadow_readiness.sql"
+      ],
+      "migration_executed": false
+    },
+    "production_verification": {
+      "status": "pending"
+    },
+    "post_merge_audit": {
+      "status": "pending"
+    },
     "release_readiness": {
       "status": "pending",
-      "reason": "Design approval, implementation reviews, governed migration execution, deployed shadow observation, evidence retention verification, readiness-window verification, and production verification remain outstanding."
+      "reason": "Governed migration execution, deployed shadow observation, evidence retention verification, readiness-window verification, production verification, and post-merge audit remain outstanding."
     }
   },
   "secrets_included": false
