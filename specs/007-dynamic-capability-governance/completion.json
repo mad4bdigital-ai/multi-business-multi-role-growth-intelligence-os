@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "feature_key": "007-dynamic-capability-governance",
+  "title": "Dynamic Capability Governance and Universal Tool Projection",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "specification_pr": {
+      "number": null,
+      "branch": "gpt/007-dynamic-capability-governance-20260629",
+      "role": "specification",
+      "status": "current_pr_pending_number"
+    },
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": null,
+      "branch": null,
+      "role": "completion",
+      "status": "pending"
+    }
+  },
+  "evidence": {
+    "specification": {
+      "status": "deep_design_complete",
+      "documents": {
+        "top_level_specification": true,
+        "implementation_plan": true,
+        "architecture": true,
+        "logical_data_model": true,
+        "source_consolidation_map": true,
+        "formal_decision_model": true,
+        "draft_openapi_3_1_contract": true,
+        "migration_and_compatibility": true,
+        "rollout_pr_sequence": true,
+        "testing_strategy": true,
+        "threat_model": true,
+        "operational_model": true,
+        "requirements_checklist": true,
+        "security_checklist": true,
+        "release_readiness_checklist": true
+      },
+      "auth_host_only": true,
+      "local_device_operations": false,
+      "provider_mutations": false,
+      "runtime_behavior_changed": false
+    },
+    "implementation": {
+      "status": "pending",
+      "next_pr_scope": "dynamic_inventory_classification_and_manifest_compiler_shadow",
+      "provider_mutation_allowed": false,
+      "enforcement_change_allowed": false,
+      "automatic_tenant_export_allowed": false
+    },
+    "pull_request": {
+      "status": "pending_number"
+    },
+    "ci": {
+      "status": "not_run"
+    },
+    "release_readiness": {
+      "status": "pending_implementation"
+    },
+    "migration": {
+      "status": "pending_design_validation_and_implementation"
+    },
+    "production_verification": {
+      "status": "pending_implementation"
+    },
+    "post_merge_audit": {
+      "status": "pending_implementation"
+    }
+  },
+  "sensitive_values_included": false
+}

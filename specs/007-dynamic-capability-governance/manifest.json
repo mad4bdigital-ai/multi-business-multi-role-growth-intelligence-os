@@ -1,0 +1,70 @@
+{
+  "spec_key": "007-dynamic-capability-governance",
+  "title": "Dynamic Capability Governance and Universal Tool Projection",
+  "status": "deep_design_complete_implementation_pending",
+  "created_at": "2026-06-29",
+  "delivery_mode": "multi_pr",
+  "specification_delivery": "single_specification_pr",
+  "canonical_dependencies": [
+    "001-capability-security-hardening",
+    "001-resource-api-coverage",
+    "002-resource-surface-policy-governance",
+    "005-dynamic-mcp-schema-surfaces",
+    "006-adaptive-authorization-execution-governance",
+    "006-platform-dynamic-workflow-runtime"
+  ],
+  "architecture": {
+    "canonical_identity": "existing_capability_assurance_graph_with_explicit_source_links",
+    "inventory": "multi_registry_normalized_surface_descriptors",
+    "classification": "declarative_then_semantic_then_conservative_fail_closed",
+    "requirements": "compiled_scope_resource_connection_approval_certification_readback",
+    "projection": "derived_admin_and_tenant_facades_not_authority",
+    "enforcement": "shared_application_domain_kernel",
+    "execution": "deterministic_certified_adapter_selection",
+    "verification": "capability_specific_readback",
+    "reconciliation": "typed_gap_to_persistent_capability_debt",
+    "rollout": "shadow_then_capability_and_cohort_canary"
+  },
+  "inventory_sources": [
+    "actions",
+    "endpoints",
+    "admin_platform_endpoint_tools",
+    "tenant_platform_endpoint_tools",
+    "platform_endpoint_tool_exports",
+    "app_integration_tool_bindings",
+    "app_integration_action_bindings",
+    "task_routes",
+    "workflows",
+    "engines",
+    "connected_systems",
+    "platform_plugin_capabilities",
+    "platform_semantic_capabilities"
+  ],
+  "non_negotiable_invariants": [
+    "aliases_and_projections_never_grant_authority",
+    "tenant_tools_never_inherit_admin_surface_authority",
+    "missing_or_ambiguous_classification_fails_closed",
+    "surface_overrides_may_only_be_stricter",
+    "pending_invalid_revoked_or_scope_mismatched_credentials_cannot_execute",
+    "state_changing_invocation_envelopes_are_single_use_by_default",
+    "adapter_selection_is_deterministic_and_certification_gated",
+    "provider_acknowledgement_is_not_verified_success",
+    "external_or_high_impact_write_requires_capability_specific_readback",
+    "recovered_requires_same_cycle_readback",
+    "evidence_and_manifests_never_include_plaintext_secrets",
+    "no_global_cutover"
+  ],
+  "initial_pilots": [
+    "internal_read_only",
+    "operational_alert_internal_write",
+    "provider_read_only",
+    "wordpress_connection_validation",
+    "wordpress_create_draft_shadow_canary"
+  ],
+  "initial_runtime_effect": "none",
+  "provider_mutation_allowed_in_specification_pr": false,
+  "automatic_tenant_projection_allowed_in_specification_pr": false,
+  "local_device_used": false,
+  "transport": "auth_host_governed_github",
+  "sensitive_values_included": false
+}
