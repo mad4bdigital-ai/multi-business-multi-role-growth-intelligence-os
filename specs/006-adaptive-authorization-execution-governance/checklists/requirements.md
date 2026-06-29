@@ -29,7 +29,8 @@
 
 ## Branch hygiene
 
-- [x] The merged PR1 source branch has been deleted with zero unique commits verified.
-- [x] The PR1936 v5 and v6 resolution branches have been deleted after exact blob-equivalence checks.
-- [x] Older orphan reconciliation branches have been reviewed against current `main`.
-- [ ] A governed archival or deletion decision is recorded for historical orphan branches with non-equivalent test blobs.
+- [x] The merged PR1 source branch was deleted with zero unique commits verified.
+- [x] The PR1936 v5 and v6 resolution branches were deleted after exact blob-equivalence checks.
+- [x] The two older orphan reconciliation branches were repaired to the accepted `main` test blob without force.
+- [x] Both repaired orphan branches passed exact equivalence checks and were deleted with missing-reference readback.
+- [x] The ambiguous 502 response for the second deletion was resolved by immediate 404 reference readback without retry.
