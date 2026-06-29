@@ -103,6 +103,18 @@ const cloudflareWrite = await evaluateGptToolDispatchPreflight({ callerType: "ad
 assert.equal(cloudflareWrite.ok, false);
 assert.deepEqual(cloudflareWrite.errors, ["mutation_policy_required"]);
 
+const hostingerRead = await evaluateGptToolDispatchPreflight({ callerType: "admin", toolKey: "admin_hostinger", method: "POST", tags: ["admin", "hostinger"], args: { method: "GET" } }, emptyPolicyDeps);
+assert.equal(hostingerRead.ok, true);
+assert.equal(hostingerRead.classification, "allow");
+
+const adminControlDbRead = await evaluateGptToolDispatchPreflight({ callerType: "admin", toolKey: "admin_control", method: "POST", tags: ["admin"], args: { tool: "db", sql: "SELECT policy_key FROM sql_cache_runtime_policies LIMIT 1" } }, emptyPolicyDeps);
+assert.equal(adminControlDbRead.ok, true);
+assert.equal(adminControlDbRead.classification, "allow");
+
+const adminControlDbWrite = await evaluateGptToolDispatchPreflight({ callerType: "admin", toolKey: "admin_control", method: "POST", tags: ["admin"], args: { tool: "db", sql: "DELETE FROM sql_cache_runtime_policies" } }, emptyPolicyDeps);
+assert.equal(adminControlDbWrite.ok, false);
+assert.deepEqual(adminControlDbWrite.errors, ["mutation_policy_required"]);
+
 const dryRunBypassAttempt = await evaluateGptToolDispatchPreflight({ callerType: "admin", toolKey: "untrusted_post", method: "POST", tags: [], args: { dry_run: true } }, emptyPolicyDeps);
 assert.equal(dryRunBypassAttempt.ok, false);
 assert.deepEqual(dryRunBypassAttempt.errors, ["mutation_policy_required"]);
