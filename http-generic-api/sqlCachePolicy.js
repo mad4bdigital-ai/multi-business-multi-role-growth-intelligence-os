@@ -2,10 +2,12 @@ import {
   SQL_CACHE_KEY_VERSION,
   SQL_CACHE_MAX_VALUE_BYTES,
   SQL_CACHE_OVERSIZE_COOLDOWN_SECONDS,
-  SQL_CACHE_TABLE_ALLOWLIST,
-  SQL_CACHE_TABLE_BLOCKLIST,
-  SQL_CACHE_TABLE_POLICIES_JSON,
 } from "./config.js";
+import {
+  ensureSqlCacheRuntimePolicyRefresh,
+  getSqlCacheRuntimePolicySnapshot,
+  getSqlCacheRuntimePolicyStatus,
+} from "./sqlCacheRuntimePolicy.js";
 
 const MIN_CACHE_VALUE_BYTES = 1_024;
 
@@ -27,12 +29,13 @@ const DEFAULT_CACHEABLE_TABLES = new Set([
   "local_gateway_tools",
 ]);
 
-// These tables can contain credentials, credential references, scoped connection
-// details, or other values that must not enter a generic whole-table cache.
-// Environment configuration cannot override this denylist.
+// These tables contain credentials, credential references, scoped connection
+// details, very large endpoint payloads, or other values that must not enter a
+// generic whole-table cache. Runtime configuration cannot override this set.
 const SECURITY_DENIED_TABLES = new Set([
   "actions",
   "brands",
+  "endpoints",
   "hosting_accounts",
   "connected_systems",
   "local_connector_user_configs",
@@ -89,10 +92,16 @@ function normalizePolicyRow(value = {}) {
   );
 }
 
-export function parseSqlCacheTablePolicies(raw = SQL_CACHE_TABLE_POLICIES_JSON) {
-  const source = String(raw || "{}").trim() || "{}";
+export function parseSqlCacheTablePolicies(raw = undefined) {
+  ensureSqlCacheRuntimePolicyRefresh();
+  const runtime = getSqlCacheRuntimePolicySnapshot();
+  const sourceValue = raw === undefined ? runtime.table_policies || {} : raw;
+
   try {
-    const parsed = JSON.parse(source);
+    const parsed =
+      sourceValue && typeof sourceValue === "object" && !Array.isArray(sourceValue)
+        ? sourceValue
+        : JSON.parse(String(sourceValue || "{}").trim() || "{}");
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       return {
         policies: {},
@@ -122,23 +131,40 @@ export function resolveSqlCacheTablePolicy(
   tableName,
   {
     requestedTtlSeconds = 0,
-    allowlistSource = SQL_CACHE_TABLE_ALLOWLIST,
-    blocklistSource = SQL_CACHE_TABLE_BLOCKLIST,
-    policySource = SQL_CACHE_TABLE_POLICIES_JSON,
-    globalMaxValueBytes = SQL_CACHE_MAX_VALUE_BYTES,
-    globalOversizeCooldownSeconds = SQL_CACHE_OVERSIZE_COOLDOWN_SECONDS,
-    keyVersion = SQL_CACHE_KEY_VERSION,
-    globalEnabled = true,
+    allowlistSource,
+    blocklistSource,
+    policySource,
+    globalMaxValueBytes,
+    globalOversizeCooldownSeconds,
+    keyVersion,
+    globalEnabled,
   } = {}
 ) {
+  ensureSqlCacheRuntimePolicyRefresh();
+  const runtime = getSqlCacheRuntimePolicySnapshot();
+  const effectiveAllowlist =
+    allowlistSource === undefined ? runtime.table_allowlist : allowlistSource;
+  const effectiveBlocklist =
+    blocklistSource === undefined ? runtime.table_blocklist : blocklistSource;
+  const effectivePolicySource =
+    policySource === undefined ? runtime.table_policies || {} : policySource;
+  const effectiveGlobalMaxValueBytes =
+    globalMaxValueBytes === undefined ? runtime.max_value_bytes : globalMaxValueBytes;
+  const effectiveOversizeCooldownSeconds =
+    globalOversizeCooldownSeconds === undefined
+      ? runtime.oversize_cooldown_seconds
+      : globalOversizeCooldownSeconds;
+  const effectiveKeyVersion = keyVersion === undefined ? runtime.key_version : keyVersion;
+  const effectiveGlobalEnabled = globalEnabled === undefined ? runtime.enabled : globalEnabled;
+
   const table = normalizeSqlCachePart(tableName);
-  const allowlist = parseSqlCacheCsvSet(allowlistSource);
-  const blocklist = parseSqlCacheCsvSet(blocklistSource);
-  const parsedPolicies = parseSqlCacheTablePolicies(policySource);
+  const allowlist = parseSqlCacheCsvSet(effectiveAllowlist);
+  const blocklist = parseSqlCacheCsvSet(effectiveBlocklist);
+  const parsedPolicies = parseSqlCacheTablePolicies(effectivePolicySource);
   const override = parsedPolicies.policies[table] || {};
 
-  let enabled = Boolean(globalEnabled && DEFAULT_CACHEABLE_TABLES.has(table));
-  let reason = !globalEnabled
+  let enabled = Boolean(effectiveGlobalEnabled && DEFAULT_CACHEABLE_TABLES.has(table));
+  let reason = !effectiveGlobalEnabled
     ? "runtime_policy_disabled"
     : enabled
       ? "default_allowlist"
@@ -159,7 +185,7 @@ export function resolveSqlCacheTablePolicy(
     reason = "configured_blocklist";
   }
 
-  if (!globalEnabled) {
+  if (!effectiveGlobalEnabled) {
     enabled = false;
     reason = "runtime_policy_disabled";
   }
@@ -169,6 +195,12 @@ export function resolveSqlCacheTablePolicy(
     reason = "security_denylist";
   }
 
+  const boundedGlobalMaxValueBytes = boundedInteger(
+    effectiveGlobalMaxValueBytes,
+    SQL_CACHE_MAX_VALUE_BYTES,
+    { min: MIN_CACHE_VALUE_BYTES, max: SQL_CACHE_MAX_VALUE_BYTES }
+  );
+
   return {
     table,
     enabled: Boolean(table && enabled),
@@ -176,19 +208,17 @@ export function resolveSqlCacheTablePolicy(
     ttl_seconds:
       override.ttl_seconds ??
       boundedInteger(requestedTtlSeconds, 0, { min: 0, max: 86_400 }),
-    max_value_bytes:
-      override.max_value_bytes ??
-      boundedInteger(globalMaxValueBytes, SQL_CACHE_MAX_VALUE_BYTES, {
-        min: MIN_CACHE_VALUE_BYTES,
-        max: SQL_CACHE_MAX_VALUE_BYTES,
-      }),
+    max_value_bytes: Math.min(
+      boundedGlobalMaxValueBytes,
+      override.max_value_bytes ?? boundedGlobalMaxValueBytes
+    ),
     oversize_cooldown_seconds:
       override.oversize_cooldown_seconds ??
-      boundedInteger(globalOversizeCooldownSeconds, SQL_CACHE_OVERSIZE_COOLDOWN_SECONDS, {
+      boundedInteger(effectiveOversizeCooldownSeconds, SQL_CACHE_OVERSIZE_COOLDOWN_SECONDS, {
         min: 0,
         max: 86_400,
       }),
-    key_version: normalizeSqlCachePart(keyVersion) || SQL_CACHE_KEY_VERSION,
+    key_version: normalizeSqlCachePart(effectiveKeyVersion) || SQL_CACHE_KEY_VERSION,
     policy_source_valid: parsedPolicies.valid,
     policy_error_code: parsedPolicies.error_code,
     security_denied: SECURITY_DENIED_TABLES.has(table),
@@ -231,16 +261,19 @@ export function prepareSqlCacheValue(value, maxValueBytes = SQL_CACHE_MAX_VALUE_
 }
 
 export function getSqlCachePolicyRuntimeStatus() {
-  const parsed = parseSqlCacheTablePolicies();
+  ensureSqlCacheRuntimePolicyRefresh();
+  const runtime = getSqlCacheRuntimePolicySnapshot();
+  const parsed = parseSqlCacheTablePolicies(runtime.table_policies);
   return {
-    key_version: SQL_CACHE_KEY_VERSION,
-    max_value_bytes: SQL_CACHE_MAX_VALUE_BYTES,
-    oversize_cooldown_seconds: SQL_CACHE_OVERSIZE_COOLDOWN_SECONDS,
-    configured_allowlist_count: parseSqlCacheCsvSet(SQL_CACHE_TABLE_ALLOWLIST).size,
-    configured_blocklist_count: parseSqlCacheCsvSet(SQL_CACHE_TABLE_BLOCKLIST).size,
+    key_version: runtime.key_version,
+    max_value_bytes: runtime.max_value_bytes,
+    oversize_cooldown_seconds: runtime.oversize_cooldown_seconds,
+    configured_allowlist_count: parseSqlCacheCsvSet(runtime.table_allowlist).size,
+    configured_blocklist_count: parseSqlCacheCsvSet(runtime.table_blocklist).size,
     table_policy_count: Object.keys(parsed.policies).length,
     table_policy_source_valid: parsed.valid,
     table_policy_error_code: parsed.error_code,
     security_denylist_count: SECURITY_DENIED_TABLES.size,
+    runtime: getSqlCacheRuntimePolicyStatus(),
   };
 }

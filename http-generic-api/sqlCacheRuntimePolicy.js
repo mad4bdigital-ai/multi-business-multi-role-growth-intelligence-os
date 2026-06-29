@@ -27,6 +27,10 @@ const ALLOWED_FIELDS = new Set([
   "table_policies",
 ]);
 
+const DEPLOYMENT_MAX_VALUE_BYTES = Number.isFinite(Number(SQL_CACHE_MAX_VALUE_BYTES))
+  ? Math.max(1_024, Math.min(8_388_608, Math.floor(Number(SQL_CACHE_MAX_VALUE_BYTES))))
+  : 1_048_576;
+
 const state = {
   current: null,
   lastGood: null,
@@ -127,7 +131,7 @@ function normalizeTablePolicies(value = {}) {
       row.ttl_seconds = asInteger(rawPolicy.ttl_seconds, 0, 0, 86_400);
     }
     if (rawPolicy.max_value_bytes !== undefined) {
-      row.max_value_bytes = asInteger(rawPolicy.max_value_bytes, 1_024, 1_024, 8_388_608);
+      row.max_value_bytes = asInteger(rawPolicy.max_value_bytes, 1_024, 1_024, DEPLOYMENT_MAX_VALUE_BYTES);
     }
     if (rawPolicy.oversize_cooldown_seconds !== undefined) {
       row.oversize_cooldown_seconds = asInteger(rawPolicy.oversize_cooldown_seconds, 0, 0, 86_400);
@@ -147,7 +151,12 @@ function envPolicy() {
     revision: 0,
     enabled: Boolean(SQL_CACHE_ENABLED),
     key_version: normalizeKey(SQL_CACHE_KEY_VERSION),
-    max_value_bytes: asInteger(SQL_CACHE_MAX_VALUE_BYTES, 1_048_576, 1_024, 8_388_608),
+    max_value_bytes: asInteger(
+      SQL_CACHE_MAX_VALUE_BYTES,
+      1_048_576,
+      1_024,
+      DEPLOYMENT_MAX_VALUE_BYTES
+    ),
     oversize_cooldown_seconds: asInteger(SQL_CACHE_OVERSIZE_COOLDOWN_SECONDS, 300, 0, 86_400),
     circuit_breaker_seconds: asInteger(SQL_CACHE_CIRCUIT_BREAKER_SECONDS, 15, 0, 3_600),
     single_flight_enabled: Boolean(SQL_CACHE_SINGLE_FLIGHT_ENABLED),
@@ -182,7 +191,12 @@ export function normalizeSqlCacheRuntimePolicy(value = {}, { strict = true } = {
   return {
     enabled: asBoolean(value.enabled, fallback.enabled),
     key_version: normalizeKey(value.key_version, fallback.key_version),
-    max_value_bytes: asInteger(value.max_value_bytes, fallback.max_value_bytes, 1_024, 8_388_608),
+    max_value_bytes: asInteger(
+      value.max_value_bytes,
+      fallback.max_value_bytes,
+      1_024,
+      DEPLOYMENT_MAX_VALUE_BYTES
+    ),
     oversize_cooldown_seconds: asInteger(
       value.oversize_cooldown_seconds,
       fallback.oversize_cooldown_seconds,

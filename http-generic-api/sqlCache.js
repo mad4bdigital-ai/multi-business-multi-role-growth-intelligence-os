@@ -5,12 +5,7 @@ import {
   QUEUE_WORKER_EXPLICITLY_ENABLED,
 } from "./queue.js";
 import {
-  SQL_CACHE_CIRCUIT_BREAKER_SECONDS,
-  SQL_CACHE_ENABLED,
-  SQL_CACHE_MAX_VALUE_BYTES,
-  SQL_CACHE_OVERSIZE_COOLDOWN_SECONDS,
   SQL_CACHE_RUNTIME_STATE_MAX_ENTRIES,
-  SQL_CACHE_SINGLE_FLIGHT_ENABLED,
   SQL_CONNECTOR_CACHE_TTL_SECONDS,
   SQL_REGISTRY_CACHE_TTL_SECONDS,
   SQL_TOOL_CACHE_TTL_SECONDS,
@@ -21,6 +16,11 @@ import {
   prepareSqlCacheValue,
   resolveSqlCacheTablePolicy,
 } from "./sqlCachePolicy.js";
+import {
+  ensureSqlCacheRuntimePolicyRefresh,
+  getSqlCacheRuntimePolicySnapshot,
+  refreshSqlCacheRuntimePolicy,
+} from "./sqlCacheRuntimePolicy.js";
 
 const KEY_PREFIX = "sql";
 const inFlightLoads = new Map();
@@ -43,6 +43,11 @@ const runtimeCounters = {
 
 function nowMs() {
   return Date.now();
+}
+
+function currentRuntimePolicy() {
+  ensureSqlCacheRuntimePolicyRefresh();
+  return getSqlCacheRuntimePolicySnapshot();
 }
 
 function boundedTtl(ttlSeconds) {
@@ -84,7 +89,10 @@ function errorCode(err, fallback = "sql_cache_transport_error") {
 }
 
 function openCircuit(err) {
-  const durationMs = Math.max(0, Number(SQL_CACHE_CIRCUIT_BREAKER_SECONDS) * 1_000);
+  const durationMs = Math.max(
+    0,
+    Number(currentRuntimePolicy().circuit_breaker_seconds) * 1_000
+  );
   lastErrorCode = errorCode(err);
   if (durationMs > 0) circuitOpenUntil = nowMs() + durationMs;
 }
@@ -92,7 +100,7 @@ function openCircuit(err) {
 function cacheClientAvailable(client, availableOverride = false) {
   if (availableOverride) return Boolean(client);
   return Boolean(
-    SQL_CACHE_ENABLED &&
+    currentRuntimePolicy().enabled &&
       REDIS_ENABLED &&
       REDIS_URL_CONFIGURED &&
       client
@@ -192,10 +200,18 @@ export async function setSqlCacheWithOutcome(
   {
     client = redis,
     availableOverride = false,
-    maxValueBytes = SQL_CACHE_MAX_VALUE_BYTES,
-    oversizeCooldownSeconds = SQL_CACHE_OVERSIZE_COOLDOWN_SECONDS,
+    maxValueBytes,
+    oversizeCooldownSeconds,
   } = {}
 ) {
+  const runtimePolicy = currentRuntimePolicy();
+  const effectiveMaxValueBytes =
+    maxValueBytes === undefined ? runtimePolicy.max_value_bytes : maxValueBytes;
+  const effectiveOversizeCooldownSeconds =
+    oversizeCooldownSeconds === undefined
+      ? runtimePolicy.oversize_cooldown_seconds
+      : oversizeCooldownSeconds;
+
   if (!cacheClientAvailable(client, availableOverride)) {
     runtimeCounters.unavailable_skips += 1;
     return { status: "unavailable" };
@@ -229,14 +245,17 @@ export async function setSqlCacheWithOutcome(
       status: "skipped_oversize",
       reason: "cooldown",
       bytes: null,
-      max_bytes: Number(maxValueBytes),
+      max_bytes: Number(effectiveMaxValueBytes),
       retry_after_ms: cooldownExpiresAt - currentTime,
     };
   }
 
-  const prepared = prepareSqlCacheValue(value, maxValueBytes);
+  const prepared = prepareSqlCacheValue(value, effectiveMaxValueBytes);
   if (prepared.status === "skipped_oversize") {
-    const cooldownMs = Math.max(0, Number(oversizeCooldownSeconds) * 1_000);
+    const cooldownMs = Math.max(
+      0,
+      Number(effectiveOversizeCooldownSeconds) * 1_000
+    );
     if (cooldownMs > 0) {
       boundedMapSet(oversizeCooldownUntil, key, currentTime + cooldownMs);
     }
@@ -357,7 +376,7 @@ export async function cachedSqlRead(
   const cached = await getSqlCacheWithOutcome(cacheKey);
   if (cached.status === "hit") return cached.value;
 
-  if (!SQL_CACHE_SINGLE_FLIGHT_ENABLED) {
+  if (!currentRuntimePolicy().single_flight_enabled) {
     return loadAndCache(cacheKey, ttl, loaderFn, {
       maxValueBytes,
       oversizeCooldownSeconds,
@@ -390,6 +409,7 @@ export async function cachedSqlTableRead(
   loaderFn,
   { ttlSeconds = SQL_REGISTRY_CACHE_TTL_SECONDS } = {}
 ) {
+  await refreshSqlCacheRuntimePolicy();
   const policy = resolveSqlCacheTablePolicy(tableName, {
     requestedTtlSeconds: ttlSeconds,
   });
@@ -425,8 +445,9 @@ export async function invalidateSqlTableCache(tableName) {
 
 export function getSqlCacheRuntimeStatus() {
   pruneExpiredCooldowns();
+  const runtimePolicy = currentRuntimePolicy();
   return {
-    enabled: Boolean(SQL_CACHE_ENABLED),
+    enabled: Boolean(runtimePolicy.enabled),
     available: isSqlCacheAvailable(),
     redis_enabled: Boolean(REDIS_ENABLED),
     redis_url_configured: Boolean(REDIS_URL_CONFIGURED),
@@ -434,7 +455,7 @@ export function getSqlCacheRuntimeStatus() {
     registry_ttl_seconds: registryCacheTtl(),
     tool_ttl_seconds: toolCacheTtl(),
     connector_ttl_seconds: connectorCacheTtl(),
-    single_flight_enabled: Boolean(SQL_CACHE_SINGLE_FLIGHT_ENABLED),
+    single_flight_enabled: Boolean(runtimePolicy.single_flight_enabled),
     circuit_open: isCircuitOpen(),
     circuit_retry_after_ms: circuitRetryAfterMs(),
     last_error_code: lastErrorCode,

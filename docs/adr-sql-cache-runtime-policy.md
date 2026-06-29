@@ -11,7 +11,7 @@ MySQL remains the source of truth. Redis remains an optional, bounded accelerati
 
 A versioned policy row in `sql_cache_runtime_policies` controls cache enablement, key version, byte limits, circuit-breaker duration, single-flight behavior, and per-table policy. Runtime processes refresh the row on a bounded interval and retain the last known good policy during transient MySQL failures.
 
-The cache continues to enforce a non-overridable denylist for secret-capable tables. Whole-table endpoint caching remains disabled. Writes use optimistic concurrency through `revision`.
+The cache enforces a non-overridable denylist for secret-capable and oversized whole-table surfaces. Whole-table endpoint caching remains disabled. Writes use optimistic concurrency through `revision`.
 
 The admin API is limited to:
 - `GET /admin/cache/sql-policy`

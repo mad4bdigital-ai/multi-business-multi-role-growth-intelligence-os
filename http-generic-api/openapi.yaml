@@ -719,7 +719,8 @@ components:
         section_key: { type: string }
         cursor: { type: integer, minimum: 0, default: 0 }
         detail_limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
-        max_response_chars: { type: integer, minimum: 5000, maximum: 500000 }
+        max_response_chars: { type: integer, minimum: 5000, maximum: 500000, default: 40000 }
+        chunk_ttl_minutes: { type: integer, minimum: 5, maximum: 120, default: 20 }
         authorized_access_limit: { type: integer, minimum: 1, maximum: 100 }
         authorized_surface_limit: { type: integer, minimum: 1, maximum: 50 }
         provider_arguments:
@@ -6403,6 +6404,14 @@ paths:
         - in: query
           name: attention_limit
           schema: { type: integer, minimum: 1, maximum: 20, default: 10 }
+        - in: query
+          name: max_response_chars
+          description: Maximum serialized characters returned inline before a governed chunk continuation envelope is returned.
+          schema: { type: integer, minimum: 5000, maximum: 150000, default: 45000 }
+        - in: query
+          name: chunk_ttl_minutes
+          description: Requested lifetime for the durable response chunk cache.
+          schema: { type: integer, minimum: 5, maximum: 120, default: 20 }
       responses:
         '200':
           description: Activation awareness readback.
@@ -7000,6 +7009,14 @@ paths:
         - in: query
           name: attention_limit
           schema: { type: integer, minimum: 1, maximum: 20, default: 10 }
+        - in: query
+          name: max_response_chars
+          description: Maximum serialized characters returned inline before a governed chunk continuation envelope is returned.
+          schema: { type: integer, minimum: 5000, maximum: 150000, default: 45000 }
+        - in: query
+          name: chunk_ttl_minutes
+          description: Requested lifetime for the durable response chunk cache.
+          schema: { type: integer, minimum: 5, maximum: 120, default: 20 }
       responses:
         '200':
           description: Tenant-scoped activation awareness.
@@ -7169,6 +7186,14 @@ paths:
           in: query
           schema: { type: integer, default: 4000, maximum: 20000 }
           description: Maximum characters per raw dump field when include_raw=true.
+        - name: max_response_chars
+          in: query
+          schema: { type: integer, minimum: 5000, maximum: 150000, default: 45000 }
+          description: Maximum serialized characters returned inline before a governed chunk continuation envelope is returned.
+        - name: chunk_ttl_minutes
+          in: query
+          schema: { type: integer, minimum: 5, maximum: 120, default: 20 }
+          description: Requested lifetime for the durable response chunk cache.
       responses:
         "200":
           description: Session history and related platform scopes
@@ -7252,6 +7277,7 @@ paths:
         - { name: tab_key, in: query, schema: { type: string } }
         - { name: date_range, in: query, schema: { type: string } }
         - { name: max_response_chars, in: query, schema: { type: integer, minimum: 5000, maximum: 150000, default: 40000 } }
+        - { name: chunk_ttl_minutes, in: query, description: Requested lifetime for the durable response chunk cache., schema: { type: integer, minimum: 5, maximum: 120, default: 20 } }
         - { name: session_policy, in: query, schema: { type: string, enum: [reuse_or_create, create_new, reuse_only, read_only], default: reuse_or_create } }
         - { name: idempotency_key, in: query, schema: { type: string, maxLength: 180 } }
         - { name: conversation_ref, in: query, schema: { type: string, maxLength: 500 } }
