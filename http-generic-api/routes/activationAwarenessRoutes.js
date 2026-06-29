@@ -15,7 +15,7 @@ import {
   synchronizeOperationalAlerts,
   updateOperationalAlertLifecycle,
 } from "../operationalAlertService.js";
-import { acknowledgeActivationRun } from "../activationSessionLifecycleService.js";
+import { acknowledgeActivationRun, readActivationRunArchive } from "../activationSessionLifecycleService.js";
 import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
@@ -249,6 +249,29 @@ async function operationalAttentionSyncResponse(req, isAdmin) {
   });
 }
 
+async function activationRunArchiveResponse(req, res, isAdmin) {
+  try {
+    const result = await readActivationRunArchive(getPool(), {
+      runId: req.params.runId,
+      subject: {
+        is_admin: isAdmin,
+        tenant_id: req.auth?.tenant_id || null,
+        user_id: req.auth?.user_id || null,
+      },
+    });
+    if (!result.found) {
+      return res.status(404).json({
+        ok: false,
+        error: { code: "activation_run_not_found", message: "Activation run was not found within the caller scope." },
+        secrets_included: false,
+      });
+    }
+    return res.status(200).json(result);
+  } catch (err) {
+    return errorResponse(res, err, "activation_run_archive_lookup_failed");
+  }
+}
+
 export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
   const router = Router();
   const adminGuards = [requireBackendApiKey].filter(Boolean);
@@ -256,11 +279,7 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
   router.get("/activation/awareness", ...adminGuards, async (req, res) => {
     try {
       const responseBody = await buildAwarenessResponse(req, true);
-      const transportBody = await chunkActivationAwarenessResponse(
-        responseBody,
-        req,
-        "activation_awareness_read_api"
-      );
+      const transportBody = await chunkActivationAwarenessResponse(responseBody, req, "activation_awareness_read_api");
       return res.status(200).json(transportBody);
     } catch (err) {
       return errorResponse(res, err, "activation_awareness_read_failed");
@@ -326,14 +345,12 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
+  router.get("/activation/runs/:runId/archive", ...adminGuards, async (req, res) => activationRunArchiveResponse(req, res, true));
+
   router.get("/tenant/activation/awareness", requireTenantUserJwt, async (req, res) => {
     try {
       const responseBody = await buildAwarenessResponse(req, false);
-      const transportBody = await chunkActivationAwarenessResponse(
-        responseBody,
-        req,
-        "tenant_activation_awareness_read_api"
-      );
+      const transportBody = await chunkActivationAwarenessResponse(responseBody, req, "tenant_activation_awareness_read_api");
       return res.status(200).json(transportBody);
     } catch (err) {
       return errorResponse(res, err, "tenant_activation_awareness_read_failed");
@@ -355,6 +372,8 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
       return errorResponse(res, err, "tenant_activation_dynamic_tab_detail_failed");
     }
   });
+
+  router.get("/tenant/activation/runs/:runId/archive", requireTenantUserJwt, async (req, res) => activationRunArchiveResponse(req, res, false));
 
   return router;
 }
