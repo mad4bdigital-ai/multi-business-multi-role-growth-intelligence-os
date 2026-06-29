@@ -456,14 +456,20 @@ export async function evaluateSupportTicketExternalProviderGatePreflight({ chann
   return makePreflightResult({ classification: warnings.length ? "allow_with_policy_warnings" : "allow", policies, warnings, errors, evidence, runtimePolicyResolution });
 }
 
-export async function evaluateGptToolDispatchPreflight({ callerType = "tenant", toolKey = "", args = {}, method = "", tags = [], mutationRequired = null, mutationPolicyDeclared = null } = {}, deps = {}) {
+export async function evaluateGptToolDispatchPreflight({ callerType = "tenant", toolKey = "", args = {}, method = "", tags = [], mutationRequired = null, mutationPolicyDeclared = null, principal = {} } = {}, deps = {}) {
   const invocationMutationRequired = mutationRequired === null
     ? resolveGptToolInvocationMutationRequirement({ toolKey, args, method, tags })
     : mutationRequired;
+  const dynamicResourceAuthority = deps.skipSurfaceAuthority === true
+    ? { ok: true, required: false, reason_code: "dynamic_resource_authority_test_bypass", mutation_policy_declared: false, secrets_included: false }
+    : await resolveDynamicResourceAuthority({ callerType, principal, toolKey, args, mutationRequired: invocationMutationRequired, pool: deps.pool });
   const mutation = classifyMutationPolicyRequirement({ method, tags, mutationRequired: invocationMutationRequired });
-  const declaredMutationPolicy = hasDeclaredMutationPolicy({ tags, mutationPolicyDeclared });
+  const declaredMutationPolicy = hasDeclaredMutationPolicy({ tags, mutationPolicyDeclared }) || dynamicResourceAuthority.mutation_policy_declared === true;
   const { runtimePolicyResolution, policies } = await resolvePolicies({ execution_scope: ["gpt_tools_call", "tool_dispatch", toolKey].filter(Boolean), affects_layer: ["gptToolsRoutes", callerType].filter(Boolean) }, deps);
-  const evidence = { operation: "gpt_tools_call", caller_type: callerType, tool_key: toolKey, method: method || null, tags, invocation_mutation_required: invocationMutationRequired, mutation_policy_requirement: mutation, mutation_policy_declared: declaredMutationPolicy, matching_policy_count: policies.length };
+  const evidence = { operation: "gpt_tools_call", caller_type: callerType, tool_key: toolKey, method: method || null, tags, invocation_mutation_required: invocationMutationRequired, mutation_policy_requirement: mutation, mutation_policy_declared: declaredMutationPolicy, dynamic_resource_authority: dynamicResourceAuthority, matching_policy_count: policies.length };
+  if (!dynamicResourceAuthority.ok) {
+    return makePreflightResult({ classification: "blocked", policies, errors: [dynamicResourceAuthority.reason_code || "dynamic_resource_authority_denied"], evidence, runtimePolicyResolution });
+  }
   if (mutation.required === null) return makeMutationPolicyBlock({ operation: "gpt_tools_call", reason: "mutation_classification_missing", mutation, evidence, runtimePolicyResolution });
   if (mutation.required && !declaredMutationPolicy) {
     return makeMutationPolicyBlock({ operation: "gpt_tools_call", reason: "explicit_mutation_policy_not_configured", mutation, evidence, runtimePolicyResolution });
