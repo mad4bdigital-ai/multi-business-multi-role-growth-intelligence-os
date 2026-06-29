@@ -166,6 +166,8 @@ internal static class Program
         private bool _desktopCommandPollRunning;
         private int _desktopCommandPollFailureCount;
         private DateTimeOffset _desktopCommandPollBackoffUntil = DateTimeOffset.MinValue;
+        private bool _autopilotRecoveryRunning;
+        private bool _autopilotRecoveryAttempted;
         private readonly Label _status;
         private readonly Label _pairingCode;
         private readonly ProgressBar _progress;
