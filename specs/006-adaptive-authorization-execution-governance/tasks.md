@@ -50,7 +50,8 @@
 - [x] D003 Record four successful required CI checks and verified merge ancestry.
 - [x] D004 Delete the merged source branch and the two verified-equivalent PR1936 resolution branches.
 - [x] D005 Review the two older orphan reconciliation branches against current `main`.
-- [ ] D006 Decide the explicit archival or deletion policy for orphan branches whose historical test blob differs from `main`.
-- [ ] D007 Start PR2 for canonical capability and alias resolution after T005 and T006 authority review.
+- [x] D006 Repair the historical test blob on both orphan branches and delete them through governed superseded cleanup.
+- [x] D007 Record branch repair, deletion, ambiguous-transport readback, and PR1 handoff evidence in PR #1967.
+- [ ] D008 Complete T005 and T006, then start PR2 for canonical capability and alias resolution.
 
-See `handoff-report-2026-06-29.md` for branch-level evidence, blockers, and the next execution boundary.
+See `handoff-report-2026-06-29.md` for branch-level evidence, stop conditions, and the next execution boundary.
