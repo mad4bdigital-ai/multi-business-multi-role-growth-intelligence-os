@@ -5,7 +5,7 @@
   "status": "in_progress",
   "delivery_mode": "multi_pr",
   "current_increment": {
-    "phase": "Authority Scope shadow evidence persistence",
+    "phase": "Authority Scope shadow readiness evaluation",
     "design_version": "0.3.0",
     "pull_request": 1929,
     "branch": "gpt/006-platform-dynamic-workflow-runtime",
@@ -48,6 +48,16 @@
         "base_branch": "gpt/006-authority-scope-shadow-integration",
         "enforcement_mode": "shadow_only",
         "migration_executed": false
+      },
+      {
+        "number": 1955,
+        "branch": "gpt/006-authority-scope-shadow-readiness",
+        "role": "authority_scope_shadow_readiness",
+        "status": "ci_passed_review_pending",
+        "verification_reference": "github_pr_ci_gate:1955",
+        "base_branch": "gpt/006-authority-scope-shadow-evidence",
+        "enforcement_mode": "shadow_only",
+        "migration_executed": false
       }
     ],
     "closeout_pr": {
@@ -67,18 +77,19 @@
     },
     "implementation": {
       "status": "in_progress",
-      "current_pr": 1949,
+      "current_pr": 1955,
       "slices": [
         "authority_scope_foundation",
         "authority_scope_shadow_integration",
-        "authority_scope_shadow_evidence"
+        "authority_scope_shadow_evidence",
+        "authority_scope_shadow_readiness"
       ],
       "ci_status": "pass",
       "mergeable_state": "clean",
       "scope": [
         "domain_invariants",
         "shadow_resolver",
-        "sql_repository",
+        "sql_repositories",
         "additive_migrations",
         "activation_surface_manifests",
         "container_resolver_shadow_bridge",
@@ -86,25 +97,28 @@
         "durable_shadow_evidence",
         "fail_open_evidence_persistence",
         "tenant_filtered_evidence_readback",
+        "shadow_readiness_evaluator",
+        "read_only_readiness_views",
         "tests"
       ],
       "production_effect": "none"
     },
     "ci": {
       "status": "pass",
-      "pull_requests": [1941, 1945, 1949],
+      "pull_requests": [1941, 1945, 1949, 1955],
       "required_checks_per_pr": 4,
       "successful_checks_per_pr": 4,
       "failed_checks": 0,
       "verification_references": [
         "github_pr_ci_gate:1941",
         "github_pr_ci_gate:1945",
-        "github_pr_ci_gate:1949"
+        "github_pr_ci_gate:1949",
+        "github_pr_ci_gate:1955"
       ]
     },
     "release_readiness": {
       "status": "pending",
-      "reason": "Design approval, implementation reviews, governed migration execution, deployed shadow observation, evidence retention verification, and production verification remain outstanding."
+      "reason": "Design approval, implementation reviews, governed migration execution, deployed shadow observation, evidence retention verification, readiness-window verification, and production verification remain outstanding."
     }
   },
   "secrets_included": false
