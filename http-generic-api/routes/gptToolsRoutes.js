@@ -1845,6 +1845,29 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     };
   }
 
+  if (callerType === "admin" && toolKey === "capability_resolution_envelope_apply_authorize") {
+    try {
+      const result = await authorizeCapabilityResolutionEnvelopeApply({
+        envelopeId: String(args?.envelope_id || "").trim(),
+        authorizedBy: String(args?.authorized_by || req?.auth?.user_id || "platform_admin").trim(),
+        decisionNote: String(args?.decision_note || "").trim(),
+        ttlMinutes: Number(args?.ttl_minutes || 60),
+      });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: Number(err?.status || 400),
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "capability_envelope_apply_authorization_failed",
+            message: err?.message || "Capability envelope apply authorization failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
   if (callerType === "admin" && toolKey === "governed_migration_authorization_bootstrap") {
     try {
       const result = await bootstrapGovernedMigrationAuthorization(args || {}, {
