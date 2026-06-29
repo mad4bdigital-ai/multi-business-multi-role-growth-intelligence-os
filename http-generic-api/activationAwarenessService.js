@@ -378,6 +378,30 @@ function aggregateRows(rows, key, accepted = null) {
   return output;
 }
 
+export function deriveSkillGrantProjection(rows = []) {
+  const grantStatus = {};
+  let total = 0;
+  let requiresApproval = 0;
+  let noApprovalRequired = 0;
+  for (const row of rows) {
+    const count = safeNumber(row.count || 0);
+    const status = String(row.grant_status ?? "unknown");
+    grantStatus[status] = (grantStatus[status] || 0) + count;
+    total += count;
+    if (status !== "active") continue;
+    if (safeNumber(row.requires_approval) === 1) requiresApproval += count;
+    else noApprovalRequired += count;
+  }
+  return {
+    total,
+    grant_status: grantStatus,
+    approval: {
+      requires_approval: requiresApproval,
+      no_approval_required: noApprovalRequired,
+    },
+  };
+}
+
 export function deriveOperationalBlockedSurfaces({ results = {}, counts = {} } = {}) {
   const highSeveritySignals = Object.entries(counts.signals || {})
     .filter(([key]) => /^(critical|high):/i.test(key))
@@ -411,8 +435,10 @@ export function deriveOperationalBlockedSurfaces({ results = {}, counts = {} } =
   });
   add("skills", [
     results.skills?.ok !== true ? "source_unavailable" : null,
-    safeNumber(counts.skills?.requires_approval) > 0 ? "approval_required" : null,
-  ].filter(Boolean), { requires_approval: results.skills?.ok === true ? safeNumber(counts.skills?.requires_approval) : null });
+  ].filter(Boolean), {
+    active_grants: results.skills?.ok === true ? safeNumber(counts.skills?.active) : null,
+    requires_approval: results.skills?.ok === true ? safeNumber(counts.skillApprovals?.requires_approval) : null,
+  });
   add("freshness", [
     results.freshness?.ok !== true ? "source_unavailable" : null,
     safeNumber(counts.freshness?.failed) > 0 ? "freshness_failed" : null,
@@ -494,11 +520,10 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
     ),
     groupedCount("v_activation_agent_catalog", "health_status", tenantWhere, tenantParams),
     safeRows(
-      `SELECT CASE WHEN requires_approval = 1 THEN 'requires_approval' ELSE grant_status END AS group_value,
-              COUNT(*) AS count
+      `SELECT grant_status, requires_approval, COUNT(*) AS count
          FROM v_activation_agent_skill_grants
         WHERE ${tenantWhere}
-        GROUP BY CASE WHEN requires_approval = 1 THEN 'requires_approval' ELSE grant_status END`,
+        GROUP BY grant_status, requires_approval`,
       tenantParams
     ),
     safeRows(
@@ -523,7 +548,9 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
   const systemCounts = aggregateRows(systems.rows, "group_value");
   const taskCounts = aggregateRows(tasks.rows, "group_value");
   const agentCounts = aggregateRows(agents.rows, "group_value");
-  const skillCounts = aggregateRows(skills.rows, "group_value");
+  const skillProjection = deriveSkillGrantProjection(skills.rows);
+  const skillCounts = skillProjection.grant_status;
+  const skillApprovalCounts = skillProjection.approval;
   const freshnessCounts = aggregateRows(freshness.rows, "group_value");
   const signalCounts = aggregateRows(signals.rows, "group_value");
   const unifiedAttention = await readOperationalAlerts({
@@ -590,7 +617,15 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
         : "unknown";
   const blockedSurfaces = deriveOperationalBlockedSurfaces({
     results: { systems, tasks, agents, skills, freshness, signals },
-    counts: { systems: systemCounts, tasks: taskCounts, agents: agentCounts, skills: skillCounts, freshness: freshnessCounts, signals: signalCounts },
+    counts: {
+      systems: systemCounts,
+      tasks: taskCounts,
+      agents: agentCounts,
+      skills: skillCounts,
+      skillApprovals: skillApprovalCounts,
+      freshness: freshnessCounts,
+      signals: signalCounts,
+    },
   });
   const blockedSurfaceCount = blockedSurfaces.length;
   const registeredSystemCount = sumCountGroups(systems, systemCounts);
@@ -613,7 +648,9 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
       error_system_count: systems.ok ? safeNumber(systemCounts.error) : null,
       pending_task_count: sumCountGroups(tasks, taskCounts),
       agent_count: sumCountGroups(agents, agentCounts),
-      skill_grant_count: sumCountGroups(skills, skillCounts),
+      skill_grant_count: skills.ok ? skillProjection.total : null,
+      active_skill_grant_count: skills.ok ? safeNumber(skillCounts.active) : null,
+      approval_required_skill_grant_count: skills.ok ? safeNumber(skillApprovalCounts.requires_approval) : null,
       registered_action_count: actionCount.count,
       connector_pack_count: packCount.count,
       signal_subscription_count: subscriptionCount.count,
@@ -627,7 +664,13 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
       connectors: { available: systems.ok, active: systems.ok ? safeNumber(systemCounts.active) : null, pending: systems.ok ? safeNumber(systemCounts.pending) : null, error: systems.ok ? safeNumber(systemCounts.error) : null },
       tasks: { available: tasks.ok, blocked: tasks.ok ? safeNumber(taskCounts.blocked) : null, open: sumCountGroups(tasks, taskCounts) },
       agents: { available: agents.ok, active: agents.ok ? safeNumber(agentCounts.active) : null, degraded: agents.ok ? safeNumber(agentCounts.degraded) : null, offline: agents.ok ? safeNumber(agentCounts.offline) : null },
-      skills: { available: skills.ok, active_grants: skills.ok ? safeNumber(skillCounts.active) : null, requires_approval: skills.ok ? safeNumber(skillCounts.requires_approval) : null },
+      skills: {
+        available: skills.ok,
+        active_grants: skills.ok ? safeNumber(skillCounts.active) : null,
+        requires_approval: skills.ok ? safeNumber(skillApprovalCounts.requires_approval) : null,
+        grant_state: skills.ok ? (safeNumber(skillCounts.active) > 0 ? "active" : "inactive") : "unknown",
+        approval_state: skills.ok ? (safeNumber(skillApprovalCounts.requires_approval) > 0 ? "required" : "not_required") : "unknown",
+      },
       freshness: { available: freshness.ok, ...freshnessCounts },
       signals: { available: signals.ok, ...signalCounts },
     },
@@ -948,6 +991,7 @@ export const _testingActivationAwareness = {
   stripSensitive,
   quoteIdentifier,
   safeColumns,
+  deriveSkillGrantProjection,
   defaultDeliveryMode,
   defaultDedupeScope,
   badgeForTab,

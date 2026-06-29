@@ -22,7 +22,7 @@ const laterUnchecked = [...tasks.matchAll(/^- \[ \] \*\*T(0(1[0-9]|[2-9][0-9])|1
 const laterChecked = [...tasks.matchAll(/^- \[x\] \*\*T(0(1[0-9]|[2-9][0-9])|1[01][0-9])\*\*/gm)];
 assert(laterUnchecked.length > 0, "later Spec Kit work must remain explicitly tracked");
 assert(laterChecked.length > 0, "previously completed later-phase evidence must be preserved");
-assert.match(tasks, /^- \[ \] \*\*T010\*\*/m, "T010 discovery work must remain open");
+assert.match(tasks, /^- \[x\] \*\*T010\*\*/m, "completed Phase 1 discovery evidence must remain preserved");
 assert.match(tasks, /^- \[x\] \*\*T046\*\*/m, "previously completed credential-policy work must remain preserved");
 assert.match(tasks, /^- \[ \] \*\*T114\*\*/m, "legacy retirement must remain open");
 
@@ -77,10 +77,15 @@ assert(prChecklist.includes("Full final-head repository test manifest"), "PR che
 
 assert.equal(completion.schema_version, 1);
 assert.equal(completion.feature_key, "001-capability-security-hardening");
-assert.equal(completion.status, "in_progress", "full Spec Kit must remain in progress while T010-T114 are open");
+assert.equal(completion.status, "in_progress", "full Spec Kit must remain in progress while implementation and release tasks remain open");
 assert.equal(completion.delivery_mode, "multi_pr");
-assert.equal(completion.current_increment.pull_request, 1879);
-assert.equal(completion.current_increment.merge_scope, "containment_only");
+assert.equal(completion.current_increment.pull_request, 1913);
+assert.equal(completion.current_increment.merge_scope, "discovery_evidence_and_ci_fixture_repair");
+assert.equal(completion.evidence.phase0.status, "completed_increment");
+assert.equal(completion.evidence.phase0.validation_record, "containment-validation.md");
+assert.equal(completion.evidence.phase0.tenant_reverification_report, "tenant-reverification-unified-report-2026-06-23.md");
+assert.equal(completion.evidence.phase0.report_sha256, "5874a56d4dc5c3d11bce18e3166fd509fce74317253bd2e0305ff3c50485eb6f");
+assert.equal(completion.evidence.phase1.validation_record, "phase1-discovery-evidence-2026-06-26.md");
 assert.equal(completion.evidence.release_readiness.unrestricted_tenant_execution_authorized, false);
 assert.equal(completion.evidence.release_readiness.production_promotion_authorized, false);
 

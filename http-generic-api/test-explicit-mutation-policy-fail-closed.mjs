@@ -49,6 +49,17 @@ assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "gpt_session
 assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "gpt_session_archive_backfill", method: "POST", tags: ["read_write", "dry_run_default_true"], args: { dry_run: false } }), true);
 assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_cloudflare", method: "POST", args: { method: "GET" } }), false);
 assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_cloudflare", method: "POST", args: { method: "POST" } }), true);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_hostinger", method: "POST", args: { method: "GET" } }), false);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_hostinger", method: "POST", args: { method: "PATCH" } }), true);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_control", method: "POST", args: { tool: "db", sql: "SELECT policy_key FROM sql_cache_runtime_policies LIMIT 1" } }), false);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_control", method: "POST", args: { tool: "db", sql: "SELECT policy_key FROM sql_cache_runtime_policies FOR UPDATE" } }), true);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_control", method: "POST", args: { tool: "db", sql: "UPDATE sql_cache_runtime_policies SET revision = revision + 1" } }), true);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_control", method: "POST", args: { tool: "shell", action: "list" } }), false);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_control", method: "POST", args: { tool: "shell", action: "run" } }), true);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_control", method: "POST", args: { tool: "env", action: "get" } }), false);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_control", method: "POST", args: { tool: "env", action: "set" } }), true);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_control", method: "POST", args: { tool: "hostinger", method: "GET" } }), false);
+assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_control", method: "POST", args: { tool: "hostinger", method: "POST" } }), true);
 assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "cloudflare_tunnel_status", method: "POST" }), false);
 assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "admin_cloudflare", method: "DELETE", args: { method: "GET" } }), null);
 assert.equal(resolveGptToolInvocationMutationRequirement({ toolKey: "cloudflare_tunnel_status", method: "DELETE" }), null);
@@ -91,6 +102,18 @@ assert.equal(cloudflareRead.classification, "allow");
 const cloudflareWrite = await evaluateGptToolDispatchPreflight({ callerType: "admin", toolKey: "admin_cloudflare", method: "POST", tags: ["admin", "cloudflare"], args: { method: "PATCH" } }, emptyPolicyDeps);
 assert.equal(cloudflareWrite.ok, false);
 assert.deepEqual(cloudflareWrite.errors, ["mutation_policy_required"]);
+
+const hostingerRead = await evaluateGptToolDispatchPreflight({ callerType: "admin", toolKey: "admin_hostinger", method: "POST", tags: ["admin", "hostinger"], args: { method: "GET" } }, emptyPolicyDeps);
+assert.equal(hostingerRead.ok, true);
+assert.equal(hostingerRead.classification, "allow");
+
+const adminControlDbRead = await evaluateGptToolDispatchPreflight({ callerType: "admin", toolKey: "admin_control", method: "POST", tags: ["admin"], args: { tool: "db", sql: "SELECT policy_key FROM sql_cache_runtime_policies LIMIT 1" } }, emptyPolicyDeps);
+assert.equal(adminControlDbRead.ok, true);
+assert.equal(adminControlDbRead.classification, "allow");
+
+const adminControlDbWrite = await evaluateGptToolDispatchPreflight({ callerType: "admin", toolKey: "admin_control", method: "POST", tags: ["admin"], args: { tool: "db", sql: "DELETE FROM sql_cache_runtime_policies" } }, emptyPolicyDeps);
+assert.equal(adminControlDbWrite.ok, false);
+assert.deepEqual(adminControlDbWrite.errors, ["mutation_policy_required"]);
 
 const dryRunBypassAttempt = await evaluateGptToolDispatchPreflight({ callerType: "admin", toolKey: "untrusted_post", method: "POST", tags: [], args: { dry_run: true } }, emptyPolicyDeps);
 assert.equal(dryRunBypassAttempt.ok, false);
@@ -215,4 +238,27 @@ assert.ok(
   "app action authorization preflight must run before credential access",
 );
 
+const envelopeBootstrapMigration = await import("node:fs/promises").then(({ readFile }) =>
+  readFile(new URL("./migrations/315_sprint69_capability_envelope_bootstrap_policy_declaration.sql", import.meta.url), "utf8")
+);
+const dryRunBootstrapTags = [
+  "admin", "capability_resolution", "dry_run", "preview_only", "no_mutation",
+  "no_execution", "no_secrets", "authority_graph", "managed_dedicated_dynamic",
+];
+assert.deepEqual(
+  classifyMutationPolicyRequirement({ method: "POST", tags: dryRunBootstrapTags }),
+  { required: false, classification: "read_only_tag" },
+);
+for (const expected of [
+  "capability_resolution_dry_run",
+  "preview_only,no_mutation,no_execution",
+  "'target_execution_allowed',false",
+  "'provider_calls_allowed',false",
+  "'credential_payloads_read',false",
+  "'secrets_included',false",
+  "20260625_repository_mutation_descriptor_policy_recovery.sql",
+]) {
+  assert(envelopeBootstrapMigration.includes(expected), `D-001 migration must include: ${expected}`);
+}
+assert.doesNotMatch(envelopeBootstrapMigration, /WHERE tool_key = 'capability_resolution_envelope_(?:create|approve)'/);
 console.log("explicit mutation policy fail-closed tests passed");
