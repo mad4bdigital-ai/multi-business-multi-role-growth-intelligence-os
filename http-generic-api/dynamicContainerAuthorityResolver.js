@@ -20,6 +20,7 @@ import {
   storeIdempotentResult
 } from "./dynamicContainerAuthorityRepository.js";
 import { resolveAuthorityScopeShadowContext } from "./authorityScopeShadowBridge.js";
+import { persistAuthorityScopeShadowEvidence } from "./authorityScopeShadowEvidence.js";
 
 export const CONTAINER_AUTHORITY_RESOLVER_VERSION = "dynamic-container-authority-v1";
 const resolutionCache = new Map();
@@ -439,6 +440,30 @@ function compareShadowDecision(legacyDecision, containerDecision) {
     : { status:"mismatch", mismatchCodes:[`legacy_${normalizedLegacy}_container_${normalizedContainer}`] };
 }
 
+async function persistAuthorityScopeShadowEvidenceFailOpen({ persist, input, resolution, shadow }) {
+  try {
+    const persisted = await persist({
+      tenantId:input.tenantId,
+      requestId:input.requestId,
+      resolutionId:resolution.resolutionId,
+      principal:input.principal,
+      targetContainerId:input.targetContainerId,
+      authorityScopeShadow:shadow
+    });
+    return Object.freeze({
+      ...shadow,
+      evidencePersistenceStatus:String(persisted?.status || "persisted"),
+      evidenceId:persisted?.evidenceId || null
+    });
+  } catch (error) {
+    return Object.freeze({
+      ...shadow,
+      evidencePersistenceStatus:"failed",
+      evidencePersistenceErrorCode:String(error?.code || "SHADOW_EVIDENCE_WRITE_FAILED")
+    });
+  }
+}
+
 function cacheGet(key, epoch, nowMs) {
   const item = resolutionCache.get(key);
   if (!item || item.authorityEpoch !== epoch || item.expiresAtMs <= nowMs) {
@@ -468,6 +493,7 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
   const readIdempotency = dependencies.readIdempotency || readIdempotentResult;
   const storeIdempotency = dependencies.storeIdempotency || storeIdempotentResult;
   const resolveAuthorityScopeShadow = dependencies.resolveAuthorityScopeShadow || resolveAuthorityScopeShadowContext;
+  const persistAuthorityScopeShadow = dependencies.persistAuthorityScopeShadowEvidence || persistAuthorityScopeShadowEvidence;
   const enforcementEnabled = dependencies.enforcementEnabled ?? String(process.env.DYNAMIC_CONTAINER_AUTHORITY_ENFORCEMENT || "false").toLowerCase() === "true";
 
   const input = {
@@ -581,7 +607,7 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
   }
   if (!evidence) throw stableError("container_authority_epoch_changed", "Resolution could not stabilize on one authority epoch.");
 
-  const resolution = {
+  let resolution = {
     ...evidence,
     resolutionId:randomUUID(),
     requestId:input.requestId,
@@ -591,6 +617,15 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
     authorityScopeShadow
   };
   await persistResolution(resolution);
+  resolution = {
+    ...resolution,
+    authorityScopeShadow:await persistAuthorityScopeShadowEvidenceFailOpen({
+      persist:persistAuthorityScopeShadow,
+      input,
+      resolution,
+      shadow:authorityScopeShadow
+    })
+  };
   const policy = await readPolicy().catch(() => null);
   const durationMs = performance.now()-startedAt;
   await recordPerformance({
@@ -600,8 +635,9 @@ export async function resolveEffectiveContainerContext(rawInput, dependencies = 
     pathCount:resolution.containerPaths.length,candidateBindingCount:resolution.effectiveBindings.length,
     durationMs,withinBudget:!policy || durationMs<=Number(policy.p99_budget_ms || 400),metadata:{
       cacheHit,
-      authorityScopeShadowStatus:authorityScopeShadow?.status || "unresolved",
-      authorityScopeShadowComparison:authorityScopeShadow?.comparisonStatus || "unresolved"
+      authorityScopeShadowStatus:resolution.authorityScopeShadow?.status || "unresolved",
+      authorityScopeShadowComparison:resolution.authorityScopeShadow?.comparisonStatus || "unresolved",
+      authorityScopeShadowPersistence:resolution.authorityScopeShadow?.evidencePersistenceStatus || "failed"
     }
   }).catch(() => null);
   if (input.mode === "shadow") {
@@ -636,5 +672,6 @@ export const _testingDynamicContainerAuthorityResolver = {
   resolveClassifications,
   resolveDimensionRequest,
   compareShadowDecision,
+  persistAuthorityScopeShadowEvidenceFailOpen,
   resolutionCache
 };
