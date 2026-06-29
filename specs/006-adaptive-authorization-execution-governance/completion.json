@@ -4,7 +4,7 @@
   "title": "Adaptive Authorization and Execution Governance",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-06-29T11:19:00Z",
+  "last_updated_at": "2026-06-29T15:36:00Z",
   "requirements": {
     "migration": true,
     "production_verification": true,
@@ -31,6 +31,12 @@
         "merge_ancestry_verified": true
       }
     ],
+    "documentation_pr": {
+      "number": 1967,
+      "branch": "gpt/docs/20260629-adaptive-auth-pr1-handoff",
+      "role": "completion_evidence_and_handoff",
+      "status": "open"
+    },
     "next_pr": {
       "sequence": 2,
       "scope": "canonical_capability_and_alias_resolver",
@@ -96,32 +102,34 @@
       "failed_checks": []
     },
     "post_merge_cleanup": {
-      "status": "partially_complete",
+      "status": "complete",
       "deleted_branches": [
         "gpt/repo-patch/20260627213639-readme.md-spec-initialize-adaptive-authorization-governanc",
         "gpt/reconcile-resolution-20260629-pr1936-v5",
-        "gpt/reconcile-resolution-20260629-pr1936-v6"
+        "gpt/reconcile-resolution-20260629-pr1936-v6",
+        "gpt/reconcile-blob-20260629-pr1-v1",
+        "gpt/reconcile-resolution-20260629-pr1-v3"
       ],
-      "reviewed_retained_branches": [
+      "repaired_and_deleted_branches": [
         {
           "branch": "gpt/reconcile-blob-20260629-pr1-v1",
-          "head_sha": "5187f4e2066e3a7b8c5f3844b4d490bde6422e5a",
-          "decision": "retain_pending_explicit_superseded_history_disposition",
-          "blocker": "orphan_branch_content_not_equivalent_to_default",
-          "content_mismatch_path": "http-generic-api/test-activation-awareness-completeness.mjs",
-          "branch_blob_sha": "1ebcc6d8dd17e1ae2274e0e7f010f1a74a32c416",
-          "main_blob_sha": "65fabf0f3515bc901add2fb52d2996070b502b86",
-          "evidence_fingerprint": "6299fc75b5c52296065dcd206c2a879180f1d82b08ff82d0fcf81aed63306c30"
+          "original_head_sha": "5187f4e2066e3a7b8c5f3844b4d490bde6422e5a",
+          "repair_commit_sha": "ae69df38d3d589b0f1bed6c1b3c3cc1f489e49b8",
+          "accepted_test_blob_sha": "65fabf0f3515bc901add2fb52d2996070b502b86",
+          "cleanup_evidence_fingerprint": "76df520c6d0f607ffc7896fe5532b19553ca9a043b0257924487901219a7d3ec",
+          "deletion_readback": "branch_missing_verified",
+          "force_used": false
         },
         {
           "branch": "gpt/reconcile-resolution-20260629-pr1-v3",
-          "head_sha": "6b55b1aece6123ad141c7fa00a8ac290429d6a83",
-          "decision": "retain_pending_explicit_superseded_history_disposition",
-          "blocker": "orphan_branch_content_not_equivalent_to_default",
-          "content_mismatch_path": "http-generic-api/test-activation-awareness-completeness.mjs",
-          "branch_blob_sha": "1ebcc6d8dd17e1ae2274e0e7f010f1a74a32c416",
-          "main_blob_sha": "65fabf0f3515bc901add2fb52d2996070b502b86",
-          "evidence_fingerprint": "a2a882cb18aaa0d9f5e9d44b43fe8fd03d49ad5e30edd6f540195121998f96d0"
+          "original_head_sha": "6b55b1aece6123ad141c7fa00a8ac290429d6a83",
+          "repair_commit_sha": "65ae9addd6acba42607bd7d2b81f2c1b85380846",
+          "accepted_test_blob_sha": "65fabf0f3515bc901add2fb52d2996070b502b86",
+          "cleanup_evidence_fingerprint": "7ba6366f4d761821cdf2ad2d50fec6bb4b9a0dfb51703250224ad730f2e2ad74",
+          "deletion_transport": "502_after_dispatch",
+          "deletion_readback": "github_reference_not_found_404",
+          "retry_performed": false,
+          "force_used": false
         }
       ]
     },
