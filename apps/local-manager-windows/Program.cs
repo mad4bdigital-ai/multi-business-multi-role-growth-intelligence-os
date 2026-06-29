@@ -83,7 +83,11 @@ internal static class Program
     {
         var currentPath = Path.GetFullPath(Application.ExecutablePath);
         var installedPath = Path.GetFullPath(InstalledExePath);
-        if (PathsEqual(currentPath, installedPath)) return false;
+        if (PathsEqual(currentPath, installedPath))
+        {
+            WindowsAppRegistration.EnsureRegistered(installedPath, Application.ProductVersion);
+            return false;
+        }
 
         try
         {
