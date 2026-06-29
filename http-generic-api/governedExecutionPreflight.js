@@ -40,11 +40,72 @@ function normalizedPolicyTags(tags = []) {
     .filter(Boolean));
 }
 
+function splitSqlStatementsForPolicy(sql = "") {
+  const statements = [];
+  let current = "";
+  let quote = null;
+  let lineComment = false;
+  let blockComment = false;
+  const source = String(sql || "");
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    const next = source[index + 1];
+    if (lineComment) {
+      if (char === "\n") { lineComment = false; current += " "; }
+      continue;
+    }
+    if (blockComment) {
+      if (char === "*" && next === "/") { blockComment = false; index += 1; current += " "; }
+      continue;
+    }
+    if (!quote && char === "-" && next === "-") { lineComment = true; index += 1; continue; }
+    if (!quote && char === "#") { lineComment = true; continue; }
+    if (!quote && char === "/" && next === "*") { blockComment = true; index += 1; continue; }
+    if (quote) {
+      current += char;
+      if (char === "\\" && next) { current += next; index += 1; }
+      else if (char === quote) {
+        if (next === quote) { current += next; index += 1; }
+        else quote = null;
+      }
+      continue;
+    }
+    if (["'", "\"", "`"].includes(char)) { quote = char; current += char; continue; }
+    if (char === ";") { if (current.trim()) statements.push(current.trim()); current = ""; continue; }
+    current += char;
+  }
+  if (current.trim()) statements.push(current.trim());
+  return statements;
+}
+
+export function classifyAdminControlDbSql(sql = "") {
+  const statements = splitSqlStatementsForPolicy(sql);
+  if (!statements.length) return { mutation_required: null, classification: "sql_missing", statement_count: 0 };
+  if (statements.length > 1) return { mutation_required: true, classification: "multi_statement_sql", statement_count: statements.length };
+  const statement = statements[0].trim();
+  const keyword = (statement.match(/^([A-Za-z]+)/)?.[1] || "").toUpperCase();
+  const reads = new Set(["SELECT", "SHOW", "DESCRIBE", "DESC", "EXPLAIN"]);
+  const mutations = new Set(["INSERT", "UPDATE", "DELETE", "REPLACE", "MERGE", "UPSERT", "CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME", "GRANT", "REVOKE", "SET", "CALL", "DO", "LOAD", "BEGIN", "START", "COMMIT", "ROLLBACK", "SAVEPOINT", "LOCK", "UNLOCK"]);
+  if (reads.has(keyword)) return { mutation_required: false, classification: "single_statement_read_sql", statement_count: 1 };
+  if (keyword === "WITH") {
+    const normalized = statement.toUpperCase();
+    if (/\b(INSERT|UPDATE|DELETE|REPLACE|MERGE)\b/.test(normalized)) return { mutation_required: true, classification: "cte_mutation_sql", statement_count: 1 };
+    if (/\bSELECT\b/.test(normalized)) return { mutation_required: false, classification: "cte_read_sql", statement_count: 1 };
+    return { mutation_required: null, classification: "cte_sql_unclassified", statement_count: 1 };
+  }
+  if (mutations.has(keyword)) return { mutation_required: true, classification: "single_statement_mutation_sql", statement_count: 1 };
+  return { mutation_required: null, classification: "sql_unclassified", statement_count: 1 };
+}
+
 export function resolveGptToolInvocationMutationRequirement({ toolKey = "", args = {}, method = "", tags = [] } = {}) {
   const normalizedToolKey = String(toolKey || "").trim();
   const normalizedArgs = args && typeof args === "object" && !Array.isArray(args) ? args : {};
   const normalizedMethod = String(method || "").trim().toUpperCase();
   const normalizedTags = normalizedPolicyTags(tags);
+
+  if (normalizedToolKey === "admin_control" && String(normalizedArgs.tool || "").trim().toLowerCase() === "db") {
+    return classifyAdminControlDbSql(normalizedArgs.sql).mutation_required;
+  }
 
   if (normalizedToolKey === "admin_cloudflare") {
     if (!["POST", "VIRTUAL"].includes(normalizedMethod)) return null;
