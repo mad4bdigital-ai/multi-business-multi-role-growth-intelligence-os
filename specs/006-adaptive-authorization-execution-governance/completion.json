@@ -4,6 +4,7 @@
   "title": "Adaptive Authorization and Execution Governance",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
+  "last_updated_at": "2026-06-29T11:19:00Z",
   "requirements": {
     "migration": true,
     "production_verification": true,
@@ -12,19 +13,43 @@
   "delivery": {
     "specification_branch": {
       "branch": "gpt/repo-patch/20260627213639-readme.md-spec-initialize-adaptive-authorization-governanc",
-      "status": "deep_design_ready_no_pr"
+      "pull_request": 1936,
+      "merge_sha": "809e81f9dc3c9198a2a4c2d45b4cd4177ef7b158",
+      "status": "merged_and_source_branch_deleted"
     },
-    "implementation_prs": [],
+    "implementation_prs": [
+      {
+        "sequence": 1,
+        "role": "state_semantics_and_operational_projections",
+        "pull_request": 1936,
+        "head_sha": "f567cba1949949a157f138610984e37c0374c553",
+        "merge_sha": "809e81f9dc3c9198a2a4c2d45b4cd4177ef7b158",
+        "status": "merged",
+        "required_checks": 4,
+        "successful_checks": 4,
+        "base_fresh_at_merge": true,
+        "merge_ancestry_verified": true
+      }
+    ],
+    "next_pr": {
+      "sequence": 2,
+      "scope": "canonical_capability_and_alias_resolver",
+      "status": "pending"
+    },
     "closeout_pr": {
       "number": null,
       "branch": null,
       "role": "completion",
       "status": "pending"
+    },
+    "handoff_report": {
+      "path": "specs/006-adaptive-authorization-execution-governance/handoff-report-2026-06-29.md",
+      "status": "recorded"
     }
   },
   "evidence": {
     "specification": {
-      "status": "deep_design_complete",
+      "status": "deep_design_complete_and_merged",
       "documents": {
         "top_level_specification": true,
         "architecture_decision_record": true,
@@ -49,22 +74,60 @@
       "provider_mutations": false
     },
     "implementation": {
-      "status": "pending",
-      "next_pr_scope": "state_semantics_and_operational_projections",
+      "status": "in_progress",
+      "completed_pr_sequences": [1],
+      "next_pr_scope": "canonical_capability_and_alias_resolver",
       "provider_mutation_allowed": false,
       "enforcement_change_allowed": false,
       "new_authority_tables_allowed": false
     },
     "pull_request": {
-      "status": "blocked_missing_registered_auth_host_pr_creation_surface"
+      "status": "merged",
+      "number": 1936,
+      "merge_sha": "809e81f9dc3c9198a2a4c2d45b4cd4177ef7b158"
     },
     "ci": {
-      "status": "not_run",
-      "reason": "No pull request or governed branch CI run has been created."
+      "status": "passed",
+      "head_sha": "f567cba1949949a157f138610984e37c0374c553",
+      "required_check_count": 4,
+      "successful_check_count": 4,
+      "missing_checks": [],
+      "pending_checks": [],
+      "failed_checks": []
+    },
+    "post_merge_cleanup": {
+      "status": "partially_complete",
+      "deleted_branches": [
+        "gpt/repo-patch/20260627213639-readme.md-spec-initialize-adaptive-authorization-governanc",
+        "gpt/reconcile-resolution-20260629-pr1936-v5",
+        "gpt/reconcile-resolution-20260629-pr1936-v6"
+      ],
+      "reviewed_retained_branches": [
+        {
+          "branch": "gpt/reconcile-blob-20260629-pr1-v1",
+          "head_sha": "5187f4e2066e3a7b8c5f3844b4d490bde6422e5a",
+          "decision": "retain_pending_explicit_superseded_history_disposition",
+          "blocker": "orphan_branch_content_not_equivalent_to_default",
+          "content_mismatch_path": "http-generic-api/test-activation-awareness-completeness.mjs",
+          "branch_blob_sha": "1ebcc6d8dd17e1ae2274e0e7f010f1a74a32c416",
+          "main_blob_sha": "65fabf0f3515bc901add2fb52d2996070b502b86",
+          "evidence_fingerprint": "6299fc75b5c52296065dcd206c2a879180f1d82b08ff82d0fcf81aed63306c30"
+        },
+        {
+          "branch": "gpt/reconcile-resolution-20260629-pr1-v3",
+          "head_sha": "6b55b1aece6123ad141c7fa00a8ac290429d6a83",
+          "decision": "retain_pending_explicit_superseded_history_disposition",
+          "blocker": "orphan_branch_content_not_equivalent_to_default",
+          "content_mismatch_path": "http-generic-api/test-activation-awareness-completeness.mjs",
+          "branch_blob_sha": "1ebcc6d8dd17e1ae2274e0e7f010f1a74a32c416",
+          "main_blob_sha": "65fabf0f3515bc901add2fb52d2996070b502b86",
+          "evidence_fingerprint": "a2a882cb18aaa0d9f5e9d44b43fe8fd03d49ad5e30edd6f540195121998f96d0"
+        }
+      ]
     },
     "production_rollout": {
       "status": "pending",
-      "reason": "Implementation, authority mapping, migration, shadow parity, canary enforcement, production verification, rollback rehearsal, and post-merge audit are outside the specification branch."
+      "reason": "PR2 through PR15, authority mapping, migrations, shadow parity, canary enforcement, production verification, rollback rehearsal, and post-merge audit remain incomplete."
     }
   },
   "sensitive_values_included": false
