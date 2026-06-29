@@ -221,6 +221,7 @@ const result = await resolveEffectiveContainerContext({
 
 assert.equal(result.decision, "allow");
 assert.equal(result.authorityScopeShadow.comparisonStatus, "match");
+assert.equal(result.authorityScopeShadow.enforcementMode, "shadow_only");
 assert.equal(result.authorityScopeShadow.authorityGranted, false);
 assert.equal(persisted.length, 1);
 assert.equal(persisted[0].authorityScopeShadow.comparisonStatus, "match");
