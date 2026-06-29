@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "feature_key": "006-adaptive-authorization-execution-governance",
+  "title": "Adaptive Authorization and Execution Governance",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": "current",
+      "branch": "gpt/spec-kit-006-adaptive-authorization-execution-governance-20260627",
+      "role": "specification",
+      "status": "current_pr"
+    }
+  },
+  "evidence": {
+    "specification": {
+      "status": "draft_created",
+      "auth_host_only": true,
+      "local_device_operations": false,
+      "provider_mutations": false
+    },
+    "implementation": {"status": "pending"},
+    "production_rollout": {
+      "status": "pending",
+      "reason": "Implementation, additive migration, shadow parity, canary enforcement, production verification, rollback rehearsal, and post-merge audit are not part of the specification commit."
+    }
+  },
+  "secrets_included": false
+}
