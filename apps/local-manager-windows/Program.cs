@@ -485,6 +485,53 @@ internal static class Program
             }
         }
 
+        private async Task RunStartupAutopilotAsync()
+        {
+            if (_autopilotRecoveryRunning || _autopilotRecoveryAttempted) return;
+            var token = LoadDeviceToken(false);
+            if (string.IsNullOrWhiteSpace(token)) return;
+
+            _autopilotRecoveryAttempted = true;
+            _autopilotRecoveryRunning = true;
+            try
+            {
+                var footprint = await LocalConnectorFootprint.AssessAsync();
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    autopilot = "local_connector_footprint",
+                    repair_required = footprint.RepairRequired,
+                    repair_suggested = footprint.RepairSuggested,
+                    cloudflared_present = footprint.CloudflaredPresent,
+                    cloudflared_running = footprint.CloudflaredRunning,
+                    connector_service_present = footprint.ConnectorServicePresent,
+                    connector_service_running = footprint.ConnectorServiceRunning,
+                    reason = footprint.Reason,
+                    token_plaintext_shown = false,
+                    secrets_included = false
+                }, _json);
+
+                if (footprint.RepairRequired)
+                {
+                    _status.Text = "Autopilot detected a fresh or formatted Windows installation. Restoring the signed local connector now…";
+                    await RepairConnectorAsync();
+                    return;
+                }
+
+                if (footprint.RepairSuggested)
+                {
+                    _status.Text = "Autopilot detected stopped connector services. Use Repair connector if they do not recover.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "Autopilot footprint check failed: " + ex.Message;
+            }
+            finally
+            {
+                _autopilotRecoveryRunning = false;
+            }
+        }
+
         private async Task RepairConnectorAsync()
         {
             var token = LoadDeviceToken();
