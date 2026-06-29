@@ -537,6 +537,7 @@ export const testCommands = [
   "node test-authority-scope-foundation.mjs",
   "node test-authority-scope-shadow-integration.mjs",
   "node test-authority-scope-shadow-evidence.mjs",
+  "node test-authority-scope-shadow-readiness.mjs",
   "node test-platform-engine-validator-runner.mjs",
   "node test-hybrid-local-managed-agent-runtime.mjs",
   "node test-multi-surface-agent-runtime.mjs",
