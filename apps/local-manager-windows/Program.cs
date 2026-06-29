@@ -1226,7 +1226,8 @@ internal static class Program
             }
             catch (Exception ex)
             {
-                RegisterDesktopCommandPollFailure(ex.Message, ex.GetBaseException().Message);
+                var failure = await AutopilotNetworkRecovery.ClassifyAsync(BaseUrl, ex);
+                RegisterDesktopCommandPollFailure(failure.Message, failure.Diagnostic);
             }
             finally
             {
