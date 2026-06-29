@@ -113,6 +113,7 @@ import { buildAgentGovernanceRoutes } from "./agentGovernanceRoutes.js";
 import { buildDynamicContainerAuthorityRoutes } from "./dynamicContainerAuthorityRoutes.js";
 import { buildDynamicContainerTeamRoutes } from "./dynamicContainerTeamRoutes.js";
 import { buildOpenApiRegistrySyncRoutes } from "./openApiRegistrySyncRoutes.js";
+import { buildSqlCachePolicyRoutes } from "./sqlCachePolicyRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
