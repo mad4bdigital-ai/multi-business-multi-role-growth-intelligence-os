@@ -114,12 +114,17 @@ export function resolveGptToolInvocationMutationRequirement({ toolKey = "", args
   const normalizedMethod = String(method || "").trim().toUpperCase();
   const normalizedTags = normalizedPolicyTags(tags);
 
-  if (normalizedToolKey === "admin_cloudflare") {
+  if (["admin_cloudflare", "admin_hostinger"].includes(normalizedToolKey)) {
     if (!["POST", "VIRTUAL"].includes(normalizedMethod)) return null;
     const forwardedMethod = String(normalizedArgs.method || "GET").trim().toUpperCase();
     if (READ_ONLY_FORWARDED_METHODS.has(forwardedMethod)) return false;
     if (STATE_CHANGING_FORWARDED_METHODS.has(forwardedMethod)) return true;
     return null;
+  }
+
+  if (normalizedToolKey === "admin_control") {
+    if (!["POST", "VIRTUAL"].includes(normalizedMethod)) return null;
+    return classifyAdminControlMutationRequirement(normalizedArgs);
   }
 
   if (normalizedToolKey === "cloudflare_tunnel_status") {
