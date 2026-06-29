@@ -146,6 +146,7 @@ assert.equal(missingProvider.activation_complete, false);
 assert.equal(missingProvider.reason_code, 'degraded_missing_provider_bootstrap_evidence');
 
 const activationRoutes = readFileSync('routes/activationRoutes.js', 'utf8');
+const activationHardRunRoutes = readFileSync('routes/activationHardRunRoutes.js', 'utf8');
 const migration = readFileSync('migrations/165_sprint65_hard_activation_and_tenant_surface.sql', 'utf8');
 const openapi = readFileSync('openapi.yaml', 'utf8');
 assert(activationRoutes.includes('/activation/hard-run'), 'hard activation route must exist');
@@ -161,5 +162,9 @@ assert(migration.includes('activation_hard_run'), 'admin tool must be registered
 assert(migration.includes('/activation/hard-run'), 'hard activation tool path must be registered');
 assert(openapi.includes('/activation/hard-run:'), 'hard activation path must be documented');
 assert(openapi.includes('HardActivationRunResponse'), 'hard activation response schema must be documented');
+assert(activationHardRunRoutes.includes('maybeChunkToolResponseBody(responseBody'), 'hard activation responses must always pass through durable chunk transport');
+assert(activationHardRunRoutes.includes('chunk_ttl_minutes: Number(req.body?.chunk_ttl_minutes || 20)'), 'hard activation route must apply the requested chunk TTL');
+assert(!activationHardRunRoutes.includes('const shouldChunk = responseBody.response_projection?.semantic_chunk_fallback_required'), 'hard activation chunking must not depend only on the internal semantic hard budget');
+assert(openapi.includes('chunk_ttl_minutes: { type: integer, minimum: 5, maximum: 120, default: 20 }'), 'hard activation chunk TTL must be documented');
 
 console.log('activation hard evidence tests passed');

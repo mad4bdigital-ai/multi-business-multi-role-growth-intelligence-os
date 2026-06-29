@@ -131,15 +131,13 @@ export function buildActivationHardRunRoutes({ requireBackendApiKey } = {}) {
         }).catch(() => {});
       });
 
-      const shouldChunk = responseBody.response_projection?.semantic_chunk_fallback_required === true;
-      const transportBody = shouldChunk
-        ? await maybeChunkToolResponseBody(responseBody, {
-            response_options: {
-              max_chars: Number(req.body?.max_response_chars || 40000),
-            },
-            source_tool_key: "activation_hard_run",
-          })
-        : responseBody;
+      const transportBody = await maybeChunkToolResponseBody(responseBody, {
+        response_options: {
+          max_chars: Number(req.body?.max_response_chars || 40000),
+          chunk_ttl_minutes: Number(req.body?.chunk_ttl_minutes || 20),
+        },
+        source_tool_key: "activation_hard_run",
+      });
       return res.status(statusCode).json(transportBody);
     } catch (err) {
       return res.status(500).json({
