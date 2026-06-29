@@ -111,6 +111,7 @@ internal static class Program
             }
 
             if (lastError is not null) throw lastError;
+            WindowsAppRegistration.EnsureRegistered(installedPath, Application.ProductVersion);
             Process.Start(new ProcessStartInfo { FileName = installedPath, UseShellExecute = true, WorkingDirectory = ProgramInstallRoot, Verb = "open" });
             return true;
         }
