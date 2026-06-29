@@ -11,10 +11,10 @@
   },
   "delivery": {
     "specification_pr": {
-      "number": null,
+      "number": 1972,
       "branch": "gpt/007-dynamic-capability-governance-20260629",
       "role": "specification",
-      "status": "current_pr_pending_number"
+      "status": "current_pr"
     },
     "implementation_prs": [],
     "closeout_pr": {
