@@ -23,6 +23,7 @@ import {
 } from "../governedToolResponseChunkStore.js";
 import { runGovernedResponseChunkDurableRecoverySmoke } from "../governedResponseChunkDurableRecoverySmoke.js";
 import { bootstrapGovernedMigrationAuthorization } from "../governedMigrationAuthorizationBootstrap.js";
+import { authorizeCapabilityResolutionEnvelopeApply } from "../scripts/capability-resolution-envelope-apply-authorize.mjs";
 import { runGovernedMigrationExecution } from "../governedMigrationExecutionTool.js";
 import { buildActivationGatewayRolloutPlan, runActivationGatewayDarkDeploy } from "../activationGatewayRolloutTool.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
@@ -446,6 +447,25 @@ const VIRTUAL_ADMIN_TOOLS = [
         confirm: { type: "string", const: "RUN_RESPONSE_CHUNK_DURABLE_RECOVERY_SMOKE" },
         repeat_count: { type: "integer", minimum: 40, maximum: 120, default: 48 },
         chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 30, default: 5 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "capability_resolution_envelope_apply_authorize",
+    displayName: "Apply-Authorize Capability Resolution Envelope",
+    description: "Apply-authorize one ready capability resolution envelope through the dynamic capability apply policy. Creates internal approval evidence only; no provider call, external write, credential payload read, or secret return.",
+    method: "VIRTUAL",
+    path: "internal://capability-resolution-envelope-apply-authorize",
+    tags: ["admin", "capability_resolution", "apply_authorization", "state_changing", "approval_required", "readback", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["envelope_id", "decision_note"],
+      properties: {
+        envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+        authorized_by: { type: "string", minLength: 1, maxLength: 64 },
+        decision_note: { type: "string", minLength: 20, maxLength: 512 },
+        ttl_minutes: { type: "integer", minimum: 5, maximum: 240, default: 60 },
       },
       additionalProperties: false,
     },
@@ -1825,6 +1845,29 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     };
   }
 
+  if (callerType === "admin" && toolKey === "capability_resolution_envelope_apply_authorize") {
+    try {
+      const result = await authorizeCapabilityResolutionEnvelopeApply({
+        envelopeId: String(args?.envelope_id || "").trim(),
+        authorizedBy: String(args?.authorized_by || req?.auth?.user_id || "platform_admin").trim(),
+        decisionNote: String(args?.decision_note || "").trim(),
+        ttlMinutes: Number(args?.ttl_minutes || 60),
+      });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: Number(err?.status || 400),
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "capability_envelope_apply_authorization_failed",
+            message: err?.message || "Capability envelope apply authorization failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
   if (callerType === "admin" && toolKey === "governed_migration_authorization_bootstrap") {
     try {
       const result = await bootstrapGovernedMigrationAuthorization(args || {}, {

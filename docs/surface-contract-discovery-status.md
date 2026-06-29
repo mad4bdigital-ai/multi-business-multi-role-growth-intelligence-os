@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 460
+- Migrations with detected surfaces: 462
 - Migrations reported here: 80
 - OpenAPI operations detected: 522
 - OpenAPI paths detected: 485
@@ -32,11 +32,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 460/460 (100.00%)
+- Documentation complete migrations: 462/462 (100.00%)
 - Documentation gap migrations: 0
 - Gap severity: high=0, medium=0, low=0
-- SQL route coverage in OpenAPI: 5/5 (100.00%)
-- SQL route-like literals exempted from OpenAPI scoring: 604/609
+- SQL route coverage in OpenAPI: 6/6 (100.00%)
+- SQL route-like literals exempted from OpenAPI scoring: 604/610
 - SQL routes missing OpenAPI path coverage: 0
 - Migrations without explicit `secrets_included=false` marker: 0
 
@@ -45,10 +45,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 12 | 9 |
-| tools | 2170 | 390 |
-| views | 423 | 168 |
+| tools | 2172 | 392 |
+| views | 426 | 169 |
 | policies | 166 | 107 |
-| routes | 609 | 243 |
+| routes | 610 | 244 |
 
 ### Documentation Target Gaps
 
@@ -64,18 +64,18 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 460 |
-| no_credential_payload_read | 460 |
-| no_raw_secrets | 460 |
-| no_external_send | 460 |
-| no_external_write | 460 |
-| secrets_included_false | 460 |
+| no_provider_call | 462 |
+| no_credential_payload_read | 462 |
+| no_raw_secrets | 462 |
+| no_external_send | 462 |
+| no_external_write | 462 |
+| secrets_included_false | 462 |
 
 ### Route Classification Coverage
 
 | Route class | SQL route-like literals |
 |---|---:|
-| http_route | 5 |
+| http_route | 6 |
 | admin_tool_registry_route | 156 |
 | tenant_tool_registry_route | 40 |
 | system_tool_dispatch_route | 13 |

@@ -1,0 +1,436 @@
+openapi: 3.1.0
+info:
+  title: Dynamic Capability Governance API
+  version: 0.1.0-draft
+  description: >-
+    Draft governed contracts for capability compilation, assurance gaps, projection,
+    Tenant-effective preview, and future envelope-gated execution. Specification only.
+servers:
+  - url: https://auth.mad4b.com
+security:
+  - bearerAuth: []
+paths:
+  /admin/capability-governance/compile:
+    post:
+      operationId: compileCapabilityGovernanceManifests
+      summary: Compile or preview versioned capability governance manifests
+      x-admin-only: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompileRequest'
+      responses:
+        '200':
+          description: Compilation preview or applied internal registry result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompileResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/capability-governance/manifests:
+    get:
+      operationId: listCapabilityGovernanceManifests
+      summary: List bounded current or historical manifests
+      x-admin-only: true
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: capability_key
+          in: query
+          schema: { type: string, maxLength: 191 }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Manifest page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManifestPage'
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/capability-governance/gaps:
+    get:
+      operationId: listCapabilityGovernanceGaps
+      summary: List typed assurance gaps and debt references
+      x-admin-only: true
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: severity
+          in: query
+          schema: { type: string, enum: [low, medium, high, critical] }
+        - name: gap_key
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Gap page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GapPage'
+  /admin/capability-governance/reconcile:
+    post:
+      operationId: reconcileCapabilityGovernance
+      summary: Preview or apply internal manifest/projection/debt reconciliation
+      x-admin-only: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReconcileRequest'
+      responses:
+        '200':
+          description: Reconciliation result and readback evidence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconcileResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /me/capabilities:
+    get:
+      operationId: listMyEffectiveCapabilities
+      summary: List Tenant-safe effective capability projections for the signed principal
+      x-tenant-safe: true
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: workspace_ref
+          in: query
+          schema: { type: string, maxLength: 191 }
+      responses:
+        '200':
+          description: Tenant-safe effective capability page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantCapabilityPage'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /me/capabilities/{capability_key}/preview:
+    post:
+      operationId: previewMyCapability
+      summary: Evaluate one Tenant-safe capability without side effects
+      x-tenant-safe: true
+      parameters:
+        - $ref: '#/components/parameters/CapabilityKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CapabilityPreviewRequest'
+      responses:
+        '200':
+          description: Bounded no-secret decision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapabilityDecision'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /me/capabilities/{capability_key}/execute:
+    post:
+      operationId: executeMyCapability
+      summary: Execute an approved Tenant-safe capability through the shared kernel
+      description: Disabled until the capability and Tenant cohort are separately certified and enabled.
+      x-tenant-safe: true
+      x-rollout-gated: true
+      parameters:
+        - $ref: '#/components/parameters/CapabilityKey'
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 191 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CapabilityExecuteRequest'
+      responses:
+        '200':
+          description: Existing idempotent execution result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionResult'
+        '202':
+          description: Acknowledged and pending readback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionResult'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: string, maxLength: 512 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    CapabilityKey:
+      name: capability_key
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 191 }
+  schemas:
+    CompileRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        mode: { type: string, enum: [dry_run, apply], default: dry_run }
+        source_families:
+          type: array
+          maxItems: 32
+          items: { type: string }
+        capability_keys:
+          type: array
+          maxItems: 200
+          items: { type: string, maxLength: 191 }
+        expected_source_revision_hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        capability_envelope_id: { type: string, maxLength: 64 }
+        confirm: { type: string, maxLength: 191 }
+      required: [mode]
+    CompileResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, mode, run_id, source_count, manifest_count, gap_count, apply_performed, secrets_included]
+      properties:
+        ok: { type: boolean }
+        mode: { type: string, enum: [dry_run, apply] }
+        run_id: { type: string }
+        source_count: { type: integer, minimum: 0 }
+        manifest_count: { type: integer, minimum: 0 }
+        gap_count: { type: integer, minimum: 0 }
+        apply_performed: { type: boolean }
+        source_revision_hash: { type: string }
+        output_hash: { type: string }
+        readback: { type: object, additionalProperties: true }
+        secrets_included: { type: boolean, const: false }
+    GovernanceManifest:
+      type: object
+      additionalProperties: false
+      required: [manifest_id, capability_key, manifest_version, effect_class, risk_class, requirements, rollout_mode, manifest_hash]
+      properties:
+        manifest_id: { type: string }
+        capability_key: { type: string }
+        manifest_version: { type: integer, minimum: 1 }
+        effect_class:
+          type: string
+          enum: [read_only, preview_only, internal_write, workspace_write, external_write, credential_touching, deployment_affecting, destructive]
+        risk_class: { type: string, enum: [A, B, C, D, E] }
+        resource_type: { type: [string, 'null'] }
+        requirements: { $ref: '#/components/schemas/RequirementSet' }
+        rollout_mode: { type: string, enum: [shadow, canary, active, fallback, disabled] }
+        status: { type: string }
+        manifest_hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        source_revision_hash: { type: string }
+    RequirementSet:
+      type: object
+      additionalProperties: false
+      properties:
+        scope_guard: { type: boolean }
+        resource_binding: { type: boolean }
+        validated_connection: { type: boolean }
+        credential_reference: { type: boolean }
+        approval_mode: { type: string }
+        typed_confirmation: { type: boolean }
+        capability_envelope: { type: boolean }
+        idempotency: { type: boolean }
+        certification: { type: boolean }
+        audit: { type: boolean }
+        readback: { type: boolean }
+        rollback: { type: boolean }
+        compensation: { type: boolean }
+        quota: { type: boolean }
+    ManifestPage:
+      type: object
+      additionalProperties: false
+      required: [items, page, secrets_included]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/GovernanceManifest' } }
+        page: { $ref: '#/components/schemas/Page' }
+        secrets_included: { type: boolean, const: false }
+    AssuranceGap:
+      type: object
+      additionalProperties: false
+      required: [gap_key, severity, capability_key, status]
+      properties:
+        gap_key: { type: string }
+        severity: { type: string, enum: [low, medium, high, critical] }
+        capability_key: { type: string }
+        source_family: { type: [string, 'null'] }
+        reason_code: { type: string }
+        debt_ref: { type: [string, 'null'] }
+        status: { type: string }
+    GapPage:
+      type: object
+      additionalProperties: false
+      required: [items, page, secrets_included]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AssuranceGap' } }
+        page: { $ref: '#/components/schemas/Page' }
+        secrets_included: { type: boolean, const: false }
+    ReconcileRequest:
+      type: object
+      additionalProperties: false
+      required: [mode, expected_manifest_hash]
+      properties:
+        mode: { type: string, enum: [dry_run, apply], default: dry_run }
+        expected_manifest_hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        scope: { type: string, enum: [manifests, projections, certifications, debt, all], default: all }
+        capability_envelope_id: { type: string }
+        confirm: { type: string }
+    ReconcileResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, mode, planned_changes, applied_changes, readback_complete, secrets_included]
+      properties:
+        ok: { type: boolean }
+        mode: { type: string }
+        planned_changes: { type: integer, minimum: 0 }
+        applied_changes: { type: integer, minimum: 0 }
+        readback_complete: { type: boolean }
+        evidence_refs: { type: array, items: { type: string }, maxItems: 100 }
+        secrets_included: { type: boolean, const: false }
+    TenantCapabilitySummary:
+      type: object
+      additionalProperties: false
+      required: [capability_key, display_name, effective_status, available_modes, blockers]
+      properties:
+        capability_key: { type: string }
+        display_name: { type: string }
+        description: { type: string }
+        effective_status: { type: string }
+        available_modes: { type: array, items: { type: string } }
+        blockers: { type: array, items: { type: string }, maxItems: 20 }
+        requires_confirmation: { type: boolean }
+    TenantCapabilityPage:
+      type: object
+      additionalProperties: false
+      required: [items, page, secrets_included]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/TenantCapabilitySummary' } }
+        page: { $ref: '#/components/schemas/Page' }
+        secrets_included: { type: boolean, const: false }
+    CapabilityPreviewRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        workspace_ref: { type: string }
+        resource_ref: { type: string }
+        requested_mode: { type: string, enum: [preview, apply], default: preview }
+        input: { type: object, additionalProperties: true }
+      required: [requested_mode]
+    CapabilityExecuteRequest:
+      type: object
+      additionalProperties: false
+      required: [capability_envelope_id, resource_ref, input]
+      properties:
+        capability_envelope_id: { type: string }
+        resource_ref: { type: string }
+        approval_ref: { type: string }
+        typed_confirmation: { type: string }
+        input: { type: object, additionalProperties: true }
+    CapabilityDecision:
+      type: object
+      additionalProperties: false
+      required: [decision, capability_key, manifest_hash, gates, execution_performed, secrets_included]
+      properties:
+        decision: { type: string }
+        capability_key: { type: string }
+        manifest_hash: { type: string }
+        gates:
+          type: array
+          maxItems: 40
+          items:
+            type: object
+            additionalProperties: false
+            required: [gate, state]
+            properties:
+              gate: { type: string }
+              state: { type: string, enum: [pass, deny, not_applicable, not_evaluated, stale, ambiguous] }
+              reason_code: { type: [string, 'null'] }
+        blockers: { type: array, items: { type: string }, maxItems: 20 }
+        next_actions: { type: array, items: { type: string }, maxItems: 5 }
+        execution_performed: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    ExecutionResult:
+      type: object
+      additionalProperties: false
+      required: [execution_id, state, execution_replayed, readback_state, secrets_included]
+      properties:
+        execution_id: { type: string }
+        state: { type: string }
+        execution_replayed: { type: boolean }
+        provider_reference: { type: [string, 'null'] }
+        readback_state: { type: string }
+        evidence_refs: { type: array, items: { type: string }, maxItems: 50 }
+        secrets_included: { type: boolean, const: false }
+    Page:
+      type: object
+      additionalProperties: false
+      required: [has_more]
+      properties:
+        next_cursor: { type: [string, 'null'] }
+        has_more: { type: boolean }
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [ok, error]
+      properties:
+        ok: { type: boolean, const: false }
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, status]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            status: { type: integer }
+            reason_codes: { type: array, items: { type: string }, maxItems: 20 }
+            details: { type: object, additionalProperties: true }
+        secrets_included: { type: boolean, const: false }
+  responses:
+    BadRequest:
+      description: Invalid or ambiguous request
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unauthorized:
+      description: Authentication required
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Forbidden:
+      description: Authority or governance gate denied
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Capability or resource not found in caller scope
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Conflict:
+      description: Stale revision, ambiguity, replay, or idempotency conflict
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unprocessable:
+      description: Provider or readback contract cannot satisfy the requested effect
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }

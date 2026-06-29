@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "feature_key": "006-adaptive-authorization-execution-governance",
+  "title": "Adaptive Authorization and Execution Governance",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "last_updated_at": "2026-06-29T15:36:00Z",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "specification_branch": {
+      "branch": "gpt/repo-patch/20260627213639-readme.md-spec-initialize-adaptive-authorization-governanc",
+      "pull_request": 1936,
+      "merge_sha": "809e81f9dc3c9198a2a4c2d45b4cd4177ef7b158",
+      "status": "merged_and_source_branch_deleted"
+    },
+    "implementation_prs": [
+      {
+        "sequence": 1,
+        "role": "state_semantics_and_operational_projections",
+        "pull_request": 1936,
+        "head_sha": "f567cba1949949a157f138610984e37c0374c553",
+        "merge_sha": "809e81f9dc3c9198a2a4c2d45b4cd4177ef7b158",
+        "status": "merged",
+        "required_checks": 4,
+        "successful_checks": 4,
+        "base_fresh_at_merge": true,
+        "merge_ancestry_verified": true
+      }
+    ],
+    "documentation_pr": {
+      "number": 1967,
+      "branch": "gpt/docs/20260629-adaptive-auth-pr1-handoff",
+      "role": "completion_evidence_and_handoff",
+      "status": "open"
+    },
+    "next_pr": {
+      "sequence": 2,
+      "scope": "canonical_capability_and_alias_resolver",
+      "status": "pending"
+    },
+    "closeout_pr": {
+      "number": null,
+      "branch": null,
+      "role": "completion",
+      "status": "pending"
+    },
+    "handoff_report": {
+      "path": "specs/006-adaptive-authorization-execution-governance/handoff-report-2026-06-29.md",
+      "status": "recorded"
+    }
+  },
+  "evidence": {
+    "specification": {
+      "status": "deep_design_complete_and_merged",
+      "documents": {
+        "top_level_specification": true,
+        "architecture_decision_record": true,
+        "logical_data_model": true,
+        "draft_openapi_3_1_contract": true,
+        "formal_decision_model": true,
+        "invariants_and_state_machines": true,
+        "threat_model": true,
+        "consistency_and_reconciliation": true,
+        "adapter_contract_and_certification": true,
+        "testing_and_parity_strategy": true,
+        "rollout_pr_sequence": true,
+        "operational_model": true,
+        "api_error_catalog": true,
+        "implementation_boundaries": true,
+        "storage_and_migration_plan": true,
+        "end_to_end_flows": true,
+        "deep_task_breakdown": true
+      },
+      "auth_host_only": true,
+      "local_device_operations": false,
+      "provider_mutations": false
+    },
+    "implementation": {
+      "status": "in_progress",
+      "completed_pr_sequences": [1],
+      "next_pr_scope": "canonical_capability_and_alias_resolver",
+      "provider_mutation_allowed": false,
+      "enforcement_change_allowed": false,
+      "new_authority_tables_allowed": false
+    },
+    "pull_request": {
+      "status": "merged",
+      "number": 1936,
+      "merge_sha": "809e81f9dc3c9198a2a4c2d45b4cd4177ef7b158"
+    },
+    "ci": {
+      "status": "passed",
+      "head_sha": "f567cba1949949a157f138610984e37c0374c553",
+      "required_check_count": 4,
+      "successful_check_count": 4,
+      "missing_checks": [],
+      "pending_checks": [],
+      "failed_checks": []
+    },
+    "post_merge_cleanup": {
+      "status": "complete",
+      "deleted_branches": [
+        "gpt/repo-patch/20260627213639-readme.md-spec-initialize-adaptive-authorization-governanc",
+        "gpt/reconcile-resolution-20260629-pr1936-v5",
+        "gpt/reconcile-resolution-20260629-pr1936-v6",
+        "gpt/reconcile-blob-20260629-pr1-v1",
+        "gpt/reconcile-resolution-20260629-pr1-v3"
+      ],
+      "repaired_and_deleted_branches": [
+        {
+          "branch": "gpt/reconcile-blob-20260629-pr1-v1",
+          "original_head_sha": "5187f4e2066e3a7b8c5f3844b4d490bde6422e5a",
+          "repair_commit_sha": "ae69df38d3d589b0f1bed6c1b3c3cc1f489e49b8",
+          "accepted_test_blob_sha": "65fabf0f3515bc901add2fb52d2996070b502b86",
+          "cleanup_evidence_fingerprint": "76df520c6d0f607ffc7896fe5532b19553ca9a043b0257924487901219a7d3ec",
+          "deletion_readback": "branch_missing_verified",
+          "force_used": false
+        },
+        {
+          "branch": "gpt/reconcile-resolution-20260629-pr1-v3",
+          "original_head_sha": "6b55b1aece6123ad141c7fa00a8ac290429d6a83",
+          "repair_commit_sha": "65ae9addd6acba42607bd7d2b81f2c1b85380846",
+          "accepted_test_blob_sha": "65fabf0f3515bc901add2fb52d2996070b502b86",
+          "cleanup_evidence_fingerprint": "7ba6366f4d761821cdf2ad2d50fec6bb4b9a0dfb51703250224ad730f2e2ad74",
+          "deletion_transport": "502_after_dispatch",
+          "deletion_readback": "github_reference_not_found_404",
+          "retry_performed": false,
+          "force_used": false
+        }
+      ]
+    },
+    "production_rollout": {
+      "status": "pending",
+      "reason": "PR2 through PR15, authority mapping, migrations, shadow parity, canary enforcement, production verification, rollback rehearsal, and post-merge audit remain incomplete."
+    }
+  },
+  "sensitive_values_included": false
+}
