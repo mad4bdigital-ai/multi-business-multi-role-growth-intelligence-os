@@ -426,6 +426,7 @@ internal static class Program
                         token_plaintext_shown = false,
                         secrets_included = false
                     }, _json);
+                    await RunStartupAutopilotAsync();
                     return;
                 }
 
