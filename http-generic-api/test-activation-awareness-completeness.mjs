@@ -265,7 +265,11 @@ function testOperationalCountIntegrityAndBlockedSurfaceDetails() {
     results: { skills: { ok: false } },
     counts: { skills: {}, skillApprovals: {} },
   });
-  assert.deepEqual(unavailableSkills[0], {
+  const unavailableSkillSurface = unavailableSkills.find(
+    (item) => item.surface_key === "skills"
+  );
+  assert.ok(unavailableSkillSurface, "skills surface should be blocked when source is unavailable");
+  assert.deepEqual(unavailableSkillSurface, {
     surface_key: "skills",
     status: "blocked",
     reasons: ["source_unavailable"],
