@@ -360,6 +360,7 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
     candidate.migration_checksum_sha256
   );
   if (existing) {
+    const migrationExecutorApplyPolicy = await ensureMigrationExecutorApplyPolicy(pool);
     await markReferenced({
       pool,
       envelopeId: envelope.envelope_id,
@@ -371,6 +372,7 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
       idempotent: true,
       candidate,
       authorization: existing,
+      migration_executor_apply_policy: migrationExecutorApplyPolicy,
       migration_sql_executed: false,
       applies_migration: false,
       capability_envelope_id: envelope.envelope_id,
