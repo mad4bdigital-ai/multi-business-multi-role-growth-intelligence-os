@@ -173,14 +173,34 @@ assert.equal(classifyCapabilityEffect({
 }), "read_only");
 assert.equal(classifyCapabilityEffect({
   capability_key: "admin_tool.cloudflare_tunnel_status",
+  display_name: "Cloudflare Tunnel Status",
+  capability_family: "admin_tool",
   source_key: "cloudflare_tunnel_status",
-  operation_class: "status",
+  operation_class: "tool_dispatch",
   apply_allowed: 0,
 }), "read_only");
 assert.equal(classifyCapabilityEffect({
   capability_key: "admin_tool.connector_registry_get_tool",
+  display_name: "Get Connector Registry Entry",
+  capability_family: "admin_tool",
   source_key: "connector_registry_get_tool",
-  operation_class: "get",
+  operation_class: "tool_dispatch",
+  apply_allowed: 0,
+}), "read_only");
+assert.equal(classifyCapabilityEffect({
+  capability_key: "admin_tool.browser_runtime_inspect_site",
+  display_name: "Browser Runtime Inspect Site",
+  capability_family: "admin_tool",
+  source_key: "browser_runtime_inspect_site",
+  operation_class: "tool_dispatch",
+  apply_allowed: 0,
+}), "read_only");
+assert.equal(classifyCapabilityEffect({
+  capability_key: "admin_tool.browser_runtime_extract_data",
+  display_name: "Browser Runtime Extract Data",
+  capability_family: "admin_tool",
+  source_key: "browser_runtime_extract_data",
+  operation_class: "tool_dispatch",
   apply_allowed: 0,
 }), "read_only");
 assert.equal(classifyCapabilityEffect({
