@@ -8,22 +8,47 @@
 --   No provider write. No browser execution. No secret read or return.
 --   Tenant authority remains enforced from the signed principal and workspace evidence.
 
-UPDATE `brand_core` AS bc
+SET @growth_audit_brand_core_legacy_column_count := (
+  SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = DATABASE()
+     AND TABLE_NAME = 'brand_core'
+     AND COLUMN_NAME IN ('brand_name', 'asset_key', 'asset_type', 'document_name')
+);
+
+SET @growth_audit_brands_lookup_column_count := (
+  SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = DATABASE()
+     AND TABLE_NAME = 'brands'
+     AND COLUMN_NAME IN ('brand_name', 'normalized_brand_name', 'target_key')
+);
+
+SET @growth_audit_brand_core_backfill_sql := IF(
+  @growth_audit_brand_core_legacy_column_count = 4
+  AND @growth_audit_brands_lookup_column_count = 3,
+  'UPDATE `brand_core` AS bc
 JOIN `brands` AS b
-  ON LOWER(TRIM(COALESCE(b.`brand_name`, b.`normalized_brand_name`, '')))
-   = LOWER(TRIM(COALESCE(bc.`brand_name`, '')))
+  ON LOWER(TRIM(COALESCE(b.`brand_name`, b.`normalized_brand_name`, '''')))
+   = LOWER(TRIM(COALESCE(bc.`brand_name`, '''')))
 SET
-  bc.`brand_key` = COALESCE(NULLIF(TRIM(bc.`brand_key`), ''), NULLIF(TRIM(b.`target_key`), '')),
+  bc.`brand_key` = COALESCE(NULLIF(TRIM(bc.`brand_key`), ''''), NULLIF(TRIM(b.`target_key`), '''')),
   bc.`doc_key` = COALESCE(
-    NULLIF(TRIM(bc.`doc_key`), ''),
-    NULLIF(TRIM(bc.`asset_key`), ''),
-    NULLIF(TRIM(bc.`asset_type`), ''),
-    NULLIF(TRIM(bc.`document_name`), '')
+    NULLIF(TRIM(bc.`doc_key`), ''''),
+    NULLIF(TRIM(bc.`asset_key`), ''''),
+    NULLIF(TRIM(bc.`asset_type`), ''''),
+    NULLIF(TRIM(bc.`document_name`), '''')
   )
 WHERE
-  (bc.`brand_key` IS NULL OR TRIM(bc.`brand_key`) = '' OR bc.`doc_key` IS NULL OR TRIM(bc.`doc_key`) = '')
+  (bc.`brand_key` IS NULL OR TRIM(bc.`brand_key`) = '''' OR bc.`doc_key` IS NULL OR TRIM(bc.`doc_key`) = '''')
   AND b.`target_key` IS NOT NULL
-  AND TRIM(b.`target_key`) <> '';
+  AND TRIM(b.`target_key`) <> ''''',
+  'SELECT ''growth_audit_brand_core_legacy_backfill_skipped_missing_columns'' AS migration_note'
+);
+
+PREPARE growth_audit_brand_core_backfill_stmt FROM @growth_audit_brand_core_backfill_sql;
+EXECUTE growth_audit_brand_core_backfill_stmt;
+DEALLOCATE PREPARE growth_audit_brand_core_backfill_stmt;
 
 INSERT INTO `system_layer_tool_descriptor_source_registry`
   (`source_key`, `module_path`, `descriptor_export`, `handler_resolution_mode`, `tool_count_expected`, `status`, `metadata_json`, `secrets_included`)

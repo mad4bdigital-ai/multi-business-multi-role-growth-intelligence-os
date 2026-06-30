@@ -16,6 +16,8 @@ const runtime = await fs.readFile(
 
 assert.match(migration, /growth_audit_evidence_v1/);
 assert.match(migration, /growth_audit_evidence_prepare/);
+assert.match(migration, /information_schema\.COLUMNS/);
+assert.match(migration, /growth_audit_brand_core_legacy_backfill_skipped_missing_columns/);
 assert.match(migration, /files\.object\.read/);
 assert.match(migration, /'shadow'/);
 assert.match(migration, /tenant_resource_grant_required/);
@@ -29,6 +31,7 @@ assert.match(routes, /source_key:\s*"growth_audit_evidence_v1"/);
 assert.match(runtime, /growth_audit_evidence_prepare/);
 assert.match(runtime, /requires_admin:\s*true/);
 assert.match(runtime, /tenant_brand_authority_required/);
+assert.match(runtime, /\(brand_ref IS NOT NULL OR site_ref IS NOT NULL\)/);
 assert.match(runtime, /visitor_issue_requires:\s*"rendered_visible"/);
 assert.match(runtime, /native_edge_visual_capture_allowed:\s*false/);
 assert.match(runtime, /provider_calls_made:\s*0/);

@@ -122,7 +122,7 @@ async function loadTenantBrandAuthority(pool, scope, brand = {}) {
     `SELECT asset_id, brand_ref, site_ref, visibility, lifecycle_status
        FROM workspace_assets
       WHERE tenant_id = ?
-        AND brand_ref IS NOT NULL
+        AND (brand_ref IS NOT NULL OR site_ref IS NOT NULL)
         AND COALESCE(lifecycle_status, 'active') = 'active'
       ORDER BY created_at ASC
       LIMIT 100`,
