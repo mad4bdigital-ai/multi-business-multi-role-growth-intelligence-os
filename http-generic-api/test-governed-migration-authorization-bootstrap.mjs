@@ -32,12 +32,42 @@ function createFakePool() {
   const authorizations = new Map();
   const ledger = new Map();
   const applyPolicies = new Map();
+  const certifications = new Map();
   const applyPolicyKey = "platform_orchestration:governed_migration_execute:governed_migration_execute";
+  const certificationKey = "governed_migration_execute";
   return {
     authorizations,
     ledger,
     applyPolicies,
+    certifications,
     async query(sql, params = []) {
+      if (sql.includes("FROM runtime_dispatch_certification_registry")) {
+        const row = certifications.get(certificationKey);
+        return [[...(row ? [{ ...row }] : [])]];
+      }
+      if (sql.includes("INSERT INTO runtime_dispatch_certification_registry")) {
+        const [key, surfaceKey, surfaceFamily, toolOrActionKey, riskClass, certificationStatus, smokeStrategy, lastEvidenceRef, notes] = params;
+        certifications.set(certificationKey, {
+          certification_key: key,
+          surface_key: surfaceKey,
+          surface_family: surfaceFamily,
+          tool_or_action_key: toolOrActionKey,
+          risk_class: riskClass,
+          certification_status: certificationStatus,
+          smoke_strategy: smokeStrategy,
+          dispatch_allowed: 1,
+          apply_allowed: 0,
+          requires_resource_authority: 0,
+          requires_dry_run: 1,
+          requires_audit_evidence: 1,
+          requires_readback: 1,
+          last_evidence_ref: lastEvidenceRef,
+          last_certified_at: new Date("2026-06-30T15:20:00.000Z"),
+          expires_at: null,
+          notes,
+        });
+        return [{ affectedRows: 1 }];
+      }
       if (sql.includes("FROM capability_apply_authorization_policy_registry")) {
         const row = applyPolicies.get(applyPolicyKey);
         return [[...(row ? [{ ...row }] : [])]];
