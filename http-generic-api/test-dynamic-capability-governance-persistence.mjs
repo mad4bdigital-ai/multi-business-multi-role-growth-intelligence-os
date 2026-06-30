@@ -237,6 +237,7 @@ await assert.rejects(
     gap_limit: 1,
   }, {
     pool: createFakePool(),
+    resolveEnvelope,
     previewBuilder: async () => ({
       ...preview,
       counts: { ...preview.counts, gap_count: 2, returned_gap_count: 1 },
