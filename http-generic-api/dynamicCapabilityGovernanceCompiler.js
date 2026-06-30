@@ -105,8 +105,8 @@ function hasAnyPhrase(text, phrases) {
 }
 
 export function classifyCapabilityEffect(row = {}) {
-  const semanticText = normalizeSemanticText(rowText(row));
-  const operationText = normalizeSemanticText(row.operation_class);
+  const semanticText = normalizeSemanticText(classificationText(row));
+  const operationText = semanticOperationClass(row.operation_class);
   const combinedText = `${operationText} ${semanticText}`.trim();
   const tokens = tokenSet(combinedText);
   const applyAllowed = bool(row.apply_allowed ?? row.applyable);
