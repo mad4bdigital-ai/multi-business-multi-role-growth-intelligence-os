@@ -8,6 +8,7 @@ import {
   markCapabilityEnvelopeReferenced,
   resolveCapabilityExecutionEnvelope,
 } from "../capabilityResolutionEnvelopeGuard.js";
+import { assertCapabilityKillSwitchOpen } from "../capabilityKillSwitchPolicy.js";
 import { requireLocalManagerDevice } from "../services/localManagerDeviceLinkService.js";
 
 const ROUTE_TYPE_ORDER = [
@@ -34,6 +35,10 @@ function requestedConnectorProxyTimeout(req) {
   const requested = Number(req?.body?.timeout_ms || req?.query?.timeout_ms || 0);
   if (!Number.isFinite(requested) || requested <= 0) return CONNECTOR_PROXY_DEFAULT_TIMEOUT_MS;
   return Math.min(Math.max(requested, 1000), CONNECTOR_PROXY_MAX_TIMEOUT_MS);
+}
+
+function enforceCapabilityKillSwitch(surface, action) {
+  return assertCapabilityKillSwitchOpen({ surface, action });
 }
 
 function httpError(status, code, message, details = null) {
@@ -844,13 +849,13 @@ export function buildConnectorProxyRoutes(deps) {
   });
 
   router.post("/connector/:device_id/shell", requireBackendApiKey, async (req, res) => {
-    try { await proxyToDevice(req, res, req.params.device_id, "/shell"); }
-    catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
+    try { enforceCapabilityKillSwitch("local_shell", "run"); await proxyToDevice(req, res, req.params.device_id, "/shell"); }
+    catch (err) { res.status(err.status || 502).json({ ok: false, error: { code: err.code || "proxy_failed", message: err.message } }); }
   });
 
   router.post("/connector/:device_id/files", requireBackendApiKey, async (req, res) => {
-    try { await proxyToDevice(req, res, req.params.device_id, "/files"); }
-    catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
+    try { enforceCapabilityKillSwitch("local_file_mutation", req.body?.action); await proxyToDevice(req, res, req.params.device_id, "/files"); }
+    catch (err) { res.status(err.status || 502).json({ ok: false, error: { code: err.code || "proxy_failed", message: err.message } }); }
   });
 
   router.post("/connector/:device_id/dependencies", requireBackendApiKey, async (req, res) => {
@@ -894,13 +899,13 @@ export function buildConnectorProxyRoutes(deps) {
   });
 
   router.post("/connector/:device_id/n8n", requireBackendApiKey, async (req, res) => {
-    try { await proxyToDevice(req, res, req.params.device_id, "/n8n"); }
-    catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
+    try { enforceCapabilityKillSwitch("n8n_mutation", req.body?.action); await proxyToDevice(req, res, req.params.device_id, "/n8n"); }
+    catch (err) { res.status(err.status || 502).json({ ok: false, error: { code: err.code || "proxy_failed", message: err.message } }); }
   });
 
   router.post("/connector/:device_id/cf", requireBackendApiKey, adminOnly, async (req, res) => {
-    try { await proxyToDevice(req, res, req.params.device_id, "/cf"); }
-    catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
+    try { enforceCapabilityKillSwitch("cloudflare_mutation", req.body?.action); await proxyToDevice(req, res, req.params.device_id, "/cf"); }
+    catch (err) { res.status(err.status || 502).json({ ok: false, error: { code: err.code || "proxy_failed", message: err.message } }); }
   });
 
   router.post("/connector/:device_id/fetch-upload", requireBackendApiKey, async (req, res) => {
@@ -919,8 +924,8 @@ export function buildConnectorProxyRoutes(deps) {
   });
 
   router.post("/connector/:device_id/shell-fetch-upload", requireBackendApiKey, async (req, res) => {
-    try { await proxyToDevice(req, res, req.params.device_id, "/shell-fetch-upload"); }
-    catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
+    try { enforceCapabilityKillSwitch("local_shell", "shell_fetch_upload"); await proxyToDevice(req, res, req.params.device_id, "/shell-fetch-upload"); }
+    catch (err) { res.status(err.status || 502).json({ ok: false, error: { code: err.code || "proxy_failed", message: err.message } }); }
   });
 
   return router;

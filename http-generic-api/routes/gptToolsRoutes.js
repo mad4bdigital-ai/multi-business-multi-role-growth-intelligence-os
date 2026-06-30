@@ -1582,8 +1582,25 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
   }
 }
 
+async function lookupToolDispatchMetadata(callerType, toolKey) {
+  try {
+    const tools = await fetchTools(callerType);
+    const tool = tools.find((item) => item?.name === toolKey);
+    if (!tool) return {};
+    return {
+      method: tool.method || "",
+      tags: Array.isArray(tool.tags) ? tool.tags : [],
+      mutationRequired: tool.mutation_required ?? tool.mutationRequired ?? null,
+      mutationPolicyDeclared: tool.mutation_policy_declared ?? tool.mutationPolicyDeclared ?? null,
+    };
+  } catch {
+    return {};
+  }
+}
+
 async function dispatchTool(callerType, toolKey, args, req) {
-  assertPreflightAllowed(await evaluateGptToolDispatchPreflight({ callerType, toolKey, args }));
+  const dispatchMetadata = await lookupToolDispatchMetadata(callerType, toolKey);
+  assertPreflightAllowed(await evaluateGptToolDispatchPreflight({ callerType, toolKey, args, ...dispatchMetadata }));
   const result = await dispatchToolImpl(callerType, toolKey, args, req);
   const responseOptions = args && typeof args === "object" ? args : {};
   const resultForClient = {

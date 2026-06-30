@@ -10,6 +10,7 @@ import {
   normalizeCredentialIntakeRedirect,
   validateCredentialIntakeSessionSecurity,
 } from "../credentialIntakeBindingPolicy.js";
+import { assertCapabilityKillSwitchOpen } from "../capabilityKillSwitchPolicy.js";
 
 const TOKEN_BYTES = 32;
 const DEFAULT_TTL_MINUTES = 30;
@@ -804,6 +805,7 @@ export function buildCredentialIntakeRoutes(deps = {}) {
 
   router.post("/credential-intake/sessions", requireBackendApiKey, async (req, res) => {
     try {
+      assertCapabilityKillSwitchOpen({ surface: "raw_credential_intake_creation", action: "create" });
       const input = req.body && typeof req.body === "object" ? req.body : {};
       const result = await createCredentialIntakeSessionRecord({
         request: req,
