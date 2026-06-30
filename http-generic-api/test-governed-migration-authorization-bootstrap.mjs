@@ -31,10 +31,42 @@ function baseInput() {
 function createFakePool() {
   const authorizations = new Map();
   const ledger = new Map();
+  const applyPolicies = new Map();
+  const applyPolicyKey = "platform_orchestration:governed_migration_execute:governed_migration_execute";
   return {
     authorizations,
     ledger,
+    applyPolicies,
     async query(sql, params = []) {
+      if (sql.includes("FROM capability_apply_authorization_policy_registry")) {
+        const row = applyPolicies.get(applyPolicyKey);
+        return [[...(row ? [{ ...row }] : [])]];
+      }
+      if (sql.includes("INSERT INTO capability_apply_authorization_policy_registry")) {
+        const [policyKey, appKey, capabilityKey, operationIntent, runtimeSurface, allowedSourceTiersJson, policyJson, notes] = params;
+        applyPolicies.set(applyPolicyKey, {
+          policy_key: policyKey,
+          app_key: appKey,
+          capability_key: capabilityKey,
+          operation_intent: operationIntent,
+          runtime_surface: runtimeSurface,
+          status: "active",
+          allow_external_write: 0,
+          allow_credential_binding: 0,
+          allow_no_credential_binding: 1,
+          requires_ready_for_dispatch: 1,
+          requires_dispatch_allowed: 1,
+          requires_zero_blocking_gaps: 1,
+          requires_audit_evidence: 1,
+          requires_readback: 1,
+          requires_typed_confirmation: 1,
+          requires_same_cycle_dry_run: 1,
+          allowed_source_tiers_json: allowedSourceTiersJson,
+          policy_json: policyJson,
+          notes,
+        });
+        return [{ affectedRows: 1 }];
+      }
       if (sql.includes("FROM governed_migration_authorization_registry")) {
         const row = authorizations.get(params[0]);
         return [[...(row ? [{ ...row }] : [])]];
