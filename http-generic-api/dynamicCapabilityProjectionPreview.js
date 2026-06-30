@@ -414,15 +414,7 @@ export async function buildDynamicCapabilityProjectionPreview(args = {}, deps = 
 
   const adminCatalog = new Map(adminCatalogRows.map((row) => [String(row.tool_key || ""), row]));
   const tenantCatalog = new Map(tenantCatalogRows.map((row) => [String(row.tool_key || ""), row]));
-  const exportsByCapability = new Map();
   const reconciliationByCapability = new Map();
-  for (const row of exportRows) {
-    const keys = [String(row.capability_key || ""), ...capabilityKeys.filter((key) => targetToolKey({ capability_key: key }) === String(row.source_key || ""))];
-    for (const key of keys.filter(Boolean)) {
-      if (!exportsByCapability.has(key)) exportsByCapability.set(key, []);
-      exportsByCapability.get(key).push(row);
-    }
-  }
   for (const row of reconciliationRows) {
     const key = String(row.capability_key || "");
     if (!reconciliationByCapability.has(key)) reconciliationByCapability.set(key, []);
