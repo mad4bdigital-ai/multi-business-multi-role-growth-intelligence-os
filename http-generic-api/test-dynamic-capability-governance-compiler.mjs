@@ -156,21 +156,51 @@ assert.equal(classifyCapabilityRisk({ ...rows[2], operation_class: "publish" }, 
 
 assert.equal(classifyCapabilityEffect({
   capability_key: "admin_tool.activation_drive_probe",
+  display_name: "Probe Google Drive",
+  capability_family: "admin_tool",
   source_key: "activation_drive_probe",
-  operation_class: "probe",
+  operation_class: "tool_dispatch",
   risk_class: "D",
   apply_allowed: 0,
 }), "read_only");
 assert.equal(classifyCapabilityEffect({
+  capability_key: "admin_tool.activation_github_validate",
+  display_name: "Validate GitHub",
+  capability_family: "admin_tool",
+  source_key: "activation_github_validate",
+  operation_class: "tool_dispatch",
+  apply_allowed: 0,
+}), "read_only");
+assert.equal(classifyCapabilityEffect({
   capability_key: "admin_tool.cloudflare_tunnel_status",
+  display_name: "Cloudflare Tunnel Status",
+  capability_family: "admin_tool",
   source_key: "cloudflare_tunnel_status",
-  operation_class: "status",
+  operation_class: "tool_dispatch",
   apply_allowed: 0,
 }), "read_only");
 assert.equal(classifyCapabilityEffect({
   capability_key: "admin_tool.connector_registry_get_tool",
+  display_name: "Get Connector Registry Entry",
+  capability_family: "admin_tool",
   source_key: "connector_registry_get_tool",
-  operation_class: "get",
+  operation_class: "tool_dispatch",
+  apply_allowed: 0,
+}), "read_only");
+assert.equal(classifyCapabilityEffect({
+  capability_key: "admin_tool.browser_runtime_inspect_site",
+  display_name: "Browser Runtime Inspect Site",
+  capability_family: "admin_tool",
+  source_key: "browser_runtime_inspect_site",
+  operation_class: "tool_dispatch",
+  apply_allowed: 0,
+}), "read_only");
+assert.equal(classifyCapabilityEffect({
+  capability_key: "admin_tool.browser_runtime_extract_data",
+  display_name: "Browser Runtime Extract Data",
+  capability_family: "admin_tool",
+  source_key: "browser_runtime_extract_data",
+  operation_class: "tool_dispatch",
   apply_allowed: 0,
 }), "read_only");
 assert.equal(classifyCapabilityEffect({
@@ -187,8 +217,10 @@ assert.equal(classifyCapabilityEffect({
 }), "preview_only");
 assert.equal(classifyCapabilityEffect({
   capability_key: "admin_tool.connector_browser",
+  display_name: "Device Browser",
+  capability_family: "admin_tool",
   source_key: "connector_browser",
-  operation_class: "connector",
+  operation_class: "tool_dispatch",
   apply_allowed: 0,
 }), "unclassified");
 assert.equal(classifyCapabilityEffect({
@@ -244,7 +276,7 @@ const preview = await buildDynamicCapabilityGovernancePreview(
   { pool, now: () => "2026-06-29T00:00:00.000Z" }
 );
 assert.equal(preview.compiler_version, DYNAMIC_CAPABILITY_GOVERNANCE_COMPILER_VERSION);
-assert.equal(preview.compiler_version, "dynamic-capability-governance-compiler-v2");
+assert.equal(preview.compiler_version, "dynamic-capability-governance-compiler-v3");
 assert.equal(preview.report_type, "dynamic_capability_governance_compile_preview");
 assert.equal(preview.mode, "dry_run");
 assert.equal(preview.counts.source_rows, 4);

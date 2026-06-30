@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { getPool } from "./db.js";
 
-export const DYNAMIC_CAPABILITY_GOVERNANCE_COMPILER_VERSION = "dynamic-capability-governance-compiler-v2";
+export const DYNAMIC_CAPABILITY_GOVERNANCE_COMPILER_VERSION = "dynamic-capability-governance-compiler-v3";
 
 const EFFECT_RANK = Object.freeze({
   unclassified: -1,
@@ -35,6 +35,7 @@ const EXTERNAL_TOKENS = Object.freeze([
   "provider", "connector", "drive", "sheets", "remote", "browser",
 ]);
 const WORKSPACE_TOKENS = Object.freeze(["workspace", "brand", "tenant", "resource", "grant", "membership", "site"]);
+const GENERIC_OPERATION_CLASSES = new Set(["tool dispatch", "tenant tool dispatch"]);
 
 function rowsOf(result) {
   return Array.isArray(result?.[0]) ? result[0] : [];
@@ -68,6 +69,15 @@ function rowText(row) {
   ].map((value) => String(value || "").toLowerCase()).join(" ");
 }
 
+function classificationText(row) {
+  return [
+    row.capability_key,
+    row.display_name,
+    row.capability_family,
+    row.source_key,
+  ].map((value) => String(value || "").toLowerCase()).join(" ");
+}
+
 function normalizeSemanticText(value) {
   return String(value || "")
     .toLowerCase()
@@ -81,6 +91,11 @@ function tokenSet(value) {
   return new Set(normalized ? normalized.split(" ") : []);
 }
 
+function semanticOperationClass(value) {
+  const normalized = normalizeSemanticText(value);
+  return GENERIC_OPERATION_CLASSES.has(normalized) ? "" : normalized;
+}
+
 function hasAnyToken(tokens, candidates) {
   return candidates.some((candidate) => tokens.has(candidate));
 }
@@ -90,8 +105,8 @@ function hasAnyPhrase(text, phrases) {
 }
 
 export function classifyCapabilityEffect(row = {}) {
-  const semanticText = normalizeSemanticText(rowText(row));
-  const operationText = normalizeSemanticText(row.operation_class);
+  const semanticText = normalizeSemanticText(classificationText(row));
+  const operationText = semanticOperationClass(row.operation_class);
   const combinedText = `${operationText} ${semanticText}`.trim();
   const tokens = tokenSet(combinedText);
   const applyAllowed = bool(row.apply_allowed ?? row.applyable);
