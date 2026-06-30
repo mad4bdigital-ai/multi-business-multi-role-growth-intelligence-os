@@ -134,6 +134,37 @@ export async function persistDynamicCapabilityGovernanceCompilation(args = {}, d
   const expectedSourceRevisionHash = requireHash(args.expected_source_revision_hash, "expected_source_revision_hash");
   requireConfirmation(args.confirm);
 
+  const resolveEnvelope = deps.resolveEnvelope || resolveCapabilityExecutionEnvelope;
+  const resolvedEnvelope = await resolveEnvelope({
+    pool,
+    envelopeId: capabilityEnvelopeId,
+    source: { capability_envelope_id: capabilityEnvelopeId },
+    acceptedAppKeys: [PERSISTENCE_APP_KEY],
+    acceptedIntents: PERSISTENCE_OPERATION_INTENTS,
+    expectedTenantId: deps.auth?.tenant_id || PLATFORM_TENANT_ID,
+    expectedUserId: deps.auth?.user_id || "",
+    requireReadyForDispatch: true,
+    requireDispatchAllowed: true,
+    requireNoApprovalRequired: true,
+    requireNoBlockingGaps: true,
+    requireNoSecrets: true,
+  });
+  if (!resolvedEnvelope?.ok) {
+    throw capabilityEnvelopeError(
+      resolvedEnvelope,
+      "Capability governance persistence requires a valid approved platform_orchestration envelope."
+    );
+  }
+  if (resolvedEnvelope.app_key !== PERSISTENCE_APP_KEY) {
+    fail("capability_governance_envelope_app_mismatch", "Capability envelope is not bound to platform orchestration.", 403);
+  }
+  if (!PERSISTENCE_OPERATION_INTENTS.includes(String(resolvedEnvelope.operation_intent || "").trim().toLowerCase())) {
+    fail("capability_governance_envelope_intent_mismatch", "Capability envelope operation intent does not authorize governance persistence.", 403);
+  }
+  if (!resolvedEnvelope.apply_allowed) {
+    fail("capability_governance_apply_not_authorized", "Capability envelope is dispatch-ready but not apply-authorized.", 403);
+  }
+
   const existingRun = await loadExistingRun(pool, idempotencyKey);
   if (existingRun) {
     if (existingRun.status !== "complete") {
