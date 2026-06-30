@@ -581,6 +581,7 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
     candidate,
     authorization: readback,
     migration_executor_apply_policy: migrationExecutorApplyPolicy,
+    migration_executor_dispatch_certification: migrationExecutorDispatchCertification,
     migration_sql_executed: false,
     applies_migration: false,
     capability_envelope_id: envelope.envelope_id,
