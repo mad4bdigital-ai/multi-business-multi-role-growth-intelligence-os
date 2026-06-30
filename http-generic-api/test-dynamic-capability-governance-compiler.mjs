@@ -276,7 +276,7 @@ const preview = await buildDynamicCapabilityGovernancePreview(
   { pool, now: () => "2026-06-29T00:00:00.000Z" }
 );
 assert.equal(preview.compiler_version, DYNAMIC_CAPABILITY_GOVERNANCE_COMPILER_VERSION);
-assert.equal(preview.compiler_version, "dynamic-capability-governance-compiler-v2");
+assert.equal(preview.compiler_version, "dynamic-capability-governance-compiler-v3");
 assert.equal(preview.report_type, "dynamic_capability_governance_compile_preview");
 assert.equal(preview.mode, "dry_run");
 assert.equal(preview.counts.source_rows, 4);
