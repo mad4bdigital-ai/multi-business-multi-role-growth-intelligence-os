@@ -100,6 +100,112 @@ function parseMetadata(value) {
   try { return JSON.parse(String(value)); } catch { return {}; }
 }
 
+async function queryMigrationExecutorApplyPolicy(db) {
+  const [rows] = await db.query(
+    `SELECT policy_key, app_key, capability_key, operation_intent, runtime_surface, status,
+            allow_external_write, allow_credential_binding, allow_no_credential_binding,
+            requires_ready_for_dispatch, requires_dispatch_allowed, requires_zero_blocking_gaps,
+            requires_audit_evidence, requires_readback, requires_typed_confirmation,
+            requires_same_cycle_dry_run, allowed_source_tiers_json, policy_json, notes
+       FROM capability_apply_authorization_policy_registry
+      WHERE app_key = ? AND capability_key = ? AND runtime_surface = ?
+      LIMIT 1`,
+    [
+      MIGRATION_EXECUTOR_APPLY_POLICY.app_key,
+      MIGRATION_EXECUTOR_APPLY_POLICY.capability_key,
+      MIGRATION_EXECUTOR_APPLY_POLICY.runtime_surface,
+    ]
+  );
+  return rows?.[0] || null;
+}
+
+function verifyMigrationExecutorApplyPolicy(row) {
+  if (!row) {
+    throw bootstrapError(500, "governed_migration_executor_apply_policy_readback_failed", "Migration executor apply policy was not visible during same-cycle readback.");
+  }
+  const sourceTiers = parseMetadata(row.allowed_source_tiers_json);
+  const policy = parseMetadata(row.policy_json);
+  const exact =
+    row.app_key === MIGRATION_EXECUTOR_APPLY_POLICY.app_key &&
+    row.capability_key === MIGRATION_EXECUTOR_APPLY_POLICY.capability_key &&
+    row.operation_intent === MIGRATION_EXECUTOR_APPLY_POLICY.operation_intent &&
+    row.runtime_surface === MIGRATION_EXECUTOR_APPLY_POLICY.runtime_surface &&
+    row.status === "active" &&
+    Number(row.allow_external_write || 0) === 0 &&
+    Number(row.allow_credential_binding || 0) === 0 &&
+    Number(row.allow_no_credential_binding || 0) === 1 &&
+    Number(row.requires_ready_for_dispatch || 0) === 1 &&
+    Number(row.requires_dispatch_allowed || 0) === 1 &&
+    Number(row.requires_zero_blocking_gaps || 0) === 1 &&
+    Number(row.requires_audit_evidence || 0) === 1 &&
+    Number(row.requires_readback || 0) === 1 &&
+    Number(row.requires_typed_confirmation || 0) === 1 &&
+    Number(row.requires_same_cycle_dry_run || 0) === 1 &&
+    Array.isArray(sourceTiers) && sourceTiers.length === 1 && sourceTiers[0] === "platform_managed_fallback" &&
+    policy?.external_write_allowed === false &&
+    policy?.provider_call_allowed === false &&
+    policy?.credential_payload_read_allowed === false &&
+    policy?.migration_authorization_registry_required === true &&
+    policy?.checksum_bound === true &&
+    policy?.statement_count_bound === true &&
+    policy?.zero_risk_preflight_required === true &&
+    policy?.exact_typed_confirmation_required === true &&
+    policy?.governed_ledger_required === true &&
+    policy?.same_cycle_schema_readback_required === true &&
+    policy?.secrets_included === false;
+  if (!exact) {
+    throw bootstrapError(409, "governed_migration_executor_apply_policy_mismatch", "Migration executor apply policy does not match the fail-closed bootstrap contract.", {
+      policy_key: row.policy_key || null,
+    });
+  }
+  return {
+    ...row,
+    allowed_source_tiers_json: sourceTiers,
+    policy_json: policy,
+    secrets_included: false,
+  };
+}
+
+async function ensureMigrationExecutorApplyPolicy(db) {
+  await db.query(
+    `INSERT INTO capability_apply_authorization_policy_registry
+      (policy_key, app_key, capability_key, operation_intent, runtime_surface, status,
+       allow_external_write, allow_credential_binding, allow_no_credential_binding,
+       requires_ready_for_dispatch, requires_dispatch_allowed, requires_zero_blocking_gaps,
+       requires_audit_evidence, requires_readback, requires_typed_confirmation,
+       requires_same_cycle_dry_run, allowed_source_tiers_json, policy_json, notes)
+     VALUES (?, ?, ?, ?, ?, 'active', 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       operation_intent = VALUES(operation_intent),
+       status = 'active',
+       allow_external_write = 0,
+       allow_credential_binding = 0,
+       allow_no_credential_binding = 1,
+       requires_ready_for_dispatch = 1,
+       requires_dispatch_allowed = 1,
+       requires_zero_blocking_gaps = 1,
+       requires_audit_evidence = 1,
+       requires_readback = 1,
+       requires_typed_confirmation = 1,
+       requires_same_cycle_dry_run = 1,
+       allowed_source_tiers_json = VALUES(allowed_source_tiers_json),
+       policy_json = VALUES(policy_json),
+       notes = VALUES(notes),
+       updated_at = CURRENT_TIMESTAMP`,
+    [
+      MIGRATION_EXECUTOR_APPLY_POLICY.policy_key,
+      MIGRATION_EXECUTOR_APPLY_POLICY.app_key,
+      MIGRATION_EXECUTOR_APPLY_POLICY.capability_key,
+      MIGRATION_EXECUTOR_APPLY_POLICY.operation_intent,
+      MIGRATION_EXECUTOR_APPLY_POLICY.runtime_surface,
+      JSON.stringify(MIGRATION_EXECUTOR_APPLY_POLICY.allowed_source_tiers),
+      JSON.stringify(MIGRATION_EXECUTOR_APPLY_POLICY.policy),
+      "Bootstrap-only internal runner policy. Every apply still requires checksum-bound migration authorization, exact statement count, zero-risk preflight, typed confirmation, governed ledger persistence, and same-cycle schema readback.",
+    ]
+  );
+  return verifyMigrationExecutorApplyPolicy(await queryMigrationExecutorApplyPolicy(db));
+}
+
 async function queryExistingAuthorization(db, migration) {
   const [rows] = await db.query(
     `SELECT migration_file, authorization_status, authorization_source, policy_key, risk_tier,
