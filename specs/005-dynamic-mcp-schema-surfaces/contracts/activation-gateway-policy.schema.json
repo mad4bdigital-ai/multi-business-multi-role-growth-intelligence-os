@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/contracts/activation-gateway-policy.schema.json",
+  "title": "Activation Gateway Signed Route Policy",
+  "type": "object",
+  "required": [
+    "manifestVersion",
+    "surfaceRegistryVersion",
+    "canonicalCommitSha",
+    "generatedAt",
+    "expiresAt",
+    "upstreamOrigin",
+    "routes",
+    "contentHashSha256",
+    "signatureKeyId",
+    "signature"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "manifestVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "surfaceRegistryVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "canonicalCommitSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "upstreamOrigin": {
+      "type": "string",
+      "const": "https://auth.mad4b.com"
+    },
+    "routes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "operationId",
+          "method",
+          "path",
+          "authProfile",
+          "allowedQueryParameters",
+          "requestBodyLimitBytes",
+          "responseBodyLimitBytes",
+          "timeoutMs",
+          "mutation"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "operationId": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "GET",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^/"
+          },
+          "authProfile": {
+            "type": "string",
+            "enum": [
+              "admin_service",
+              "tenant_oauth"
+            ]
+          },
+          "allowedQueryParameters": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "requestBodyLimitBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "responseBodyLimitBytes": {
+            "type": "integer",
+            "minimum": 1024
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 120000
+          },
+          "mutation": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "contentHashSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "signatureKeyId": {
+      "type": "string"
+    },
+    "signature": {
+      "type": "string",
+      "minLength": 32
+    }
+  }
+}

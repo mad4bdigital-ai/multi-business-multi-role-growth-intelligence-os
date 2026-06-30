@@ -1,5 +1,34 @@
 import { getPool } from "./db.js";
 import { normalizePlatformPlugin } from "./platformPluginCatalog.js";
+import { resolvePlatformManagedTargetAuthority } from "./platformPluginTargetAuthority.js";
+import { schedulePlatformPluginSecurityAlerts } from "./platformPluginSecurityAlerts.js";
+
+export const CredentialRequirement = Object.freeze({
+  NOT_REQUIRED: "not_required",
+  REQUIRED: "required",
+});
+
+export const CredentialResolutionState = Object.freeze({
+  NOT_EVALUATED: "not_evaluated",
+  NOT_REQUIRED: "not_required",
+  RESOLVED: "resolved",
+  MISSING: "missing",
+  SCOPE_DENIED: "scope_denied",
+});
+
+export const CredentialUsabilityState = Object.freeze({
+  NOT_EVALUATED: "not_evaluated",
+  NOT_APPLICABLE: "not_applicable",
+  USABLE: "usable",
+  UNUSABLE: "unusable",
+});
+
+export const CredentialDenialCode = Object.freeze({
+  SCOPE_MISMATCH: "CREDENTIAL_SCOPE_MISMATCH",
+  NOT_USABLE: "CREDENTIAL_NOT_USABLE",
+  REQUIRED: "CREDENTIAL_REQUIRED",
+  DEDICATED_CONNECTION_REQUIRED: "DEDICATED_CONNECTION_REQUIRED",
+});
 
 function compactString(value = "", max = 500) {
   return String(value || "").trim().slice(0, max);
@@ -61,6 +90,7 @@ function defaultScopesForAuthType(authType = "") {
 
 function deriveCandidateCredentialScopes({ plugin, binding, tenantPolicy }) {
   const fromBinding = credentialScopesForSource(bindingCredentialSource(binding));
+  if (fromBinding.length === 1 && fromBinding[0] === "none") return ["none"];
   const fallback = defaultScopesForAuthType(plugin?.auth_type);
   let scopes = unique(fromBinding.length ? fromBinding : fallback);
 
@@ -75,37 +105,92 @@ function deriveCandidateCredentialScopes({ plugin, binding, tenantPolicy }) {
   return scopes;
 }
 
+function resolveCredentialRequirement({ plugin, binding, tenantPolicy, requestedScope = null }) {
+  const candidateScopes = deriveCandidateCredentialScopes({ plugin, binding, tenantPolicy });
+  const explicitRequestedScope = normalize(requestedScope || "");
+  const scopeAllowed = !explicitRequestedScope || candidateScopes.includes(explicitRequestedScope);
+  const effectiveScopes = explicitRequestedScope ? [explicitRequestedScope] : candidateScopes;
+  const notRequired = scopeAllowed && effectiveScopes.length > 0 && effectiveScopes.every((scope) => scope === "none");
+  return {
+    requirement: notRequired ? CredentialRequirement.NOT_REQUIRED : CredentialRequirement.REQUIRED,
+    requested_scope: explicitRequestedScope || null,
+    candidate_scopes: candidateScopes,
+    scope_allowed: scopeAllowed,
+    reason: !scopeAllowed
+      ? "credential_scope_not_allowed"
+      : (notRequired ? "credential_not_required_by_policy" : "credential_required_by_policy"),
+  };
+}
+
+function connectionIsUsable(row = {}) {
+  const status = normalize(row.status);
+  const validationStatus = normalize(row.validation_status);
+  return status === "active" && ["validated", "valid", "active", "healthy"].includes(validationStatus);
+}
+
 function pickConnectionForScope(scope, connections = []) {
   if (scope === "user_connection") {
-    return connections.find((row) => normalize(row.status) === "active" && row.user_id) || null;
+    return connections.find((row) => connectionIsUsable(row) && row.user_id) || null;
   }
   if (scope === "tenant_connection") {
-    return connections.find((row) => normalize(row.status) === "active") || null;
+    return connections.find((row) => connectionIsUsable(row)) || null;
   }
   return null;
 }
 
 function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections = [], requestedScope = null }) {
-  const candidateScopes = deriveCandidateCredentialScopes({ plugin, binding, tenantPolicy });
+  const requirement = resolveCredentialRequirement({ plugin, binding, tenantPolicy, requestedScope });
+  const candidateScopes = requirement.candidate_scopes;
   const sourceMode = normalize(tenantPolicy?.source_mode || "");
   const fallbackAllowed = tenantPolicy ? Boolean(tenantPolicy.fallback_allowed) : true;
-  const explicitRequestedScope = normalize(requestedScope || "");
-  const orderedScopes = explicitRequestedScope
-    ? unique([explicitRequestedScope, ...candidateScopes])
-    : candidateScopes;
+  const explicitRequestedScope = requirement.requested_scope;
+  if (!requirement.scope_allowed) {
+    return {
+      ok: false,
+      requirement: requirement.requirement,
+      resolution_state: CredentialResolutionState.SCOPE_DENIED,
+      usability_state: CredentialUsabilityState.NOT_EVALUATED,
+      credential_source: null,
+      reason: "credential_scope_not_allowed",
+      denial_code: CredentialDenialCode.SCOPE_MISMATCH,
+      requested_scope: explicitRequestedScope,
+      candidate_scopes: candidateScopes,
+    };
+  }
+  const orderedScopes = explicitRequestedScope ? [explicitRequestedScope] : candidateScopes;
+  let unusableConnection = null;
 
   for (const scope of orderedScopes) {
     if (scope === "none") {
-      return { ok: true, credential_source: "none", reason: "no_credentials_required", candidate_scopes: candidateScopes };
+      return {
+        ok: true,
+        requirement: CredentialRequirement.NOT_REQUIRED,
+        resolution_state: CredentialResolutionState.NOT_REQUIRED,
+        usability_state: CredentialUsabilityState.NOT_APPLICABLE,
+        credential_source: "none",
+        reason: "no_credentials_required",
+        candidate_scopes: candidateScopes,
+      };
     }
     if (scope === "device_connector") {
-      return { ok: true, credential_source: "device_connector", reason: "device_connector_required", candidate_scopes: candidateScopes };
+      return {
+        ok: true,
+        requirement: CredentialRequirement.REQUIRED,
+        resolution_state: CredentialResolutionState.RESOLVED,
+        usability_state: CredentialUsabilityState.NOT_APPLICABLE,
+        credential_source: "device_connector",
+        reason: "device_connector_required",
+        candidate_scopes: candidateScopes,
+      };
     }
     if (scope === "user_connection" || scope === "tenant_connection") {
       const connection = pickConnectionForScope(scope, connections);
       if (connection) {
         return {
           ok: true,
+          requirement: CredentialRequirement.REQUIRED,
+          resolution_state: CredentialResolutionState.RESOLVED,
+          usability_state: CredentialUsabilityState.USABLE,
           credential_source: scope,
           connection_id: connection.connection_id,
           connection_status: connection.status,
@@ -114,6 +199,10 @@ function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections 
           candidate_scopes: candidateScopes,
         };
       }
+      unusableConnection = connections.find((row) => {
+        if (scope === "user_connection") return Boolean(row.user_id);
+        return true;
+      }) || unusableConnection;
       continue;
     }
     if (scope === "platform_managed") {
@@ -122,6 +211,9 @@ function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections 
       }
       return {
         ok: true,
+        requirement: CredentialRequirement.REQUIRED,
+        resolution_state: CredentialResolutionState.RESOLVED,
+        usability_state: CredentialUsabilityState.USABLE,
         credential_source: "platform_managed",
         reason: tenantPolicy ? "tenant_policy_allows_platform_credentials" : "platform_default",
         candidate_scopes: candidateScopes,
@@ -129,12 +221,77 @@ function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections 
     }
   }
 
+  if (unusableConnection) {
+    return {
+      ok: false,
+      requirement: CredentialRequirement.REQUIRED,
+      resolution_state: CredentialResolutionState.RESOLVED,
+      usability_state: CredentialUsabilityState.UNUSABLE,
+      credential_source: null,
+      connection_id: unusableConnection.connection_id || null,
+      connection_status: unusableConnection.status || null,
+      validation_status: unusableConnection.validation_status || null,
+      reason: "credential_not_usable",
+      denial_code: CredentialDenialCode.NOT_USABLE,
+      candidate_scopes: candidateScopes,
+    };
+  }
+
   const dedicatedNoFallback = sourceMode === "dedicated" && !fallbackAllowed;
   return {
     ok: false,
+    requirement: CredentialRequirement.REQUIRED,
+    resolution_state: CredentialResolutionState.MISSING,
+    usability_state: CredentialUsabilityState.NOT_EVALUATED,
     credential_source: null,
     reason: dedicatedNoFallback ? "dedicated_connection_required" : "credential_required",
+    denial_code: dedicatedNoFallback
+      ? CredentialDenialCode.DEDICATED_CONNECTION_REQUIRED
+      : CredentialDenialCode.REQUIRED,
     candidate_scopes: candidateScopes,
+  };
+}
+
+function resolvePrincipalScope({ principalClass = "admin", tenantId = null, userId = null }) {
+  const principal = normalize(principalClass) || "admin";
+  if (principal === "tenant" && (!tenantId || !userId)) {
+    return {
+      ok: false,
+      reason: "tenant_principal_scope_required",
+      principal_class: "tenant",
+      tenant_id_present: Boolean(tenantId),
+      user_id_present: Boolean(userId),
+    };
+  }
+  return {
+    ok: true,
+    reason: principal === "tenant" ? "tenant_principal_scope_authorized" : "admin_principal_scope",
+    principal_class: principal,
+    tenant_id_present: Boolean(tenantId),
+    user_id_present: Boolean(userId),
+  };
+}
+
+function resolveSurfaceExposure({ binding, toolKey, principalClass = "admin" }) {
+  if (!toolKey) return { ok: true, reason: "action_surface", principal_class: principalClass };
+  const toolSurface = normalize(binding?.tool_surface || "");
+  const exposureScope = normalize(binding?.exposure_scope || "");
+  const adminOnly = toolSurface.includes("admin") || ["admin", "platform_admin", "platform"].includes(exposureScope);
+  if (normalize(principalClass) === "tenant" && adminOnly) {
+    return {
+      ok: false,
+      reason: "admin_tool_forbidden",
+      principal_class: "tenant",
+      tool_surface: binding?.tool_surface || null,
+      exposure_scope: binding?.exposure_scope || null,
+    };
+  }
+  return {
+    ok: true,
+    reason: adminOnly ? "admin_surface_allowed_for_admin_preview" : "surface_exposed",
+    principal_class: normalize(principalClass) || "admin",
+    tool_surface: binding?.tool_surface || null,
+    exposure_scope: binding?.exposure_scope || null,
   };
 }
 
@@ -316,9 +473,9 @@ async function loadPluginRows({ pool, pluginKey, tenantId, userId }) {
     [pluginKey]
   );
   const plugin = pluginRows[0] || null;
-  if (!plugin) return { plugin: null, actionBindings: [], toolBindings: [], tenantPolicy: null, connections: [] };
+  if (!plugin) return { plugin: null, actionBindings: [], toolBindings: [], tenantPolicy: null };
 
-  const [actionBindings, toolBindings, tenantPolicies, connections] = await Promise.all([
+  const [actionBindings, toolBindings, tenantPolicies] = await Promise.all([
     safeQuery(
       pool,
       `SELECT binding_id, app_key, action_key, binding_role, credential_source, exposure_default, status, notes
@@ -346,19 +503,6 @@ async function loadPluginRows({ pool, pluginKey, tenantId, userId }) {
           [tenantId, pluginKey]
         )
       : Promise.resolve([]),
-    tenantId || userId
-      ? safeQuery(
-          pool,
-          `SELECT connection_id, tenant_id, user_id, app_key, auth_type, status, validation_status,
-                  last_validated_at, last_used_at, is_primary
-             FROM user_app_connections
-            WHERE app_key = ?
-              ${tenantId ? "AND tenant_id = ?" : ""}
-              ${userId ? "AND user_id = ?" : ""}
-            ORDER BY is_primary DESC, last_validated_at DESC, connected_at DESC`,
-          [pluginKey, ...(tenantId ? [tenantId] : []), ...(userId ? [userId] : [])]
-        )
-      : Promise.resolve([]),
   ]);
 
   return {
@@ -366,8 +510,22 @@ async function loadPluginRows({ pool, pluginKey, tenantId, userId }) {
     actionBindings,
     toolBindings,
     tenantPolicy: tenantPolicies[0] || null,
-    connections,
   };
+}
+
+async function loadScopedConnections({ pool, pluginKey, tenantId, userId }) {
+  if (!tenantId && !userId) return [];
+  return safeQuery(
+    pool,
+    `SELECT connection_id, tenant_id, user_id, app_key, auth_type, status, validation_status,
+            last_validated_at, last_used_at, is_primary
+       FROM user_app_connections
+      WHERE app_key = ?
+        ${tenantId ? "AND tenant_id = ?" : ""}
+        ${userId ? "AND user_id = ?" : ""}
+      ORDER BY is_primary DESC, last_validated_at DESC, connected_at DESC`,
+    [pluginKey, ...(tenantId ? [tenantId] : []), ...(userId ? [userId] : [])]
+  );
 }
 
 export async function resolvePlatformPluginExecution({
@@ -376,15 +534,32 @@ export async function resolvePlatformPluginExecution({
   actionKey = null,
   toolKey = null,
   tenantId = null,
+  workspaceId = null,
   userId = null,
   agentId = null,
+  principalClass = "admin",
   requestedCredentialScope = null,
+  targetResourceType = null,
+  targetResourceUri = null,
+  targetMode = "read_only",
   allowExpiredSmokeCertificationForRecertification = false,
+  requestId = null,
+  correlationId = null,
+  securityAlertWriter = undefined,
 } = {}) {
   const normalizedPluginKey = compactString(pluginKey, 128);
   if (!normalizedPluginKey) {
     const err = new Error("plugin_key is required.");
     err.code = "missing_plugin_key";
+    err.status = 400;
+    throw err;
+  }
+
+  const normalizedActionKey = compactString(actionKey || "", 191) || null;
+  const normalizedToolKey = compactString(toolKey || "", 191) || null;
+  if (normalizedActionKey && normalizedToolKey) {
+    const err = new Error("Exactly one capability selector may be provided.");
+    err.code = "ambiguous_capability_selector";
     err.status = 400;
     throw err;
   }
@@ -409,42 +584,165 @@ export async function resolvePlatformPluginExecution({
   const binding = selectBinding({
     actionBindings: rows.actionBindings,
     toolBindings: rows.toolBindings,
-    actionKey,
-    toolKey,
+    actionKey: normalizedActionKey,
+    toolKey: normalizedToolKey,
   });
-  const bindingState = resolveBindingState({ binding, actionKey, toolKey });
-  const credential = resolveCredentialDecision({
-    plugin: rows.plugin,
+  const bindingState = resolveBindingState({ binding, actionKey: normalizedActionKey, toolKey: normalizedToolKey });
+  const principalScope = resolvePrincipalScope({ principalClass, tenantId, userId });
+  const surfaceExposure = resolveSurfaceExposure({ binding, toolKey: normalizedToolKey, principalClass });
+  const canonicalPolicy = normalizedToolKey
+    ? { ready: false, reason: "tool_canonical_policy_mapping_required", canonical_action_key: null }
+    : { ready: true, reason: normalizedActionKey ? "action_is_canonical_policy_key" : "no_selector_preview", canonical_action_key: normalizedActionKey };
+  const securityAlerts = schedulePlatformPluginSecurityAlerts({
+    writer: securityAlertWriter,
+    principalClass,
+    tenantId,
+    workspaceId,
+    userId,
+    requestId,
+    correlationId,
+    pluginKey: normalizedPluginKey,
+    actionKey: normalizedActionKey,
+    toolKey: normalizedToolKey,
+    surfaceExposure,
+    canonicalPolicy,
+    actionBindings: rows.actionBindings,
+  });
+  const requiredSkillKey = deriveRequiredSkill({
+    pluginKey: normalizedPluginKey,
+    actionKey: normalizedActionKey,
+    toolKey: normalizedToolKey,
     binding,
-    tenantPolicy: rows.tenantPolicy,
-    connections: rows.connections,
-    requestedScope: requestedCredentialScope,
   });
-  const requiredSkillKey = deriveRequiredSkill({ pluginKey: normalizedPluginKey, actionKey, toolKey, binding });
   const skill = await checkSkillGrant({ pool, agentId, tenantId, requiredSkillKey });
+  const pluginStatusActive = ["active", "beta"].includes(normalize(rows.plugin.status));
+  const selectorRequested = Boolean(normalizedActionKey || normalizedToolKey);
+  const credentialRequirement = selectorRequested
+    ? resolveCredentialRequirement({
+        plugin: rows.plugin,
+        binding,
+        tenantPolicy: rows.tenantPolicy,
+        requestedScope: requestedCredentialScope,
+      })
+    : {
+        requirement: CredentialRequirement.NOT_REQUIRED,
+        requested_scope: null,
+        candidate_scopes: [],
+        scope_allowed: true,
+        reason: "credential_not_required_for_preview",
+      };
+  const credentialLookupRequired = Boolean(
+    selectorRequested &&
+    credentialRequirement.scope_allowed &&
+    credentialRequirement.requirement === CredentialRequirement.REQUIRED &&
+    credentialRequirement.candidate_scopes.some((scope) => ["user_connection", "tenant_connection"].includes(scope))
+  );
+  const credentialLookupAuthorized = Boolean(
+    credentialLookupRequired &&
+    pluginStatusActive &&
+    principalScope.ok &&
+    bindingState.ok &&
+    surfaceExposure.ok &&
+    canonicalPolicy.ready &&
+    skill.granted
+  );
+  const connections = credentialLookupAuthorized
+    ? await loadScopedConnections({
+        pool,
+        pluginKey: normalizedPluginKey,
+        tenantId,
+        userId,
+      })
+    : [];
+  const credentialDecisionEvaluated = Boolean(
+    !selectorRequested ||
+    credentialRequirement.requirement === CredentialRequirement.NOT_REQUIRED ||
+    !credentialRequirement.scope_allowed ||
+    !credentialLookupRequired ||
+    credentialLookupAuthorized
+  );
+  const credential = !selectorRequested
+    ? {
+        ok: true,
+        requirement: CredentialRequirement.NOT_REQUIRED,
+        resolution_state: CredentialResolutionState.NOT_REQUIRED,
+        usability_state: CredentialUsabilityState.NOT_APPLICABLE,
+        credential_source: null,
+        reason: "credential_resolution_not_required_for_preview",
+        candidate_scopes: [],
+      }
+    : credentialDecisionEvaluated
+      ? resolveCredentialDecision({
+          plugin: rows.plugin,
+          binding,
+          tenantPolicy: rows.tenantPolicy,
+          connections,
+          requestedScope: requestedCredentialScope,
+        })
+      : {
+          ok: false,
+          requirement: credentialRequirement.requirement,
+          resolution_state: CredentialResolutionState.NOT_EVALUATED,
+          usability_state: CredentialUsabilityState.NOT_EVALUATED,
+          credential_source: null,
+          reason: "credential_resolution_deferred_until_authorized",
+          requested_scope: credentialRequirement.requested_scope,
+          candidate_scopes: credentialRequirement.candidate_scopes,
+        };
+  const targetAuthority = await resolvePlatformManagedTargetAuthority({
+    pool,
+    credentialSource: credential.credential_source,
+    principalClass,
+    tenantId,
+    workspaceId,
+    userId,
+    targetResourceType,
+    targetResourceUri,
+    targetMode,
+  });
   const smokeCertification = await checkSmokeCertification({
     pool,
     pluginKey: normalizedPluginKey,
-    actionKey,
+    actionKey: normalizedActionKey || normalizedToolKey,
     allowExpiredForRecertification: allowExpiredSmokeCertificationForRecertification === true,
   });
-
-  const pluginStatusActive = ["active", "beta"].includes(normalize(rows.plugin.status));
-  const allowed = Boolean(pluginStatusActive && bindingState.ok && credential.ok && skill.granted && smokeCertification.certified);
+  const allowed = Boolean(
+    pluginStatusActive &&
+    principalScope.ok &&
+    bindingState.ok &&
+    surfaceExposure.ok &&
+    canonicalPolicy.ready &&
+    credential.ok &&
+    targetAuthority.ok &&
+    skill.granted &&
+    smokeCertification.certified
+  );
   const denialReasons = [];
   if (!pluginStatusActive) denialReasons.push("plugin_not_active");
+  if (!principalScope.ok) denialReasons.push(principalScope.reason);
   if (!bindingState.ok) denialReasons.push(bindingState.reason);
-  if (!credential.ok) denialReasons.push(credential.reason);
+  if (!surfaceExposure.ok) denialReasons.push(surfaceExposure.reason);
+  if (!canonicalPolicy.ready) denialReasons.push(canonicalPolicy.reason);
+  if (credentialDecisionEvaluated && !credential.ok) denialReasons.push(credential.reason);
+  if (!targetAuthority.ok) denialReasons.push(targetAuthority.reason);
   if (!skill.granted) denialReasons.push(skill.reason);
   if (!smokeCertification.certified) denialReasons.push(smokeCertification.reason);
 
   const defaultGrants = parseJsonArray(rows.plugin.default_action_grants, []);
   const baseApprovalRequired = Boolean(
-    defaultGrants.find((grant) => grant?.action_key === actionKey)?.auto_approve === false ||
-    normalize(binding?.exposure_default || "") === "runtime_only"
+    normalizedToolKey ||
+    defaultGrants.find((grant) => grant?.action_key === normalizedActionKey)?.auto_approve === false ||
+    normalize(binding?.exposure_default || "") === "runtime_only" ||
+    normalize(binding?.binding_role || "") === "state_changing"
   );
   const actionGrant = baseApprovalRequired && allowed
-    ? await checkActionGrant({ pool, pluginKey: normalizedPluginKey, actionKey, agentId, credential })
+    ? await checkActionGrant({
+        pool,
+        pluginKey: normalizedPluginKey,
+        actionKey: normalizedActionKey || normalizedToolKey,
+        agentId,
+        credential,
+      })
     : { required: baseApprovalRequired, granted: !baseApprovalRequired, grant_id: null, reason: baseApprovalRequired ? "resolve_denials_before_action_grant" : "no_review_required_by_preview" };
   const approvalRequired = Boolean(baseApprovalRequired && !actionGrant.granted);
   const dispatchReady = Boolean(allowed && !approvalRequired);
@@ -455,8 +753,31 @@ export async function resolvePlatformPluginExecution({
     reason: allowed ? "resolved" : unique(denialReasons).join("|") || "not_allowed",
     mode: dispatchReady ? "dispatch_ready" : "preview_only",
     plugin_key: normalizedPluginKey,
-    requested_action_key: actionKey || null,
-    requested_tool_key: toolKey || null,
+    requested_action_key: normalizedActionKey,
+    requested_tool_key: normalizedToolKey,
+    selector: normalizedActionKey
+      ? { type: "action_key", value: normalizedActionKey }
+      : (normalizedToolKey ? { type: "tool_key", value: normalizedToolKey } : null),
+    canonical_policy: canonicalPolicy,
+    principal_scope: principalScope,
+    surface_resolution: surfaceExposure,
+    security_alerts: securityAlerts,
+    credential_lookup: {
+      required: credentialLookupRequired,
+      attempted: credentialLookupAuthorized,
+      authorized: credentialLookupAuthorized,
+      reason: !selectorRequested
+        ? "credential_lookup_not_required_for_preview"
+        : (credentialRequirement.requirement === CredentialRequirement.NOT_REQUIRED
+          ? "credential_lookup_not_required_by_policy"
+          : (!credentialRequirement.scope_allowed
+            ? "credential_scope_denied_before_lookup"
+            : (credentialLookupAuthorized
+              ? "authorization_and_scope_gates_passed"
+              : "blocked_before_credential_lookup"))),
+      row_count: connections.length,
+      secrets_included: false,
+    },
     plugin: {
       plugin_key: platformPlugin.plugin_key,
       display_name: platformPlugin.display_name,
@@ -470,6 +791,8 @@ export async function resolvePlatformPluginExecution({
       binding_id: binding.binding_id,
       action_key: binding.action_key || null,
       tool_key: binding.tool_key || null,
+      tool_surface: binding.tool_surface || null,
+      exposure_scope: binding.exposure_scope || null,
       binding_role: binding.binding_role,
       credential_source: binding.credential_source,
       status: binding.status,
@@ -484,6 +807,7 @@ export async function resolvePlatformPluginExecution({
       source: rows.tenantPolicy.source || null,
     } : null,
     credential_resolution: credential,
+    target_authorization: targetAuthority,
     skill_resolution: skill,
     smoke_certification: smokeCertification,
     approval: {
@@ -503,7 +827,8 @@ export async function resolvePlatformPluginExecution({
         "app_integration_action_bindings",
         "app_integration_tool_bindings",
         "tenant_integration_policies",
-        "user_app_connections",
+        ...(credentialLookupAuthorized ? ["user_app_connections"] : []),
+        ...(targetAuthority.lookup_attempted ? ["platform_resource_authority_bindings"] : []),
         "app_action_grants",
         "agent_skills",
         "agent_skill_grants",

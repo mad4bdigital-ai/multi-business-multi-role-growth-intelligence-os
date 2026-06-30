@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "feature_key": "001-capability-security-hardening",
+  "title": "Unified Capability Authorization and Execution Security Hardening",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "current_increment": {
+    "phase": "Phase 1 — Repository and registry discovery",
+    "tasks_completed": [
+      "T001", "T002", "T003", "T004", "T005", "T006", "T007", "T008", "T009",
+      "T010", "T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019"
+    ],
+    "tasks_remaining_range": "T020-T114",
+    "pull_request": 1913,
+    "branch": "gpt/001-capability-security-hardening-phase1-discovery",
+    "merge_scope": "discovery_evidence_and_ci_fixture_repair"
+  },
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": "current",
+      "branch": "gpt/001-capability-security-hardening-phase1-discovery",
+      "role": "phase_increment",
+      "status": "current_pr"
+    }
+  },
+  "evidence": {
+    "phase0": {
+      "status": "completed_increment",
+      "validation_record": "containment-validation.md",
+      "tenant_reverification_report": "tenant-reverification-unified-report-2026-06-23.md",
+      "report_sha256": "5874a56d4dc5c3d11bce18e3166fd509fce74317253bd2e0305ff3c50485eb6f"
+    },
+    "phase1": {
+      "status": "verified_locally_pending_final_head_ci",
+      "validation_record": "phase1-discovery-evidence-2026-06-26.md",
+      "live_report_sha256": "f9be9defbd3af578195745ec262d76f5955da7e227a3abba4ef58eb20b1be65b",
+      "records_scanned": 3811,
+      "resolver_baseline": {
+        "sample_count": 100,
+        "p50_ms": 228.902,
+        "p95_ms": 271.817,
+        "p99_ms": 307.352
+      }
+    },
+    "release_readiness": {
+      "status": "blocked_for_full_release",
+      "phase1_merge_eligible_after_final_ci": true,
+      "unrestricted_tenant_execution_authorized": false,
+      "production_promotion_authorized": false
+    }
+  },
+  "secrets_included": false
+}

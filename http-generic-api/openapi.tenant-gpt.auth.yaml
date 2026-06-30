@@ -1,21 +1,22 @@
 openapi: 3.1.0
 info:
-  title: Mad4B Growth Intelligence - Tenant AI - MCP Actions
-  version: 2.0.2-platform-plugins
-  summary: Tenant GPT schema with MCP meta-operations plus tenant self-serve Platform Plugin routes.
-  description: Tenant MCP schema. Use connect_activate with tool_args.mode and integration_modes. Also supports Platform Plugin catalog, install, and resolve.
+  title: Growth Intelligence Platform - Tenant Core Actions
+  version: 3.0.0-platform
+  summary: Tenant resources, dashboard, session, plugin, and SQL-driven MCP facades without Activation routes.
+  description: Tenant Core transport. Tenant identity is derived from OAuth JWT. Use listTools then callTool for SQL-registered tools such as connect_activate, passing mode and integration_modes through tool_args.
 servers:
   - url: https://auth.mad4b.com
-    description: Mad4B platform auth subdomain
+    description: tenant_core surface
 tags:
-  - name: activation
-    description: Once-per-session activation probes, session history, scope context, and customer growth guidance.
+  - name: resource-api
+    description: Governed logical resources, safe projections, lifecycle operations, changes, revisions, permissions, and readback.
   - name: growth-dashboard
-    description: Tenant-facing mobile-friendly growth cockpit, typed cards, next-best actions, preferences, digests, and feedback.
+    description: Tenant-scoped growth cockpit, guidance, preferences, previews, and recommendation feedback.
   - name: system-layer
     description: MCP-style governed system layer backed by connector registries, principal context, and runtime validation.
   - name: platform-plugins
     description: Tenant-facing and admin-governed Platform Plugin catalog, install, resolve, contribution, and promotion surfaces.
+  - name: local-connector
   - name: session-archive
 components:
   securitySchemes:
@@ -66,22 +67,35 @@ components:
         error:
           $ref: "#/components/schemas/ErrorObject"
         execution_guardrail:
+          type: boolean
     GrowthDataStatus:
       type: object
       additionalProperties: false
-      required: [freshness, source_system, source_scope, confidence, partial_data]
+      required:
+        - freshness
+        - source_system
+        - source_scope
+        - confidence
+        - partial_data
       properties:
         freshness:
           type: string
-          enum: [fresh, stale, unknown, failed]
+          enum:
+            - fresh
+            - stale
+            - unknown
+            - failed
         observed_at:
-          type: [string, "null"]
+          type:
+            - string
+            - "null"
           format: date-time
         source_system:
           type: string
         source_scope:
           type: string
-          enum: [tenant_authorized]
+          enum:
+            - tenant_authorized
         confidence:
           type: number
           minimum: 0
@@ -91,7 +105,11 @@ components:
     GrowthDashboardAction:
       type: object
       additionalProperties: true
-      required: [action_ref_key, label, ready, requires_confirmation]
+      required:
+        - action_ref_key
+        - label
+        - ready
+        - requires_confirmation
       properties:
         action_ref_key:
           type: string
@@ -99,39 +117,77 @@ components:
           type: string
         mode:
           type: string
-          enum: [read_only, advisory, draft_only, write_requires_confirmation]
+          enum:
+            - read_only
+            - advisory
+            - draft_only
+            - write_requires_confirmation
         ready:
           type: boolean
         requires_confirmation:
           type: boolean
         required_capability_key:
-          type: [string, "null"]
+          type:
+            - string
+            - "null"
         runtime_action_key:
-          type: [string, "null"]
+          type:
+            - string
+            - "null"
         blocked_reason:
-          type: [string, "null"]
+          type:
+            - string
+            - "null"
         expected_impact_metric_key:
-          type: [string, "null"]
+          type:
+            - string
+            - "null"
     GrowthDashboardCard:
       type: object
       additionalProperties: true
-      required: [card_id, card_type, title, status, tab_key, data_status]
+      required:
+        - card_id
+        - card_type
+        - title
+        - status
+        - tab_key
+        - data_status
       properties:
         card_id:
           type: string
         card_type:
           type: string
-          enum: [kpi, trend, score, funnel, alert, recommendation, task, list, calendar, campaign, content_opportunity, lead_opportunity, connector_status, progress, comparison, status]
+          enum:
+            - kpi
+            - trend
+            - score
+            - funnel
+            - alert
+            - recommendation
+            - task
+            - list
+            - calendar
+            - campaign
+            - content_opportunity
+            - lead_opportunity
+            - connector_status
+            - progress
+            - comparison
+            - status
         title:
           type: string
         value: {}
         unit:
-          type: [string, "null"]
+          type:
+            - string
+            - "null"
         status:
           type: string
         change: {}
         metric_key:
-          type: [string, "null"]
+          type:
+            - string
+            - "null"
         interpretation:
           type: string
         tab_key:
@@ -143,86 +199,131 @@ components:
         data_status:
           $ref: "#/components/schemas/GrowthDataStatus"
         details_ref:
-          type: [object, "null"]
+          type:
+            - object
+            - "null"
           additionalProperties: true
     GrowthDashboardPreferences:
       type: object
       additionalProperties: false
       properties:
         active_container_key:
-          type: [string, "null"]
+          type:
+            - string
+            - "null"
         active_tab_key:
-          type: [string, "null"]
+          type:
+            - string
+            - "null"
         pinned_tabs:
           type: array
-          items: { type: string }
+          items:
+            type: string
         hidden_tabs:
           type: array
-          items: { type: string }
+          items:
+            type: string
         preferred_date_range:
           type: string
           default: last_30_days
         saved_filters:
           type: object
           additionalProperties: true
+          properties: {}
         dismissed_alerts:
           type: array
-          items: { type: string }
+          items:
+            type: string
         favorite_metrics:
           type: array
-          items: { type: string }
+          items:
+            type: string
         dashboard_density:
           type: string
-          enum: [compact, comfortable, detailed]
+          enum:
+            - compact
+            - comfortable
+            - detailed
         language:
-          type: [string, "null"]
+          type:
+            - string
+            - "null"
         currency:
-          type: [string, "null"]
+          type:
+            - string
+            - "null"
         timezone:
-          type: [string, "null"]
+          type:
+            - string
+            - "null"
         notification_preferences:
           type: object
           additionalProperties: true
+          properties: {}
     GrowthDashboardResponse:
       type: object
       additionalProperties: true
-      required: [ok, product_layer, subject, navigation, cards, growth_guidance, next_best_actions, secrets_included]
+      required:
+        - ok
+        - product_layer
+        - subject
+        - navigation
+        - cards
+        - growth_guidance
+        - next_best_actions
+        - secrets_included
       properties:
         ok:
           type: boolean
         product_layer:
           type: string
-          enum: [tenant_growth_dashboard]
+          enum:
+            - tenant_growth_dashboard
         product_version:
           type: string
         subject:
           type: object
           additionalProperties: false
-          required: [tenant_id, user_id, scope]
+          required:
+            - tenant_id
+            - user_id
+            - scope
           properties:
-            tenant_id: { type: string }
-            user_id: { type: string }
-            scope: { type: string, enum: [tenant_user] }
+            tenant_id:
+              type: string
+            user_id:
+              type: string
+            scope:
+              type: string
+              enum:
+                - tenant_user
         active_container:
-          type: [object, "null"]
+          type:
+            - object
+            - "null"
           additionalProperties: true
         available_containers:
           type: array
           items:
             type: object
             additionalProperties: true
+            properties: {}
         business_context:
           type: object
           additionalProperties: true
+          properties: {}
         dashboard_state:
           type: object
           additionalProperties: true
+          properties: {}
         navigation:
           type: object
           additionalProperties: true
+          properties: {}
         today:
           type: object
           additionalProperties: true
+          properties: {}
         cards:
           type: array
           items:
@@ -230,12 +331,14 @@ components:
         growth_guidance:
           type: object
           additionalProperties: true
+          properties: {}
         next_best_actions:
           type: array
           maxItems: 3
           items:
             type: object
             additionalProperties: true
+            properties: {}
         available_actions:
           type: array
           items:
@@ -243,17 +346,21 @@ components:
         assistant_guidance:
           type: object
           additionalProperties: true
+          properties: {}
         quick_commands:
           type: array
-          items: { type: string }
+          items:
+            type: string
         degraded_surfaces:
           type: array
           items:
             type: object
             additionalProperties: true
+            properties: {}
         secrets_included:
           type: boolean
-          enum: [false]
+          enum:
+            - false
   responses:
     BadRequest:
       description: Invalid request body or missing required field
@@ -275,10 +382,12 @@ security:
       - https://auth.mad4b.com/scopes/tenant.install
       - https://auth.mad4b.com/scopes/tenant.system-tools
 paths:
-  /activation/session-context:
+  /me/workspaces/{tenant_id}/resources:
     get:
+      operationId: getMeWorkspacesTenantIdResources
+      summary: GET /me/workspaces/{tenant_id}/resources
       tags:
-        - activation
+        - resource-api
       security:
         - userBearerAuth:
             - https://auth.mad4b.com/scopes/tenant.links
@@ -286,219 +395,625 @@ paths:
             - https://auth.mad4b.com/scopes/tenant.activation
             - https://auth.mad4b.com/scopes/tenant.install
             - https://auth.mad4b.com/scopes/tenant.system-tools
-      operationId: activateSession
-      summary: Read previous session history and platform scope context
-      description: Hard activation layer that reads prior user session envelopes as a paginated history log, scoped user request transcripts, plus audit activity, developer scopes, API credential scopes, and connected-system scopes. Admin/service sessions may also receive execution-log prompt and response summaries..
       parameters:
-        - name: user_id
-          in: query
-          schema:
-            type: string
-          description: Optional user id. Admin callers may inspect any user; user JWT callers are restricted to themselves.
         - name: tenant_id
-          in: query
+          in: path
+          required: true
           schema:
             type: string
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 10
-            maximum: 50
-          description: Number of previous session/history rows to return per page. Keep small for GPT activation probes.
-        - name: offset
-          in: query
-          schema:
-            type: integer
-            default: 0
-            minimum: 0
-          description: Pagination offset for reading older previous session history.
-        - name: include_raw
-          in: query
-          schema:
-            type: boolean
-            default: false
-          description: Include bounded raw request/response dumps where allowed by caller scope.
-        - name: raw_max_chars
-          in: query
-          schema:
-            type: integer
-            default: 4000
-            maximum: 20000
-        - name: response_profile
-          in: query
-          schema:
-            type: string
-            enum: [evidence, summary, dashboard, diagnostic, full]
-            default: evidence
-          description: Use evidence for compact activation with growth guidance. Full and diagnostic are reserved for explicit troubleshooting.
-        - name: session_policy
-          in: query
-          schema:
-            type: string
-            enum: [reuse_or_create, create_new, reuse_only, read_only]
-            default: reuse_or_create
-          description: Controls whether activation reuses or creates a customer session.
-        - name: idempotency_key
-          in: query
-          schema:
-            type: string
-            maxLength: 180
-          description: Stable key for safe activation retries.
-        - name: conversation_ref
-          in: query
-          schema:
-            type: string
-            maxLength: 500
-          description: Stable conversation reference used to derive an idempotency key.
-        - name: reuse_window_hours
+            minLength: 1
+        - name: pageSize
           in: query
           schema:
             type: integer
             minimum: 1
-            maximum: 168
-            default: 24
-        - name: container_key
+            maximum: 200
+        - name: pageToken
           in: query
           schema:
             type: string
-          description: Optional preferred workspace container for the product dashboard.
-        - name: tab
+        - name: q
           in: query
           schema:
             type: string
-          description: Optional preferred customer-facing dashboard tab.
-        - name: date_range
-          in: query
-          schema:
-            type: string
-            default: last_30_days
-        - name: max_response_chars
-          in: query
-          schema:
-            type: integer
-            minimum: 5000
-            maximum: 150000
-            default: 40000
-          description: Transport budget before a governed chunk continuation envelope is returned.
-        - name: include_turns
-          in: query
-          schema:
-            type: boolean
-            default: false
-        - name: authorized_access_limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 5
-        - name: authorized_surface_limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 50
-            default: 5
-          description: Maximum characters per raw dump field when include_raw=true.
+            maxLength: 200
       responses:
         "200":
-          description: Session history and related platform scopes
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-                required:
-                  - ok
-                  - response_profile
-                  - activation_layer
-                  - subject
-                  - product_guidance
-                  - secrets_included
-                properties:
-                  ok:
-                    type: boolean
-                  activation_layer:
-                    type: string
-                    enum:
-                      - session_context
-                  subject:
-                    type: object
-                    additionalProperties: false
-                    properties:
-                      user_id:
-                        type: string
-                      tenant_id:
-                        type: string
-                      is_admin:
-                        type: boolean
-                  last_session:
-                    type: object
-                    additionalProperties: true
-                    properties: {}
-                  pagination:
-                    type: object
-                    additionalProperties: false
-                    properties:
-                      limit:
-                        type: integer
-                      offset:
-                        type: integer
-                      include_raw:
-                        type: boolean
-                      raw_max_chars:
-                        type: integer
-                      has_more_session_history:
-                        type: boolean
-                  session_history:
-                    type: array
-                    items:
-                      type: object
-                      additionalProperties: true
-                      properties:
-                        transcript:
-                          type: object
-                          additionalProperties: false
-                          properties:
-                            user_request:
-                              type: string
-                            ai_response:
-                              type: string
-                            request_fields_available:
-                              type: array
-                              items:
-                                type: string
-                        raw_dump:
-                          type: object
-                          additionalProperties: true
-                          properties: {}
-                  related_scopes:
-                    type: array
-                    items:
-                      type: string
-                  history:
-                    type: object
-                    additionalProperties: true
-                    properties: {}
-                  degraded_surfaces:
-                    type: array
-                    items:
-                      type: object
-                      additionalProperties: true
-                      properties: {}
+          description: Successful resource operation
+        "400":
+          description: Invalid request
         "401":
-          $ref: "#/components/responses/Unauthorized"
+          description: Authentication required
         "403":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
-          description: Session context read failure
-          content:
-            application/json:
-              schema:
+          description: Resource access forbidden
+        "404":
+          description: Resource not found
+        "409":
+          description: Operation conflicts with lifecycle or policy
+  /me/workspaces/{tenant_id}/resources/{resourceKey}:
+    get:
+      operationId: getMeWorkspacesTenantIdResourcesResourceKey
+      summary: GET /me/workspaces/{tenant_id}/resources/{resourceKey}
+      tags:
+        - resource-api
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: resourceKey
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+        - name: pageToken
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+      responses:
+        "200":
+          description: Successful resource operation
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Resource access forbidden
+        "404":
+          description: Resource not found
+        "409":
+          description: Operation conflicts with lifecycle or policy
+    post:
+      operationId: postMeWorkspacesTenantIdResourcesResourceKey
+      x-openai-isConsequential: true
+      summary: POST /me/workspaces/{tenant_id}/resources/{resourceKey}
+      tags:
+        - resource-api
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: resourceKey
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties: {}
+      responses:
+        "200":
+          description: Successful resource operation
+        "201":
+          description: Resource created
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Resource access forbidden
+        "404":
+          description: Resource not found
+        "409":
+          description: Operation conflicts with lifecycle or policy
+  /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}:
+    get:
+      operationId: getMeWorkspacesTenantIdResourcesResourceKeyResourceId
+      summary: GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}
+      tags:
+        - resource-api
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: resourceKey
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+        - name: pageToken
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+      responses:
+        "200":
+          description: Successful resource operation
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Resource access forbidden
+        "404":
+          description: Resource not found
+        "409":
+          description: Operation conflicts with lifecycle or policy
+    patch:
+      operationId: patchMeWorkspacesTenantIdResourcesResourceKeyResourceId
+      summary: PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}
+      tags:
+        - resource-api
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: resourceKey
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties: {}
+      responses:
+        "200":
+          description: Successful resource operation
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Resource access forbidden
+        "404":
+          description: Resource not found
+        "409":
+          description: Operation conflicts with lifecycle or policy
+    delete:
+      operationId: deleteMeWorkspacesTenantIdResourcesResourceKeyResourceId
+      summary: DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}
+      tags:
+        - resource-api
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: resourceKey
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Successful resource operation
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Resource access forbidden
+        "404":
+          description: Resource not found
+        "409":
+          description: Operation conflicts with lifecycle or policy
+  /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore:
+    post:
+      operationId: postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore
+      x-openai-isConsequential: true
+      summary: POST /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore
+      tags:
+        - resource-api
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: resourceKey
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties: {}
+      responses:
+        "200":
+          description: Successful resource operation
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Resource access forbidden
+        "404":
+          description: Resource not found
+        "409":
+          description: Operation conflicts with lifecycle or policy
+  /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/permissions:
+    get:
+      operationId: getMeWorkspacesTenantIdResourcesResourceKeyResourceIdPermissions
+      summary: GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/permissions
+      tags:
+        - resource-api
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: resourceKey
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+        - name: pageToken
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+      responses:
+        "200":
+          description: Successful resource operation
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Resource access forbidden
+        "404":
+          description: Resource not found
+        "409":
+          description: Operation conflicts with lifecycle or policy
+  /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/revisions:
+    get:
+      operationId: getMeWorkspacesTenantIdResourcesResourceKeyResourceIdRevisions
+      summary: GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/revisions
+      tags:
+        - resource-api
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: resourceKey
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+        - name: pageToken
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+      responses:
+        "200":
+          description: Successful resource operation
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Resource access forbidden
+        "404":
+          description: Resource not found
+        "409":
+          description: Operation conflicts with lifecycle or policy
+  /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/changes:
+    get:
+      operationId: getMeWorkspacesTenantIdResourcesResourceKeyResourceIdChanges
+      summary: GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/changes
+      tags:
+        - resource-api
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: resourceKey
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+        - name: pageToken
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+      responses:
+        "200":
+          description: Successful resource operation
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Resource access forbidden
+        "404":
+          description: Resource not found
+        "409":
+          description: Operation conflicts with lifecycle or policy
+  /me/workspaces/{tenant_id}/resource-changes:
+    get:
+      operationId: getMeWorkspacesTenantIdResourceChanges
+      summary: GET /me/workspaces/{tenant_id}/resource-changes
+      tags:
+        - resource-api
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+        - name: pageToken
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+      responses:
+        "200":
+          description: Successful resource operation
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Resource access forbidden
+        "404":
+          description: Resource not found
+        "409":
+          description: Operation conflicts with lifecycle or policy
+  /me/workspaces/{tenant_id}/operations/{operationId}:
+    get:
+      operationId: getMeWorkspacesTenantIdOperationsOperationId
+      summary: GET /me/workspaces/{tenant_id}/operations/{operationId}
+      tags:
+        - resource-api
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: operationId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Successful resource operation
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Resource access forbidden
+        "404":
+          description: Resource not found
+        "409":
+          description: Operation conflicts with lifecycle or policy
   /tenant/dashboard:
     get:
-      tags: [growth-dashboard]
+      tags:
+        - growth-dashboard
       security:
         - userBearerAuth:
             - https://auth.mad4b.com/scopes/tenant.links
@@ -513,17 +1028,22 @@ paths:
       parameters:
         - name: container_key
           in: query
-          schema: { type: string }
+          schema:
+            type: string
         - name: tab
           in: query
-          schema: { type: string }
+          schema:
+            type: string
         - name: date_range
           in: query
-          schema: { type: string, default: last_30_days }
+          schema:
+            type: string
+            default: last_30_days
         - name: filters
           in: query
           description: JSON object containing saved dashboard filters.
-          schema: { type: string }
+          schema:
+            type: string
       responses:
         "200":
           description: Tenant growth dashboard
@@ -531,21 +1051,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GrowthDashboardResponse"
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "403":
           description: Tenant scope violation
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "500":
           description: Dashboard build failure
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /tenant/dashboard/tabs/{tabKey}:
     get:
-      tags: [growth-dashboard]
+      tags:
+        - growth-dashboard
       security:
         - userBearerAuth:
             - https://auth.mad4b.com/scopes/tenant.links
@@ -560,37 +1085,49 @@ paths:
         - name: tabKey
           in: path
           required: true
-          schema: { type: string, pattern: "^tenant_[a-z0-9_]+$" }
+          schema:
+            type: string
+            pattern: ^tenant_[a-z0-9_]+$
         - name: container_key
           in: query
-          schema: { type: string }
+          schema:
+            type: string
         - name: date_range
           in: query
-          schema: { type: string, default: last_30_days }
+          schema:
+            type: string
+            default: last_30_days
         - name: filters
           in: query
-          schema: { type: string }
+          schema:
+            type: string
       responses:
         "200":
           description: Selected tab with typed cards and actions
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/GrowthDashboardResponse" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
+              schema:
+                $ref: "#/components/schemas/GrowthDashboardResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "404":
           description: Dashboard tab not available for the current tenant context
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "500":
           description: Dashboard tab build failure
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /tenant/dashboard/preferences:
     get:
-      tags: [growth-dashboard]
+      tags:
+        - growth-dashboard
       security:
         - userBearerAuth:
             - https://auth.mad4b.com/scopes/tenant.links
@@ -609,23 +1146,37 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [ok, preferences, secrets_included]
+                required:
+                  - ok
+                  - preferences
+                  - secrets_included
                 properties:
-                  ok: { type: boolean }
-                  preferences: { $ref: "#/components/schemas/GrowthDashboardPreferences" }
-                  degraded: { type: boolean }
+                  ok:
+                    type: boolean
+                  preferences:
+                    $ref: "#/components/schemas/GrowthDashboardPreferences"
+                  degraded:
+                    type: boolean
                   error:
-                    type: [object, "null"]
+                    type:
+                      - object
+                      - "null"
                     additionalProperties: true
-                  secrets_included: { type: boolean, enum: [false] }
-        "401": { $ref: "#/components/responses/Unauthorized" }
+                  secrets_included:
+                    type: boolean
+                    enum:
+                      - false
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "500":
           description: Preferences read failure
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     put:
-      tags: [growth-dashboard]
+      tags:
+        - growth-dashboard
       security:
         - userBearerAuth:
             - https://auth.mad4b.com/scopes/tenant.links
@@ -641,7 +1192,63 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/GrowthDashboardPreferences" }
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                active_container_key:
+                  type:
+                    - string
+                    - "null"
+                active_tab_key:
+                  type:
+                    - string
+                    - "null"
+                pinned_tabs:
+                  type: array
+                  items:
+                    type: string
+                hidden_tabs:
+                  type: array
+                  items:
+                    type: string
+                preferred_date_range:
+                  type: string
+                  default: last_30_days
+                saved_filters:
+                  type: object
+                  additionalProperties: true
+                  properties: {}
+                dismissed_alerts:
+                  type: array
+                  items:
+                    type: string
+                favorite_metrics:
+                  type: array
+                  items:
+                    type: string
+                dashboard_density:
+                  type: string
+                  enum:
+                    - compact
+                    - comfortable
+                    - detailed
+                language:
+                  type:
+                    - string
+                    - "null"
+                currency:
+                  type:
+                    - string
+                    - "null"
+                timezone:
+                  type:
+                    - string
+                    - "null"
+                notification_preferences:
+                  type: object
+                  additionalProperties: true
+                  properties: {}
       responses:
         "200":
           description: Updated dashboard preferences
@@ -650,21 +1257,35 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [ok, preferences, secrets_included]
+                required:
+                  - ok
+                  - preferences
+                  - secrets_included
                 properties:
-                  ok: { type: boolean, enum: [true] }
-                  preferences: { $ref: "#/components/schemas/GrowthDashboardPreferences" }
-                  secrets_included: { type: boolean, enum: [false] }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  preferences:
+                    $ref: "#/components/schemas/GrowthDashboardPreferences"
+                  secrets_included:
+                    type: boolean
+                    enum:
+                      - false
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "500":
           description: Preferences write failure
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /tenant/dashboard/digest:
     get:
-      tags: [growth-dashboard]
+      tags:
+        - growth-dashboard
       security:
         - userBearerAuth:
             - https://auth.mad4b.com/scopes/tenant.links
@@ -678,7 +1299,8 @@ paths:
       parameters:
         - name: container_key
           in: query
-          schema: { type: string }
+          schema:
+            type: string
       responses:
         "200":
           description: Compact growth digest
@@ -687,37 +1309,61 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-                required: [ok, product_layer, headline, summary, opportunities, secrets_included]
+                required:
+                  - ok
+                  - product_layer
+                  - headline
+                  - summary
+                  - opportunities
+                  - secrets_included
                 properties:
-                  ok: { type: boolean }
-                  product_layer: { type: string, enum: [tenant_growth_digest] }
-                  generated_at: { type: string, format: date-time }
+                  ok:
+                    type: boolean
+                  product_layer:
+                    type: string
+                    enum:
+                      - tenant_growth_digest
+                  generated_at:
+                    type: string
+                    format: date-time
                   active_container:
-                    type: [object, "null"]
+                    type:
+                      - object
+                      - "null"
                     additionalProperties: true
-                  headline: { type: string }
+                  headline:
+                    type: string
                   summary:
                     type: object
                     additionalProperties: true
+                    properties: {}
                   opportunities:
                     type: array
                     maxItems: 3
                     items:
                       type: object
                       additionalProperties: true
+                      properties: {}
                   quick_commands:
                     type: array
-                    items: { type: string }
-                  secrets_included: { type: boolean, enum: [false] }
-        "401": { $ref: "#/components/responses/Unauthorized" }
+                    items:
+                      type: string
+                  secrets_included:
+                    type: boolean
+                    enum:
+                      - false
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "500":
           description: Digest build failure
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /tenant/dashboard/actions/{actionRefKey}/preview:
     get:
-      tags: [growth-dashboard]
+      tags:
+        - growth-dashboard
       security:
         - userBearerAuth:
             - https://auth.mad4b.com/scopes/tenant.links
@@ -733,10 +1379,13 @@ paths:
         - name: actionRefKey
           in: path
           required: true
-          schema: { type: string, pattern: "^[a-z][a-z0-9_]{1,179}$" }
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{1,179}$
         - name: container_key
           in: query
-          schema: { type: string }
+          schema:
+            type: string
       responses:
         "200":
           description: Action preview and governance state
@@ -745,33 +1394,56 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-                required: [ok, product_layer, action, preview, policy, secrets_included]
+                required:
+                  - ok
+                  - product_layer
+                  - action
+                  - preview
+                  - policy
+                  - secrets_included
                 properties:
-                  ok: { type: boolean, enum: [true] }
-                  product_layer: { type: string, enum: [tenant_growth_action_preview] }
-                  action: { $ref: "#/components/schemas/GrowthDashboardAction" }
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  product_layer:
+                    type: string
+                    enum:
+                      - tenant_growth_action_preview
+                  action:
+                    $ref: "#/components/schemas/GrowthDashboardAction"
                   preview:
                     type: object
                     additionalProperties: true
+                    properties: {}
                   policy:
                     type: object
                     additionalProperties: true
-                  secrets_included: { type: boolean, enum: [false] }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
+                    properties: {}
+                  secrets_included:
+                    type: boolean
+                    enum:
+                      - false
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "404":
           description: Action not available in the caller scope
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "500":
           description: Action preview failure
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /tenant/dashboard/recommendations/{recommendationId}/feedback:
     post:
-      tags: [growth-dashboard]
+      tags:
+        - growth-dashboard
       security:
         - userBearerAuth:
             - https://auth.mad4b.com/scopes/tenant.links
@@ -786,7 +1458,9 @@ paths:
         - name: recommendationId
           in: path
           required: true
-          schema: { type: string, maxLength: 180 }
+          schema:
+            type: string
+            maxLength: 180
       requestBody:
         required: true
         content:
@@ -794,23 +1468,43 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [event_type]
+              required:
+                - event_type
               properties:
                 event_type:
                   type: string
-                  enum: [shown, opened, accepted, dismissed, executed, failed, result_observed]
+                  enum:
+                    - shown
+                    - opened
+                    - accepted
+                    - dismissed
+                    - executed
+                    - failed
+                    - result_observed
                 reason_code:
                   type: string
-                  enum: [not_relevant, wrong_timing, too_expensive, already_done, missing_information, other]
-                workspace_id: { type: string }
-                recommendation_key: { type: string }
-                tab_key: { type: string }
-                card_id: { type: string }
-                result_metric_key: { type: string }
+                  enum:
+                    - not_relevant
+                    - wrong_timing
+                    - too_expensive
+                    - already_done
+                    - missing_information
+                    - other
+                workspace_id:
+                  type: string
+                recommendation_key:
+                  type: string
+                tab_key:
+                  type: string
+                card_id:
+                  type: string
+                result_metric_key:
+                  type: string
                 result_value: {}
                 context:
                   type: object
                   additionalProperties: true
+                  properties: {}
       responses:
         "201":
           description: Recommendation event recorded
@@ -819,66 +1513,113 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [ok, event_id, event_type, secrets_included]
+                required:
+                  - ok
+                  - event_id
+                  - event_type
+                  - secrets_included
                 properties:
-                  ok: { type: boolean, enum: [true] }
-                  event_id: { type: string, format: uuid }
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  event_id:
+                    type: string
+                    format: uuid
                   event_type:
                     type: string
-                    enum: [shown, opened, accepted, dismissed, executed, failed, result_observed]
-                  secrets_included: { type: boolean, enum: [false] }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
+                    enum:
+                      - shown
+                      - opened
+                      - accepted
+                      - dismissed
+                      - executed
+                      - failed
+                      - result_observed
+                  secrets_included:
+                    type: boolean
+                    enum:
+                      - false
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "500":
           description: Recommendation event write failure
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /local/tools:
     get:
-      tags: [system-layer]
+      tags:
+        - local-connector
       security:
         - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
             - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: listLocalGatewayTools
-      x-openai-isConsequential: false
       summary: List tenant-safe local gateway tools
-      description: Returns local gateway tool descriptors available to the signed-in tenant user. User and tenant identity are derived only from the OAuth JWT.
+      description: Returns local gateway tool descriptors available to the authenticated caller. Caller and tenant context are derived from the validated credential; include_planned defaults to false.
       parameters:
         - name: include_planned
           in: query
           required: false
-          schema: { type: boolean, default: false }
+          schema:
+            type: boolean
+            default: false
       responses:
         "200":
-          description: Tenant-safe local gateway tool catalog
+          description: Local gateway tool catalog
           content:
             application/json:
               schema:
                 type: object
                 additionalProperties: false
-                required: [ok, surface, public_host, caller_type, count, tools]
+                required:
+                  - ok
+                  - surface
+                  - public_host
+                  - caller_type
+                  - count
+                  - tools
                 properties:
-                  ok: { type: boolean }
-                  surface: { type: string, enum: [local_gateway] }
-                  public_host: { type: string }
-                  caller_type: { type: string }
-                  count: { type: integer, minimum: 0 }
+                  ok:
+                    type: boolean
+                  surface:
+                    type: string
+                    enum:
+                      - local_gateway
+                  public_host:
+                    type: string
+                  caller_type:
+                    type: string
+                  count:
+                    type: integer
+                    minimum: 0
                   tools:
                     type: array
-                    items: { type: object, additionalProperties: true }
-        "401": { $ref: "#/components/responses/Unauthorized" }
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties: {}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          description: Tenant scope or caller type is not allowed
+          description: Authenticated caller is not allowed to list the requested tool scope
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "500":
           description: Local gateway tool list failure
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
-
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /system/tools:
     get:
       tags:
@@ -932,7 +1673,7 @@ paths:
       operationId: callTool
       x-openai-isConsequential: false
       summary: Call a governed MCP-style system tool
-      description: Calls a fixed system-layer tool through principal-aware runtime validation. Tenant principals are scoped to their tenant; admin principals can inspect all connector registry records and run provider-bootstrap probes. Oversized results return a chunk continuation envelope with response_chunked=true,.
+      description: Calls a fixed system-layer tool through principal-aware runtime validation. Descriptor tools may declare an explicit handler_name when the public tool name does not map one-to-one to the runtime export; descriptor readiness verifies that the selected handler is callable. Repository Intelligence V2.
       requestBody:
         required: true
         content:
@@ -1143,6 +1884,154 @@ paths:
             - https://auth.mad4b.com/scopes/tenant.activation
             - https://auth.mad4b.com/scopes/tenant.install
             - https://auth.mad4b.com/scopes/tenant.system-tools
+  /tenant/platform/plugins/credential-intake-sessions:
+    post:
+      x-openai-isConsequential: true
+      tags:
+        - platform-plugins
+      operationId: tenantPlatformPluginCredentialIntakeSessionCreate
+      summary: Create a tenant-safe credential intake session
+      description: Creates a short-lived single-use intake URL for a tenant-enabled integration. Identity comes only from the signed JWT. Owners/admins only. Unknown fields, credentials, custom schemas, arbitrary metadata, tenant_id, and user_id are rejected.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - plugin_key
+                - purpose
+              properties:
+                plugin_key:
+                  type: string
+                  minLength: 1
+                  maxLength: 180
+                purpose:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                display_label:
+                  type: string
+                  maxLength: 120
+                redirect_uri:
+                  type: string
+                  maxLength: 1024
+                  description: Optional same-origin path or exact HTTPS URL registered in the integration credential-intake redirect allowlist.
+                expires_in_minutes:
+                  type: integer
+                  minimum: 5
+                  maximum: 30
+                  default: 30
+            examples:
+              connectRepository:
+                value:
+                  plugin_key: github
+                  purpose: Connect the tenant repository
+                  display_label: Primary GitHub connection
+                  redirect_uri: /settings/integrations?connected=1
+                  expires_in_minutes: 30
+      responses:
+        "201":
+          description: Tenant-bound credential intake session created
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required:
+                  - ok
+                  - session_id
+                  - intake_url
+                  - expires_at
+                  - canonical_capability_id
+                  - tenant_facing
+                  - admin_tool_invoked
+                  - secrets_included
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  session_id:
+                    type: string
+                    format: uuid
+                  intake_url:
+                    type: string
+                    format: uri
+                    description: Opaque short-lived single-use URL. Treat as sensitive and do not log it.
+                  expires_at:
+                    type: string
+                  app_key:
+                    type: string
+                  auth_type:
+                    type: string
+                  field_count:
+                    type: integer
+                    minimum: 0
+                  binding_context:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - connection_target_ref
+                      - purpose
+                      - redirect_configured
+                    properties:
+                      connection_target_ref:
+                        type: string
+                      purpose:
+                        type: string
+                      redirect_configured:
+                        type: boolean
+                      authority_snapshot_version:
+                        type:
+                          - string
+                          - "null"
+                  canonical_capability_id:
+                    type: string
+                    enum:
+                      - tenant.credential_intake.session.create
+                  tenant_facing:
+                    type: boolean
+                    enum:
+                      - true
+                  admin_tool_invoked:
+                    type: boolean
+                    enum:
+                      - false
+                  secrets_included:
+                    type: boolean
+                    enum:
+                      - false
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Active membership, tenant owner/admin role, or tenant plugin policy required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Integration requires OAuth or is not in an intake-compatible state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Credential intake session creation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
   /tenant/platform/plugins/resolve:
     post:
       x-openai-isConsequential: false
@@ -1177,6 +2066,25 @@ paths:
                     - platform_managed
                     - device_connector
                     - none
+                target_resource_type:
+                  type: string
+                  description: Resource family used for scoped platform-managed target authority resolution.
+                target_resource_uri:
+                  type: string
+                  description: Canonical target reference used only for authority lookup; the response returns a SHA-256 hash instead of this value.
+                target_mode:
+                  type: string
+                  default: read_only
+                  enum:
+                    - read_only
+                    - diagnostic
+                    - comment
+                    - label
+                    - close
+                    - patch
+                    - merge
+                    - apply
+                    - admin
       responses:
         "200":
           description: Tenant-scoped plugin readiness result
@@ -1192,6 +2100,88 @@ paths:
                     type: boolean
                   reason:
                     type: string
+                  target_authorization:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      ok:
+                        type: boolean
+                      required:
+                        type: boolean
+                      state:
+                        type: string
+                        enum:
+                          - pass
+                          - deny
+                          - not_applicable
+                      reason:
+                        type: string
+                      denial_code:
+                        type: string
+                      target_resource_type:
+                        type:
+                          - string
+                          - "null"
+                      target_reference_hash:
+                        type:
+                          - string
+                          - "null"
+                        pattern: ^[a-f0-9]{64}$
+                      requested_mode:
+                        type:
+                          - string
+                          - "null"
+                      authority_binding_present:
+                        type: boolean
+                      lookup_attempted:
+                        type: boolean
+                      authority_source:
+                        type:
+                          - string
+                          - "null"
+                      permission_level:
+                        type:
+                          - string
+                          - "null"
+                      secrets_included:
+                        type: boolean
+                        enum:
+                          - false
+                  security_alerts:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - scheduled_count
+                      - reason_codes
+                      - temporary_control
+                      - secrets_included
+                    properties:
+                      scheduled_count:
+                        type: integer
+                        minimum: 0
+                        maximum: 2
+                      severity:
+                        type: string
+                        nullable: true
+                        enum:
+                          - high
+                      reason_codes:
+                        type: array
+                        maxItems: 2
+                        uniqueItems: true
+                        items:
+                          type: string
+                          enum:
+                            - TENANT_TO_ADMIN_CAPABILITY_REQUEST
+                            - SELECTOR_PARITY_MISMATCH
+                      temporary_control:
+                        type: boolean
+                        enum:
+                          - true
+                      secrets_included:
+                        type: boolean
+                        enum:
+                          - false
                   tenant_facing:
                     type: boolean
                   secrets_included:
@@ -1404,6 +2394,7 @@ paths:
 x-gpt-action-auth-preset:
   authentication_type: OAuth
   schema_url: https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml
+  activation_schema_url: https://auth.mad4b.com/openapi.tenant-gpt.activation.yaml
   client_id: mad4b-tenant-gpt
   client_secret: <resolved-from-governed-platform-secret>
   client_secret_ref: platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET

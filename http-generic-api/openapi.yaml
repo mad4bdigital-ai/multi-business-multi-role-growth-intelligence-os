@@ -1,7 +1,7 @@
 openapi: 3.1.0
 
 info:
-  title: Governed HTTP Client â€” AI Platform
+  title: Governed HTTP Client Ã¢â‚¬â€ AI Platform
   version: 3.0.0-platform
   summary: >
     Multi-tenant AI-native orchestration platform with governed execution, async jobs,
@@ -10,13 +10,13 @@ info:
   description: >
     OpenAPI schema for the Governed AI + Human Managed Platform backend.
     Covers three capability layers:
-    (1) Governed execution â€” /http-execute, /jobs/*, /governance/*, /ai/*
-    (2) Platform management â€” /tenants, /users, /plans, /subscriptions, /customers,
+    (1) Governed execution Ã¢â‚¬â€ /http-execute, /jobs/*, /governance/*, /ai/*
+    (2) Platform management Ã¢â‚¬â€ /tenants, /users, /plans, /subscriptions, /customers,
         /tickets, /connected-systems, /workspaces, /planner/*, /bootstrap/*,
         /logic-definitions, /logic-packs, /workflow-runs, /approval-holds,
         /telemetry/*, /usage/*, /audit-log, /incidents, /developer-apps,
         /api-credentials, /webhooks, /rate-limit-rules
-    (3) Release operations â€” /release/readiness, /release/readiness-history,
+    (3) Release operations Ã¢â‚¬â€ /release/readiness, /release/readiness-history,
         /release/entity-classification
     Platform endpoints accept admin/service authentication via BACKEND_API_KEY, or user authentication via a signed login JWT.
 
@@ -25,6 +25,8 @@ servers:
     description: Governed HTTP backend
 
 tags:
+  - name: resource-api
+    description: Governed logical resources, safe projections, lifecycle operations, changes, revisions, permissions, and readback.
   - name: health
     description: Backend health and queue status.
   - name: dev-diagnostics
@@ -125,6 +127,131 @@ components:
         Bearer token minted by /auth/login, /auth/register, or approved device-link polling.
 
   schemas:
+
+    ActivationHardRunSummaryResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, activation_layer, detail_level, evidence_manifest_available]
+      properties:
+        ok: { type: boolean }
+        activation_layer: { type: string, enum: [hard_activation_summary] }
+        detail_level: { type: string, enum: [summary] }
+        evidence_manifest_available: { type: boolean }
+        status: { type: string }
+        registry_source: { type: string }
+        platform_access:
+          type: object
+          additionalProperties: true
+          properties:
+            scope: { type: string }
+            all_brand_access: { type: boolean }
+        counts:
+          type: object
+          additionalProperties: true
+          properties:
+            brands: { type: integer, minimum: 0 }
+            plugins: { type: integer, minimum: 0 }
+            logics: { type: integer, minimum: 0 }
+            engines: { type: integer, minimum: 0 }
+            active_actions: { type: integer, minimum: 0 }
+        degraded_surfaces:
+          type: array
+          items: { type: string }
+        auth_gaps:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              code: { type: string }
+              message: { type: string }
+        schema_client_errors:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              code: { type: string }
+              message: { type: string }
+        secrets_included: { type: boolean, enum: [false] }
+
+    GoogleAuthPlatformConfigResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, project_key, console_root, tabs]
+      properties:
+        ok: { type: boolean }
+        project_key: { type: string }
+        console_root: { type: string }
+        tabs:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            required: [config_key, status, config]
+            properties:
+              config_key: { type: string }
+              status: { type: string }
+              note: { type: [string, "null"] }
+              updated_at: { type: [string, "null"] }
+              config:
+                type: object
+                additionalProperties: true
+                properties:
+                  owner_type: { type: string }
+                  tenant_id: { type: [string, "null"] }
+                  project_key: { type: string }
+                  project_id: { type: [string, "null"] }
+                  project_display_name: { type: string }
+                  tab: { type: string }
+                  path: { type: string }
+                  state: { type: object, additionalProperties: true, properties: {} }
+                  notes: { type: [string, "null"] }
+                  updated_at: { type: string }
+        secrets_included: { type: boolean, enum: [false] }
+
+    ToolDispatchResponse:
+      type: object
+      additionalProperties: true
+      properties:
+        ok: { type: boolean }
+        name: { type: string }
+        tool: { type: string }
+        status:
+          oneOf:
+            - { type: string }
+            - { type: integer }
+        result:
+          type: object
+          additionalProperties: true
+          properties:
+            ok: { type: boolean }
+            classification: { type: string }
+            secrets_included: { type: boolean, enum: [false] }
+        error:
+          type: object
+          additionalProperties: true
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: object, additionalProperties: true, properties: {} }
+        response_chunked: { type: boolean }
+        chunk_id: { type: string }
+        continuation:
+          type: object
+          additionalProperties: true
+          properties:
+            policy: { type: string }
+            required_tool: { type: string }
+            required_before_fallback: { type: boolean }
+        page:
+          type: object
+          additionalProperties: true
+          properties:
+            cursor: { type: integer, minimum: 0 }
+            next_cursor: { type: [integer, "null"], minimum: 0 }
+            has_more: { type: boolean }
+        secrets_included: { type: boolean, enum: [false] }
 
     ActivationGuidanceResponse:
       type: object
@@ -592,7 +719,8 @@ components:
         section_key: { type: string }
         cursor: { type: integer, minimum: 0, default: 0 }
         detail_limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
-        max_response_chars: { type: integer, minimum: 5000, maximum: 500000 }
+        max_response_chars: { type: integer, minimum: 5000, maximum: 500000, default: 40000 }
+        chunk_ttl_minutes: { type: integer, minimum: 5, maximum: 120, default: 20 }
         authorized_access_limit: { type: integer, minimum: 1, maximum: 100 }
         authorized_surface_limit: { type: integer, minimum: 1, maximum: 50 }
         provider_arguments:
@@ -2605,7 +2733,7 @@ components:
         checked_at: { type: string, format: date-time }
         secrets_included: { type: boolean, enum: [false] }
 
-    # â”€â”€ AI resolver schemas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # Ã¢â€â‚¬Ã¢â€â‚¬ AI resolver schemas Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     AiIntentMaturation:
       type: object
@@ -2874,7 +3002,7 @@ components:
         readiness:
           $ref: "#/components/schemas/AiRegistryReadinessDetail"
 
-    # â”€â”€ Platform shared schemas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # Ã¢â€â‚¬Ã¢â€â‚¬ Platform shared schemas Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     OkResponse:
       type: object
@@ -3341,6 +3469,21 @@ components:
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Forbidden:
+      description: Authenticated principal is not authorized for this operation
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Conflict:
+      description: Resource state conflicts with the requested operation
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    InternalError:
+      description: Unexpected internal server error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
     NotFound:
       description: Resource not found
       content:
@@ -3351,15 +3494,16 @@ security: []
 
 x-tenant-gpt-auth:
   schema_info:
-    title: Mad4B Growth Intelligence - Tenant AI - MCP Actions
+    title: Mad4B Growth Intelligence - Tenant Core MCP Actions
     version: 2.0.2-platform-plugins
-    summary: Tenant GPT schema with MCP meta-operations plus tenant self-serve Platform Plugin routes.
-    description: Tenant MCP schema. Use connect_activate with tool_args.mode and integration_modes. Also supports Platform Plugin catalog, install, and resolve.
+    summary: Tenant Core schema with SQL-driven MCP facades, resource routes, and tenant self-serve Platform Plugin routes.
+    description: Tenant Core transport only. Use listTools then callTool for SQL-registered tools such as connect_activate. Activation reads use the separate Tenant Activation schema on activation.mad4b.com.
   server_description: Mad4B platform auth subdomain
   security_scheme_name: userBearerAuth
   action_auth_preset:
     authentication_type: OAuth
     schema_url: https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml
+    activation_schema_url: https://auth.mad4b.com/openapi.tenant-gpt.activation.yaml
     client_id: mad4b-tenant-gpt
     client_secret: <resolved-from-governed-platform-secret>
     client_secret_ref: platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET
@@ -3377,15 +3521,6 @@ x-tenant-gpt-auth:
       - https://auth.mad4b.com/scopes/tenant.activation
       - https://auth.mad4b.com/scopes/tenant.install
       - https://auth.mad4b.com/scopes/tenant.system-tools
-  tenant_operation_ids:
-    - activateSession
-    - listTools
-    - callTool
-    - tenantPlatformPluginCatalog
-    - tenantPlatformPluginInstall
-    - tenantPlatformPluginResolve
-    - writeSessionTurn
-    - endSession
   security_scheme:
     type: oauth2
     description: "Tenant GPT OAuth. ChatGPT signs in through the Growth Intelligence Platform popup, then /auth/oauth/token mints a fresh Mad4B tenant access JWT with issuer, audience, subject, scope, user_id, and tenant_id claims. Google Sign-In is only an upstream identity proof inside the popup; do not call OAuth token or Google ID-token endpoints as normal actions. The authorize URL may include safe activation hints such as screen_hint, activation_mode, device_id, workspace_name, and sign_in_options, but never secrets."
@@ -3408,6 +3543,983 @@ x-tenant-gpt-auth:
         - https://auth.mad4b.com/scopes/tenant.system-tools
 
 paths:
+  # BEGIN RESOURCE API COVERAGE
+  /admin/resource-types:
+    get:
+      operationId: getAdminResourceTypes
+      summary: "GET /admin/resource-types"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/resource-types/{resourceKey}:
+    get:
+      operationId: getAdminResourceTypesResourceKey
+      summary: "GET /admin/resource-types/{resourceKey}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/resources/{resourceKey}:
+    get:
+      operationId: getAdminResourcesResourceKey
+      summary: "GET /admin/resources/{resourceKey}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+    post:
+      operationId: postAdminResourcesResourceKey
+      summary: "POST /admin/resources/{resourceKey}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Successful resource operation }
+        '201': { description: Resource created }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/resources/{resourceKey}/{resourceId}:
+    get:
+      operationId: getAdminResourcesResourceKeyResourceId
+      summary: "GET /admin/resources/{resourceKey}/{resourceId}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+    patch:
+      operationId: patchAdminResourcesResourceKeyResourceId
+      summary: "PATCH /admin/resources/{resourceKey}/{resourceId}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+    delete:
+      operationId: deleteAdminResourcesResourceKeyResourceId
+      summary: "DELETE /admin/resources/{resourceKey}/{resourceId}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/resources/{resourceKey}/{resourceId}/restore:
+    post:
+      operationId: postAdminResourcesResourceKeyResourceIdRestore
+      summary: "POST /admin/resources/{resourceKey}/{resourceId}/restore"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/resources/{resourceKey}/{resourceId}/purge:
+    post:
+      operationId: postAdminResourcesResourceKeyResourceIdPurge
+      summary: "POST /admin/resources/{resourceKey}/{resourceId}/purge"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/resources/{resourceKey}/{resourceId}/permissions:
+    get:
+      operationId: getAdminResourcesResourceKeyResourceIdPermissions
+      summary: "GET /admin/resources/{resourceKey}/{resourceId}/permissions"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/resources/{resourceKey}/{resourceId}/revisions:
+    get:
+      operationId: getAdminResourcesResourceKeyResourceIdRevisions
+      summary: "GET /admin/resources/{resourceKey}/{resourceId}/revisions"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/resources/{resourceKey}/{resourceId}/changes:
+    get:
+      operationId: getAdminResourcesResourceKeyResourceIdChanges
+      summary: "GET /admin/resources/{resourceKey}/{resourceId}/changes"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/resource-changes:
+    get:
+      operationId: getAdminResourceChanges
+      summary: "GET /admin/resource-changes"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/resource-coverage/audit:
+    get:
+      operationId: getAdminResourceCoverageAudit
+      summary: "GET /admin/resource-coverage/audit"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /admin/operations/{operationId}:
+    get:
+      operationId: getAdminOperationsOperationId
+      summary: "GET /admin/operations/{operationId}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: operationId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resources:
+    get:
+      operationId: getMeWorkspacesTenantIdResources
+      summary: "GET /me/workspaces/{tenant_id}/resources"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resources/{resourceKey}:
+    get:
+      operationId: getMeWorkspacesTenantIdResourcesResourceKey
+      summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+    post:
+      operationId: postMeWorkspacesTenantIdResourcesResourceKey
+      x-openai-isConsequential: true
+      summary: "POST /me/workspaces/{tenant_id}/resources/{resourceKey}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Successful resource operation }
+        '201': { description: Resource created }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}:
+    get:
+      operationId: getMeWorkspacesTenantIdResourcesResourceKeyResourceId
+      summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+    patch:
+      operationId: patchMeWorkspacesTenantIdResourcesResourceKeyResourceId
+      summary: "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+    delete:
+      operationId: deleteMeWorkspacesTenantIdResourcesResourceKeyResourceId
+      summary: "DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore:
+    post:
+      operationId: postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore
+      x-openai-isConsequential: true
+      summary: "POST /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/permissions:
+    get:
+      operationId: getMeWorkspacesTenantIdResourcesResourceKeyResourceIdPermissions
+      summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/permissions"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/revisions:
+    get:
+      operationId: getMeWorkspacesTenantIdResourcesResourceKeyResourceIdRevisions
+      summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/revisions"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/changes:
+    get:
+      operationId: getMeWorkspacesTenantIdResourcesResourceKeyResourceIdChanges
+      summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/changes"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceKey
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/resource-changes:
+    get:
+      operationId: getMeWorkspacesTenantIdResourceChanges
+      summary: "GET /me/workspaces/{tenant_id}/resource-changes"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /me/workspaces/{tenant_id}/operations/{operationId}:
+    get:
+      operationId: getMeWorkspacesTenantIdOperationsOperationId
+      summary: "GET /me/workspaces/{tenant_id}/operations/{operationId}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: operationId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /gpt/sessions:
+    get:
+      operationId: getGptSessions
+      summary: "GET /gpt/sessions"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /gpt/sessions/{id}:
+    get:
+      operationId: getGptSessionsId
+      summary: "GET /gpt/sessions/{id}"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /gpt/sessions/{id}/turns:
+    get:
+      operationId: getGptSessionsIdTurns
+      summary: "GET /gpt/sessions/{id}/turns"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /gpt/sessions/{id}/summary:
+    get:
+      operationId: getGptSessionsIdSummary
+      summary: "GET /gpt/sessions/{id}/summary"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /gpt/sessions/{id}/events:
+    get:
+      operationId: getGptSessionsIdEvents
+      summary: "GET /gpt/sessions/{id}/events"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /gpt/sessions/{id}/transcript:
+    get:
+      operationId: getGptSessionsIdTranscript
+      summary: "GET /gpt/sessions/{id}/transcript"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - name: pageToken
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  /gpt/sessions/{id}/summary/generate:
+    post:
+      operationId: postGptSessionsIdSummaryGenerate
+      summary: "POST /gpt/sessions/{id}/summary/generate"
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Successful resource operation }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '404': { description: Resource not found }
+        '409': { description: Operation conflicts with lifecycle or policy }
+  # END RESOURCE API COVERAGE
+  /admin/cache/sql-policy:
+    $ref: './openapi/sql-cache-policy.yaml#/sqlCachePolicy'
   /admin/openapi-registry-sync/status:
     $ref: './openapi/openapi-registry-sync.yaml#/openApiRegistrySyncStatus'
   /admin/openapi-registry-sync:
@@ -3617,8 +4729,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/ActivationHardRunSummaryResponse'
         '424':
           description: Activation summary reports degraded surfaces.
   /runtime/verification-runs:
@@ -5293,6 +6404,14 @@ paths:
         - in: query
           name: attention_limit
           schema: { type: integer, minimum: 1, maximum: 20, default: 10 }
+        - in: query
+          name: max_response_chars
+          description: Maximum serialized characters returned inline before a governed chunk continuation envelope is returned.
+          schema: { type: integer, minimum: 5000, maximum: 150000, default: 45000 }
+        - in: query
+          name: chunk_ttl_minutes
+          description: Requested lifetime for the durable response chunk cache.
+          schema: { type: integer, minimum: 5, maximum: 120, default: 20 }
       responses:
         '200':
           description: Activation awareness readback.
@@ -5317,6 +6436,7 @@ paths:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: readActivationOperationalAttention
+      x-custom-gpt-exclude: true
       x-openai-isConsequential: false
       summary: Read unified operational alerts
       description: Returns current SQL-evidenced problems and persisted Known Issues with lifecycle, evidence references, source health, pagination, and explicit completeness. Platform Known Issues are admin-only.
@@ -5358,6 +6478,7 @@ paths:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: synchronizeActivationOperationalAttention
+      x-custom-gpt-exclude: true
       x-openai-isConsequential: true
       summary: Synchronize operational alerts from SQL evidence
       description: Evaluates governed SQL evidence sources, upserts lifecycle rows, resolves or supersedes stale alerts, reconciles pending notifications before queuing current eligible in-app notifications, and returns same-cycle readback. Performs no provider call or external send.
@@ -5400,6 +6521,7 @@ paths:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: updateActivationOperationalAlertLifecycle
+      x-custom-gpt-exclude: true
       x-openai-isConsequential: true
       summary: Update one operational alert lifecycle
       parameters:
@@ -5832,6 +6954,7 @@ paths:
       security:
         - backendBearerAuth: []
       operationId: readTenantActivationOperationalAttention
+      x-custom-gpt-exclude: true
       x-openai-isConsequential: false
       summary: Read tenant-scoped operational alerts
       description: Resolves tenant scope from signed JWT membership and returns current tenant-visible problems. Platform Known Issues are excluded.
@@ -5886,6 +7009,14 @@ paths:
         - in: query
           name: attention_limit
           schema: { type: integer, minimum: 1, maximum: 20, default: 10 }
+        - in: query
+          name: max_response_chars
+          description: Maximum serialized characters returned inline before a governed chunk continuation envelope is returned.
+          schema: { type: integer, minimum: 5000, maximum: 150000, default: 45000 }
+        - in: query
+          name: chunk_ttl_minutes
+          description: Requested lifetime for the durable response chunk cache.
+          schema: { type: integer, minimum: 5, maximum: 120, default: 20 }
       responses:
         '200':
           description: Tenant-scoped activation awareness.
@@ -6023,7 +7154,6 @@ paths:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: getActivationSessionContext
-      x-tenant-gpt-operationId: activateSession
       summary: Read previous session history and platform scope context
       description: >
         Hard activation layer that reads prior user session envelopes as a
@@ -6056,6 +7186,14 @@ paths:
           in: query
           schema: { type: integer, default: 4000, maximum: 20000 }
           description: Maximum characters per raw dump field when include_raw=true.
+        - name: max_response_chars
+          in: query
+          schema: { type: integer, minimum: 5000, maximum: 150000, default: 45000 }
+          description: Maximum serialized characters returned inline before a governed chunk continuation envelope is returned.
+        - name: chunk_ttl_minutes
+          in: query
+          schema: { type: integer, minimum: 5, maximum: 120, default: 20 }
+          description: Requested lifetime for the durable response chunk cache.
       responses:
         "200":
           description: Session history and related platform scopes
@@ -6121,6 +7259,67 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Unauthorized" }
         "500": { description: Session context read failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /tenant/activation/session-context:
+    get:
+      tags: [activation]
+      operationId: getTenantActivationSessionContext
+      x-tenant-gpt-operationId: activateSession
+      x-openai-isConsequential: false
+      summary: Open or reuse the signed tenant user's Activation session context
+      description: Tenant-only Activation session surface. Tenant and user identity come from the signed OAuth JWT; tenant_id, user_id, raw dumps, and unknown query parameters are not accepted.
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 10 } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: response_profile, in: query, schema: { type: string, enum: [evidence, summary, dashboard, diagnostic, full], default: evidence } }
+        - { name: container_key, in: query, schema: { type: string } }
+        - { name: tab, in: query, schema: { type: string } }
+        - { name: tab_key, in: query, schema: { type: string } }
+        - { name: date_range, in: query, schema: { type: string } }
+        - { name: max_response_chars, in: query, schema: { type: integer, minimum: 5000, maximum: 150000, default: 40000 } }
+        - { name: chunk_ttl_minutes, in: query, description: Requested lifetime for the durable response chunk cache., schema: { type: integer, minimum: 5, maximum: 120, default: 20 } }
+        - { name: session_policy, in: query, schema: { type: string, enum: [reuse_or_create, create_new, reuse_only, read_only], default: reuse_or_create } }
+        - { name: idempotency_key, in: query, schema: { type: string, maxLength: 180 } }
+        - { name: conversation_ref, in: query, schema: { type: string, maxLength: 500 } }
+        - { name: close_previous_sessions, in: query, schema: { type: boolean, default: false } }
+        - { name: reuse_window_hours, in: query, schema: { type: integer, minimum: 1, maximum: 168, default: 24 } }
+      responses:
+        "200":
+          description: Tenant-scoped Activation session context
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, activation_layer, response_profile, secrets_included]
+                properties:
+                  ok: { type: boolean }
+                  activation_layer: { type: string, enum: [session_context] }
+                  response_profile: { type: string }
+                  subject:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      user_id: { type: string }
+                      tenant_id: { type: string }
+                      is_admin: { type: boolean, enum: [false] }
+                  pagination: { type: object, additionalProperties: true, properties: {} }
+                  session_history: { type: array, items: { type: object, additionalProperties: true, properties: {} } }
+                  related_scopes: { type: object, additionalProperties: true, properties: {} }
+                  product_guidance: { type: object, additionalProperties: true, properties: {} }
+                  dashboard_entry:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      path: { type: string, enum: [/tenant/dashboard] }
+                      active_container_key: { type: [string, "null"] }
+                      active_tab_key: { type: string }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.activation
 
   /activation/platform-access:
     get:
@@ -6669,7 +7868,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  # â”€â”€ Tenants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Ã¢â€â‚¬Ã¢â€â‚¬ Tenants Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   /tenants:
     post:
@@ -6924,7 +8123,7 @@ paths:
         "200": { description: Membership list, content: { application/json: { schema: { $ref: "#/components/schemas/PlatformListResponse" } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
-  # â”€â”€ Identity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Ã¢â€â‚¬Ã¢â€â‚¬ Identity Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   /users:
     post:
@@ -7039,7 +8238,7 @@ paths:
         "200": { description: Assistance role list, content: { application/json: { schema: { $ref: "#/components/schemas/PlatformListResponse" } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
-  # â”€â”€ Access Decision Engine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Ã¢â€â‚¬Ã¢â€â‚¬ Access Decision Engine Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   /access/resolve:
     post:
@@ -7079,7 +8278,7 @@ paths:
         "200": { description: Envelope list, content: { application/json: { schema: { $ref: "#/components/schemas/PlatformListResponse" } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
-  # â”€â”€ Customers & Tickets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Ã¢â€â‚¬Ã¢â€â‚¬ Customers & Tickets Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   /customers:
     post:
@@ -7216,7 +8415,7 @@ paths:
       tags: [customers]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: closeTicket
-      summary: Close a ticket (soft delete â€” sets status=closed)
+      summary: Close a ticket (soft delete Ã¢â‚¬â€ sets status=closed)
       parameters:
         - { name: ticket_id, in: path, required: true, schema: { type: string } }
       responses:
@@ -7275,7 +8474,7 @@ paths:
         "200": { description: Ticket list, content: { application/json: { schema: { $ref: "#/components/schemas/PlatformListResponse" } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
-  # â”€â”€ Connected Systems & Workspaces â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Ã¢â€â‚¬Ã¢â€â‚¬ Connected Systems & Workspaces Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   /connected-systems:
     post:
@@ -7370,7 +8569,7 @@ paths:
       tags: [connected-systems]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: archiveConnectedSystem
-      summary: Archive a connected system (soft delete â€” sets status=archived)
+      summary: Archive a connected system (soft delete Ã¢â‚¬â€ sets status=archived)
       parameters:
         - { name: system_id, in: path, required: true, schema: { type: string } }
       responses:
@@ -7437,7 +8636,7 @@ paths:
         "200": { description: Workspace list, content: { application/json: { schema: { $ref: "#/components/schemas/PlatformListResponse" } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
-  # â”€â”€ Planner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Ã¢â€â‚¬Ã¢â€â‚¬ Planner Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   /planner/resolve-intent:
     post:
@@ -7520,7 +8719,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
-  # â”€â”€ Bootstrap Readiness â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Ã¢â€â‚¬Ã¢â€â‚¬ Bootstrap Readiness Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   /bootstrap/readiness/{tenant_id}:
     get:
@@ -7609,7 +8808,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
-  # â”€â”€ Logic Graph â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Ã¢â€â‚¬Ã¢â€â‚¬ Logic Graph Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   /logic-definitions:
     post:
@@ -7777,7 +8976,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
-  # â”€â”€ Workflow Orchestration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Ã¢â€â‚¬Ã¢â€â‚¬ Workflow Orchestration Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   /workflow-runs:
     post:
@@ -7932,7 +9131,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
-  # â”€â”€ Observability â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Ã¢â€â‚¬Ã¢â€â‚¬ Observability Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   /telemetry/spans:
     post:
@@ -8026,8 +9225,8 @@ paths:
       operationId: checkQuota
       summary: Check current quota usage against applicable limit
       description: >
-        Resolves the applicable quota rule in priority order: tenant override â†’
-        plan-level rule â†’ global rule. Returns current usage, limit, and whether
+        Resolves the applicable quota rule in priority order: tenant override Ã¢â€ â€™
+        plan-level rule Ã¢â€ â€™ global rule. Returns current usage, limit, and whether
         the tenant is within quota.
       parameters:
         - { name: tenant_id, in: path, required: true, schema: { type: string } }
@@ -8053,7 +9252,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
-  # â”€â”€ Security & Compliance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Ã¢â€â‚¬Ã¢â€â‚¬ Security & Compliance Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   /audit-log:
     get:
@@ -8203,7 +9402,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
-  # â”€â”€ Developer API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Ã¢â€â‚¬Ã¢â€â‚¬ Developer API Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   /developer-apps:
     post:
@@ -8265,7 +9464,7 @@ paths:
                 scopes: { type: array, items: { type: string } }
       responses:
         "201":
-          description: API key generated (store immediately â€” not retrievable again)
+          description: API key generated (store immediately Ã¢â‚¬â€ not retrievable again)
           content:
             application/json:
               schema:
@@ -8275,7 +9474,7 @@ paths:
                 properties:
                   ok: { type: boolean }
                   credential_id: { type: string, format: uuid }
-                  api_key: { type: string, description: "Full key â€” store now, not retrievable again." }
+                  api_key: { type: string, description: "Full key Ã¢â‚¬â€ store now, not retrievable again." }
                   key_prefix: { type: string }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
@@ -8352,7 +9551,7 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
-  # â”€â”€ Release Readiness â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Ã¢â€â‚¬Ã¢â€â‚¬ Release Readiness Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   /system/connectors:
     get:
@@ -8701,8 +9900,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/GoogleAuthPlatformConfigResponse'
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
     post:
@@ -8760,8 +9958,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/GoogleAuthPlatformConfigResponse'
         "401": { $ref: "#/components/responses/Unauthorized" }
     post:
       tags: [admin-internal]
@@ -8959,7 +10156,7 @@ paths:
                 tool_args:
                   type: object
                   additionalProperties: true
-                  description: Arguments matching the tool inputSchema. For connect_activate, pass mode and integration_modes here; for connect_device_install, pass device_id here; for admin_control pass tool, sql, args etc. here.
+                  description: Arguments matching the tool inputSchema. For connect_activate, pass mode and integration_modes here; for connect_device_install, pass device_id here; for admin_control pass tool, sql, args etc. here. For github_rest_endpoint_dispatch, pass a nested tool_args object containing the registry-authorized parent_action_key, endpoint_key, path_params, and bounded query/body plus any required approval or readback evidence; raw methods, URLs, and authorization headers are not accepted.
                   properties:
                     mode:
                       type: string
@@ -8993,8 +10190,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/ToolDispatchResponse'
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { description: Tool not found, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
@@ -9067,7 +10263,7 @@ paths:
           description: Upstream device tool response
           content:
             application/json:
-              schema: { type: object, additionalProperties: true }
+              schema: { $ref: '#/components/schemas/ToolDispatchResponse' }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { description: Tool exists but is not in the device-tools surface, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
@@ -9449,7 +10645,7 @@ paths:
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: getLocalConnectorInstallBundle
       summary: Resolve or download a local connector installer
-      description: "Generate a pre-filled Windows .bat installer for the local connector stack (cloudflared + Node.js service via NSSM). Reads cf_token and connector_secret from local_connector_user_configs in DB for the given user_id + device_id. Falls back to server env only if no DB row exists. The default JSON mode returns metadata before credential lookup. The installer is generated only when format=bat is requested on the authenticated route and is never uploaded to shared or public storage. User saves the .bat and runs as Administrator — cloudflared and NSSM are installed automatically if missing. Both services auto-restart on failure and reboot."
+      description: "Generate a pre-filled Windows .bat installer for the local connector stack (cloudflared + Node.js service via NSSM). Reads cf_token and connector_secret from local_connector_user_configs in DB for the given user_id + device_id. Falls back to server env only if no DB row exists. The default JSON mode returns metadata before credential lookup. The installer is generated only when format=bat is requested on the authenticated route and is never uploaded to shared or public storage. User saves the .bat and runs as Administrator â€” cloudflared and NSSM are installed automatically if missing. Both services auto-restart on failure and reboot."
       parameters:
         - name: user_id
           in: query
@@ -10256,7 +11452,7 @@ paths:
                         last_checked_at: { type: string, format: date-time }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
-  # â”€â”€ Connector Dispatch (Sprint 09) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Ã¢â€â‚¬Ã¢â€â‚¬ Connector Dispatch (Sprint 09) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   /connector/dispatch:
     post:
@@ -10309,7 +11505,7 @@ paths:
                   result: { type: object, additionalProperties: true }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { description: Access denied â€” requires human approval, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "403": { description: Access denied Ã¢â‚¬â€ requires human approval, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "404": { $ref: "#/components/responses/NotFound" }
 
   /connector/dispatch/status/{run_id}:
@@ -11618,7 +12814,7 @@ paths:
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: getGovernanceExecutionLogSheetsRecovery
       summary: Execution log latest from Sheets mirror (recovery)
-      description: "Reads the latest execution log primary row from the Sheets mirror for parity verification or break-glass recovery. Sheets is NOT the runtime source of truth — use /governance/execution-log-latest (SQL) for authoritative reads. This route reads the registry-resolved spreadsheet id and sheet name."
+      description: "Reads the latest execution log primary row from the Sheets mirror for parity verification or break-glass recovery. Sheets is NOT the runtime source of truth â€” use /governance/execution-log-latest (SQL) for authoritative reads. This route reads the registry-resolved spreadsheet id and sheet name."
       responses:
         "200":
           description: Sheets mirror readback with explicit recovery framing
@@ -11809,7 +13005,7 @@ paths:
       description: "Proxies GET /policy to the user's local connector tunnel. Resolves the device's tunnel_url and connector_secret from local_connector_user_configs. Returns the connector-side policy document (permitted ops, file roots, shell allowlist)."
       parameters:
         - { name: device_id, in: path, required: true, schema: { type: string } }
-        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target user id. }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only â€” target user id. }
       responses:
         "200": { description: Connector policy payload, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
@@ -11826,7 +13022,7 @@ paths:
       description: "Proxies GET /health to the local connector tunnel for the named device. Returns the connector-side health payload (uptime, allowed paths, agent version)."
       parameters:
         - { name: device_id, in: path, required: true, schema: { type: string } }
-        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target user id. }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only â€” target user id. }
       responses:
         "200": { description: Device health payload, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
@@ -11843,7 +13039,7 @@ paths:
       description: "Proxies POST /shell to the device tunnel. The connector enforces an alias-based allowlist; raw commands are rejected. Body forwarded verbatim."
       parameters:
         - { name: device_id, in: path, required: true, schema: { type: string } }
-        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target user id. }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only â€” target user id. }
       requestBody:
         required: true
         content:
@@ -11856,7 +13052,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { description: Device not found or not enabled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
-        "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "503": { description: Capability kill switch enabled or device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /connector/{device_id}/files:
     post:
@@ -11867,7 +13063,7 @@ paths:
       description: "Proxies POST /files to the device tunnel. Supports list, list_drives, locate_repo, read, and write. Connector restricts traversal and I/O to configured roots."
       parameters:
         - { name: device_id, in: path, required: true, schema: { type: string } }
-        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target user id. }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only â€” target user id. }
       requestBody:
         required: true
         content:
@@ -11904,7 +13100,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { description: Device not found or not enabled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
-        "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "503": { description: Capability kill switch enabled or device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /connector/{device_id}/dependencies:
     post:
@@ -11915,7 +13111,7 @@ paths:
       description: "Proxies POST /dependencies to the device tunnel. Installs only connector-allowlisted packages when dependency installation is enabled on the device."
       parameters:
         - { name: device_id, in: path, required: true, schema: { type: string } }
-        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only â€” target user id. }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only Ã¢â‚¬â€ target user id. }
       requestBody:
         required: true
         content:
@@ -11994,7 +13190,7 @@ paths:
       description: "Proxies POST /apps to the device tunnel. Returns capability/risk classifications and controls connector-allowlisted app aliases when enabled."
       parameters:
         - { name: device_id, in: path, required: true, schema: { type: string } }
-        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only â€” target user id. }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only Ã¢â‚¬â€ target user id. }
       requestBody:
         required: true
         content:
@@ -12029,7 +13225,7 @@ paths:
       description: "Proxies POST /browser to the device tunnel. Returns capability/risk classifications and opens only absolute http/https URLs in allowlisted browsers."
       parameters:
         - { name: device_id, in: path, required: true, schema: { type: string } }
-        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only â€” target user id. }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only Ã¢â‚¬â€ target user id. }
       requestBody:
         required: true
         content:
@@ -12253,7 +13449,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { description: Device not found or not enabled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
-        "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "503": { description: Capability kill switch enabled or device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /connector/{device_id}/cf:
     post:
@@ -12292,7 +13488,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { description: Device not found or not enabled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
-        "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "503": { description: Capability kill switch enabled or device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /connector/{device_id}/fetch-upload:
     post:
@@ -12303,7 +13499,7 @@ paths:
       description: "Proxies POST /fetch-upload to the device tunnel. Connector downloads from an allowlisted source URL and writes into a permitted local path. Admin-facing helper for installer/asset distribution."
       parameters:
         - { name: device_id, in: path, required: true, schema: { type: string } }
-        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target user id. }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only â€” target user id. }
       requestBody:
         required: true
         content:
@@ -12327,7 +13523,7 @@ paths:
       description: "Proxies POST /github to the device tunnel. Used for git operations against the device's checked-out repo (status, log, branch listing, etc.) under the connector's policy. Connector responses bound stdout/stderr and expose command_ok plus exitCode/exit_code; HTTP 200 only means the device route responded."
       parameters:
         - { name: device_id, in: path, required: true, schema: { type: string } }
-        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target user id. }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only â€” target user id. }
       requestBody:
         required: true
         content:
@@ -12351,7 +13547,7 @@ paths:
       description: "Proxies POST /gcloud to the device tunnel. Invokes gcloud CLI commands under the connector's allowlist (auth list, projects describe, builds list, etc.)."
       parameters:
         - { name: device_id, in: path, required: true, schema: { type: string } }
-        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target user id. }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only â€” target user id. }
       requestBody:
         required: true
         content:
@@ -12375,7 +13571,7 @@ paths:
       description: "Proxies POST /shell-fetch-upload to the device tunnel. Combined helper that resolves an allowlisted source via shell and writes the result into a permitted local path. Admin-facing."
       parameters:
         - { name: device_id, in: path, required: true, schema: { type: string } }
-        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target user id. }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only â€” target user id. }
       requestBody:
         required: true
         content:
@@ -12388,14 +13584,14 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { description: Device not found or not enabled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
-        "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "503": { description: Capability kill switch enabled or device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /policy:
     get:
       tags: [tenant-connect]
       operationId: getTenantPolicy
       summary: Public tenant policy document
-      description: "Returns the public tenant policy: permitted operations, connection modes, onboarding URL, and activation sequence. No auth required — used by tenant GPT to introspect the contract before sign-in."
+      description: "Returns the public tenant policy: permitted operations, connection modes, onboarding URL, and activation sequence. No auth required â€” used by tenant GPT to introspect the contract before sign-in."
       responses:
         "200":
           description: Public policy payload
@@ -12481,7 +13677,7 @@ paths:
                   enum: [managed_main_server, self_hosted_local]
                 cf_api_token:
                   type: string
-                  description: Dedicated mode only — accepted but not stored.
+                  description: Dedicated mode only â€” accepted but not stored.
                 cf_account_id:
                   type: string
                 hostinger_api_key:
@@ -12589,8 +13785,8 @@ paths:
       description: "Resolves the tenant device's tunnel_url and connector_secret, then probes the connector /health endpoint with a 10s timeout. Returns the agent's health payload on success, or a structured connector_unreachable error on failure (HTTP 200 either way for tenant ergonomics)."
       parameters:
         - { name: device_id, in: query, required: true, schema: { type: string } }
-        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target user id. }
-        - { name: tenant_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target tenant id. }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only â€” target user id. }
+        - { name: tenant_id, in: query, required: false, schema: { type: string }, description: Admin caller only â€” target tenant id. }
       responses:
         "200":
           description: Health probe result (reachable or unreachable)
@@ -13266,6 +14462,7 @@ paths:
             schema: { type: object, required: [user_id, tenant_id, app_key, auth_type], additionalProperties: true }
       responses:
         "201": { description: Credential intake session created, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "503": { description: Raw credential-intake creation disabled by capability kill switch, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /credential-intake/{token}/schema:
     get:
@@ -14207,18 +15404,230 @@ paths:
         - backendApiKeyAuth: []
       operationId: platformPluginResolve
       summary: Resolve Platform Plugin execution preview
+      description: Resolves principal, tenant, binding, surface, skill, credential, and platform-managed target authority gates without executing a provider or returning secrets. Scoped platform-managed execution fails closed when target authority is absent.
       requestBody:
         required: true
         content:
           application/json:
-            schema: { type: object, required: [plugin_key], additionalProperties: true }
+            schema:
+              type: object
+              additionalProperties: false
+              required: [plugin_key]
+              properties:
+                plugin_key: { type: string }
+                action_key: { type: string }
+                tool_key: { type: string }
+                tenant_id: { type: string }
+                workspace_id: { type: string }
+                user_id: { type: string }
+                agent_id: { type: string }
+                requested_credential_scope:
+                  type: string
+                  enum: [user_connection, tenant_connection, platform_managed, device_connector, none]
+                target_resource_type: { type: string }
+                target_resource_uri:
+                  type: string
+                  description: Canonical target reference used only for authority lookup; the response returns a SHA-256 hash instead of this value.
+                target_mode:
+                  type: string
+                  default: read_only
+                  enum: [read_only, diagnostic, comment, label, close, patch, merge, apply, admin]
       responses:
         "200":
-          description: Platform Plugin resolver preview
+          description: Platform Plugin resolver preview. A denied preview remains a successful read and reports stable denial evidence.
           content:
             application/json:
-              schema: { type: object, additionalProperties: true }
-
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  allowed: { type: boolean }
+                  reason: { type: string }
+                  credential_resolution:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      denial_code: { type: string }
+                  target_authorization:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      ok: { type: boolean }
+                      required: { type: boolean }
+                      state: { type: string, enum: [pass, deny, not_applicable] }
+                      reason: { type: string }
+                      denial_code: { type: string }
+                      target_resource_type: { type: string, nullable: true }
+                      target_reference_hash:
+                        type: string
+                        nullable: true
+                        pattern: "^[a-f0-9]{64}$"
+                      requested_mode: { type: string, nullable: true }
+                      authority_binding_present: { type: boolean }
+                      lookup_attempted: { type: boolean }
+                      authority_source: { type: string, nullable: true }
+                      permission_level: { type: string, nullable: true }
+                      secrets_included: { type: boolean, enum: [false] }
+                  security_alerts:
+                    type: object
+                    additionalProperties: false
+                    required: [scheduled_count, reason_codes, temporary_control, secrets_included]
+                    properties:
+                      scheduled_count: { type: integer, minimum: 0, maximum: 2 }
+                      severity: { type: string, nullable: true, enum: [high] }
+                      reason_codes:
+                        type: array
+                        maxItems: 2
+                        uniqueItems: true
+                        items:
+                          type: string
+                          enum: [TENANT_TO_ADMIN_CAPABILITY_REQUEST, SELECTOR_PARITY_MISMATCH]
+                      temporary_control: { type: boolean, enum: [true] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { description: Invalid resolver or target-mode input. }
+        "401": { description: Authentication required. }
+        "403": { description: Principal, tenant, surface, skill, credential scope, or target authority denied. }
+        "503": { description: Policy or target-authority store unavailable; resolution fails closed. }
+  /tenant/platform/plugins/credential-intake-sessions:
+    post:
+      x-openai-isConsequential: true
+      tags:
+        - platform-plugins
+      operationId: tenantPlatformPluginCredentialIntakeSessionCreate
+      summary: Create a tenant-safe credential intake session
+      description: Creates a short-lived single-use intake URL for a tenant-enabled integration. Identity comes only from the signed JWT. Owners/admins only. Unknown fields, credentials, custom schemas, arbitrary metadata, tenant_id, and user_id are rejected.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - plugin_key
+                - purpose
+              properties:
+                plugin_key:
+                  type: string
+                  minLength: 1
+                  maxLength: 180
+                purpose:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                display_label:
+                  type: string
+                  maxLength: 120
+                redirect_uri:
+                  type: string
+                  maxLength: 1024
+                  description: Optional same-origin path or exact HTTPS URL registered in the integration credential-intake redirect allowlist.
+                expires_in_minutes:
+                  type: integer
+                  minimum: 5
+                  maximum: 30
+                  default: 30
+            examples:
+              connectRepository:
+                value:
+                  plugin_key: github
+                  purpose: Connect the tenant repository
+                  display_label: Primary GitHub connection
+                  redirect_uri: /settings/integrations?connected=1
+                  expires_in_minutes: 30
+      responses:
+        "201":
+          description: Tenant-bound credential intake session created
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required:
+                  - ok
+                  - session_id
+                  - intake_url
+                  - expires_at
+                  - canonical_capability_id
+                  - tenant_facing
+                  - admin_tool_invoked
+                  - secrets_included
+                properties:
+                  ok:
+                    type: boolean
+                    enum: [true]
+                  session_id:
+                    type: string
+                    format: uuid
+                  intake_url:
+                    type: string
+                    format: uri
+                    description: Opaque short-lived single-use URL. Treat as sensitive and do not log it.
+                  expires_at:
+                    type: string
+                  app_key:
+                    type: string
+                  auth_type:
+                    type: string
+                  field_count:
+                    type: integer
+                    minimum: 0
+                  binding_context:
+                    type: object
+                    additionalProperties: false
+                    required: [connection_target_ref, purpose, redirect_configured]
+                    properties:
+                      connection_target_ref:
+                        type: string
+                      purpose:
+                        type: string
+                      redirect_configured:
+                        type: boolean
+                      authority_snapshot_version:
+                        type: [string, "null"]
+                  canonical_capability_id:
+                    type: string
+                    enum: [tenant.credential_intake.session.create]
+                  tenant_facing:
+                    type: boolean
+                    enum: [true]
+                  admin_tool_invoked:
+                    type: boolean
+                    enum: [false]
+                  secrets_included:
+                    type: boolean
+                    enum: [false]
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Active membership, tenant owner/admin role, or tenant plugin policy required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Integration requires OAuth or is not in an intake-compatible state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Credential intake session creation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
   /platform/action-manifest/resolve:
     post:
       x-openai-isConsequential: false
@@ -14228,7 +15637,7 @@ paths:
         - backendApiKeyAuth: []
       operationId: actionManifestResolve
       summary: Resolve Action Endpoint Tool authority manifest
-      description: Read-only dry-run diagnostic for Action → Endpoint → Tool authority. Returns manifest readiness and guard preview without executing providers or exposing secrets.
+      description: Read-only dry-run diagnostic for Action â†’ Endpoint â†’ Tool authority. Returns manifest readiness and guard preview without executing providers or exposing secrets.
       requestBody:
         required: true
         content:
@@ -17334,6 +18743,16 @@ paths:
                 requested_credential_scope:
                   type: string
                   enum: [user_connection, tenant_connection, platform_managed, device_connector, none]
+                target_resource_type:
+                  type: string
+                  description: Resource family used for scoped platform-managed target authority resolution.
+                target_resource_uri:
+                  type: string
+                  description: Canonical target reference used only for authority lookup; the response returns a SHA-256 hash instead of this value.
+                target_mode:
+                  type: string
+                  default: read_only
+                  enum: [read_only, diagnostic, comment, label, close, patch, merge, apply, admin]
       responses:
         "200":
           description: Tenant-scoped plugin readiness result
@@ -17346,12 +18765,46 @@ paths:
                   ok: { type: boolean }
                   allowed: { type: boolean }
                   reason: { type: string }
+                  target_authorization:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      ok: { type: boolean }
+                      required: { type: boolean }
+                      state: { type: string, enum: [pass, deny, not_applicable] }
+                      reason: { type: string }
+                      denial_code: { type: string }
+                      target_resource_type: { type: [string, "null"] }
+                      target_reference_hash:
+                        type: [string, "null"]
+                        pattern: "^[a-f0-9]{64}$"
+                      requested_mode: { type: [string, "null"] }
+                      authority_binding_present: { type: boolean }
+                      lookup_attempted: { type: boolean }
+                      authority_source: { type: [string, "null"] }
+                      permission_level: { type: [string, "null"] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  security_alerts:
+                    type: object
+                    additionalProperties: false
+                    required: [scheduled_count, reason_codes, temporary_control, secrets_included]
+                    properties:
+                      scheduled_count: { type: integer, minimum: 0, maximum: 2 }
+                      severity: { type: string, nullable: true, enum: [high] }
+                      reason_codes:
+                        type: array
+                        maxItems: 2
+                        uniqueItems: true
+                        items:
+                          type: string
+                          enum: [TENANT_TO_ADMIN_CAPABILITY_REQUEST, SELECTOR_PARITY_MISMATCH]
+                      temporary_control: { type: boolean, enum: [true] }
+                      secrets_included: { type: boolean, enum: [false] }
                   tenant_facing: { type: boolean }
                   secrets_included: { type: boolean, enum: [false] }
         "401": { $ref: "#/components/responses/Unauthorized" }
       security:
         - backendBearerAuth: []
-
   /gpt/sessions/{id}/turn:
     post:
       tags: [session-archive]

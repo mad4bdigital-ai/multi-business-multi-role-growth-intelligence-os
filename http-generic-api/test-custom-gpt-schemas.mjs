@@ -21,19 +21,38 @@ const ACTIVE_SCHEMAS = {
     maxOperations: 30,
     requiredOperations: ["listAdminTools", "callAdminTool", "repairLocalConnector"],
   },
+  "openapi.custom-gpt.activation-admin.yaml": {
+    serverUrl: "https://activation.mad4b.com",
+    securityScheme: "backendBearerAuth",
+    maxOperations: 20,
+    requiredOperations: ["getActivationHardRunSummary", "runHardActivation", "getActivationSessionContext"],
+  },
   "openapi.tenant-gpt.auth.yaml": {
     serverUrl: "https://auth.mad4b.com",
     securityScheme: "userBearerAuth",
     maxOperations: 30,
     requiredOperations: [
-      "activateSession",
       "listTools",
       "callTool",
       "tenantPlatformPluginCatalog",
       "tenantPlatformPluginInstall",
+      "tenantPlatformPluginCredentialIntakeSessionCreate",
+      "postMeWorkspacesTenantIdResourcesResourceKey",
+      "postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore",
       "tenantPlatformPluginResolve",
       "writeSessionTurn",
       "endSession",
+    ],
+  },
+  "openapi.tenant-gpt.activation.yaml": {
+    serverUrl: "https://activation.mad4b.com",
+    securityScheme: "userBearerAuth",
+    maxOperations: 10,
+    requiredOperations: [
+      "activateSession",
+      "readTenantActivationOperationalAttention",
+      "readTenantActivationAwareness",
+      "readTenantActivationDynamicTabDetail",
     ],
   },
   "openapi.gpt-action.dev-dispatcher.yaml": {
@@ -362,13 +381,23 @@ section("dispatcher contracts");
       .join(", "));
 
   const tenantPostOps = collectOperations(tenantDoc).filter((op) => op.method === "post");
-  const tenantAllowedConsequentialOps = new Set(["tenantPlatformPluginInstall"]);
-  assert("tenant dispatcher POST operations are non-consequential except explicit install consent surfaces",
+  const tenantAllowedConsequentialOps = new Set([
+    "tenantPlatformPluginInstall",
+    "tenantPlatformPluginCredentialIntakeSessionCreate",
+    "postMeWorkspacesTenantIdResourcesResourceKey",
+    "postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore",
+  ]);
+  assert("tenant dispatcher POST operations are non-consequential except explicit consent and resource mutation surfaces",
     tenantPostOps.every((op) => op.operation["x-openai-isConsequential"] === false || tenantAllowedConsequentialOps.has(op.operation.operationId)),
     tenantPostOps
       .filter((op) => op.operation["x-openai-isConsequential"] !== false && !tenantAllowedConsequentialOps.has(op.operation.operationId))
       .map((op) => op.pathKey)
       .join(", "));
+
+  for (const operationId of tenantAllowedConsequentialOps) {
+    const operation = tenantPostOps.find((entry) => entry.operation.operationId === operationId)?.operation;
+    assert(`${operationId} remains explicitly consequential`, operation?.["x-openai-isConsequential"] === true);
+  }
 
   const devOps = collectOperations(devDoc);
   const devOperationIds = new Set(devOps.map((op) => op.operation.operationId).filter(Boolean));
@@ -383,6 +412,7 @@ section("admin and tenant OpenAI schema coverage for tool additions");
 {
   const adminDoc = loadSchema("openapi.custom-gpt.auth-dispatcher.yaml");
   const tenantDoc = loadSchema("openapi.tenant-gpt.auth.yaml");
+  const tenantActivationDoc = loadSchema("openapi.tenant-gpt.activation.yaml");
   const parentSchema = readFileSync(resolve(__dirname, "openapi.yaml"), "utf8");
   const tenantInstructions = readFileSync(resolve(__dirname, "../GPT_Tenant_Connector_Instructions.md"), "utf8");
   const tenantKnowledge = readFileSync(resolve(__dirname, "../GPT_Tenant_Connector_Knowledge.md"), "utf8");
@@ -424,31 +454,36 @@ section("admin and tenant OpenAI schema coverage for tool additions");
 
   const tenantOps = collectOperations(tenantDoc);
   const tenantOpIds = new Set(tenantOps.map((op) => op.operation.operationId).filter(Boolean));
-  const activateSessionOp = tenantDoc.paths?.["/activation/session-context"]?.get;
+  const activateSessionOp = tenantActivationDoc.paths?.["/tenant/activation/session-context"]?.get;
   assert("tenant activateSession requires OAuth before the first API request",
     Array.isArray(activateSessionOp?.security) &&
     activateSessionOp.security.some((entry) => Object.prototype.hasOwnProperty.call(entry, "userBearerAuth")));
   const expectedTenantOps = [
-    "activateSession",
     "listTools",
     "callTool",
     "tenantPlatformPluginCatalog",
     "tenantPlatformPluginInstall",
+    "tenantPlatformPluginCredentialIntakeSessionCreate",
     "tenantPlatformPluginResolve",
     "writeSessionTurn",
     "endSession",
   ];
-  assert("tenant OpenAI schema exposes MCP meta operations plus tenant Platform Plugin self-serve operations",
+  assert("tenant core schema exposes MCP meta operations plus tenant Platform Plugin self-serve operations",
     expectedTenantOps.every((op) => tenantOpIds.has(op)) && tenantOps.length <= ACTIVE_SCHEMAS["openapi.tenant-gpt.auth.yaml"].maxOperations,
     `got ${Array.from(tenantOpIds).join(",")}`);
   assert("tenant OpenAI schema does not expose direct connect routes",
     !Object.keys(tenantDoc.paths || {}).some((path) => path.startsWith("/connect")));
   assert("tenant OpenAI schema exposes tenant Platform Plugin routes only under /tenant/platform/plugins",
-    ["/tenant/platform/plugins/catalog", "/tenant/platform/plugins/install", "/tenant/platform/plugins/resolve"].every((path) => Boolean(tenantDoc.paths?.[path])));
+    [
+      "/tenant/platform/plugins/catalog",
+      "/tenant/platform/plugins/install",
+      "/tenant/platform/plugins/credential-intake-sessions",
+      "/tenant/platform/plugins/resolve",
+    ].every((path) => Boolean(tenantDoc.paths?.[path])));
   const tenantCallToolSchema = tenantDoc.paths?.["/system/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
   const tenantToolArgsSchema = tenantCallToolSchema?.properties?.tool_args;
   const tenantCallToolNameSchema = tenantCallToolSchema?.properties?.name || {};
-  assert("tenant OpenAI schema tells GPT to pass activation mode and integration_modes through callTool",
+  assert("tenant core schema tells GPT to pass activation mode and integration_modes through callTool",
     JSON.stringify(tenantDoc.info || {}).includes("connect_activate") &&
     JSON.stringify(tenantDoc.paths?.["/system/tools/call"] || {}).includes("integration_modes"));
   assert("tenant callTool name is registry-driven rather than a high-churn enum",

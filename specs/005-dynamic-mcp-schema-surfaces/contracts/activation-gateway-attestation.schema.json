@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/activation-gateway-deployment-attestation.schema.json",
+  "title": "Activation Gateway Deployment Attestation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "content_hash_sha256",
+    "deployment_id",
+    "expires_at",
+    "source_commit",
+    "surface_registry_version",
+    "signature_b64url"
+  ],
+  "properties": {
+    "content_hash_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "deployment_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_commit": {
+      "type": "string",
+      "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"
+    },
+    "surface_registry_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "signature_b64url": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]+$"
+    }
+  }
+}

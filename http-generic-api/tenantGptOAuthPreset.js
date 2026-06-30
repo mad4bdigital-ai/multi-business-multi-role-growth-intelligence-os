@@ -20,11 +20,17 @@ export const TENANT_GPT_CALLBACK_URLS_TO_ALLOW = [
 export function buildTenantGptOAuthPreset({
   baseUrl = "https://auth.mad4b.com",
   schemaUrl = "https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml",
+  activationSchemaUrl = "https://auth.mad4b.com/openapi.tenant-gpt.activation.yaml",
   callbackUrlsToAllow = TENANT_GPT_CALLBACK_URLS_TO_ALLOW,
 } = {}) {
   return {
     auth_type: "OAuth",
     schema_url: schemaUrl,
+    activation_schema_url: activationSchemaUrl,
+    schema_urls: {
+      tenant_core: schemaUrl,
+      tenant_activation: activationSchemaUrl,
+    },
     client_id: TENANT_GPT_OAUTH_CLIENT_ID,
     client_secret: "<resolved-from-governed-platform-secret>",
     client_secret_ref: "platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET",
@@ -36,7 +42,8 @@ export function buildTenantGptOAuthPreset({
     token_exchange_method: "default_post_request",
     callback_urls_to_allow: callbackUrlsToAllow,
     notes: [
-      "Configure the Custom GPT Action Authentication Type as OAuth.",
+      "Configure both Tenant Core and Tenant Activation Custom GPT Actions with the same governed OAuth client.",
+      "Tenant Core uses auth.mad4b.com; Tenant Activation uses activation.mad4b.com and forwards to auth.mad4b.com.",
       "Use the governed client_secret_ref stored under platform_runtime_config config_key=tenant_gpt.oauth.client.",
       "The public preset endpoint does not reveal the raw client secret.",
       "ChatGPT sends the returned Mad4B tenant JWT as Authorization: Bearer <token> on action calls.",

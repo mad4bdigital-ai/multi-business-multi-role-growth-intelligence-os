@@ -1,0 +1,20 @@
+{
+  "surface_key": "platform_resource_coverage_findings",
+  "display_name": "Platform Resource Coverage Findings",
+  "description": "Admin-only typed resource coverage findings, severity, lifecycle, and resolution metadata.",
+  "source_table": "platform_resource_coverage_findings",
+  "covered_source_tables": ["platform_resource_coverage_findings"],
+  "result_key_column": "finding_id",
+  "result_label_column": "finding_type",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": ["open", "accepted_debt", "resolved", "false_positive"],
+  "result_columns": ["finding_id", "run_id", "severity", "finding_type", "surface_kind", "surface_ref", "resource_key", "status", "detected_at", "resolved_at"],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 200,
+  "sort_order": 333,
+  "status": "active",
+  "notes": "Excludes free-text message from activation summaries and never includes secrets or raw resource data."
+}

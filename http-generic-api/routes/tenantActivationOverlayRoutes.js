@@ -12,6 +12,22 @@ import {
 } from "../activationSessionLifecycleService.js";
 import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
 
+const TENANT_ACTIVATION_SESSION_QUERY_ALLOWLIST = new Set([
+  "chunk_ttl_minutes",
+  "close_previous_sessions",
+  "container_key",
+  "conversation_ref",
+  "date_range",
+  "idempotency_key",
+  "limit",
+  "max_response_chars",
+  "offset",
+  "response_profile",
+  "reuse_window_hours",
+  "session_policy",
+  "tab",
+  "tab_key",
+]);
 function compactError(error, fallback) {
   return {
     code: error?.code || fallback,
@@ -23,8 +39,32 @@ export function buildTenantActivationOverlayRoutes({ requireBackendApiKey } = {}
   const router = Router();
   const guards = [requireBackendApiKey].filter(Boolean);
 
-  router.get("/activation/session-context", ...guards, async (req, res, next) => {
-    if (req.auth?.mode !== "user_jwt" || req.auth?.is_admin === true) return next();
+  async function handleTenantActivationSessionContext(req, res, next, { allowFallthrough }) {
+    if (req.auth?.mode !== "user_jwt" || req.auth?.is_admin === true) {
+      if (allowFallthrough) return next();
+      return res.status(401).json({
+        ok: false,
+        error: {
+          code: "tenant_activation_subject_required",
+          message: "A signed non-admin tenant user JWT is required.",
+        },
+        secrets_included: false,
+      });
+    }
+    if (!allowFallthrough) {
+      const unsupported = Object.keys(req.query || {}).filter((key) => !TENANT_ACTIVATION_SESSION_QUERY_ALLOWLIST.has(key));
+      if (unsupported.length > 0) {
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: "tenant_activation_query_parameter_not_allowed",
+            message: "One or more query parameters are not allowed for the tenant Activation session surface.",
+            details: unsupported.map((field) => ({ field, issue: "unsupported" })),
+          },
+          secrets_included: false,
+        });
+      }
+    }
     if (!req.auth?.tenant_id || !req.auth?.user_id) {
       return res.status(401).json({
         ok: false,
@@ -94,9 +134,13 @@ export function buildTenantActivationOverlayRoutes({ requireBackendApiKey } = {}
         }).catch(() => {});
       });
       const maxChars = Math.min(Math.max(Number(req.query.max_response_chars || 40000), 5000), 150000);
+      const chunkTtlMinutes = Math.min(Math.max(Number(req.query.chunk_ttl_minutes || 20), 5), 120);
       const transportBody = responseBytes > maxChars
         ? await maybeChunkToolResponseBody(responseBody, {
-            response_options: { max_chars: maxChars },
+            response_options: {
+              max_chars: maxChars,
+              chunk_ttl_minutes: chunkTtlMinutes,
+            },
             source_tool_key: "tenant_activation_session_context",
           })
         : responseBody;
@@ -108,7 +152,12 @@ export function buildTenantActivationOverlayRoutes({ requireBackendApiKey } = {}
         secrets_included: false,
       });
     }
-  });
+  }
+
+  router.get("/tenant/activation/session-context", ...guards, (req, res, next) =>
+    handleTenantActivationSessionContext(req, res, next, { allowFallthrough: false }));
+  router.get("/activation/session-context", ...guards, (req, res, next) =>
+    handleTenantActivationSessionContext(req, res, next, { allowFallthrough: true }));
 
   return router;
 }

@@ -57,7 +57,7 @@ Startup synchronization is controlled by `platform_runtime_config.config_key=ope
 
 ## Dynamic Container curated tools
 
-Migration `1021_sprint69_openapi_endpoint_inventory_sync.sql` registers only the approved Admin tools:
+Migration `1024_sprint69_openapi_endpoint_inventory_sync.sql` registers only the approved Admin tools:
 
 - `openapi_endpoint_inventory_status`
 - `openapi_endpoint_inventory_sync`

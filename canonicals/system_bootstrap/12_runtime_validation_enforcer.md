@@ -40,6 +40,32 @@ unless `runtime_validation_enforcer` confirms:
 - required layout validation passed
 - required review evidence exists where `review_required = TRUE`
 
+### Activation Gateway Dark Deploy Enforcement Rule
+Activation Gateway deployment is a critical external write and may execute only through the specialized Admin surface `activation_gateway_dark_deploy`. The generic Cloudflare tool does not inherit this authority.
+
+Before the first provider write, runtime validation must confirm:
+- mode is `apply`; dry-run remains non-executing
+- target is the exact bound Worker `mad4b-activation-gateway` on the registered Cloudflare account
+- workspace membership, workspace resource grant, exact resource binding, and active dispatch certification all pass
+- a same-cycle rollout plan passes with the expected policy hash and source commit
+- Ed25519 deployment attestation is valid, fresh, and matches the generated route policy
+- the capability envelope is ready, approved, zero-gap, single-use, and atomically claimed with an execution nonce
+- the deployment feature flag is enabled
+- Worker secrets are resolved only from server-side secret configuration and are never accepted as tool arguments or returned
+
+The dark-deploy surface is workers.dev-only. DNS writes and custom-domain binding, including `activation.mad4b.com`, are forbidden.
+
+Completion requires:
+- awaited audit evidence
+- Worker deployment readback
+- workers.dev subdomain readback
+- successful `/health` and `/ready` checks matching policy hash and source commit
+- capability envelope finalization to `executed`
+
+Any failure after the first provider write must trigger rollback to the previous deployment, or deletion of the newly created unrouted script when no prior deployment exists. The envelope must finalize to `failed`, and recovered/complete classification remains forbidden when rollback or audit finalization is unresolved.
+
+The auth-host runtime may load Worker content only from the service-local generated bundle `http-generic-api/activation-gateway-runtime`. CI must prove byte parity and attestation-verifier parity with the canonical `edge/activation-gateway` source before deployment.
+
 ### Google Workspace Validation Enforcement Rule
 Execution cannot be classified as `Recovered` unless all required Google Workspace dependencies have been validated through their native APIs.
 
