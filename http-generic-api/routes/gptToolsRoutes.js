@@ -40,6 +40,7 @@ import { runRepositoryCloseSupersededPositiveSmokeV6 } from "../repositoryCloseS
 import { applyUnifiedDiffToText } from "../unifiedDiff.js";
 export { applyUnifiedDiffToText };
 import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveReport } from "../platformCapabilityReports.js";
+import { buildDynamicCapabilityGovernancePreview } from "../dynamicCapabilityGovernanceCompiler.js";
 import { runGrowthIntelligencePilotAdmin } from "../growthIntelligenceAdminTool.js";
 import {
   approveRepositoryAdvisoryCommentApprovalHoldAdmin,
@@ -366,6 +367,25 @@ const VIRTUAL_ADMIN_TOOLS = [
       type: "object",
       properties: {
         limit: { type: "integer", minimum: 1, maximum: 100, default: 25, description: "Maximum highest-priority gap rows." },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "platform_capability_governance_compile_preview",
+    displayName: "Platform Capability Governance Compile Preview",
+    description: "Compile deterministic read-only governance manifests and typed gaps from the current MySQL capability readiness vector. Shadow diagnostics only: no registry writes, provider calls, callable exports, tenant authority changes, or execution.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-governance-compile-preview",
+    tags: ["capability", "governance", "compiler", "shadow", "read_only", "no_execution", "no_provider_call", "no_mutation", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        capability_key: { type: "string", maxLength: 191 },
+        source_table: { type: "string", maxLength: 191 },
+        after_key: { type: "string", maxLength: 191 },
+        limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+        gap_limit: { type: "integer", minimum: 1, maximum: 500, default: 200 },
       },
       additionalProperties: false,
     },
