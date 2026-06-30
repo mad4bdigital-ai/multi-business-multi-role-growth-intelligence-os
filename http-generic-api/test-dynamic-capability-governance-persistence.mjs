@@ -224,7 +224,7 @@ await assert.rejects(
     expected_source_revision_hash: "d".repeat(64),
     confirm: CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
     capability_envelope_id: "envelope-003",
-  }, { pool: createFakePool(), previewBuilder: async () => preview }),
+  }, { pool: createFakePool(), previewBuilder: async () => preview, resolveEnvelope }),
   (error) => error.code === "capability_governance_source_revision_mismatch"
 );
 
