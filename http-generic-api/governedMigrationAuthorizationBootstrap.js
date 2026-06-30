@@ -23,7 +23,7 @@ const MIGRATION_EXECUTOR_APPLY_POLICY = Object.freeze({
   policy_key: "governed_migration_execute_apply_v1",
   app_key: "platform_orchestration",
   capability_key: "governed_migration_execute",
-  operation_intent: "governed_migration_execute",
+  operation_intent: "governed_migration_apply",
   runtime_surface: "governed_migration_execute",
   allowed_source_tiers: ["platform_managed_fallback"],
   policy: {
