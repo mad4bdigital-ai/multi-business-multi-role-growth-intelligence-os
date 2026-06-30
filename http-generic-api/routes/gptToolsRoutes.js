@@ -396,6 +396,26 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "platform_capability_projection_preview",
+    displayName: "Preview Platform Capability Projections",
+    description: "Build deterministic Admin and Tenant projection candidates from current persisted governance manifests, compare them with existing tool catalogs and export registries, summarize bounded schemas, and emit typed reconciliation gaps. Preview only: no callable export creation, no registry mutation, no provider call, and no Tenant authority change.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-projection-preview",
+    tags: ["capability", "governance", "projection", "reconciliation", "admin", "tenant_safe_preview", "read_only", "dry_run", "no_mutation", "no_callable_export", "no_provider_call", "no_tenant_authority_change", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        capability_key: { type: "string", maxLength: 191 },
+        after_key: { type: "string", maxLength: 191 },
+        target_scope: { type: "string", enum: ["all", "admin", "tenant"], default: "all" },
+        include_aligned: { type: "boolean", default: true },
+        limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+        gap_limit: { type: "integer", minimum: 1, maximum: 500, default: 200 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "platform_capability_governance_compile_persist",
     displayName: "Persist Platform Capability Governance Compilation",
     description: "Persist one bounded shadow compilation batch into immutable internal SQL manifests, source links, and typed gap snapshots with idempotency and same-cycle readback. This does not call providers, create callable exports, change Tenant authority, or enable runtime execution.",
