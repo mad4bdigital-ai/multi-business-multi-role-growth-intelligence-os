@@ -154,6 +154,67 @@ assert.equal(classifyCapabilityEffect(rows[2]), "external_write");
 assert.equal(classifyCapabilityRisk(rows[2], "external_write"), "C");
 assert.equal(classifyCapabilityRisk({ ...rows[2], operation_class: "publish" }, "external_write"), "D");
 
+assert.equal(classifyCapabilityEffect({
+  capability_key: "admin_tool.activation_drive_probe",
+  source_key: "activation_drive_probe",
+  operation_class: "probe",
+  risk_class: "D",
+  apply_allowed: 0,
+}), "read_only");
+assert.equal(classifyCapabilityEffect({
+  capability_key: "admin_tool.cloudflare_tunnel_status",
+  source_key: "cloudflare_tunnel_status",
+  operation_class: "status",
+  apply_allowed: 0,
+}), "read_only");
+assert.equal(classifyCapabilityEffect({
+  capability_key: "admin_tool.connector_registry_get_tool",
+  source_key: "connector_registry_get_tool",
+  operation_class: "get",
+  apply_allowed: 0,
+}), "read_only");
+assert.equal(classifyCapabilityEffect({
+  capability_key: "admin_tool.capability_resolution_dry_run",
+  source_key: "capability_resolution_dry_run",
+  operation_class: "dry_run",
+  apply_allowed: 0,
+}), "preview_only");
+assert.equal(classifyCapabilityEffect({
+  capability_key: "admin_tool.connected_execution_resume_action_enqueue_dry_run",
+  source_key: "connected_execution_resume_action_enqueue_dry_run",
+  operation_class: "dry_run",
+  apply_allowed: 0,
+}), "preview_only");
+assert.equal(classifyCapabilityEffect({
+  capability_key: "admin_tool.connector_browser",
+  source_key: "connector_browser",
+  operation_class: "connector",
+  apply_allowed: 0,
+}), "unclassified");
+assert.equal(classifyCapabilityEffect({
+  capability_key: "admin_tool.activation_run_ack_api",
+  source_key: "activation_run_ack_api",
+  operation_class: "ack",
+  apply_allowed: 0,
+}), "internal_write");
+
+const sensitiveReadRequirements = compileCapabilityRequirements({
+  capability_key: "admin_tool.activation_drive_probe",
+  operation_class: "probe",
+  risk_class: "D",
+  authority_requirement_type: "invocation",
+  resource_authority_required: 0,
+  requires_audit_evidence: 0,
+  requires_readback: 1,
+}, "read_only", "D");
+assert.equal(sensitiveReadRequirements.approval_mode, "none");
+assert.equal(sensitiveReadRequirements.typed_confirmation, false);
+assert.equal(sensitiveReadRequirements.idempotency, false);
+assert.equal(sensitiveReadRequirements.certification, false);
+assert.equal(sensitiveReadRequirements.readback, false);
+assert.equal(sensitiveReadRequirements.rollback, false);
+assert.equal(sensitiveReadRequirements.compensation, false);
+
 const alertRequirements = compileCapabilityRequirements(rows[1], "internal_write", "B");
 assert.equal(alertRequirements.capability_envelope, true);
 assert.equal(alertRequirements.idempotency, true);
@@ -183,6 +244,7 @@ const preview = await buildDynamicCapabilityGovernancePreview(
   { pool, now: () => "2026-06-29T00:00:00.000Z" }
 );
 assert.equal(preview.compiler_version, DYNAMIC_CAPABILITY_GOVERNANCE_COMPILER_VERSION);
+assert.equal(preview.compiler_version, "dynamic-capability-governance-compiler-v2");
 assert.equal(preview.report_type, "dynamic_capability_governance_compile_preview");
 assert.equal(preview.mode, "dry_run");
 assert.equal(preview.counts.source_rows, 4);
@@ -190,6 +252,8 @@ assert.equal(preview.counts.manifest_count, 4);
 assert.equal(preview.counts.blocked_manifest_count >= 3, true);
 assert.equal(preview.gaps.some((gap) => gap.gap_key === "MUTATION_POLICY_REQUIRED"), true);
 assert.equal(preview.gaps.some((gap) => gap.gap_key === "TENANT_TO_ADMIN_SURFACE_BLOCKED"), true);
+assert.equal(preview.distributions.effect_class.read_only, 1);
+assert.equal(preview.distributions.effect_class.internal_write >= 1, true);
 assert.equal(preview.guarantees.runtime_dispatch_performed, false);
 assert.equal(preview.guarantees.mutations_performed, false);
 assert.equal(preview.guarantees.provider_calls_performed, false);
