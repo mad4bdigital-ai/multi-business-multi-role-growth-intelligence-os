@@ -181,10 +181,18 @@ async function main() {
   assert.equal(metadata.external_send, false);
   assert.equal(metadata.secrets_included, false);
 
+  const storedPolicy = pool.applyPolicies.get("platform_orchestration:governed_migration_execute:governed_migration_execute");
+  storedPolicy.requires_readback = 0;
+  storedPolicy.policy_json = JSON.stringify({ provider_call_allowed: true, secrets_included: false });
+
   const second = await bootstrapGovernedMigrationAuthorization(baseInput(), deps);
   assert.equal(second.authorization_created, false);
   assert.equal(second.idempotent, true);
   assert.equal(second.migration_sql_executed, false);
+  assert.equal(second.migration_executor_apply_policy.requires_readback, 1);
+  assert.equal(second.migration_executor_apply_policy.policy_json.provider_call_allowed, false);
+  assert.equal(second.migration_executor_apply_policy.policy_json.same_cycle_schema_readback_required, true);
+  assert.equal(pool.applyPolicies.size, 1);
 
   const dispatchOnly = await bootstrapGovernedMigrationAuthorization(baseInput(), {
     ...deps,
