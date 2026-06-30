@@ -1825,6 +1825,8 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     const result = await persistDynamicCapabilityGovernanceCompilation({
       ...(args || {}),
       requested_by: req?.auth?.user_id || req?.auth?.email || "platform_admin",
+    }, {
+      auth: req?.auth || {},
     });
     return { status: 200, body: { ok: true, name: toolKey, result } };
   }
