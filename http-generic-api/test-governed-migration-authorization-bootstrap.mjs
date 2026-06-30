@@ -223,6 +223,10 @@ async function main() {
   const storedPolicy = pool.applyPolicies.get("platform_orchestration:governed_migration_execute:governed_migration_execute");
   storedPolicy.requires_readback = 0;
   storedPolicy.policy_json = JSON.stringify({ provider_call_allowed: true, secrets_included: false });
+  const storedCertification = pool.certifications.get("governed_migration_execute");
+  storedCertification.dispatch_allowed = 0;
+  storedCertification.apply_allowed = 1;
+  storedCertification.requires_readback = 0;
 
   const second = await bootstrapGovernedMigrationAuthorization(baseInput(), deps);
   assert.equal(second.authorization_created, false);
