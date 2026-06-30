@@ -43,9 +43,9 @@ AUTHORIZE_GOVERNED_MIGRATION_1020_SPRINT69_MULTI_SURFACE_TENANT_AGENT_RUNTIME
 3. Create and approve a short-lived Capability Resolution Envelope for `governed_migration_authorization_bootstrap`.
 4. Call the bootstrap tool with checksum, statement count, PR, merge SHA, typed confirmation, and envelope ID.
 5. Read back the authorization row in the same cycle.
-6. Run `migration_apply_guarded_dry_run` for the target migration.
-7. Apply only when preflight passes and the user-approved typed apply confirmation is supplied.
-8. Read back the migration ledger, required schema objects, tool bindings, release readiness, and deployment parity.
+6. Call the Admin virtual tool `governed_migration_execute` with `mode=dry_run`, the exact merged checksum, and exact statement count.
+7. Apply through the same tool only when dry-run passes, using a ready `platform_orchestration` Capability Resolution Envelope and the deterministic `APPLY_<MIGRATION>` confirmation. Do not invoke the generic `admin_control` shell alias directly.
+8. Require the tool readback to confirm all statements, the governed migration ledger row, and required schema objects; then verify tool bindings, release readiness, and deployment parity.
 
 ## Non-goals
 

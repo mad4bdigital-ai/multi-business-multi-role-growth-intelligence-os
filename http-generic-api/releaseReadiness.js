@@ -92,6 +92,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "246_sprint68_gpt_session_archive_backfill_tool.sql",
   "249_sprint68_gpt_archive_backfill_conversation_ref_monitoring.sql",
   "250_sprint68_gpt_conversation_capture_contract_monitoring.sql",
+  "1028_sprint69_gpt_session_archive_actionable_ref_metrics.sql",
   "251_sprint68_dynamic_memory_scope_types.sql",
   "252_sprint68_memory_scope_links_foundation.sql",
   "253_sprint68_session_insight_candidates_foundation.sql",

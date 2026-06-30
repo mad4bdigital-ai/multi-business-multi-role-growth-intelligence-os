@@ -378,18 +378,84 @@ function aggregateRows(rows, key, accepted = null) {
   return output;
 }
 
-export function countOperationalBlockedSurfaces({ results = {}, counts = {} } = {}) {
+export function deriveSkillGrantProjection(rows = []) {
+  const grantStatus = {};
+  let total = 0;
+  let requiresApproval = 0;
+  let noApprovalRequired = 0;
+  for (const row of rows) {
+    const count = safeNumber(row.count || 0);
+    const status = String(row.grant_status ?? "unknown");
+    grantStatus[status] = (grantStatus[status] || 0) + count;
+    total += count;
+    if (status !== "active") continue;
+    if (safeNumber(row.requires_approval) === 1) requiresApproval += count;
+    else noApprovalRequired += count;
+  }
+  return {
+    total,
+    grant_status: grantStatus,
+    approval: {
+      requires_approval: requiresApproval,
+      no_approval_required: noApprovalRequired,
+    },
+  };
+}
+
+export function deriveOperationalBlockedSurfaces({ results = {}, counts = {} } = {}) {
   const highSeveritySignals = Object.entries(counts.signals || {})
     .filter(([key]) => /^(critical|high):/i.test(key))
     .reduce((sum, [, value]) => sum + safeNumber(value), 0);
-  return [
-    results.systems?.ok !== true || safeNumber(counts.systems?.pending) > 0 || safeNumber(counts.systems?.error) > 0,
-    results.tasks?.ok !== true || safeNumber(counts.tasks?.blocked) > 0,
-    results.agents?.ok !== true || safeNumber(counts.agents?.degraded) > 0 || safeNumber(counts.agents?.offline) > 0,
-    results.skills?.ok !== true || safeNumber(counts.skills?.requires_approval) > 0,
-    results.freshness?.ok !== true || safeNumber(counts.freshness?.failed) > 0 || safeNumber(counts.freshness?.stale) > 0,
-    results.signals?.ok !== true || highSeveritySignals > 0,
-  ].filter(Boolean).length;
+  const blocked = [];
+  const add = (surfaceKey, reasons, metrics) => {
+    if (!reasons.length) return;
+    blocked.push({ surface_key: surfaceKey, status: "blocked", reasons, metrics, secrets_included: false });
+  };
+
+  add("connectors", [
+    results.systems?.ok !== true ? "source_unavailable" : null,
+    safeNumber(counts.systems?.pending) > 0 ? "pending_installations" : null,
+    safeNumber(counts.systems?.error) > 0 ? "connector_errors" : null,
+  ].filter(Boolean), {
+    active: results.systems?.ok === true ? safeNumber(counts.systems?.active) : null,
+    pending: results.systems?.ok === true ? safeNumber(counts.systems?.pending) : null,
+    error: results.systems?.ok === true ? safeNumber(counts.systems?.error) : null,
+  });
+  add("tasks", [
+    results.tasks?.ok !== true ? "source_unavailable" : null,
+    safeNumber(counts.tasks?.blocked) > 0 ? "blocked_tasks" : null,
+  ].filter(Boolean), { blocked: results.tasks?.ok === true ? safeNumber(counts.tasks?.blocked) : null });
+  add("agents", [
+    results.agents?.ok !== true ? "source_unavailable" : null,
+    safeNumber(counts.agents?.degraded) > 0 ? "degraded_agents" : null,
+    safeNumber(counts.agents?.offline) > 0 ? "offline_agents" : null,
+  ].filter(Boolean), {
+    degraded: results.agents?.ok === true ? safeNumber(counts.agents?.degraded) : null,
+    offline: results.agents?.ok === true ? safeNumber(counts.agents?.offline) : null,
+  });
+  add("skills", [
+    results.skills?.ok !== true ? "source_unavailable" : null,
+  ].filter(Boolean), {
+    active_grants: results.skills?.ok === true ? safeNumber(counts.skills?.active) : null,
+    requires_approval: results.skills?.ok === true ? safeNumber(counts.skillApprovals?.requires_approval) : null,
+  });
+  add("freshness", [
+    results.freshness?.ok !== true ? "source_unavailable" : null,
+    safeNumber(counts.freshness?.failed) > 0 ? "freshness_failed" : null,
+    safeNumber(counts.freshness?.stale) > 0 ? "freshness_stale" : null,
+  ].filter(Boolean), {
+    failed: results.freshness?.ok === true ? safeNumber(counts.freshness?.failed) : null,
+    stale: results.freshness?.ok === true ? safeNumber(counts.freshness?.stale) : null,
+  });
+  add("signals", [
+    results.signals?.ok !== true ? "source_unavailable" : null,
+    highSeveritySignals > 0 ? "high_severity_signals" : null,
+  ].filter(Boolean), { high_severity: results.signals?.ok === true ? highSeveritySignals : null });
+  return blocked;
+}
+
+export function countOperationalBlockedSurfaces(input = {}) {
+  return deriveOperationalBlockedSurfaces(input).length;
 }
 
 async function groupedCount(table, groupColumn, whereSql, params = []) {
@@ -454,11 +520,10 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
     ),
     groupedCount("v_activation_agent_catalog", "health_status", tenantWhere, tenantParams),
     safeRows(
-      `SELECT CASE WHEN requires_approval = 1 THEN 'requires_approval' ELSE grant_status END AS group_value,
-              COUNT(*) AS count
+      `SELECT grant_status, requires_approval, COUNT(*) AS count
          FROM v_activation_agent_skill_grants
         WHERE ${tenantWhere}
-        GROUP BY CASE WHEN requires_approval = 1 THEN 'requires_approval' ELSE grant_status END`,
+        GROUP BY grant_status, requires_approval`,
       tenantParams
     ),
     safeRows(
@@ -483,7 +548,9 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
   const systemCounts = aggregateRows(systems.rows, "group_value");
   const taskCounts = aggregateRows(tasks.rows, "group_value");
   const agentCounts = aggregateRows(agents.rows, "group_value");
-  const skillCounts = aggregateRows(skills.rows, "group_value");
+  const skillProjection = deriveSkillGrantProjection(skills.rows);
+  const skillCounts = skillProjection.grant_status;
+  const skillApprovalCounts = skillProjection.approval;
   const freshnessCounts = aggregateRows(freshness.rows, "group_value");
   const signalCounts = aggregateRows(signals.rows, "group_value");
   const unifiedAttention = await readOperationalAlerts({
@@ -548,10 +615,21 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
       : freshTotal > 0
         ? "fresh"
         : "unknown";
-  const blockedSurfaceCount = countOperationalBlockedSurfaces({
+  const blockedSurfaces = deriveOperationalBlockedSurfaces({
     results: { systems, tasks, agents, skills, freshness, signals },
-    counts: { systems: systemCounts, tasks: taskCounts, agents: agentCounts, skills: skillCounts, freshness: freshnessCounts, signals: signalCounts },
+    counts: {
+      systems: systemCounts,
+      tasks: taskCounts,
+      agents: agentCounts,
+      skills: skillCounts,
+      skillApprovals: skillApprovalCounts,
+      freshness: freshnessCounts,
+      signals: signalCounts,
+    },
   });
+  const blockedSurfaceCount = blockedSurfaces.length;
+  const registeredSystemCount = sumCountGroups(systems, systemCounts);
+  const connectedSystemCount = systems.ok ? safeNumber(systemCounts.active) : null;
 
   return {
     attempted: true,
@@ -564,23 +642,35 @@ export async function buildActivationOperationalSummary({ sessionContext = null,
       high_attention_count: safeNumber(unifiedAttention?.summary?.by_severity?.high),
       known_issue_count: safeNumber(unifiedAttention?.summary?.known_issue_count),
       current_detected_count: safeNumber(unifiedAttention?.summary?.current_detected_count),
-      connected_system_count: sumCountGroups(systems, systemCounts),
+      registered_system_count: registeredSystemCount,
+      connected_system_count: connectedSystemCount,
+      pending_system_count: systems.ok ? safeNumber(systemCounts.pending) : null,
+      error_system_count: systems.ok ? safeNumber(systemCounts.error) : null,
       pending_task_count: sumCountGroups(tasks, taskCounts),
       agent_count: sumCountGroups(agents, agentCounts),
-      skill_grant_count: sumCountGroups(skills, skillCounts),
+      skill_grant_count: skills.ok ? skillProjection.total : null,
+      active_skill_grant_count: skills.ok ? safeNumber(skillCounts.active) : null,
+      approval_required_skill_grant_count: skills.ok ? safeNumber(skillApprovalCounts.requires_approval) : null,
       registered_action_count: actionCount.count,
       connector_pack_count: packCount.count,
       signal_subscription_count: subscriptionCount.count,
       all_known_issues_visible: unifiedAttention?.completeness?.all_known_issues_visible === true,
       final_result_complete: unifiedAttention?.completeness?.final_result_complete === true,
       blocked_surface_count: blockedSurfaceCount,
+      blocked_surfaces: blockedSurfaces,
       degraded_surface_count: degraded.length,
     },
     tab_badges: {
       connectors: { available: systems.ok, active: systems.ok ? safeNumber(systemCounts.active) : null, pending: systems.ok ? safeNumber(systemCounts.pending) : null, error: systems.ok ? safeNumber(systemCounts.error) : null },
       tasks: { available: tasks.ok, blocked: tasks.ok ? safeNumber(taskCounts.blocked) : null, open: sumCountGroups(tasks, taskCounts) },
       agents: { available: agents.ok, active: agents.ok ? safeNumber(agentCounts.active) : null, degraded: agents.ok ? safeNumber(agentCounts.degraded) : null, offline: agents.ok ? safeNumber(agentCounts.offline) : null },
-      skills: { available: skills.ok, active_grants: skills.ok ? safeNumber(skillCounts.active) : null, requires_approval: skills.ok ? safeNumber(skillCounts.requires_approval) : null },
+      skills: {
+        available: skills.ok,
+        active_grants: skills.ok ? safeNumber(skillCounts.active) : null,
+        requires_approval: skills.ok ? safeNumber(skillApprovalCounts.requires_approval) : null,
+        grant_state: skills.ok ? (safeNumber(skillCounts.active) > 0 ? "active" : "inactive") : "unknown",
+        approval_state: skills.ok ? (safeNumber(skillApprovalCounts.requires_approval) > 0 ? "required" : "not_required") : "unknown",
+      },
       freshness: { available: freshness.ok, ...freshnessCounts },
       signals: { available: signals.ok, ...signalCounts },
     },
@@ -901,6 +991,7 @@ export const _testingActivationAwareness = {
   stripSensitive,
   quoteIdentifier,
   safeColumns,
+  deriveSkillGrantProjection,
   defaultDeliveryMode,
   defaultDedupeScope,
   badgeForTab,

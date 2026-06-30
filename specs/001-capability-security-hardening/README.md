@@ -31,6 +31,7 @@ The feature establishes one canonical security decision path for actions, tools,
 specs/
 └─ 001-capability-security-hardening/
    ├─ spec.md
+   ├─ completion.json
    ├─ plan.md
    ├─ research.md
    ├─ data-model.md
@@ -39,6 +40,8 @@ specs/
    ├─ traceability.md
    ├─ acceptance-matrix.md
    ├─ rollout.md
+   ├─ containment-validation.md
+   ├─ tenant-reverification-unified-report-2026-06-23.md
    ├─ threat-model.md
    ├─ contracts/
    │  ├─ capability-resolution.openapi.yaml
@@ -46,8 +49,13 @@ specs/
    └─ checklists/
       ├─ requirements.md
       ├─ security.md
-      └─ release-readiness.md
+      ├─ release-readiness.md
+      └─ pr-1879-phase0-merge.md
 ```
+
+## Current Phase 0 evidence
+
+PR #1879 closes only T001–T009 containment. The exact merge evidence is in `containment-validation.md`; the complete 34-wave tenant reverification and open residual risks are in `tenant-reverification-unified-report-2026-06-23.md`; checklist truth is split across the four files under `checklists/`. Unchecked controls remain blockers for unrestricted tenant execution and production promotion.
 
 ## Recommended execution order
 

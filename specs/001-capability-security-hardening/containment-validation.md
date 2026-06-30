@@ -35,6 +35,19 @@ The final expected base, remote commit, and merge SHA are recorded by the same-c
 | T007 | Independent operational kill switches | `test-capability-kill-switch-policy.mjs`; read-only diagnostics remain available and blocked mutations return stable HTTP 503 evidence |
 | T008 | High-severity tenant-to-admin and selector-parity alerts | `test-platform-plugin-security-alerts.mjs` and resolver integration tests; append-only audit metadata is bounded and secret-free |
 
+## Unified tenant reverification evidence
+
+The complete tenant-scoped 34-wave verification record is preserved in [`tenant-reverification-unified-report-2026-06-23.md`](./tenant-reverification-unified-report-2026-06-23.md), SHA-256 `5874a56d4dc5c3d11bce18e3166fd509fce74317253bd2e0305ff3c50485eb6f`.
+
+It records 34 completed safe verification waves, three contract-blocked groups, P0/P1/P2 findings, support evidence identifiers, and an explicit no-provider-execution/no-mutation safety statement for those tenant tests. The report remains the source for residual risks that are not closed by this Phase 0 containment PR. In particular, unrestricted tenant state-changing execution, complete agent authorization, credential-scope provenance, smoke-certificate binding, device/local routing, capability discovery, and production promotion remain blocked.
+
+The checklist projections are:
+
+- [`checklists/requirements.md`](./checklists/requirements.md): requirements quality and testability.
+- [`checklists/security.md`](./checklists/security.md): verified Phase 0 controls versus open platform-wide controls.
+- [`checklists/release-readiness.md`](./checklists/release-readiness.md): containment-merge readiness versus full release readiness.
+- [`checklists/pr-1879-phase0-merge.md`](./checklists/pr-1879-phase0-merge.md): exact PR feedback, testing, API, database, and merge gates.
+
 ## Validation suite
 
 The resolution tree passed:

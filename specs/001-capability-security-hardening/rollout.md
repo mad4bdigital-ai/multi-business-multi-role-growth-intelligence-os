@@ -42,6 +42,8 @@ Apply before architectural refactoring:
 ## Phase 0 validation record
 
 The merge evidence, named owners, rollback controls, and later-phase boundary are recorded in [`containment-validation.md`](./containment-validation.md). Phase 0 closure does not imply staging, deployment, or production-promotion approval.
+
+The complete tenant residual-risk baseline is preserved in [`tenant-reverification-unified-report-2026-06-23.md`](./tenant-reverification-unified-report-2026-06-23.md). Its open P0/P1/P2 findings remain rollout blockers unless a later governed task supplies implementation, automated evidence, and same-cycle reverification.
 ## Rollout stages
 
 ### Stage 0 — Inventory and containment

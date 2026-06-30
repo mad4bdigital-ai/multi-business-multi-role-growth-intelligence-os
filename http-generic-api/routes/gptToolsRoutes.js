@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 import { getPool } from "../db.js";
 import { getGitHubAppInstallationToken } from "../githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
-import { writeAuditLogAsync } from "../auditLogger.js";
+import { writeAuditLog, writeAuditLogAsync } from "../auditLogger.js";
 import { recordGptSessionTurn } from "../sessionArchiveService.js";
 import {
   findActiveGrantForTool,
@@ -23,6 +23,9 @@ import {
 } from "../governedToolResponseChunkStore.js";
 import { runGovernedResponseChunkDurableRecoverySmoke } from "../governedResponseChunkDurableRecoverySmoke.js";
 import { bootstrapGovernedMigrationAuthorization } from "../governedMigrationAuthorizationBootstrap.js";
+import { authorizeCapabilityResolutionEnvelopeApply } from "../scripts/capability-resolution-envelope-apply-authorize.mjs";
+import { runGovernedMigrationExecution } from "../governedMigrationExecutionTool.js";
+import { buildActivationGatewayRolloutPlan, runActivationGatewayDarkDeploy } from "../activationGatewayRolloutTool.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import {
   capabilityEnvelopeError,
@@ -37,6 +40,7 @@ import { runRepositoryCloseSupersededPositiveSmokeV6 } from "../repositoryCloseS
 import { applyUnifiedDiffToText } from "../unifiedDiff.js";
 export { applyUnifiedDiffToText };
 import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveReport } from "../platformCapabilityReports.js";
+import { buildDynamicCapabilityGovernancePreview } from "../dynamicCapabilityGovernanceCompiler.js";
 import { runGrowthIntelligencePilotAdmin } from "../growthIntelligenceAdminTool.js";
 import {
   approveRepositoryAdvisoryCommentApprovalHoldAdmin,
@@ -179,6 +183,10 @@ async function findActiveSessionForCaller(pool, req, args = {}) {
     if (counts.conversation_turns > 0) {
       return { ...row, archive_binding: "latest_active_with_conversation_turn", turn_counts: counts };
     }
+  }
+  if (rows?.[0]) {
+    const counts = await countConversationTurns(pool, rows[0].session_id);
+    return { ...rows[0], archive_binding: "latest_active_session_fallback", turn_counts: counts };
   }
   return null;
 }
@@ -364,6 +372,71 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "platform_capability_governance_compile_preview",
+    displayName: "Platform Capability Governance Compile Preview",
+    description: "Compile deterministic read-only governance manifests and typed gaps from the current MySQL capability readiness vector. Shadow diagnostics only: no registry writes, provider calls, callable exports, tenant authority changes, or execution.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-governance-compile-preview",
+    tags: ["capability", "governance", "compiler", "shadow", "read_only", "no_execution", "no_provider_call", "no_mutation", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        capability_key: { type: "string", maxLength: 191 },
+        source_table: { type: "string", maxLength: 191 },
+        after_key: { type: "string", maxLength: 191 },
+        limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+        gap_limit: { type: "integer", minimum: 1, maximum: 500, default: 200 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "activation_gateway_rollout_plan",
+    displayName: "Activation Gateway Rollout Plan",
+    description: "Admin-only read-only rollout plan for the Activation Gateway Cloudflare Worker. Validates generated policy hash, signed deployment attestation, workspace and exact Worker resource binding, workers.dev readiness, previous deployment rollback target, and feature-gate state. Never uploads code, writes secrets, enables a subdomain, changes DNS, or binds a custom domain.",
+    method: "VIRTUAL",
+    path: "internal://activation-gateway-rollout-plan",
+    tags: ["activation_gateway", "cloudflare", "rollout", "read_only", "diagnostics", "dry_run", "no_execution", "no_external_write", "no_dns", "no_custom_domain", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["account_id", "expected_source_commit"],
+      properties: {
+        account_id: { type: "string", pattern: "^[a-f0-9]{32}$" },
+        script_name: { type: "string", const: "mad4b-activation-gateway" },
+        expected_source_commit: { type: "string", pattern: "^[a-f0-9]{40}$" },
+        expected_policy_hash: { type: "string", pattern: "^[a-f0-9]{64}$" },
+        workspace_id: { type: "string" },
+        resource_binding_id: { type: "string" },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "activation_gateway_dark_deploy",
+    displayName: "Activation Gateway Dark Deploy",
+    description: "Admin-only governed workers.dev dark deployment for the Activation Gateway. Defaults to dry-run. Apply requires an exact policy hash and source commit, signed Ed25519 attestation, active exact Worker resource binding, approved single-use capability envelope, execution nonce, typed confirmation derived from the policy hash, enabled feature flag, same-cycle Cloudflare inventory, awaited audit evidence, secret-safe Worker upload, workers.dev health/ready readback, and automatic rollback. DNS and custom-domain binding are forbidden.",
+    method: "VIRTUAL",
+    path: "internal://activation-gateway-dark-deploy",
+    tags: ["activation_gateway", "cloudflare", "rollout", "mutation", "dry_run_default", "dry_run_default_true", "typed_confirmation", "capability_envelope", "same_cycle_readback", "rollback_required", "no_dns", "no_custom_domain", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["mode", "account_id", "expected_source_commit", "expected_policy_hash"],
+      properties: {
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
+        account_id: { type: "string", pattern: "^[a-f0-9]{32}$" },
+        script_name: { type: "string", const: "mad4b-activation-gateway" },
+        expected_source_commit: { type: "string", pattern: "^[a-f0-9]{40}$" },
+        expected_policy_hash: { type: "string", pattern: "^[a-f0-9]{64}$" },
+        workspace_id: { type: "string" },
+        resource_binding_id: { type: "string" },
+        capability_envelope_id: { type: "string" },
+        execution_nonce: { type: "string", minLength: 8, maxLength: 128, pattern: "^[A-Za-z0-9._:-]+$" },
+        confirm: { type: "string" },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "response_chunk_read",
     displayName: "Read Tool Response Chunk",
     description: "Read the next chunk of an oversized governed tool response. Reads the in-process cache first and recovers from durable MySQL storage after cache loss or process restart.",
@@ -399,6 +472,25 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "capability_resolution_envelope_apply_authorize",
+    displayName: "Apply-Authorize Capability Resolution Envelope",
+    description: "Apply-authorize one ready capability resolution envelope through the dynamic capability apply policy. Creates internal approval evidence only; no provider call, external write, credential payload read, or secret return.",
+    method: "VIRTUAL",
+    path: "internal://capability-resolution-envelope-apply-authorize",
+    tags: ["admin", "capability_resolution", "apply_authorization", "state_changing", "approval_required", "readback", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["envelope_id", "decision_note"],
+      properties: {
+        envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+        authorized_by: { type: "string", minLength: 1, maxLength: 64 },
+        decision_note: { type: "string", minLength: 20, maxLength: 512 },
+        ttl_minutes: { type: "integer", minimum: 5, maximum: 240, default: 60 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "governed_migration_authorization_bootstrap",
     displayName: "Governed Migration Authorization Bootstrap",
     description: "Authorize one checksum-bound additive migration for the governed runner without executing migration SQL. Requires exact checksum, statement count, merged PR evidence, typed confirmation, a ready capability envelope, zero-risk preflight, and same-cycle authorization readback.",
@@ -417,6 +509,27 @@ const VIRTUAL_ADMIN_TOOLS = [
         confirm: { type: "string" },
         capability_envelope_id: { type: "string" },
         decision_note: { type: "string", minLength: 20, maxLength: 1000 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "governed_migration_execute",
+    displayName: "Governed Migration Execute",
+    description: "Dry-run or apply one checksum-bound authorized migration through the governed runner. Apply requires exact typed confirmation, a ready platform_orchestration capability envelope, ledger persistence, and same-cycle schema readback.",
+    method: "VIRTUAL",
+    path: "internal://governed-migration-execute",
+    tags: ["admin", "migration", "mutation", "dry_run_default", "typed_confirmation", "capability_envelope", "same_cycle_readback", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["migration", "mode", "expected_checksum_sha256", "expected_statement_count"],
+      properties: {
+        migration: { type: "string", pattern: "^[A-Za-z0-9._-]+\\.sql$" },
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
+        expected_checksum_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        expected_statement_count: { type: "integer", minimum: 1, maximum: 5000 },
+        confirm: { type: "string" },
+        capability_envelope_id: { type: "string" },
       },
       additionalProperties: false,
     },
@@ -849,7 +962,7 @@ const VIRTUAL_ADMIN_TOOLS = [
     description: "Apply a patch to the repository via the GitHub App, sidestepping the local connector. Actions: write_file, replace_block, apply_unified_diff, delete_file, dedupe_openapi_paths. Path is repo-confined; secrets/build folders are blocked. Runtime defaults to a generated non-protected work branch. Protected branches are blocked unless explicit break-glass policy is enabled and justified.",
     method: "VIRTUAL",
     path: "internal://repo-patch-apply",
-    tags: ["repo", "mutation", "self_repair"],
+    tags: ["repo", "mutation", "self_repair", "capability_envelope", "readback", "no_secrets"],
     inputSchema: {
       type: "object",
       required: ["action", "path", "commit_message", "capability_envelope_id"],
@@ -1408,8 +1521,14 @@ async function storeToolResponseForChunks(body, optionsSource = {}, deps = {}) {
   return { chunkId, serialized, ttlMs, expiresAt: new Date(durable.expires_at).getTime() };
 }
 
+export function shouldChunkDispatchedToolResponse(toolKey = "") {
+  return String(toolKey || "").trim() !== "response_chunk_read";
+}
+
 export async function maybeChunkToolResponseBody(body, optionsSource = {}, deps = {}) {
-  const options = normalizeResponseOptions(optionsSource?.response_options || optionsSource?._response || {});
+  const options = normalizeResponseOptions(
+    optionsSource?.response_options || optionsSource?._response || optionsSource || {}
+  );
   const serialized = JSON.stringify(body ?? {});
   if (serialized.length <= options.maxChars) return body;
   const { chunkId } = await storeToolResponseForChunks(body, optionsSource, deps);
@@ -1553,6 +1672,37 @@ async function fetchTools(callerType) {
   return callerType === "admin" ? [...VIRTUAL_ADMIN_TOOLS, ...dbTools] : dbTools;
 }
 
+async function resolveToolPreflightDescriptor(callerType, toolKey) {
+  const normalizedToolKey = String(toolKey || "").trim();
+  if (!normalizedToolKey) return null;
+  if (callerType === "admin") {
+    const virtualTool = VIRTUAL_ADMIN_TOOLS.find((tool) => tool.name === normalizedToolKey);
+    if (virtualTool) {
+      return {
+        method: virtualTool.method || "VIRTUAL",
+        tags: Array.isArray(virtualTool.tags) ? virtualTool.tags : [],
+        source: "virtual_admin_tool_catalog",
+      };
+    }
+  }
+
+  const candidateTables = callerType === "tenant"
+    ? [TOOLS_TABLE.tenant, TOOLS_TABLE.admin]
+    : [TOOLS_TABLE.admin];
+  for (const table of candidateTables) {
+    const [rows] = await getPool().query(
+      `SELECT http_method, tags FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 1`,
+      [normalizedToolKey]
+    );
+    if (!rows?.[0]) continue;
+    return {
+      method: rows[0].http_method || "",
+      tags: String(rows[0].tags || "").split(",").map((tag) => tag.trim()).filter(Boolean),
+      source: table,
+    };
+  }
+  return null;
+}
 async function detectMissingRequiredArgs(callerType, toolKey, args) {
   // Virtual admin tools enforce their own schemas inside dispatchToolImpl;
   // skip up-front validation for them.
@@ -1582,33 +1732,27 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
   }
 }
 
-async function lookupToolDispatchMetadata(callerType, toolKey) {
-  try {
-    const tools = await fetchTools(callerType);
-    const tool = tools.find((item) => item?.name === toolKey);
-    if (!tool) return {};
-    return {
-      method: tool.method || "",
-      tags: Array.isArray(tool.tags) ? tool.tags : [],
-      mutationRequired: tool.mutation_required ?? tool.mutationRequired ?? null,
-      mutationPolicyDeclared: tool.mutation_policy_declared ?? tool.mutationPolicyDeclared ?? null,
-    };
-  } catch {
-    return {};
-  }
-}
-
 async function dispatchTool(callerType, toolKey, args, req) {
-  const dispatchMetadata = await lookupToolDispatchMetadata(callerType, toolKey);
-  assertPreflightAllowed(await evaluateGptToolDispatchPreflight({ callerType, toolKey, args, ...dispatchMetadata }));
+  const descriptor = await resolveToolPreflightDescriptor(callerType, toolKey);
+  if (descriptor) {
+    assertPreflightAllowed(await evaluateGptToolDispatchPreflight({
+      callerType,
+      toolKey,
+      args,
+      method: descriptor.method,
+      tags: descriptor.tags,
+    }));
+  }
   const result = await dispatchToolImpl(callerType, toolKey, args, req);
   const responseOptions = args && typeof args === "object" ? args : {};
   const resultForClient = {
     ...result,
-    body: await maybeChunkToolResponseBody(result?.body, {
-      ...responseOptions,
-      source_tool_key: toolKey,
-    }),
+    body: shouldChunkDispatchedToolResponse(toolKey)
+      ? await maybeChunkToolResponseBody(result?.body, {
+          ...responseOptions,
+          source_tool_key: toolKey,
+        })
+      : result?.body,
   };
   // Best-effort: archive the dispatch as a tool turn so admin GPT sessions get a
   // complete transcript without depending on the GPT calling writeSessionTurn.
@@ -1646,6 +1790,57 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     return { status: 200, body: { ok: true, name: toolKey, result: await buildPlatformCapabilityLiveReport(args) } };
   }
 
+  if (callerType === "admin" && toolKey === "platform_capability_governance_compile_preview") {
+    return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityGovernancePreview(args) } };
+  }
+  if (callerType === "admin" && toolKey === "activation_gateway_rollout_plan") {
+    try {
+      const result = await buildActivationGatewayRolloutPlan(args || {}, {
+        pool: getPool(),
+        auth: req?.auth || {},
+        env: process.env,
+      });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "activation_gateway_rollout_plan_failed", message: err?.message || "Activation Gateway rollout plan failed.", details: err?.details } },
+      };
+    }
+  }
+
+  if (callerType === "admin" && toolKey === "activation_gateway_dark_deploy") {
+    try {
+      const result = await runActivationGatewayDarkDeploy(args || {}, {
+        pool: getPool(),
+        auth: req?.auth || {},
+        env: process.env,
+        audit: async (entry = {}) => writeAuditLog({
+          tenant_id: req?.auth?.tenant_id || null,
+          workspace_id: args?.workspace_id || null,
+          actor_id: req?.auth?.user_id || null,
+          actor_type: req?.auth?.mode || "backend_api_key",
+          user_id: req?.auth?.user_id || null,
+          request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
+          action: entry.action || "activation_gateway.dark_deploy",
+          resource_type: entry.resource_type || "cloudflare_worker",
+          resource_id: entry.resource_id || "mad4b-activation-gateway",
+          after_json: entry.payload || { secrets_included: false },
+          ip_address: req?.ip || null,
+          user_agent: req?.headers?.["user-agent"] || null,
+          metadata: { source_tool_key: toolKey, secrets_included: false },
+          outcome: String(entry.action || "").endsWith("_failed") ? "failed" : "succeeded",
+        }),
+      });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "activation_gateway_dark_deploy_failed", message: err?.message || "Activation Gateway dark deploy failed.", details: err?.details } },
+      };
+    }
+  }
+
   if (callerType === "admin" && toolKey === "response_chunk_read") {
     return { status: 200, body: await readCachedToolResponseChunk(args) };
   }
@@ -1673,6 +1868,29 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     };
   }
 
+  if (callerType === "admin" && toolKey === "capability_resolution_envelope_apply_authorize") {
+    try {
+      const result = await authorizeCapabilityResolutionEnvelopeApply({
+        envelopeId: String(args?.envelope_id || "").trim(),
+        authorizedBy: String(args?.authorized_by || req?.auth?.user_id || "platform_admin").trim(),
+        decisionNote: String(args?.decision_note || "").trim(),
+        ttlMinutes: Number(args?.ttl_minutes || 60),
+      });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: Number(err?.status || 400),
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "capability_envelope_apply_authorization_failed",
+            message: err?.message || "Capability envelope apply authorization failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
   if (callerType === "admin" && toolKey === "governed_migration_authorization_bootstrap") {
     try {
       const result = await bootstrapGovernedMigrationAuthorization(args || {}, {
@@ -1691,6 +1909,48 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
           error: {
             code: err?.code || "governed_migration_authorization_bootstrap_failed",
             message: err?.message || "Governed migration authorization bootstrap failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
+  if (callerType === "admin" && toolKey === "governed_migration_execute") {
+    try {
+      const result = await runGovernedMigrationExecution(args || {}, {
+        authorizeApply: async (inspection) => {
+          const resolved = await resolveCapabilityExecutionEnvelope({
+            pool: getPool(),
+            source: args || {},
+            acceptedAppKeys: ["platform_orchestration"],
+            acceptedIntents: ["governed_migration_execute", "governed_migration_apply", "migration_apply", "governed_migration_runner"],
+            expectedTenantId: req?.auth?.tenant_id || PLATFORM_TENANT_ID,
+            expectedUserId: req?.auth?.user_id || "",
+            requireReadyForDispatch: true,
+            requireDispatchAllowed: true,
+            requireNoBlockingGaps: true,
+            requireNoSecrets: true,
+          });
+          if (!resolved.ok) {
+            throw capabilityEnvelopeError(resolved, "Governed migration apply requires a ready platform_orchestration capability envelope.");
+          }
+          await markCapabilityEnvelopeReferenced({
+            pool: getPool(),
+            envelopeId: resolved.envelope_id,
+            executionRef: `governed_migration_execute:${inspection.migration}`,
+          });
+          return resolved;
+        },
+      });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "governed_migration_execution_failed",
+            message: err?.message || "Governed migration execution failed.",
             details: err?.details,
           },
         },

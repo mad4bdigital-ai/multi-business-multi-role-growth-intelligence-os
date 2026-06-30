@@ -1,0 +1,48 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$title: Mad4B Custom GPT Surface Registry
+type: object
+required: [version, surfaces]
+additionalProperties: false
+properties:
+  version:
+    type: integer
+    minimum: 1
+  surfaces:
+    type: object
+    minProperties: 1
+    additionalProperties:
+      type: object
+      required:
+        - output_file
+        - server_url
+        - auth_profile
+        - hard_operation_limit
+        - warning_operation_limit
+      additionalProperties: false
+      properties:
+        output_file:
+          type: string
+          pattern: '^openapi\..+\.ya?ml$'
+        server_url:
+          type: string
+          format: uri
+          pattern: '^https://'
+        auth_profile:
+          type: string
+          enum: [admin_service, tenant_oauth, device_admin, development]
+        hard_operation_limit:
+          type: integer
+          minimum: 1
+          maximum: 30
+        warning_operation_limit:
+          type: integer
+          minimum: 1
+        gateway_policy:
+          type: [string, 'null']
+        fixed_operation_selector:
+          type: object
+          additionalProperties: false
+          properties:
+            metadata_key:
+              type: string
+              const: x-mad4b-surfaces

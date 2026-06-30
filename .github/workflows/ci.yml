@@ -39,6 +39,19 @@ jobs:
       - name: Check canonical domain finder
         run: node --check find-canonical-domain.mjs
 
+      - name: Block uncovered resource feature surfaces
+        working-directory: http-generic-api
+        run: node scripts/resource-api-coverage-audit.mjs --ci --changed
+
+      - name: Validate resource API architecture and application service
+        working-directory: http-generic-api
+        run: |
+          node test-resource-api-architecture.mjs
+          node test-resource-api-service.mjs
+
+      - name: Enforce Spec Kit completion governance
+        run: node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+
       - name: Validate memory schema refs
         run: node validate-memory-schema.mjs
 

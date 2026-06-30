@@ -5,12 +5,12 @@ import { encryptCredentials, encryptToken } from "../tokenEncryption.js";
 import { writeAuditLogAsync } from "../auditLogger.js";
 import { enqueueCredentialIntakeCompletedWebhook } from "../webhookDeliveryDispatcher.js";
 import { atomicallyConsumeCredentialIntakeSession } from "../credentialIntakeSingleUse.js";
+import { assertCapabilityKillSwitchOpen } from "../capabilityKillSwitchPolicy.js";
 import {
   buildCredentialIntakeBinding,
   normalizeCredentialIntakeRedirect,
   validateCredentialIntakeSessionSecurity,
 } from "../credentialIntakeBindingPolicy.js";
-import { assertCapabilityKillSwitchOpen } from "../capabilityKillSwitchPolicy.js";
 
 const TOKEN_BYTES = 32;
 const DEFAULT_TTL_MINUTES = 30;
@@ -233,11 +233,23 @@ function noStoreHeaders(res) {
 }
 
 async function loadApp(appKey, pool = getPool()) {
-  const [rows] = await pool.query(
-    "SELECT app_key, display_name, description, auth_type, category, status, credential_intake_redirect_allowlist_json FROM `app_integrations` WHERE app_key = ? LIMIT 1",
-    [appKey]
-  );
-  return rows[0] || null;
+  try {
+    const [rows] = await pool.query(
+      "SELECT app_key, display_name, description, auth_type, category, status, credential_intake_redirect_allowlist_json FROM `app_integrations` WHERE app_key = ? LIMIT 1",
+      [appKey]
+    );
+    return rows[0] || null;
+  } catch (error) {
+    if (error?.code !== "ER_BAD_FIELD_ERROR") throw error;
+    const [rows] = await pool.query(
+      "SELECT app_key, display_name, description, auth_type, category, status FROM `app_integrations` WHERE app_key = ? LIMIT 1",
+      [appKey]
+    );
+    const app = rows[0] || null;
+    if (app) app.credential_intake_redirect_allowlist_json = null;
+    console.warn(JSON.stringify({ event: "credential_intake_optional_column_fallback", app_key: appKey, secrets_included: false }));
+    return app;
+  }
 }
 
 async function loadPendingSession(token) {
@@ -664,6 +676,21 @@ function renderDone(connectionId, autoPromotion = null) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Connection saved</title><style>body{font-family:system-ui;display:grid;place-items:center;min-height:100vh;margin:0;background:#0f172a}main{background:white;padding:28px;border-radius:24px;max-width:560px}code{background:#f1f5f9;padding:3px 6px;border-radius:8px}</style></head><body><main><h1>Connection saved</h1><p>The credential was encrypted and stored successfully.</p>${promotionHtml}<p>Connection ID: <code>${htmlEscape(connectionId)}</code></p><p>You can close this page.</p></main></body></html>`;
 }
 
+function renderCredentialIntakeFailure(requestId) {
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Credential intake unavailable</title></head><body><main><h1>Credential intake is temporarily unavailable</h1><p>No credential data was submitted or stored.</p><p>Support reference: <code>${htmlEscape(requestId)}</code></p></main></body></html>`;
+}
+
+async function revokeSupersededPendingSessions(pool, { userId, tenantId, appKey, authType }) {
+  const [result] = await pool.query(
+    `UPDATE credential_intake_sessions
+        SET status = 'revoked', revoked_reason = 'superseded_by_new_session'
+      WHERE user_id = ? AND tenant_id = ? AND app_key = ? AND auth_type = ?
+        AND status = 'pending' AND expires_at > NOW()`,
+    [userId, tenantId, appKey, authType]
+  );
+  return Number(result?.affectedRows || 0);
+}
+
 function absoluteBaseUrl(req) {
   const proto = req?.headers?.["x-forwarded-proto"] || req?.protocol || "https";
   const host = req?.headers?.["x-forwarded-host"] || req?.headers?.host;
@@ -760,6 +787,23 @@ export async function createCredentialIntakeSessionRecord({
     authoritySnapshotHash,
   });
 
+  renderCredentialForm({
+    session: {
+      app_key: normalizedAppKey,
+      auth_type: normalizedAuthType,
+      display_label: displayLabel || null,
+      expires_at: expiresAt,
+      credential_schema_json: JSON.stringify({ fields: normalizedSchema }),
+    },
+    app,
+  });
+  const supersededPendingSessions = await revokeSupersededPendingSessions(pool, {
+    userId: normalizedUserId,
+    tenantId: normalizedTenantId,
+    appKey: normalizedAppKey,
+    authType: normalizedAuthType,
+  });
+
   await pool.query(
     `INSERT INTO credential_intake_sessions
        (session_id, token_hash, user_id, tenant_id, app_key, auth_type, display_label,
@@ -790,6 +834,12 @@ export async function createCredentialIntakeSessionRecord({
       purpose: binding.purpose,
       redirect_configured: Boolean(binding.allowed_redirect_uri),
       authority_snapshot_version: authoritySnapshotVersion,
+    },
+    page_preflight: {
+      ok: true,
+      rendered: true,
+      superseded_pending_sessions: supersededPendingSessions,
+      automatic_retry_after_render_failure: false,
     },
     secrets_included: false,
   };
@@ -830,7 +880,7 @@ export function buildCredentialIntakeRoutes(deps = {}) {
     } catch (err) {
       return res.status(err.status || 500).json({
         ok: false,
-        error: { code: err.code || "credential_intake_session_create_failed", message: err.message },
+        error: { code: err.code || "credential_intake_session_create_failed", message: err.message, ...(err.details ? { details: err.details } : {}) },
         secrets_included: false,
       });
     }
@@ -855,13 +905,27 @@ export function buildCredentialIntakeRoutes(deps = {}) {
 
   router.get("/credential-intake/:token", async (req, res) => {
     noStoreHeaders(res);
+    let loaded = null;
     try {
-      const loaded = await loadPendingSession(req.params.token);
+      loaded = await loadPendingSession(req.params.token);
       if (!loaded.ok) return res.status(loaded.status).type("text").send(loaded.error);
       const app = await loadApp(loaded.session.app_key);
       return res.status(200).type("html").send(renderCredentialForm({ session: loaded.session, app: app || {} }));
-    } catch {
-      return res.status(500).type("text").send("Credential intake page failed.");
+    } catch (error) {
+      const requestId = randomUUID();
+      console.error(JSON.stringify({ event: "credential_intake.page_render_failed", request_id: requestId, code: error?.code || "credential_intake_page_render_failed", secrets_included: false }));
+      writeAuditLogAsync({
+        tenant_id: loaded?.session?.tenant_id || null,
+        actor_id: loaded?.session?.user_id || null,
+        actor_type: "credential_intake_link",
+        action: "credential_intake.page_render_failed",
+        resource_type: "credential_intake_page",
+        resource_id: requestId,
+        after_json: { code: error?.code || "credential_intake_page_render_failed", stage: "page_render", secrets_included: false },
+        ip_address: req.ip || null,
+        user_agent: req.headers?.["user-agent"] || null,
+      });
+      return res.status(500).type("html").send(renderCredentialIntakeFailure(requestId));
     }
   });
 

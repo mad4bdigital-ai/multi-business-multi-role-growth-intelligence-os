@@ -87,3 +87,14 @@ A requirement is not complete when code is merged. It is complete only when:
 3. decision traces prove the expected gates,
 4. contract/documentation is synchronized,
 5. release-readiness approval is recorded.
+## Unified tenant reverification and PR review closure
+
+| Evidence | Scope | Closure status |
+|---|---|---|
+| `tenant-reverification-unified-report-2026-06-23.md` | 34 tenant-safe waves, three contract-blocked groups, P0/P1/P2 findings, evidence IDs, and no-execution safety declaration | Preserved as authoritative residual-risk input; does not grant execution or production readiness. |
+| Codex review comment `3462323198` | Broad GPT-tool execution policy could bypass missing explicit mutation policy | Closed by unconditional declared-mutation-policy enforcement plus regression coverage with a seeded generic policy. |
+| Codex review comment `3462323203` | Broad app-action advisory policy could satisfy a mutating app action | Closed by requiring a policy whose execution scope contains both normalized `app_key` and `action_key`, with broad-policy denial and specific-policy allow regressions. |
+| Credential access ordering | App action credentials were refreshed before authorization preflight | Closed by moving `ensureFreshCredentials` after successful `evaluateAppActionPreflight`; source-order regression protects the invariant. |
+| `checklists/pr-1879-phase0-merge.md` | PR author, testing, API, database, review, and merge checks | Phase 0 items are explicit; final-head CI/reconciliation and review-thread resolution remain live merge gates. |
+
+The tenant report findings that exceed the PR scope map to T010–T114 and remain open. They must not be reclassified as closed merely because Phase 0 containment merges.

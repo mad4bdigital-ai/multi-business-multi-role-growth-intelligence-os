@@ -125,6 +125,7 @@ try {
     // MCP-style tenant schema plus direct tenant Platform Plugin self-serve actions.
     // Connect/system operations are still accessed via callTool (discovered through listTools).
     const doc = YAML.parse(readFileSync("openapi.tenant-gpt.auth.yaml", "utf8"));
+    const activationDoc = YAML.parse(readFileSync("openapi.tenant-gpt.activation.yaml", "utf8"));
     const exposedPaths = Object.keys(doc.paths || {});
     const securityScheme = doc.components?.securitySchemes?.userBearerAuth;
     const callToolSchema = doc.paths?.["/system/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
@@ -154,7 +155,8 @@ try {
     assert("tenant GPT schema hides OAuth plumbing operations", !exposedPaths.some((path) => path.startsWith("/auth/")), exposedPaths.join(", "));
 
     // MCP meta-operations (connect/system tools are accessible through system-layer callTool)
-    assert("tenant GPT schema exposes activateSession", exposedPaths.includes("/activation/session-context"), exposedPaths.join(", "));
+    assert("tenant Activation schema exposes activateSession", Boolean(activationDoc.paths?.["/tenant/activation/session-context"]?.get), Object.keys(activationDoc.paths || {}).join(", "));
+    assert("tenant Core schema excludes Activation paths", !exposedPaths.some((path) => path.startsWith("/activation") || path.startsWith("/tenant/activation")), exposedPaths.join(", "));
     assert("tenant GPT schema exposes listTools", exposedPaths.includes("/system/tools"), exposedPaths.join(", "));
     assert("tenant GPT schema exposes callTool", exposedPaths.includes("/system/tools/call"), exposedPaths.join(", "));
     assert("tenant GPT schema exposes writeSessionTurn", exposedPaths.includes("/gpt/sessions/{id}/turn"), exposedPaths.join(", "));
@@ -167,10 +169,16 @@ try {
     const consequentialTenantOperations = new Set([
       "tenantPlatformPluginInstall",
       "tenantPlatformPluginCredentialIntakeSessionCreate",
+      "postMeWorkspacesTenantIdResourcesResourceKey",
+      "postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore",
     ]);
-    assert("tenant GPT POST operations are non-consequential except explicit plugin install/intake consent",
+    assert("tenant GPT POST operations are non-consequential except explicit consent and resource mutations",
       postOps.every(({ operation }) => operation["x-openai-isConsequential"] === false || consequentialTenantOperations.has(operation.operationId)),
       postOps.filter(({ operation }) => operation["x-openai-isConsequential"] !== false && !consequentialTenantOperations.has(operation.operationId)).map(({ pathKey }) => pathKey).join(", "));
+    for (const operationId of consequentialTenantOperations) {
+      const operation = postOps.find((entry) => entry.operation.operationId === operationId)?.operation;
+      assert(`tenant GPT ${operationId} remains consequential`, operation?.["x-openai-isConsequential"] === true);
+    }
     assert("tenant GPT schema does not expose admin provider-bootstrap paths", !exposedPaths.some((p) => p.startsWith("/admin/")), exposedPaths.join(", "));
   }
 

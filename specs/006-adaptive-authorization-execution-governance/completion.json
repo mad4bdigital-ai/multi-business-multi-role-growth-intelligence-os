@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "feature_key": "006-adaptive-authorization-execution-governance",
+  "title": "Adaptive Authorization and Execution Governance",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "last_updated_at": "2026-06-29T20:40:00Z",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "specification_branch": {
+      "pull_request": 1936,
+      "merge_sha": "809e81f9dc3c9198a2a4c2d45b4cd4177ef7b158",
+      "status": "merged_and_cleaned"
+    },
+    "implementation_prs": [
+      {
+        "sequence": 1,
+        "role": "state_semantics_and_operational_projections",
+        "pull_request": 1936,
+        "merge_sha": "809e81f9dc3c9198a2a4c2d45b4cd4177ef7b158",
+        "status": "merged"
+      }
+    ],
+    "documentation_pr": {
+      "number": 1967,
+      "merge_sha": "4297a6702bfab3ae250b98d69b3d839f930effc9",
+      "role": "completion_evidence_and_handoff",
+      "status": "merged_and_branch_deleted"
+    },
+    "pre_pr2_readiness": {
+      "branch": "gpt/docs/20260629-adaptive-auth-pre-pr2-readiness",
+      "terminology_review": "complete",
+      "sql_authority_mapping": "complete",
+      "migration_execution": "not_started",
+      "runtime_change": false,
+      "provider_mutation": false
+    },
+    "next_pr": {
+      "sequence": 2,
+      "scope": "canonical_capability_and_alias_resolver",
+      "status": "intentionally_not_started"
+    },
+    "closeout_pr": {
+      "number": null,
+      "status": "pending"
+    }
+  },
+  "evidence": {
+    "specification": {
+      "status": "deep_design_complete_and_merged",
+      "auth_host_only": true,
+      "local_device_operations": false,
+      "provider_mutations": false
+    },
+    "terminology_review": {
+      "status": "completed_governed_administrative_review",
+      "path": "specs/006-adaptive-authorization-execution-governance/terminology-review-2026-06-29.md",
+      "owner_surfaces": ["security", "runtime", "tenant", "platform"],
+      "future_code_owner_review_required": true
+    },
+    "sql_authority_mapping": {
+      "status": "complete",
+      "path": "specs/006-adaptive-authorization-execution-governance/sql-authority-map-2026-06-29.md",
+      "runtime_authority": "mysql_primary",
+      "sheets_role": "async_mirror_and_recovery",
+      "duplicate_authority_creation_allowed": false,
+      "new_table_candidates": ["reconciliation_checkpoints"],
+      "additive_extension_candidates": [
+        "decision_runs",
+        "capability_resolution_envelope_ledger",
+        "platform_evidence_events",
+        "execution_log"
+      ],
+      "migration_execution_authorized": false
+    },
+    "implementation": {
+      "status": "in_progress",
+      "completed_pr_sequences": [1],
+      "completed_preconditions": ["T005", "T006"],
+      "next_pr_scope": "canonical_capability_and_alias_resolver",
+      "next_pr_started": false,
+      "provider_mutation_allowed": false,
+      "enforcement_change_allowed": false,
+      "new_authority_tables_allowed": false
+    },
+    "post_merge_cleanup": {
+      "status": "complete",
+      "force_used": false
+    },
+    "production_rollout": {
+      "status": "pending",
+      "reason": "PR2 through PR15, migrations, shadow parity, canary enforcement, production verification, rollback rehearsal and post-merge audit remain incomplete."
+    }
+  },
+  "sensitive_values_included": false
+}

@@ -58,10 +58,13 @@ function uniq(values) {
 
 function hashFiles(root, files) {
   const hash = crypto.createHash("sha256");
-  for (const file of uniq(files)) {
-    hash.update(rel(root, file));
+  const entries = [...new Set(files.filter(Boolean).map((file) => path.resolve(file)))]
+    .map((file) => ({ file, relative: rel(root, file) }))
+    .sort((left, right) => left.relative.localeCompare(right.relative));
+  for (const { file, relative } of entries) {
+    hash.update(relative);
     hash.update("\0");
-    hash.update(readText(file));
+    hash.update(readText(file).replace(/\r\n?/g, "\n"));
     hash.update("\0");
   }
   return hash.digest("hex");

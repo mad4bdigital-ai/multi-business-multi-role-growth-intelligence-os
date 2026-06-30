@@ -8,8 +8,8 @@ import {
   markCapabilityEnvelopeReferenced,
   resolveCapabilityExecutionEnvelope,
 } from "../capabilityResolutionEnvelopeGuard.js";
-import { assertCapabilityKillSwitchOpen } from "../capabilityKillSwitchPolicy.js";
 import { requireLocalManagerDevice } from "../services/localManagerDeviceLinkService.js";
+import { assertCapabilityKillSwitchOpen } from "../capabilityKillSwitchPolicy.js";
 
 const ROUTE_TYPE_ORDER = [
   "vpn_private_ip",
@@ -37,16 +37,24 @@ function requestedConnectorProxyTimeout(req) {
   return Math.min(Math.max(requested, 1000), CONNECTOR_PROXY_MAX_TIMEOUT_MS);
 }
 
-function enforceCapabilityKillSwitch(surface, action) {
-  return assertCapabilityKillSwitchOpen({ surface, action });
-}
-
 function httpError(status, code, message, details = null) {
   const err = new Error(message || code);
   err.status = status;
   err.code = code;
   err.details = details;
   return err;
+}
+
+function sendConnectorProxyError(res, err) {
+  return res.status(err.status || 502).json({
+    ok: false,
+    error: {
+      code: err.code || "proxy_failed",
+      message: err.message,
+      ...(err.details ? { details: err.details } : {}),
+    },
+    secrets_included: false,
+  });
 }
 
 function ambiguousDeviceError(deviceId, rows) {
@@ -849,13 +857,17 @@ export function buildConnectorProxyRoutes(deps) {
   });
 
   router.post("/connector/:device_id/shell", requireBackendApiKey, async (req, res) => {
-    try { enforceCapabilityKillSwitch("local_shell", "run"); await proxyToDevice(req, res, req.params.device_id, "/shell"); }
-    catch (err) { res.status(err.status || 502).json({ ok: false, error: { code: err.code || "proxy_failed", message: err.message } }); }
+    try {
+      assertCapabilityKillSwitchOpen({ surface: "local_shell", action: "run" });
+      await proxyToDevice(req, res, req.params.device_id, "/shell");
+    } catch (err) { return sendConnectorProxyError(res, err); }
   });
 
   router.post("/connector/:device_id/files", requireBackendApiKey, async (req, res) => {
-    try { enforceCapabilityKillSwitch("local_file_mutation", req.body?.action); await proxyToDevice(req, res, req.params.device_id, "/files"); }
-    catch (err) { res.status(err.status || 502).json({ ok: false, error: { code: err.code || "proxy_failed", message: err.message } }); }
+    try {
+      assertCapabilityKillSwitchOpen({ surface: "local_file_mutation", action: req.body?.action });
+      await proxyToDevice(req, res, req.params.device_id, "/files");
+    } catch (err) { return sendConnectorProxyError(res, err); }
   });
 
   router.post("/connector/:device_id/dependencies", requireBackendApiKey, async (req, res) => {
@@ -899,13 +911,17 @@ export function buildConnectorProxyRoutes(deps) {
   });
 
   router.post("/connector/:device_id/n8n", requireBackendApiKey, async (req, res) => {
-    try { enforceCapabilityKillSwitch("n8n_mutation", req.body?.action); await proxyToDevice(req, res, req.params.device_id, "/n8n"); }
-    catch (err) { res.status(err.status || 502).json({ ok: false, error: { code: err.code || "proxy_failed", message: err.message } }); }
+    try {
+      assertCapabilityKillSwitchOpen({ surface: "n8n_mutation", action: req.body?.action });
+      await proxyToDevice(req, res, req.params.device_id, "/n8n");
+    } catch (err) { return sendConnectorProxyError(res, err); }
   });
 
   router.post("/connector/:device_id/cf", requireBackendApiKey, adminOnly, async (req, res) => {
-    try { enforceCapabilityKillSwitch("cloudflare_mutation", req.body?.action); await proxyToDevice(req, res, req.params.device_id, "/cf"); }
-    catch (err) { res.status(err.status || 502).json({ ok: false, error: { code: err.code || "proxy_failed", message: err.message } }); }
+    try {
+      assertCapabilityKillSwitchOpen({ surface: "cloudflare_mutation", action: req.body?.action });
+      await proxyToDevice(req, res, req.params.device_id, "/cf");
+    } catch (err) { return sendConnectorProxyError(res, err); }
   });
 
   router.post("/connector/:device_id/fetch-upload", requireBackendApiKey, async (req, res) => {
@@ -924,8 +940,10 @@ export function buildConnectorProxyRoutes(deps) {
   });
 
   router.post("/connector/:device_id/shell-fetch-upload", requireBackendApiKey, async (req, res) => {
-    try { enforceCapabilityKillSwitch("local_shell", "shell_fetch_upload"); await proxyToDevice(req, res, req.params.device_id, "/shell-fetch-upload"); }
-    catch (err) { res.status(err.status || 502).json({ ok: false, error: { code: err.code || "proxy_failed", message: err.message } }); }
+    try {
+      assertCapabilityKillSwitchOpen({ surface: "local_shell", action: "shell_fetch_upload" });
+      await proxyToDevice(req, res, req.params.device_id, "/shell-fetch-upload");
+    } catch (err) { return sendConnectorProxyError(res, err); }
   });
 
   return router;

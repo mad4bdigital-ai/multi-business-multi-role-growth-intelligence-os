@@ -7,6 +7,7 @@ assert.equal(typeof backfillGptSessionArchiveFromJsonl, "function", "JSONL backf
 const service = readFileSync("sessionArchiveService.js", "utf8");
 const routes = readFileSync("routes/releaseRoutes.js", "utf8");
 const migration = readFileSync("migrations/246_sprint68_gpt_session_archive_backfill_tool.sql", "utf8");
+const mutationPolicyMigration = readFileSync("migrations/1027_sprint69_gpt_session_archive_backfill_mutation_policy.sql", "utf8");
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 const readiness = readFileSync("releaseReadiness.js", "utf8");
 
@@ -26,6 +27,10 @@ assert(migration.includes("dry_run_default_true"), "backfill tool must advertise
 assert(migration.includes("NOT EXISTS"), "monitoring issue view must suppress already-backfilled sparse warnings");
 assert(migration.includes("session_events"), "backfill marker should be session_events-based, not raw content-based");
 assert(!/DROP\s+TABLE|TRUNCATE\s+TABLE/i.test(migration), "migration must not include destructive table operations");
+assert(mutationPolicyMigration.includes("dry_run_default"), "apply-capable backfill descriptor must declare dry-run mutation policy");
+assert(mutationPolicyMigration.includes("readback"), "apply-capable backfill descriptor must declare readback policy");
+assert(mutationPolicyMigration.includes("gpt_session_archive_backfill"), "descriptor repair must target the backfill tool only");
+assert(!/DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i.test(mutationPolicyMigration), "descriptor repair must remain metadata-only and non-destructive");
 
 assert(runner.includes("246_sprint68_gpt_session_archive_backfill_tool.sql"), "governed runner must allow backfill migration");
 assert(readiness.includes("246_sprint68_gpt_session_archive_backfill_tool.sql"), "release readiness must track backfill migration");
