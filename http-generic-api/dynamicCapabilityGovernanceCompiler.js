@@ -69,6 +69,15 @@ function rowText(row) {
   ].map((value) => String(value || "").toLowerCase()).join(" ");
 }
 
+function classificationText(row) {
+  return [
+    row.capability_key,
+    row.display_name,
+    row.capability_family,
+    row.source_key,
+  ].map((value) => String(value || "").toLowerCase()).join(" ");
+}
+
 function normalizeSemanticText(value) {
   return String(value || "")
     .toLowerCase()
