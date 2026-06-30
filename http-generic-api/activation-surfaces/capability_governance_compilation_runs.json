@@ -1,0 +1,40 @@
+{
+  "surface_key": "capability_governance_compilation_runs",
+  "display_name": "Capability Governance Compilation Runs",
+  "description": "Admin-only bounded compilation run and aggregate persistence readiness metadata for dynamic capability governance.",
+  "source_table": "platform_capability_compilation_runs",
+  "covered_source_tables": [
+    "platform_capability_compilation_runs",
+    "platform_capability_compiled_manifests",
+    "platform_capability_manifest_source_links",
+    "platform_capability_governance_gap_snapshots"
+  ],
+  "result_key_column": "run_id",
+  "result_label_column": "compiler_version",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": ["running", "complete", "failed"],
+  "result_columns": [
+    "run_id",
+    "compiler_version",
+    "mode",
+    "status",
+    "source_revision_hash",
+    "source_count",
+    "compiled_manifest_count",
+    "persisted_manifest_count",
+    "reused_manifest_count",
+    "gap_count",
+    "blocked_manifest_count",
+    "shadow_ready_manifest_count",
+    "started_at",
+    "completed_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 100,
+  "sort_order": 276,
+  "status": "active",
+  "notes": "Covers subordinate immutable manifest, provenance-link, and typed gap snapshot tables. Excludes filters_json, manifest_json, source metadata, error text, actor identifiers, capability-envelope identifiers, provider payloads, credentials, and secrets."
+}
