@@ -40,6 +40,16 @@ const MIGRATION_EXECUTOR_APPLY_POLICY = Object.freeze({
     secrets_included: false,
   },
 });
+const MIGRATION_EXECUTOR_CERTIFICATION = Object.freeze({
+  certification_key: "governed_migration_execute",
+  surface_key: "governed_migration_execute",
+  surface_family: "governed_migration",
+  tool_or_action_key: "governed_migration_execute",
+  risk_class: "D",
+  certification_status: "bootstrap_registered",
+  smoke_strategy: "checksum_bound_dry_run_apply_schema_readback",
+  last_evidence_ref: "governed_migration_authorization_bootstrap",
+});
 const ACCEPTED_OPERATION_INTENTS = Object.freeze([
   "governed_migration_authorization_bootstrap",
   "migration_authorization_bootstrap",
@@ -206,6 +216,91 @@ async function ensureMigrationExecutorApplyPolicy(db) {
   return verifyMigrationExecutorApplyPolicy(await queryMigrationExecutorApplyPolicy(db));
 }
 
+async function queryMigrationExecutorDispatchCertification(db) {
+  const [rows] = await db.query(
+    `SELECT certification_key, surface_key, surface_family, tool_or_action_key, risk_class,
+            certification_status, smoke_strategy, dispatch_allowed, apply_allowed,
+            requires_resource_authority, requires_dry_run, requires_audit_evidence,
+            requires_readback, last_evidence_ref, last_certified_at, expires_at, notes
+       FROM runtime_dispatch_certification_registry
+      WHERE certification_key = ?
+      LIMIT 1`,
+    [MIGRATION_EXECUTOR_CERTIFICATION.certification_key]
+  );
+  return rows?.[0] || null;
+}
+
+function verifyMigrationExecutorDispatchCertification(row) {
+  if (!row) {
+    throw bootstrapError(500, "governed_migration_executor_dispatch_certification_readback_failed", "Migration executor dispatch certification was not visible during same-cycle readback.");
+  }
+  const exact =
+    row.certification_key === MIGRATION_EXECUTOR_CERTIFICATION.certification_key &&
+    row.surface_key === MIGRATION_EXECUTOR_CERTIFICATION.surface_key &&
+    row.surface_family === MIGRATION_EXECUTOR_CERTIFICATION.surface_family &&
+    row.tool_or_action_key === MIGRATION_EXECUTOR_CERTIFICATION.tool_or_action_key &&
+    row.risk_class === MIGRATION_EXECUTOR_CERTIFICATION.risk_class &&
+    row.certification_status === MIGRATION_EXECUTOR_CERTIFICATION.certification_status &&
+    row.smoke_strategy === MIGRATION_EXECUTOR_CERTIFICATION.smoke_strategy &&
+    Number(row.dispatch_allowed || 0) === 1 &&
+    Number(row.apply_allowed || 0) === 0 &&
+    Number(row.requires_resource_authority || 0) === 0 &&
+    Number(row.requires_dry_run || 0) === 1 &&
+    Number(row.requires_audit_evidence || 0) === 1 &&
+    Number(row.requires_readback || 0) === 1 &&
+    row.last_evidence_ref === MIGRATION_EXECUTOR_CERTIFICATION.last_evidence_ref &&
+    !row.expires_at;
+  if (!exact) {
+    throw bootstrapError(409, "governed_migration_executor_dispatch_certification_mismatch", "Migration executor dispatch certification does not match the fail-closed bootstrap contract.", {
+      certification_key: row.certification_key || null,
+    });
+  }
+  return { ...row, secrets_included: false };
+}
+
+async function ensureMigrationExecutorDispatchCertification(db) {
+  await db.query(
+    `INSERT INTO runtime_dispatch_certification_registry
+      (certification_key, surface_key, surface_family, tool_or_action_key, risk_class,
+       certification_status, smoke_strategy, dispatch_allowed, apply_allowed,
+       requires_resource_authority, requires_dry_run, requires_audit_evidence,
+       requires_readback, last_evidence_ref, last_certified_at, expires_at, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, 0, 1, 1, 1, ?, CURRENT_TIMESTAMP, NULL, ?)
+     ON DUPLICATE KEY UPDATE
+       surface_key = VALUES(surface_key),
+       surface_family = VALUES(surface_family),
+       tool_or_action_key = VALUES(tool_or_action_key),
+       risk_class = VALUES(risk_class),
+       certification_status = VALUES(certification_status),
+       smoke_strategy = VALUES(smoke_strategy),
+       dispatch_allowed = 1,
+       apply_allowed = 0,
+       requires_resource_authority = 0,
+       requires_dry_run = 1,
+       requires_audit_evidence = 1,
+       requires_readback = 1,
+       last_evidence_ref = VALUES(last_evidence_ref),
+       last_certified_at = CURRENT_TIMESTAMP,
+       expires_at = NULL,
+       notes = VALUES(notes),
+       updated_at = CURRENT_TIMESTAMP`,
+    [
+      MIGRATION_EXECUTOR_CERTIFICATION.certification_key,
+      MIGRATION_EXECUTOR_CERTIFICATION.surface_key,
+      MIGRATION_EXECUTOR_CERTIFICATION.surface_family,
+      MIGRATION_EXECUTOR_CERTIFICATION.tool_or_action_key,
+      MIGRATION_EXECUTOR_CERTIFICATION.risk_class,
+      MIGRATION_EXECUTOR_CERTIFICATION.certification_status,
+      MIGRATION_EXECUTOR_CERTIFICATION.smoke_strategy,
+      MIGRATION_EXECUTOR_CERTIFICATION.last_evidence_ref,
+      "Bootstrap-only dispatch certification. Global apply remains disabled; apply requires a checksum-bound authorization, approved dynamic apply policy, exact typed confirmation, governed ledger persistence, and same-cycle schema readback.",
+    ]
+  );
+  return verifyMigrationExecutorDispatchCertification(
+    await queryMigrationExecutorDispatchCertification(db)
+  );
+}
+
 async function queryExistingAuthorization(db, migration) {
   const [rows] = await db.query(
     `SELECT migration_file, authorization_status, authorization_source, policy_key, risk_tier,
@@ -361,6 +456,7 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
   );
   if (existing) {
     const migrationExecutorApplyPolicy = await ensureMigrationExecutorApplyPolicy(pool);
+    const migrationExecutorDispatchCertification = await ensureMigrationExecutorDispatchCertification(pool);
     await markReferenced({
       pool,
       envelopeId: envelope.envelope_id,
@@ -373,6 +469,7 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
       candidate,
       authorization: existing,
       migration_executor_apply_policy: migrationExecutorApplyPolicy,
+      migration_executor_dispatch_certification: migrationExecutorDispatchCertification,
       migration_sql_executed: false,
       applies_migration: false,
       capability_envelope_id: envelope.envelope_id,
@@ -422,6 +519,7 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
       [candidate.migration, AUTHORIZATION_SOURCE, AUTHORIZATION_POLICY_KEY, notes || null, JSON.stringify(metadata)]
     );
     await ensureMigrationExecutorApplyPolicy(connection);
+    await ensureMigrationExecutorDispatchCertification(connection);
     if (transactional) await connection.commit();
   } catch (error) {
     if (transactional) {
@@ -434,6 +532,7 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
       );
       if (raced) {
         const migrationExecutorApplyPolicy = await ensureMigrationExecutorApplyPolicy(pool);
+        const migrationExecutorDispatchCertification = await ensureMigrationExecutorDispatchCertification(pool);
         return {
           ok: true,
           authorization_created: false,
@@ -441,6 +540,7 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
           candidate,
           authorization: raced,
           migration_executor_apply_policy: migrationExecutorApplyPolicy,
+          migration_executor_dispatch_certification: migrationExecutorDispatchCertification,
           migration_sql_executed: false,
           applies_migration: false,
           capability_envelope_id: envelope.envelope_id,
@@ -465,6 +565,9 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
   const migrationExecutorApplyPolicy = verifyMigrationExecutorApplyPolicy(
     await queryMigrationExecutorApplyPolicy(pool)
   );
+  const migrationExecutorDispatchCertification = verifyMigrationExecutorDispatchCertification(
+    await queryMigrationExecutorDispatchCertification(pool)
+  );
   await markReferenced({
     pool,
     envelopeId: envelope.envelope_id,
@@ -478,6 +581,7 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
     candidate,
     authorization: readback,
     migration_executor_apply_policy: migrationExecutorApplyPolicy,
+    migration_executor_dispatch_certification: migrationExecutorDispatchCertification,
     migration_sql_executed: false,
     applies_migration: false,
     capability_envelope_id: envelope.envelope_id,

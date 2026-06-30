@@ -32,12 +32,42 @@ function createFakePool() {
   const authorizations = new Map();
   const ledger = new Map();
   const applyPolicies = new Map();
+  const certifications = new Map();
   const applyPolicyKey = "platform_orchestration:governed_migration_execute:governed_migration_execute";
+  const certificationKey = "governed_migration_execute";
   return {
     authorizations,
     ledger,
     applyPolicies,
+    certifications,
     async query(sql, params = []) {
+      if (sql.includes("FROM runtime_dispatch_certification_registry")) {
+        const row = certifications.get(certificationKey);
+        return [[...(row ? [{ ...row }] : [])]];
+      }
+      if (sql.includes("INSERT INTO runtime_dispatch_certification_registry")) {
+        const [key, surfaceKey, surfaceFamily, toolOrActionKey, riskClass, certificationStatus, smokeStrategy, lastEvidenceRef, notes] = params;
+        certifications.set(certificationKey, {
+          certification_key: key,
+          surface_key: surfaceKey,
+          surface_family: surfaceFamily,
+          tool_or_action_key: toolOrActionKey,
+          risk_class: riskClass,
+          certification_status: certificationStatus,
+          smoke_strategy: smokeStrategy,
+          dispatch_allowed: 1,
+          apply_allowed: 0,
+          requires_resource_authority: 0,
+          requires_dry_run: 1,
+          requires_audit_evidence: 1,
+          requires_readback: 1,
+          last_evidence_ref: lastEvidenceRef,
+          last_certified_at: new Date("2026-06-30T15:20:00.000Z"),
+          expires_at: null,
+          notes,
+        });
+        return [{ affectedRows: 1 }];
+      }
       if (sql.includes("FROM capability_apply_authorization_policy_registry")) {
         const row = applyPolicies.get(applyPolicyKey);
         return [[...(row ? [{ ...row }] : [])]];
@@ -170,7 +200,15 @@ async function main() {
   assert.equal(created.migration_executor_apply_policy.policy_json.checksum_bound, true);
   assert.equal(created.migration_executor_apply_policy.policy_json.governed_ledger_required, true);
   assert.equal(created.migration_executor_apply_policy.secrets_included, false);
+  assert.equal(created.migration_executor_dispatch_certification.certification_key, "governed_migration_execute");
+  assert.equal(created.migration_executor_dispatch_certification.dispatch_allowed, 1);
+  assert.equal(created.migration_executor_dispatch_certification.apply_allowed, 0);
+  assert.equal(created.migration_executor_dispatch_certification.requires_dry_run, 1);
+  assert.equal(created.migration_executor_dispatch_certification.requires_readback, 1);
+  assert.equal(created.migration_executor_dispatch_certification.expires_at, null);
+  assert.equal(created.migration_executor_dispatch_certification.secrets_included, false);
   assert.equal(pool.applyPolicies.size, 1);
+  assert.equal(pool.certifications.size, 1);
   assert.equal(referenced.length, 1);
   const metadata = typeof created.authorization.metadata_json === "string"
     ? JSON.parse(created.authorization.metadata_json)
@@ -185,6 +223,10 @@ async function main() {
   const storedPolicy = pool.applyPolicies.get("platform_orchestration:governed_migration_execute:governed_migration_execute");
   storedPolicy.requires_readback = 0;
   storedPolicy.policy_json = JSON.stringify({ provider_call_allowed: true, secrets_included: false });
+  const storedCertification = pool.certifications.get("governed_migration_execute");
+  storedCertification.dispatch_allowed = 0;
+  storedCertification.apply_allowed = 1;
+  storedCertification.requires_readback = 0;
 
   const second = await bootstrapGovernedMigrationAuthorization(baseInput(), deps);
   assert.equal(second.authorization_created, false);
@@ -193,7 +235,11 @@ async function main() {
   assert.equal(second.migration_executor_apply_policy.requires_readback, 1);
   assert.equal(second.migration_executor_apply_policy.policy_json.provider_call_allowed, false);
   assert.equal(second.migration_executor_apply_policy.policy_json.same_cycle_schema_readback_required, true);
+  assert.equal(second.migration_executor_dispatch_certification.dispatch_allowed, 1);
+  assert.equal(second.migration_executor_dispatch_certification.apply_allowed, 0);
+  assert.equal(second.migration_executor_dispatch_certification.requires_readback, 1);
   assert.equal(pool.applyPolicies.size, 1);
+  assert.equal(pool.certifications.size, 1);
 
   const dispatchOnly = await bootstrapGovernedMigrationAuthorization(baseInput(), {
     ...deps,
