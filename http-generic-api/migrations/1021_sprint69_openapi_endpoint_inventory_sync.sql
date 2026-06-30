@@ -28,6 +28,9 @@ CREATE TABLE IF NOT EXISTS openapi_endpoint_inventory_sync_runs (
   KEY idx_openapi_inventory_sync_fingerprint (source_fingerprint)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+ALTER TABLE endpoints
+  ADD UNIQUE KEY IF NOT EXISTS uq_endpoints_endpoint_id (endpoint_id);
+
 INSERT INTO platform_runtime_config (config_key, config_json, status, note)
 VALUES (
   'openapi_endpoint_inventory_sync',
