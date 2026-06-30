@@ -160,6 +160,15 @@ export async function persistDynamicCapabilityGovernanceCompilation(args = {}, d
       observed_source_revision_hash: preview.source_revision_hash,
     });
   }
+  const totalGapCount = Number(preview.counts?.gap_count || 0);
+  const returnedGapCount = Number(preview.counts?.returned_gap_count ?? preview.gaps?.length ?? 0);
+  if (returnedGapCount !== totalGapCount) {
+    fail("capability_governance_gap_snapshot_truncated", "All gaps for the selected compilation batch must be returned before persistence.", 422, {
+      gap_count: totalGapCount,
+      returned_gap_count: returnedGapCount,
+      requested_gap_limit: Number(args.gap_limit || 200),
+    });
+  }
 
   const runId = (deps.uuid || randomUUID)();
   const inputHash = persistenceInputHash(preview);
