@@ -565,6 +565,9 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
   const migrationExecutorApplyPolicy = verifyMigrationExecutorApplyPolicy(
     await queryMigrationExecutorApplyPolicy(pool)
   );
+  const migrationExecutorDispatchCertification = verifyMigrationExecutorDispatchCertification(
+    await queryMigrationExecutorDispatchCertification(pool)
+  );
   await markReferenced({
     pool,
     envelopeId: envelope.envelope_id,
