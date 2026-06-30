@@ -858,7 +858,7 @@ export function buildConnectorProxyRoutes(deps) {
 
   router.post("/connector/:device_id/shell", requireBackendApiKey, async (req, res) => {
     try {
-      assertCapabilityKillSwitchOpen({ surface: "local_shell", action: "run" });
+      assertCapabilityKillSwitchOpen({ surface: "local_shell", action: req.body?.action });
       await proxyToDevice(req, res, req.params.device_id, "/shell");
     } catch (err) { return sendConnectorProxyError(res, err); }
   });
