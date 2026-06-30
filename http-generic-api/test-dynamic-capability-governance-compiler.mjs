@@ -207,4 +207,10 @@ assert.deepEqual(
 );
 assert.equal(preview.source_revision_hash, previewRepeat.source_revision_hash);
 
+const routesSource = fs.readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
+const toolKey = "platform_capability_governance_compile_preview";
+assert.equal(routesSource.includes(`name: "${toolKey}"`), true);
+assert.equal(routesSource.includes(`toolKey === "${toolKey}"`), true);
+assert.equal(routesSource.includes("await buildDynamicCapabilityGovernancePreview(args)"), true);
+
 console.log("dynamic capability governance compiler tests passed");
