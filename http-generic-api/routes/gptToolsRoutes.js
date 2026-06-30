@@ -1790,6 +1790,9 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     return { status: 200, body: { ok: true, name: toolKey, result: await buildPlatformCapabilityLiveReport(args) } };
   }
 
+  if (callerType === "admin" && toolKey === "platform_capability_governance_compile_preview") {
+    return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityGovernancePreview(args) } };
+  }
   if (callerType === "admin" && toolKey === "activation_gateway_rollout_plan") {
     try {
       const result = await buildActivationGatewayRolloutPlan(args || {}, {
