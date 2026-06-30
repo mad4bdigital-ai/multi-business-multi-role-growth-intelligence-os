@@ -35,6 +35,7 @@ const EXTERNAL_TOKENS = Object.freeze([
   "provider", "connector", "drive", "sheets", "remote", "browser",
 ]);
 const WORKSPACE_TOKENS = Object.freeze(["workspace", "brand", "tenant", "resource", "grant", "membership", "site"]);
+const GENERIC_OPERATION_CLASSES = new Set(["tool dispatch", "tenant tool dispatch"]);
 
 function rowsOf(result) {
   return Array.isArray(result?.[0]) ? result[0] : [];
