@@ -122,6 +122,33 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
     } catch (error) { return errorResponse(req,res,error); }
   });
 
+  router.post("/admin/container-authority/resolution-preview",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
+    try {
+      assertAllowedKeys(req.body,new Set(["principal","tenantId","targetContainerId","dimensionRequests","expectedAuthorityEpoch","expectedRegistrySnapshotHash","legacyDecision","legacyEvidenceRef","requestId","idempotencyKey"]));
+      const idempotencyKey = String(req.body?.idempotencyKey || "").trim();
+      if (idempotencyKey.length < 8 || idempotencyKey.length > 128) {
+        const error = new Error("idempotencyKey must contain 8 to 128 characters.");
+        error.status = 400; error.code = "idempotency_key_invalid"; throw error;
+      }
+      req.containerPrincipal = {
+        mode:"admin_tool",
+        principal:{ type:"service",id:actorId(req) },
+        tenantId:String(req.body?.tenantId || ""),
+        isAdmin:true
+      };
+      enforcePreviewRate(req);
+      const result = await resolveEffectiveContainerContext({
+        ...req.body,
+        principal:req.body?.principal || req.containerPrincipal.principal,
+        tenantId:req.containerPrincipal.tenantId,
+        mode:"preview",
+        idempotencyKey,
+        requestId:req.body?.requestId || requestId(req)
+      });
+      return res.status(201).json({ ...result, enforced:false, providerCallMade:false, credentialPayloadRead:false, secretsIncluded:false });
+    } catch (error) { return errorResponse(req,res,error); }
+  });
+
   router.get("/container-context-resolutions/:resolutionId",requireResolutionPrincipal(deps),async (req,res) => {
     try {
       const principalContext = req.containerPrincipal;
@@ -178,6 +205,26 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
       assertAllowedKeys(req.body,new Set(["decision","decisionNote"]));
       const result = await approveContainerOverride(req.params.overrideId,req.body,{ approverPrincipal:{ type:"service",id:actorId(req) } });
       return res.status(201).json(result);
+    } catch (error) { return errorResponse(req,res,error); }
+  });
+
+  router.post("/admin/container-authority/projection-preview",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
+    try {
+      assertAllowedKeys(req.body,new Set());
+      const plan = await buildLegacyContainerProjectionPlan({ createdBy:actorId(req) });
+      return res.json({
+        ok:true,
+        mode:"dry_run",
+        projectionRunId:plan.projectionRunId,
+        summary:plan.summary,
+        issues:plan.issues,
+        sourceSnapshotSha256:plan.sourceSnapshotSha256,
+        willApply:false,
+        providerCalls:false,
+        credentialPayloadReads:false,
+        externalWrites:false,
+        secretsIncluded:false
+      });
     } catch (error) { return errorResponse(req,res,error); }
   });
 

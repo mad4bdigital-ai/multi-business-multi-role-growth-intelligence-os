@@ -1,36 +1,44 @@
 # Requirements Quality Checklist
 
+## Status and evidence scope
+
+This checklist evaluates the quality and testability of the **full Spec Kit requirements**, not whether all implementation phases are complete. Checked items are supported by `spec.md`, `data-model.md`, `acceptance-matrix.md`, `contracts/error-catalog.md`, and `traceability.md`. Implementation and release status remain governed by `tasks.md` and `checklists/release-readiness.md`.
+
 ## Completeness
 
-- [ ] Every identified security axis is represented in the specification.
-- [ ] Every P0 issue maps to at least one functional requirement.
-- [ ] Every functional requirement maps to an acceptance test.
-- [ ] Actors and authorization boundaries are explicit.
-- [ ] State-changing and read-only operations are distinguishable.
-- [ ] Activation and readiness terms are defined separately.
-- [ ] Out-of-scope items are documented.
+- [x] Every identified security axis is represented in the specification.
+- [x] Every P0 issue maps to at least one functional requirement.
+- [x] Every functional requirement maps to an acceptance test or traceability row.
+- [x] Actors and authorization boundaries are explicit.
+- [x] State-changing and read-only operations are distinguishable.
+- [x] Activation and readiness terms are defined separately.
+- [x] Out-of-scope items and later phases are documented.
 
 ## Clarity
 
-- [ ] Requirements use MUST/SHOULD consistently.
-- [ ] `dispatch_ready`, `will_execute`, and `execution_occurred` are distinct.
-- [ ] `no_credentials_required` is not used as an authorization result.
-- [ ] `not_evaluated` is distinguishable from `not_applicable`.
-- [ ] Tenant/admin/device/system surfaces are defined.
-- [ ] Canonical capability identity is unambiguous.
+- [x] Requirements use MUST/SHOULD consistently.
+- [x] `dispatch_ready`, `will_execute`, and `execution_occurred` are distinct.
+- [x] `no_credentials_required` is not used as an authorization result.
+- [x] `not_evaluated` is distinguishable from `not_applicable`.
+- [x] Tenant/admin/device/system surfaces are defined.
+- [x] Canonical capability identity is unambiguous at the requirements level.
 
 ## Testability
 
-- [ ] Every denial behavior has a stable reason code.
-- [ ] Cross-tenant cases are testable without exposing foreign objects.
-- [ ] Preview tests prove absence of side effects.
-- [ ] Device stale/offline/foreign cases are covered.
-- [ ] Credential pending/revoked/scope mismatch cases are covered.
-- [ ] Approval expiry/replay/target mismatch cases are covered.
-- [ ] Alias parity is testable across the complete inventory.
+- [x] Every documented denial behavior has a stable reason-code contract.
+- [x] Cross-tenant cases are testable without exposing foreign objects.
+- [x] Preview tests require proof of no side effects.
+- [x] Device stale/offline/foreign cases are represented in the acceptance matrix.
+- [x] Credential pending/revoked/scope-mismatch cases are represented in the acceptance matrix.
+- [x] Approval expiry/replay/target-mismatch cases are represented in the acceptance matrix.
+- [x] Alias parity is testable across the planned complete inventory.
 
 ## No implementation leakage
 
-- [ ] Product/security requirements do not depend on a specific framework.
-- [ ] Unknown repository facts are marked for live resolution.
-- [ ] Performance targets are measurable and will be ratified from baseline.
+- [x] Product/security requirements remain framework-agnostic.
+- [x] Unknown repository facts are explicitly assigned to live discovery tasks T010–T019.
+- [ ] Performance targets are measurable but still require baseline ratification under T017 and T106.
+
+## Review result
+
+Requirements quality is sufficient for Phase 0 containment review. This does **not** mark T010–T114 complete and does not grant staging, deployment, or production-promotion approval.

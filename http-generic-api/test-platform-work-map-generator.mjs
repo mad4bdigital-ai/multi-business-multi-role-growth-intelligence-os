@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { syncWorkMaps } from "./scripts/platform-work-map-generator.mjs";
+import { buildWorkMaps, syncWorkMaps } from "./scripts/platform-work-map-generator.mjs";
 
 const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "deep-platform-work-maps-"));
 const write = (rel, content) => {
@@ -194,6 +194,19 @@ for (const name of expected.filter((name) => name !== "README.md")) {
 const clean = syncWorkMaps({ repoRoot, mode: "check" });
 assert.equal(clean.ok, true);
 assert.deepEqual(clean.drift_files, []);
+
+const beforeLineEndingConversion = Object.fromEntries(expected.map((name) => [name, read(`docs/work-maps/${name}`)]));
+const { sourceFiles } = buildWorkMaps({ repoRoot });
+for (const sourceFile of sourceFiles) {
+  const source = fs.readFileSync(sourceFile, "utf8").replace(/\r\n?/g, "\n");
+  fs.writeFileSync(sourceFile, source.replace(/\n/g, "\r\n"));
+}
+const crossPlatformClean = syncWorkMaps({ repoRoot, mode: "check" });
+assert.equal(crossPlatformClean.ok, true, "CRLF source files must not change generated Work Maps");
+assert.deepEqual(crossPlatformClean.drift_files, []);
+for (const [name, content] of Object.entries(beforeLineEndingConversion)) {
+  assert.equal(read(`docs/work-maps/${name}`), content, `${name} must remain byte-stable across LF and CRLF sources`);
+}
 
 write("http-generic-api/migrations/005_plugin.sql", `CREATE TABLE IF NOT EXISTS \`platform_plugin_contributions\` (\`contribution_id\` VARCHAR(36) PRIMARY KEY, \`plugin_key\` VARCHAR(128));`);
 const drift = syncWorkMaps({ repoRoot, mode: "check" });

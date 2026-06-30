@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 const schema = readFileSync("openapi.tenant-gpt.auth.yaml", "utf8");
 const mainSchema = readFileSync("openapi.yaml", "utf8");
 
-assert(schema.includes("2.0.2-platform-plugins"), "Tenant GPT schema version must mention platform plugins");
+assert(schema.includes("Tenant Core transport") && schema.includes("operationId: tenantPlatformPluginCatalog"), "Tenant Core schema must describe and expose Platform Plugin capabilities");
 assert(schema.includes("operationId: tenantPlatformPluginCatalog"), "tenant catalog operation must be exposed");
 assert(schema.includes("operationId: tenantPlatformPluginInstall"), "tenant install operation must be exposed");
 assert(schema.includes("operationId: tenantPlatformPluginResolve"), "tenant resolve operation must be exposed");
@@ -29,8 +29,12 @@ assert(schema.includes("target_mode"), "tenant resolver must document target ope
 assert(schema.includes("target_authorization"), "tenant resolver response must document target authority evidence");
 assert(schema.includes("target_reference_hash"), "tenant resolver must document hashed target evidence");
 assert(schema.includes("denial_code"), "tenant resolver must document stable denial codes");
+assert(schema.includes("security_alerts"), "tenant resolver must document temporary security alert evidence");
+assert(schema.includes("TENANT_TO_ADMIN_CAPABILITY_REQUEST"), "tenant resolver must document tenant-to-admin alert code");
+assert(schema.includes("SELECTOR_PARITY_MISMATCH"), "tenant resolver must document selector parity alert code");
 assert(mainSchema.includes("target_resource_type"), "main resolver must document target resource type");
 assert(mainSchema.includes("target_authorization"), "main resolver response must document target authority evidence");
 assert(mainSchema.includes("target_reference_hash"), "main resolver must document hashed target evidence");
+assert(mainSchema.includes("security_alerts"), "main resolver must document temporary security alert evidence");
 
 console.log("tenant platform plugin OpenAPI tests passed");

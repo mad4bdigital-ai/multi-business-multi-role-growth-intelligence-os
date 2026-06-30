@@ -1,5 +1,10 @@
--- Migration execution safety: no_provider_call=true; no_credential_payload_read=true;
--- no_raw_secrets=true; no_external_send=true; no_external_write=true; secrets_included=false.
+-- Migration execution safety
+-- no_provider_call=true
+-- no_credential_payload_read=true
+-- no_raw_secrets=true
+-- no_external_send=true
+-- no_external_write=true
+-- secrets_included=false
 --
 -- GitHub returns the complete issue-label array for add, replace, and remove
 -- operations. Migration 1023 described the 200 responses but omitted their

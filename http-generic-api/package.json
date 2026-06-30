@@ -9,6 +9,10 @@
     "start": "node server.js",
     "test": "node scripts/run-test-manifest.mjs",
     "test:list": "node scripts/run-test-manifest.mjs --list",
+    "schemas:generate": "node scripts/generate-custom-gpt-schemas.mjs --write",
+    "schemas:check": "node scripts/generate-custom-gpt-schemas.mjs --check",
+    "schemas:builder-guard": "node scripts/openapi-builder-schema-guard.mjs",
+    "schemas:guard": "npm run schemas:check && npm run schemas:builder-guard && npm run activation-gateway:bundle:check && node test-openapi-builder-schema-guard.mjs && node test-custom-gpt-schemas.mjs && node test-openapi-split-governance.mjs && node test-openapi-split-regeneration-parity.mjs && node test-activation-gateway.mjs && node test-tenant-activation-session-alias.mjs && node test-platform-routes.mjs && node test-platform-degradation-policy.mjs",
     "readiness:interruptions": "node scripts/interruption-readiness.mjs",
     "readiness:interruptions:ci": "node scripts/interruption-readiness.mjs --ci",
     "readiness:verify-plan": "node scripts/run-interruption-verification-plan.mjs",
@@ -25,7 +29,9 @@
     "admin:create:gcloud": "node scripts/create-admin.mjs --json --target gcloud",
     "test:live:scopes": "node test-live-scoped-subdomains.mjs",
     "validate": "node validate-architecture.mjs",
-    "verify": "node verify-runtime.mjs"
+    "verify": "node verify-runtime.mjs",
+    "activation-gateway:bundle:sync": "node scripts/sync-activation-gateway-runtime-bundle.mjs --write",
+    "activation-gateway:bundle:check": "node scripts/sync-activation-gateway-runtime-bundle.mjs --check"
   },
   "engines": {
     "node": ">=22 <23"

@@ -1,61 +1,69 @@
-# OpenAPI split schema governance
+# OpenAPI surface generation governance
 
-## Rule
+## Authority
 
-`http-generic-api/openapi.yaml` is the source of truth for split Custom GPT schemas.
+`http-generic-api/openapi.yaml` is the canonical fixed HTTP contract. `canonicals/openapi/custom-gpt-surfaces.yaml` is the canonical distribution registry for fixed Custom GPT surfaces. Generated OpenAPI files are artifacts and must never become source authority.
 
-Split schemas such as:
+The surface registry owns:
 
-- `http-generic-api/openapi.tenant-gpt.auth.yaml`
-- `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml`
+- output filename;
+- public server URL;
+- authentication profile;
+- fixed-operation selector;
+- warning and hard operation budgets;
+- Activation Gateway policy membership.
 
-must be generated from operations that already exist in `openapi.yaml`.
+The MySQL registries remain authoritative for dynamic MCP-like tool identities, input/output schema versions, principal visibility, action and endpoint bindings, credentials, approvals, execution policy, and readback policy. Git surface membership must not activate a dynamic tool.
 
-## Tenant GPT split
+## Generated surfaces
 
-Tenant GPT operations are selected from `x-tenant-gpt-auth.tenant_operation_ids` in `openapi.yaml`.
+| Surface | Generated artifact | Public server |
+|---|---|---|
+| Admin Core | `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` | `https://auth.mad4b.com` |
+| Activation Admin | `http-generic-api/openapi.custom-gpt.activation-admin.yaml` | `https://activation.mad4b.com` |
+| Tenant Core | `http-generic-api/openapi.tenant-gpt.auth.yaml` | `https://auth.mad4b.com` |
+| Tenant Activation | `http-generic-api/openapi.tenant-gpt.activation.yaml` | `https://activation.mad4b.com` |
+| Local Connector Admin | `http-generic-api/openapi.gpt-action.local-connector.yaml` | `https://connector.mad4b.com` |
 
-The split generator must not treat `openapi.tenant-gpt.auth.yaml` as an independent source of paths, operations, security scopes, or component dependencies.
+The Local Connector artifact is copied from `canonicals/openapi/local-connector.openapi.yaml`; it is not derived from the main auth-host contract and must not be exposed directly to tenant GPTs.
 
-Tenant operation aliases must be unique in the canonical source. In particular:
+## Tenant aliases
 
-- `listTools` is declared only on `GET /system/tools`
-- `callTool` is declared only on `POST /system/tools/call`
-- `GET /gpt/tools` and `POST /gpt/tools/call` remain admin dispatcher operations and must not carry tenant aliases
+Tenant aliases remain declared beside their source operations with `x-tenant-gpt-operationId`. Alias uniqueness is validated before generation. Fixed membership is selected only by `custom-gpt-surfaces.yaml`; the removed `x-tenant-gpt-auth.tenant_operation_ids` list must not be recreated.
 
-## Admin virtual tools
+Examples:
 
-Virtual Admin tools such as `growth_intelligence_pilot_run` are exposed through the existing `POST /gpt/tools/call` dispatcher and do not add independent split-schema paths. Their tool name, description, and input schema come from the Admin tool catalog at runtime. Changes must update the canonical `http-generic-api/openapi.yaml` dispatcher description, keep the generated auth-dispatcher operation stable, and preserve `callAdminTool` request/response compatibility. The split generator must not create a dedicated public endpoint for a virtual tool. Growth Intelligence insight/action decisions, readiness refresh, and V5 plan-bound approval-hold operations remain catalog-backed virtual tools behind the stable dispatcher; their schemas must preserve no-execution/no-provider-write boundaries and typed-confirmation requirements.
+- `listTools` maps only to `GET /system/tools`;
+- `callTool` maps only to `POST /system/tools/call`;
+- `activateSession` maps only to `GET /tenant/activation/session-context`;
+- Admin `/gpt/tools` operations never carry tenant aliases.
 
-## Auth lifecycle and provider action parity
+## Dynamic MCP facade
 
-The canonical dispatcher descriptions in `openapi.yaml` must remain aligned with runtime action selection and passive credential behavior.
+Admin and tenant Core schemas expose stable list/call envelopes. The returned tool catalog is principal-filtered from SQL. `callTool` and `callAdminTool` must re-resolve the current registry row and all authority bindings at execution time. Client-supplied provider URLs, action keys, tenant IDs, user IDs, credential modes, or descriptions are not authority.
 
-- `POST /system/tools/call` and `POST /admin/system/tools/call` remain stable dispatcher operations; provider probes do not add split-only routes.
-- `activation_drive_probe` must resolve the SQL-authoritative `google_drive_api` action and scope contract explicitly. It must not inherit a Sheets action or an actionless client default.
-- Split schemas may expose the dispatcher operation, but they must not duplicate provider action keys, credential scope rules, or token-cache behavior as an independent authority.
-- Preview, dry-run, and preflight descriptions must not imply a provider call or credential materialization when the runtime returns no-secret evidence.
-- Any split schema regeneration must preserve operation IDs, security schemes, and request compatibility after canonical auth-lifecycle documentation changes.
+Virtual tools such as `growth_intelligence_pilot_run` remain catalog-backed behind the stable dispatcher. They do not receive dedicated public OpenAPI paths.
 
-## Enforcement
+## Activation Gateway
 
-The DB execution policy is:
+The two Activation schemas generate `edge/activation-gateway/generated/route-policy.json`. The Gateway may enforce host, path, method, documented query fields, bounded headers, request/response size, timeout, redirect, signed-policy freshness, and secret-safe observability. It must not connect to MySQL, resolve membership, decrypt credentials, select providers, or make final business authorization decisions.
 
-- `policy_group = schema_governance`
-- `policy_key = split_openapi_must_derive_from_main_openapi`
-- `blocking = TRUE`
+Admin and tenant Activation session paths are intentionally distinct:
 
-CI enforcement is implemented by:
+- Admin: `GET /activation/session-context`;
+- Tenant: `GET /tenant/activation/session-context`.
 
-- `http-generic-api/scripts/split-openapi.mjs`
-- `http-generic-api/test-openapi-split-governance.mjs`
-- source-declared tenant aliases through `x-tenant-gpt-operationId` in `http-generic-api/openapi.yaml`
-- duplicate tenant alias rejection in `split-openapi.mjs`
+The tenant path derives tenant and user identity from the signed OAuth JWT and rejects client-provided identity fields.
 
-## Failure class
+## Generation and CI
 
-Any split-only endpoint or operation, or duplicate split alias key inside a source operation, is classified as `degraded_contract` and must block schema/runtime contract changes.
+Run from `http-generic-api/`:
 
-## Durable response chunk continuation
+```bash
+npm run schemas:generate
+npm run schemas:guard
+```
 
-The main OpenAPI source must describe durable continuation behavior for oversized system/admin tool responses: persistence completes before `chunk_id`, `response_chunk_read` may recover after in-process cache loss or restart, and existing cursor/page/continuation fields remain stable. Split schemas must derive this wording from `http-generic-api/openapi.yaml`; no split-only durable-chunk fields or examples are allowed. The Admin-only `response_chunk_durable_recovery_smoke` remains a virtual catalog tool behind `/gpt/tools/call`, adds no dedicated path or operation, and must not appear as a split-only endpoint. Its typed confirmation, bounded evidence, MySQL recovery, Unicode/integrity/TTL checks, and no-provider/no-external-write/no-secret guarantees must stay documented in the canonical source. Route coverage and split-governance tests are required for changes to this contract.
+Generation occurs in a temporary directory. All request, response, component, array, and local-reference schemas are recursively validated before committed artifacts are written. CI fails on artifact drift, unresolved references, empty schemas, operation-budget violations, host/surface mismatch, duplicate aliases, or Gateway-policy drift.
+
+Schema changes are review-required and are never auto-merged by the OpenAPI synchronization workflow.

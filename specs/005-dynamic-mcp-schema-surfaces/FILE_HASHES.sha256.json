@@ -1,0 +1,22 @@
+{
+  "acceptance-matrix.md": "26aa5e8e63f08226d7669ec176fe4e755faa76053931b5352e7a754f8b6eee35",
+  "checklists/release-readiness.md": "7bce31d39887a994c97a9c488d794cd6ff9bb75ed23257dd373531f75c3dbd81",
+  "checklists/requirements.md": "23e5b7dfc43479401e64efbd1a98480ff9c6518b82ff4296e24b74359083691d",
+  "checklists/security.md": "b2bf37529783ae5323ab55b9308c2d419836e668de3262d37bfc794ab97105a0",
+  "completion.json": "20c8559995c10c7eaa0b846d851f1dd03248a8ceb2fdd36eaf319482d927aca1",
+  "contracts/activation-gateway-attestation.schema.json": "f2e90834296ccedec9eac9a49d0ad1378afeb9264bf443e0bb08250e45b73160",
+  "contracts/activation-gateway-policy.schema.json": "19c0a481569fcbd0a26cc03f76682a9a83a665e4bb93f49a5a0d133df9685f8c",
+  "contracts/mcp-facade.openapi.yaml": "2d9b4abb6f5515c69f9489cf877c79ffcaf14e68e687ffcf328ab578201664da",
+  "contracts/surface-registry.schema.yaml": "c3f9721c7c1a75ba07bd79909c516c7d414100adaf3a5148de6005bfdb93f085",
+  "data-model.md": "50280b2b4574d5d2e15f417fdf6ea846e46f475431f77c6565693f5e59bf8b19",
+  "manifest.json": "6b9dcdc5989072f13c36c940b6bb383d642ea71b33c4a9f1dc54adf6739ee9df",
+  "plan.md": "8786965c5c67dc8ddfaf64c82f3eef3c93954e602d079a532aa2879fa45b6c8f",
+  "README.md": "6001a1f63126dd354aae447fa82c2ec58dec602583ae42449444fa3544596e48",
+  "research.md": "4d72d361f471021ca63169ceb4960d915a8370163b51a7855acd33ab5971a0a8",
+  "rollout.md": "12741318ed5b444b02e86f5637bade1b1886d46f4e010695e3aa5c8f6a490ec4",
+  "SPEC_KIT_OVERVIEW_AR.md": "3147a6cf1c4825a4b4979b122cd8f7e7e72de05f52cb6c9ca77e11f2c834446c",
+  "spec.md": "cf67d984fcb3a3d9a0c102ba90fe1e185a3183d3451af25ab9c0e1c8faf801c6",
+  "tasks.md": "15e51328bf79e3a9ef3e9623830a6f82ef16932de39457959e1ec69be0c6ebfb",
+  "threat-model.md": "ccbe81be973a95192f6bfe563584169363ba06448692e5f8459af0d5cba8f7ed",
+  "traceability.md": "9ecb7e2e1fc37657ef8017374c5afa1314259a71335142af81c8a71aa2b272fe"
+}

@@ -12,25 +12,25 @@
 - [x] **T001** Add tenant deny rule for all platform-admin tool surfaces without an explicit tenant-safe canonical binding. `[FR-010, FR-011]`
 - [x] **T002** Add boundary validation that rejects requests containing multiple selectors. `[FR-001, FR-002]`
 - [x] **T003** Disable or route known dual-surface bypass aliases through the stricter policy. `[FR-006, FR-007]`
-- [ ] **T004** Deny all state-changing capabilities without an explicit mutation policy. `[FR-019, FR-021]`
+- [x] **T004** Deny all state-changing capabilities without an explicit mutation policy. `[FR-019, FR-021]`
 - [x] **T005** Block provider execution for pending, revoked, expired, and scope-mismatched credentials. `[FR-025, FR-028]`
 - [x] **T006** Disable tenant access to raw admin credential-intake tools. `[FR-029, FR-030]`
-- [ ] **T007** Verify kill switches for local shell, file write/delete, Cloudflare mutation, n8n mutation, and raw intake creation.
-- [ ] **T008** Add temporary high-severity alerts for tenant-to-admin requests and selector parity mismatches.
-- [ ] **T009** Record containment validation evidence and named owners.
+- [x] **T007** Verify kill switches for local shell, file write/delete, Cloudflare mutation, n8n mutation, and raw intake creation.
+- [x] **T008** Add temporary high-severity alerts for tenant-to-admin requests and selector parity mismatches.
+- [x] **T009** Record containment validation evidence, the unified 34-wave tenant reverification report, named owners, and auditable Phase-0 checklists.
 
 ## Phase 1 — Repository and registry discovery
 
-- [ ] **T010** Inspect live repository canonicals and map current dispatcher, resolver, credential, approval, device, and audit modules.
-- [ ] **T011** Inventory every active action/tool/intent alias and surface.
-- [ ] **T012** Identify all dual-surface capabilities and compare current policies.
-- [ ] **T013** Identify tenant-visible administrative capabilities.
-- [ ] **T014** Inventory state-changing capabilities without complete mutation policy.
-- [ ] **T015** Inventory credential binding states and current resolver semantics.
-- [ ] **T016** Inventory device state fields, heartbeat source, and connector identity model.
-- [ ] **T017** Establish resolver p50/p95/p99 baseline and request volume.
-- [ ] **T018** Confirm database migration, test, feature-flag, and OpenAPI build mechanisms.
-- [ ] **T019** Update this plan where live repository facts differ; retain constitution constraints.
+- [x] **T010** Inspect live repository canonicals and map current dispatcher, resolver, credential, approval, device, and audit modules.
+- [x] **T011** Inventory every active action/tool/intent alias and surface.
+- [x] **T012** Identify all dual-surface capabilities and compare current policies.
+- [x] **T013** Identify tenant-visible administrative capabilities.
+- [x] **T014** Inventory state-changing capabilities without complete mutation policy.
+- [x] **T015** Inventory credential binding states and current resolver semantics.
+- [x] **T016** Inventory device state fields, heartbeat source, and connector identity model.
+- [x] **T017** Establish resolver p50/p95/p99 baseline and request volume.
+- [x] **T018** Confirm database migration, test, feature-flag, and OpenAPI build mechanisms.
+- [x] **T019** Update this plan where live repository facts differ; retain constitution constraints.
 
 ## Phase 2 — Canonical capability domain
 
