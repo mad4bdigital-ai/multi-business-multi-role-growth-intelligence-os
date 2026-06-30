@@ -217,8 +217,10 @@ assert.equal(classifyCapabilityEffect({
 }), "preview_only");
 assert.equal(classifyCapabilityEffect({
   capability_key: "admin_tool.connector_browser",
+  display_name: "Device Browser",
+  capability_family: "admin_tool",
   source_key: "connector_browser",
-  operation_class: "connector",
+  operation_class: "tool_dispatch",
   apply_allowed: 0,
 }), "unclassified");
 assert.equal(classifyCapabilityEffect({
