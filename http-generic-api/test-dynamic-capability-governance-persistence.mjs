@@ -276,7 +276,7 @@ await assert.rejects(
     expected_source_revision_hash: preview.source_revision_hash,
     confirm: CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
     capability_envelope_id: "envelope-005",
-  }, { pool: conflictPool, previewBuilder: async () => preview }),
+  }, { pool: conflictPool, previewBuilder: async () => preview, resolveEnvelope }),
   (error) => error.code === "capability_governance_idempotency_conflict"
 );
 
