@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { getPool } from "./db.js";
 
-export const DYNAMIC_CAPABILITY_GOVERNANCE_COMPILER_VERSION = "dynamic-capability-governance-compiler-v2";
+export const DYNAMIC_CAPABILITY_GOVERNANCE_COMPILER_VERSION = "dynamic-capability-governance-compiler-v3";
 
 const EFFECT_RANK = Object.freeze({
   unclassified: -1,
