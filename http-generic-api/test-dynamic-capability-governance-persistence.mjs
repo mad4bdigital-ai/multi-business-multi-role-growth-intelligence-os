@@ -280,6 +280,45 @@ await assert.rejects(
   (error) => error.code === "capability_governance_idempotency_conflict"
 );
 
+await assert.rejects(
+  () => persistDynamicCapabilityGovernanceCompilation({
+    idempotency_key: "persist-test-006",
+    expected_source_revision_hash: preview.source_revision_hash,
+    confirm: CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
+    capability_envelope_id: "missing-envelope",
+  }, {
+    pool: createFakePool(),
+    previewBuilder: async () => preview,
+    resolveEnvelope: async () => ({
+      ok: false,
+      status: "capability_resolution_envelope_not_found",
+      envelope_required: true,
+      secrets_included: false,
+    }),
+  }),
+  (error) => error.code === "capability_resolution_envelope_not_found" && error.status === 403
+);
+
+await assert.rejects(
+  () => persistDynamicCapabilityGovernanceCompilation({
+    idempotency_key: "persist-test-007",
+    expected_source_revision_hash: preview.source_revision_hash,
+    confirm: CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
+    capability_envelope_id: "dispatch-only-envelope",
+  }, {
+    pool: createFakePool(),
+    previewBuilder: async () => preview,
+    resolveEnvelope: async () => ({
+      ok: true,
+      app_key: "platform_orchestration",
+      operation_intent: "platform_capability_governance_compile_persist",
+      apply_allowed: false,
+      secrets_included: false,
+    }),
+  }),
+  (error) => error.code === "capability_governance_apply_not_authorized" && error.status === 403
+);
+
 const migrationPath = new URL("./migrations/20260630_dynamic_capability_governance_persistence.sql", import.meta.url);
 const migration = fs.readFileSync(migrationPath, "utf8");
 for (const table of [
