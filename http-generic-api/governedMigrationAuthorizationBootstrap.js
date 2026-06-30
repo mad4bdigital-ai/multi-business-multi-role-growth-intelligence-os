@@ -462,6 +462,9 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
       migration_file: candidate.migration,
     });
   }
+  const migrationExecutorApplyPolicy = verifyMigrationExecutorApplyPolicy(
+    await queryMigrationExecutorApplyPolicy(pool)
+  );
   await markReferenced({
     pool,
     envelopeId: envelope.envelope_id,
