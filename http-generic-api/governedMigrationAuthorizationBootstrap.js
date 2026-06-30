@@ -532,6 +532,7 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
       );
       if (raced) {
         const migrationExecutorApplyPolicy = await ensureMigrationExecutorApplyPolicy(pool);
+        const migrationExecutorDispatchCertification = await ensureMigrationExecutorDispatchCertification(pool);
         return {
           ok: true,
           authorization_created: false,
