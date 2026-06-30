@@ -204,6 +204,9 @@ assert.equal(pool.state.rolledBack, false);
 assert.equal(pool.state.released, true);
 assert.equal(pool.state.manifestInsertCount, 2);
 assert.equal(pool.state.gapInsertCount, 1);
+assert.equal(envelopeResolveCount, 1);
+assert.equal(envelopeReferenceCount, 1);
+assert.equal(result.envelope_readback.status, "capability_resolution_envelope_referenced");
 
 await assert.rejects(
   () => persistDynamicCapabilityGovernanceCompilation({
