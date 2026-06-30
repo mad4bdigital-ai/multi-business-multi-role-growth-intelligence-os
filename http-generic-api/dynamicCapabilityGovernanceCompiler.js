@@ -91,6 +91,11 @@ function tokenSet(value) {
   return new Set(normalized ? normalized.split(" ") : []);
 }
 
+function semanticOperationClass(value) {
+  const normalized = normalizeSemanticText(value);
+  return GENERIC_OPERATION_CLASSES.has(normalized) ? "" : normalized;
+}
+
 function hasAnyToken(tokens, candidates) {
   return candidates.some((candidate) => tokens.has(candidate));
 }
