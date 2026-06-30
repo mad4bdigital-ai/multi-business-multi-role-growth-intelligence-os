@@ -349,6 +349,9 @@ for (const expected of [
   assert.equal(migration.includes(expected), true, `migration must include ${expected}`);
 }
 
+const runnerSource = fs.readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
+assert.equal(runnerSource.includes("20260630_dynamic_capability_governance_persistence.sql"), true);
+
 const serviceSource = fs.readFileSync(new URL("./dynamicCapabilityGovernancePersistence.js", import.meta.url), "utf8");
 assert.equal(serviceSource.includes("resolveCapabilityExecutionEnvelope"), true);
 assert.equal(serviceSource.includes("markCapabilityEnvelopeReferenced"), true);
