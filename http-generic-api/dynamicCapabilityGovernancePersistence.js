@@ -12,6 +12,14 @@ import {
 
 export const CAPABILITY_GOVERNANCE_PERSIST_CONFIRM = "PERSIST_CAPABILITY_GOVERNANCE_COMPILATION";
 const LOCK_KEY = "platform_capability_governance_compilation";
+const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
+const PERSISTENCE_APP_KEY = "platform_orchestration";
+const PERSISTENCE_OPERATION_INTENTS = Object.freeze([
+  "platform_capability_governance_compile_persist",
+  "capability_governance_persist",
+  "shadow_compilation_persist",
+  "internal_registry_write",
+]);
 
 function rowsOf(result) {
   return Array.isArray(result?.[0]) ? result[0] : [];
