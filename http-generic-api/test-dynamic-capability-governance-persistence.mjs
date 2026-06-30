@@ -334,5 +334,32 @@ assert.equal(migration.includes("uq_pccm_current_capability"), true);
 assert.equal(migration.includes("canonical_capability_authority','platform_plugin_capabilities'"), true);
 assert.equal(migration.includes("no_provider_call"), true);
 assert.equal(migration.includes("secrets_included=false"), true);
+for (const expected of [
+  "platform_capability_governance_compile_persist",
+  "platform_plugin_capabilities",
+  "platform_plugin_bindings",
+  "platform_plugin_capability_exports",
+  "app_integration_action_bindings",
+  "app_integration_tool_bindings",
+  "runtime_dispatch_certification_registry",
+  "capability_apply_authorization_policy_registry",
+  "PERSIST_CAPABILITY_GOVERNANCE_COMPILATION",
+  "platform_capability_governance_compile_persist_policy_v1",
+]) {
+  assert.equal(migration.includes(expected), true, `migration must include ${expected}`);
+}
+
+const serviceSource = fs.readFileSync(new URL("./dynamicCapabilityGovernancePersistence.js", import.meta.url), "utf8");
+assert.equal(serviceSource.includes("resolveCapabilityExecutionEnvelope"), true);
+assert.equal(serviceSource.includes("markCapabilityEnvelopeReferenced"), true);
+assert.equal(serviceSource.includes("capability_governance_apply_not_authorized"), true);
+assert.equal(serviceSource.includes("acceptedAppKeys: [PERSISTENCE_APP_KEY]"), true);
+
+const routesSource = fs.readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
+const persistenceToolKey = "platform_capability_governance_compile_persist";
+assert.equal(routesSource.includes(`name: "${persistenceToolKey}"`), true);
+assert.equal(routesSource.includes(`toolKey === "${persistenceToolKey}"`), true);
+assert.equal(routesSource.includes("await persistDynamicCapabilityGovernanceCompilation"), true);
+assert.equal(routesSource.includes("auth: req?.auth || {}"), true);
 
 console.log("dynamic capability governance persistence tests passed");
