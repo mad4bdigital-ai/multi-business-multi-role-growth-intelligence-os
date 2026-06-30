@@ -181,11 +181,23 @@ export async function persistDynamicCapabilityGovernanceCompilation(args = {}, d
         run_id: existingRun.run_id,
       });
     }
+    const markReferenced = deps.markReferenced || markCapabilityEnvelopeReferenced;
+    const envelopeReadback = await markReferenced({
+      pool,
+      envelopeId: capabilityEnvelopeId,
+      executionRef: `capability-governance-run:${existingRun.run_id}`,
+    });
+    if (!envelopeReadback?.ok) {
+      fail("capability_governance_envelope_readback_failed", "Completed persistence replay could not verify envelope reference state.", 500, {
+        run_id: existingRun.run_id,
+      });
+    }
     return {
       ok: true,
       report_type: "dynamic_capability_governance_persist",
       replayed: true,
       run: existingRun,
+      envelope_readback: envelopeReadback,
       readback_complete: true,
       mutations_performed: false,
       provider_calls_performed: false,
