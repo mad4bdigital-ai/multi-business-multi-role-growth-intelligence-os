@@ -161,6 +161,15 @@ async function main() {
   assert.equal(created.authorization.allow_record_only, 0);
   assert.equal(created.migration_sql_executed, false);
   assert.equal(created.applies_migration, false);
+  assert.equal(created.migration_executor_apply_policy.app_key, "platform_orchestration");
+  assert.equal(created.migration_executor_apply_policy.capability_key, "governed_migration_execute");
+  assert.equal(created.migration_executor_apply_policy.runtime_surface, "governed_migration_execute");
+  assert.equal(created.migration_executor_apply_policy.allow_external_write, 0);
+  assert.equal(created.migration_executor_apply_policy.requires_same_cycle_dry_run, 1);
+  assert.equal(created.migration_executor_apply_policy.policy_json.checksum_bound, true);
+  assert.equal(created.migration_executor_apply_policy.policy_json.governed_ledger_required, true);
+  assert.equal(created.migration_executor_apply_policy.secrets_included, false);
+  assert.equal(pool.applyPolicies.size, 1);
   assert.equal(referenced.length, 1);
   const metadata = typeof created.authorization.metadata_json === "string"
     ? JSON.parse(created.authorization.metadata_json)
