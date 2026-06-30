@@ -147,6 +147,31 @@ function createFakePool() {
 }
 
 let uuidCounter = 0;
+let envelopeResolveCount = 0;
+let envelopeReferenceCount = 0;
+const resolveEnvelope = async (input) => {
+  envelopeResolveCount += 1;
+  assert.deepEqual(input.acceptedAppKeys, ["platform_orchestration"]);
+  assert.equal(input.acceptedIntents.includes("platform_capability_governance_compile_persist"), true);
+  assert.equal(input.requireReadyForDispatch, true);
+  assert.equal(input.requireDispatchAllowed, true);
+  assert.equal(input.requireNoApprovalRequired, true);
+  assert.equal(input.requireNoBlockingGaps, true);
+  assert.equal(input.requireNoSecrets, true);
+  return {
+    ok: true,
+    envelope_id: input.envelopeId,
+    app_key: "platform_orchestration",
+    operation_intent: "platform_capability_governance_compile_persist",
+    apply_allowed: true,
+    secrets_included: false,
+  };
+};
+const markReferenced = async (input) => {
+  envelopeReferenceCount += 1;
+  assert.match(input.executionRef, /^capability-governance-run:/);
+  return { ok: true, envelope_id: input.envelopeId, status: "capability_resolution_envelope_referenced", secrets_included: false };
+};
 const pool = createFakePool();
 const result = await persistDynamicCapabilityGovernanceCompilation({
   idempotency_key: "persist-test-001",
