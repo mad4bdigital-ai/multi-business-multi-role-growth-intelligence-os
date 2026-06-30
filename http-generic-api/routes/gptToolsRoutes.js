@@ -1821,6 +1821,13 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
   if (callerType === "admin" && toolKey === "platform_capability_governance_compile_preview") {
     return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityGovernancePreview(args) } };
   }
+  if (callerType === "admin" && toolKey === "platform_capability_governance_compile_persist") {
+    const result = await persistDynamicCapabilityGovernanceCompilation({
+      ...(args || {}),
+      requested_by: req?.auth?.user_id || req?.auth?.email || "platform_admin",
+    });
+    return { status: 200, body: { ok: true, name: toolKey, result } };
+  }
   if (callerType === "admin" && toolKey === "activation_gateway_rollout_plan") {
     try {
       const result = await buildActivationGatewayRolloutPlan(args || {}, {
