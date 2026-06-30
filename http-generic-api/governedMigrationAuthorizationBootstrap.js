@@ -519,6 +519,7 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
       [candidate.migration, AUTHORIZATION_SOURCE, AUTHORIZATION_POLICY_KEY, notes || null, JSON.stringify(metadata)]
     );
     await ensureMigrationExecutorApplyPolicy(connection);
+    await ensureMigrationExecutorDispatchCertification(connection);
     if (transactional) await connection.commit();
   } catch (error) {
     if (transactional) {
