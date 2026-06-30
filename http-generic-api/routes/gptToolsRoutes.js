@@ -41,6 +41,10 @@ import { applyUnifiedDiffToText } from "../unifiedDiff.js";
 export { applyUnifiedDiffToText };
 import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveReport } from "../platformCapabilityReports.js";
 import { buildDynamicCapabilityGovernancePreview } from "../dynamicCapabilityGovernanceCompiler.js";
+import {
+  CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
+  persistDynamicCapabilityGovernanceCompilation,
+} from "../dynamicCapabilityGovernancePersistence.js";
 import { runGrowthIntelligencePilotAdmin } from "../growthIntelligenceAdminTool.js";
 import {
   approveRepositoryAdvisoryCommentApprovalHoldAdmin,
@@ -381,6 +385,30 @@ const VIRTUAL_ADMIN_TOOLS = [
     inputSchema: {
       type: "object",
       properties: {
+        capability_key: { type: "string", maxLength: 191 },
+        source_table: { type: "string", maxLength: 191 },
+        after_key: { type: "string", maxLength: 191 },
+        limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+        gap_limit: { type: "integer", minimum: 1, maximum: 500, default: 200 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "platform_capability_governance_compile_persist",
+    displayName: "Persist Platform Capability Governance Compilation",
+    description: "Persist one bounded shadow compilation batch into immutable internal SQL manifests, source links, and typed gap snapshots with idempotency and same-cycle readback. This does not call providers, create callable exports, change Tenant authority, or enable runtime execution.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-governance-compile-persist",
+    tags: ["capability", "governance", "compiler", "persistence", "internal_registry", "state_changing", "mutation", "typed_confirmation", "capability_envelope", "same_cycle_readback", "idempotency", "no_provider_call", "no_external_write", "no_tenant_authority_change", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["idempotency_key", "expected_source_revision_hash", "confirm", "capability_envelope_id"],
+      properties: {
+        idempotency_key: { type: "string", minLength: 8, maxLength: 191 },
+        expected_source_revision_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        confirm: { type: "string", const: CAPABILITY_GOVERNANCE_PERSIST_CONFIRM },
+        capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
         capability_key: { type: "string", maxLength: 191 },
         source_table: { type: "string", maxLength: 191 },
         after_key: { type: "string", maxLength: 191 },
@@ -1792,6 +1820,15 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
 
   if (callerType === "admin" && toolKey === "platform_capability_governance_compile_preview") {
     return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityGovernancePreview(args) } };
+  }
+  if (callerType === "admin" && toolKey === "platform_capability_governance_compile_persist") {
+    const result = await persistDynamicCapabilityGovernanceCompilation({
+      ...(args || {}),
+      requested_by: req?.auth?.user_id || req?.auth?.email || "platform_admin",
+    }, {
+      auth: req?.auth || {},
+    });
+    return { status: 200, body: { ok: true, name: toolKey, result } };
   }
   if (callerType === "admin" && toolKey === "activation_gateway_rollout_plan") {
     try {
