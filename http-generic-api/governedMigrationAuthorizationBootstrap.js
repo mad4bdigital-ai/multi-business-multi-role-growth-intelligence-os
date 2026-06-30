@@ -40,6 +40,16 @@ const MIGRATION_EXECUTOR_APPLY_POLICY = Object.freeze({
     secrets_included: false,
   },
 });
+const MIGRATION_EXECUTOR_CERTIFICATION = Object.freeze({
+  certification_key: "governed_migration_execute",
+  surface_key: "governed_migration_execute",
+  surface_family: "governed_migration",
+  tool_or_action_key: "governed_migration_execute",
+  risk_class: "D",
+  certification_status: "bootstrap_registered",
+  smoke_strategy: "checksum_bound_dry_run_apply_schema_readback",
+  last_evidence_ref: "governed_migration_authorization_bootstrap",
+});
 const ACCEPTED_OPERATION_INTENTS = Object.freeze([
   "governed_migration_authorization_bootstrap",
   "migration_authorization_bootstrap",
