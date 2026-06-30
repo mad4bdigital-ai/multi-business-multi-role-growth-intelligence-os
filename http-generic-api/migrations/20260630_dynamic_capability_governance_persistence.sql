@@ -120,6 +120,146 @@ SELECT
   0 AS tenant_authority_changes_enabled,
   0 AS secrets_included;
 
+INSERT INTO `platform_plugins`
+  (`plugin_key`,`display_name`,`plugin_family`,`source_kind`,`owner_scope`,`trust_level`,`status`,`source_table`,`source_key`,`manifest_json`)
+VALUES
+  ('platform_orchestration','Platform Orchestration','orchestration_intelligence','canonical_registry','internal','governed','active',
+   'app_integrations','platform_orchestration',
+   JSON_OBJECT('credential_source','none','provider_calls_allowed',false,'external_writes_allowed',false,'tenant_authority_changes_allowed',false,'secrets_included',false))
+ON DUPLICATE KEY UPDATE
+  display_name=VALUES(display_name),plugin_family=VALUES(plugin_family),owner_scope=VALUES(owner_scope),
+  trust_level=VALUES(trust_level),status=VALUES(status),source_table=VALUES(source_table),source_key=VALUES(source_key),
+  manifest_json=VALUES(manifest_json),updated_at=CURRENT_TIMESTAMP;
+
+INSERT INTO `platform_plugin_capabilities`
+  (`capability_key`,`plugin_key`,`display_name`,`capability_family`,`source_table`,`source_key`,`operation_class`,`risk_class`,
+   `runtime_status`,`exposure_scope`,`authority_requirement_type`,`resource_authority_required`,`dispatch_allowed`,`apply_allowed`,
+   `requires_audit_evidence`,`requires_readback`,`legacy_evidence_ref`,`metadata_json`,`status`)
+VALUES
+  ('platform_capability_governance_compile_persist','platform_orchestration',
+   'Persist Platform Capability Governance Compilation','capability_governance','virtual_admin_tools',
+   'platform_capability_governance_compile_persist','internal_write','C','shadow','admin','approval',0,1,0,1,1,
+   'migration:20260630_dynamic_capability_governance_persistence.sql',
+   JSON_OBJECT('typed_confirmation','PERSIST_CAPABILITY_GOVERNANCE_COMPILATION','idempotency_required',true,
+               'expected_source_revision_required',true,'same_cycle_readback',true,'provider_calls',false,
+               'external_writes',false,'tenant_authority_changes',false,'secrets_included',false),'active')
+ON DUPLICATE KEY UPDATE
+  plugin_key=VALUES(plugin_key),display_name=VALUES(display_name),capability_family=VALUES(capability_family),
+  source_table=VALUES(source_table),source_key=VALUES(source_key),operation_class=VALUES(operation_class),risk_class=VALUES(risk_class),
+  runtime_status=VALUES(runtime_status),exposure_scope=VALUES(exposure_scope),authority_requirement_type=VALUES(authority_requirement_type),
+  resource_authority_required=VALUES(resource_authority_required),dispatch_allowed=VALUES(dispatch_allowed),apply_allowed=VALUES(apply_allowed),
+  requires_audit_evidence=VALUES(requires_audit_evidence),requires_readback=VALUES(requires_readback),
+  legacy_evidence_ref=VALUES(legacy_evidence_ref),metadata_json=VALUES(metadata_json),status=VALUES(status),updated_at=CURRENT_TIMESTAMP;
+
+INSERT INTO `platform_plugin_bindings`
+  (`binding_key`,`capability_key`,`binding_family`,`source_table`,`source_key`,`binding_status`,`exposure_scope`,
+   `credential_source`,`dispatch_allowed`,`apply_allowed`,`metadata_json`)
+VALUES
+  ('binding:admin:platform_capability_governance_compile_persist','platform_capability_governance_compile_persist',
+   'admin_virtual_tool','virtual_admin_tools','platform_capability_governance_compile_persist','active','admin','none',1,0,
+   JSON_OBJECT('runtime_surface','platform_capability_governance_compile_persist','capability_envelope_required',true,
+               'typed_confirmation_required',true,'same_cycle_readback',true,'secrets_included',false))
+ON DUPLICATE KEY UPDATE
+  capability_key=VALUES(capability_key),binding_family=VALUES(binding_family),source_table=VALUES(source_table),
+  source_key=VALUES(source_key),binding_status=VALUES(binding_status),exposure_scope=VALUES(exposure_scope),
+  credential_source=VALUES(credential_source),dispatch_allowed=VALUES(dispatch_allowed),apply_allowed=VALUES(apply_allowed),
+  metadata_json=VALUES(metadata_json),updated_at=CURRENT_TIMESTAMP;
+
+INSERT INTO `platform_plugin_capability_exports`
+  (`export_key`,`capability_key`,`export_surface`,`source_table`,`source_key`,`export_status`,`exposure_scope`,`http_method`,`http_path`,`notes`)
+VALUES
+  ('export:admin:platform_capability_governance_compile_persist','platform_capability_governance_compile_persist',
+   'admin_virtual_tool','virtual_admin_tools','platform_capability_governance_compile_persist','active','admin','VIRTUAL',
+   'internal://platform-capability-governance-compile-persist',
+   'Admin-only internal registry persistence. Requires approved apply-authorized platform_orchestration envelope and same-cycle readback.')
+ON DUPLICATE KEY UPDATE
+  capability_key=VALUES(capability_key),export_surface=VALUES(export_surface),source_table=VALUES(source_table),
+  source_key=VALUES(source_key),export_status=VALUES(export_status),exposure_scope=VALUES(exposure_scope),
+  http_method=VALUES(http_method),http_path=VALUES(http_path),notes=VALUES(notes),updated_at=CURRENT_TIMESTAMP;
+
+INSERT INTO `app_integration_action_bindings`
+  (`binding_id`,`app_key`,`action_key`,`binding_role`,`credential_source`,`exposure_default`,`status`,`notes`)
+VALUES
+  ('bind_action_platform_capability_governance_compile_persist','platform_orchestration',
+   'platform_capability_governance_compile_persist','resolver','none','manual_tools','active',
+   'Internal no-credential governed persistence for immutable capability manifests and typed gap snapshots.')
+ON DUPLICATE KEY UPDATE
+  app_key=VALUES(app_key),action_key=VALUES(action_key),binding_role=VALUES(binding_role),
+  credential_source=VALUES(credential_source),exposure_default=VALUES(exposure_default),status=VALUES(status),
+  notes=VALUES(notes),updated_at=CURRENT_TIMESTAMP;
+
+INSERT INTO `app_integration_tool_bindings`
+  (`binding_id`,`app_key`,`tool_key`,`tool_surface`,`binding_role`,`credential_source`,`exposure_scope`,`status`,`notes`)
+VALUES
+  ('bind_tool_platform_capability_governance_compile_persist','platform_orchestration',
+   'platform_capability_governance_compile_persist','admin_platform_tool','state_changing','none','admin','active',
+   'Apply-authorized internal registry write only. No provider calls, external writes, Tenant authority changes, or secrets.')
+ON DUPLICATE KEY UPDATE
+  app_key=VALUES(app_key),tool_key=VALUES(tool_key),tool_surface=VALUES(tool_surface),binding_role=VALUES(binding_role),
+  credential_source=VALUES(credential_source),exposure_scope=VALUES(exposure_scope),status=VALUES(status),
+  notes=VALUES(notes),updated_at=CURRENT_TIMESTAMP;
+
+INSERT INTO `runtime_dispatch_certification_registry`
+  (`certification_key`,`surface_key`,`surface_family`,`tool_or_action_key`,`risk_class`,`certification_status`,`smoke_strategy`,
+   `dispatch_allowed`,`apply_allowed`,`requires_resource_authority`,`requires_dry_run`,`requires_audit_evidence`,`requires_readback`,
+   `last_evidence_ref`,`last_certified_at`,`expires_at`,`notes`)
+VALUES
+  ('platform_capability_governance_compile_persist','platform_capability_governance_compile_persist','capability_governance',
+   'platform_capability_governance_compile_persist','C','migration_registered_apply_envelope_required',
+   'bounded_shadow_compile_persist_same_cycle_readback',1,0,0,1,1,1,
+   'migration:20260630_dynamic_capability_governance_persistence.sql',CURRENT_TIMESTAMP,NULL,
+   'Dispatch is registered for Admin orchestration. Apply remains gated by capability_apply_authorization_policy_registry and runtime envelope verification.')
+ON DUPLICATE KEY UPDATE
+  certification_status=VALUES(certification_status),dispatch_allowed=VALUES(dispatch_allowed),apply_allowed=VALUES(apply_allowed),
+  requires_resource_authority=VALUES(requires_resource_authority),requires_dry_run=VALUES(requires_dry_run),
+  requires_audit_evidence=VALUES(requires_audit_evidence),requires_readback=VALUES(requires_readback),
+  last_evidence_ref=VALUES(last_evidence_ref),last_certified_at=VALUES(last_certified_at),notes=VALUES(notes),updated_at=CURRENT_TIMESTAMP;
+
+INSERT INTO `capability_apply_authorization_policy_registry`
+  (`policy_key`,`app_key`,`capability_key`,`operation_intent`,`runtime_surface`,`status`,`allow_external_write`,
+   `allow_credential_binding`,`allow_no_credential_binding`,`requires_ready_for_dispatch`,`requires_dispatch_allowed`,
+   `requires_zero_blocking_gaps`,`requires_audit_evidence`,`requires_readback`,`requires_typed_confirmation`,
+   `requires_same_cycle_dry_run`,`allowed_source_tiers_json`,`policy_json`,`notes`)
+VALUES
+  ('platform_capability_governance_compile_persist_apply_v1','platform_orchestration',
+   'platform_capability_governance_compile_persist','platform_capability_governance_compile_persist',
+   'platform_capability_governance_compile_persist','active',0,0,1,1,1,1,1,1,1,1,
+   JSON_ARRAY('platform_managed_fallback','tenant_managed'),
+   JSON_OBJECT('external_write_allowed',false,'provider_call_allowed',false,'credential_payload_read_allowed',false,
+               'tenant_authority_change_allowed',false,'internal_registry_write_expected',true,
+               'typed_confirmation','PERSIST_CAPABILITY_GOVERNANCE_COMPILATION',
+               'source_revision_match_required',true,'idempotency_required',true,'same_cycle_readback',true,
+               'secrets_included',false),
+   'Authorize bounded immutable governance compilation persistence only after preview/source-revision validation and explicit typed confirmation.')
+ON DUPLICATE KEY UPDATE
+  app_key=VALUES(app_key),capability_key=VALUES(capability_key),operation_intent=VALUES(operation_intent),
+  runtime_surface=VALUES(runtime_surface),status=VALUES(status),allow_external_write=VALUES(allow_external_write),
+  allow_credential_binding=VALUES(allow_credential_binding),allow_no_credential_binding=VALUES(allow_no_credential_binding),
+  requires_ready_for_dispatch=VALUES(requires_ready_for_dispatch),requires_dispatch_allowed=VALUES(requires_dispatch_allowed),
+  requires_zero_blocking_gaps=VALUES(requires_zero_blocking_gaps),requires_audit_evidence=VALUES(requires_audit_evidence),
+  requires_readback=VALUES(requires_readback),requires_typed_confirmation=VALUES(requires_typed_confirmation),
+  requires_same_cycle_dry_run=VALUES(requires_same_cycle_dry_run),allowed_source_tiers_json=VALUES(allowed_source_tiers_json),
+  policy_json=VALUES(policy_json),notes=VALUES(notes),updated_at=CURRENT_TIMESTAMP;
+
+INSERT INTO `execution_policies`
+  (`policy_group`,`policy_key`,`policy_value`,`active`,`execution_scope`,`affects_layer`,`blocking`,`notes`)
+SELECT
+  'Dynamic Capability Governance','platform_capability_governance_compile_persist_policy_v1',
+  JSON_OBJECT('rule','platform_capability_governance_compile_persist','tool_key','platform_capability_governance_compile_persist',
+              'requires',JSON_ARRAY('approved_capability_envelope','apply_allowed','expected_source_revision_hash',
+                                    'typed_confirmation','idempotency_key','same_cycle_readback'),
+              'writes_tables',JSON_ARRAY('platform_capability_compilation_runs','platform_capability_compiled_manifests',
+                                         'platform_capability_manifest_source_links','platform_capability_governance_gap_snapshots'),
+              'no_provider_call',true,'no_external_write',true,'no_tenant_authority_change',true,'secrets_included',false),
+  'TRUE','gpt_tools_call|tool_dispatch|platform_capability_governance_compile_persist|internal_registry_write',
+  'gptToolsRoutes|dynamicCapabilityGovernancePersistence|platform_capability_compilation_runs|platform_capability_compiled_manifests|platform_capability_manifest_source_links|platform_capability_governance_gap_snapshots',
+  'TRUE','Blocking internal persistence policy. Runtime must validate envelope, source revision, typed confirmation, idempotency, transaction, and same-cycle readback.'
+WHERE NOT EXISTS (
+  SELECT 1 FROM `execution_policies`
+   WHERE `policy_group`='Dynamic Capability Governance'
+     AND `policy_key`='platform_capability_governance_compile_persist_policy_v1'
+);
+
 INSERT INTO `platform_closure_threads`
   (`thread_key`,`state`,`required_evidence_json`,`observed_evidence_json`,`blocker_json`,`next_action`,`owner_engine_key`)
 VALUES
