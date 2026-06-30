@@ -12,7 +12,7 @@
       "T020", "T021", "T022", "T023", "T024", "T025", "T026"
     ],
     "tasks_remaining_range": "T027-T114",
-    "pull_request": null,
+    "pull_request": 1969,
     "branch": "gpt/001-capability-security-phase2-canonical-domain",
     "merge_scope": "canonical_capability_domain_alias_registry_and_integrity"
   },
@@ -22,12 +22,12 @@
     "post_merge_audit": true
   },
   "delivery": {
-    "implementation_prs": [],
+    "implementation_prs": [1969],
     "closeout_pr": {
-      "number": null,
+      "number": 1969,
       "branch": "gpt/001-capability-security-phase2-canonical-domain",
       "role": "phase_increment",
-      "status": "pending_pr"
+      "status": "open_ci_pending"
     }
   },
   "evidence": {
@@ -51,6 +51,7 @@
     },
     "phase2": {
       "status": "implemented_pending_ci_and_merge",
+      "pull_request": 1969,
       "domain_models": [
         "CanonicalCapability",
         "CapabilityAlias"
