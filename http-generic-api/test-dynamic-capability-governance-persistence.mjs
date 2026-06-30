@@ -14,6 +14,7 @@ const preview = {
     source_rows: 2,
     manifest_count: 2,
     gap_count: 1,
+    returned_gap_count: 1,
     blocked_manifest_count: 1,
     shadow_ready_manifest_count: 1,
   },
