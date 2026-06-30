@@ -163,6 +163,7 @@ async function main() {
   assert.equal(created.applies_migration, false);
   assert.equal(created.migration_executor_apply_policy.app_key, "platform_orchestration");
   assert.equal(created.migration_executor_apply_policy.capability_key, "governed_migration_execute");
+  assert.equal(created.migration_executor_apply_policy.operation_intent, "governed_migration_apply");
   assert.equal(created.migration_executor_apply_policy.runtime_surface, "governed_migration_execute");
   assert.equal(created.migration_executor_apply_policy.allow_external_write, 0);
   assert.equal(created.migration_executor_apply_policy.requires_same_cycle_dry_run, 1);
