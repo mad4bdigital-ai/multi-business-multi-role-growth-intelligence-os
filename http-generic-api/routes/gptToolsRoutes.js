@@ -473,6 +473,24 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "governed_migration_apply_policy_bootstrap",
+    displayName: "Governed Migration Apply Policy Bootstrap",
+    description: "Create or verify the one fixed dynamic apply-authorization policy required by governed_migration_execute. The contract is non-configurable, no-provider, no-external-write, checksum-runner-only, and requires typed confirmation plus same-cycle readback.",
+    method: "VIRTUAL",
+    path: "internal://governed-migration-apply-policy-bootstrap",
+    tags: ["admin", "migration", "capability_resolution", "policy_bootstrap", "state_changing", "typed_confirmation", "capability_envelope", "readback", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["confirm", "decision_note", "capability_envelope_id"],
+      properties: {
+        confirm: { type: "string", const: "BOOTSTRAP_GOVERNED_MIGRATION_EXECUTE_APPLY_POLICY" },
+        decision_note: { type: "string", minLength: 20, maxLength: 1000 },
+        capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "capability_resolution_envelope_apply_authorize",
     displayName: "Apply-Authorize Capability Resolution Envelope",
     description: "Apply-authorize one ready capability resolution envelope through the dynamic capability apply policy. Creates internal approval evidence only; no provider call, external write, credential payload read, or secret return.",
