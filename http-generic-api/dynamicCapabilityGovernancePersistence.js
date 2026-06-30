@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import {
+  capabilityEnvelopeError,
+  markCapabilityEnvelopeReferenced,
+  resolveCapabilityExecutionEnvelope,
+} from "./capabilityResolutionEnvelopeGuard.js";
+import {
   buildDynamicCapabilityGovernancePreview,
   stableCapabilityHash,
 } from "./dynamicCapabilityGovernanceCompiler.js";
