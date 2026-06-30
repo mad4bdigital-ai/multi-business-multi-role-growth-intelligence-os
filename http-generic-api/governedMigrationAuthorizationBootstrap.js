@@ -433,12 +433,14 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
         candidate.migration_checksum_sha256
       );
       if (raced) {
+        const migrationExecutorApplyPolicy = await ensureMigrationExecutorApplyPolicy(pool);
         return {
           ok: true,
           authorization_created: false,
           idempotent: true,
           candidate,
           authorization: raced,
+          migration_executor_apply_policy: migrationExecutorApplyPolicy,
           migration_sql_executed: false,
           applies_migration: false,
           capability_envelope_id: envelope.envelope_id,
