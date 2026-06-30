@@ -41,6 +41,7 @@ import { applyUnifiedDiffToText } from "../unifiedDiff.js";
 export { applyUnifiedDiffToText };
 import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveReport } from "../platformCapabilityReports.js";
 import { buildDynamicCapabilityGovernancePreview } from "../dynamicCapabilityGovernanceCompiler.js";
+import { buildDynamicCapabilityProjectionPreview } from "../dynamicCapabilityProjectionPreview.js";
 import {
   CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
   persistDynamicCapabilityGovernanceCompilation,
