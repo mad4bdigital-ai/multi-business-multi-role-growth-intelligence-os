@@ -197,6 +197,57 @@ await assert.rejects(
   (error) => error.code === "capability_governance_source_revision_mismatch"
 );
 
+await assert.rejects(
+  () => persistDynamicCapabilityGovernanceCompilation({
+    idempotency_key: "persist-test-004",
+    expected_source_revision_hash: preview.source_revision_hash,
+    confirm: CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
+    capability_envelope_id: "envelope-004",
+    gap_limit: 1,
+  }, {
+    pool: createFakePool(),
+    previewBuilder: async () => ({
+      ...preview,
+      counts: { ...preview.counts, gap_count: 2, returned_gap_count: 1 },
+    }),
+  }),
+  (error) => error.code === "capability_governance_gap_snapshot_truncated"
+);
+
+const conflictPool = {
+  async query(sql) {
+    const normalized = String(sql).replace(/\s+/g, " ").trim();
+    assert.match(normalized, /FROM platform_capability_compilation_runs/);
+    return [[{
+      run_id: "existing-run",
+      idempotency_key: "persist-test-005",
+      compiler_version: preview.compiler_version,
+      status: "complete",
+      source_revision_hash: preview.source_revision_hash,
+      input_hash: "e".repeat(64),
+      output_hash: "f".repeat(64),
+      source_count: 2,
+      compiled_manifest_count: 2,
+      persisted_manifest_count: 2,
+      reused_manifest_count: 0,
+      gap_count: 1,
+      blocked_manifest_count: 1,
+      shadow_ready_manifest_count: 1,
+      capability_envelope_id: "different-envelope",
+      secrets_included: 0,
+    }]];
+  },
+};
+await assert.rejects(
+  () => persistDynamicCapabilityGovernanceCompilation({
+    idempotency_key: "persist-test-005",
+    expected_source_revision_hash: preview.source_revision_hash,
+    confirm: CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
+    capability_envelope_id: "envelope-005",
+  }, { pool: conflictPool, previewBuilder: async () => preview }),
+  (error) => error.code === "capability_governance_idempotency_conflict"
+);
+
 const migrationPath = new URL("./migrations/20260630_dynamic_capability_governance_persistence.sql", import.meta.url);
 const migration = fs.readFileSync(migrationPath, "utf8");
 for (const table of [
