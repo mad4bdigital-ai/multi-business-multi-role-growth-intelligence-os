@@ -395,6 +395,18 @@ export async function persistDynamicCapabilityGovernanceCompilation(args = {}, d
       });
     }
 
+    const markReferenced = deps.markReferenced || markCapabilityEnvelopeReferenced;
+    const envelopeReadback = await markReferenced({
+      pool,
+      envelopeId: capabilityEnvelopeId,
+      executionRef: `capability-governance-run:${runId}`,
+    });
+    if (!envelopeReadback?.ok) {
+      fail("capability_governance_envelope_readback_failed", "Persistence committed but envelope reference readback failed.", 500, {
+        run_id: runId,
+      });
+    }
+
     return {
       ok: true,
       report_type: "dynamic_capability_governance_persist",
@@ -411,6 +423,7 @@ export async function persistDynamicCapabilityGovernanceCompilation(args = {}, d
       },
       page: preview.page,
       readback,
+      envelope_readback: envelopeReadback,
       readback_complete: true,
       mutations_performed: true,
       provider_calls_performed: false,
