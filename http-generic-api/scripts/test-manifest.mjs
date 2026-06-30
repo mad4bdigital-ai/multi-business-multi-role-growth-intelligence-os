@@ -106,6 +106,7 @@ export const testCommands = [
   "node test-runtime-guards.mjs",
   "node test-access-control-matrix.mjs",
   "node test-activation-followup-hardening.mjs",
+  "node test-activation-run-archive-admin-control-read.mjs",
   "node test-admin-control.mjs",
   "node test-admin-db-tool-dispatch-backend-auth.mjs",
   "node test-admin-tool-registry-updated-at-column.mjs",
