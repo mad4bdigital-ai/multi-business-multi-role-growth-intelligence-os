@@ -129,6 +129,14 @@ export async function persistDynamicCapabilityGovernanceCompilation(args = {}, d
         status: existingRun.status,
       });
     }
+    if (
+      existingRun.source_revision_hash !== expectedSourceRevisionHash
+      || existingRun.capability_envelope_id !== capabilityEnvelopeId
+    ) {
+      fail("capability_governance_idempotency_conflict", "The idempotency key is already bound to a different source revision or capability envelope.", 409, {
+        run_id: existingRun.run_id,
+      });
+    }
     return {
       ok: true,
       report_type: "dynamic_capability_governance_persist",
