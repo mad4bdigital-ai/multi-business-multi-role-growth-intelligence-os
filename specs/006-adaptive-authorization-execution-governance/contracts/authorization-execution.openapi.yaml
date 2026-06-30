@@ -252,8 +252,9 @@ components:
         states:
           type: object
           additionalProperties: false
-          required: [binding, grant, authorization, approval]
+          required: [availability, binding, grant, authorization, approval]
           properties:
+            availability: {type: string, enum: [active, unavailable, deprecated]}
             binding: {type: string, enum: [resolved, ambiguous, missing, stale]}
             grant: {type: string, enum: [active, revoked, expired, suspended, not_required]}
             authorization: {type: string, enum: [allowed, denied, conditional, not_evaluated]}
