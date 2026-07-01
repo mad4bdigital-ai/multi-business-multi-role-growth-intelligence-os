@@ -60,6 +60,27 @@
 7. Run `http-generic-api/scripts/capability-alias-integrity-report.mjs`.
 8. Record counts for inventory, aliases, duplicate active alias targets, orphan aliases, and incomplete active capabilities.
 
+## Task Accounting And Execution Plan
+
+- Total tasks: `114`
+- Completed tasks: `56`
+- Remaining tasks: `58`
+- Remaining range: `T027-T045,T073-T081,T085-T114`
+- Completed out of order and excluded from remaining work: `T046-T072,T082-T084`
+- Reuse constraint: completed approval work in `T082-T084` must be reused; do not create a parallel approval path.
+
+Execution order:
+
+1. Finish Phase 2 closeout evidence, Migration 1030 governed apply/readback, and branch cleanup.
+2. Deliver Phase 3 strict request contract in an independent PR.
+3. Deliver Phase 4 security decision engine in one PR or small PR set bounded by domain, application, and integration surfaces.
+4. After the decision engine is stable, run Phase 8 and Phase 9 on synchronized branches.
+5. Run Phase 10 after the decision trace contract is fixed.
+6. Run Phase 11 after request and trace contracts stabilize.
+7. Run Phase 12 only as verification and release, including regression coverage for completed Phases 5-7 against the new decision engine.
+
+Merge policy: merge is deferred until the full plan is complete and required CI is successful for the final integration point.
+
 ## Execution Authority Boundary
 
 Phase 2 merged the canonical capability domain and alias registry, but it does not change runtime execution authority by itself. Existing action and tool registries remain runtime authority until later phases explicitly route dispatch through the canonical capability domain and pass their own CI, migration, rollout, and authorization gates.
