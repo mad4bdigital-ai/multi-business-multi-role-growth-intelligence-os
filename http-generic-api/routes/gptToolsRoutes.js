@@ -26,6 +26,10 @@ import { bootstrapGovernedMigrationAuthorization } from "../governedMigrationAut
 import { bootstrapGovernedMigrationApplyPolicy } from "../governedMigrationApplyPolicyBootstrap.js";
 import { authorizeCapabilityResolutionEnvelopeApply } from "../scripts/capability-resolution-envelope-apply-authorize.mjs";
 import { runGovernedMigrationExecution } from "../governedMigrationExecutionTool.js";
+import {
+  buildSqlCacheOperationalDiagnostics,
+  runSqlCacheControlledLoadTest,
+} from "../sqlCacheOperationalDiagnostics.js";
 import { buildActivationGatewayRolloutPlan, runActivationGatewayDarkDeploy } from "../activationGatewayRolloutTool.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import {
@@ -661,6 +665,42 @@ const VIRTUAL_ADMIN_TOOLS = [
         confirm: { type: "string" },
         capability_envelope_id: { type: "string" },
         decision_note: { type: "string", minLength: 20, maxLength: 1000 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "sql_cache_runtime_diagnostics_get",
+    displayName: "SQL Cache Runtime Diagnostics Get",
+    description: "Read process-lifetime SQL cache counters, derived hit/miss/error metrics, policy freshness, circuit/cooldown state, and threshold-based operational alerts. No cache or policy mutation is performed.",
+    method: "VIRTUAL",
+    path: "internal://sql-cache-runtime-diagnostics-get",
+    tags: ["admin", "cache", "sql_cache", "read_only", "diagnostics", "monitoring", "no_external_write", "no_provider_call", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        minimum_read_samples: { type: "integer", minimum: 1, maximum: 1000000, default: 20 },
+        low_hit_ratio: { type: "number", minimum: 0, maximum: 1, default: 0.4 },
+        high_error_rate: { type: "number", minimum: 0, maximum: 1, default: 0.05 },
+        oversize_cooldown_warning_count: { type: "integer", minimum: 1, maximum: 1000000, default: 1 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "sql_cache_controlled_load_test",
+    displayName: "SQL Cache Controlled Load Test",
+    description: "Run a bounded isolated in-memory comparison of uncached versus cached reads, verify single-flight behavior, and confirm the endpoints security denylist fallback. Production Redis and MySQL are never touched.",
+    method: "VIRTUAL",
+    path: "internal://sql-cache-controlled-load-test",
+    tags: ["admin", "cache", "sql_cache", "read_only", "diagnostics", "isolated_in_memory", "no_external_write", "no_provider_call", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        iterations: { type: "integer", minimum: 10, maximum: 2000, default: 100 },
+        concurrency: { type: "integer", minimum: 1, maximum: 200, default: 20 },
+        loader_delay_ms: { type: "integer", minimum: 0, maximum: 100, default: 5 },
+        payload_bytes: { type: "integer", minimum: 16, maximum: 262144, default: 1024 },
       },
       additionalProperties: false,
     },
@@ -2108,6 +2148,42 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
           error: {
             code: err?.code || "governed_migration_authorization_bootstrap_failed",
             message: err?.message || "Governed migration authorization bootstrap failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
+  if (callerType === "admin" && toolKey === "sql_cache_runtime_diagnostics_get") {
+    try {
+      const result = buildSqlCacheOperationalDiagnostics(undefined, args || {});
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: Number(err?.status || 500),
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "sql_cache_runtime_diagnostics_failed",
+            message: err?.message || "SQL cache runtime diagnostics failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
+  if (callerType === "admin" && toolKey === "sql_cache_controlled_load_test") {
+    try {
+      const result = await runSqlCacheControlledLoadTest(args || {});
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: Number(err?.status || 500),
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "sql_cache_controlled_load_test_failed",
+            message: err?.message || "SQL cache controlled load test failed.",
             details: err?.details,
           },
         },
