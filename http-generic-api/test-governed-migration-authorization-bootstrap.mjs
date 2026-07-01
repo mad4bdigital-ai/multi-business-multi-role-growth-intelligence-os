@@ -102,8 +102,33 @@ function createFakePool() {
         return [[...(row ? [{ ...row }] : [])]];
       }
       if (sql.includes("FROM governed_migration_ledger")) {
-        const row = ledger.get(`${params[0]}:${params[1]}`);
+        const row = params.length > 1
+          ? ledger.get(`${params[0]}:${params[1]}`)
+          : [...ledger.entries()].find(([key]) => key.startsWith(`${params[0]}:`))?.[1];
         return [[...(row ? [{ ...row }] : [])]];
+      }
+      if (sql.includes("UPDATE governed_migration_authorization_registry")) {
+        const [notes, metadataJson, migration, previousChecksum] = params;
+        const row = authorizations.get(migration);
+        const metadata = row
+          ? (typeof row.metadata_json === "string" ? JSON.parse(row.metadata_json) : row.metadata_json)
+          : {};
+        const recordedChecksum = String(metadata?.migration_checksum_sha256 || metadata?.checksum_sha256 || "").toLowerCase();
+        if (
+          !row ||
+          row.authorization_status !== "authorized" ||
+          Number(row.allow_apply || 0) !== 1 ||
+          recordedChecksum !== previousChecksum
+        ) {
+          return [{ affectedRows: 0 }];
+        }
+        authorizations.set(migration, {
+          ...row,
+          notes,
+          metadata_json: metadataJson,
+          updated_at: new Date("2026-07-01T10:15:00.000Z"),
+        });
+        return [{ affectedRows: 1 }];
       }
       if (sql.includes("INSERT INTO governed_migration_authorization_registry")) {
         const [migration, source, policyKey, notes, metadataJson] = params;
