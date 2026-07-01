@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
+import { buildSqlCacheOperationalDiagnostics } from "./sqlCacheOperationalDiagnostics.js";
 
 const SENSITIVE_KEY_PATTERN = /(secret|credential|token|password|private_key|cipher|api_key|value_ciphertext|system_prompt|raw_prompt|payload_json)/i;
 const SEVERITY_WEIGHT = Object.freeze({ critical: 5, high: 4, medium: 3, low: 2, info: 1 });
@@ -19,6 +20,7 @@ const SOURCE_ROW_CAPS = Object.freeze({
   activation_signal_inbox: 500,
   readiness_checks: 500,
   telemetry_spans: 500,
+  sql_cache_runtime: 1,
   operational_alerts: 2000,
 });
 const KNOWN_ISSUE_KEYS = Object.freeze([
@@ -105,7 +107,24 @@ async function safeRows(source, sql, params = [], pool = getPool()) {
   }
 }
 
-function candidate({
+async function collectSqlCacheRuntimeSource() {
+  try {
+    return {
+      source: "sql_cache_runtime",
+      ok: true,
+      rows: [buildSqlCacheOperationalDiagnostics()],
+    };
+  } catch (error) {
+    return {
+      source: "sql_cache_runtime",
+      ok: false,
+      rows: [],
+      error: compactError(error, "sql_cache_runtime_diagnostics_failed"),
+    };
+  }
+}
+
+function candidate({ 
   alertKey = null,
   sourceType,
   sourceRef = null,
@@ -586,6 +605,10 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
     ),
   ];
 
+  if (subject.is_admin) {
+    queries.push(collectSqlCacheRuntimeSource());
+  }
+
   if (includePersisted) {
     queries.push(safeRows(
       "operational_alerts",
@@ -606,6 +629,27 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
   const results = await Promise.all(queries);
   const bySource = new Map(results.map((result) => [result.source, result]));
   const alerts = [];
+
+  const sqlCacheDiagnostics = bySource.get("sql_cache_runtime")?.rows?.[0] || null;
+  for (const alert of sqlCacheDiagnostics?.alerts || []) {
+    alerts.push(candidate({
+      sourceType: "sql_cache_runtime",
+      sourceRef: "runtime://sql-cache",
+      sourceRecordId: alert.code,
+      category: "cache",
+      severity: alert.severity,
+      title: alert.title,
+      summary: alert.summary,
+      reasonCode: alert.code,
+      verificationState: "verified",
+      evidenceType: "runtime_diagnostics",
+      evidenceRef: "runtime://sql-cache",
+      evidence: alert.evidence,
+      firstSeenAt: sqlCacheDiagnostics.generated_at,
+      lastSeenAt: sqlCacheDiagnostics.generated_at,
+      recommendedActionKey: "sql_cache.review_runtime",
+    }));
+  }
 
   alerts.push(...mapExecutionAlerts(bySource.get("execution_log")?.rows || []));
 

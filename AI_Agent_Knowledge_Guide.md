@@ -105,6 +105,19 @@ Dynamic Audit evidence is summary-only and no-secret. Direct DB calls without ta
 
 Recurring bridge work must advance `platform_runtime_config.audit_log_event_bus_bridge_schedule.last_audit_log_id` as a durable keyset cursor. Rollup cycles select indexed pending statuses and rely on idempotent target writes before marking events `rolled_up`. The five-minute runtime path uses bounded fast-readiness counts; `v_dynamic_audit_pipeline_quality` remains a deep-audit surface and must not run inside each scheduler cycle. A live `enabled=false` config must cause new cycles to skip before lock acquisition or evidence writes.
 
+### SQL cache operational diagnostics
+
+The MySQL-primary SQL cache exposes four governed Admin tools:
+
+- `sql_cache_runtime_policy_get` reads the active policy and freshness state.
+- `sql_cache_runtime_policy_update` performs revision-guarded partial updates and supports dry-run.
+- `sql_cache_runtime_diagnostics_get` returns process-lifetime counters, derived hit/miss/error metrics, policy/circuit/cooldown state, and threshold-based alerts.
+- `sql_cache_controlled_load_test` runs an isolated in-memory benchmark that never touches production Redis or MySQL and verifies single-flight behavior plus the immutable `endpoints` security denylist fallback.
+
+Critical/high SQL cache runtime conditions are projected into the Admin operational-alert control plane only. Diagnostics counters reset on process restart and are runtime evidence, not durable warehouse metrics. Use `docs/runbooks/sql-cache-operations.md` for policy updates, revision conflicts, rollback, checksum reauthorization, migration ledger verification, and incident response.
+
+Governed migration child-process failures return bounded redacted diagnostics. They may include exit code, signal, detected database error code, and sanitized stderr/stdout summaries, but never raw credentials, bearer values, URL credentials, or unbounded logs.
+
 ### Hostinger production deployment policy
 
 Hostinger production for `auth.mad4b.com` deploys automatically from the GitHub repository branch `main`. The normal update path is therefore:
