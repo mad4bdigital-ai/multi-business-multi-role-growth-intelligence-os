@@ -619,9 +619,24 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
 
   const existing = verifyExistingAuthorization(
     await queryExistingAuthorization(pool, candidate.migration),
-    candidate.migration_checksum_sha256
+    candidate.migration_checksum_sha256,
+    { allowChecksumMismatch: true }
   );
   if (existing) {
+    if (
+      existing.recorded_checksum_sha256 &&
+      existing.recorded_checksum_sha256 !== candidate.migration_checksum_sha256
+    ) {
+      return reauthorizeExistingMigration({
+        pool,
+        candidate,
+        envelope,
+        auth,
+        input,
+        existing,
+        markReferenced,
+      });
+    }
     const migrationExecutorApplyPolicy = await ensureMigrationExecutorApplyPolicy(pool);
     const migrationExecutorDispatchCertification = await ensureMigrationExecutorDispatchCertification(pool);
     await markReferenced({
@@ -632,6 +647,8 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
     return {
       ok: true,
       authorization_created: false,
+      authorization_updated: false,
+      reauthorized: false,
       idempotent: true,
       candidate,
       authorization: existing,
