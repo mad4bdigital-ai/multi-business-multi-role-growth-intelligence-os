@@ -455,7 +455,7 @@ export const testCommands = [
   "node test-agent-tool-authorization-gate.mjs",
   "node test-governed-agent-execution-context.mjs",
   "node test-resolver-context.mjs",
-  "node test-brand-reference-resolver.mjs",
+  "node test-brand-reference-resolver.mjs", "node test-brand-workspace-context-resolver.mjs", "node test-platform-resource-context-resolver.mjs", "node test-platform-resource-context-wiring.mjs",
   "node test-brand-core-legacy-compatibility.mjs",
   "node test-growth-audit-evidence-classification.mjs",
   "node test-growth-audit-evidence-wiring.mjs",
