@@ -276,10 +276,34 @@ await assert.rejects(
   (error) => error.code === "CAPABILITY_NOT_REGISTERED" && error.status === 404
 );
 
-const serialized = JSON.stringify(matchAllow);
-assert.equal(serialized.includes("envelope_json"), false);
-assert.equal(serialized.includes("credential_payload"), false);
-assert.equal(Object.hasOwn(matchAllow, "input"), false);
+function collectObjectKeys(value, keys = new Set()) {
+  if (Array.isArray(value)) {
+    for (const item of value) collectObjectKeys(item, keys);
+    return keys;
+  }
+  if (!value || typeof value !== "object") return keys;
+  for (const [key, child] of Object.entries(value)) {
+    keys.add(key);
+    collectObjectKeys(child, keys);
+  }
+  return keys;
+}
+
+const returnedKeys = collectObjectKeys(matchAllow);
+for (const forbiddenKey of [
+  "input",
+  "raw_input",
+  "envelope_json",
+  "credential_payload",
+  "credential_secret",
+  "access_token",
+  "refresh_token",
+  "authorization",
+]) {
+  assert.equal(returnedKeys.has(forbiddenKey), false, `forbidden output key returned: ${forbiddenKey}`);
+}
+assert.equal(matchAllow.guarantees.credential_payloads_read, false);
+assert.equal(matchAllow.evidence.raw_input_returned, false);
 
 const routesSource = readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
 assert.equal(routesSource.includes("platform_capability_enforcement_shadow_preview"), true);
