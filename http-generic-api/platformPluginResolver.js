@@ -2,6 +2,7 @@ import { getPool } from "./db.js";
 import { normalizePlatformPlugin } from "./platformPluginCatalog.js";
 import { resolvePlatformManagedTargetAuthority } from "./platformPluginTargetAuthority.js";
 import { schedulePlatformPluginSecurityAlerts } from "./platformPluginSecurityAlerts.js";
+import { createSecurityDecision, gateFromBoolean } from "./src/domain/capability/securityDecision.js";
 
 export const CredentialRequirement = Object.freeze({
   NOT_REQUIRED: "not_required",
@@ -718,27 +719,23 @@ export async function resolvePlatformPluginExecution({
     actionKey: selectorContract.actionKey || selectorContract.toolKey,
     allowExpiredForRecertification: allowExpiredSmokeCertificationForRecertification === true,
   });
-  const allowed = Boolean(
-    pluginStatusActive &&
-    principalScope.ok &&
-    bindingState.ok &&
-    surfaceExposure.ok &&
-    canonicalPolicy.ready &&
-    credential.ok &&
-    targetAuthority.ok &&
-    skill.granted &&
-    smokeCertification.certified
-  );
-  const denialReasons = [];
-  if (!pluginStatusActive) denialReasons.push("plugin_not_active");
-  if (!principalScope.ok) denialReasons.push(principalScope.reason);
-  if (!bindingState.ok) denialReasons.push(bindingState.reason);
-  if (!surfaceExposure.ok) denialReasons.push(surfaceExposure.reason);
-  if (!canonicalPolicy.ready) denialReasons.push(canonicalPolicy.reason);
-  if (credentialDecisionEvaluated && !credential.ok) denialReasons.push(credential.reason);
-  if (!targetAuthority.ok) denialReasons.push(targetAuthority.reason);
-  if (!skill.granted) denialReasons.push(skill.reason);
-  if (!smokeCertification.certified) denialReasons.push(smokeCertification.reason);
+  const preApprovalDecision = createSecurityDecision({
+    execution_mode: "dispatch",
+    gates: [
+      gateFromBoolean({ key: "plugin_status", ok: pluginStatusActive, reason: pluginStatusActive ? "plugin_active" : "plugin_not_active" }),
+      gateFromBoolean({ key: "principal_scope", ok: principalScope.ok, reason: principalScope.reason }),
+      gateFromBoolean({ key: "binding_state", ok: bindingState.ok, reason: bindingState.reason }),
+      gateFromBoolean({ key: "surface_exposure", ok: surfaceExposure.ok, reason: surfaceExposure.reason }),
+      gateFromBoolean({ key: "canonical_policy", ok: canonicalPolicy.ready, reason: canonicalPolicy.reason }),
+      credentialDecisionEvaluated
+        ? gateFromBoolean({ key: "credential", ok: credential.ok, reason: credential.reason, denyCode: credential.denial_code || null })
+        : { key: "credential", required: true, state: "not_evaluated", reason: credential.reason },
+      gateFromBoolean({ key: "target_authority", ok: targetAuthority.ok, reason: targetAuthority.reason, denyCode: targetAuthority.denial_code || null }),
+      gateFromBoolean({ key: "skill", ok: skill.granted, reason: skill.reason }),
+      gateFromBoolean({ key: "smoke_certification", ok: smokeCertification.certified, reason: smokeCertification.reason }),
+    ],
+  });
+  const allowed = preApprovalDecision.allowed;
 
   const defaultGrants = parseJsonArray(rows.plugin.default_action_grants, []);
   const baseApprovalRequired = Boolean(
@@ -757,12 +754,25 @@ export async function resolvePlatformPluginExecution({
       })
     : { required: baseApprovalRequired, granted: !baseApprovalRequired, grant_id: null, reason: baseApprovalRequired ? "resolve_denials_before_action_grant" : "no_review_required_by_preview" };
   const approvalRequired = Boolean(baseApprovalRequired && !actionGrant.granted);
-  const dispatchReady = Boolean(allowed && !approvalRequired);
+  const securityDecision = createSecurityDecision({
+    execution_mode: "dispatch",
+    approval_required: approvalRequired,
+    gates: [
+      ...preApprovalDecision.gates,
+      gateFromBoolean({
+        key: "approval",
+        ok: !approvalRequired,
+        required: baseApprovalRequired,
+        reason: approvalRequired ? actionGrant.reason : "action_grant_or_preview_policy_allows_dispatch",
+      }),
+    ],
+  });
+  const dispatchReady = securityDecision.dispatch_ready;
 
   return {
     ok: true,
     allowed,
-    reason: allowed ? "resolved" : unique(denialReasons).join("|") || "not_allowed",
+    reason: allowed ? "resolved" : preApprovalDecision.reason || "not_allowed",
     mode: dispatchReady ? "dispatch_ready" : "preview_only",
     plugin_key: normalizedPluginKey,
     requested_action_key: selectorContract.actionKey,
@@ -771,6 +781,7 @@ export async function resolvePlatformPluginExecution({
     canonical_policy: canonicalPolicy,
     principal_scope: principalScope,
     surface_resolution: surfaceExposure,
+    security_decision: securityDecision,
     security_alerts: securityAlerts,
     credential_lookup: {
       required: credentialLookupRequired,
