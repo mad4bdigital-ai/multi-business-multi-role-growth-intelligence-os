@@ -28,8 +28,44 @@ export function brandHost(value = "") {
   }
 }
 
+function normalizeUnicodeDigits(value = "") {
+  const arabicIndic = "٠١٢٣٤٥٦٧٨٩";
+  const easternArabicIndic = "۰۱۲۳۴۵۶۷۸۹";
+  return String(value || "").replace(/[٠-٩۰-۹]/g, (digit) => {
+    const arabicIndex = arabicIndic.indexOf(digit);
+    if (arabicIndex >= 0) return String(arabicIndex);
+    const easternIndex = easternArabicIndic.indexOf(digit);
+    return easternIndex >= 0 ? String(easternIndex) : digit;
+  });
+}
+
+export function brandReferenceScript(value = "") {
+  const raw = text(value);
+  if (/\p{Script=Arabic}/u.test(raw)) return "Arab";
+  if (/\p{Script=Latin}/u.test(raw)) return "Latn";
+  if (/\p{L}/u.test(raw)) return "Other";
+  return "Unknown";
+}
+
+export function normalizeHumanBrandReference(value = "") {
+  let normalized = normalizeUnicodeDigits(text(value).normalize("NFKC").toLowerCase());
+  if (!normalized) return "";
+  normalized = normalized
+    .normalize("NFKD")
+    .replace(/\p{M}+/gu, "")
+    .replace(/ـ/g, "")
+    .replace(/[أإآٱ]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ؤ/g, "و")
+    .replace(/ئ/g, "ي")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return normalized;
+}
+
 export function normalizeBrandReference(value = "") {
-  const raw = text(value).normalize("NFKD").toLowerCase();
+  const raw = text(value).normalize("NFKC").toLowerCase();
   if (!raw) return "";
   const host = brandHost(raw);
   const candidate = host && (raw.includes("://") || raw.includes("/") || raw.includes("."))
