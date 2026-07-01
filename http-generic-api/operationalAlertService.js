@@ -20,7 +20,6 @@ const SOURCE_ROW_CAPS = Object.freeze({
   activation_signal_inbox: 500,
   readiness_checks: 500,
   telemetry_spans: 500,
-  sql_cache_runtime: 1,
   operational_alerts: 2000,
 });
 const KNOWN_ISSUE_KEYS = Object.freeze([
