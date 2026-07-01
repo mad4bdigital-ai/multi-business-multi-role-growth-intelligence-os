@@ -346,6 +346,8 @@ assert.equal(applied.audit.completed, true);
 const routes = readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
 const migration = readFileSync(new URL("./migrations/311_sprint69_superseded_closed_pr_branch_cleanup.sql", import.meta.url), "utf8");
 const orphanMigration = readFileSync(new URL("./migrations/317_sprint69_superseded_orphan_branch_cleanup.sql", import.meta.url), "utf8");
+const pr1950OverrideMigration = readFileSync(new URL("./migrations/1032_sprint69_pr1950_superseded_branch_cleanup_override.sql", import.meta.url), "utf8");
+const governedMigrationRunner = readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
 assert.equal((routes.match(/name: "github_superseded_branch_cleanup"/g) || []).length, 1);
 assert.match(routes, /requireGithubSupersededBranchCleanupEnvelope/);
 assert.match(routes, /acceptedIntents: \["github_superseded_branch_cleanup", "github_branch_delete", "branch_cleanup", "repo_mutation"\]/);
