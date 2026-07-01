@@ -400,6 +400,7 @@ async function main() {
   const manifestSource = readFileSync("scripts/test-manifest.mjs", "utf8");
   assert.ok(routeSource.includes("governed_migration_authorization_bootstrap"));
   assert.ok(routeSource.includes("bootstrapGovernedMigrationAuthorization"));
+  assert.ok(routeSource.includes("previous_checksum_sha256"));
   assert.ok(manifestSource.includes("test-governed-migration-authorization-bootstrap.mjs"));
 
   console.log("governed migration authorization bootstrap tests passed");
