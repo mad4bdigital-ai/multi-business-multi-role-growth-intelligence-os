@@ -605,7 +605,7 @@ export async function platformResourceContextResolve(args = {}, { auth = {}, poo
     );
   }
 
-  const graph = await loadGraph(pool, scope);
+  const graph = await loadGraph(pool, scope, membership);
   const catalog = resourceCatalog(graph, scope);
   const candidates = candidateReferences(args);
   const resolution = resolveAnchor(catalog, anchor, candidates);
