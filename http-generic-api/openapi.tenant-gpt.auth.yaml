@@ -1802,6 +1802,17 @@ paths:
               additionalProperties: false
               required:
                 - plugin_key
+              oneOf:
+                - required:
+                    - action_key
+                  not:
+                    required:
+                      - tool_key
+                - required:
+                    - tool_key
+                  not:
+                    required:
+                      - action_key
               properties:
                 plugin_key:
                   type: string
@@ -2100,6 +2111,31 @@ paths:
                     type: boolean
                   reason:
                     type: string
+                  selector:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - action_key
+                          - tool_key
+                      value:
+                        type: string
+                  compatibility_telemetry:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      legacy_selector_alias_used:
+                        type: boolean
+                      legacy_fields:
+                        type: array
+                        items:
+                          type: string
+                      contract_version:
+                        type: string
+                        enum:
+                          - one-selector-v1
                   target_authorization:
                     type: object
                     additionalProperties: true

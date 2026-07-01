@@ -34,6 +34,41 @@ function compactString(value = "", max = 500) {
   return String(value || "").trim().slice(0, max);
 }
 
+function selectorError(code, message, details = null) {
+  const err = new Error(message);
+  err.code = code;
+  err.status = 400;
+  if (details) err.details = details;
+  return err;
+}
+
+export function validateCapabilitySelectorContract({ actionKey = null, toolKey = null } = {}) {
+  const normalizedActionKey = compactString(actionKey || "", 191) || null;
+  const normalizedToolKey = compactString(toolKey || "", 191) || null;
+  const selectorCount = [normalizedActionKey, normalizedToolKey].filter(Boolean).length;
+  if (selectorCount === 0) {
+    throw selectorError(
+      "MISSING_CAPABILITY_SELECTOR",
+      "Exactly one capability selector is required.",
+      { required_one_of: ["action_key", "tool_key"] }
+    );
+  }
+  if (selectorCount > 1) {
+    throw selectorError(
+      "AMBIGUOUS_CAPABILITY_SELECTOR",
+      "Exactly one capability selector may be provided.",
+      { provided: ["action_key", "tool_key"].filter((field) => (field === "action_key" ? normalizedActionKey : normalizedToolKey)) }
+    );
+  }
+  return {
+    actionKey: normalizedActionKey,
+    toolKey: normalizedToolKey,
+    selector: normalizedActionKey
+      ? { type: "action_key", value: normalizedActionKey }
+      : { type: "tool_key", value: normalizedToolKey },
+  };
+}
+
 function normalize(value = "") {
   return String(value || "").trim().toLowerCase();
 }
@@ -557,12 +592,10 @@ export async function resolvePlatformPluginExecution({
 
   const normalizedActionKey = compactString(actionKey || "", 191) || null;
   const normalizedToolKey = compactString(toolKey || "", 191) || null;
-  if (normalizedActionKey && normalizedToolKey) {
-    const err = new Error("Exactly one capability selector may be provided.");
-    err.code = "ambiguous_capability_selector";
-    err.status = 400;
-    throw err;
-  }
+  const selectorContract = validateCapabilitySelectorContract({
+    actionKey: normalizedActionKey,
+    toolKey: normalizedToolKey,
+  });
 
   const rows = await loadPluginRows({ pool, pluginKey: normalizedPluginKey, tenantId, userId });
   if (!rows.plugin) {
@@ -584,15 +617,15 @@ export async function resolvePlatformPluginExecution({
   const binding = selectBinding({
     actionBindings: rows.actionBindings,
     toolBindings: rows.toolBindings,
-    actionKey: normalizedActionKey,
-    toolKey: normalizedToolKey,
+    actionKey: selectorContract.actionKey,
+    toolKey: selectorContract.toolKey,
   });
-  const bindingState = resolveBindingState({ binding, actionKey: normalizedActionKey, toolKey: normalizedToolKey });
+  const bindingState = resolveBindingState({ binding, actionKey: selectorContract.actionKey, toolKey: selectorContract.toolKey });
   const principalScope = resolvePrincipalScope({ principalClass, tenantId, userId });
-  const surfaceExposure = resolveSurfaceExposure({ binding, toolKey: normalizedToolKey, principalClass });
-  const canonicalPolicy = normalizedToolKey
+  const surfaceExposure = resolveSurfaceExposure({ binding, toolKey: selectorContract.toolKey, principalClass });
+  const canonicalPolicy = selectorContract.toolKey
     ? { ready: false, reason: "tool_canonical_policy_mapping_required", canonical_action_key: null }
-    : { ready: true, reason: normalizedActionKey ? "action_is_canonical_policy_key" : "no_selector_preview", canonical_action_key: normalizedActionKey };
+    : { ready: true, reason: "action_is_canonical_policy_key", canonical_action_key: selectorContract.actionKey };
   const securityAlerts = schedulePlatformPluginSecurityAlerts({
     writer: securityAlertWriter,
     principalClass,
@@ -602,37 +635,27 @@ export async function resolvePlatformPluginExecution({
     requestId,
     correlationId,
     pluginKey: normalizedPluginKey,
-    actionKey: normalizedActionKey,
-    toolKey: normalizedToolKey,
+    actionKey: selectorContract.actionKey,
+    toolKey: selectorContract.toolKey,
     surfaceExposure,
     canonicalPolicy,
     actionBindings: rows.actionBindings,
   });
   const requiredSkillKey = deriveRequiredSkill({
     pluginKey: normalizedPluginKey,
-    actionKey: normalizedActionKey,
-    toolKey: normalizedToolKey,
+    actionKey: selectorContract.actionKey,
+    toolKey: selectorContract.toolKey,
     binding,
   });
   const skill = await checkSkillGrant({ pool, agentId, tenantId, requiredSkillKey });
   const pluginStatusActive = ["active", "beta"].includes(normalize(rows.plugin.status));
-  const selectorRequested = Boolean(normalizedActionKey || normalizedToolKey);
-  const credentialRequirement = selectorRequested
-    ? resolveCredentialRequirement({
-        plugin: rows.plugin,
-        binding,
-        tenantPolicy: rows.tenantPolicy,
-        requestedScope: requestedCredentialScope,
-      })
-    : {
-        requirement: CredentialRequirement.NOT_REQUIRED,
-        requested_scope: null,
-        candidate_scopes: [],
-        scope_allowed: true,
-        reason: "credential_not_required_for_preview",
-      };
+  const credentialRequirement = resolveCredentialRequirement({
+    plugin: rows.plugin,
+    binding,
+    tenantPolicy: rows.tenantPolicy,
+    requestedScope: requestedCredentialScope,
+  });
   const credentialLookupRequired = Boolean(
-    selectorRequested &&
     credentialRequirement.scope_allowed &&
     credentialRequirement.requirement === CredentialRequirement.REQUIRED &&
     credentialRequirement.candidate_scopes.some((scope) => ["user_connection", "tenant_connection"].includes(scope))
@@ -655,23 +678,12 @@ export async function resolvePlatformPluginExecution({
       })
     : [];
   const credentialDecisionEvaluated = Boolean(
-    !selectorRequested ||
     credentialRequirement.requirement === CredentialRequirement.NOT_REQUIRED ||
     !credentialRequirement.scope_allowed ||
     !credentialLookupRequired ||
     credentialLookupAuthorized
   );
-  const credential = !selectorRequested
-    ? {
-        ok: true,
-        requirement: CredentialRequirement.NOT_REQUIRED,
-        resolution_state: CredentialResolutionState.NOT_REQUIRED,
-        usability_state: CredentialUsabilityState.NOT_APPLICABLE,
-        credential_source: null,
-        reason: "credential_resolution_not_required_for_preview",
-        candidate_scopes: [],
-      }
-    : credentialDecisionEvaluated
+  const credential = credentialDecisionEvaluated
       ? resolveCredentialDecision({
           plugin: rows.plugin,
           binding,
@@ -703,7 +715,7 @@ export async function resolvePlatformPluginExecution({
   const smokeCertification = await checkSmokeCertification({
     pool,
     pluginKey: normalizedPluginKey,
-    actionKey: normalizedActionKey || normalizedToolKey,
+    actionKey: selectorContract.actionKey || selectorContract.toolKey,
     allowExpiredForRecertification: allowExpiredSmokeCertificationForRecertification === true,
   });
   const allowed = Boolean(
@@ -739,7 +751,7 @@ export async function resolvePlatformPluginExecution({
     ? await checkActionGrant({
         pool,
         pluginKey: normalizedPluginKey,
-        actionKey: normalizedActionKey || normalizedToolKey,
+        actionKey: selectorContract.actionKey || selectorContract.toolKey,
         agentId,
         credential,
       })
@@ -753,11 +765,9 @@ export async function resolvePlatformPluginExecution({
     reason: allowed ? "resolved" : unique(denialReasons).join("|") || "not_allowed",
     mode: dispatchReady ? "dispatch_ready" : "preview_only",
     plugin_key: normalizedPluginKey,
-    requested_action_key: normalizedActionKey,
-    requested_tool_key: normalizedToolKey,
-    selector: normalizedActionKey
-      ? { type: "action_key", value: normalizedActionKey }
-      : (normalizedToolKey ? { type: "tool_key", value: normalizedToolKey } : null),
+    requested_action_key: selectorContract.actionKey,
+    requested_tool_key: selectorContract.toolKey,
+    selector: selectorContract.selector,
     canonical_policy: canonicalPolicy,
     principal_scope: principalScope,
     surface_resolution: surfaceExposure,
@@ -766,15 +776,13 @@ export async function resolvePlatformPluginExecution({
       required: credentialLookupRequired,
       attempted: credentialLookupAuthorized,
       authorized: credentialLookupAuthorized,
-      reason: !selectorRequested
-        ? "credential_lookup_not_required_for_preview"
-        : (credentialRequirement.requirement === CredentialRequirement.NOT_REQUIRED
+      reason: credentialRequirement.requirement === CredentialRequirement.NOT_REQUIRED
           ? "credential_lookup_not_required_by_policy"
           : (!credentialRequirement.scope_allowed
             ? "credential_scope_denied_before_lookup"
             : (credentialLookupAuthorized
               ? "authorization_and_scope_gates_passed"
-              : "blocked_before_credential_lookup"))),
+              : "blocked_before_credential_lookup")),
       row_count: connections.length,
       secrets_included: false,
     },
