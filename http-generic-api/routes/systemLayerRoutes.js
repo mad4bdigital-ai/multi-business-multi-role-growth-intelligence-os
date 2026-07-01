@@ -71,6 +71,8 @@ import {
   tenantEffectiveCapabilityReadinessSmoke,
   tenantCapabilityShadowCompare,
 } from "../tenantEffectiveCapabilityResolver.js";
+import { GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS } from "../growthAuditEvidence.js";
+import * as GrowthAuditEvidenceRuntime from "../growthAuditEvidence.js";
 import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
 
 const SYSTEM_LAYER_TOOLS = [
@@ -187,6 +189,7 @@ const SYSTEM_LAYER_TOOLS = [
   ...TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
   ...TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
   ...TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
+  ...GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS,
   {
     name: "system_layer_descriptor_readiness",
     description: "Admin-only read-only diagnostic for descriptor-backed system-layer tool sources. Verifies every descriptor has a runtime handler and no secrets are included.",
@@ -445,6 +448,13 @@ const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
       tenantCapabilityShadowCompare,
     },
     readiness_tool: "tenant_effective_capability_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "growth_audit_evidence_v1",
+    tools: GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS,
+    handlers: GrowthAuditEvidenceRuntime,
+    readiness_tool: "growth_audit_evidence_readiness_smoke",
     readiness_args: {},
   },
 ];

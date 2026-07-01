@@ -82,3 +82,15 @@ When Migration `311_sprint69_semantic_capability_effective_resolution.sql` has n
 ### Initial pilot
 
 `content.article.create_draft` may bind to `wordpress_rest` through `wordpress_api/wordpress_create_post` in `shadow` mode. Its adapter must force `status=draft` and reject caller overrides for provider routing or credentials. This pilot does not authorize publishing or provider execution.
+
+### Shared growth-audit evidence preparation
+
+`growth_audit_evidence_prepare` is a descriptor-backed, read-only system-layer tool shared by Admin and Tenant principals. It resolves a canonical Brand reference, legacy-compatible Brand Core pointers, public-site inspection plans, and governed Google resource-read plans without calling providers, executing a browser, mutating state, or sending externally.
+
+Tenant identity comes only from the signed principal. Tenant execution requires active membership plus a workspace or workspace-asset link to the resolved Brand. Admin tenant/user overrides are diagnostic and must be declared in the response.
+
+Brand references must resolve across target key, Brand name, normalized name, domain, base URL, primary site key, and registered aliases. Legacy Brand Core rows may use `brand_name`, `asset_type`, `active_status`, and `google_drive_link`; the resolver must normalize these into canonical Brand key, document key, active status, and Google file ID without requiring destructive schema changes.
+
+Audit evidence keeps rendered visitor evidence separate from source-only evidence. HTML presence alone is not a visitor-facing defect. A finding may be reported as a visible UX issue only when classified `rendered_visible`; source-only or hidden-template findings require visual confirmation.
+
+Google Workspace `files.object.read` bindings remain `shadow` until a separately certified adapter, tenant resource authority, connection resolution, bounded continuation, and same-cycle readback are ready. Shadow rows must not activate tenant provider execution.

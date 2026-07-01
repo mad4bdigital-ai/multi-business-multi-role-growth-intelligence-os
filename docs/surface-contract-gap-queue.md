@@ -4,13 +4,68 @@
 
 ## Summary
 
-- Total queue items: 0
-- Critical review: 0
-- High review: 0
-- Medium review: 0
+- Total queue items: 4
+- Critical review: 2
+- High review: 1
+- Medium review: 1
 - Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
 
-No actionable surface contract gaps detected.
+### 1. `20260630_dynamic_capability_governance_persistence.sql`
+
+- Queue class: critical_review
+- Score: 828
+- Gap severity: medium
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: none
+- Surface counts: plugins=0, tools=18, views=1, policies=1, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_tool`, `admin_virtual_tool`, `allow_record_only`, `app_integration_tool_bindings`, `bind_tool_platform_capability_governance_compile_persist`, `blocks_dispatch`, `bounded_shadow_compile_persist_same_cycle_readback`, `idx_pcmsl_source_lookup`, `live_shadow_persist_readback`, `manual_tools`, `migration_schema_readback`, `requires_dispatch_allowed`, ...and 6 more
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `platform_capability_governance_compile_persist_policy_v1`
+- `verify_readback_view` → db-readback-review; targets: `v_platform_capability_governance_persistence_summary`
+
+### 2. `1025_sprint69_growth_audit_evidence_admin_tenant_support.sql`
+
+- Queue class: critical_review
+- Score: 732
+- Gap severity: high
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_credential_payload_read`, `no_raw_secrets`, `no_external_write`
+- Surface counts: plugins=0, tools=2, views=0, policies=1, routes=1
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `system_layer_tool_descriptor_source_registry`, `tenant_platform_endpoint_tools`
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `growth_audit_evidence_admin_tenant_policy_v1`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_write`
+
+### 3. `1025_sprint69_activation_archive_dynamic_control_authority.sql`
+
+- Queue class: high_review
+- Score: 668
+- Gap severity: high
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=0, views=0, policies=0, routes=2
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 4. `20260629_sql_cache_admin_tool_export.sql`
+
+- Queue class: medium_review
+- Score: 244
+- Gap severity: none
+- Missing docs: none
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=1
+- Remediation actions:
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+
