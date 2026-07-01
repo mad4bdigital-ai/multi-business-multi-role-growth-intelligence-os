@@ -177,7 +177,7 @@ function makePool({
   assert.equal(result.security_decision.dispatch_ready, true);
   assert.deepEqual(
     result.security_decision.gates.map((gate) => gate.key),
-    ["plugin_status", "principal_scope", "binding_state", "surface_exposure", "canonical_policy", "credential", "target_authority", "skill", "smoke_certification", "approval"],
+    ["plugin_status", "principal_scope", "binding_state", "surface_exposure", "canonical_policy", "policy_completeness", "credential", "target_authority", "skill", "smoke_certification", "approval"],
   );
   assert.equal(result.secrets_included, false);
 }

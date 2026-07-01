@@ -5,6 +5,13 @@ import {
   createSecurityDecision,
   gateFromBoolean,
 } from "./src/domain/capability/securityDecision.js";
+import {
+  evaluatePolicyCompleteness,
+  evaluatePrincipalTenantAuthorization,
+  evaluateSkillGate,
+  evaluateSurfaceExposure,
+  evaluateTargetResourceOwnership,
+} from "./src/domain/capability/securityEvaluators.js";
 
 {
   const gate = createGateResult({ key: "principal", state: "pass", reason: "tenant_authorized" });
@@ -80,6 +87,38 @@ import {
     ]),
     (err) => err?.code === "SECURITY_DECISION_REQUIRED_GATE_NOT_EVALUATED",
   );
+}
+
+{
+  assert.equal(evaluatePrincipalTenantAuthorization({ principalClass: "tenant" }).state, "deny");
+  assert.equal(
+    evaluatePrincipalTenantAuthorization({ principalClass: "tenant", tenantId: "tenant-1", userId: "user-1" }).state,
+    "pass",
+  );
+  assert.equal(evaluatePrincipalTenantAuthorization({ principalClass: "admin" }).state, "pass");
+}
+
+{
+  const blocked = evaluateSurfaceExposure({
+    selectorType: "tool_key",
+    toolSurface: "admin_platform_tool",
+    exposureScope: "tenant",
+    principalClass: "tenant",
+  });
+  assert.equal(blocked.state, "deny");
+  assert.equal(blocked.reason, "admin_tool_forbidden");
+  assert.equal(
+    evaluateSurfaceExposure({ selectorType: "action_key", principalClass: "tenant" }).state,
+    "pass",
+  );
+}
+
+{
+  assert.equal(evaluateTargetResourceOwnership({ required: false, state: "not_applicable" }).state, "not_applicable");
+  assert.equal(evaluateTargetResourceOwnership({ ok: false, reason: "target_owner_mismatch" }).state, "deny");
+  assert.equal(evaluateSkillGate({ required: false, granted: true }).state, "not_applicable");
+  assert.equal(evaluateSkillGate({ required: true, granted: false, reason: "skill_not_granted" }).state, "deny");
+  assert.equal(evaluatePolicyCompleteness({ ready: false, reason: "mutation_policy_missing" }).state, "deny");
 }
 
 console.log("security decision engine tests passed");

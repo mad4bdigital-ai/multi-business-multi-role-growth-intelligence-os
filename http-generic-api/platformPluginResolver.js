@@ -3,6 +3,13 @@ import { normalizePlatformPlugin } from "./platformPluginCatalog.js";
 import { resolvePlatformManagedTargetAuthority } from "./platformPluginTargetAuthority.js";
 import { schedulePlatformPluginSecurityAlerts } from "./platformPluginSecurityAlerts.js";
 import { createSecurityDecision, gateFromBoolean } from "./src/domain/capability/securityDecision.js";
+import {
+  evaluatePolicyCompleteness,
+  evaluatePrincipalTenantAuthorization,
+  evaluateSkillGate,
+  evaluateSurfaceExposure,
+  evaluateTargetResourceOwnership,
+} from "./src/domain/capability/securityEvaluators.js";
 
 export const CredentialRequirement = Object.freeze({
   NOT_REQUIRED: "not_required",
@@ -723,15 +730,21 @@ export async function resolvePlatformPluginExecution({
     execution_mode: "dispatch",
     gates: [
       gateFromBoolean({ key: "plugin_status", ok: pluginStatusActive, reason: pluginStatusActive ? "plugin_active" : "plugin_not_active" }),
-      gateFromBoolean({ key: "principal_scope", ok: principalScope.ok, reason: principalScope.reason }),
+      evaluatePrincipalTenantAuthorization({ principalClass, tenantId, userId }),
       gateFromBoolean({ key: "binding_state", ok: bindingState.ok, reason: bindingState.reason }),
-      gateFromBoolean({ key: "surface_exposure", ok: surfaceExposure.ok, reason: surfaceExposure.reason }),
+      evaluateSurfaceExposure({
+        selectorType: selectorContract.selector.type,
+        toolSurface: binding?.tool_surface || null,
+        exposureScope: binding?.exposure_scope || null,
+        principalClass,
+      }),
       gateFromBoolean({ key: "canonical_policy", ok: canonicalPolicy.ready, reason: canonicalPolicy.reason }),
+      evaluatePolicyCompleteness({ ready: canonicalPolicy.ready, reason: canonicalPolicy.reason }),
       credentialDecisionEvaluated
         ? gateFromBoolean({ key: "credential", ok: credential.ok, reason: credential.reason, denyCode: credential.denial_code || null })
         : { key: "credential", required: true, state: "not_evaluated", reason: credential.reason },
-      gateFromBoolean({ key: "target_authority", ok: targetAuthority.ok, reason: targetAuthority.reason, denyCode: targetAuthority.denial_code || null }),
-      gateFromBoolean({ key: "skill", ok: skill.granted, reason: skill.reason }),
+      evaluateTargetResourceOwnership(targetAuthority),
+      evaluateSkillGate(skill),
       gateFromBoolean({ key: "smoke_certification", ok: smokeCertification.certified, reason: smokeCertification.reason }),
     ],
   });
