@@ -73,6 +73,8 @@ import {
 } from "../tenantEffectiveCapabilityResolver.js";
 import { GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS } from "../growthAuditEvidence.js";
 import * as GrowthAuditEvidenceRuntime from "../growthAuditEvidence.js";
+import { BRAND_WORKSPACE_CONTEXT_SYSTEM_TOOLS } from "../brandWorkspaceContextResolver.js";
+import * as BrandWorkspaceContextRuntime from "../brandWorkspaceContextResolver.js";
 import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
 
 const SYSTEM_LAYER_TOOLS = [
