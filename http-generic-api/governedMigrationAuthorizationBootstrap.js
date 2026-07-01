@@ -396,6 +396,138 @@ function buildAuthorizationMetadata({ candidate, envelope, auth }) {
   };
 }
 
+async function reauthorizeExistingMigration({
+  pool,
+  candidate,
+  envelope,
+  auth,
+  input,
+  existing,
+  markReferenced,
+}) {
+  const previousChecksum = compact(input.previous_checksum_sha256, 64).toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(previousChecksum)) {
+    throw bootstrapError(
+      409,
+      "governed_migration_authorization_previous_checksum_required",
+      "Checksum rotation requires previous_checksum_sha256 to match the currently authorized checksum.",
+      {
+        migration_file: candidate.migration,
+        recorded_checksum_sha256: existing.recorded_checksum_sha256,
+      }
+    );
+  }
+  if (!existing.recorded_checksum_sha256 || previousChecksum !== existing.recorded_checksum_sha256) {
+    throw bootstrapError(
+      409,
+      "governed_migration_authorization_previous_checksum_mismatch",
+      "previous_checksum_sha256 does not match the currently authorized migration checksum.",
+      {
+        migration_file: candidate.migration,
+        supplied_previous_checksum_sha256: previousChecksum,
+        recorded_checksum_sha256: existing.recorded_checksum_sha256,
+      }
+    );
+  }
+
+  const priorLedger = await queryAnyLedger(pool, candidate.migration);
+  if (priorLedger) {
+    throw bootstrapError(
+      409,
+      "governed_migration_authorization_already_recorded",
+      "Checksum rotation is not permitted after any ledger entry exists for the migration.",
+      {
+        migration_file: candidate.migration,
+        ledger_run_id: priorLedger.run_id,
+        ledger_mode: priorLedger.mode,
+        ledger_checksum_sha256: priorLedger.migration_checksum_sha256 || null,
+      }
+    );
+  }
+
+  const metadata = {
+    ...buildAuthorizationMetadata({ candidate, envelope, auth }),
+    previous_checksum_sha256: previousChecksum,
+    reauthorized: true,
+  };
+  const notes = compact(
+    input.decision_note || `Checksum-bound migration authorization rotated after reviewed migration repair in PR #${candidate.pull_request}.`,
+    1000
+  );
+  const connection = typeof pool.getConnection === "function" ? await pool.getConnection() : pool;
+  const transactional = typeof connection.beginTransaction === "function";
+  try {
+    if (transactional) await connection.beginTransaction();
+    const [result] = await connection.query(
+      `UPDATE governed_migration_authorization_registry
+          SET notes = ?, metadata_json = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE migration_file = ?
+          AND authorization_status = 'authorized'
+          AND allow_apply = 1
+          AND JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.migration_checksum_sha256')) = ?`,
+      [notes || null, JSON.stringify(metadata), candidate.migration, previousChecksum]
+    );
+    if (Number(result?.affectedRows || 0) !== 1) {
+      throw bootstrapError(
+        409,
+        "governed_migration_authorization_rotation_conflict",
+        "The migration authorization changed before checksum rotation could be committed.",
+        { migration_file: candidate.migration }
+      );
+    }
+    await ensureMigrationExecutorApplyPolicy(connection);
+    await ensureMigrationExecutorDispatchCertification(connection);
+    if (transactional) await connection.commit();
+  } catch (error) {
+    if (transactional) {
+      try { await connection.rollback(); } catch { }
+    }
+    throw error;
+  } finally {
+    if (connection !== pool && typeof connection.release === "function") connection.release();
+  }
+
+  const readback = verifyExistingAuthorization(
+    await queryExistingAuthorization(pool, candidate.migration),
+    candidate.migration_checksum_sha256
+  );
+  if (!readback) {
+    throw bootstrapError(
+      500,
+      "governed_migration_authorization_readback_failed",
+      "Rotated authorization row was not visible during same-cycle readback.",
+      { migration_file: candidate.migration }
+    );
+  }
+  const migrationExecutorApplyPolicy = verifyMigrationExecutorApplyPolicy(
+    await queryMigrationExecutorApplyPolicy(pool)
+  );
+  const migrationExecutorDispatchCertification = verifyMigrationExecutorDispatchCertification(
+    await queryMigrationExecutorDispatchCertification(pool)
+  );
+  await markReferenced({
+    pool,
+    envelopeId: envelope.envelope_id,
+    executionRef: `migration_authorization:${candidate.migration}`,
+  });
+  return {
+    ok: true,
+    authorization_created: false,
+    authorization_updated: true,
+    reauthorized: true,
+    previous_checksum_sha256: previousChecksum,
+    idempotent: false,
+    candidate,
+    authorization: readback,
+    migration_executor_apply_policy: migrationExecutorApplyPolicy,
+    migration_executor_dispatch_certification: migrationExecutorDispatchCertification,
+    migration_sql_executed: false,
+    applies_migration: false,
+    capability_envelope_id: envelope.envelope_id,
+    secrets_included: false,
+  };
+}
+
 export async function inspectGovernedMigrationAuthorizationCandidate(input = {}, deps = {}) {
   const migration = normalizeMigrationName(input.migration);
   const expectedChecksum = compact(input.expected_checksum_sha256, 64).toLowerCase();
