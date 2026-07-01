@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 462
+- Migrations with detected surfaces: 464
 - Migrations reported here: 80
 - OpenAPI operations detected: 522
 - OpenAPI paths detected: 485
@@ -32,11 +32,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 462/462 (100.00%)
-- Documentation gap migrations: 0
-- Gap severity: high=0, medium=0, low=0
+- Documentation complete migrations: 462/464 (99.57%)
+- Documentation gap migrations: 2
+- Gap severity: high=1, medium=1, low=0
 - SQL route coverage in OpenAPI: 6/6 (100.00%)
-- SQL route-like literals exempted from OpenAPI scoring: 604/610
+- SQL route-like literals exempted from OpenAPI scoring: 605/611
 - SQL routes missing OpenAPI path coverage: 0
 - Migrations without explicit `secrets_included=false` marker: 0
 
@@ -45,31 +45,31 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 12 | 9 |
-| tools | 2172 | 392 |
-| views | 426 | 169 |
-| policies | 166 | 107 |
-| routes | 610 | 244 |
+| tools | 2192 | 394 |
+| views | 427 | 170 |
+| policies | 168 | 109 |
+| routes | 611 | 245 |
 
 ### Documentation Target Gaps
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 0 |
-| `deployment_parity_checklist.md` | 0 |
-| `docs/ai-docs-agent-governance.md` | 0 |
-| `docs/auto-docs-agent/README.md` | 0 |
-| `docs/change-documentation-governance.md` | 0 |
+| `Updating Registry Patch Index.md` | 2 |
+| `deployment_parity_checklist.md` | 2 |
+| `docs/ai-docs-agent-governance.md` | 2 |
+| `docs/auto-docs-agent/README.md` | 2 |
+| `docs/change-documentation-governance.md` | 2 |
 
 ### Safety Marker Coverage
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 462 |
-| no_credential_payload_read | 462 |
-| no_raw_secrets | 462 |
-| no_external_send | 462 |
-| no_external_write | 462 |
-| secrets_included_false | 462 |
+| no_provider_call | 464 |
+| no_credential_payload_read | 463 |
+| no_raw_secrets | 463 |
+| no_external_send | 464 |
+| no_external_write | 463 |
+| secrets_included_false | 464 |
 
 ### Route Classification Coverage
 
@@ -78,7 +78,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | http_route | 6 |
 | admin_tool_registry_route | 156 |
 | tenant_tool_registry_route | 40 |
-| system_tool_dispatch_route | 13 |
+| system_tool_dispatch_route | 14 |
 | registry_only_surface | 1 |
 | false_positive_route_like_string | 0 |
 | legacy_closure_route_reviewed | 394 |
@@ -88,15 +88,16 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 0
-- Critical review: 0
+- Total queue items: 2
+- Critical review: 2
 - High review: 0
 - Medium review: 0
 - Low review: 0
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
-| none | covered | 0 | none | 0 | 0 | 0 | none |
+| `20260630_dynamic_capability_governance_persistence.sql` | critical_review | 828 | medium | 5 | 0 | 0 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view |
+| `1025_sprint69_growth_audit_evidence_admin_tenant_support.sql` | critical_review | 732 | high | 5 | 0 | 3 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness, add_explicit_safety_markers |
 
 
 ## Latest Surface Coverage
@@ -186,7 +187,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 
 ## High-Risk Documentation Gaps
 
-- none
+- `1025_sprint69_growth_audit_evidence_admin_tenant_support.sql`
 
 ## SQL Route OpenAPI Gaps
 
