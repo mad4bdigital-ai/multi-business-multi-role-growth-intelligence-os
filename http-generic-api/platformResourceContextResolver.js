@@ -208,24 +208,54 @@ async function loadGraph(pool, scope, membership = null) {
       : [];
 
   const connectionIds = unique(cmsGrants.map((row) => row.connection_id));
-  const connections = connectionIds.length
-    ? await queryRows(
-        pool,
-        `SELECT connection_id, tenant_id, user_id, app_key, display_label,
-                account_label, auth_type, api_base_url, is_primary, status,
-                validation_status, last_validated_at, connected_at, last_used_at,
-                CASE
-                  WHEN encrypted_credentials IS NOT NULL
-                    OR (credential_ref IS NOT NULL AND credential_ref <> '')
-                  THEN 1 ELSE 0
-                END AS credential_material_present
-           FROM user_app_connections
-          WHERE connection_id IN (${placeholders(connectionIds)})
-            ${scope.tenant_id ? "AND tenant_id = ?" : ""}
-          ORDER BY is_primary DESC, connected_at DESC`,
-        [...connectionIds, ...(scope.tenant_id ? [scope.tenant_id] : [])]
-      )
-    : [];
+  const connectionSelect = `SELECT connection_id, tenant_id, user_id, app_key, display_label,
+          account_label, auth_type, api_base_url, is_primary, status,
+          validation_status, last_validated_at, connected_at, last_used_at,
+          CASE
+            WHEN encrypted_credentials IS NOT NULL
+              OR (credential_ref IS NOT NULL AND credential_ref <> '')
+            THEN 1 ELSE 0
+          END AS credential_material_present
+     FROM user_app_connections`;
+  let connections = [];
+  if (scope.admin && !scope.tenant_id) {
+    connections = await queryRows(
+      pool,
+      `${connectionSelect}
+        WHERE status = 'active'
+        ORDER BY is_primary DESC, connected_at DESC
+        LIMIT 3000`
+    );
+  } else if (broadTenantAccess) {
+    connections = await queryRows(
+      pool,
+      `${connectionSelect}
+        WHERE tenant_id = ? AND status = 'active'
+        ORDER BY is_primary DESC, connected_at DESC
+        LIMIT 3000`,
+      [scope.tenant_id]
+    );
+  } else if (connectionIds.length) {
+    connections = await queryRows(
+      pool,
+      `${connectionSelect}
+        WHERE tenant_id = ?
+          AND status = 'active'
+          AND (user_id = ? OR connection_id IN (${placeholders(connectionIds)}))
+        ORDER BY is_primary DESC, connected_at DESC
+        LIMIT 3000`,
+      [scope.tenant_id, scope.user_id, ...connectionIds]
+    );
+  } else {
+    connections = await queryRows(
+      pool,
+      `${connectionSelect}
+        WHERE tenant_id = ? AND user_id = ? AND status = 'active'
+        ORDER BY is_primary DESC, connected_at DESC
+        LIMIT 3000`,
+      [scope.tenant_id, scope.user_id]
+    );
+  }
 
   return {
     brands,
