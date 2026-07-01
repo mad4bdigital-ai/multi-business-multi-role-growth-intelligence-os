@@ -516,10 +516,16 @@ function connectionState(context) {
   };
 }
 
-function blocked(code, message, details = {}, status = "blocked") {
+function blocked(
+  code,
+  message,
+  details = {},
+  status = "blocked",
+  tool = "platform_resource_context_resolve"
+) {
   return {
     ok: false,
-    tool: "platform_resource_context_resolve",
+    tool,
     status,
     error: { code, message, details },
     provider_calls_made: 0,
