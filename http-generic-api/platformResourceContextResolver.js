@@ -1088,7 +1088,7 @@ export async function platformResourceContextReadinessSmoke(_args = {}, { pool =
       missing: requiredObjects.filter((name) => !present.has(name)),
     },
     { name: "resource_types_supported", pass: RESOURCE_TYPES.length === 6 },
-    { name: "two_descriptor_tools_present", pass: PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS.length === 2 },
+    { name: "five_descriptor_tools_present", pass: PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS.length === 5 },
     { name: "no_provider_call", pass: true },
     { name: "no_mutation", pass: true },
     { name: "no_external_send", pass: true },
