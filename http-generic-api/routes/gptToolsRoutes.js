@@ -2126,6 +2126,42 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       };
     }
   }
+  if (callerType === "admin" && toolKey === "sql_cache_runtime_diagnostics_get") {
+    try {
+      const result = buildSqlCacheOperationalDiagnostics(undefined, args || {});
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: Number(err?.status || 500),
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "sql_cache_runtime_diagnostics_failed",
+            message: err?.message || "SQL cache runtime diagnostics failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
+  if (callerType === "admin" && toolKey === "sql_cache_controlled_load_test") {
+    try {
+      const result = await runSqlCacheControlledLoadTest(args || {});
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: Number(err?.status || 500),
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "sql_cache_controlled_load_test_failed",
+            message: err?.message || "SQL cache controlled load test failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
   if (callerType === "admin" && toolKey === "governed_migration_execute") {
     try {
       const result = await runGovernedMigrationExecution(args || {}, {
