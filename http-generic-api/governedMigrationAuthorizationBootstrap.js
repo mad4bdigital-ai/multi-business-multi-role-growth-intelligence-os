@@ -377,6 +377,25 @@ async function resolveBootstrapEnvelope({ pool, input, auth, resolveEnvelope }) 
   return resolved;
 }
 
+function buildAuthorizationMetadata({ candidate, envelope, auth }) {
+  return {
+    migration_checksum_sha256: candidate.migration_checksum_sha256,
+    expected_statement_count: candidate.statement_count,
+    preflight_status: candidate.preflight.status,
+    preflight_risk_count: Number(candidate.preflight.risk_count || 0),
+    destructive_operations: 0,
+    provider_write: false,
+    external_send: false,
+    migration_sql_executed: false,
+    pull_request: candidate.pull_request,
+    merge_sha: candidate.merge_sha,
+    capability_envelope_id: envelope.envelope_id,
+    authorized_by: compact(auth?.user_id || auth?.sub || "platform_admin", 128),
+    requirements: candidate.requirements,
+    secrets_included: false,
+  };
+}
+
 export async function inspectGovernedMigrationAuthorizationCandidate(input = {}, deps = {}) {
   const migration = normalizeMigrationName(input.migration);
   const expectedChecksum = compact(input.expected_checksum_sha256, 64).toLowerCase();
