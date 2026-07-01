@@ -297,6 +297,7 @@ export const testCommands = [
   "node test-governed-migration-reconciler.mjs",
   "node test-github-multi-parent-policy-record-only-reconciliation.mjs",
   "node test-governed-migration-authorization-bootstrap.mjs",
+  "node test-governed-migration-apply-policy-bootstrap.mjs",
   "node test-governed-migration-execution-tool.mjs",
   "node test-tenant-ssh-probe.mjs",
   "node test-tenant-ssh-cli-dry-run.mjs",
