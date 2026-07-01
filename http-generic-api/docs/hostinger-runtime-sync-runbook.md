@@ -114,6 +114,19 @@ The deployment readback is bounded to no-secret fields from `execution_log` plus
 
 The governed legacy cleanup policy permits at most 30 ahead commits. This is a bounded limit increase from 20 and does not relax closed-PR, `superseded` label, no-open-PR, replacement ancestry, changed-file coverage, fresh-SHA, capability-envelope, typed-confirmation, no-force, audit, or same-cycle absence-readback requirements.
 
+## Dynamic admin-control authority parity
+
+Treat the authority-hardening rollout as four independent states:
+
+1. **Repository parity** — the reviewed migration and runtime code exist on the merged commit.
+2. **Runtime parity** — `auth.mad4b.com` reports the merged commit through `/health`, `/version`, and deployment evidence.
+3. **Migration authorization** — `governed_migration_authorization_bootstrap` binds the exact merged file checksum, PR number, and merge SHA after zero-risk preflight.
+4. **Policy parity** — `governed_migration_execute` completes through a fresh apply-authorized envelope and same-cycle readback confirms both the migration ledger and `dynamic_admin_control_resource_authority_v1` policy JSON.
+
+Never infer state 3 or 4 from CI, Git checkout, Hostinger sync, process restart, Admin role, or runtime health. A transport interruption during authorization or apply is an unknown outcome: perform ledger and policy readback before retrying. The migration performs no provider call, credential payload read, raw-secret read, external send, or external write beyond its governed MySQL policy update.
+
+If rollback is required, use a separately reviewed policy-reconciliation migration. Preserve migration-ledger history, activation archive rows, resource bindings, and owner grants; do not rename or replay a ledger-addressed migration under a different checksum.
+
 ## Durable response chunk runtime parity
 
 When a deployment includes durable response chunk changes, do not claim runtime parity from file sync alone. Confirm the deployed checkout contains both `20260618_governed_tool_response_chunks.sql` and `1018_sprint69_governed_response_chunk_schema_reconciliation.sql`, then bootstrap migration `1018` through the governed migration runner after preflight and typed confirmation.
