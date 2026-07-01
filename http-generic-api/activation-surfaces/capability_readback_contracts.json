@@ -1,0 +1,47 @@
+{
+  "surface_key": "capability_readback_contracts",
+  "display_name": "Capability Readback Contracts",
+  "description": "Admin-only current versioned readback contract readiness metadata for dynamic capability assurance.",
+  "source_table": "platform_capability_readback_contracts",
+  "covered_source_tables": [
+    "platform_capability_readback_contracts"
+  ],
+  "result_key_column": "contract_id",
+  "result_label_column": "contract_key",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": [
+    "shadow",
+    "certified",
+    "stale",
+    "revoked",
+    "disabled"
+  ],
+  "result_columns": [
+    "contract_id",
+    "contract_key",
+    "contract_version",
+    "capability_key",
+    "adapter_key",
+    "verification_type",
+    "acknowledgement_required",
+    "verification_required",
+    "expected_effect_class",
+    "certification_status",
+    "status",
+    "is_current",
+    "valid_from",
+    "expires_at",
+    "revoked_at",
+    "source_registry",
+    "source_key",
+    "updated_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 100,
+  "sort_order": 278,
+  "status": "active",
+  "notes": "Excludes input_schema_json, observed_state_schema_json, provider_binding_constraints_json, evidence payloads, provider payloads, credentials, and secret-related fields. The surface is read-only and does not grant dispatch or apply authority."
+}
