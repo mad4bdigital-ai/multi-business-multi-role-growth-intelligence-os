@@ -107,7 +107,24 @@ async function safeRows(source, sql, params = [], pool = getPool()) {
   }
 }
 
-function candidate({
+async function collectSqlCacheRuntimeSource() {
+  try {
+    return {
+      source: "sql_cache_runtime",
+      ok: true,
+      rows: [buildSqlCacheOperationalDiagnostics()],
+    };
+  } catch (error) {
+    return {
+      source: "sql_cache_runtime",
+      ok: false,
+      rows: [],
+      error: compactError(error, "sql_cache_runtime_diagnostics_failed"),
+    };
+  }
+}
+
+function candidate({ 
   alertKey = null,
   sourceType,
   sourceRef = null,
