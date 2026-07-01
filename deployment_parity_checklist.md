@@ -1,5 +1,9 @@
 # Deployment Parity Checklist
 
+> Activation archive and dynamic `admin_control` authority parity: keep `1025_sprint69_activation_archive_dynamic_control_authority.sql` immutable once merged or ledger-addressed. Apply `20260701_dynamic_admin_control_permission_hardening.sql` only through the governed migration runner, then verify the ledger checksum, active blocking policy `dynamic_admin_control_resource_authority_v1`, minimum read permission `view`, mutation permission set `edit|operate|manage|admin|owner`, unknown-permission deny behavior, and focused runtime tests. Confirm Admin archive reads remain backend-authenticated, tenant archive reads derive identity from signed JWT plus active membership, `SELECT ... INTO @variable` is mutation-gated, and no provider/credential/external-write/secret activity occurs.
+
+> Rollback is code rollback plus a separately authorized policy reconciliation; do not delete activation archive history, authority bindings, grants, or migration-ledger evidence.
+
 > GitHub create-reference 201 parity for `1024_sprint69_github_create_reference_201_contract_reconciliation.sql`: do not declare rollout complete until the governed migration ledger records the exact checksum, the live `ACT-GH-EP-011` endpoint schema contains `responses.201`, the existing `200` response remains preserved, release readiness no longer reports the `github_rest_endpoint_dispatch` contract gap, and a disposable create-ref operation returns `201` and passes same-cycle reference readback plus cleanup. Migration apply, certification, and alert resolution are separate governed steps; no provider call occurs during migration execution.
 
 ## OpenAPI Endpoint Inventory Sync — Migration 1024
