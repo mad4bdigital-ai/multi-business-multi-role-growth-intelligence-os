@@ -74,6 +74,7 @@ import {
 import { GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS } from "../growthAuditEvidence.js";
 import * as GrowthAuditEvidenceRuntime from "../growthAuditEvidence.js";
 import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
+import { dispatchRuntimeEndpointWithMutationGuard } from "../runtimeEndpointMutationGuard.js";
 
 const SYSTEM_LAYER_TOOLS = [
   {
@@ -2054,12 +2055,16 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
     case "system_layer_descriptor_callability_audit":
       return runSystemLayerDescriptorCallabilityAudit();
     case "runtime_endpoint_call": {
+      assertRuntimeEndpointPreviewPayload(args || {});
       const guarded = derivePrincipalExecutionContext({ ...(args || {}) }, auth);
-      return await callRuntimeEndpointViaFacade({
+      const payload = {
         ...guarded.payload,
         _principal: guarded.principal,
         _principal_context_guard: guarded.guard,
-      }, deps);
+      };
+      return await dispatchRuntimeEndpointWithMutationGuard(payload, {
+        dispatch: (candidate) => callRuntimeEndpointViaFacade(candidate, deps),
+      });
     }
     case "runtime_endpoint_preview": {
       assertRuntimeEndpointPreviewPayload(args || {});
