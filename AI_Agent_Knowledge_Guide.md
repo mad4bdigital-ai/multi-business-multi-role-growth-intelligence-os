@@ -77,6 +77,26 @@ The semantic capability descriptor source must expose an admin-only, read-only `
 
 See `docs/semantic-capability-effective-resolution.md` and the semantic capability canonical pages in `system_bootstrap`, `direct_instructions_registry_patch`, `module_loader`, and `prompt_router`.
 
+### Growth-audit evidence workflow
+
+For requests that compare client recommendations with a live website, Brand Core, Google strategy documents, or implementation trackers, use the shared descriptor-backed tool `growth_audit_evidence_prepare` before forming conclusions.
+
+The workflow must resolve the Brand from its target key, name, normalized name, domain, base URL, primary site key, or registered aliases. It must support legacy Brand Core rows that still use `brand_name`, `asset_type`, `active_status`, and `google_drive_link`, while returning canonical Brand and Google file identities.
+
+Admin and Tenant use the same tool contract. Admin may use explicit diagnostic tenant/user overrides; Tenant identity always comes from the signed JWT and requires active membership plus workspace or workspace-asset authority for the resolved Brand. Cross-tenant Brand Core and resource plans are forbidden.
+
+Keep evidence surfaces separate:
+
+- `rendered_visible`: may be reported as a visitor-facing issue.
+- `rendered_not_reproduced`: do not report as a current visitor issue.
+- `source_only` or `hidden_template_fallback`: require rendered verification.
+- `document_authority`: Brand Core or approved strategy evidence.
+- `tracker_state`: implementation tracker evidence, subject to live-state reconciliation.
+
+HTML/source presence alone is not proof of a visible UX defect. Browser4 is the preferred rendered inspection runtime; the native Edge connector is not valid primary visual evidence while its visual-capture capability remains degraded.
+
+Google Docs and Sheets resource plans resolve through `files.object.read`. Provider bindings remain `shadow` until a separately certified adapter, resource authority, connection resolution, continuation handling, and same-cycle readback are ready. The preparation tool itself performs no provider call, browser action, mutation, or external send.
+
 ### Dynamic Audit runtime
 
 Migration `314_sprint69_dynamic_audit_runtime_closure.sql` promotes the Dynamic Audit foundation into an internal SQL-primary scheduler. `dynamicAuditRuntime.js` runs only after the HTTP server is listening, resolves cadence and limits from `platform_runtime_config`, and uses MySQL advisory locks to prevent overlapping cycles. Each cycle bridges `audit_log`, mirrors SQL-recorded Drive and release-readiness evidence, persists changed-file repo audit inventory, rolls events into DB/asset/checkpoint surfaces, writes bounded checkpoints, and records scheduler results.
