@@ -94,6 +94,39 @@ import {
 }
 
 {
+  const gateStates = ["pass", "deny", "not_applicable", "not_evaluated"];
+  for (const state of gateStates) {
+    for (const required of [true, false]) {
+      for (const approvalRequired of [true, false]) {
+        for (const executionMode of ["preview", "dispatch"]) {
+          const decision = createSecurityDecision({
+            execution_mode: executionMode,
+            approval_required: approvalRequired,
+            gates: [
+              createGateResult({ key: "principal_scope", state: "pass" }),
+              createGateResult({ key: "matrix_gate", state, required }),
+            ],
+          });
+          const blocksAllowed = required && (state === "deny" || state === "not_evaluated");
+          assert.equal(decision.allowed, !blocksAllowed);
+          assert.equal(decision.will_execute, decision.dispatch_ready);
+          assert.equal(
+            decision.dispatch_ready,
+            decision.allowed && !approvalRequired && executionMode === "dispatch",
+          );
+          if (required && state === "not_evaluated") {
+            assert.deepEqual(decision.unevaluated_required_gates, ["matrix_gate"]);
+          }
+          if (required && state === "deny") {
+            assert.deepEqual(decision.denied_gates, ["matrix_gate"]);
+          }
+        }
+      }
+    }
+  }
+}
+
+{
   assert.equal(evaluatePrincipalTenantAuthorization({ principalClass: "tenant" }).state, "deny");
   assert.equal(
     evaluatePrincipalTenantAuthorization({ principalClass: "tenant", tenantId: "tenant-1", userId: "user-1" }).state,
