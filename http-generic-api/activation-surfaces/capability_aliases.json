@@ -1,0 +1,20 @@
+{
+  "surface_key": "capability_aliases",
+  "display_name": "Capability Aliases",
+  "description": "Admin-only canonical capability alias registry linking tool, action, intent, and route selectors to canonical capabilities.",
+  "source_table": "capability_aliases",
+  "covered_source_tables": ["capability_aliases"],
+  "result_key_column": "alias_id",
+  "result_label_column": "selector_value",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": ["active"],
+  "result_columns": ["alias_id", "selector_type", "selector_value", "canonical_capability_id", "surface", "surface_restriction_policy_id", "status", "registry_version", "created_at", "updated_at"],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 100,
+  "sort_order": 272,
+  "status": "active",
+  "notes": "Repo-managed admin-only activation surface. Excludes metadata_json and does not expose tenant access."
+}
