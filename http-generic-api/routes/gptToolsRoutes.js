@@ -1918,6 +1918,9 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
   if (callerType === "admin" && toolKey === "platform_capability_projection_preview") {
     return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityProjectionPreview(args) } };
   }
+  if (callerType === "admin" && toolKey === "platform_capability_enforcement_shadow_preview") {
+    return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityEnforcementShadow(args) } };
+  }
   if (callerType === "admin" && toolKey === "platform_capability_governance_compile_persist") {
     const result = await persistDynamicCapabilityGovernanceCompilation({
       ...(args || {}),
