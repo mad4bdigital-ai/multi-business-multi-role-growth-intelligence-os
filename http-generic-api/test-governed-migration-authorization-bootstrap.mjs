@@ -14,6 +14,7 @@ const CHECKSUM = createHash("sha256").update(SQL, "utf8").digest("hex");
 const STATEMENT_COUNT = splitSqlStatements(SQL).length;
 const MERGE_SHA = "9c091abb332f92995fdc44cfee8f6f2dd168df88";
 const ENVELOPE_ID = "11111111-2222-4333-8444-555555555555";
+const PREVIOUS_CHECKSUM = "a".repeat(64);
 
 function baseInput() {
   return {
