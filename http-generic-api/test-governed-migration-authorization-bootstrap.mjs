@@ -14,6 +14,7 @@ const CHECKSUM = createHash("sha256").update(SQL, "utf8").digest("hex");
 const STATEMENT_COUNT = splitSqlStatements(SQL).length;
 const MERGE_SHA = "9c091abb332f92995fdc44cfee8f6f2dd168df88";
 const ENVELOPE_ID = "11111111-2222-4333-8444-555555555555";
+const PREVIOUS_CHECKSUM = "a".repeat(64);
 
 function baseInput() {
   return {
@@ -102,8 +103,33 @@ function createFakePool() {
         return [[...(row ? [{ ...row }] : [])]];
       }
       if (sql.includes("FROM governed_migration_ledger")) {
-        const row = ledger.get(`${params[0]}:${params[1]}`);
+        const row = params.length > 1
+          ? ledger.get(`${params[0]}:${params[1]}`)
+          : [...ledger.entries()].find(([key]) => key.startsWith(`${params[0]}:`))?.[1];
         return [[...(row ? [{ ...row }] : [])]];
+      }
+      if (sql.includes("UPDATE governed_migration_authorization_registry")) {
+        const [notes, metadataJson, migration, previousChecksum] = params;
+        const row = authorizations.get(migration);
+        const metadata = row
+          ? (typeof row.metadata_json === "string" ? JSON.parse(row.metadata_json) : row.metadata_json)
+          : {};
+        const recordedChecksum = String(metadata?.migration_checksum_sha256 || metadata?.checksum_sha256 || "").toLowerCase();
+        if (
+          !row ||
+          row.authorization_status !== "authorized" ||
+          Number(row.allow_apply || 0) !== 1 ||
+          recordedChecksum !== previousChecksum
+        ) {
+          return [{ affectedRows: 0 }];
+        }
+        authorizations.set(migration, {
+          ...row,
+          notes,
+          metadata_json: metadataJson,
+          updated_at: new Date("2026-07-01T10:15:00.000Z"),
+        });
+        return [{ affectedRows: 1 }];
       }
       if (sql.includes("INSERT INTO governed_migration_authorization_registry")) {
         const [migration, source, policyKey, notes, metadataJson] = params;
@@ -132,6 +158,34 @@ function createFakePool() {
       throw new Error(`Unexpected SQL: ${sql.slice(0, 120)}`);
     },
   };
+}
+
+function seedAuthorization(pool, checksum) {
+  pool.authorizations.set(MIGRATION, {
+    migration_file: MIGRATION,
+    authorization_status: "authorized",
+    authorization_source: "governed_admin_bootstrap_tool",
+    policy_key: "governed_migration_runner_authorization_v1",
+    risk_tier: "medium",
+    requires_preflight: 1,
+    requires_confirmation: 1,
+    allow_record_only: 0,
+    allow_apply: 1,
+    notes: "Previously reviewed checksum-bound authorization.",
+    metadata_json: JSON.stringify({
+      migration_checksum_sha256: checksum,
+      expected_statement_count: STATEMENT_COUNT,
+      preflight_status: "pass",
+      preflight_risk_count: 0,
+      destructive_operations: 0,
+      provider_write: false,
+      external_send: false,
+      migration_sql_executed: false,
+      secrets_included: false,
+    }),
+    created_at: new Date("2026-06-21T02:30:00.000Z"),
+    updated_at: new Date("2026-06-21T02:30:00.000Z"),
+  });
 }
 
 const resolvedEnvelope = async () => ({
@@ -241,6 +295,77 @@ async function main() {
   assert.equal(pool.applyPolicies.size, 1);
   assert.equal(pool.certifications.size, 1);
 
+  const rotationPool = createFakePool();
+  seedAuthorization(rotationPool, PREVIOUS_CHECKSUM);
+  const rotationReferenced = [];
+  const rotated = await bootstrapGovernedMigrationAuthorization({
+    ...baseInput(),
+    previous_checksum_sha256: PREVIOUS_CHECKSUM,
+    decision_note: "Rotate the unapplied authorization after a reviewed migration repair and checksum change.",
+  }, {
+    ...deps,
+    pool: rotationPool,
+    markReferenced: async (value) => { rotationReferenced.push(value); return { ok: true }; },
+  });
+  assert.equal(rotated.authorization_created, false);
+  assert.equal(rotated.authorization_updated, true);
+  assert.equal(rotated.reauthorized, true);
+  assert.equal(rotated.idempotent, false);
+  assert.equal(rotated.previous_checksum_sha256, PREVIOUS_CHECKSUM);
+  assert.equal(rotated.authorization.recorded_checksum_sha256, CHECKSUM);
+  const rotatedMetadata = typeof rotated.authorization.metadata_json === "string"
+    ? JSON.parse(rotated.authorization.metadata_json)
+    : rotated.authorization.metadata_json;
+  assert.equal(rotatedMetadata.migration_checksum_sha256, CHECKSUM);
+  assert.equal(rotatedMetadata.previous_checksum_sha256, PREVIOUS_CHECKSUM);
+  assert.equal(rotatedMetadata.reauthorized, true);
+  assert.equal(rotatedMetadata.migration_sql_executed, false);
+  assert.equal(rotationPool.applyPolicies.size, 1);
+  assert.equal(rotationPool.certifications.size, 1);
+  assert.equal(rotationReferenced.length, 1);
+
+  const missingPreviousPool = createFakePool();
+  seedAuthorization(missingPreviousPool, PREVIOUS_CHECKSUM);
+  await assert.rejects(
+    () => bootstrapGovernedMigrationAuthorization(baseInput(), {
+      ...deps,
+      pool: missingPreviousPool,
+    }),
+    (error) => error?.code === "governed_migration_authorization_previous_checksum_required"
+  );
+
+  const mismatchedPreviousPool = createFakePool();
+  seedAuthorization(mismatchedPreviousPool, PREVIOUS_CHECKSUM);
+  await assert.rejects(
+    () => bootstrapGovernedMigrationAuthorization({
+      ...baseInput(),
+      previous_checksum_sha256: "b".repeat(64),
+    }, {
+      ...deps,
+      pool: mismatchedPreviousPool,
+    }),
+    (error) => error?.code === "governed_migration_authorization_previous_checksum_mismatch"
+  );
+
+  const appliedPool = createFakePool();
+  seedAuthorization(appliedPool, PREVIOUS_CHECKSUM);
+  appliedPool.ledger.set(`${MIGRATION}:${PREVIOUS_CHECKSUM}`, {
+    run_id: "migration-run-already-applied",
+    mode: "apply",
+    migration_checksum_sha256: PREVIOUS_CHECKSUM,
+    applied_at: new Date("2026-07-01T10:20:00.000Z"),
+  });
+  await assert.rejects(
+    () => bootstrapGovernedMigrationAuthorization({
+      ...baseInput(),
+      previous_checksum_sha256: PREVIOUS_CHECKSUM,
+    }, {
+      ...deps,
+      pool: appliedPool,
+    }),
+    (error) => error?.code === "governed_migration_authorization_already_recorded"
+  );
+
   const dispatchOnly = await bootstrapGovernedMigrationAuthorization(baseInput(), {
     ...deps,
     pool: createFakePool(),
@@ -275,6 +400,7 @@ async function main() {
   const manifestSource = readFileSync("scripts/test-manifest.mjs", "utf8");
   assert.ok(routeSource.includes("governed_migration_authorization_bootstrap"));
   assert.ok(routeSource.includes("bootstrapGovernedMigrationAuthorization"));
+  assert.ok(routeSource.includes("previous_checksum_sha256"));
   assert.ok(manifestSource.includes("test-governed-migration-authorization-bootstrap.mjs"));
 
   console.log("governed migration authorization bootstrap tests passed");
