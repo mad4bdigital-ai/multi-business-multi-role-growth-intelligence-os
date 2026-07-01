@@ -946,6 +946,22 @@ paths:
             minimum: 1
             maximum: 20
             default: 10
+        - in: query
+          name: max_response_chars
+          description: Maximum serialized characters returned inline before a governed chunk continuation envelope is returned.
+          schema:
+            type: integer
+            minimum: 5000
+            maximum: 150000
+            default: 45000
+        - in: query
+          name: chunk_ttl_minutes
+          description: Requested lifetime for the durable response chunk cache.
+          schema:
+            type: integer
+            minimum: 5
+            maximum: 120
+            default: 20
       responses:
         "200":
           description: Activation awareness readback.
@@ -1117,68 +1133,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /activation/runs/{runId}/archive:
-    get:
-      tags:
-        - activation
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: getActivationRunArchive
-      x-openai-isConsequential: false
-      summary: Resolve an activation run to its session archive
-      parameters:
-        - in: path
-          name: runId
-          required: true
-          schema:
-            type: string
-            minLength: 1
-            maxLength: 64
-      responses:
-        "200":
-          description: Activation run archive metadata within admin scope.
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - ok
-                  - found
-                  - run_id
-                  - archive
-                  - authorization
-                  - secrets_included
-                properties:
-                  ok:
-                    type: boolean
-                    const: true
-                  found:
-                    type: boolean
-                    const: true
-                  run_id:
-                    type: string
-                  archive:
-                    type: object
-                    additionalProperties: true
-                  authorization:
-                    type: object
-                    additionalProperties: true
-                  secrets_included:
-                    type: boolean
-                    const: false
-        "401":
-          description: Backend authentication required.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          description: Activation run not found.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
   /activation/runs/{runId}/ack:
     post:
       tags:
@@ -1308,6 +1262,12 @@ paths:
                   type: integer
                   minimum: 5000
                   maximum: 500000
+                  default: 40000
+                chunk_ttl_minutes:
+                  type: integer
+                  minimum: 5
+                  maximum: 120
+                  default: 20
                 authorized_access_limit:
                   type: integer
                   minimum: 1
@@ -1416,6 +1376,12 @@ paths:
                   type: integer
                   minimum: 5000
                   maximum: 500000
+                  default: 40000
+                chunk_ttl_minutes:
+                  type: integer
+                  minimum: 5
+                  maximum: 120
+                  default: 20
                 authorized_access_limit:
                   type: integer
                   minimum: 1
@@ -1487,6 +1453,22 @@ paths:
             default: 4000
             maximum: 20000
           description: Maximum characters per raw dump field when include_raw=true.
+        - name: max_response_chars
+          in: query
+          schema:
+            type: integer
+            minimum: 5000
+            maximum: 150000
+            default: 45000
+          description: Maximum serialized characters returned inline before a governed chunk continuation envelope is returned.
+        - name: chunk_ttl_minutes
+          in: query
+          schema:
+            type: integer
+            minimum: 5
+            maximum: 120
+            default: 20
+          description: Requested lifetime for the durable response chunk cache.
       responses:
         "200":
           description: Session history and related platform scopes
