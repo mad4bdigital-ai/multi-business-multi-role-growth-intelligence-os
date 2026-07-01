@@ -326,7 +326,19 @@ async function queryMatchingLedger(db, migration, checksum) {
   return rows?.[0] || null;
 }
 
-function verifyExistingAuthorization(row, checksum) {
+async function queryAnyLedger(db, migration) {
+  const [rows] = await db.query(
+    `SELECT run_id, mode, migration_checksum_sha256, applied_at
+       FROM governed_migration_ledger
+      WHERE migration_file = ?
+      ORDER BY applied_at DESC
+      LIMIT 1`,
+    [migration]
+  );
+  return rows?.[0] || null;
+}
+
+function verifyExistingAuthorization(row, checksum, options = {}) {
   if (!row) return null;
   const metadata = parseMetadata(row.metadata_json);
   const recordedChecksum = compact(metadata.migration_checksum_sha256 || metadata.checksum_sha256, 64).toLowerCase();
@@ -337,14 +349,18 @@ function verifyExistingAuthorization(row, checksum) {
       allow_apply: Number(row.allow_apply || 0),
     });
   }
-  if (recordedChecksum && recordedChecksum !== checksum) {
+  if (recordedChecksum && recordedChecksum !== checksum && options.allowChecksumMismatch !== true) {
     throw bootstrapError(409, "governed_migration_authorization_checksum_conflict", "The existing authorization row is bound to a different migration checksum.", {
       migration_file: row.migration_file,
       expected_checksum_sha256: checksum,
       recorded_checksum_sha256: recordedChecksum,
     });
   }
-  return { ...row, metadata_json: metadata };
+  return {
+    ...row,
+    metadata_json: metadata,
+    recorded_checksum_sha256: recordedChecksum || null,
+  };
 }
 
 async function resolveBootstrapEnvelope({ pool, input, auth, resolveEnvelope }) {
