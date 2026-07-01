@@ -470,6 +470,13 @@ const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
     readiness_tool: "brand_workspace_context_readiness_smoke",
     readiness_args: {},
   },
+  {
+    source_key: "platform_resource_context_v1",
+    tools: PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS,
+    handlers: PlatformResourceContextRuntime,
+    readiness_tool: "platform_resource_context_readiness_smoke",
+    readiness_args: {},
+  },
 ];
 
 function snakeToolNameToCamelHandlerName(name = "") {
