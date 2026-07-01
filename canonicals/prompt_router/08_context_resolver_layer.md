@@ -1,18 +1,27 @@
 # Context Resolver Layer Routing
 
 ## Pre-Route Resolution
-For any intent that targets a business type or brand, resolve context before routing:
+For any intent that targets a business type or a governed platform resource, resolve context before routing.
 
-1. Call resolveContext with available keys and loaded rows
-2. Inspect validation_state
-3. Route only if validation_state is ready or validating (for read-only intents)
-4. Block and surface blocked_reason if validation_state is blocked
+1. For Brand, Workspace, Asset, CMS Site, or Connection references, call `platform_resource_context_resolve` with the available typed or generic reference.
+2. If the reference is missing or the caller needs choices, call `platform_resource_context_catalog` with bounded type/search/pagination filters.
+3. If resolution returns `interpretation_required`, apply `resource_reference_interpreter_v1` to the returned authorized catalog and repeat resolution with bounded `candidate_refs`.
+4. When a canonical resource type and key are already known, use `platform_resource_context_related` instead of language interpretation.
+5. Before provider-specific diagnostics, call `platform_resource_context_diagnostic_handoff`; registry metadata alone never proves live connectivity.
+6. For business activity and Brand-targeted output requirements, continue through `resolveContext`, Brand Registry, Brand Core, and knowledge-profile gates.
+7. Route only when the relevant validation state is ready, resolved, or validating for read-only intents; block and surface structured reasons otherwise.
+
+The legacy `brand_workspace_context_resolve` tool is a compatibility route only. New resource-context routing must not assume a Brand or Workspace entry point.
 
 ## Intent Routing Table
 | Intent | Required validation_state | Resolver used |
 |---|---|---|
-| Generate content for brand | ready | resolveContext (full) |
-| Create SEO strategy | ready | resolveContext (full) |
+| Resolve any named platform resource | resolved | platform_resource_context_resolve |
+| Discover authorized resources | any authenticated scope | platform_resource_context_catalog |
+| Expand a known canonical resource | resolved | platform_resource_context_related |
+| Prepare CMS/provider diagnostics | ready_for_live_diagnostic or validating | platform_resource_context_diagnostic_handoff |
+| Generate content for brand | ready | platform_resource_context_resolve + resolveContext (full) |
+| Create SEO strategy | ready | platform_resource_context_resolve + resolveContext (full) |
 | Read business type knowledge | validating or ready | resolveKnowledgeProfile |
 | Add new business type | any | resolveRegistrySurface + resolveBusinessActivity |
 | Validate brand paths | any | resolveBrandPath + resolveBrandCore |
