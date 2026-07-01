@@ -71,11 +71,8 @@ export function normalizeBrandReference(value = "") {
   const candidate = host && (raw.includes("://") || raw.includes("/") || raw.includes("."))
     ? host
     : raw;
-  return candidate
-    .replace(/^www\./, "")
-    .replace(/\/wp-json\/?$/i, "")
-    .replace(/[^a-z0-9]+/g, "")
-    .trim();
+  return normalizeHumanBrandReference(candidate.replace(/^www\./, ""))
+    .replace(/\s+/g, "");
 }
 
 export function brandRowReferences(row = {}) {
