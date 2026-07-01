@@ -4,16 +4,17 @@
 
 ## Summary
 
-- Triaged items: 2
-- Gate candidates: 2
+- Triaged items: 3
+- Gate candidates: 3
 - New-gap gate: fail
-- Blocking new items: 2
+- Blocking new items: 3
 
 ## Class counts
 
-- new_surface_immediate_review: 2
+- new_surface_immediate_review: 3
 
 ## Immediate review candidates
 
 - `20260630_dynamic_capability_governance_persistence.sql` — critical_review, score 828; next: add targeted patch-index, parity, and governance documentation
 - `1025_sprint69_growth_audit_evidence_admin_tenant_support.sql` — critical_review, score 732; next: add targeted patch-index, parity, and governance documentation
+- `1025_sprint69_activation_archive_dynamic_control_authority.sql` — high_review, score 668; next: add targeted patch-index, parity, and governance documentation
