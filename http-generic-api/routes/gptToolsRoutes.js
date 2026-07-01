@@ -625,6 +625,11 @@ const VIRTUAL_ADMIN_TOOLS = [
       properties: {
         migration: { type: "string", pattern: "^[A-Za-z0-9._-]+\\.sql$" },
         expected_checksum_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        previous_checksum_sha256: {
+          type: "string",
+          pattern: "^[0-9a-f]{64}$",
+          description: "Required only when rotating an existing unapplied authorization to a reviewed replacement checksum.",
+        },
         expected_statement_count: { type: "integer", minimum: 1, maximum: 5000 },
         pull_request: { type: "integer", minimum: 1 },
         merge_sha: { type: "string", pattern: "^[0-9a-f]{40}$" },
