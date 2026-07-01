@@ -23,6 +23,7 @@ import {
 } from "../governedToolResponseChunkStore.js";
 import { runGovernedResponseChunkDurableRecoverySmoke } from "../governedResponseChunkDurableRecoverySmoke.js";
 import { bootstrapGovernedMigrationAuthorization } from "../governedMigrationAuthorizationBootstrap.js";
+import { bootstrapGovernedMigrationApplyPolicy } from "../governedMigrationApplyPolicyBootstrap.js";
 import { authorizeCapabilityResolutionEnvelopeApply } from "../scripts/capability-resolution-envelope-apply-authorize.mjs";
 import { runGovernedMigrationExecution } from "../governedMigrationExecutionTool.js";
 import { buildActivationGatewayRolloutPlan, runActivationGatewayDarkDeploy } from "../activationGatewayRolloutTool.js";
@@ -570,6 +571,24 @@ const VIRTUAL_ADMIN_TOOLS = [
         confirm: { type: "string", const: "RUN_RESPONSE_CHUNK_DURABLE_RECOVERY_SMOKE" },
         repeat_count: { type: "integer", minimum: 40, maximum: 120, default: 48 },
         chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 30, default: 5 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "governed_migration_apply_policy_bootstrap",
+    displayName: "Governed Migration Apply Policy Bootstrap",
+    description: "Create or verify the one fixed dynamic apply-authorization policy required by governed_migration_execute. The contract is non-configurable, no-provider, no-external-write, checksum-runner-only, and requires typed confirmation plus same-cycle readback.",
+    method: "VIRTUAL",
+    path: "internal://governed-migration-apply-policy-bootstrap",
+    tags: ["admin", "migration", "capability_resolution", "policy_bootstrap", "state_changing", "typed_confirmation", "capability_envelope", "readback", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["confirm", "decision_note", "capability_envelope_id"],
+      properties: {
+        confirm: { type: "string", const: "BOOTSTRAP_GOVERNED_MIGRATION_EXECUTE_APPLY_POLICY" },
+        decision_note: { type: "string", minLength: 20, maxLength: 1000 },
+        capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
       },
       additionalProperties: false,
     },
@@ -1986,6 +2005,30 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     };
   }
 
+  if (callerType === "admin" && toolKey === "governed_migration_apply_policy_bootstrap") {
+    try {
+      const result = await bootstrapGovernedMigrationApplyPolicy(args || {}, {
+        pool: getPool(),
+        auth: req?.auth || {},
+      });
+      return {
+        status: result.policy_created ? 201 : 200,
+        body: { ok: true, name: toolKey, result },
+      };
+    } catch (err) {
+      return {
+        status: Number(err?.status || 400),
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "governed_migration_apply_policy_bootstrap_failed",
+            message: err?.message || "Governed migration apply policy bootstrap failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
   if (callerType === "admin" && toolKey === "capability_resolution_envelope_apply_authorize") {
     try {
       const result = await authorizeCapabilityResolutionEnvelopeApply({
