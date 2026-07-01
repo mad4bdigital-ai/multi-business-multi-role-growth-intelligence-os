@@ -262,6 +262,7 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "319_sprint69_dynamic_container_authority_foundation.sql",
   "320_sprint69_dynamic_container_authority_runtime_contracts.sql",
   "20260630_dynamic_capability_governance_persistence.sql",
+  "20260701_dynamic_capability_certification_readback.sql",
 ]);
 
 const RUNNER_VERSION = "governed-migration-runner-v2";

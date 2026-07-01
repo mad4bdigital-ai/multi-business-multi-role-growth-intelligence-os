@@ -44,6 +44,7 @@ import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveRepor
 import { buildDynamicCapabilityGovernancePreview } from "../dynamicCapabilityGovernanceCompiler.js";
 import { buildDynamicCapabilityProjectionPreview } from "../dynamicCapabilityProjectionPreview.js";
 import { buildDynamicCapabilityEnforcementShadow } from "../dynamicCapabilityEnforcementShadow.js";
+import { buildDynamicCapabilityCertificationReadbackPreview } from "../dynamicCapabilityCertificationReadback.js";
 import {
   CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
   persistDynamicCapabilityGovernanceCompilation,
@@ -446,6 +447,30 @@ const VIRTUAL_ADMIN_TOOLS = [
           },
           additionalProperties: false,
         },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "platform_capability_certification_readback_preview",
+    displayName: "Preview Capability Certification and Readback Readiness",
+    description: "Resolve the deterministic adapter candidate, reconcile generic and specialized certification authorities, select a versioned readback contract, and report acknowledgement and verification separately. Shadow only: no dispatch, provider call, mutation, credential payload read, Tenant authority change, or runtime authority cutover.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-certification-readback-preview",
+    tags: ["capability", "governance", "adapter", "certification", "readback", "shadow", "read_only", "no_execution", "legacy_authority_preserved", "no_provider_call", "no_mutation", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["capability_key"],
+      properties: {
+        capability_key: { type: "string", minLength: 1, maxLength: 191 },
+        operation_mode: { type: "string", enum: ["preview", "apply"], default: "preview" },
+        adapter_key: { type: "string", maxLength: 191 },
+        resource_type: { type: "string", maxLength: 128 },
+        provider_key: { type: "string", maxLength: 128 },
+        runtime_surface: { type: "string", maxLength: 191 },
+        contract_key: { type: "string", maxLength: 191 },
+        environment: { type: "string", maxLength: 64, default: "production" },
+        evidence_limit: { type: "integer", minimum: 1, maximum: 100, default: 25 },
       },
       additionalProperties: false,
     },
@@ -1930,6 +1955,9 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
   }
   if (callerType === "admin" && toolKey === "platform_capability_enforcement_shadow_preview") {
     return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityEnforcementShadow(args) } };
+  }
+  if (callerType === "admin" && toolKey === "platform_capability_certification_readback_preview") {
+    return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityCertificationReadbackPreview(args) } };
   }
   if (callerType === "admin" && toolKey === "platform_capability_governance_compile_persist") {
     const result = await persistDynamicCapabilityGovernanceCompilation({
