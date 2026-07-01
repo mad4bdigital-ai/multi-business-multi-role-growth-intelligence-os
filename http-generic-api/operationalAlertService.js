@@ -605,6 +605,10 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
     ),
   ];
 
+  if (subject.is_admin) {
+    queries.push(collectSqlCacheRuntimeSource());
+  }
+
   if (includePersisted) {
     queries.push(safeRows(
       "operational_alerts",
