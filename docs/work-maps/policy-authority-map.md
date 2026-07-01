@@ -195,6 +195,7 @@ flowchart TD
 | `governed_repository_engine_v6_policy_v1` | 1 |
 | `governed_repository_intelligence_engine_policy_v1` | 1 |
 | `governed_repository_mutation_plan_v6_policy_v1` | 1 |
+| `growth_audit_evidence_admin_tenant_policy_v1` | 1 |
 | `hostinger_deploy_release_apply_policy_v1` | 4 |
 | `hostinger_restart_app_apply_policy_v1` | 3 |
 | `intelligence_policy_rules_required_policy_v1` | 1 |
@@ -211,6 +212,7 @@ flowchart TD
 | `orchestration_intelligence_readback_policy_v1` | 1 |
 | `orchestration_stage_graph_completeness_policy_v1` | 1 |
 | `orchestration_state_snapshot_required_policy_v1` | 1 |
+| `platform_capability_governance_compile_persist_policy_v1` | 1 |
 | `platform_development_constitution_policy_v1` | 1 |
 | `platform_private_capability_vault_policy_v1` | 1 |
 | `platform_resource_api_coverage_policy_v1` | 2 |

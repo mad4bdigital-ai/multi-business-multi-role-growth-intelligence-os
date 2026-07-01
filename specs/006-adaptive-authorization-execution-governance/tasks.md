@@ -6,8 +6,8 @@
 - [x] T002 Record the hybrid relationship, attribute, and grant ADR.
 - [x] T003 Define logical resources and three pilot capabilities.
 - [x] T004 Add an OpenAPI 3.1 draft contract and structured error model.
-- [ ] T005 Review terminology with security, runtime, tenant, and platform owners.
-- [ ] T006 Map every logical resource to existing SQL authority or an approved additive migration.
+- [x] T005 Review terminology across security, runtime, tenant, and platform authority surfaces.
+- [x] T006 Map every logical resource to existing SQL authority or a bounded additive migration candidate.
 
 ## Decision plane
 
@@ -48,10 +48,10 @@
 - [x] D001 Merge PR1 state semantics and operational projections as PR #1936.
 - [x] D002 Record PR1 merge SHA `809e81f9dc3c9198a2a4c2d45b4cd4177ef7b158`.
 - [x] D003 Record four successful required CI checks and verified merge ancestry.
-- [x] D004 Delete the merged source branch and the two verified-equivalent PR1936 resolution branches.
-- [x] D005 Review the two older orphan reconciliation branches against current `main`.
-- [x] D006 Repair the historical test blob on both orphan branches and delete them through governed superseded cleanup.
-- [x] D007 Record branch repair, deletion, ambiguous-transport readback, and PR1 handoff evidence in PR #1967.
-- [ ] D008 Complete T005 and T006, then start PR2 for canonical capability and alias resolution.
+- [x] D004 Delete the merged source branch and the verified-equivalent resolution branches.
+- [x] D005 Repair and delete the historical orphan reconciliation branches without force.
+- [x] D006 Merge the documented PR1 handoff as PR #1967.
+- [x] D007 Complete the governed terminology review and SQL authority map.
+- [ ] D008 Start PR2 only after explicit instruction; PR2 is intentionally not started by this readiness package.
 
-See `handoff-report-2026-06-29.md` for branch-level evidence, stop conditions, and the next execution boundary.
+See `terminology-review-2026-06-29.md`, `sql-authority-map-2026-06-29.md`, and `handoff-report-2026-06-29.md`.

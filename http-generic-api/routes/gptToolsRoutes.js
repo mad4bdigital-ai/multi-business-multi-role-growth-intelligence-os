@@ -40,6 +40,12 @@ import { runRepositoryCloseSupersededPositiveSmokeV6 } from "../repositoryCloseS
 import { applyUnifiedDiffToText } from "../unifiedDiff.js";
 export { applyUnifiedDiffToText };
 import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveReport } from "../platformCapabilityReports.js";
+import { buildDynamicCapabilityGovernancePreview } from "../dynamicCapabilityGovernanceCompiler.js";
+import { buildDynamicCapabilityProjectionPreview } from "../dynamicCapabilityProjectionPreview.js";
+import {
+  CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
+  persistDynamicCapabilityGovernanceCompilation,
+} from "../dynamicCapabilityGovernancePersistence.js";
 import { runGrowthIntelligencePilotAdmin } from "../growthIntelligenceAdminTool.js";
 import {
   approveRepositoryAdvisoryCommentApprovalHoldAdmin,
@@ -366,6 +372,69 @@ const VIRTUAL_ADMIN_TOOLS = [
       type: "object",
       properties: {
         limit: { type: "integer", minimum: 1, maximum: 100, default: 25, description: "Maximum highest-priority gap rows." },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "platform_capability_governance_compile_preview",
+    displayName: "Platform Capability Governance Compile Preview",
+    description: "Compile deterministic read-only governance manifests and typed gaps from the current MySQL capability readiness vector. Shadow diagnostics only: no registry writes, provider calls, callable exports, tenant authority changes, or execution.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-governance-compile-preview",
+    tags: ["capability", "governance", "compiler", "shadow", "read_only", "no_execution", "no_provider_call", "no_mutation", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        capability_key: { type: "string", maxLength: 191 },
+        source_table: { type: "string", maxLength: 191 },
+        after_key: { type: "string", maxLength: 191 },
+        limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+        gap_limit: { type: "integer", minimum: 1, maximum: 500, default: 200 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "platform_capability_projection_preview",
+    displayName: "Preview Platform Capability Projections",
+    description: "Build deterministic Admin and Tenant projection candidates from current persisted governance manifests, compare them with existing tool catalogs and export registries, summarize bounded schemas, and emit typed reconciliation gaps. Preview only: no callable export creation, no registry mutation, no provider call, and no Tenant authority change.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-projection-preview",
+    tags: ["capability", "governance", "projection", "reconciliation", "admin", "tenant_safe_preview", "read_only", "dry_run", "no_mutation", "no_callable_export", "no_provider_call", "no_tenant_authority_change", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        capability_key: { type: "string", maxLength: 191 },
+        after_key: { type: "string", maxLength: 191 },
+        target_scope: { type: "string", enum: ["all", "admin", "tenant"], default: "all" },
+        include_aligned: { type: "boolean", default: true },
+        limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+        gap_limit: { type: "integer", minimum: 1, maximum: 500, default: 200 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "platform_capability_governance_compile_persist",
+    displayName: "Persist Platform Capability Governance Compilation",
+    description: "Persist one bounded shadow compilation batch into immutable internal SQL manifests, source links, and typed gap snapshots with idempotency and same-cycle readback. This does not call providers, create callable exports, change Tenant authority, or enable runtime execution.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-governance-compile-persist",
+    tags: ["capability", "governance", "compiler", "persistence", "internal_registry", "state_changing", "mutation", "typed_confirmation", "capability_envelope", "same_cycle_readback", "idempotency", "no_provider_call", "no_external_write", "no_tenant_authority_change", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["idempotency_key", "expected_source_revision_hash", "confirm", "capability_envelope_id"],
+      properties: {
+        idempotency_key: { type: "string", minLength: 8, maxLength: 191 },
+        expected_source_revision_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        confirm: { type: "string", const: CAPABILITY_GOVERNANCE_PERSIST_CONFIRM },
+        capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+        capability_key: { type: "string", maxLength: 191 },
+        source_table: { type: "string", maxLength: 191 },
+        after_key: { type: "string", maxLength: 191 },
+        limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+        gap_limit: { type: "integer", minimum: 1, maximum: 500, default: 200 },
       },
       additionalProperties: false,
     },
@@ -1775,6 +1844,21 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     return { status: 200, body: { ok: true, name: toolKey, result: await buildPlatformCapabilityLiveReport(args) } };
   }
 
+  if (callerType === "admin" && toolKey === "platform_capability_governance_compile_preview") {
+    return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityGovernancePreview(args) } };
+  }
+  if (callerType === "admin" && toolKey === "platform_capability_projection_preview") {
+    return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityProjectionPreview(args) } };
+  }
+  if (callerType === "admin" && toolKey === "platform_capability_governance_compile_persist") {
+    const result = await persistDynamicCapabilityGovernanceCompilation({
+      ...(args || {}),
+      requested_by: req?.auth?.user_id || req?.auth?.email || "platform_admin",
+    }, {
+      auth: req?.auth || {},
+    });
+    return { status: 200, body: { ok: true, name: toolKey, result } };
+  }
   if (callerType === "admin" && toolKey === "activation_gateway_rollout_plan") {
     try {
       const result = await buildActivationGatewayRolloutPlan(args || {}, {
