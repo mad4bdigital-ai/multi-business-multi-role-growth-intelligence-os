@@ -20,6 +20,7 @@ const [routesIndex, runtimeRoutes, service] = await Promise.all([
   read("routes/runtimeVerificationRoutes.js"),
   read("runtimeVerificationService.js"),
 ]);
+const mutationPolicyMigration = await read("migrations/1028_sprint69_runtime_verification_and_session_smoke_mutation_policy.sql");
 
 assert.match(routesIndex, /buildRuntimeVerificationRoutes/, "runtime verification routes must be imported and mounted");
 assert.match(runtimeRoutes, /POST \/runtime\/verification-runs|\/runtime\/verification-runs/, "runtime verification create route must exist");
@@ -34,6 +35,11 @@ assert.match(service, /deployed_commit_mismatch/, "service must block verified p
 assert.match(service, /deployment_commit_parity/, "service must record deployment commit parity as a step");
 assert.match(service, /max_response_bytes/, "service must enforce response budget metadata");
 assert.match(service, /secrets_included: false/, "service must declare secret-safe output");
+assert.match(mutationPolicyMigration, /runtime_verification_run_create_api/, "runtime verification mutation policy must target the create tool");
+assert.match(mutationPolicyMigration, /state_changing,readback,same_cycle_readback/, "runtime verification create must declare same-cycle readback mutation policy");
+assert.match(mutationPolicyMigration, /release_session_archive_smoke/, "session archive smoke mutation policy must target the registered tool");
+assert.match(mutationPolicyMigration, /read_write,readback,same_cycle_readback,cleanup_default_true/, "session archive smoke must declare bounded readback and cleanup mutation policy");
+assert.doesNotMatch(mutationPolicyMigration, /DELETE\s+FROM|DROP\s+TABLE|TRUNCATE\s+TABLE/i, "mutation policy migration must remain additive and non-destructive");
 
 assert.deepEqual(classifyCiCheckRun({ status: "completed", conclusion: "success" }), {
   classification: "success",
