@@ -1,5 +1,5 @@
 {
-  "content_hash_sha256": "05b42552f18f3cded546fe9f28152f73d9fcc28ae17685c53167baa5d6f2c7ff",
+  "content_hash_sha256": "961c765e2d9eee8b1892e73a3b250e4dbb7a949c05b4e47e0c5ac1d563611aba",
   "deployment_signature_required": true,
   "manifest_version": 1,
   "mutation_stale_policy": "deny",
@@ -171,24 +171,6 @@
       "timeout_ms": 30000
     },
     {
-      "allowed_query_parameters": [],
-      "auth_profiles": [
-        "admin_service"
-      ],
-      "method": "GET",
-      "mutation": false,
-      "operation_ids": [
-        "getActivationRunArchive"
-      ],
-      "path": "/activation/runs/{runId}/archive",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
-      "surfaces": [
-        "activation_admin"
-      ],
-      "timeout_ms": 30000
-    },
-    {
       "allowed_query_parameters": [
         "include_raw",
         "limit",
@@ -279,24 +261,6 @@
         "readTenantActivationOperationalAttention"
       ],
       "path": "/tenant/activation/operational-attention",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
-      "surfaces": [
-        "tenant_activation"
-      ],
-      "timeout_ms": 30000
-    },
-    {
-      "allowed_query_parameters": [],
-      "auth_profiles": [
-        "tenant_oauth"
-      ],
-      "method": "GET",
-      "mutation": false,
-      "operation_ids": [
-        "getTenantActivationRunArchive"
-      ],
-      "path": "/tenant/activation/runs/{runId}/archive",
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
