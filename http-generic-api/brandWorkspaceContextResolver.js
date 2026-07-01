@@ -663,7 +663,7 @@ export async function brandWorkspaceContextResolve(args = {}, { auth = {}, pool 
       matched_reference: resolution.matched_reference || requested.value,
       cache_hit: Boolean(cached),
       cache_ttl_seconds: Math.round(CACHE_TTL_MS / 1000),
-      cache_key_hash_input: cacheEntryKey,
+      cache_scope: scope.tenant_id ? "principal_scoped" : "admin_global",
     },
     principal: {
       principal_type: scope.admin ? "admin" : "tenant",
