@@ -460,6 +460,13 @@ const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
     readiness_tool: "growth_audit_evidence_readiness_smoke",
     readiness_args: {},
   },
+  {
+    source_key: "brand_workspace_context_v1",
+    tools: BRAND_WORKSPACE_CONTEXT_SYSTEM_TOOLS,
+    handlers: BrandWorkspaceContextRuntime,
+    readiness_tool: "brand_workspace_context_readiness_smoke",
+    readiness_args: {},
+  },
 ];
 
 function snakeToolNameToCamelHandlerName(name = "") {
