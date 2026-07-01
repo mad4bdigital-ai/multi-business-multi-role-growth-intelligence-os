@@ -65,10 +65,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Safety marker | Migrations with marker |
 |---|---:|
 | no_provider_call | 464 |
-| no_credential_payload_read | 462 |
-| no_raw_secrets | 462 |
+| no_credential_payload_read | 461 |
+| no_raw_secrets | 461 |
 | no_external_send | 463 |
-| no_external_write | 462 |
+| no_external_write | 461 |
 | secrets_included_false | 465 |
 
 ### Route Classification Coverage
@@ -88,10 +88,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 5
+- Total queue items: 6
 - Critical review: 2
 - High review: 2
-- Medium review: 1
+- Medium review: 2
 - Low review: 0
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
@@ -101,6 +101,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `1025_sprint69_activation_archive_dynamic_control_authority.sql` | high_review | 668 | high | 5 | 0 | 4 | document_surface_contract, add_explicit_safety_markers |
 | `1030_sprint69_canonical_capability_domain.sql` | high_review | 545 | medium | 5 | 0 | 5 | document_surface_contract, verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
 | `20260629_sql_cache_admin_tool_export.sql` | medium_review | 244 | none | 0 | 0 | 6 | verify_tool_registry_binding, add_explicit_safety_markers |
+| `1013_sprint69_operational_alerting_control_plane.sql` | medium_review | 236 | none | 0 | 0 | 3 | verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
 
 
 ## Latest Surface Coverage

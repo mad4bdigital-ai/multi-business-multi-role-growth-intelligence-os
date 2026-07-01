@@ -1,3 +1,13 @@
+SQL Cache Operational Observability
+
+The MySQL-primary SQL cache runtime must expose bounded Admin diagnostics derived from process-lifetime counters and the active runtime policy. Required evidence includes hits, misses, stores, errors, bypasses, unavailable skips, circuit-open skips, oversized-value skips, single-flight joins, in-flight count, active cooldown count, policy freshness, and circuit state.
+
+Derived metrics must include hit ratio, miss ratio, and error rate with explicit sample counts and thresholds. Critical or high states such as enabled-but-unavailable, open circuit, stale policy, or high error rate must be projected into the Admin operational-alert control plane. Tenant surfaces must not receive platform-wide SQL cache runtime evidence.
+
+Controlled SQL cache load tests must run in isolated process memory, must not touch production Redis or MySQL, and must verify both single-flight reduction and the immutable `endpoints` security denylist fallback. Synthetic benchmark results are regression evidence only and must not be represented as production capacity evidence.
+
+Governed migration child-process failures must return bounded redacted diagnostics including exit code, signal, detected provider/database error code, and sanitized stderr/stdout summaries. Credential-like assignments, bearer values, URL credentials, raw secrets, and unbounded logs are forbidden.
+
 - derived_surfaces_expected_to_refresh
 - observability_validation_state
 - observability_issues when applicable
