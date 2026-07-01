@@ -583,7 +583,7 @@ export async function brandWorkspaceContextResolve(args = {}, { auth = {}, pool 
   }
 
   const brand = resolution.row;
-  const cacheEntryKey = cached ? cached.key : setCachedTarget(scope, requested.value, brand.target_key);
+  if (!cached) setCachedTarget(scope, requested.value, brand.target_key);
   const assetLimit = boundedInt(args.asset_limit, 50, 1, 100);
 
   const matchingWorkspaces = authority.workspaces.filter((row) =>
