@@ -77,6 +77,26 @@ The semantic capability descriptor source must expose an admin-only, read-only `
 
 See `docs/semantic-capability-effective-resolution.md` and the semantic capability canonical pages in `system_bootstrap`, `direct_instructions_registry_patch`, `module_loader`, and `prompt_router`.
 
+### Growth-audit evidence workflow
+
+For requests that compare client recommendations with a live website, Brand Core, Google strategy documents, or implementation trackers, use the shared descriptor-backed tool `growth_audit_evidence_prepare` before forming conclusions.
+
+The workflow must resolve the Brand from its target key, name, normalized name, domain, base URL, primary site key, or registered aliases. It must support legacy Brand Core rows that still use `brand_name`, `asset_type`, `active_status`, and `google_drive_link`, while returning canonical Brand and Google file identities.
+
+Admin and Tenant use the same tool contract. Admin may use explicit diagnostic tenant/user overrides; Tenant identity always comes from the signed JWT and requires active membership plus workspace or workspace-asset authority for the resolved Brand. Cross-tenant Brand Core and resource plans are forbidden.
+
+Keep evidence surfaces separate:
+
+- `rendered_visible`: may be reported as a visitor-facing issue.
+- `rendered_not_reproduced`: do not report as a current visitor issue.
+- `source_only` or `hidden_template_fallback`: require rendered verification.
+- `document_authority`: Brand Core or approved strategy evidence.
+- `tracker_state`: implementation tracker evidence, subject to live-state reconciliation.
+
+HTML/source presence alone is not proof of a visible UX defect. Browser4 is the preferred rendered inspection runtime; the native Edge connector is not valid primary visual evidence while its visual-capture capability remains degraded.
+
+Google Docs and Sheets resource plans resolve through `files.object.read`. Provider bindings remain `shadow` until a separately certified adapter, resource authority, connection resolution, continuation handling, and same-cycle readback are ready. The preparation tool itself performs no provider call, browser action, mutation, or external send.
+
 ### Dynamic Audit runtime
 
 Migration `314_sprint69_dynamic_audit_runtime_closure.sql` promotes the Dynamic Audit foundation into an internal SQL-primary scheduler. `dynamicAuditRuntime.js` runs only after the HTTP server is listening, resolves cadence and limits from `platform_runtime_config`, and uses MySQL advisory locks to prevent overlapping cycles. Each cycle bridges `audit_log`, mirrors SQL-recorded Drive and release-readiness evidence, persists changed-file repo audit inventory, rolls events into DB/asset/checkpoint surfaces, writes bounded checkpoints, and records scheduler results.
@@ -168,6 +188,11 @@ Do not report “Session Context opened/loaded” unless the current activation 
 Session Context is platform-side continuity evidence, not native ChatGPT history access. It opens a new `customer_sessions` row when no reusable run exists and, by default, permits parallel GPT conversations. With `session_policy=reuse_or_create`, the same tenant/user/idempotency key should reuse the existing active session and activation run inside the configured reuse window. It must not close other active sessions unless the caller explicitly passes `close_previous_sessions=true` or `close_previous=true`. New GPT action sessions should use `session_status='active'`.
 
 Activation lifecycle reporting must keep `validation_state`, `evidence_state`, `delivery_state`, and `consumer_ack_state` separate. A prepared response is not delivered until transport completes, and a delivered response is not acknowledged until the consumer explicitly calls the acknowledgement surface. Snapshot id, registry version, data watermark, response profile, response bytes, and deferred-surface projection should remain traceable in SQL without storing secret values.
+
+Activation run archive lookup is a bounded metadata read. Platform Admin callers use `GET /activation/runs/{runId}/archive`; signed tenant users use `GET /tenant/activation/runs/{runId}/archive`, which must resolve tenant and user identity from JWT plus active membership and restrict the lookup to the caller-owned activation run. The response may expose the exact `session_id`, lifecycle states, workspace/Brand references, turn count, timestamps, and Drive archive pointers, but must not return raw transcript content or secrets.
+
+`admin_control` database requests must classify a single `SELECT`, `SHOW`, `DESCRIBE`, `DESC`, `EXPLAIN`, or read-only CTE as non-mutation. Multi-statement SQL, stateful reads, DML, DDL, transaction/control statements, and unclassified SQL remain fail-closed. Mutating `admin_control` calls must not derive authority from Admin role or a hard-coded provider/connection type. They require an active dynamic resource binding whose `allowed_modes_json` includes the requested operation, valid referenced `connected_systems` and `installations` rows when present, and tenant ownership/grant evidence for tenant-scoped callers. Tenant/user identity overrides are forbidden.
+
 
 `conversation_memory` is summary-first. Prefer `session_summaries`, tagged `platform_pending_tasks.conversation_context_ref` references, and graph-memory hints before loading turn previews. Bounded previews from `gpt_session_turns` should be loaded only when `include_turns=true` with a bounded `turns_limit`; full transcript content should be retrieved from Drive only for targeted continuation/debugging. The backend does not have general access to native ChatGPT history unless turns were explicitly archived into platform tables or Drive.
 

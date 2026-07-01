@@ -20,6 +20,7 @@ assert.match(script, /runCapabilityResolutionDryRun/);
 assert.match(script, /approval_required/);
 assert.match(script, /quota_required/);
 assert.match(script, /audit_required: true/);
+assert.match(script, /certifications\.some\(\(row\) => Number\(row\.requires_readback \|\| 0\) === 1\)/);
 assert.match(script, /secrets_included: false/);
 assert.match(script, /This is a dry-run envelope only; no tool\/app\/runtime was executed/);
 assert.doesNotMatch(script, /decryptToken|value_ciphertext|private_key|oauth_token/i);

@@ -528,6 +528,15 @@ export async function syncOpenApiEndpointInventory(input = {}, deps = {}) {
     if (!resolved?.ok) {
       throw capabilityEnvelopeError(resolved, "OpenAPI endpoint inventory apply requires a valid capability resolution envelope.");
     }
+    if (resolved.apply_allowed !== true) {
+      throw capabilityEnvelopeError({
+        ...resolved,
+        ok: false,
+        status: "capability_resolution_envelope_apply_not_allowed",
+        errors: ["capability_resolution_envelope_apply_not_allowed"],
+        secrets_included: false,
+      }, "OpenAPI endpoint inventory apply requires an apply-enabled capability resolution envelope.");
+    }
     capabilityEnvelope = resolved;
   }
   const inventory = await collectOpenApiEndpointInventory({ openApiPath: deps.openApiPath || DEFAULT_OPENAPI_PATH });

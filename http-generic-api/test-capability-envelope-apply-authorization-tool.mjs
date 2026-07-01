@@ -5,6 +5,7 @@ const script = readFileSync("scripts/capability-resolution-envelope-apply-author
 const migration = readFileSync("migrations/902_sprint68_dynamic_capability_apply_authorization_policy.sql", "utf8");
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 const adminCli = readFileSync("routes/adminCliRoutes.js", "utf8");
+const gptTools = readFileSync("routes/gptToolsRoutes.js", "utf8");
 const snapshotRecord = readFileSync("adsProviderGovernanceSnapshotRecord.js", "utf8");
 
 for (const expected of [
@@ -57,6 +58,11 @@ assert(!script.includes("APPLY_AUTHORIZABLE_CAPABILITIES"), "apply authorization
 assert(!script.includes("String(row.app_key || \"\") !== \"platform_orchestration\""), "apply authorization must not hardcode one app");
 assert(runner.includes("902_sprint68_dynamic_capability_apply_authorization_policy.sql"), "governed migration runner must allowlist the dynamic policy migration");
 assert(adminCli.includes("capability_resolution_envelope_apply_authorize"), "admin shell alias must expose apply authorization tool");
+assert(gptTools.includes('name: "capability_resolution_envelope_apply_authorize"'), "admin GPT registry must expose apply authorization as a governed virtual tool");
+assert(gptTools.includes("authorizeCapabilityResolutionEnvelopeApply"), "admin GPT dispatcher must call the existing dynamic apply authorization service");
+assert(gptTools.includes("envelopeId: String(args?.envelope_id"), "admin GPT tool must map the public envelope_id field to the service contract");
+assert(gptTools.includes('"state_changing", "approval_required", "readback"'), "admin GPT apply authorization tool must declare mutation governance and readback");
+assert(gptTools.includes('"no_provider_call", "no_external_write", "no_secrets"'), "admin GPT apply authorization tool must preserve no-provider and no-secret boundaries");
 assert(snapshotRecord.includes("capability_envelope_apply_not_allowed"), "snapshot record apply must reject envelopes without apply_allowed");
 assert(snapshotRecord.includes("Number(envelope.apply_allowed) !== 1"), "snapshot record apply must check apply_allowed before insert");
 assert.doesNotMatch(script, /fetch\(|axios|GoogleAdsApi|GoogleAdsClient|mutateCampaignBudgets|child_process|exec\(|spawn\(/i, "apply authorization must not call providers or spawn processes");

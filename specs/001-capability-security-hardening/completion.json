@@ -5,15 +5,16 @@
   "status": "in_progress",
   "delivery_mode": "multi_pr",
   "current_increment": {
-    "phase": "Phase 1 — Repository and registry discovery",
+    "phase": "Phase 2 — Canonical capability domain",
     "tasks_completed": [
       "T001", "T002", "T003", "T004", "T005", "T006", "T007", "T008", "T009",
-      "T010", "T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019"
+      "T010", "T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019",
+      "T020", "T021", "T022", "T023", "T024", "T025", "T026"
     ],
-    "tasks_remaining_range": "T020-T114",
-    "pull_request": 1913,
-    "branch": "gpt/001-capability-security-hardening-phase1-discovery",
-    "merge_scope": "discovery_evidence_and_ci_fixture_repair"
+    "tasks_remaining_range": "T027-T114",
+    "pull_request": 1969,
+    "branch": "gpt/001-capability-security-phase2-canonical-domain",
+    "merge_scope": "canonical_capability_domain_alias_registry_and_integrity"
   },
   "requirements": {
     "migration": true,
@@ -21,12 +22,12 @@
     "post_merge_audit": true
   },
   "delivery": {
-    "implementation_prs": [],
+    "implementation_prs": [1969],
     "closeout_pr": {
-      "number": "current",
-      "branch": "gpt/001-capability-security-hardening-phase1-discovery",
+      "number": 1969,
+      "branch": "gpt/001-capability-security-phase2-canonical-domain",
       "role": "phase_increment",
-      "status": "current_pr"
+      "status": "open_ci_pending"
     }
   },
   "evidence": {
@@ -37,7 +38,7 @@
       "report_sha256": "5874a56d4dc5c3d11bce18e3166fd509fce74317253bd2e0305ff3c50485eb6f"
     },
     "phase1": {
-      "status": "verified_locally_pending_final_head_ci",
+      "status": "merged",
       "validation_record": "phase1-discovery-evidence-2026-06-26.md",
       "live_report_sha256": "f9be9defbd3af578195745ec262d76f5955da7e227a3abba4ef58eb20b1be65b",
       "records_scanned": 3811,
@@ -48,9 +49,23 @@
         "p99_ms": 307.352
       }
     },
+    "phase2": {
+      "status": "implemented_pending_ci_and_merge",
+      "pull_request": 1969,
+      "domain_models": [
+        "CanonicalCapability",
+        "CapabilityAlias"
+      ],
+      "policy_composition": true,
+      "registry_migration": "http-generic-api/migrations/1030_sprint69_canonical_capability_domain.sql",
+      "integrity_report": "http-generic-api/scripts/capability-alias-integrity-report.mjs",
+      "focused_test": "http-generic-api/test-canonical-capability-domain.mjs",
+      "migration_applied": false,
+      "secrets_included": false
+    },
     "release_readiness": {
       "status": "blocked_for_full_release",
-      "phase1_merge_eligible_after_final_ci": true,
+      "phase2_merge_eligible_after_ci_and_migration_review": true,
       "unrestricted_tenant_execution_authorized": false,
       "production_promotion_authorized": false
     }
