@@ -140,7 +140,7 @@ export function classifyAdminControlDbSql(sql = "") {
   const keyword = (statement.match(/^([A-Za-z]+)/)?.[1] || "").toUpperCase();
   const reads = new Set(["SELECT", "SHOW", "DESCRIBE", "DESC", "EXPLAIN"]);
   const mutations = new Set(["INSERT", "UPDATE", "DELETE", "REPLACE", "MERGE", "UPSERT", "CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME", "GRANT", "REVOKE", "SET", "CALL", "DO", "LOAD", "BEGIN", "START", "COMMIT", "ROLLBACK", "SAVEPOINT", "RELEASE", "LOCK", "UNLOCK"]);
-  const statefulRead = /\bINTO\s+(?:OUTFILE|DUMPFILE)\b|\bFOR\s+UPDATE\b|\bLOCK\s+IN\s+SHARE\s+MODE\b|:=|\bGET_LOCK\s*\(|\bRELEASE_LOCK\s*\(/i;
+  const statefulRead = /\bINTO\s+(?:OUTFILE|DUMPFILE)\b|\bINTO\s+@{1,2}|\bFOR\s+UPDATE\b|\bLOCK\s+IN\s+SHARE\s+MODE\b|:=|\bGET_LOCK\s*\(|\bRELEASE_LOCK\s*\(/i;
   const stateful = statefulRead.test(statement);
   if (reads.has(keyword)) {
     return { mutation_required: stateful, classification: stateful ? "stateful_read_sql" : "single_statement_read_sql", statement_count: 1 };
