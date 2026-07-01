@@ -572,8 +572,64 @@ export const PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS = Object.freeze([
     },
   },
   {
+    name: "platform_resource_context_catalog",
+    description: "List the signed principal's authorized Brand, Workspace, Asset, CMS Site, and Connection references for discovery before resolution. Supports type filtering, search, and cursor pagination. Read-only; no provider call, mutation, or secrets.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        resource_type: { type: "string", enum: RESOURCE_TYPES, default: "auto" },
+        search: { type: "string", maxLength: 255 },
+        cursor: { type: "integer", minimum: 0, default: 0 },
+        limit: { type: "integer", minimum: 1, maximum: 100, default: 25 },
+        tenant_id: { type: "string", description: "Admin-only override; ignored for Tenant principals." },
+        user_id: { type: "string", description: "Admin-only override; ignored for Tenant principals." },
+      },
+    },
+  },
+  {
+    name: "platform_resource_context_related",
+    description: "Expand the authorized one-hop resource graph for one canonical Brand, Workspace, Asset, CMS Site, or Connection key. Uses deterministic exact-key resolution and returns no interpretation catalog. Read-only; no provider call, mutation, or secrets.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        resource_type: { type: "string", enum: ["brand", "workspace", "asset", "site", "connection"] },
+        resource_key: { type: "string", minLength: 1, maxLength: 2048 },
+        tenant_id: { type: "string", description: "Admin-only override; ignored for Tenant principals." },
+        user_id: { type: "string", description: "Admin-only override; ignored for Tenant principals." },
+        include_brand_context: { type: "boolean", default: true },
+      },
+      required: ["resource_type", "resource_key"],
+    },
+  },
+  {
+    name: "platform_resource_context_diagnostic_handoff",
+    description: "Resolve any authorized resource reference and return only safe downstream diagnostic contexts for linked CMS sites and connections. Live connectivity remains not_checked until a provider diagnostic runs. Read-only; no provider call, mutation, credential decryption, or secrets.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        reference: { type: "string", minLength: 1, maxLength: 2048 },
+        resource_ref: { type: "string", minLength: 1, maxLength: 2048 },
+        resource_type: { type: "string", enum: RESOURCE_TYPES, default: "auto" },
+        candidate_refs: {
+          type: "array",
+          maxItems: 8,
+          items: { type: "string", minLength: 1, maxLength: 255 },
+        },
+        tenant_id: { type: "string", description: "Admin-only override; ignored for Tenant principals." },
+        user_id: { type: "string", description: "Admin-only override; ignored for Tenant principals." },
+      },
+      anyOf: [
+        { required: ["reference"] },
+        { required: ["resource_ref"] },
+      ],
+    },
+  },
+  {
     name: "platform_resource_context_readiness_smoke",
-    description: "Admin-only read-only readiness smoke for generic Brand/Workspace/Asset/Site/Connection context resolution, Tenant scope isolation, descriptor wiring, and no-secret behavior.",
+    description: "Admin-only read-only readiness smoke for generic Brand/Workspace/Asset/Site/Connection context resolution, helper routes, Tenant scope isolation, descriptor wiring, and no-secret behavior.",
     requires_admin: true,
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
