@@ -1,5 +1,9 @@
 # Repo and SQL Change Documentation Governance
 
+> Change-governance contract for activation archive and dynamic `admin_control` authority: preserve the merged `1025_sprint69_activation_archive_dynamic_control_authority.sql` filename/checksum once it may be ledger-addressed; use additive follow-up migrations for policy hardening. Review signed-principal tenant scoping, active-membership enforcement, operation-mode binding, connected-system/installation validity, independent binding and owner-grant permission floors, unknown-permission deny behavior, stateful `SELECT ... INTO @variable` classification, OpenAPI 3.1 parity, focused tests, and no-secret evidence. Merge requires green CI and complete documentation; production apply requires checksum-bound authorization, preflight, ledger/policy readback, and release readiness.
+
+> Static documentation and migration presence do not authorize database writes, provider calls, credential access, external sends, deployment, or policy activation.
+
 > Change-governance contract for `1024_sprint69_github_create_reference_201_contract_reconciliation.sql`: review that the diff contains one idempotent `UPDATE endpoints` statement scoped to `ACT-GH-EP-011`, `github_api_mcp`, and `github_create_branch_reference`; preserves all existing response entries; adds only `responses.201`; and contains no tool/export/route/binding registration or provider execution. Merge requires the focused regression test, test-manifest registration, green CI, and documented rollout boundaries. Production apply requires checksum-bound migration authorization, zero-risk preflight, ledger/schema readback, and later create-ref certification before the acknowledged operational alert may be resolved.
 
 ## OpenAPI Endpoint Inventory Synchronization
