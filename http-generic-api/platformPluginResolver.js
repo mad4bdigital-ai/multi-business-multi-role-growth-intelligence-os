@@ -2,14 +2,10 @@ import { getPool } from "./db.js";
 import { normalizePlatformPlugin } from "./platformPluginCatalog.js";
 import { resolvePlatformManagedTargetAuthority } from "./platformPluginTargetAuthority.js";
 import { schedulePlatformPluginSecurityAlerts } from "./platformPluginSecurityAlerts.js";
-import { createSecurityDecision, gateFromBoolean } from "./src/domain/capability/securityDecision.js";
 import {
-  evaluatePolicyCompleteness,
-  evaluatePrincipalTenantAuthorization,
-  evaluateSkillGate,
-  evaluateSurfaceExposure,
-  evaluateTargetResourceOwnership,
-} from "./src/domain/capability/securityEvaluators.js";
+  buildPlatformPluginPreApprovalDecision,
+  buildPlatformPluginSecurityDecision,
+} from "./src/application/capability/platformPluginSecurityDecisionUseCase.js";
 
 export const CredentialRequirement = Object.freeze({
   NOT_REQUIRED: "not_required",
@@ -726,27 +722,20 @@ export async function resolvePlatformPluginExecution({
     actionKey: selectorContract.actionKey || selectorContract.toolKey,
     allowExpiredForRecertification: allowExpiredSmokeCertificationForRecertification === true,
   });
-  const preApprovalDecision = createSecurityDecision({
-    execution_mode: "dispatch",
-    gates: [
-      gateFromBoolean({ key: "plugin_status", ok: pluginStatusActive, reason: pluginStatusActive ? "plugin_active" : "plugin_not_active" }),
-      evaluatePrincipalTenantAuthorization({ principalClass, tenantId, userId }),
-      gateFromBoolean({ key: "binding_state", ok: bindingState.ok, reason: bindingState.reason }),
-      evaluateSurfaceExposure({
-        selectorType: selectorContract.selector.type,
-        toolSurface: binding?.tool_surface || null,
-        exposureScope: binding?.exposure_scope || null,
-        principalClass,
-      }),
-      gateFromBoolean({ key: "canonical_policy", ok: canonicalPolicy.ready, reason: canonicalPolicy.reason }),
-      evaluatePolicyCompleteness({ ready: canonicalPolicy.ready, reason: canonicalPolicy.reason }),
-      credentialDecisionEvaluated
-        ? gateFromBoolean({ key: "credential", ok: credential.ok, reason: credential.reason, denyCode: credential.denial_code || null })
-        : { key: "credential", required: true, state: "not_evaluated", reason: credential.reason },
-      evaluateTargetResourceOwnership(targetAuthority),
-      evaluateSkillGate(skill),
-      gateFromBoolean({ key: "smoke_certification", ok: smokeCertification.certified, reason: smokeCertification.reason }),
-    ],
+  const preApprovalDecision = buildPlatformPluginPreApprovalDecision({
+    selector: selectorContract.selector,
+    binding,
+    pluginStatusActive,
+    principalClass,
+    tenantId,
+    userId,
+    bindingState,
+    canonicalPolicy,
+    credential,
+    credentialDecisionEvaluated,
+    targetAuthority,
+    skill,
+    smokeCertification,
   });
   const allowed = preApprovalDecision.allowed;
 
@@ -767,18 +756,11 @@ export async function resolvePlatformPluginExecution({
       })
     : { required: baseApprovalRequired, granted: !baseApprovalRequired, grant_id: null, reason: baseApprovalRequired ? "resolve_denials_before_action_grant" : "no_review_required_by_preview" };
   const approvalRequired = Boolean(baseApprovalRequired && !actionGrant.granted);
-  const securityDecision = createSecurityDecision({
-    execution_mode: "dispatch",
-    approval_required: approvalRequired,
-    gates: [
-      ...preApprovalDecision.gates,
-      gateFromBoolean({
-        key: "approval",
-        ok: !approvalRequired,
-        required: baseApprovalRequired,
-        reason: approvalRequired ? actionGrant.reason : "action_grant_or_preview_policy_allows_dispatch",
-      }),
-    ],
+  const securityDecision = buildPlatformPluginSecurityDecision({
+    preApprovalDecision,
+    approvalRequired,
+    baseApprovalRequired,
+    actionGrant,
   });
   const dispatchReady = securityDecision.dispatch_ready;
 

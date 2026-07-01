@@ -12,6 +12,10 @@ import {
   evaluateSurfaceExposure,
   evaluateTargetResourceOwnership,
 } from "./src/domain/capability/securityEvaluators.js";
+import {
+  buildPlatformPluginPreApprovalDecision,
+  buildPlatformPluginSecurityDecision,
+} from "./src/application/capability/platformPluginSecurityDecisionUseCase.js";
 
 {
   const gate = createGateResult({ key: "principal", state: "pass", reason: "tenant_authorized" });
@@ -119,6 +123,37 @@ import {
   assert.equal(evaluateSkillGate({ required: false, granted: true }).state, "not_applicable");
   assert.equal(evaluateSkillGate({ required: true, granted: false, reason: "skill_not_granted" }).state, "deny");
   assert.equal(evaluatePolicyCompleteness({ ready: false, reason: "mutation_policy_missing" }).state, "deny");
+}
+
+{
+  const preApproval = buildPlatformPluginPreApprovalDecision({
+    selector: { type: "action_key", value: "github.repo.read" },
+    binding: { binding_role: "primary_api", status: "active" },
+    pluginStatusActive: true,
+    principalClass: "tenant",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    bindingState: { ok: true, reason: "binding_active" },
+    canonicalPolicy: { ready: true, reason: "action_is_canonical_policy_key" },
+    credential: { ok: true, reason: "connection_available" },
+    credentialDecisionEvaluated: true,
+    targetAuthority: { ok: true, required: false, state: "not_applicable", reason: "target_authority_not_required" },
+    skill: { required: true, granted: true, reason: "skill_granted" },
+    smokeCertification: { certified: true, reason: "smoke_certification_active" },
+  });
+  assert.equal(preApproval.allowed, true);
+  assert.equal(preApproval.dispatch_ready, true);
+
+  const approvalBlocked = buildPlatformPluginSecurityDecision({
+    preApprovalDecision: preApproval,
+    approvalRequired: true,
+    baseApprovalRequired: true,
+    actionGrant: { reason: "action_grant_required" },
+  });
+  assert.equal(approvalBlocked.allowed, false);
+  assert.equal(approvalBlocked.approval_required, true);
+  assert.equal(approvalBlocked.dispatch_ready, false);
+  assert.deepEqual(approvalBlocked.denied_gates, ["approval"]);
 }
 
 console.log("security decision engine tests passed");
