@@ -159,6 +159,34 @@ function createFakePool() {
   };
 }
 
+function seedAuthorization(pool, checksum) {
+  pool.authorizations.set(MIGRATION, {
+    migration_file: MIGRATION,
+    authorization_status: "authorized",
+    authorization_source: "governed_admin_bootstrap_tool",
+    policy_key: "governed_migration_runner_authorization_v1",
+    risk_tier: "medium",
+    requires_preflight: 1,
+    requires_confirmation: 1,
+    allow_record_only: 0,
+    allow_apply: 1,
+    notes: "Previously reviewed checksum-bound authorization.",
+    metadata_json: JSON.stringify({
+      migration_checksum_sha256: checksum,
+      expected_statement_count: STATEMENT_COUNT,
+      preflight_status: "pass",
+      preflight_risk_count: 0,
+      destructive_operations: 0,
+      provider_write: false,
+      external_send: false,
+      migration_sql_executed: false,
+      secrets_included: false,
+    }),
+    created_at: new Date("2026-06-21T02:30:00.000Z"),
+    updated_at: new Date("2026-06-21T02:30:00.000Z"),
+  });
+}
+
 const resolvedEnvelope = async () => ({
   ok: true,
   envelope_id: ENVELOPE_ID,
