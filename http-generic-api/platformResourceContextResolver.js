@@ -91,10 +91,10 @@ async function loadMembership(pool, scope) {
   return rows[0] || null;
 }
 
-async function loadGraph(pool, scope) {
+async function loadGraph(pool, scope, membership = null) {
   const tenantClause = scope.tenant_id ? "WHERE tenant_id = ?" : "";
   const tenantParams = scope.tenant_id ? [scope.tenant_id] : [];
-  const [brands, workspaces, assets, resourceGrants, cmsGrants] = await Promise.all([
+  const [brands, loadedWorkspaces, loadedAssets, resourceGrants, cmsGrants] = await Promise.all([
     queryRows(
       pool,
       `SELECT target_key, brand_name, normalized_brand_name, brand_domain,
