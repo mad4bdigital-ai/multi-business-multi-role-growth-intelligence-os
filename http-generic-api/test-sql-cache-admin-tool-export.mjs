@@ -13,6 +13,13 @@ const openapi = await readFile(
   new URL("./openapi/sql-cache-policy.yaml", import.meta.url),
   "utf8"
 );
+const exportedSchemas = [...migration.matchAll(/'(\{"type":"object"[^']+\})'/g)]
+  .map((match) => match[1]);
+
+assert.equal(exportedSchemas.length, 2, "migration must export exactly two JSON object input schemas");
+for (const schema of exportedSchemas) {
+  assert.doesNotThrow(() => JSON.parse(schema), "every exported input_schema must be valid JSON");
+}
 
 assert.match(migration, /'sql_cache_runtime_policy_get'/);
 assert.match(migration, /'GET',\s*'\/admin\/cache\/sql-policy'/);
