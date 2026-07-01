@@ -171,6 +171,18 @@ try {
     }),
     "capability_resolution_envelope_not_found",
   );
+  await expectCode(
+    () => syncOpenApiEndpointInventory({
+      mode: "apply",
+      confirm: OPENAPI_ENDPOINT_INVENTORY_CONSTANTS.APPLY_CONFIRMATION,
+      capability_envelope_id: "preview-only",
+    }, {
+      pool: dryRunPool,
+      openApiPath: rootPath,
+      resolveEnvelope: async () => ({ ok: true, envelope_id: "preview-only", apply_allowed: false, secrets_included: false }),
+    }),
+    "capability_resolution_envelope_apply_not_allowed",
+  );
 
   const applyPool = createFakePool({ expectedReadbackCount: 2 });
   const references = [];
@@ -185,7 +197,7 @@ try {
     resolveEnvelope: async (input) => {
       assert.deepEqual(input.acceptedAppKeys, ["platform_orchestration"]);
       assert(input.acceptedIntents.includes("openapi_endpoint_inventory_sync"));
-      return { ok: true, envelope_id: "envelope-1", secrets_included: false };
+      return { ok: true, envelope_id: "envelope-1", apply_allowed: true, secrets_included: false };
     },
     markReferenced: async (input) => { references.push(input); return { ok: true }; },
   });
@@ -211,7 +223,7 @@ try {
     }, {
       pool: lockedPool,
       openApiPath: rootPath,
-      resolveEnvelope: async () => ({ ok: true, envelope_id: "envelope-2", secrets_included: false }),
+      resolveEnvelope: async () => ({ ok: true, envelope_id: "envelope-2", apply_allowed: true, secrets_included: false }),
     }),
     "openapi_inventory_sync_locked",
   );

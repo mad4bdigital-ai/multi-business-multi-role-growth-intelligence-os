@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { getPool } from "./db.js";
 
-export const DYNAMIC_CAPABILITY_GOVERNANCE_COMPILER_VERSION = "dynamic-capability-governance-compiler-v1";
+export const DYNAMIC_CAPABILITY_GOVERNANCE_COMPILER_VERSION = "dynamic-capability-governance-compiler-v3";
 
 const EFFECT_RANK = Object.freeze({
   unclassified: -1,
@@ -16,6 +16,26 @@ const EFFECT_RANK = Object.freeze({
 });
 
 const RISK_RANK = Object.freeze({ A: 0, B: 1, C: 2, D: 3, E: 4 });
+
+const READ_TOKENS = Object.freeze([
+  "read", "list", "get", "search", "inspect", "status", "report", "diagnostic", "health",
+  "audit", "lookup", "resolve", "catalog", "inventory", "validate", "probe", "extract", "check",
+]);
+const MUTATION_TOKENS = Object.freeze([
+  "create", "update", "upsert", "write", "publish", "send", "delete", "revoke", "rotate", "merge",
+  "comment", "label", "install", "activate", "approve", "transition", "sync", "promote", "execute",
+  "apply", "dispatch", "enqueue", "assign", "record", "consume", "repair", "link", "request", "ack",
+  "acknowledge", "escalate", "disable", "enable", "finalize", "cleanup", "reset", "set", "close",
+]);
+const DESTRUCTIVE_TOKENS = Object.freeze(["purge", "delete", "destroy", "drop", "wipe", "erase"]);
+const CREDENTIAL_TOKENS = Object.freeze(["credential", "credentials", "secret", "secrets", "token", "password", "oauth"]);
+const DEPLOYMENT_TOKENS = Object.freeze(["deploy", "deployment", "restart", "release", "dns", "tunnel", "traffic"]);
+const EXTERNAL_TOKENS = Object.freeze([
+  "wordpress", "github", "cloudflare", "hostinger", "google", "ads", "gmail", "email", "n8n",
+  "provider", "connector", "drive", "sheets", "remote", "browser",
+]);
+const WORKSPACE_TOKENS = Object.freeze(["workspace", "brand", "tenant", "resource", "grant", "membership", "site"]);
+const GENERIC_OPERATION_CLASSES = new Set(["tool dispatch", "tenant tool dispatch"]);
 
 function rowsOf(result) {
   return Array.isArray(result?.[0]) ? result[0] : [];
@@ -49,46 +69,67 @@ function rowText(row) {
   ].map((value) => String(value || "").toLowerCase()).join(" ");
 }
 
-function hasAny(text, patterns) {
-  return patterns.some((pattern) => text.includes(pattern));
+function classificationText(row) {
+  return [
+    row.capability_key,
+    row.display_name,
+    row.capability_family,
+    row.source_key,
+  ].map((value) => String(value || "").toLowerCase()).join(" ");
+}
+
+function normalizeSemanticText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenSet(value) {
+  const normalized = normalizeSemanticText(value);
+  return new Set(normalized ? normalized.split(" ") : []);
+}
+
+function semanticOperationClass(value) {
+  const normalized = normalizeSemanticText(value);
+  return GENERIC_OPERATION_CLASSES.has(normalized) ? "" : normalized;
+}
+
+function hasAnyToken(tokens, candidates) {
+  return candidates.some((candidate) => tokens.has(candidate));
+}
+
+function hasAnyPhrase(text, phrases) {
+  return phrases.some((phrase) => text === phrase || text.startsWith(`${phrase} `) || text.endsWith(` ${phrase}`) || text.includes(` ${phrase} `));
 }
 
 export function classifyCapabilityEffect(row = {}) {
-  const text = rowText(row);
+  const semanticText = normalizeSemanticText(classificationText(row));
+  const operationText = semanticOperationClass(row.operation_class);
+  const combinedText = `${operationText} ${semanticText}`.trim();
+  const tokens = tokenSet(combinedText);
   const applyAllowed = bool(row.apply_allowed ?? row.applyable);
 
-  if (hasAny(text, ["purge", "hard_delete", "hard-delete", "destroy", "drop_table", "force_delete"])) {
-    return "destructive";
-  }
-  if (hasAny(text, ["credential", "secret", "token_rotate", "rotate_secret", "promote_tenant_binding", "credential_intake"])) {
-    return "credential_touching";
-  }
-  if (hasAny(text, ["deploy", "deployment", "restart_app", "release_apply", "dns_write", "tunnel_create"])) {
-    return "deployment_affecting";
-  }
+  const previewHint = hasAnyPhrase(combinedText, ["dry run", "plan only", "decision brief"])
+    || hasAnyToken(tokens, ["preview", "preflight", "simulation", "blueprint"]);
+  const mutationHint = applyAllowed
+    || hasAnyPhrase(combinedText, ["state changing"])
+    || hasAnyToken(tokens, MUTATION_TOKENS);
+  const readHint = hasAnyToken(tokens, READ_TOKENS);
+  const destructiveHint = hasAnyToken(tokens, DESTRUCTIVE_TOKENS);
+  const credentialHint = hasAnyToken(tokens, CREDENTIAL_TOKENS);
+  const deploymentHint = hasAnyToken(tokens, DEPLOYMENT_TOKENS);
 
-  const mutationHint = hasAny(text, [
-    " create", "create_", ".create", " update", "update_", ".update", " write", "write_", ".write",
-    "publish", "send", "delete", "revoke", "rotate", "merge", "comment", "label", "install", "activate",
-    "approve", "transition", "sync", "promote", "execute", "apply", "dispatch", "enqueue", "assign",
-  ]);
-  const previewHint = hasAny(text, ["preview", "dry_run", "dry-run", "decision_brief", "plan_only", "preflight"]);
-  const readHint = hasAny(text, [
-    " read", "read_", ".read", " list", "list_", ".list", " get", "get_", ".get", " search", "search_",
-    "inspect", "status", "report", "diagnostic", "health", "audit", "lookup", "resolve", "catalog", "inventory",
-  ]);
-
-  if (previewHint && !applyAllowed && !mutationHint) return "preview_only";
+  if (previewHint && !applyAllowed) return "preview_only";
   if (readHint && !applyAllowed && !mutationHint) return "read_only";
 
-  if (mutationHint || applyAllowed) {
-    const external = hasAny(text, [
-      "wordpress", "github", "cloudflare", "hostinger", "google_ads", "google ads", "gmail", "email", "n8n",
-      "provider", "connector", "drive", "sheets", "remote_runtime", "remote runtime",
-    ]);
-    const workspace = hasAny(text, ["workspace", "brand", "tenant_private", "resource_grant", "resource grant"]);
-    if (external) return "external_write";
-    if (workspace) return "workspace_write";
+  if (mutationHint) {
+    if (destructiveHint) return "destructive";
+    if (credentialHint) return "credential_touching";
+    if (deploymentHint) return "deployment_affecting";
+    if (hasAnyToken(tokens, EXTERNAL_TOKENS)) return "external_write";
+    if (hasAnyToken(tokens, WORKSPACE_TOKENS)) return "workspace_write";
     return "internal_write";
   }
 
@@ -118,8 +159,8 @@ export function classifyCapabilityRisk(row = {}, effectClass = classifyCapabilit
     deployment_affecting: RISK_RANK.D,
     destructive: RISK_RANK.E,
   }[effectClass] ?? RISK_RANK.C;
-  const text = rowText(row);
-  const semanticFloor = hasAny(text, ["publish", "send", "spend", "merge", "deploy", "restart", "credential", "secret"])
+  const tokens = tokenSet(rowText(row));
+  const semanticFloor = hasAnyToken(tokens, ["publish", "send", "spend", "merge", "deploy", "restart", "credential", "secret"])
     ? RISK_RANK.D
     : effectFloor;
   const rank = Math.max(effectFloor, semanticFloor, explicitRiskRank(row.risk_class));
@@ -129,30 +170,32 @@ export function classifyCapabilityRisk(row = {}, effectClass = classifyCapabilit
 export function compileCapabilityRequirements(row = {}, effectClass = classifyCapabilityEffect(row), riskClass = classifyCapabilityRisk(row, effectClass)) {
   const authorityType = String(row.authority_requirement_type || "none").toLowerCase();
   const stateChanging = EFFECT_RANK[effectClass] > 0;
-  const external = ["external_write", "credential_touching", "deployment_affecting", "destructive"].includes(effectClass);
+  const external = stateChanging && ["external_write", "credential_touching", "deployment_affecting", "destructive"].includes(effectClass);
   const riskRank = RISK_RANK[riskClass] ?? RISK_RANK.C;
-  const text = rowText(row);
+  const tokens = tokenSet(rowText(row));
+  const resourceBinding = bool(row.resource_authority_required) || ["resource", "combined"].includes(authorityType);
+
   return {
     scope_guard: true,
-    resource_binding: bool(row.resource_authority_required) || ["resource", "combined"].includes(authorityType),
+    resource_binding: resourceBinding,
     validated_connection: external,
     credential_reference: external,
-    approval_mode: riskRank >= RISK_RANK.D
-      ? "explicit_scoped"
-      : riskRank >= RISK_RANK.C && stateChanging
-        ? "per_request_or_policy_bounded"
-        : stateChanging
-          ? "bounded_policy_or_typed_confirmation"
-          : "none",
-    typed_confirmation: riskRank >= RISK_RANK.D,
-    capability_envelope: stateChanging || authorityType !== "none",
+    approval_mode: !stateChanging
+      ? "none"
+      : riskRank >= RISK_RANK.D
+        ? "explicit_scoped"
+        : riskRank >= RISK_RANK.C
+          ? "per_request_or_policy_bounded"
+          : "bounded_policy_or_typed_confirmation",
+    typed_confirmation: stateChanging && riskRank >= RISK_RANK.D,
+    capability_envelope: stateChanging || resourceBinding || ["approval", "quota", "combined"].includes(authorityType),
     idempotency: stateChanging,
     certification: external,
-    audit: bool(row.requires_audit_evidence) || stateChanging,
-    readback: bool(row.requires_readback) || stateChanging,
-    rollback: riskRank >= RISK_RANK.D,
+    audit: stateChanging || bool(row.requires_audit_evidence),
+    readback: stateChanging,
+    rollback: stateChanging && riskRank >= RISK_RANK.D,
     compensation: external,
-    quota: ["quota", "combined"].includes(authorityType) || hasAny(text, ["google_ads", "spend", "budget", "quota"]),
+    quota: stateChanging && (["quota", "combined"].includes(authorityType) || hasAnyToken(tokens, ["google", "ads", "spend", "budget", "quota"])),
   };
 }
 
@@ -307,6 +350,15 @@ function buildQuery(args, limit) {
   };
 }
 
+function countBy(items, selector) {
+  const counts = {};
+  for (const item of items) {
+    const key = String(selector(item) || "unknown");
+    counts[key] = Number(counts[key] || 0) + 1;
+  }
+  return counts;
+}
+
 export async function buildDynamicCapabilityGovernancePreview(args = {}, deps = {}) {
   const pool = deps.pool || getPool();
   const limit = Math.max(1, Math.min(Number(args.limit || 50), 200));
@@ -350,6 +402,11 @@ export async function buildDynamicCapabilityGovernancePreview(args = {}, deps = 
       returned_gap_count: gaps.length,
       blocked_manifest_count: manifests.filter((item) => item.status === "blocked").length,
       shadow_ready_manifest_count: manifests.filter((item) => item.status === "shadow_ready").length,
+    },
+    distributions: {
+      effect_class: countBy(manifests, (item) => item.effect_class),
+      risk_class: countBy(manifests, (item) => item.risk_class),
+      gap_key: countBy(allGaps, (item) => item.gap_key),
     },
     source_revision_hash: sourceRevisionHash,
     page: {
