@@ -630,6 +630,27 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
   const bySource = new Map(results.map((result) => [result.source, result]));
   const alerts = [];
 
+  const sqlCacheDiagnostics = bySource.get("sql_cache_runtime")?.rows?.[0] || null;
+  for (const alert of sqlCacheDiagnostics?.alerts || []) {
+    alerts.push(candidate({
+      sourceType: "sql_cache_runtime",
+      sourceRef: "runtime://sql-cache",
+      sourceRecordId: alert.code,
+      category: "cache",
+      severity: alert.severity,
+      title: alert.title,
+      summary: alert.summary,
+      reasonCode: alert.code,
+      verificationState: "verified",
+      evidenceType: "runtime_diagnostics",
+      evidenceRef: "runtime://sql-cache",
+      evidence: alert.evidence,
+      firstSeenAt: sqlCacheDiagnostics.generated_at,
+      lastSeenAt: sqlCacheDiagnostics.generated_at,
+      recommendedActionKey: "sql_cache.review_runtime",
+    }));
+  }
+
   alerts.push(...mapExecutionAlerts(bySource.get("execution_log")?.rows || []));
 
   for (const row of bySource.get("connected_systems")?.rows || []) {
