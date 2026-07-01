@@ -3,6 +3,17 @@
 
 This document defines the explicit public API surface for each provider connector module in `http-generic-api/`. Internal helpers are not exported unless required by callers outside the module.
 
+## dynamicResourceAuthority.js
+
+### Public exports
+
+#### `resolveDynamicResourceAuthority(input)`
+- **Purpose:** Resolve operation-scoped authority for `admin_control` without inferring permission from Admin role, provider type, or connection type.
+- **Authority:** Active `platform_resource_authority_bindings`, allowed operation mode, valid connected-system/installation state, and tenant owner-grant evidence when required.
+- **Permission floor:** Read-only operations require `view` or stronger. Mutations require `edit`, `operate`, `manage`, `admin`, or `owner` on the binding and any required owner grant.
+- **Failure mode:** Missing context, unknown permission values, stale installations, tenant/user overrides, and unavailable registries fail closed.
+- **Secrets:** Returns identifiers and decision metadata only; `secrets_included=false`.
+
 ---
 
 ## github.js

@@ -4,6 +4,14 @@
 
 External API authentication is governed at the **Parent Action** level. Endpoints inherit the parent policy by default, and individual endpoints may override only when their operation has a narrower security requirement.
 
+## Activation archive and dynamic resource authority
+
+`GET /activation/runs/{runId}/archive` is Admin-only and accepts backend bearer/API-key authentication. `GET /tenant/activation/runs/{runId}/archive` accepts a signed user JWT, resolves active membership server-side, and scopes the lookup to the signed tenant and user. Client-provided tenant or user identifiers are never authority.
+
+`admin_control` resource authorization is separate from provider credential resolution. It requires an active resource binding, an allowed operation mode, valid referenced system/installation state, and owner-grant evidence when required. Read-only calls require `view` or stronger; mutations require `edit`, `operate`, `manage`, `admin`, or `owner` on both relevant authority layers. Unknown permission values fail closed.
+
+Neither archive lookup nor authority evaluation returns credential payloads or raw transcript content.
+
 This prevents auth behavior from being duplicated across hundreds of endpoint rows while still letting users choose the credential source that fits their work.
 
 ## Authority model

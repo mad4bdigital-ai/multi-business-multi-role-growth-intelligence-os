@@ -534,7 +534,13 @@ For brand-scoped WordPress blog/article publishing, use `wordpress_blog_publish_
 
 ## Ops Scope
 
-Use `callAdminTool` with `release_readiness` or related ops tool_keys for release and registry maintenance checks. The legacy `openapi.custom-gpt.ops.yaml` has been deleted; routes are documented in `openapi.yaml` and dispatched through the tool registry.
+Use `callAdminTool` with `release_readiness` or related ops tool_keys for release and registry maintenance checks.
+
+### Dynamic admin-control authority rollout
+
+For dynamic `admin_control`, enforce explicit resource permission floors rather than deriving authority from Admin role, provider type, or connection type. Read-only operations require `view` or stronger. Mutations require `edit` or stronger on the resource binding and independently on any required owner grant. Unknown permission values fail closed, and stateful SQL such as `SELECT ... INTO @variable` remains mutation-gated.
+
+Treat `20260701_dynamic_admin_control_permission_hardening.sql` as a separate post-merge rollout. Re-read the merged file, bind its exact checksum and merge SHA through `governed_migration_authorization_bootstrap`, run `governed_migration_execute` in `dry_run`, then use a new apply-authorized envelope and typed confirmation. Require ledger and same-cycle policy readback. CI, Hostinger sync, runtime parity, or Admin role alone never proves migration apply. This flow performs no provider call, credential payload read, external send, or ungoverned SQL execution. The legacy `openapi.custom-gpt.ops.yaml` has been deleted; routes are documented in `openapi.yaml` and dispatched through the tool registry.
 
 Functional use:
 
