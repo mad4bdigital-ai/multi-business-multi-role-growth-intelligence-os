@@ -367,5 +367,14 @@ assert.match(orphanMigration, /superseded_orphan_branch_requires_content_equival
 assert.match(orphanMigration, /superseded_orphan_branch_force_allowed.*false/s);
 assert.match(orphanMigration, /317_sprint69_superseded_orphan_branch_cleanup\.sql/);
 assert.doesNotMatch(orphanMigration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
+assert.match(pr1950OverrideMigration, /JSON_SET/);
+assert.match(pr1950OverrideMigration, /gpt\/006-sql-cache-dynamic-safety-20260628/);
+assert.match(pr1950OverrideMigration, /'max_ahead_commits', 40/);
+assert.match(pr1950OverrideMigration, /fb3a6b6b6c48e0d1c8cc1658e482dbace20cbd97/);
+assert.match(pr1950OverrideMigration, /2026-07-02T23:59:59\.000Z/);
+assert.match(pr1950OverrideMigration, /Temporary SHA-bound cleanup authorization for merged PR 1950/);
+assert.doesNotMatch(pr1950OverrideMigration, /superseded_branch_delete_max_ahead_commits'\s*,\s*40/);
+assert.doesNotMatch(pr1950OverrideMigration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
+assert.match(governedMigrationRunner, /1032_sprint69_pr1950_superseded_branch_cleanup_override\.sql/);
 
 console.log("superseded branch cleanup tests passed");
