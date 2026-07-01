@@ -4,10 +4,10 @@
 
 ## Summary
 
-- Total queue items: 5
+- Total queue items: 6
 - Critical review: 2
 - High review: 2
-- Medium review: 1
+- Medium review: 2
 - Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
@@ -83,4 +83,18 @@
 - Remediation actions:
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+
+### 6. `1013_sprint69_operational_alerting_control_plane.sql`
+
+- Queue class: medium_review
+- Score: 236
+- Gap severity: none
+- Missing docs: none
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_credential_payload_read`, `no_raw_secrets`, `no_external_write`
+- Surface counts: plugins=0, tools=8, views=4, policies=0, routes=4
+- Remediation actions:
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `alert_readiness`, `capability_envelope_lifecycle_tool_gap`, `deployment_response_and_readback`, `git_readback`, `policy_envelope_readback`, `pr_checks_manual_dispatch`, `runtime_readback`, `safety_gate_worked`
+- `verify_readback_view` → db-readback-review; targets: `v_activation_agent_catalog`, `v_activation_agent_skill_grants`, `v_activation_pending_tasks`, `v_operational_alerts_open`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_write`
 
