@@ -357,7 +357,8 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
 
   const approvalRequired = approvalRequiredForRisk(risk) || sourceTiers.selected_source_tier === "platform_managed_fallback";
   const quotaRequired = sourceTiers.selected_source_tier === "platform_managed_fallback" || risk === "critical";
-  const readbackRequired = ["medium", "high", "critical"].includes(risk);
+  const readbackRequired = ["medium", "high", "critical"].includes(risk)
+    || certifications.some((row) => Number(row.requires_readback || 0) === 1);
   const dispatchAllowed = blockingGaps.length === 0 && sourceTiers.selected_source_tier !== "blocked_requires_setup";
   const applyAllowed = dispatchAllowed && !approvalRequired && !["high", "critical"].includes(risk);
   const decision = dispatchAllowed

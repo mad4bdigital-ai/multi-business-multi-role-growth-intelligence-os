@@ -41,6 +41,7 @@ import { applyUnifiedDiffToText } from "../unifiedDiff.js";
 export { applyUnifiedDiffToText };
 import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveReport } from "../platformCapabilityReports.js";
 import { buildDynamicCapabilityGovernancePreview } from "../dynamicCapabilityGovernanceCompiler.js";
+import { buildDynamicCapabilityProjectionPreview } from "../dynamicCapabilityProjectionPreview.js";
 import {
   CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
   persistDynamicCapabilityGovernanceCompilation,
@@ -388,6 +389,26 @@ const VIRTUAL_ADMIN_TOOLS = [
         capability_key: { type: "string", maxLength: 191 },
         source_table: { type: "string", maxLength: 191 },
         after_key: { type: "string", maxLength: 191 },
+        limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+        gap_limit: { type: "integer", minimum: 1, maximum: 500, default: 200 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "platform_capability_projection_preview",
+    displayName: "Preview Platform Capability Projections",
+    description: "Build deterministic Admin and Tenant projection candidates from current persisted governance manifests, compare them with existing tool catalogs and export registries, summarize bounded schemas, and emit typed reconciliation gaps. Preview only: no callable export creation, no registry mutation, no provider call, and no Tenant authority change.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-projection-preview",
+    tags: ["capability", "governance", "projection", "reconciliation", "admin", "tenant_safe_preview", "read_only", "dry_run", "no_mutation", "no_callable_export", "no_provider_call", "no_tenant_authority_change", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        capability_key: { type: "string", maxLength: 191 },
+        after_key: { type: "string", maxLength: 191 },
+        target_scope: { type: "string", enum: ["all", "admin", "tenant"], default: "all" },
+        include_aligned: { type: "boolean", default: true },
         limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
         gap_limit: { type: "integer", minimum: 1, maximum: 500, default: 200 },
       },
@@ -1820,6 +1841,9 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
 
   if (callerType === "admin" && toolKey === "platform_capability_governance_compile_preview") {
     return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityGovernancePreview(args) } };
+  }
+  if (callerType === "admin" && toolKey === "platform_capability_projection_preview") {
+    return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityProjectionPreview(args) } };
   }
   if (callerType === "admin" && toolKey === "platform_capability_governance_compile_persist") {
     const result = await persistDynamicCapabilityGovernanceCompilation({
