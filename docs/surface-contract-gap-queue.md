@@ -4,9 +4,9 @@
 
 ## Summary
 
-- Total queue items: 4
+- Total queue items: 5
 - Critical review: 2
-- High review: 1
+- High review: 2
 - Medium review: 1
 - Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
@@ -56,7 +56,22 @@
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 4. `20260629_sql_cache_admin_tool_export.sql`
+### 4. `1030_sprint69_canonical_capability_domain.sql`
+
+- Queue class: high_review
+- Score: 545
+- Gap severity: medium
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=3, views=1, policies=0, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_and_tenant_tool_catalogs`, `admin_platform_endpoint_tools`, `tenant_platform_endpoint_tools`
+- `verify_readback_view` → db-readback-review; targets: `v_capability_alias_integrity`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 5. `20260629_sql_cache_admin_tool_export.sql`
 
 - Queue class: medium_review
 - Score: 244
