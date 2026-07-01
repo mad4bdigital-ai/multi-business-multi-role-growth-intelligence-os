@@ -225,6 +225,8 @@ function testRepositoryContracts() {
   const awareness = read("./activationAwarenessService.js");
   const migration = read("./migrations/1013_sprint69_operational_alerting_control_plane.sql");
   const reconciliationMigration = read("./migrations/1015_sprint69_operational_alerting_p0_reconciliation.sql");
+  const mutationReadbackMigration = read("./migrations/1031_sprint69_operational_alert_mutation_readback_policy.sql");
+  const governedMigrationRunner = read("./scripts/governed-migration-runner.mjs");
   const openapi = read("./openapi.yaml");
   const memory = read("../memory_schema.json");
   const auditCanonical = read("../canonicals/system_bootstrap/03_audit_logging_schema.md");
