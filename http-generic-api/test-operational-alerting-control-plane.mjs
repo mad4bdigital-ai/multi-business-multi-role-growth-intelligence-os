@@ -225,6 +225,8 @@ function testRepositoryContracts() {
   const awareness = read("./activationAwarenessService.js");
   const migration = read("./migrations/1013_sprint69_operational_alerting_control_plane.sql");
   const reconciliationMigration = read("./migrations/1015_sprint69_operational_alerting_p0_reconciliation.sql");
+  const mutationReadbackMigration = read("./migrations/1031_sprint69_operational_alert_mutation_readback_policy.sql");
+  const governedMigrationRunner = read("./scripts/governed-migration-runner.mjs");
   const openapi = read("./openapi.yaml");
   const memory = read("../memory_schema.json");
   const auditCanonical = read("../canonicals/system_bootstrap/03_audit_logging_schema.md");
@@ -261,6 +263,22 @@ function testRepositoryContracts() {
     "activation_operational_alert_lifecycle_api",
     "tenant_activation_operational_attention_read_api",
   ]) assert.ok(migration.includes(required), `migration must include ${required}`);
+
+  assert.match(
+    migration,
+    /activation_operational_attention_sync_api[\s\S]*state_changing[\s\S]*readback,same_cycle_readback/,
+    "fresh installs must declare same-cycle readback for operational alert synchronization"
+  );
+  assert.match(
+    migration,
+    /activation_operational_alert_lifecycle_api[\s\S]*state_changing[\s\S]*readback,same_cycle_readback/,
+    "fresh installs must declare same-cycle readback for alert lifecycle mutation"
+  );
+  assert.match(mutationReadbackMigration, /UPDATE admin_platform_endpoint_tools/);
+  assert.match(mutationReadbackMigration, /activation_operational_attention_sync_api/);
+  assert.match(mutationReadbackMigration, /activation_operational_alert_lifecycle_api/);
+  assert.match(mutationReadbackMigration, /readback,same_cycle_readback/);
+  assert.match(governedMigrationRunner, /1031_sprint69_operational_alert_mutation_readback_policy\.sql/);
 
   for (const key of _testingOperationalAlerts.KNOWN_ISSUE_KEYS) {
     assert.ok(migration.includes(key), `migration must seed ${key}`);
