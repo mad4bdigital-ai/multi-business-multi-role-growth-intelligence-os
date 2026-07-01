@@ -163,6 +163,27 @@ async function loadGraph(pool, scope, membership = null) {
     ),
   ]);
 
+  const broadTenantAccess = scope.admin || ["owner", "admin"].includes(text(membership?.role, 64).toLowerCase());
+  const effectiveGrantRefs = new Set(
+    resourceGrants.map((row) => normalizeBrandReference(row.resource_ref)).filter(Boolean)
+  );
+  const cmsWorkspaceIds = new Set(cmsGrants.map((row) => row.workspace_id).filter(Boolean));
+  const workspaces = broadTenantAccess
+    ? loadedWorkspaces
+    : loadedWorkspaces.filter((row) =>
+        cmsWorkspaceIds.has(row.workspace_id)
+        || [row.workspace_id, row.workspace_key, row.linked_brand_key]
+          .map(normalizeBrandReference)
+          .some((value) => value && effectiveGrantRefs.has(value))
+      );
+  const assets = broadTenantAccess
+    ? loadedAssets
+    : loadedAssets.filter((row) =>
+        [row.asset_id, row.asset_ref, row.brand_ref, row.site_ref]
+          .map(normalizeBrandReference)
+          .some((value) => value && effectiveGrantRefs.has(value))
+      );
+
   const grantSiteIds = unique(cmsGrants.map((row) => row.site_id));
   const sites = scope.admin && !scope.tenant_id
     ? await queryRows(
