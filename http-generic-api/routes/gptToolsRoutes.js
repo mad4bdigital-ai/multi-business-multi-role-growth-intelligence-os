@@ -44,6 +44,7 @@ import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveRepor
 import { buildDynamicCapabilityGovernancePreview } from "../dynamicCapabilityGovernanceCompiler.js";
 import { buildDynamicCapabilityProjectionPreview } from "../dynamicCapabilityProjectionPreview.js";
 import { buildDynamicCapabilityEnforcementShadow } from "../dynamicCapabilityEnforcementShadow.js";
+import { buildDynamicCapabilityCertificationReadbackPreview } from "../dynamicCapabilityCertificationReadback.js";
 import {
   CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
   persistDynamicCapabilityGovernanceCompilation,
