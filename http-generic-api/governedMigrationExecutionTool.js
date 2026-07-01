@@ -140,6 +140,38 @@ function parseRunnerOutput(stdout = "") {
   return payload;
 }
 
+const RUNNER_SENSITIVE_ASSIGNMENT = /\b([A-Za-z0-9_]*(?:secret|password|passwd|token|api[_-]?key|private[_-]?key|credential)[A-Za-z0-9_]*)\s*=\s*([^\s,;]+)/gi;
+const RUNNER_BEARER_VALUE = /\bBearer\s+[A-Za-z0-9._~+/=-]+/gi;
+const RUNNER_URL_CREDENTIALS = /([a-z][a-z0-9+.-]*:\/\/)[^\s/@:]+:[^\s/@]+@/gi;
+
+function sanitizeRunnerDiagnostic(value = "", maxLength = 2000) {
+  return String(value || "")
+    .replace(RUNNER_SENSITIVE_ASSIGNMENT, (_match, key) => `${key}=[redacted]`)
+    .replace(RUNNER_BEARER_VALUE, "Bearer [redacted]")
+    .replace(RUNNER_URL_CREDENTIALS, "$1[redacted]@")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
+    .trim()
+    .slice(0, maxLength);
+}
+
+function runnerFailureDetails(error, inspection) {
+  const stderrSummary = sanitizeRunnerDiagnostic(error?.stderr || error?.message || "");
+  const stdoutSummary = sanitizeRunnerDiagnostic(error?.stdout || "");
+  const diagnosticText = `${stderrSummary}\n${stdoutSummary}`;
+  const mysqlCode = diagnosticText.match(/\b(ER_[A-Z0-9_]+)\b/)?.[1] || null;
+  return {
+    migration: inspection.migration,
+    execution_mode: inspection.mode,
+    exit_code: error?.code ?? error?.exitCode ?? null,
+    signal: error?.signal || null,
+    runner_error_code: mysqlCode || null,
+    stderr_summary: stderrSummary || null,
+    stdout_summary: stdoutSummary || null,
+    diagnostic_truncated: String(error?.stderr || "").length > 2000 || String(error?.stdout || "").length > 2000,
+    secrets_included: false,
+  };
+}
+
 function validateRunnerReadback(result, inspection) {
   if (!result || result.ok !== true) {
     throw toolError("governed_migration_runner_blocked", "Governed migration runner did not return a successful result.", 409, result || undefined);
