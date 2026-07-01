@@ -778,6 +778,289 @@ export async function platformResourceContextResolve(args = {}, { auth = {}, poo
   };
 }
 
+async function loadScopedResourceState(
+  args = {},
+  { auth = {}, pool = getPool() } = {},
+  tool = "platform_resource_context_resolve"
+) {
+  const scope = principalScope(args, auth);
+  if (!scope.admin && (!scope.tenant_id || !scope.user_id)) {
+    return {
+      error: blocked(
+        "TENANT_CONTEXT_REQUIRED",
+        "A signed Tenant principal with tenant_id and user_id is required.",
+        {},
+        "authorization_gated",
+        tool
+      ),
+    };
+  }
+
+  const membership = await loadMembership(pool, scope);
+  if (!scope.admin && !membership) {
+    return {
+      error: blocked(
+        "WORKSPACE_MEMBERSHIP_REQUIRED",
+        "The signed Tenant user has no active membership in this tenant.",
+        { tenant_id: scope.tenant_id },
+        "authorization_gated",
+        tool
+      ),
+    };
+  }
+
+  const graph = await loadGraph(pool, scope, membership);
+  return {
+    scope,
+    membership,
+    graph,
+    catalog: resourceCatalog(graph, scope),
+  };
+}
+
+function publicPrincipal(scope, membership) {
+  return {
+    principal_type: scope.admin ? "admin" : "tenant",
+    tenant_id: scope.tenant_id || null,
+    user_id: scope.user_id || null,
+    admin_override_used: scope.admin_override_used,
+    tenant_override_ignored: scope.tenant_override_ignored,
+    user_override_ignored: scope.user_override_ignored,
+    membership: membership
+      ? { role: membership.role, status: membership.status }
+      : null,
+  };
+}
+
+export async function platformResourceContextCatalog(
+  args = {},
+  deps = {}
+) {
+  const tool = "platform_resource_context_catalog";
+  const state = await loadScopedResourceState(args, deps, tool);
+  if (state.error) return state.error;
+
+  const requestedType = RESOURCE_TYPES.includes(args.resource_type)
+    ? args.resource_type
+    : "auto";
+  const search = normalizeBrandReference(args.search || "");
+  const cursor = Math.max(0, Number.parseInt(args.cursor, 10) || 0);
+  const limit = Math.min(Math.max(Number.parseInt(args.limit, 10) || 25, 1), 100);
+
+  const filtered = state.catalog.filter((record) => {
+    if (requestedType !== "auto" && record.type !== requestedType) return false;
+    if (!search) return true;
+    return [record.key, record.label, ...record.references]
+      .map(normalizeBrandReference)
+      .some((value) => value.includes(search));
+  });
+  const items = filtered.slice(cursor, cursor + limit).map((record) => ({
+    resource_type: record.type,
+    resource_key: record.key,
+    label: record.label,
+  }));
+  const counts = filtered.reduce((result, record) => {
+    result[record.type] = (result[record.type] || 0) + 1;
+    return result;
+  }, {});
+  const nextCursor = cursor + items.length;
+
+  return {
+    ok: true,
+    tool,
+    status: "resolved",
+    mode: "read_only_authorized_catalog",
+    principal: publicPrincipal(state.scope, state.membership),
+    filters: {
+      resource_type: requestedType,
+      search: text(args.search, 255) || null,
+    },
+    items,
+    counts,
+    page: {
+      cursor,
+      limit,
+      next_cursor: nextCursor < filtered.length ? nextCursor : null,
+      has_more: nextCursor < filtered.length,
+      total_count: filtered.length,
+    },
+    provider_calls_made: 0,
+    mutations_executed: false,
+    external_sends: 0,
+    secrets_included: false,
+  };
+}
+
+export async function platformResourceContextRelated(
+  args = {},
+  deps = {}
+) {
+  const tool = "platform_resource_context_related";
+  const resourceType = text(args.resource_type, 32);
+  const resourceKey = text(args.resource_key);
+  if (!RESOURCE_TYPES.includes(resourceType) || resourceType === "auto" || !resourceKey) {
+    return blocked(
+      "RESOURCE_KEY_REQUIRED",
+      "A concrete resource_type and resource_key are required.",
+      { resource_type: resourceType || null },
+      "blocked",
+      tool
+    );
+  }
+
+  const result = await platformResourceContextResolve(
+    {
+      resource_type: resourceType,
+      resource_ref: resourceKey,
+      candidate_refs: [resourceKey],
+      tenant_id: args.tenant_id,
+      user_id: args.user_id,
+      include_brand_context: args.include_brand_context !== false,
+    },
+    deps
+  );
+  return {
+    ...result,
+    tool,
+    helper_mode: "exact_key_related_graph",
+  };
+}
+
+function diagnosticToolsForSite(site = {}) {
+  if (text(site.app_key, 64) === "wordpress_rest") {
+    return [
+      "wordpress_auth_context_diagnostic",
+      "wordpress_publish_authority_diagnostic",
+    ];
+  }
+  return ["runtime_endpoint_preview"];
+}
+
+export async function platformResourceContextDiagnosticHandoff(
+  args = {},
+  deps = {}
+) {
+  const tool = "platform_resource_context_diagnostic_handoff";
+  const result = await platformResourceContextResolve(
+    {
+      reference: args.reference,
+      resource_ref: args.resource_ref,
+      resource_type: args.resource_type || "auto",
+      candidate_refs: args.candidate_refs,
+      tenant_id: args.tenant_id,
+      user_id: args.user_id,
+      include_brand_context: false,
+    },
+    deps
+  );
+
+  if (!result.ok || result.status !== "resolved") {
+    return {
+      ...result,
+      tool,
+    };
+  }
+
+  const sites = list(result.context?.sites, 1000);
+  const grants = list(result.context?.cms_access_grants, 2000);
+  const connections = list(result.context?.connections, 2000);
+  const connectionById = new Map(
+    connections.map((connection) => [connection.connection_id, connection])
+  );
+  const contexts = [];
+
+  for (const site of sites) {
+    const siteGrants = grants.filter((grant) => grant.site_id === site.site_id);
+    if (!siteGrants.length) {
+      contexts.push({
+        resource_type: "site",
+        site_id: site.site_id,
+        app_key: site.app_key,
+        normalized_domain: site.normalized_domain || null,
+        site_url: site.site_url || null,
+        wp_json_base: site.wp_json_base || null,
+        canonical_target_key: site.canonical_target_key || null,
+        authority_status: "missing",
+        connection_id: null,
+        configuration_status: "missing",
+        credential_status: "unknown",
+        connectivity_status: "not_checked",
+        diagnostic_tools: diagnosticToolsForSite(site),
+      });
+      continue;
+    }
+
+    for (const grant of siteGrants) {
+      const connection = connectionById.get(grant.connection_id) || null;
+      const credentialPresent = Boolean(
+        Number(connection?.credential_material_present || 0)
+      );
+      contexts.push({
+        resource_type: "site",
+        site_id: site.site_id,
+        app_key: site.app_key,
+        normalized_domain: site.normalized_domain || null,
+        site_url: site.site_url || null,
+        wp_json_base: site.wp_json_base || null,
+        canonical_target_key: site.canonical_target_key || null,
+        workspace_id: grant.workspace_id || null,
+        grant_id: grant.grant_id || null,
+        grant_scope: grant.scope || null,
+        draft_allowed: Boolean(Number(grant.draft_allowed || 0)),
+        publish_allowed: Boolean(Number(grant.publish_allowed || 0)),
+        destructive_allowed: Boolean(Number(grant.destructive_allowed || 0)),
+        authority_status: "authorized",
+        connection_id: grant.connection_id || null,
+        connection_status: connection?.status || null,
+        connection_validation_status: connection?.validation_status || null,
+        configuration_status: connection ? "configured" : "missing",
+        credential_status: credentialPresent
+          ? "present"
+          : connection
+            ? "missing"
+            : "unknown",
+        connectivity_status: "not_checked",
+        live_verified_at: null,
+        diagnostic_tools: diagnosticToolsForSite(site),
+      });
+    }
+  }
+
+  const readyCount = contexts.filter((context) =>
+    context.authority_status === "authorized"
+    && context.configuration_status === "configured"
+    && context.credential_status === "present"
+  ).length;
+  const degraded = [];
+  if (!sites.length) degraded.push("cms_site_missing");
+  if (sites.length && !grants.length) degraded.push("cms_authority_missing");
+  if (grants.length && !connections.length) degraded.push("connection_missing");
+  if (contexts.some((context) => context.credential_status === "missing")) {
+    degraded.push("credential_material_missing");
+  }
+
+  return {
+    ok: true,
+    tool,
+    status: readyCount > 0 ? "ready_for_live_diagnostic" : "validating",
+    mode: "read_only_diagnostic_handoff",
+    match: result.match,
+    principal: result.principal,
+    authorization: result.authorization,
+    diagnostic_contexts: contexts,
+    summary: {
+      site_count: sites.length,
+      diagnostic_context_count: contexts.length,
+      ready_context_count: readyCount,
+    },
+    degraded_surfaces: unique(degraded),
+    provider_calls_made: 0,
+    mutations_executed: false,
+    external_sends: 0,
+    secrets_included: false,
+  };
+}
+
 export async function platformResourceContextReadinessSmoke(_args = {}, { pool = getPool() } = {}) {
   const requiredObjects = [
     "brands",
