@@ -160,6 +160,79 @@ export function resolveBrandReference({ reference = "", rows = [] } = {}) {
   };
 }
 
+export function resolveBrandReferenceCandidates({
+  reference = "",
+  candidate_references = [],
+  rows = [],
+} = {}) {
+  const references = [...new Set([
+    text(reference),
+    ...(Array.isArray(candidate_references) ? candidate_references.map(text) : []),
+  ].filter(Boolean))].slice(0, 9);
+
+  const ranked = (Array.isArray(rows) ? rows : [])
+    .map((row) => {
+      let best = { score: 0, reference: "", source: "none" };
+      references.forEach((currentReference, index) => {
+        const rawScore = rowPriority(row, currentReference);
+        const score = index === 0 ? rawScore : Math.max(0, rawScore - 10);
+        if (score > best.score) {
+          best = {
+            score,
+            reference: currentReference,
+            source: index === 0 ? "direct" : "interpreted_candidate",
+          };
+        }
+      });
+      return { row, ...best };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (!ranked.length) {
+    return {
+      status: "not_found",
+      reference: text(reference),
+      normalized_reference: normalizeBrandReference(reference),
+      row: null,
+      canonical_brand_key: "",
+      match_source: "none",
+    };
+  }
+
+  const topScore = ranked[0].score;
+  const topRows = ranked.filter((entry) => entry.score === topScore);
+  const canonicalKeys = new Set(
+    topRows.map(({ row }) => text(row.target_key || row.brand_key)).filter(Boolean)
+  );
+  if (canonicalKeys.size > 1) {
+    return {
+      status: "ambiguous",
+      reference: text(reference),
+      normalized_reference: normalizeBrandReference(reference),
+      candidate_keys: [...canonicalKeys],
+      row: null,
+      canonical_brand_key: "",
+      match_source: topRows[0]?.source || "none",
+      score: topScore,
+    };
+  }
+
+  const selected = topRows[0];
+  return {
+    status: "resolved",
+    reference: text(reference),
+    normalized_reference: normalizeBrandReference(reference),
+    matched_reference: selected.reference,
+    match_source: selected.source,
+    score: selected.score,
+    row: selected.row,
+    canonical_brand_key: text(selected.row.target_key || selected.row.brand_key),
+    canonical_brand_name: text(selected.row.brand_name || selected.row.normalized_brand_name),
+    brand_domain: text(selected.row.brand_domain || brandHost(selected.row.base_url)),
+  };
+}
+
 export function extractGoogleFileId(value = "") {
   const raw = text(value);
   if (!raw) return "";
