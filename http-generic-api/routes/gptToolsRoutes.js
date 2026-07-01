@@ -43,6 +43,7 @@ export { applyUnifiedDiffToText };
 import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveReport } from "../platformCapabilityReports.js";
 import { buildDynamicCapabilityGovernancePreview } from "../dynamicCapabilityGovernanceCompiler.js";
 import { buildDynamicCapabilityProjectionPreview } from "../dynamicCapabilityProjectionPreview.js";
+import { buildDynamicCapabilityEnforcementShadow } from "../dynamicCapabilityEnforcementShadow.js";
 import {
   CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
   persistDynamicCapabilityGovernanceCompilation,
@@ -392,6 +393,59 @@ const VIRTUAL_ADMIN_TOOLS = [
         after_key: { type: "string", maxLength: 191 },
         limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
         gap_limit: { type: "integer", minimum: 1, maximum: 500, default: 200 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "platform_capability_enforcement_shadow_preview",
+    displayName: "Preview Shared Capability Enforcement Shadow",
+    description: "Evaluate one current persisted capability manifest through the shared enforcement decision model, bind the result to manifest revision and request hash, compare adaptive and legacy decisions, and return bounded gate/parity evidence. Shadow only: legacy runtime remains authoritative; no provider call, mutation, envelope consumption, idempotency reservation, Tenant authority change, or secret read.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-enforcement-shadow-preview",
+    tags: ["capability", "governance", "enforcement", "shadow", "parity", "read_only", "no_execution", "legacy_authority_preserved", "no_provider_call", "no_mutation", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["capability_key"],
+      properties: {
+        capability_key: { type: "string", minLength: 1, maxLength: 191 },
+        requested_mode: { type: "string", enum: ["preview", "apply"], default: "preview" },
+        principal_scope: { type: "string", enum: ["admin", "tenant", "internal"], default: "admin" },
+        tenant_ref: { type: "string", maxLength: 191 },
+        workspace_ref: { type: "string", maxLength: 191 },
+        resource_ref: { type: "string", maxLength: 255 },
+        runtime_surface: { type: "string", maxLength: 191 },
+        capability_envelope_id: { type: "string", maxLength: 64 },
+        context_revision: { type: "string", maxLength: 191 },
+        input_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        expected_request_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        expected_manifest_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        expected_source_revision_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        legacy_decision: { type: "string", enum: ["allow", "deny", "error", "not_evaluated"], default: "not_evaluated" },
+        legacy_reason_codes: { type: "array", maxItems: 20, items: { type: "string", maxLength: 128 } },
+        legacy_explanation_ref: { type: "string", maxLength: 512 },
+        legacy_exception_approved: { type: "boolean", default: false },
+        evidence: {
+          type: "object",
+          properties: {
+            tenant_membership: { type: "boolean" },
+            workspace_ready: { type: "boolean" },
+            resource_authority: { type: "boolean" },
+            capability_grant: { type: "boolean" },
+            connection_present: { type: "boolean" },
+            connection_validated: { type: "boolean" },
+            credential_scope_match: { type: "boolean" },
+            approval_present: { type: "boolean" },
+            typed_confirmation_match: { type: "boolean" },
+            idempotency_key_present: { type: "boolean" },
+            quota_authority: { type: "boolean" },
+            audit_ready: { type: "boolean" },
+            readback_contract: { type: "boolean" },
+            rollback_ready: { type: "boolean" },
+            compensation_ready: { type: "boolean" },
+          },
+          additionalProperties: false,
+        },
       },
       additionalProperties: false,
     },
@@ -1863,6 +1917,9 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
   }
   if (callerType === "admin" && toolKey === "platform_capability_projection_preview") {
     return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityProjectionPreview(args) } };
+  }
+  if (callerType === "admin" && toolKey === "platform_capability_enforcement_shadow_preview") {
+    return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityEnforcementShadow(args) } };
   }
   if (callerType === "admin" && toolKey === "platform_capability_governance_compile_persist") {
     const result = await persistDynamicCapabilityGovernanceCompilation({
