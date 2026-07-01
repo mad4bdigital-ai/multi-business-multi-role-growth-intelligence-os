@@ -233,10 +233,16 @@ export async function runGovernedMigrationExecution(input = {}, deps = {}) {
       windowsHide: true,
     });
   } catch (error) {
-    throw toolError("governed_migration_runner_failed", "Governed migration runner process failed.", 502, {
-      exit_code: error?.code ?? error?.exitCode ?? null,
-      secrets_included: false,
-    });
+    const details = runnerFailureDetails(error, inspection);
+    const diagnostic = details.runner_error_code
+      || details.stderr_summary?.split(/\r?\n/, 1)?.[0]
+      || "runner process exited unsuccessfully";
+    throw toolError(
+      "governed_migration_runner_failed",
+      `Governed migration runner failed: ${diagnostic}`,
+      502,
+      details
+    );
   }
 
   const result = parseRunnerOutput(execution?.stdout);
