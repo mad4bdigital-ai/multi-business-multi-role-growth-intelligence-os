@@ -423,6 +423,9 @@ function makePool({
   assert.equal(result.audit.read_model_tables.includes("user_app_connections"), false);
   assert.equal(result.smoke_certification.required, true);
   assert.notEqual(result.smoke_certification.reason, "no_action_requested");
+  assert.equal(result.security_decision.allowed, false);
+  assert(result.security_decision.denied_gates.includes("surface_exposure"));
+  assert(result.security_decision.denied_gates.includes("canonical_policy"));
   assert.equal(result.execution.will_execute, false);
 }
 
