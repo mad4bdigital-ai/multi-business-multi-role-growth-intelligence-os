@@ -7,12 +7,22 @@ import {
   runGovernedMigrationExecution,
   splitGovernedMigrationStatements,
 } from "./governedMigrationExecutionTool.js";
+import { splitSqlStatements } from "./releaseReadiness.js";
 
 const MIGRATION = "1025_sprint69_resource_surface_policy_governance.sql";
 const SQL = readFileSync(`migrations/${MIGRATION}`, "utf8");
 const CHECKSUM = createHash("sha256").update(SQL, "utf8").digest("hex");
 const STATEMENT_COUNT = splitGovernedMigrationStatements(SQL).length;
 const ENVELOPE_ID = "11111111-2222-4333-8444-555555555555";
+const PARITY_MIGRATION = "1025_sprint69_growth_audit_evidence_admin_tenant_support.sql";
+const PARITY_SQL = readFileSync(`migrations/${PARITY_MIGRATION}`, "utf8");
+
+{
+  const executionStatements = splitGovernedMigrationStatements(PARITY_SQL);
+  const readinessStatements = splitSqlStatements(PARITY_SQL);
+  assert.equal(executionStatements.length, 10);
+  assert.deepEqual(executionStatements, readinessStatements);
+}
 
 function baseInput(mode = "dry_run") {
   return {
