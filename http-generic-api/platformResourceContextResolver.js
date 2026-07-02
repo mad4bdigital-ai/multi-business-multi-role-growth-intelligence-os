@@ -317,7 +317,7 @@ function resourceCatalog(graph, scope) {
       "brand",
       row.target_key,
       row.brand_name || row.normalized_brand_name,
-      [row.normalized_brand_name, row.brand_domain, row.base_url, row.primary_site_key],
+      brandRowReferences(row),
       row
     )),
     ...graph.workspaces.map((row) => resourceRecord(
