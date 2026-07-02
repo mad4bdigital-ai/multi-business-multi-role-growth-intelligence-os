@@ -192,6 +192,7 @@ const routes = readFileSync(new URL("./routes/repositoryAutomationRoutes.js", im
 const indexRoutes = readFileSync(new URL("./routes/index.js", import.meta.url), "utf8");
 const migration = readFileSync(new URL("./migrations/1034_sprint69_repository_automation_control_plane.sql", import.meta.url), "utf8");
 const runner = readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
+const openapi = readFileSync(new URL("./openapi.yaml", import.meta.url), "utf8");
 
 for (const path of [
   "/admin/repository-automation/plan",
