@@ -135,6 +135,16 @@ Critical/high SQL cache runtime conditions are projected into the Admin operatio
 
 Governed migration child-process failures return bounded redacted diagnostics. They may include exit code, signal, detected database error code, and sanitized stderr/stdout summaries, but never raw credentials, bearer values, URL credentials, or unbounded logs.
 
+### Repository automation control plane
+
+Use the Admin-only Repository Automation Control Plane to coordinate repeated repository delivery work instead of manually chaining the same tools. The four registered surfaces are `repository_automation_plan`, `repository_automation_run`, `repository_automation_status`, and `repository_automation_hygiene_scan`. Supported templates are `pr_delivery`, `migration_release`, `post_merge_closeout`, `branch_cleanup`, `spec_lifecycle`, `hygiene_scan`, and `full_workstream`.
+
+Planning and hygiene are read-only. Apply requires a ready outer `platform_orchestration` capability envelope, but the outer envelope never replaces the nested mutation tool's own approval, typed confirmation, expected SHA/checksum, ledger, or readback contract. The orchestrator must stop at `awaiting_input` rather than inventing missing authority.
+
+Mutation retries are bounded to two transport attempts and must perform same-cycle readback before replay after 502, 503, or 504. Successful or recovered mutations persist no-secret idempotency receipts. Large responses must be fully consumed through `response_chunk_read` before fallback. PR delivery must wait for a stable post-automation head SHA, preserve the four required CI checks, use no-force branch reconciliation, and verify production/main parity after merge. Migration release must bind authorization and apply to the published checksum and statement count. Historical specifications belong under `docs/history/<topic>/`; active governed delivery remains under `specs/<feature>/`.
+
+The read-only hygiene cadence is disabled by default until a governed Admin job or n8n runner is separately certified. See `docs/repository-automation-control-plane.md`.
+
 ### Hostinger production deployment policy
 
 Hostinger production for `auth.mad4b.com` deploys automatically from the GitHub repository branch `main`. The normal update path is therefore:
