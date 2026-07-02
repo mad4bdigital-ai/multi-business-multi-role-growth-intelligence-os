@@ -6,22 +6,25 @@ import {
   brandWorkspaceContextResolve,
 } from "./brandWorkspaceContextResolver.js";
 
-const tenantId = "tenant-allroyal";
-const userId = "user-allroyal";
-const workspaceId = "workspace-allroyal";
-const siteId = "site-allroyal";
-const connectionId = "connection-allroyal";
+const tenantId = "tenant-platform-fixture";
+const userId = "user-platform-fixture";
+const workspaceId = "workspace-platform-fixture";
+const siteId = "site-platform-cms-fixture";
+const connectionId = "connection-platform-cms-fixture";
+const platformCmsFixtureDomain = "platform-cms-fixture.test";
 
+// Brand identity matches the canonical platform registry row. CMS and connection
+// relationships are isolated test fixtures and do not claim live production bindings.
 const brands = [
   {
-    target_key: "allroyalegypt_wp",
-    brand_name: "AllRoyalEgypt Brand",
-    normalized_brand_name: "allroyalegypt brand",
-    brand_domain: "allroyalegypt.com",
-    base_url: "https://allroyalegypt.com/wp-json",
-    site_aliases_json: '["all royal egypt","allroyalegypt","allroyalegypt.com"]',
+    target_key: "growth_intelligence_platform",
+    brand_name: "Growth Intelligence Platform",
+    normalized_brand_name: "growth intelligence platform",
+    brand_domain: "mad4b.com",
+    base_url: "https://auth.mad4b.com",
+    site_aliases_json: '["mad4b.com","auth.mad4b.com","connector.mad4b.com","connect.mad4b.com","n8n.mad4b.com"]',
     primary_site_key: null,
-    default_wp_api_base: "https://allroyalegypt.com/wp-json/wp/v2",
+    default_wp_api_base: `https://${platformCmsFixtureDomain}/wp-json/wp/v2`,
     brand_core_ready: "Yes",
     write_allowed: "TRUE",
     status: "Active",
@@ -54,11 +57,11 @@ function rowsFor(sql, params = []) {
     return [{
       workspace_id: workspaceId,
       tenant_id: tenantId,
-      workspace_key: "allroyalegypt brand",
-      display_name: "AllRoyalEgypt Brand Workspace",
+      workspace_key: "growth-intelligence-platform",
+      display_name: "Growth Intelligence Platform Workspace",
       workspace_type: "brand",
       bootstrap_status: "ready",
-      linked_brand_key: "allroyalegypt brand",
+      linked_brand_key: "growth_intelligence_platform",
       updated_at: "2026-07-01T00:00:00.000Z",
     }];
   }
@@ -69,7 +72,7 @@ function rowsFor(sql, params = []) {
   if (normalized.includes(" FROM cms_site_access_grants ")) {
     if (!params.includes(tenantId)) return [];
     return [{
-      grant_id: "grant-allroyal",
+      grant_id: "grant-platform-cms-fixture",
       site_id: siteId,
       tenant_id: tenantId,
       user_id: userId,
@@ -90,10 +93,10 @@ function rowsFor(sql, params = []) {
     return [{
       site_id: siteId,
       app_key: "wordpress_rest",
-      normalized_domain: "allroyalegypt.com",
-      site_url: "https://allroyalegypt.com",
-      wp_json_base: "https://allroyalegypt.com/wp-json",
-      canonical_target_key: "allroyalegypt_wp",
+      normalized_domain: platformCmsFixtureDomain,
+      site_url: `https://${platformCmsFixtureDomain}`,
+      wp_json_base: `https://${platformCmsFixtureDomain}/wp-json`,
+      canonical_target_key: "growth_intelligence_platform",
       platform_status: "active",
       last_verified_at: "2026-06-02T13:50:17.000Z",
       updated_at: "2026-07-01T00:00:00.000Z",
@@ -102,16 +105,16 @@ function rowsFor(sql, params = []) {
 
   if (normalized.includes(" FROM brand_core ")) {
     return [{
-      brand_key: "allroyalegypt_wp",
-      brand_name: "AllRoyalEgypt Brand",
-      asset_key: "brand_strategy",
-      doc_key: "brand_strategy",
-      doc_id: "drive-file-id",
+      brand_key: "growth_intelligence_platform",
+      brand_name: "Growth Intelligence Platform",
+      asset_key: "platform_brand_strategy",
+      doc_key: "platform_brand_strategy",
+      doc_id: "platform-fixture-drive-file-id",
       file_id: null,
       google_doc_id: null,
-      google_drive_link: "https://drive.google.com/file/d/drive-file-id/view",
+      google_drive_link: "https://drive.google.com/file/d/platform-fixture-drive-file-id/view",
       asset_type: "strategy",
-      document_name: "All Royal Egypt Brand Strategy",
+      document_name: "Growth Intelligence Platform Brand Strategy",
       core_function: "strategy_authority",
       priority: "1",
       read_priority: "1",
@@ -124,10 +127,10 @@ function rowsFor(sql, params = []) {
 
   if (normalized.includes(" FROM brand_site_bindings ")) {
     return [{
-      binding_id: "binding-allroyal",
+      binding_id: "binding-platform-cms-fixture",
       site_id: siteId,
-      target_key: "allroyalegypt_wp",
-      brand_name: "AllRoyalEgypt Brand",
+      target_key: "growth_intelligence_platform",
+      brand_name: "Growth Intelligence Platform",
       relationship_type: "primary",
       status: "active",
     }];
@@ -139,10 +142,10 @@ function rowsFor(sql, params = []) {
       tenant_id: tenantId,
       user_id: userId,
       app_key: "wordpress_rest",
-      display_label: "All Royal Egypt WordPress",
-      account_label: "allroyalegypt.com",
+      display_label: "Platform CMS Test Fixture",
+      account_label: platformCmsFixtureDomain,
       auth_type: "basic_auth",
-      api_base_url: "https://allroyalegypt.com/wp-json",
+      api_base_url: `https://${platformCmsFixtureDomain}/wp-json`,
       is_primary: 1,
       status: "active",
       validation_status: "stored_private_admin_connection",
@@ -181,7 +184,7 @@ const auth = { is_admin: false, tenant_id: tenantId, user_id: userId };
 
 const firstPass = await brandWorkspaceContextResolve(
   {
-    brand_name: "اول رويال ايجيبت",
+    brand_name: "منصة ذكاء النمو",
     tenant_id: "spoofed-tenant",
     user_id: "spoofed-user",
   },
@@ -191,13 +194,13 @@ assert.equal(firstPass.ok, true);
 assert.equal(firstPass.status, "interpretation_required");
 assert.equal(firstPass.skill.skill_key, "brand_reference_interpreter_v1");
 assert.equal(firstPass.authorized_brand_catalog.length, 1);
-assert.equal(firstPass.authorized_brand_catalog[0].target_key, "allroyalegypt_wp");
+assert.equal(firstPass.authorized_brand_catalog[0].target_key, "growth_intelligence_platform");
 assert.equal(firstPass.request.detected_script, "Arab");
 
 const resolved = await brandWorkspaceContextResolve(
   {
-    brand_name: "اول رويال ايجيبت",
-    candidate_refs: ["all royal egypt", "allroyalegypt"],
+    brand_name: "منصة ذكاء النمو",
+    candidate_refs: ["growth intelligence platform", "mad4b.com"],
     tenant_id: "spoofed-tenant",
     user_id: "spoofed-user",
   },
@@ -205,7 +208,7 @@ const resolved = await brandWorkspaceContextResolve(
 );
 assert.equal(resolved.ok, true);
 assert.equal(resolved.status, "ready_for_live_diagnostic");
-assert.equal(resolved.brand.target_key, "allroyalegypt_wp");
+assert.equal(resolved.brand.target_key, "growth_intelligence_platform");
 assert.equal(resolved.match.method, "interpreted_candidate");
 assert.equal(resolved.principal.tenant_id, tenantId);
 assert.equal(resolved.principal.user_id, userId);
@@ -224,7 +227,7 @@ assert.equal(resolved.mutations_executed, false);
 assert.equal(resolved.secrets_included, false);
 
 const cached = await brandWorkspaceContextResolve(
-  { brand_name: "اول رويال ايجيبت" },
+  { brand_name: "منصة ذكاء النمو" },
   { auth, pool }
 );
 assert.equal(cached.ok, true);
@@ -233,7 +236,7 @@ assert.equal(cached.match.method, "temporary_cache");
 assert.equal(cached.match.cache_hit, true);
 
 const unauthorized = await brandWorkspaceContextResolve(
-  { brand_name: "All Royal Egypt" },
+  { brand_name: "Growth Intelligence Platform" },
   {
     auth: { is_admin: false, tenant_id: "other-tenant", user_id: "other-user" },
     pool,
