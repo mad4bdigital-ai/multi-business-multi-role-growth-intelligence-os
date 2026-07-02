@@ -9,25 +9,27 @@ import {
   platformResourceContextResolve,
 } from "./platformResourceContextResolver.js";
 
-const tenantId = "tenant-allroyal";
-const userId = "user-allroyal";
+const tenantId = "tenant-platform-fixture";
+const userId = "user-platform-fixture";
 const otherUserId = "other-user";
-const workspaceId = "workspace-allroyal";
-const assetId = "asset-allroyal";
-const siteId = "site-allroyal";
-const wpConnectionId = "connection-wordpress";
-const standaloneConnectionId = "connection-analytics";
+const workspaceId = "workspace-platform-fixture";
+const assetId = "asset-platform-fixture";
+const siteId = "site-auth-platform-fixture";
+const platformConnectionId = "connection-auth-platform-fixture";
+const standaloneConnectionId = "connection-analytics-fixture";
 
+// Brand identity matches the canonical platform registry row. Related workspace,
+// asset, site, and connection records are isolated unit-test fixtures.
 const brands = [
   {
-    target_key: "allroyalegypt_wp",
-    brand_name: "AllRoyalEgypt Brand",
-    normalized_brand_name: "allroyalegypt brand",
-    brand_domain: "allroyalegypt.com",
-    base_url: "https://allroyalegypt.com/wp-json",
-    site_aliases_json: '["all royal egypt","allroyalegypt","allroyalegypt.com"]',
+    target_key: "growth_intelligence_platform",
+    brand_name: "Growth Intelligence Platform",
+    normalized_brand_name: "growth intelligence platform",
+    brand_domain: "mad4b.com",
+    base_url: "https://auth.mad4b.com",
+    site_aliases_json: '["mad4b.com","auth.mad4b.com","connector.mad4b.com","connect.mad4b.com","n8n.mad4b.com"]',
     primary_site_key: null,
-    default_wp_api_base: "https://allroyalegypt.com/wp-json/wp/v2",
+    default_wp_api_base: null,
     brand_core_ready: "Yes",
     write_allowed: "TRUE",
     status: "Active",
@@ -46,11 +48,11 @@ const brands = [
 const workspaces = [{
   workspace_id: workspaceId,
   tenant_id: tenantId,
-  workspace_key: "allroyalegypt brand",
-  display_name: "AllRoyalEgypt Brand Workspace",
+  workspace_key: "growth-intelligence-platform",
+  display_name: "Growth Intelligence Platform Workspace",
   workspace_type: "brand",
   bootstrap_status: "ready",
-  linked_brand_key: "allroyalegypt brand",
+  linked_brand_key: "growth_intelligence_platform",
 }];
 
 const assets = [{
@@ -58,10 +60,10 @@ const assets = [{
   tenant_id: tenantId,
   vault_id: null,
   asset_type: "doc",
-  asset_ref: "allroyal-brand-strategy",
-  display_name: "All Royal Egypt Brand Strategy",
-  brand_ref: "allroyalegypt_wp",
-  site_ref: "allroyalegypt.com",
+  asset_ref: "growth-intelligence-platform-strategy",
+  display_name: "Growth Intelligence Platform Brand Strategy",
+  brand_ref: "growth_intelligence_platform",
+  site_ref: "auth.mad4b.com",
   workflow_ref: null,
   session_ref: null,
   visibility: "workspace",
@@ -69,12 +71,12 @@ const assets = [{
 }];
 
 const grants = [{
-  grant_id: "grant-wordpress",
+  grant_id: "grant-platform-api",
   site_id: siteId,
   tenant_id: tenantId,
   user_id: userId,
   workspace_id: workspaceId,
-  connection_id: wpConnectionId,
+  connection_id: platformConnectionId,
   scope: "tenant_brand",
   draft_allowed: 1,
   publish_allowed: 1,
@@ -84,28 +86,28 @@ const grants = [{
 
 const sites = [{
   site_id: siteId,
-  app_key: "wordpress_rest",
-  normalized_domain: "allroyalegypt.com",
-  site_url: "https://allroyalegypt.com",
-  wp_json_base: "https://allroyalegypt.com/wp-json",
-  canonical_target_key: "allroyalegypt_wp",
+  app_key: "internal_platform_api",
+  normalized_domain: "auth.mad4b.com",
+  site_url: "https://auth.mad4b.com",
+  wp_json_base: null,
+  canonical_target_key: "growth_intelligence_platform",
   platform_status: "active",
-  last_verified_at: "2026-06-02T13:50:17.000Z",
+  last_verified_at: "2026-07-02T00:00:00.000Z",
 }];
 
 const connections = [
   {
-    connection_id: wpConnectionId,
+    connection_id: platformConnectionId,
     tenant_id: tenantId,
     user_id: userId,
-    app_key: "wordpress_rest",
-    display_label: "All Royal Egypt WordPress",
-    account_label: "allroyalegypt.com",
-    auth_type: "basic_auth",
-    api_base_url: "https://allroyalegypt.com/wp-json",
+    app_key: "internal_platform_api",
+    display_label: "Growth Intelligence Platform Auth API",
+    account_label: "auth.mad4b.com",
+    auth_type: "service_auth",
+    api_base_url: "https://auth.mad4b.com",
     is_primary: 1,
     status: "active",
-    validation_status: "stored_private_admin_connection",
+    validation_status: "valid",
     credential_material_present: 1,
   },
   {
@@ -113,8 +115,8 @@ const connections = [
     tenant_id: tenantId,
     user_id: otherUserId,
     app_key: "google_analytics",
-    display_label: "All Royal Egypt Analytics",
-    account_label: "GA4 All Royal Egypt",
+    display_label: "Growth Intelligence Platform Analytics",
+    account_label: "GA4 Growth Intelligence Platform",
     auth_type: "oauth2",
     api_base_url: "https://analyticsdata.googleapis.com",
     is_primary: 0,
@@ -145,7 +147,7 @@ function makePool({ role = "owner" } = {}) {
           tenant_id: tenantId,
           grantee_user_id: userId,
           resource_type: "site",
-          resource_ref: "allroyalegypt.com",
+          resource_ref: "auth.mad4b.com",
           permission: "operate",
           grant_status: "active",
         }] : []];
@@ -187,7 +189,7 @@ const ownerPool = makePool({ role: "owner" });
 
 const workspaceContext = await platformResourceContextResolve(
   {
-    workspace_ref: "AllRoyalEgypt Brand Workspace",
+    workspace_ref: "Growth Intelligence Platform Workspace",
     include_brand_context: false,
     tenant_id: "spoofed-tenant",
     user_id: "spoofed-user",
@@ -198,14 +200,14 @@ assert.equal(workspaceContext.ok, true);
 assert.equal(workspaceContext.status, "resolved");
 assert.equal(workspaceContext.match.resource_type, "workspace");
 assert.equal(workspaceContext.match.resource_key, workspaceId);
-assert.equal(workspaceContext.context.brands[0].target_key, "allroyalegypt_wp");
+assert.equal(workspaceContext.context.brands[0].target_key, "growth_intelligence_platform");
 assert.equal(workspaceContext.context.sites[0].site_id, siteId);
-assert.equal(workspaceContext.context.connections[0].connection_id, wpConnectionId);
+assert.equal(workspaceContext.context.connections[0].connection_id, platformConnectionId);
 assert.equal(workspaceContext.principal.tenant_id, tenantId);
 assert.equal(workspaceContext.principal.tenant_override_ignored, true);
 
 const assetContext = await platformResourceContextResolve(
-  { asset_ref: "allroyal-brand-strategy", include_brand_context: false },
+  { asset_ref: "growth-intelligence-platform-strategy", include_brand_context: false },
   { auth, pool: ownerPool }
 );
 assert.equal(assetContext.match.resource_type, "asset");
@@ -213,7 +215,7 @@ assert.equal(assetContext.match.resource_key, assetId);
 assert.equal(assetContext.context.workspaces.length, 1);
 
 const siteContext = await platformResourceContextResolve(
-  { site_url: "https://allroyalegypt.com", include_brand_context: false },
+  { site_url: "https://auth.mad4b.com", include_brand_context: false },
   { auth, pool: ownerPool }
 );
 assert.equal(siteContext.match.resource_type, "site");
@@ -231,7 +233,7 @@ assert.equal(standaloneConnection.context.sites.length, 0);
 
 const interpretation = await platformResourceContextResolve(
   {
-    reference: "اول رويال ايجيبت",
+    reference: "منصة ذكاء النمو",
     resource_type: "brand",
     include_brand_context: false,
   },
@@ -240,24 +242,24 @@ const interpretation = await platformResourceContextResolve(
 assert.equal(interpretation.status, "interpretation_required");
 assert.equal(interpretation.skill.skill_key, "resource_reference_interpreter_v1");
 assert.equal(interpretation.authorized_resource_catalog.length, 1);
-assert.equal(interpretation.authorized_resource_catalog[0].resource_key, "allroyalegypt_wp");
+assert.equal(interpretation.authorized_resource_catalog[0].resource_key, "growth_intelligence_platform");
 
 const interpreted = await platformResourceContextResolve(
   {
-    reference: "اول رويال ايجيبت",
+    reference: "منصة ذكاء النمو",
     resource_type: "brand",
-    candidate_refs: ["all royal egypt", "allroyalegypt"],
+    candidate_refs: ["growth intelligence platform", "mad4b.com"],
     include_brand_context: false,
   },
   { auth, pool: ownerPool }
 );
 assert.equal(interpreted.status, "resolved");
 assert.equal(interpreted.match.resource_type, "brand");
-assert.equal(interpreted.match.resource_key, "allroyalegypt_wp");
+assert.equal(interpreted.match.resource_key, "growth_intelligence_platform");
 assert.equal(interpreted.match.method, "interpreted_candidate");
 
 const catalog = await platformResourceContextCatalog(
-  { resource_type: "connection", search: "Royal Egypt", cursor: 0, limit: 1 },
+  { resource_type: "connection", search: "Growth Intelligence", cursor: 0, limit: 1 },
   { auth, pool: ownerPool }
 );
 assert.equal(catalog.ok, true);
@@ -277,7 +279,7 @@ const related = await platformResourceContextRelated(
 assert.equal(related.ok, true);
 assert.equal(related.helper_mode, "exact_key_related_graph");
 assert.equal(related.context.sites.length, 1);
-assert.equal(related.context.connections[0].connection_id, wpConnectionId);
+assert.equal(related.context.connections[0].connection_id, platformConnectionId);
 
 const handoff = await platformResourceContextDiagnosticHandoff(
   { reference: workspaceId, resource_type: "workspace" },
@@ -287,12 +289,11 @@ assert.equal(handoff.ok, true);
 assert.equal(handoff.status, "ready_for_live_diagnostic");
 assert.equal(handoff.diagnostic_contexts.length, 1);
 assert.equal(handoff.diagnostic_contexts[0].site_id, siteId);
-assert.equal(handoff.diagnostic_contexts[0].connection_id, wpConnectionId);
+assert.equal(handoff.diagnostic_contexts[0].connection_id, platformConnectionId);
 assert.equal(handoff.diagnostic_contexts[0].credential_status, "present");
 assert.equal(handoff.diagnostic_contexts[0].connectivity_status, "not_checked");
 assert.deepEqual(handoff.diagnostic_contexts[0].diagnostic_tools, [
-  "wordpress_auth_context_diagnostic",
-  "wordpress_publish_authority_diagnostic",
+  "runtime_endpoint_preview",
 ]);
 
 const memberCatalog = await platformResourceContextCatalog(
@@ -300,7 +301,7 @@ const memberCatalog = await platformResourceContextCatalog(
   { auth, pool: makePool({ role: "member" }) }
 );
 assert.equal(memberCatalog.ok, true);
-assert.deepEqual(memberCatalog.items.map((item) => item.resource_key), [wpConnectionId]);
+assert.deepEqual(memberCatalog.items.map((item) => item.resource_key), [platformConnectionId]);
 
 const unsigned = await platformResourceContextCatalog(
   {},
