@@ -88,6 +88,41 @@ export function createSecurityDecisionTrace(input = {}) {
   });
 }
 
+export function projectSecurityDecisionTrace(trace = null, { audience = "public" } = {}) {
+  if (!trace || typeof trace !== "object") return null;
+  const admin = audience === "admin";
+  return Object.freeze({
+    schema_version: trace.schema_version || "security_decision_trace.v1",
+    trace_id: trace.trace_id || null,
+    outcome: trace.outcome,
+    allowed: Boolean(trace.allowed),
+    dispatch_ready: Boolean(trace.dispatch_ready),
+    will_execute: Boolean(trace.will_execute),
+    execution_mode: trace.execution_mode,
+    approval_required: Boolean(trace.approval_required),
+    denied_gate_count: Array.isArray(trace.denied_gates) ? trace.denied_gates.length : 0,
+    unevaluated_required_gate_count: Array.isArray(trace.unevaluated_required_gates) ? trace.unevaluated_required_gates.length : 0,
+    gate_events: Object.freeze((Array.isArray(trace.gate_events) ? trace.gate_events : []).map((event) => Object.freeze({
+      type: event.type,
+      gate_key: event.gate_key,
+      required: event.required,
+      state: event.state,
+      evaluated: event.evaluated,
+      ...(admin ? {
+        reason: event.reason,
+        code: event.code,
+        detail_keys: Object.freeze(event.detail_keys || []),
+      } : {}),
+    }))),
+    ...(admin ? {
+      denied_gates: Object.freeze([...(trace.denied_gates || [])]),
+      unevaluated_required_gates: Object.freeze([...(trace.unevaluated_required_gates || [])]),
+      invariant_results: Object.freeze({ ...(trace.invariant_results || {}) }),
+    } : {}),
+    secrets_included: false,
+  });
+}
+
 export function assertAllowedDecisionHasNoUnevaluatedRequiredGate(gates = []) {
   const unevaluated = gates.filter((gate) => gate.required && gate.state === "not_evaluated");
   if (unevaluated.length > 0) {

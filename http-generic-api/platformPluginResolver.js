@@ -6,6 +6,7 @@ import {
   buildPlatformPluginPreApprovalDecision,
   buildPlatformPluginSecurityDecision,
 } from "./src/application/capability/platformPluginSecurityDecisionUseCase.js";
+import { projectSecurityDecisionTrace } from "./src/domain/capability/securityDecision.js";
 
 export const CredentialRequirement = Object.freeze({
   NOT_REQUIRED: "not_required",
@@ -777,6 +778,8 @@ export async function resolvePlatformPluginExecution({
     principal_scope: principalScope,
     surface_resolution: surfaceExposure,
     security_decision: securityDecision,
+    security_decision_trace_public: projectSecurityDecisionTrace(securityDecision.trace, { audience: "public" }),
+    security_decision_trace_admin: projectSecurityDecisionTrace(securityDecision.trace, { audience: "admin" }),
     security_alerts: securityAlerts,
     credential_lookup: {
       required: credentialLookupRequired,
