@@ -1,19 +1,13 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 99.14,
-  "docs_complete_count": 462,
-  "docs_gap_count": 4,
+  "docs_completion_percent": 99.36,
+  "docs_complete_count": 464,
+  "docs_gap_count": 3,
   "queue_items": 6,
   "blocking_new_item_count": 6,
   "gate_ok": false,
   "top_actionable": [
-    {
-      "migration_file": "20260630_dynamic_capability_governance_persistence.sql",
-      "queue_class": "critical_review",
-      "score": 828,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
     {
       "migration_file": "1025_sprint69_growth_audit_evidence_admin_tenant_support.sql",
       "queue_class": "critical_review",
