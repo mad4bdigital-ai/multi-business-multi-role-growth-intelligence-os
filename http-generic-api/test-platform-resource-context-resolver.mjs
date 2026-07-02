@@ -182,7 +182,7 @@ function makePool({ role = "owner" } = {}) {
   };
 }
 
-const auth = { is_admin: false, tenant_id: tenantId, user_id };
+const auth = { is_admin: false, tenant_id: tenantId, user_id: userId };
 const ownerPool = makePool({ role: "owner" });
 
 const workspaceContext = await platformResourceContextResolve(
