@@ -1,13 +1,25 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 99.36,
+  "docs_completion_percent": 98.94,
   "docs_complete_count": 465,
-  "docs_gap_count": 3,
-  "queue_items": 7,
-  "blocking_new_item_count": 7,
+  "docs_gap_count": 5,
+  "queue_items": 9,
+  "blocking_new_item_count": 9,
   "gate_ok": false,
   "top_actionable": [
+    {
+      "migration_file": "1030_sprint69_generic_platform_resource_context.sql",
+      "queue_class": "critical_review",
+      "score": 857,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
+      "migration_file": "1029_sprint69_minimal_dynamic_brand_resolution.sql",
+      "queue_class": "critical_review",
+      "score": 803,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
     {
       "migration_file": "1025_sprint69_growth_audit_evidence_admin_tenant_support.sql",
       "queue_class": "critical_review",
@@ -28,15 +40,15 @@
     }
   ],
   "openapi_missing_sql_route_count": 0,
-  "openapi_exempt_sql_route_count": 607,
-  "total_sql_route_like_count": 613,
+  "openapi_exempt_sql_route_count": 609,
+  "total_sql_route_like_count": 615,
   "safety_marker_gap_migrations": 1,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 7,
-    "warning_new_item_count": 7
+    "blocking_new_item_count": 9,
+    "warning_new_item_count": 9
   },
   "safety": {
     "executes_provider_calls": false,
