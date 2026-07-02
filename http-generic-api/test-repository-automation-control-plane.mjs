@@ -207,7 +207,7 @@ for (const table of [
   "repository_automation_runs",
   "repository_automation_step_runs",
   "repository_automation_receipts",
-]) assert.match(migration, new RegExp(`CREATE TABLE IF NOT EXISTS \\`${table}\\``));
+]) assert(migration.includes("CREATE TABLE IF NOT EXISTS `" + table + "`"), `missing table ${table}`);
 for (const tool of [
   "repository_automation_plan",
   "repository_automation_run",
