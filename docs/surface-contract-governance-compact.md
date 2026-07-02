@@ -1,16 +1,18 @@
 # Surface Contract Governance Compact
 
 - Gate: fail
-- Blocking new items: 7
-- Docs completion: 465/468 (99.36%)
-- Queue items: 7
+- Blocking new items: 9
+- Docs completion: 465/470 (98.94%)
+- Queue items: 9
 - OpenAPI missing SQL routes: 0
-- OpenAPI-exempt SQL route-like literals: 607/613
+- OpenAPI-exempt SQL route-like literals: 609/615
 - Safety marker gap migrations: 1
 - Trend quality gate: fail
 
 ## Top actionable
 
+- `1030_sprint69_generic_platform_resource_context.sql` — critical_review, score 857; add targeted patch-index, parity, and governance documentation
+- `1029_sprint69_minimal_dynamic_brand_resolution.sql` — critical_review, score 803; add targeted patch-index, parity, and governance documentation
 - `1025_sprint69_growth_audit_evidence_admin_tenant_support.sql` — critical_review, score 732; add targeted patch-index, parity, and governance documentation
 - `1025_sprint69_activation_archive_dynamic_control_authority.sql` — high_review, score 668; add targeted patch-index, parity, and governance documentation
 - `1030_sprint69_canonical_capability_domain.sql` — high_review, score 545; add targeted patch-index, parity, and governance documentation
