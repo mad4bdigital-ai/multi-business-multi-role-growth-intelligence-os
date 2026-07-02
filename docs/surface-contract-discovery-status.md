@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 467
+- Migrations with detected surfaces: 468
 - Migrations reported here: 80
 - OpenAPI operations detected: 524
 - OpenAPI paths detected: 487
@@ -32,7 +32,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 464/467 (99.36%)
+- Documentation complete migrations: 465/468 (99.36%)
 - Documentation gap migrations: 3
 - Gap severity: high=2, medium=1, low=0
 - SQL route coverage in OpenAPI: 6/6 (100.00%)
@@ -45,7 +45,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 12 | 9 |
-| tools | 2197 | 396 |
+| tools | 2199 | 397 |
 | views | 429 | 172 |
 | policies | 168 | 109 |
 | routes | 613 | 246 |
@@ -69,7 +69,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | no_raw_secrets | 461 |
 | no_external_send | 463 |
 | no_external_write | 461 |
-| secrets_included_false | 466 |
+| secrets_included_false | 467 |
 
 ### Route Classification Coverage
 
@@ -88,11 +88,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 6
+- Total queue items: 7
 - Critical review: 1
 - High review: 2
 - Medium review: 2
-- Low review: 1
+- Low review: 2
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
@@ -102,6 +102,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `20260629_sql_cache_admin_tool_export.sql` | medium_review | 244 | none | 0 | 0 | 6 | verify_tool_registry_binding, add_explicit_safety_markers |
 | `1013_sprint69_operational_alerting_control_plane.sql` | medium_review | 236 | none | 0 | 0 | 3 | verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
 | `20260701_dynamic_capability_certification_readback.sql` | low_review | 160 | none | 0 | 0 | 5 | verify_tool_registry_binding, verify_readback_view, add_explicit_safety_markers |
+| `20260702_dynamic_capability_readback_source_link_fix.sql` | low_review | 150 | none | 0 | 0 | 5 | verify_tool_registry_binding, add_explicit_safety_markers |
 
 
 ## Latest Surface Coverage

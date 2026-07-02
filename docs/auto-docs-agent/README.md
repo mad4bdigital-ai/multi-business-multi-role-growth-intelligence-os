@@ -1,5 +1,7 @@
 # Automated Docs Agent Notes
 
+> Auto-doc coverage for `20260702_dynamic_capability_readback_source_link_fix.sql` must report the deterministic source-link row and must not infer provider execution, credential access, external delivery, runtime cutover, or secret inclusion. The authoritative capability is `platform_capability_governance_compile_persist`, and rollout remains incomplete until ledger and row readback both pass.
+
 > Auto-docs coverage for Spec 007 must include `20260630_dynamic_capability_governance_persistence.sql` and `20260701_dynamic_capability_certification_readback.sql`, their bounded Admin preview tools, the compilation/readback views, and the existing adapter/certification/evidence authorities they reuse. Generated notes must not claim runtime cutover, provider execution, credential payload access, raw-secret output, external send/write, automatic callable promotion, or successful apply from static schema evidence alone. Missing, stale, revoked, conflicting, or ambiguous adapter/certification/readback evidence remains blocking for apply; `secrets_included=false`.
 
 ## Migration 1024 Generated-Documentation Expectations

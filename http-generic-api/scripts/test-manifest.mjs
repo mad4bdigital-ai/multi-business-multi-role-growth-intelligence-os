@@ -536,6 +536,7 @@ export const testCommands = [
   "node test-dynamic-capability-projection-preview.mjs",
   "node test-dynamic-capability-enforcement-shadow.mjs",
   "node test-dynamic-capability-certification-readback.mjs",
+  "node test-dynamic-capability-readback-source-link-fix.mjs",
   "node test-phase1-capability-discovery-report.mjs",
   "node test-canonical-capability-domain.mjs",
   "node test-capability-assurance-graph.mjs",
