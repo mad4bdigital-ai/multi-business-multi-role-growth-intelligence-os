@@ -173,6 +173,12 @@ function makePool({
   assert.equal(result.smoke_certification.certification.last_response_status, 200);
   assert.equal(result.approval.approval_required, false);
   assert.equal(result.execution.will_execute, true);
+  assert.equal(result.security_decision.allowed, true);
+  assert.equal(result.security_decision.dispatch_ready, true);
+  assert.deepEqual(
+    result.security_decision.gates.map((gate) => gate.key),
+    ["plugin_status", "principal_scope", "binding_state", "surface_exposure", "canonical_policy", "policy_completeness", "credential", "target_authority", "skill", "smoke_certification", "approval"],
+  );
   assert.equal(result.secrets_included, false);
 }
 
@@ -189,6 +195,9 @@ function makePool({
   assert.equal(result.ok, true);
   assert.equal(result.allowed, true);
   assert.equal(result.mode, "preview_only");
+  assert.equal(result.security_decision.allowed, false);
+  assert.equal(result.security_decision.approval_required, true);
+  assert.equal(result.security_decision.dispatch_ready, false);
   assert.equal(result.approval.approval_required, true);
   assert.equal(result.approval.grant.granted, false);
   assert.equal(result.execution.will_execute, false);
@@ -414,6 +423,9 @@ function makePool({
   assert.equal(result.audit.read_model_tables.includes("user_app_connections"), false);
   assert.equal(result.smoke_certification.required, true);
   assert.notEqual(result.smoke_certification.reason, "no_action_requested");
+  assert.equal(result.security_decision.allowed, false);
+  assert(result.security_decision.denied_gates.includes("surface_exposure"));
+  assert(result.security_decision.denied_gates.includes("canonical_policy"));
   assert.equal(result.execution.will_execute, false);
 }
 

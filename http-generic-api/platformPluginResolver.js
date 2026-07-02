@@ -2,6 +2,10 @@ import { getPool } from "./db.js";
 import { normalizePlatformPlugin } from "./platformPluginCatalog.js";
 import { resolvePlatformManagedTargetAuthority } from "./platformPluginTargetAuthority.js";
 import { schedulePlatformPluginSecurityAlerts } from "./platformPluginSecurityAlerts.js";
+import {
+  buildPlatformPluginPreApprovalDecision,
+  buildPlatformPluginSecurityDecision,
+} from "./src/application/capability/platformPluginSecurityDecisionUseCase.js";
 
 export const CredentialRequirement = Object.freeze({
   NOT_REQUIRED: "not_required",
@@ -718,27 +722,22 @@ export async function resolvePlatformPluginExecution({
     actionKey: selectorContract.actionKey || selectorContract.toolKey,
     allowExpiredForRecertification: allowExpiredSmokeCertificationForRecertification === true,
   });
-  const allowed = Boolean(
-    pluginStatusActive &&
-    principalScope.ok &&
-    bindingState.ok &&
-    surfaceExposure.ok &&
-    canonicalPolicy.ready &&
-    credential.ok &&
-    targetAuthority.ok &&
-    skill.granted &&
-    smokeCertification.certified
-  );
-  const denialReasons = [];
-  if (!pluginStatusActive) denialReasons.push("plugin_not_active");
-  if (!principalScope.ok) denialReasons.push(principalScope.reason);
-  if (!bindingState.ok) denialReasons.push(bindingState.reason);
-  if (!surfaceExposure.ok) denialReasons.push(surfaceExposure.reason);
-  if (!canonicalPolicy.ready) denialReasons.push(canonicalPolicy.reason);
-  if (credentialDecisionEvaluated && !credential.ok) denialReasons.push(credential.reason);
-  if (!targetAuthority.ok) denialReasons.push(targetAuthority.reason);
-  if (!skill.granted) denialReasons.push(skill.reason);
-  if (!smokeCertification.certified) denialReasons.push(smokeCertification.reason);
+  const preApprovalDecision = buildPlatformPluginPreApprovalDecision({
+    selector: selectorContract.selector,
+    binding,
+    pluginStatusActive,
+    principalClass,
+    tenantId,
+    userId,
+    bindingState,
+    canonicalPolicy,
+    credential,
+    credentialDecisionEvaluated,
+    targetAuthority,
+    skill,
+    smokeCertification,
+  });
+  const allowed = preApprovalDecision.allowed;
 
   const defaultGrants = parseJsonArray(rows.plugin.default_action_grants, []);
   const baseApprovalRequired = Boolean(
@@ -757,12 +756,18 @@ export async function resolvePlatformPluginExecution({
       })
     : { required: baseApprovalRequired, granted: !baseApprovalRequired, grant_id: null, reason: baseApprovalRequired ? "resolve_denials_before_action_grant" : "no_review_required_by_preview" };
   const approvalRequired = Boolean(baseApprovalRequired && !actionGrant.granted);
-  const dispatchReady = Boolean(allowed && !approvalRequired);
+  const securityDecision = buildPlatformPluginSecurityDecision({
+    preApprovalDecision,
+    approvalRequired,
+    baseApprovalRequired,
+    actionGrant,
+  });
+  const dispatchReady = securityDecision.dispatch_ready;
 
   return {
     ok: true,
     allowed,
-    reason: allowed ? "resolved" : unique(denialReasons).join("|") || "not_allowed",
+    reason: allowed ? "resolved" : preApprovalDecision.reason || "not_allowed",
     mode: dispatchReady ? "dispatch_ready" : "preview_only",
     plugin_key: normalizedPluginKey,
     requested_action_key: selectorContract.actionKey,
@@ -771,6 +776,7 @@ export async function resolvePlatformPluginExecution({
     canonical_policy: canonicalPolicy,
     principal_scope: principalScope,
     surface_resolution: surfaceExposure,
+    security_decision: securityDecision,
     security_alerts: securityAlerts,
     credential_lookup: {
       required: credentialLookupRequired,

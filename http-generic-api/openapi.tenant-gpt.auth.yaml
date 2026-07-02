@@ -1802,17 +1802,6 @@ paths:
               additionalProperties: false
               required:
                 - plugin_key
-              oneOf:
-                - required:
-                    - action_key
-                  not:
-                    required:
-                      - tool_key
-                - required:
-                    - tool_key
-                  not:
-                    required:
-                      - action_key
               properties:
                 plugin_key:
                   type: string
@@ -2060,6 +2049,17 @@ paths:
               additionalProperties: false
               required:
                 - plugin_key
+              oneOf:
+                - required:
+                    - action_key
+                  not:
+                    required:
+                      - tool_key
+                - required:
+                    - tool_key
+                  not:
+                    required:
+                      - action_key
               properties:
                 plugin_key:
                   type: string
