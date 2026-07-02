@@ -5,45 +5,15 @@
 ## Summary
 
 - Total queue items: 9
-- Critical review: 3
+- Critical review: 1
 - High review: 2
-- Medium review: 2
-- Low review: 2
+- Medium review: 3
+- Low review: 3
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
 
-### 1. `1030_sprint69_generic_platform_resource_context.sql`
-
-- Queue class: critical_review
-- Score: 857
-- Gap severity: high
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- Missing OpenAPI routes: none
-- Safety marker gaps: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-- Surface counts: plugins=0, tools=6, views=0, policies=2, routes=1
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `authority_decision`, `compatibility_tool`, `credential_request`, `helper_tools`, `never_request_internal_ids`, `primary_tool`
-- `verify_policy_seed_readiness` → runtime-policy-review; targets: `platform_resource_context_dynamic_policy_v1`, `resource_reference_interpretation_policy_v1`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-
-### 2. `1029_sprint69_minimal_dynamic_brand_resolution.sql`
-
-- Queue class: critical_review
-- Score: 803
-- Gap severity: high
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- Missing OpenAPI routes: none
-- Safety marker gaps: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-- Surface counts: plugins=0, tools=3, views=0, policies=2, routes=1
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `authority_decision`, `credential_request`, `never_request_internal_ids`
-- `verify_policy_seed_readiness` → runtime-policy-review; targets: `brand_reference_interpretation_policy_v1`, `brand_workspace_context_minimal_policy_v1`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-
-### 3. `1025_sprint69_growth_audit_evidence_admin_tenant_support.sql`
+### 1. `1025_sprint69_growth_audit_evidence_admin_tenant_support.sql`
 
 - Queue class: critical_review
 - Score: 732
@@ -58,7 +28,7 @@
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `growth_audit_evidence_admin_tenant_policy_v1`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_write`
 
-### 4. `1025_sprint69_activation_archive_dynamic_control_authority.sql`
+### 2. `1025_sprint69_activation_archive_dynamic_control_authority.sql`
 
 - Queue class: high_review
 - Score: 668
@@ -71,7 +41,7 @@
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 5. `1030_sprint69_canonical_capability_domain.sql`
+### 3. `1030_sprint69_canonical_capability_domain.sql`
 
 - Queue class: high_review
 - Score: 545
@@ -86,7 +56,21 @@
 - `verify_readback_view` → db-readback-review; targets: `v_capability_alias_integrity`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 6. `20260629_sql_cache_admin_tool_export.sql`
+### 4. `1030_sprint69_generic_platform_resource_context.sql`
+
+- Queue class: medium_review
+- Score: 257
+- Gap severity: none
+- Missing docs: none
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=6, views=0, policies=2, routes=1
+- Remediation actions:
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `authority_decision`, `compatibility_tool`, `credential_request`, `helper_tools`, `never_request_internal_ids`, `primary_tool`
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `platform_resource_context_dynamic_policy_v1`, `resource_reference_interpretation_policy_v1`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 5. `20260629_sql_cache_admin_tool_export.sql`
 
 - Queue class: medium_review
 - Score: 244
@@ -99,7 +83,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 7. `1013_sprint69_operational_alerting_control_plane.sql`
+### 6. `1013_sprint69_operational_alerting_control_plane.sql`
 
 - Queue class: medium_review
 - Score: 236
@@ -112,6 +96,20 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `alert_readiness`, `capability_envelope_lifecycle_tool_gap`, `deployment_response_and_readback`, `git_readback`, `policy_envelope_readback`, `pr_checks_manual_dispatch`, `runtime_readback`, `safety_gate_worked`
 - `verify_readback_view` → db-readback-review; targets: `v_activation_agent_catalog`, `v_activation_agent_skill_grants`, `v_activation_pending_tasks`, `v_operational_alerts_open`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_write`
+
+### 7. `1029_sprint69_minimal_dynamic_brand_resolution.sql`
+
+- Queue class: low_review
+- Score: 203
+- Gap severity: none
+- Missing docs: none
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=3, views=0, policies=2, routes=1
+- Remediation actions:
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `authority_decision`, `credential_request`, `never_request_internal_ids`
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `brand_reference_interpretation_policy_v1`, `brand_workspace_context_minimal_policy_v1`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
 ### 8. `20260701_dynamic_capability_certification_readback.sql`
 
