@@ -199,8 +199,8 @@ assert.equal(firstPass.request.detected_script, "Arab");
 
 const resolved = await brandWorkspaceContextResolve(
   {
-    brand_name: "اول رويال ايجيبت",
-    candidate_refs: ["all royal egypt", "allroyalegypt"],
+    brand_name: "منصة ذكاء النمو",
+    candidate_refs: ["growth intelligence platform", "mad4b.com"],
     tenant_id: "spoofed-tenant",
     user_id: "spoofed-user",
   },
@@ -208,7 +208,7 @@ const resolved = await brandWorkspaceContextResolve(
 );
 assert.equal(resolved.ok, true);
 assert.equal(resolved.status, "ready_for_live_diagnostic");
-assert.equal(resolved.brand.target_key, "allroyalegypt_wp");
+assert.equal(resolved.brand.target_key, "growth_intelligence_platform");
 assert.equal(resolved.match.method, "interpreted_candidate");
 assert.equal(resolved.principal.tenant_id, tenantId);
 assert.equal(resolved.principal.user_id, userId);
