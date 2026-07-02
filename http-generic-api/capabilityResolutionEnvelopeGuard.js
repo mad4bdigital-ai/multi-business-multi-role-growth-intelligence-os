@@ -86,6 +86,7 @@ export async function resolveCapabilityExecutionEnvelope({
   fallbackSources = [],
   acceptedAppKeys = [],
   acceptedIntents = [],
+  acceptedCapabilityKeys = [],
   expectedTenantId = "",
   expectedUserId = "",
   expectedCommitSha = "",
