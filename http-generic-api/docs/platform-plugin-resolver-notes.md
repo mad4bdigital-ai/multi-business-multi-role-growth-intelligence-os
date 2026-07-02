@@ -51,6 +51,17 @@ It returns an allow/deny envelope containing:
 - skill grant decision
 - approval hint
 - execution preview
+- `security_decision_trace_public` with ordered gate events and no raw detail payloads
+- admin-only `security_decision_trace_admin` on admin resolve surfaces
+- `security_decision.metrics` with invariant violation counts and alert level
+
+## Response trace and metrics
+
+`security_decision_trace_public` is safe for tenant-facing diagnostics. It includes gate keys, states, readiness booleans, denied/unevaluated counts, and `secrets_included=false`; it omits gate reasons, codes, raw detail payloads, and invariant result detail.
+
+`security_decision_trace_admin` is returned only by the admin resolve surface and keeps bounded diagnostic metadata: gate reasons, codes, detail key names, denied gate keys, unevaluated required gate keys, and invariant results.
+
+`security_decision.metrics` exposes `security_decision_metrics.v1`. Alert level is `critical` when an invariant violation or unevaluated required gate is present, `warning` when the decision is denied by evaluated gates, and `none` when no invariant or denial evidence exists.
 
 ## Non-goals
 

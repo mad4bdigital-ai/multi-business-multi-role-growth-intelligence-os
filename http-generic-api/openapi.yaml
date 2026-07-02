@@ -128,6 +128,108 @@ components:
 
   schemas:
 
+    SecurityDecisionTraceEventPublic:
+      type: object
+      additionalProperties: false
+      required: [type, gate_key, required, state, evaluated]
+      properties:
+        type: { type: string, enum: [gate_evaluated] }
+        gate_key: { type: string }
+        required: { type: boolean }
+        state: { type: string, enum: [pass, deny, not_applicable, not_evaluated] }
+        evaluated: { type: boolean }
+
+    SecurityDecisionTraceEventAdmin:
+      allOf:
+        - $ref: "#/components/schemas/SecurityDecisionTraceEventPublic"
+        - type: object
+          additionalProperties: false
+          properties:
+            reason: { type: string, nullable: true }
+            code: { type: string, nullable: true }
+            detail_keys:
+              type: array
+              items: { type: string }
+
+    SecurityDecisionTracePublic:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - outcome
+        - allowed
+        - dispatch_ready
+        - will_execute
+        - execution_mode
+        - approval_required
+        - denied_gate_count
+        - unevaluated_required_gate_count
+        - gate_events
+        - secrets_included
+      properties:
+        schema_version: { type: string, enum: [security_decision_trace.v1] }
+        trace_id: { type: string, nullable: true }
+        outcome: { type: string, enum: [allow, deny] }
+        allowed: { type: boolean }
+        dispatch_ready: { type: boolean }
+        will_execute: { type: boolean }
+        execution_mode: { type: string, enum: [preview, dispatch] }
+        approval_required: { type: boolean }
+        denied_gate_count: { type: integer, minimum: 0 }
+        unevaluated_required_gate_count: { type: integer, minimum: 0 }
+        gate_events:
+          type: array
+          items: { $ref: "#/components/schemas/SecurityDecisionTraceEventPublic" }
+        secrets_included: { type: boolean, enum: [false] }
+
+    SecurityDecisionTraceAdmin:
+      allOf:
+        - $ref: "#/components/schemas/SecurityDecisionTracePublic"
+        - type: object
+          additionalProperties: false
+          properties:
+            denied_gates:
+              type: array
+              items: { type: string }
+            unevaluated_required_gates:
+              type: array
+              items: { type: string }
+            gate_events:
+              type: array
+              items: { $ref: "#/components/schemas/SecurityDecisionTraceEventAdmin" }
+            invariant_results:
+              type: object
+              additionalProperties: { type: boolean }
+
+    SecurityDecisionMetrics:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - allowed
+        - dispatch_ready
+        - will_execute
+        - denied_gate_count
+        - unevaluated_required_gate_count
+        - invariant_violation_count
+        - violated_invariants
+        - alert_level
+        - secrets_included
+      properties:
+        schema_version: { type: string, enum: [security_decision_metrics.v1] }
+        decision_outcome: { type: string, nullable: true, enum: [allow, deny] }
+        allowed: { type: boolean }
+        dispatch_ready: { type: boolean }
+        will_execute: { type: boolean }
+        denied_gate_count: { type: integer, minimum: 0 }
+        unevaluated_required_gate_count: { type: integer, minimum: 0 }
+        invariant_violation_count: { type: integer, minimum: 0 }
+        violated_invariants:
+          type: array
+          items: { type: string }
+        alert_level: { type: string, enum: [none, warning, critical] }
+        secrets_included: { type: boolean, enum: [false] }
+
     ActivationHardRunSummaryResponse:
       type: object
       additionalProperties: true
@@ -15537,6 +15639,15 @@ paths:
                   ok: { type: boolean }
                   allowed: { type: boolean }
                   reason: { type: string }
+                  security_decision:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      metrics: { $ref: "#/components/schemas/SecurityDecisionMetrics" }
+                  security_decision_trace_public:
+                    $ref: "#/components/schemas/SecurityDecisionTracePublic"
+                  security_decision_trace_admin:
+                    $ref: "#/components/schemas/SecurityDecisionTraceAdmin"
                   credential_resolution:
                     type: object
                     additionalProperties: true
@@ -18880,6 +18991,13 @@ paths:
                   ok: { type: boolean }
                   allowed: { type: boolean }
                   reason: { type: string }
+                  security_decision:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      metrics: { $ref: "#/components/schemas/SecurityDecisionMetrics" }
+                  security_decision_trace_public:
+                    $ref: "#/components/schemas/SecurityDecisionTracePublic"
                   selector:
                     type: object
                     additionalProperties: false

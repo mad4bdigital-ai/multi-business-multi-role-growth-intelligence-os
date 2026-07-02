@@ -129,6 +129,7 @@ import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRo
   assert(routes.includes("requireTenantUserJwt"), "tenant routes must require user JWT");
   assert(routes.includes("tenantId: req.auth.tenant_id"), "tenant install/resolve must derive tenant_id from auth");
   assert(routes.includes("userId: req.auth.user_id"), "tenant install/resolve must derive user_id from auth");
+  assert(routes.includes("security_decision_trace_admin: _adminTrace"), "tenant resolve must strip admin decision trace projection");
   assert(!routes.includes("tenantId: input.tenant_id"), "tenant install must not trust body tenant_id");
   assert(!routes.includes("userId: input.user_id"), "tenant install must not trust body user_id");
 }

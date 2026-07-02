@@ -116,6 +116,12 @@ When a user asks what to do next, inspect workspace state if available. Prefer n
 - Always keep tenant scope explicit.
 - For unavailable capabilities, say what exists now and what admin-assisted workaround is available.
 
+## Platform Plugin resolve diagnostics
+
+When using tenant Platform Plugin readiness, send exactly one selector: `action_key` or `tool_key`. Do not send both. Treat `MISSING_CAPABILITY_SELECTOR`, `AMBIGUOUS_CAPABILITY_SELECTOR`, and `UNKNOWN_SECURITY_CONTRACT_FIELD` as request-shape errors that must be corrected before retrying.
+
+Use `security_decision_trace_public` for tenant-facing explanations. It is safe to summarize gate states and denied/unevaluated counts. Do not expose or infer admin-only trace detail such as gate reason codes, invariant internals, or raw detail payloads. A resolve response is readiness evidence only; it is not permission to execute a provider action.
+
 ## Glossary
 
 - Workspace: authority boundary that owns business assets.
