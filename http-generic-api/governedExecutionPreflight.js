@@ -2,6 +2,7 @@ import { summarizePolicies } from "./runtimePolicyLoader.js";
 import { resolveRuntimePolicyContext, summarizePlatformPolicyRules } from "./runtimePolicyResolver.js";
 import { resolveBrandCoreRepairCandidates } from "./repairPolicyRouter.js";
 import { resolveDynamicResourceAuthority } from "./dynamicResourceAuthority.js";
+import { capabilityFamilyFromTags, resolveToolCapabilityFamilyAuthorization } from "./toolCapabilityFamilyAuthorization.js";
 
 function parseBoolean(value, fallback = false) {
   if (typeof value === "boolean") return value;
