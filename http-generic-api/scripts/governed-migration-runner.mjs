@@ -93,6 +93,7 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "20260629_sql_cache_admin_tool_export.sql",
   "1031_sprint69_operational_alert_mutation_readback_policy.sql",
   "1032_sprint69_pr1950_superseded_branch_cleanup_override.sql",
+  "1033_sprint69_pr1950_cleanup_override_removal.sql",
   "251_sprint68_dynamic_memory_scope_types.sql",
   "252_sprint68_memory_scope_links_foundation.sql",
   "253_sprint68_session_insight_candidates_foundation.sql",
@@ -264,6 +265,7 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "319_sprint69_dynamic_container_authority_foundation.sql",
   "320_sprint69_dynamic_container_authority_runtime_contracts.sql",
   "20260630_dynamic_capability_governance_persistence.sql",
+  "20260701_dynamic_capability_certification_readback.sql",
 ]);
 
 const RUNNER_VERSION = "governed-migration-runner-v2";

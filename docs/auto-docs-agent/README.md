@@ -4,6 +4,8 @@
 
 Auto-docs coverage for `1025_sprint69_activation_archive_dynamic_control_authority.sql` and its additive hardening migration must retain the two principal-specific archive routes, no-raw-transcript boundary, immutable migration identity, operation-scoped bindings, independent permission checks on bindings and required owner grants, `view` read floor, `edit|operate|manage|admin|owner` mutation floor, unknown-permission denial, and `SELECT ... INTO @variable` mutation classification. Static evidence is non-authorizing and must not claim provider calls, credential reads, external writes, deployment, or completed migration apply.
 
+> Auto-docs coverage for Spec 007 must include `20260630_dynamic_capability_governance_persistence.sql` and `20260701_dynamic_capability_certification_readback.sql`, their bounded Admin preview tools, the compilation/readback views, and the existing adapter/certification/evidence authorities they reuse. Generated notes must not claim runtime cutover, provider execution, credential payload access, raw-secret output, external send/write, automatic callable promotion, or successful apply from static schema evidence alone. Missing, stale, revoked, conflicting, or ambiguous adapter/certification/readback evidence remains blocking for apply; `secrets_included=false`.
+
 ## Migration 1024 Generated-Documentation Expectations
 
 When `1024_sprint69_openapi_endpoint_inventory_sync.sql` or its route/OpenAPI surfaces change, the docs agent must refresh work maps and surface-contract evidence while preserving the inventory-only safety classification. Generated outputs must state that synchronization does not auto-promote endpoints or create tool exports, and that production apply remains separately governed.
