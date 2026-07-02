@@ -47,6 +47,9 @@ import {
   assert.equal(decision.trace.gate_events.length, 5);
   assert.deepEqual(decision.trace.gate_events.map((event) => event.gate_key), ["principal", "surface", "target", "skill", "policy"]);
   assert.equal(decision.trace.invariant_results.dispatch_ready_requires_allowed_without_approval, true);
+  assert.equal(decision.metrics.schema_version, "security_decision_metrics.v1");
+  assert.equal(decision.metrics.alert_level, "none");
+  assert.equal(decision.metrics.invariant_violation_count, 0);
 }
 
 {
@@ -95,6 +98,9 @@ import {
   assert.equal(decision.dispatch_ready, false);
   assert.deepEqual(decision.unevaluated_required_gates, ["credential"]);
   assert.equal(decision.invariants.fail_closed_on_unevaluated_required_gate, false);
+  assert.equal(decision.metrics.alert_level, "critical");
+  assert.equal(decision.metrics.unevaluated_required_gate_count, 1);
+  assert.deepEqual(decision.metrics.violated_invariants, ["fail_closed_on_unevaluated_required_gate"]);
 }
 
 {

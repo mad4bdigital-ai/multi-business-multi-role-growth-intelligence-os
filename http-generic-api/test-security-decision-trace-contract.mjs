@@ -4,6 +4,7 @@ import {
   createGateResult,
   createSecurityDecision,
   projectSecurityDecisionTrace,
+  deriveSecurityDecisionInvariantMetrics,
 } from "./src/domain/capability/securityDecision.js";
 
 const decision = createSecurityDecision({
@@ -29,6 +30,27 @@ assert.deepEqual(decision.trace.gate_events.map((event) => event.gate_key), ["pr
 assert.equal(decision.trace.gate_events[1].code, "APPROVAL_REQUIRED");
 assert.equal(decision.trace.invariant_results.preview_mode_cannot_execute, true);
 assert.equal(decision.trace.secrets_included, false);
+assert.equal(decision.metrics.alert_level, "warning");
+assert.equal(decision.metrics.denied_gate_count, 1);
+assert.equal(decision.metrics.invariant_violation_count, 0);
+
+const metrics = deriveSecurityDecisionInvariantMetrics({
+  outcome: "deny",
+  allowed: false,
+  dispatch_ready: false,
+  will_execute: false,
+  denied_gates: [],
+  unevaluated_required_gates: ["credential"],
+  invariants: {
+    fail_closed_on_unevaluated_required_gate: false,
+    preview_mode_cannot_execute: true,
+  },
+});
+assert.equal(metrics.schema_version, "security_decision_metrics.v1");
+assert.equal(metrics.alert_level, "critical");
+assert.equal(metrics.invariant_violation_count, 1);
+assert.deepEqual(metrics.violated_invariants, ["fail_closed_on_unevaluated_required_gate"]);
+assert.equal(metrics.secrets_included, false);
 
 const publicTrace = projectSecurityDecisionTrace(decision.trace, { audience: "public" });
 assert.equal(publicTrace.schema_version, "security_decision_trace.v1");

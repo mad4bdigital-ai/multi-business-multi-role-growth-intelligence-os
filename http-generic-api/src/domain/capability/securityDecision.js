@@ -123,6 +123,30 @@ export function projectSecurityDecisionTrace(trace = null, { audience = "public"
   });
 }
 
+export function deriveSecurityDecisionInvariantMetrics(decision = {}) {
+  const invariants = decision.invariants && typeof decision.invariants === "object" ? decision.invariants : {};
+  const violatedInvariants = Object.entries(invariants)
+    .filter(([, passed]) => passed !== true)
+    .map(([key]) => key);
+  const deniedGates = Array.isArray(decision.denied_gates) ? decision.denied_gates : [];
+  const unevaluatedRequiredGates = Array.isArray(decision.unevaluated_required_gates) ? decision.unevaluated_required_gates : [];
+  return Object.freeze({
+    schema_version: "security_decision_metrics.v1",
+    decision_outcome: decision.outcome || null,
+    allowed: Boolean(decision.allowed),
+    dispatch_ready: Boolean(decision.dispatch_ready),
+    will_execute: Boolean(decision.will_execute),
+    denied_gate_count: deniedGates.length,
+    unevaluated_required_gate_count: unevaluatedRequiredGates.length,
+    invariant_violation_count: violatedInvariants.length,
+    violated_invariants: Object.freeze(violatedInvariants),
+    alert_level: violatedInvariants.length > 0 || unevaluatedRequiredGates.length > 0
+      ? "critical"
+      : (deniedGates.length > 0 ? "warning" : "none"),
+    secrets_included: false,
+  });
+}
+
 export function assertAllowedDecisionHasNoUnevaluatedRequiredGate(gates = []) {
   const unevaluated = gates.filter((gate) => gate.required && gate.state === "not_evaluated");
   if (unevaluated.length > 0) {
@@ -175,5 +199,6 @@ export function createSecurityDecision(input = {}) {
     ...decision,
     trace_id: input.trace_id || input.traceId || null,
   });
+  decision.metrics = deriveSecurityDecisionInvariantMetrics(decision);
   return Object.freeze(decision);
 }
