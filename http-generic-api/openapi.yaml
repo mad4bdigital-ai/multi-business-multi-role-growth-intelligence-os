@@ -4973,7 +4973,7 @@ paths:
         - backendBearerAuth: []
       operationId: tenantSshCliAllowlistedExecute
       summary: Execute tenant SSH allowlisted CLI command after approval
-      description: Executes a fixed allowlisted SSH command for a tenant-owned SSH connection after a matching approval request is approved. Rejects freeform commands, caps output, uses a bounded timeout, and never returns credentials.
+      description: Executes a fixed allowlisted SSH command for a tenant-owned SSH connection after a matching approval request is approved. Requires a typed command_key, rejects freeform commands and shell metacharacter argv drift, caps output, uses a bounded timeout, and never returns credentials.
       parameters:
         - name: connection_id
           in: path
@@ -4983,22 +4983,23 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
-            schema:
-              type: object
-              required: [approval_request_id, command_key]
-              additionalProperties: false
-              properties:
-                approval_request_id:
-                  type: string
-                command_key:
-                  type: string
-                  enum: [pwd, whoami, uname_s, uptime]
-                timeout_ms:
-                  type: integer
-                  minimum: 1000
-                  maximum: 10000
-                  default: 5000
+            application/json:
+              schema:
+                type: object
+                required: [approval_request_id, command_key]
+                additionalProperties: false
+                properties:
+                  approval_request_id:
+                    type: string
+                  command_key:
+                    type: string
+                    description: Typed allowlisted command selector. Freeform command text and caller-provided argv are not accepted.
+                    enum: [pwd, whoami, uname_s, uptime]
+                  timeout_ms:
+                    type: integer
+                    minimum: 1000
+                    maximum: 10000
+                    default: 5000
       responses:
         "200":
           description: SSH CLI allowlisted command executed.
