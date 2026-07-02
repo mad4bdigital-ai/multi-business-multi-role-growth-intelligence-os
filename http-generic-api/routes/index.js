@@ -187,6 +187,7 @@ export function registerRoutes(app, deps) {
   app.use(buildDynamicContainerAuthorityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildOpenApiRegistrySyncRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSqlCachePolicyRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildRepositoryAutomationRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildWorkspaceResourceRoutes());
   app.use(buildResourceApiRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSupportTicketRoutes({ ...deps, requireAdminPrincipal }));
