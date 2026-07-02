@@ -178,6 +178,7 @@ export async function resolveCapabilityExecutionEnvelope({
     envelope_status: row.envelope_status,
     decision: row.decision,
     app_key: row.app_key || null,
+    capability_key: row.capability_key || null,
     operation_intent: row.operation_intent || null,
     selected_source_tier: row.selected_source_tier || null,
     selected_runtime_surface: row.selected_runtime_surface || null,
