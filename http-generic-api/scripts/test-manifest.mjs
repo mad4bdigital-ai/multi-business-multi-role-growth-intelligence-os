@@ -181,6 +181,7 @@ export const testCommands = [
   "node test-platform-plugin-public-rest-dispatch.mjs",
   "node test-platform-plugin-action-templates.mjs",
   "node test-platform-plugin-openapi-db-tag-parity.mjs",
+  "node test-platform-plugin-contract-docs.mjs",
   "node test-gpt-schema-db-coverage-migration.mjs",
   "node test-gpt-schema-db-coverage-guard.mjs",
   "node test-tenant-platform-plugin-routes.mjs",

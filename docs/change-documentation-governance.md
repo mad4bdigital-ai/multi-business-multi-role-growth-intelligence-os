@@ -245,6 +245,18 @@ Required evidence:
 
 For local connector installers, the approved contract is authenticated direct download only. JSON install-bundle metadata and self-repair responses must not generate installer content. The `format=bat` download remains protected by backend-key authentication and an admin-principal guard.
 
+## Platform Plugin resolve contract documentation rule
+
+Changes to Platform Plugin resolve selectors, decision traces, security metrics, target authority, or approval semantics must update:
+
+- `http-generic-api/openapi.yaml`;
+- generated tenant GPT OpenAPI surfaces when tenant resolve output changes;
+- `http-generic-api/docs/platform-plugin-resolver-notes.md`;
+- `docs/platform-plugin-contract-migration-guide.md`;
+- `docs/folder-map.md` when boundaries move or a new capability/security subsystem contract is added.
+
+Required evidence: OpenAPI 3.1 validation, one-selector request tests, stable error codes (`MISSING_CAPABILITY_SELECTOR`, `AMBIGUOUS_CAPABILITY_SELECTOR`, `UNKNOWN_SECURITY_CONTRACT_FIELD`), public/admin trace projection tests, no-secret assertions, and a legacy selector deprecation timeline. Resolve remains preview/readiness only and must not authorize provider calls, credential payload reads, raw secret responses, runtime mutation, external sends/writes, or dispatch by itself.
+
 ## Support Ticket External Delivery certification docs rule
 
 When a change adds or modifies Support Ticket external delivery routes, provider adapter contracts, send-mode policies, or completion certification behavior, the same PR must update:
