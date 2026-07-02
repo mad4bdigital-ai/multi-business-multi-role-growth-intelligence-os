@@ -35,15 +35,15 @@ for (const reference of [
   assert.equal(brandRowMatchesReference(platformBrand, reference), true, reference);
 }
 
-assert.equal(normalizeBrandReference("https://www.DonaTours.com/wp-json"), "donatourscom");
-assert.equal(normalizeHumanBrandReference("أُول رويـال إيجيبت"), "اول رويال ايجيبت");
-assert.equal(normalizeBrandReference("أُول رويـال إيجيبت"), "اولرويالايجيبت");
-assert.equal(normalizeHumanBrandReference("براند ٢٠٢٦"), "براند 2026");
-assert.equal(brandReferenceScript("اول رويال ايجيبت"), "Arab");
-assert.equal(brandReferenceScript("All Royal Egypt"), "Latn");
+assert.equal(normalizeBrandReference("https://www.Mad4B.com/platform"), "mad4bcom");
+assert.equal(normalizeHumanBrandReference("مَنصّـة ذَكاء النُّمو"), "منصة ذكاء النمو");
+assert.equal(normalizeBrandReference("مَنصّـة ذَكاء النُّمو"), "منصةذكاءالنمو");
+assert.equal(normalizeHumanBrandReference("منصة ٢٠٢٦"), "منصة 2026");
+assert.equal(brandReferenceScript("منصة ذكاء النمو"), "Arab");
+assert.equal(brandReferenceScript("Growth Intelligence Platform"), "Latn");
 assert.equal(
-  extractGoogleFileId("https://docs.google.com/document/d/1mGairpFES7rooCuTvL8BwyCrM50rMD2YLZVxF38vqys/edit"),
-  "1mGairpFES7rooCuTvL8BwyCrM50rMD2YLZVxF38vqys"
+  extractGoogleFileId("https://docs.google.com/document/d/1PlatformFixtureDocId20260702/edit"),
+  "1PlatformFixtureDocId20260702"
 );
 
 const ambiguous = resolveBrandReference({
