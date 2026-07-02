@@ -392,8 +392,9 @@ export function buildTenantPlatformPluginRoutes() {
         requestId: req.headers["x-request-id"] || null,
         correlationId: req.headers["x-correlation-id"] || req.headers["x-request-id"] || null,
       });
+      const { security_decision_trace_admin: _adminTrace, ...tenantSafeResult } = result;
       return res.status(200).json({
-        ...result,
+        ...tenantSafeResult,
         compatibility_telemetry: contract.compatibilityTelemetry,
         auth_context: {
           tenant_id: req.auth.tenant_id,

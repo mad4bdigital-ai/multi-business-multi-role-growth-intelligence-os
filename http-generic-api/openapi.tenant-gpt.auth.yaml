@@ -82,9 +82,8 @@ components:
           enum:
             - security_decision_trace.v1
         trace_id:
-          type:
-            - string
-            - "null"
+          type: string
+          nullable: true
         outcome:
           type: string
           enum:
@@ -137,13 +136,11 @@ components:
           enum:
             - security_decision_metrics.v1
         decision_outcome:
-          type:
-            - string
-            - "null"
+          type: string
+          nullable: true
           enum:
             - allow
             - deny
-            - null
         allowed:
           type: boolean
         dispatch_ready:

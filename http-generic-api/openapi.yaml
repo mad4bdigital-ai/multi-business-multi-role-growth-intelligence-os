@@ -18997,8 +18997,6 @@ paths:
                       metrics: { $ref: "#/components/schemas/SecurityDecisionMetrics" }
                   security_decision_trace_public:
                     $ref: "#/components/schemas/SecurityDecisionTracePublic"
-                  security_decision_trace_admin:
-                    $ref: "#/components/schemas/SecurityDecisionTraceAdmin"
                   selector:
                     type: object
                     additionalProperties: false
