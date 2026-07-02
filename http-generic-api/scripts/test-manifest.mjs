@@ -324,6 +324,7 @@ export const testCommands = [
   "node test-status-component-readiness-freshness.mjs",
   "node test-security-decision-engine.mjs",
   "node test-security-decision-trace-contract.mjs",
+  "node test-phase10-status-observability-readiness-audit.mjs",
   "node test-execution-routing.mjs",
   "node test-provider-fetch-timeout.mjs",
   "node test-execution-response.mjs",
