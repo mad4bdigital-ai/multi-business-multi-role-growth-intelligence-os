@@ -56,20 +56,13 @@ const ambiguous = resolveBrandReference({
 assert.equal(ambiguous.status, "ambiguous");
 assert.deepEqual(ambiguous.candidate_keys.sort(), ["brand_a", "brand_b"]);
 
-const allRoyal = {
-  brand_name: "AllRoyalEgypt Brand",
-  normalized_brand_name: "allroyalegypt brand",
-  brand_domain: "allroyalegypt.com",
-  target_key: "allroyalegypt_wp",
-  site_aliases_json: '["all royal egypt","allroyalegypt"]',
-};
 const interpreted = resolveBrandReferenceCandidates({
-  reference: "اول رويال ايجيبت",
-  candidate_references: ["all royal egypt", "allroyalegypt"],
-  rows: [allRoyal],
+  reference: "منصة ذكاء النمو",
+  candidate_references: ["growth intelligence platform", "mad4b.com"],
+  rows: [platformBrand],
 });
 assert.equal(interpreted.status, "resolved");
-assert.equal(interpreted.canonical_brand_key, "allroyalegypt_wp");
+assert.equal(interpreted.canonical_brand_key, "growth_intelligence_platform");
 assert.equal(interpreted.match_source, "interpreted_candidate");
 assert.ok(interpreted.score >= 70);
 
