@@ -376,6 +376,12 @@ assert.match(pr1950OverrideMigration, /2026-07-02T23:59:59\.000Z/);
 assert.match(pr1950OverrideMigration, /Temporary SHA-bound cleanup authorization for merged PR 1950/);
 assert.doesNotMatch(pr1950OverrideMigration, /superseded_branch_delete_max_ahead_commits'\s*,\s*40/);
 assert.doesNotMatch(pr1950OverrideMigration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
+assert.match(pr1950OverrideRemovalMigration, /JSON_REMOVE/);
+assert.match(pr1950OverrideRemovalMigration, /gpt\/006-sql-cache-dynamic-safety-20260628/);
+assert.match(pr1950OverrideRemovalMigration, /JSON_EXTRACT/);
+assert.doesNotMatch(pr1950OverrideRemovalMigration, /superseded_branch_delete_max_ahead_commits/);
+assert.doesNotMatch(pr1950OverrideRemovalMigration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
 assert.match(governedMigrationRunner, /1032_sprint69_pr1950_superseded_branch_cleanup_override\.sql/);
+assert.match(governedMigrationRunner, /1033_sprint69_pr1950_cleanup_override_removal\.sql/);
 
 console.log("superseded branch cleanup tests passed");
