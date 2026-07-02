@@ -33,7 +33,7 @@ Example:
 {
   "name": "brand_workspace_context_resolve",
   "tool_args": {
-    "brand_name": "اول رويال ايجيبت"
+    "brand_name": "منصة ذكاء النمو"
   }
 }
 ```
