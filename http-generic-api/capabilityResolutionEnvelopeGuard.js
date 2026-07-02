@@ -121,6 +121,15 @@ export async function resolveCapabilityExecutionEnvelope({
     return capabilityEnvelopeFailure("capability_resolution_envelope_app_mismatch", { envelope_id: resolvedEnvelopeId, app_key: appKey });
   }
 
+  const capabilityKey = compact(row.capability_key, 191);
+  const allowedCapabilities = new Set((acceptedCapabilityKeys || []).map((item) => compact(item, 191)).filter(Boolean));
+  if (allowedCapabilities.size > 0 && !allowedCapabilities.has(capabilityKey)) {
+    return capabilityEnvelopeFailure("capability_resolution_envelope_capability_mismatch", {
+      envelope_id: resolvedEnvelopeId,
+      capability_key: capabilityKey || null,
+    });
+  }
+
   const tenantId = compact(expectedTenantId, 64);
   if (row.tenant_id && tenantId && row.tenant_id !== tenantId) {
     return capabilityEnvelopeFailure("capability_resolution_envelope_tenant_mismatch", { envelope_id: resolvedEnvelopeId });
