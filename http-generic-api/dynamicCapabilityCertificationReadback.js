@@ -381,10 +381,10 @@ async function loadReadbackContracts(pool, request, adapter) {
         WHERE is_current = 1
           AND capability_key = ?
           AND (? IS NULL OR contract_key = ?)
-          AND (adapter_key IS NULL OR adapter_key = ?)
+          AND (? IS NULL OR adapter_key IS NULL OR adapter_key = ?)
         ORDER BY contract_version DESC, contract_key ASC
         LIMIT 20`,
-      [request.capability_key, request.contract_key, request.contract_key, adapterKey || null],
+      [request.capability_key, request.contract_key, request.contract_key, adapterKey || null, adapterKey || null],
     ));
   } catch (error) {
     if (["ER_NO_SUCH_TABLE", "ER_BAD_TABLE_ERROR"].includes(error?.code)) return [];
