@@ -1,5 +1,9 @@
 # AI Docs Agent Governance
 
+## Activation Archive and Dynamic Admin Control Authority
+
+Documentation for `1025_sprint69_activation_archive_dynamic_control_authority.sql` and `20260701_dynamic_admin_control_permission_hardening.sql` must preserve signed-principal tenant ownership, backend-only Admin scope, immutable migration-ledger identity, operation-mode bindings, active system/installation checks, read permission floor `view`, mutation permission floor `edit|operate|manage|admin|owner`, unknown-permission denial, and stateful `SELECT ... INTO @variable` classification. Generated notes must not imply migration execution, provider calls, credential access, raw transcript access, external sends/writes, deployment, or rollout completion; `secrets_included=false` and governed apply/readback remain mandatory.
+
 > Spec 007 documentation contract: changes to `20260630_dynamic_capability_governance_persistence.sql`, `20260701_dynamic_capability_certification_readback.sql`, `dynamicCapabilityGovernancePersistence.js`, or `dynamicCapabilityCertificationReadback.js` must keep the registry patch index, deployment parity checklist, auto-doc notes, change-governance notes, work maps, and surface-contract outputs synchronized. Generated evidence must preserve that existing adapter/certification authorities are reused, readback contracts are additive and versioned, apply fails closed on missing/stale/revoked/ambiguous assurance, legacy runtime remains authoritative, and no provider call, credential payload read, raw-secret output, external send/write, or automatic callable promotion occurs; `secrets_included=false`.
 
 ## OpenAPI Inventory Synchronization Documentation Contract

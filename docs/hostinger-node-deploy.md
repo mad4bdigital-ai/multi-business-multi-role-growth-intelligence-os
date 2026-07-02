@@ -169,6 +169,18 @@ Do not use GitHub Actions to deploy `connector.mad4b.com`; that hostname must st
 
 Rollback through Hostinger hPanel deployment history.
 
+## Dynamic admin-control permission hardening rollout
+
+Deploying the merged commit only proves repository and runtime parity. It does not authorize or apply `20260701_dynamic_admin_control_permission_hardening.sql`. Keep the migration as a separate post-merge operation:
+
+1. Read the migration from the merged SHA and compute the exact checksum and statement count.
+2. Bootstrap authorization with the PR number, merge SHA, zero-risk preflight evidence, and a fresh capability envelope.
+3. Run the governed migration executor in `dry_run` mode.
+4. Apply only with a new apply-authorized envelope and the required typed confirmation.
+5. Read back the governed migration ledger and the dynamic admin-control execution policy in the same cycle.
+
+Do not use Hostinger redeploy, process restart, `/health`, `/version`, Admin role, or green CI as substitutes for SQL authorization or ledger evidence. Rollback is policy-level: disable or restore the execution-policy permission floor through a separately reviewed migration. Do not delete historical ledger rows or replay the file under a different checksum.
+
 ## Durable response chunk rollout
 
 For changes that introduce `governed_tool_response_chunks`, deploy the merged code and both migration files together:
