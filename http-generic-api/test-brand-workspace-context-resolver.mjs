@@ -72,7 +72,7 @@ function rowsFor(sql, params = []) {
   if (normalized.includes(" FROM cms_site_access_grants ")) {
     if (!params.includes(tenantId)) return [];
     return [{
-      grant_id: "grant-allroyal",
+      grant_id: "grant-platform-cms-fixture",
       site_id: siteId,
       tenant_id: tenantId,
       user_id: userId,
