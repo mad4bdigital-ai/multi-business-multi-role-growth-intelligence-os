@@ -223,5 +223,20 @@ assert.match(migration, /'auto_approval_forbidden', TRUE/);
 assert.match(migration, /'inner_tool_authority_preserved', TRUE/);
 assert.doesNotMatch(migration, /\b(?:DROP|TRUNCATE|DELETE\s+FROM)\b/i);
 assert.match(runner, /1034_sprint69_repository_automation_control_plane\.sql/);
+for (const path of [
+  "/admin/repository-automation/plan:",
+  "/admin/repository-automation/run:",
+  "/admin/repository-automation/status:",
+  "/admin/repository-automation/hygiene-scan:",
+]) assert.match(openapi, new RegExp(path.replaceAll("/", "\\/")));
+for (const operationId of [
+  "planRepositoryAutomation",
+  "runRepositoryAutomation",
+  "readRepositoryAutomationStatus",
+  "scanRepositoryAutomationHygiene",
+]) assert.match(openapi, new RegExp(`operationId: ${operationId}`));
+assert.match(openapi, /x-openai-isConsequential: true[\s\S]{0,600}operationId: runRepositoryAutomation/);
+assert.match(openapi, /capability_envelope_id/);
+assert.match(openapi, /'202':[\s\S]{0,300}awaiting_input checkpoint/);
 
 console.log("repository automation control plane tests passed");
