@@ -5,16 +5,77 @@
   "status": "in_progress",
   "delivery_mode": "multi_pr",
   "current_increment": {
-    "phase": "Phase 2 — Canonical capability domain",
+    "phase": "Phase 2 - Canonical capability domain closeout",
+    "status": "merged_pending_governed_migration_apply",
+    "tasks_total": 114,
+    "tasks_completed_count": 56,
+    "tasks_remaining_count": 58,
     "tasks_completed": [
-      "T001", "T002", "T003", "T004", "T005", "T006", "T007", "T008", "T009",
-      "T010", "T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019",
-      "T020", "T021", "T022", "T023", "T024", "T025", "T026"
+      "T001",
+      "T002",
+      "T003",
+      "T004",
+      "T005",
+      "T006",
+      "T007",
+      "T008",
+      "T009",
+      "T010",
+      "T011",
+      "T012",
+      "T013",
+      "T014",
+      "T015",
+      "T016",
+      "T017",
+      "T018",
+      "T019",
+      "T020",
+      "T021",
+      "T022",
+      "T023",
+      "T024",
+      "T025",
+      "T026",
+      "T046",
+      "T047",
+      "T048",
+      "T049",
+      "T050",
+      "T051",
+      "T052",
+      "T053",
+      "T054",
+      "T055",
+      "T056",
+      "T057",
+      "T058",
+      "T059",
+      "T060",
+      "T061",
+      "T062",
+      "T063",
+      "T064",
+      "T065",
+      "T066",
+      "T067",
+      "T068",
+      "T069",
+      "T070",
+      "T071",
+      "T072",
+      "T082",
+      "T083",
+      "T084"
     ],
-    "tasks_remaining_range": "T027-T114",
+    "tasks_remaining_range": "T027-T045,T073-T081,T085-T114",
+    "completed_out_of_order_note": "T046-T072 and T082-T084 are already complete in tasks.md and must be reused; they are excluded from the remaining range.",
     "pull_request": 1969,
     "branch": "gpt/001-capability-security-phase2-canonical-domain",
-    "merge_scope": "canonical_capability_domain_alias_registry_and_integrity"
+    "merge_scope": "canonical_capability_domain_alias_registry_and_integrity",
+    "merge_sha": "3fc6370becfb2a112c50f037a018f15cc5e5c277",
+    "merged_at": "2026-07-01T13:48:50Z",
+    "ci_status": "success"
   },
   "requirements": {
     "migration": true,
@@ -27,7 +88,10 @@
       "number": 1969,
       "branch": "gpt/001-capability-security-phase2-canonical-domain",
       "role": "phase_increment",
-      "status": "open_ci_pending"
+      "status": "merged",
+      "merge_sha": "3fc6370becfb2a112c50f037a018f15cc5e5c277",
+      "merged_at": "2026-07-01T13:48:50Z",
+      "ci_status": "success"
     }
   },
   "evidence": {
@@ -50,25 +114,60 @@
       }
     },
     "phase2": {
-      "status": "implemented_pending_ci_and_merge",
+      "status": "merged",
       "pull_request": 1969,
+      "merge_sha": "3fc6370becfb2a112c50f037a018f15cc5e5c277",
+      "merged_at": "2026-07-01T13:48:50Z",
+      "main_after_merge_sha": "009c26548f5b79840f18cdf8f4a42646359af434",
+      "ci": {
+        "status": "success",
+        "checks": [
+          "Syntax Check",
+          "Unit & Integration Tests",
+          "Execution Resolver Gate",
+          "Architecture Drift Detection"
+        ],
+        "non_blocking_workflow_failure": {
+          "workflow": "Generate reviewable remediation PR",
+          "classification": "automation_only_pending_triage",
+          "runtime_phase2_blocker": false
+        }
+      },
       "domain_models": [
         "CanonicalCapability",
         "CapabilityAlias"
       ],
       "policy_composition": true,
       "registry_migration": "http-generic-api/migrations/1030_sprint69_canonical_capability_domain.sql",
+      "registry_migration_checksum_sha256": "ce835693b2251c8845d7467e5a1a7ea0d2e6aab07b420234a500c93b75ac562a",
+      "registry_migration_statement_count": 5,
+      "registry_migration_preflight": {
+        "status": "pass",
+        "risk_count": 0,
+        "destructive_statement_count": 0,
+        "secrets_included": false
+      },
       "integrity_report": "http-generic-api/scripts/capability-alias-integrity-report.mjs",
       "focused_test": "http-generic-api/test-canonical-capability-domain.mjs",
       "migration_applied": false,
+      "migration_status": "blocked_pending_governed_auth_control_plane_credentials",
+      "migration_blocker": "auth.mad4b.com /gpt/tools list-before-call returned 401 missing_backend_api_key in this Codex session; no connection auth layer was available and direct DB execution was not used.",
+      "post_merge_evidence": "phase2-closeout-evidence-2026-07-01.md",
       "secrets_included": false
     },
     "release_readiness": {
       "status": "blocked_for_full_release",
-      "phase2_merge_eligible_after_ci_and_migration_review": true,
+      "phase2_merge_eligible_after_ci_and_migration_review": false,
+      "phase2_merge_completed": true,
+      "phase2_governed_migration_apply_required": true,
       "unrestricted_tenant_execution_authorized": false,
       "production_promotion_authorized": false
     }
+  },
+  "next_increment": {
+    "phase": "Phase 3 - Strict request contract",
+    "status": "not_started_pending_phase2_migration_apply_and_readback",
+    "tasks": ["T027", "T028", "T029", "T030", "T031", "T032", "T033"]
   },
   "secrets_included": false
 }
