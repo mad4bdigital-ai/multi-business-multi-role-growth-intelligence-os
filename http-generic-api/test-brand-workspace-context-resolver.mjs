@@ -105,16 +105,16 @@ function rowsFor(sql, params = []) {
 
   if (normalized.includes(" FROM brand_core ")) {
     return [{
-      brand_key: "allroyalegypt_wp",
-      brand_name: "AllRoyalEgypt Brand",
-      asset_key: "brand_strategy",
-      doc_key: "brand_strategy",
-      doc_id: "drive-file-id",
+      brand_key: "growth_intelligence_platform",
+      brand_name: "Growth Intelligence Platform",
+      asset_key: "platform_brand_strategy",
+      doc_key: "platform_brand_strategy",
+      doc_id: "platform-fixture-drive-file-id",
       file_id: null,
       google_doc_id: null,
-      google_drive_link: "https://drive.google.com/file/d/drive-file-id/view",
+      google_drive_link: "https://drive.google.com/file/d/platform-fixture-drive-file-id/view",
       asset_type: "strategy",
-      document_name: "All Royal Egypt Brand Strategy",
+      document_name: "Growth Intelligence Platform Brand Strategy",
       core_function: "strategy_authority",
       priority: "1",
       read_priority: "1",
