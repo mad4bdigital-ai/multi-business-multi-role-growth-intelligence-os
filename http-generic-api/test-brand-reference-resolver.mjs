@@ -10,27 +10,29 @@ import {
   resolveBrandReferenceCandidates,
 } from "./resolvers/brandReferenceResolver.js";
 
-const dona = {
-  brand_name: "Dona tours",
-  normalized_brand_name: "dona tours",
-  brand_domain: "donatours.com",
-  target_key: "donatours_wp",
-  base_url: "https://donatours.com/wp-json",
-  site_aliases_json: '["donatours","dona tours","donatours.com"]',
+// Canonical platform identity comes from the brands registry. Related values remain
+// isolated fixtures; the resolver itself contains no platform- or customer-specific branch.
+const platformBrand = {
+  brand_name: "Growth Intelligence Platform",
+  normalized_brand_name: "growth intelligence platform",
+  brand_domain: "mad4b.com",
+  target_key: "growth_intelligence_platform",
+  base_url: "https://auth.mad4b.com",
+  site_aliases_json: '["mad4b.com","auth.mad4b.com","connector.mad4b.com","connect.mad4b.com","n8n.mad4b.com"]',
 };
 
 for (const reference of [
-  "DONA Tours",
-  "dona-tours",
-  "donatours",
-  "donatours.com",
-  "https://www.donatours.com/plan-your-trip/",
-  "donatours_wp",
+  "Growth Intelligence Platform",
+  "growth-intelligence-platform",
+  "growthintelligenceplatform",
+  "mad4b.com",
+  "https://auth.mad4b.com/activation/session-context",
+  "growth_intelligence_platform",
 ]) {
-  const result = resolveBrandReference({ reference, rows: [dona] });
+  const result = resolveBrandReference({ reference, rows: [platformBrand] });
   assert.equal(result.status, "resolved", reference);
-  assert.equal(result.canonical_brand_key, "donatours_wp", reference);
-  assert.equal(brandRowMatchesReference(dona, reference), true, reference);
+  assert.equal(result.canonical_brand_key, "growth_intelligence_platform", reference);
+  assert.equal(brandRowMatchesReference(platformBrand, reference), true, reference);
 }
 
 assert.equal(normalizeBrandReference("https://www.DonaTours.com/wp-json"), "donatourscom");
