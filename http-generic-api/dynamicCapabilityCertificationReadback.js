@@ -458,6 +458,36 @@ function resolveReadback(rows, request, manifest, adapter, nowMs) {
   };
 }
 
+function resolveAdapterRequirement({ request, requirements = {}, readbackResolution }) {
+  const adapterRequirement = requirements.adapter;
+  const adapterRequirementText = typeof adapterRequirement === "string"
+    ? text(adapterRequirement, 64).toLowerCase()
+    : "";
+  const adapterRequirementObject = adapterRequirement && typeof adapterRequirement === "object"
+    ? adapterRequirement
+    : {};
+  const sources = {
+    request_selector: Boolean(request.adapter_key || request.resource_type || request.provider_key),
+    manifest_requirement: bool(requirements.adapter_required)
+      || bool(requirements.requires_adapter)
+      || bool(requirements.resource_adapter)
+      || bool(requirements.provider_adapter)
+      || bool(adapterRequirement)
+      || ["required", "adapter_required"].includes(adapterRequirementText)
+      || bool(adapterRequirementObject.required)
+      || Boolean(
+        text(adapterRequirementObject.adapter_key)
+        || text(adapterRequirementObject.resource_type, 128)
+        || text(adapterRequirementObject.provider_key, 128)
+      ),
+    readback_contract: Boolean(readbackResolution?.contract?.adapter_key),
+  };
+  return {
+    required: Object.values(sources).some(Boolean),
+    sources,
+  };
+}
+
 async function loadEvidence(pool, capabilityKey, limit) {
   return rowsOf(await pool.query(
     `SELECT evidence_id, evidence_type, subject_type, subject_key,
