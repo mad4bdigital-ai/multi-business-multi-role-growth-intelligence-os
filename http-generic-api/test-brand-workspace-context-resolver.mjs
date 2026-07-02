@@ -236,7 +236,7 @@ assert.equal(cached.match.method, "temporary_cache");
 assert.equal(cached.match.cache_hit, true);
 
 const unauthorized = await brandWorkspaceContextResolve(
-  { brand_name: "All Royal Egypt" },
+  { brand_name: "Growth Intelligence Platform" },
   {
     auth: { is_admin: false, tenant_id: "other-tenant", user_id: "other-user" },
     pool,
