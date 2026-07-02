@@ -184,7 +184,7 @@ const auth = { is_admin: false, tenant_id: tenantId, user_id: userId };
 
 const firstPass = await brandWorkspaceContextResolve(
   {
-    brand_name: "اول رويال ايجيبت",
+    brand_name: "منصة ذكاء النمو",
     tenant_id: "spoofed-tenant",
     user_id: "spoofed-user",
   },
@@ -194,7 +194,7 @@ assert.equal(firstPass.ok, true);
 assert.equal(firstPass.status, "interpretation_required");
 assert.equal(firstPass.skill.skill_key, "brand_reference_interpreter_v1");
 assert.equal(firstPass.authorized_brand_catalog.length, 1);
-assert.equal(firstPass.authorized_brand_catalog[0].target_key, "allroyalegypt_wp");
+assert.equal(firstPass.authorized_brand_catalog[0].target_key, "growth_intelligence_platform");
 assert.equal(firstPass.request.detected_script, "Arab");
 
 const resolved = await brandWorkspaceContextResolve(
