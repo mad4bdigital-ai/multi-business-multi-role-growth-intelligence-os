@@ -8,6 +8,8 @@
 --
 -- Additive only. No provider call, provider write, external send, credential
 -- decryption, broad collation conversion, destructive DDL, or secret return.
+-- Safety markers: no_provider_call, no_credential_payload_read, no_raw_secrets,
+-- no_external_send, no_external_write, secrets_included=false.
 
 INSERT INTO system_layer_tool_descriptor_source_registry
   (source_key, module_path, descriptor_export, handler_resolution_mode,
