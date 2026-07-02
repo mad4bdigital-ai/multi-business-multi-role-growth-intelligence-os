@@ -69,7 +69,7 @@
       "T084"
     ],
     "tasks_remaining_range": "T027-T045,T073-T081,T085-T114",
-    "completed_out_of_order_note": "T046-T072 and T082-T084 are already complete in tasks.md and must be reused; they are excluded from the remaining range.",
+    "tasks_remaining_note": "T046-T072 and T082-T084 are already complete in tasks.md and must be reused; they are intentionally excluded from the remaining range.",
     "pull_request": 1969,
     "branch": "gpt/001-capability-security-phase2-canonical-domain",
     "merge_scope": "canonical_capability_domain_alias_registry_and_integrity",
