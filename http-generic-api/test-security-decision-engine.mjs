@@ -40,6 +40,16 @@ import {
   assert.equal(decision.dispatch_ready, true);
   assert.equal(decision.will_execute, true);
   assert.equal(decision.invariants.dispatch_ready_requires_allowed_without_approval, true);
+  assert.equal(decision.trace.schema_version, "security_decision_trace.v1");
+  assert.equal(decision.trace.outcome, "allow");
+  assert.equal(decision.trace.secrets_included, false);
+  assert.deepEqual(decision.trace.denied_gates, []);
+  assert.equal(decision.trace.gate_events.length, 5);
+  assert.deepEqual(decision.trace.gate_events.map((event) => event.gate_key), ["principal", "surface", "target", "skill", "policy"]);
+  assert.equal(decision.trace.invariant_results.dispatch_ready_requires_allowed_without_approval, true);
+  assert.equal(decision.metrics.schema_version, "security_decision_metrics.v1");
+  assert.equal(decision.metrics.alert_level, "none");
+  assert.equal(decision.metrics.invariant_violation_count, 0);
 }
 
 {
@@ -54,6 +64,26 @@ import {
   assert.equal(decision.dispatch_ready, false);
   assert.deepEqual(decision.denied_gates, ["surface"]);
   assert.match(decision.reason, /admin_tool_forbidden/);
+  assert.deepEqual(decision.trace.denied_gates, ["surface"]);
+  assert.equal(decision.trace.gate_events.find((event) => event.gate_key === "surface")?.code, "SURFACE_DENIED");
+}
+
+{
+  const decision = createSecurityDecision({
+    trace_id: "trace-123",
+    execution_mode: "dispatch",
+    gates: [
+      createGateResult({
+        key: "principal",
+        state: "pass",
+        reason: "tenant_authorized",
+        details: { tenant_id: "tenant-1", credential_secret: "must_not_be_copied" },
+      }),
+    ],
+  });
+  assert.equal(decision.trace.trace_id, "trace-123");
+  assert.deepEqual(decision.trace.gate_events[0].detail_keys, ["credential_secret", "tenant_id"]);
+  assert.equal(JSON.stringify(decision.trace).includes("must_not_be_copied"), false);
 }
 
 {
@@ -68,6 +98,9 @@ import {
   assert.equal(decision.dispatch_ready, false);
   assert.deepEqual(decision.unevaluated_required_gates, ["credential"]);
   assert.equal(decision.invariants.fail_closed_on_unevaluated_required_gate, false);
+  assert.equal(decision.metrics.alert_level, "critical");
+  assert.equal(decision.metrics.unevaluated_required_gate_count, 1);
+  assert.deepEqual(decision.metrics.violated_invariants, ["fail_closed_on_unevaluated_required_gate"]);
 }
 
 {

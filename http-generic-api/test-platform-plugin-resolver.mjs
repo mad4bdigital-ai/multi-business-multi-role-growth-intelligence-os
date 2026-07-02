@@ -175,6 +175,13 @@ function makePool({
   assert.equal(result.execution.will_execute, true);
   assert.equal(result.security_decision.allowed, true);
   assert.equal(result.security_decision.dispatch_ready, true);
+  assert.equal(result.security_decision_trace_public.schema_version, "security_decision_trace.v1");
+  assert.equal(result.security_decision_trace_public.secrets_included, false);
+  assert.equal(result.security_decision_trace_public.denied_gate_count, 0);
+  assert.equal("invariant_results" in result.security_decision_trace_public, false);
+  assert.equal("reason" in result.security_decision_trace_public.gate_events[0], false);
+  assert.equal(result.security_decision_trace_admin.invariant_results.dispatch_ready_requires_allowed_without_approval, true);
+  assert.equal("reason" in result.security_decision_trace_admin.gate_events[0], true);
   assert.deepEqual(
     result.security_decision.gates.map((gate) => gate.key),
     ["plugin_status", "principal_scope", "binding_state", "surface_exposure", "canonical_policy", "policy_completeness", "credential", "target_authority", "skill", "smoke_certification", "approval"],
