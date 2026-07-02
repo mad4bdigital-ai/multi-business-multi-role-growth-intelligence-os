@@ -4,11 +4,11 @@
 
 ## Summary
 
-- Total queue items: 6
+- Total queue items: 7
 - Critical review: 1
 - High review: 2
 - Medium review: 2
-- Low review: 1
+- Low review: 2
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
@@ -95,5 +95,18 @@
 - Remediation actions:
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `platform_capability_readback_contracts`, `runtime_dispatch_certification_registry`
 - `verify_readback_view` → db-readback-review; targets: `v_platform_capability_readback_readiness`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 7. `20260702_dynamic_capability_readback_source_link_fix.sql`
+
+- Queue class: low_review
+- Score: 150
+- Gap severity: none
+- Missing docs: none
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=2, views=0, policies=0, routes=0
+- Remediation actions:
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `platform_capability_readback_contracts`, `runtime_dispatch_certification_registry`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
