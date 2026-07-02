@@ -90,8 +90,18 @@ function makePool() {
   assert.match(openapi, /\/platform\/plugins\/resolve:[\s\S]*oneOf:/);
   assert.match(openapi, /\/tenant\/platform\/plugins\/resolve:[\s\S]*oneOf:/);
   assert.match(openapi, /compatibility_telemetry:/);
+  assert.match(openapi, /SecurityDecisionTracePublic:/);
+  assert.match(openapi, /SecurityDecisionTraceAdmin:/);
+  assert.match(openapi, /SecurityDecisionMetrics:/);
+  assert.match(openapi, /security_decision_trace_public:/);
+  assert.match(openapi, /security_decision_trace_admin:/);
+  assert.match(openapi, /security_decision_metrics\.v1/);
   assert.match(tenantOpenapi, /\/tenant\/platform\/plugins\/resolve:[\s\S]*oneOf:/);
   assert.match(tenantOpenapi, /compatibility_telemetry:/);
+  assert.match(tenantOpenapi, /SecurityDecisionTracePublic:/);
+  assert.match(tenantOpenapi, /SecurityDecisionMetrics:/);
+  assert.match(tenantOpenapi, /security_decision_trace_public:/);
+  assert.doesNotMatch(tenantOpenapi, /security_decision_trace_admin:/);
   assert.match(migration, /oneOf/);
   assert.match(migration, /additionalProperties', false/);
   assert.match(migration, /tenant_platform_endpoint_tools/);
