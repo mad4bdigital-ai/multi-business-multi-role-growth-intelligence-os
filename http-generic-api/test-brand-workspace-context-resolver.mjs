@@ -127,10 +127,10 @@ function rowsFor(sql, params = []) {
 
   if (normalized.includes(" FROM brand_site_bindings ")) {
     return [{
-      binding_id: "binding-allroyal",
+      binding_id: "binding-platform-cms-fixture",
       site_id: siteId,
-      target_key: "allroyalegypt_wp",
-      brand_name: "AllRoyalEgypt Brand",
+      target_key: "growth_intelligence_platform",
+      brand_name: "Growth Intelligence Platform",
       relationship_type: "primary",
       status: "active",
     }];
