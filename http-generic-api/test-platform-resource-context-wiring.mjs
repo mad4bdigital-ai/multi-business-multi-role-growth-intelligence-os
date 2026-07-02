@@ -86,7 +86,8 @@ const allowedPublicDomain = (hostname) =>
 for (const source of genericFixtureSources) {
   assert(source.includes("Growth Intelligence Platform") || source.includes("منصة ذكاء النمو"));
   const hosts = [...source.matchAll(/https?:\/\/([^/\s"'`]+)/g)]
-    .map((match) => match[1].toLowerCase().replace(/^www\./, ""));
+    .map((match) => match[1].toLowerCase().replace(/^www\./, ""))
+    .filter((host) => !host.includes("${"));
   for (const host of hosts) {
     assert.equal(allowedPublicDomain(host), true, `unexpected public fixture domain: ${host}`);
   }
