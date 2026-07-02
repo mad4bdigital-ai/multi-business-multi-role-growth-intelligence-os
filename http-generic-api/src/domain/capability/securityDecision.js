@@ -15,6 +15,19 @@ function bool(value) {
   return value === true;
 }
 
+function freezeTraceEvent(event) {
+  return Object.freeze({
+    type: event.type,
+    gate_key: event.gate_key,
+    required: event.required,
+    state: event.state,
+    evaluated: event.evaluated,
+    reason: event.reason,
+    code: event.code,
+    detail_keys: Object.freeze(event.detail_keys || []),
+  });
+}
+
 export function createGateResult(input = {}) {
   const key = clean(input.key);
   const state = clean(input.state || "not_evaluated");
@@ -43,6 +56,35 @@ export function gateFromBoolean({ key, ok, required = true, reason, denyCode = n
     state: bool(ok) ? "pass" : "deny",
     reason: reason || (bool(ok) ? "passed" : "denied"),
     code: bool(ok) ? null : denyCode,
+  });
+}
+
+export function createSecurityDecisionTrace(input = {}) {
+  const gates = Array.isArray(input.gates) ? input.gates : [];
+  const invariants = input.invariants && typeof input.invariants === "object" ? input.invariants : {};
+  return Object.freeze({
+    schema_version: "security_decision_trace.v1",
+    trace_id: input.trace_id ? clean(input.trace_id) : null,
+    outcome: input.outcome,
+    allowed: Boolean(input.allowed),
+    dispatch_ready: Boolean(input.dispatch_ready),
+    will_execute: Boolean(input.will_execute),
+    execution_mode: input.execution_mode,
+    approval_required: Boolean(input.approval_required),
+    denied_gates: Object.freeze([...(input.denied_gates || [])]),
+    unevaluated_required_gates: Object.freeze([...(input.unevaluated_required_gates || [])]),
+    gate_events: Object.freeze(gates.map((gate) => freezeTraceEvent({
+      type: "gate_evaluated",
+      gate_key: gate.key,
+      required: gate.required,
+      state: gate.state,
+      evaluated: gate.evaluated,
+      reason: gate.reason,
+      code: gate.code,
+      detail_keys: gate.details ? Object.keys(gate.details).sort() : [],
+    }))),
+    invariant_results: Object.freeze(Object.fromEntries(Object.entries(invariants).sort())),
+    secrets_included: false,
   });
 }
 
@@ -77,7 +119,7 @@ export function createSecurityDecision(input = {}) {
     ...unevaluatedRequiredGates.map((gate) => `${gate.key}_not_evaluated`),
   ];
 
-  return Object.freeze({
+  const decision = {
     outcome: allowed ? "allow" : "deny",
     allowed,
     dispatch_ready: dispatchReady,
@@ -93,5 +135,10 @@ export function createSecurityDecision(input = {}) {
       preview_mode_cannot_execute: executionMode !== "preview" || dispatchReady === false,
       dispatch_ready_requires_allowed_without_approval: dispatchReady === Boolean(allowed && !approvalRequired && executionMode === "dispatch"),
     }),
+  };
+  decision.trace = createSecurityDecisionTrace({
+    ...decision,
+    trace_id: input.trace_id || input.traceId || null,
   });
+  return Object.freeze(decision);
 }

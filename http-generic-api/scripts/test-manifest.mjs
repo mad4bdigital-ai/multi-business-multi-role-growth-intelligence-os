@@ -322,6 +322,8 @@ export const testCommands = [
   "node test-sql-cache-operational-diagnostics.mjs",
   "node test-status-database-lifecycle-component.mjs",
   "node test-status-component-readiness-freshness.mjs",
+  "node test-security-decision-engine.mjs",
+  "node test-security-decision-trace-contract.mjs",
   "node test-execution-routing.mjs",
   "node test-provider-fetch-timeout.mjs",
   "node test-execution-response.mjs",
