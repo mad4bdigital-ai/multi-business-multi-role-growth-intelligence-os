@@ -57,11 +57,11 @@ function rowsFor(sql, params = []) {
     return [{
       workspace_id: workspaceId,
       tenant_id: tenantId,
-      workspace_key: "allroyalegypt brand",
-      display_name: "AllRoyalEgypt Brand Workspace",
+      workspace_key: "growth-intelligence-platform",
+      display_name: "Growth Intelligence Platform Workspace",
       workspace_type: "brand",
       bootstrap_status: "ready",
-      linked_brand_key: "allroyalegypt brand",
+      linked_brand_key: "growth_intelligence_platform",
       updated_at: "2026-07-01T00:00:00.000Z",
     }];
   }
