@@ -163,6 +163,8 @@ flowchart TD
 | `ads_provider_preflight_surface_blueprint_policy_v1` | 2 |
 | `ads_provider_profile_onboarding_flow_policy_v1` | 1 |
 | `agent_governance_runtime_policy_v1` | 1 |
+| `brand_reference_interpretation_policy_v1` | 1 |
+| `brand_workspace_context_minimal_policy_v1` | 1 |
 | `budget_quota_authority_registry_policy_v1` | 2 |
 | `canonical_agent_runtime_policy_v1` | 1 |
 | `capability_resolution_dry_run_descriptor_policy_v1` | 1 |
@@ -218,6 +220,7 @@ flowchart TD
 | `platform_resource_api_coverage_policy_v1` | 2 |
 | `platform_resource_api_secret_field_policy_v1` | 1 |
 | `platform_resource_authority_binding_policy_v1` | 1 |
+| `platform_resource_context_dynamic_policy_v1` | 1 |
 | `platform_schema_blocker_classification_policy_v1` | 1 |
 | `platform_secret_promotion_policy_v1` | 1 |
 | `platform_task_quality_gate_policy_v1` | 1 |
@@ -231,6 +234,7 @@ flowchart TD
 | `repo_conflict_policy_v1` | 1 |
 | `repository_close_superseded_positive_smoke_policy_v1` | 1 |
 | `resource_authority_policy_v1` | 2 |
+| `resource_reference_interpretation_policy_v1` | 1 |
 | `runtime_agent_loop_policy_v1` | 1 |
 | `runtime_app_action_policy_v1` | 1 |
 | `runtime_brand_core_policy_v1` | 1 |
