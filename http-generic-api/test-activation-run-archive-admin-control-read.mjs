@@ -29,6 +29,7 @@ for (const sql of [
 for (const sql of [
   "SELECT * FROM activation_runs FOR UPDATE",
   "SELECT * FROM activation_runs INTO OUTFILE '/tmp/archive.csv'",
+  "SELECT COUNT(*) INTO @archive_count FROM activation_runs",
   "UPDATE activation_runs SET run_status = 'done' WHERE run_id = ?",
   "WITH target AS (SELECT run_id FROM activation_runs) UPDATE activation_runs SET run_status='done'",
   "SELECT 1; UPDATE activation_runs SET run_status='done'",
@@ -69,6 +70,7 @@ const authorityPool = {
     authorityQueries.push({ sql: String(sql), params });
     if (String(sql).includes("FROM platform_resource_authority_bindings")) return [[{
       binding_id: "binding-1", tenant_id: "tenant-1", workspace_id: "workspace-1", user_id: null,
+      permission_level: "edit",
       allowed_modes_json: JSON.stringify(["select", "update"]), authority_source: "workspace_owner_grant",
       source_system_id: "system-1", source_installation_id: "installation-1",
       source_system_status: "active", source_system_tenant_id: "tenant-1",
@@ -96,6 +98,47 @@ assert.equal(authorityResult.ok, true);
 assert.equal(authorityResult.binding_id, "binding-1");
 assert.equal(authorityResult.owner_grant_id, "grant-1");
 assert.equal(authorityQueries.length, 2);
+
+async function resolvePermissionCase({ bindingPermission, grantPermission, mutationRequired }) {
+  const permissionPool = {
+    async query(sql) {
+      const value = String(sql);
+      if (value.includes("FROM platform_resource_authority_bindings")) return [[{
+        binding_id: "binding-permission", tenant_id: "tenant-1", workspace_id: "workspace-1", user_id: null,
+        permission_level: bindingPermission,
+        allowed_modes_json: JSON.stringify(["select", "update"]), authority_source: "workspace_owner_grant",
+        source_system_id: "system-1", source_installation_id: "installation-1",
+        source_system_status: "active", source_system_tenant_id: "tenant-1",
+        source_installation_status: "active", source_installation_tenant_id: "tenant-1", source_installation_expires_at: null,
+      }]];
+      if (value.includes("FROM v_workspace_resource_grant_effective")) return [[{
+        grant_id: "grant-permission", resource_type: "workspace", resource_ref: "workspace-1", permission: grantPermission,
+      }]];
+      throw new Error(`Unexpected permission SQL: ${value.slice(0, 120)}`);
+    },
+  };
+  return resolveDynamicResourceAuthority({
+    callerType: "tenant",
+    principal: { tenant_id: "tenant-1", user_id: "user-1" },
+    toolKey: "admin_control",
+    args: { tool: "db", authority_context: {
+      tenant_id: "tenant-1", user_id: "user-1", workspace_id: "workspace-1",
+      resource_type: "sql_runtime_resource", resource_uri: "sql://tenant-1/runtime-primary",
+      operation_mode: mutationRequired ? "update" : "select",
+      source_system_id: "system-1", source_installation_id: "installation-1",
+    } },
+    mutationRequired,
+    pool: permissionPool,
+  });
+}
+
+assert.equal((await resolvePermissionCase({ bindingPermission: "view", grantPermission: "view", mutationRequired: false })).ok, true);
+assert.equal((await resolvePermissionCase({ bindingPermission: "edit", grantPermission: "view", mutationRequired: true })).ok, false);
+assert.equal((await resolvePermissionCase({ bindingPermission: "edit", grantPermission: "comment", mutationRequired: true })).ok, false);
+assert.equal((await resolvePermissionCase({ bindingPermission: "edit", grantPermission: "edit", mutationRequired: true })).ok, true);
+assert.equal((await resolvePermissionCase({ bindingPermission: "view", grantPermission: "owner", mutationRequired: true })).ok, false);
+assert.equal((await resolvePermissionCase({ bindingPermission: "unknown", grantPermission: "owner", mutationRequired: false })).ok, false);
+
 const tenantOverride = await resolveDynamicResourceAuthority({
   callerType: "tenant",
   principal: { tenant_id: "tenant-1", user_id: "user-1" },
