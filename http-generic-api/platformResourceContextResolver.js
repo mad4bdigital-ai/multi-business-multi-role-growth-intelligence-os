@@ -2,6 +2,7 @@ import { getPool } from "./db.js";
 import { brandWorkspaceContextResolve } from "./brandWorkspaceContextResolver.js";
 import {
   brandRowMatchesReference,
+  brandRowReferences,
   normalizeBrandReference,
 } from "./resolvers/brandReferenceResolver.js";
 
