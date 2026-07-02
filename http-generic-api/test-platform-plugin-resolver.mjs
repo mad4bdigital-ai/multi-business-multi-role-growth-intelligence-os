@@ -389,7 +389,7 @@ function makePool({
       agentId: "agent-1",
       principalClass: "tenant",
     }),
-    (err) => err?.code === "ambiguous_capability_selector" && err?.status === 400,
+    (err) => err?.code === "AMBIGUOUS_CAPABILITY_SELECTOR" && err?.status === 400,
   );
 }
 

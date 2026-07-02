@@ -11,6 +11,36 @@ import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRo
 }
 
 {
+  const contract = _testingTenantPlatformPluginRoutes.parseTenantPlatformPluginResolveContract({
+    plugin_key: "github",
+    toolKey: "github.repo.read",
+  });
+  assert.equal(contract.pluginKey, "github");
+  assert.equal(contract.selector.toolKey, "github.repo.read");
+  assert.equal(contract.compatibilityTelemetry.legacy_selector_alias_used, true);
+  assert.deepEqual(contract.compatibilityTelemetry.legacy_fields, ["toolKey"]);
+}
+
+{
+  assert.throws(
+    () => _testingTenantPlatformPluginRoutes.parseTenantPlatformPluginResolveContract({
+      plugin_key: "github",
+      action_key: "github.repo.read",
+      tool_key: "github.repo.read",
+    }),
+    (err) => err?.code === "AMBIGUOUS_CAPABILITY_SELECTOR" && err?.status === 400,
+  );
+  assert.throws(
+    () => _testingTenantPlatformPluginRoutes.parseTenantPlatformPluginResolveContract({
+      plugin_key: "github",
+      tenant_id: "tenant-override",
+      action_key: "github.repo.read",
+    }),
+    (err) => err?.code === "UNKNOWN_SECURITY_CONTRACT_FIELD" && err?.details?.fields?.includes("tenant_id"),
+  );
+}
+
+{
   const calls = [];
   const pool = {
     async query(sql, params = []) {

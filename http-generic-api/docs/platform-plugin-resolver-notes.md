@@ -24,7 +24,11 @@
 }
 ```
 
-`action_key` or `tool_key` may be provided. If neither is provided, the resolver evaluates the plugin definition and first available binding as a preview.
+Exactly one selector is required. Provide either `action_key` or `tool_key`, but not both.
+
+Missing selectors fail with `MISSING_CAPABILITY_SELECTOR`. Multiple selectors fail with `AMBIGUOUS_CAPABILITY_SELECTOR`. Unknown request fields are rejected at the route boundary with `UNKNOWN_SECURITY_CONTRACT_FIELD`.
+
+Legacy camelCase selector aliases are accepted for compatibility and reported in `compatibility_telemetry`; the published contract remains snake_case.
 
 ## Resolution checks
 
