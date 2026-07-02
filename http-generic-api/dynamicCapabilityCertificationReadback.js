@@ -571,20 +571,33 @@ export async function buildDynamicCapabilityCertificationReadbackPreview(input =
   const requirements = manifest.requirements && typeof manifest.requirements === "object" ? manifest.requirements : {};
 
   const manifestContext = { ...manifest, effect_class: manifestRow.effect_class };
-  const adapterRows = await loadAdapters(pool, request, manifestContext);
-  const adapterResolution = resolveAdapter(adapterRows, request, manifestContext);
+  const requestedAdapter = request.adapter_key ? { adapter_key: request.adapter_key } : null;
+  const readbackRows = await loadReadbackContracts(pool, request, requestedAdapter);
+  const preliminaryReadbackResolution = resolveReadback(
+    readbackRows,
+    request,
+    manifestRow,
+    requestedAdapter,
+    nowMs,
+  );
+  const contractAdapterKey = preliminaryReadbackResolution.contract?.adapter_key || null;
+  const adapterLookupRequest = !request.adapter_key && contractAdapterKey
+    ? { ...request, adapter_key: contractAdapterKey }
+    : request;
+  const adapterRows = await loadAdapters(pool, adapterLookupRequest, manifestContext);
+  const adapterResolution = resolveAdapter(adapterRows, adapterLookupRequest, manifestContext);
   const selectedAdapter = adapterResolution.adapter;
 
   const genericRows = await loadGenericCertifications(pool, request, manifest, selectedAdapter);
   const runtimeRows = await loadRuntimeCertifications(pool, request, manifest, selectedAdapter);
   const certificationResolution = resolveCertification(genericRows, runtimeRows, request, manifest, selectedAdapter, nowMs);
 
-  const readbackRows = await loadReadbackContracts(pool, request, selectedAdapter);
   const readbackResolution = resolveReadback(readbackRows, request, manifestRow, selectedAdapter, nowMs);
   const evidence = summarizeEvidence(await loadEvidence(pool, request.capability_key, request.evidence_limit));
 
   const mutation = MUTATION_EFFECTS.has(String(manifestRow.effect_class || ""));
-  const adapterRequired = request.operation_mode === "apply" || Boolean(request.adapter_key || request.resource_type || request.provider_key);
+  const adapterRequirement = resolveAdapterRequirement({ request, requirements, readbackResolution });
+  const adapterRequired = adapterRequirement.required;
   const certificationRequired = request.operation_mode === "apply" && bool(requirements.certification);
   const readbackRequired = request.operation_mode === "apply" && (mutation || bool(requirements.readback));
   const blockers = [];
