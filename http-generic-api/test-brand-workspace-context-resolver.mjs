@@ -6,22 +6,25 @@ import {
   brandWorkspaceContextResolve,
 } from "./brandWorkspaceContextResolver.js";
 
-const tenantId = "tenant-allroyal";
-const userId = "user-allroyal";
-const workspaceId = "workspace-allroyal";
-const siteId = "site-allroyal";
-const connectionId = "connection-allroyal";
+const tenantId = "tenant-platform-fixture";
+const userId = "user-platform-fixture";
+const workspaceId = "workspace-platform-fixture";
+const siteId = "site-platform-cms-fixture";
+const connectionId = "connection-platform-cms-fixture";
+const platformCmsFixtureDomain = "platform-cms-fixture.test";
 
+// Brand identity matches the canonical platform registry row. CMS and connection
+// relationships are isolated test fixtures and do not claim live production bindings.
 const brands = [
   {
-    target_key: "allroyalegypt_wp",
-    brand_name: "AllRoyalEgypt Brand",
-    normalized_brand_name: "allroyalegypt brand",
-    brand_domain: "allroyalegypt.com",
-    base_url: "https://allroyalegypt.com/wp-json",
-    site_aliases_json: '["all royal egypt","allroyalegypt","allroyalegypt.com"]',
+    target_key: "growth_intelligence_platform",
+    brand_name: "Growth Intelligence Platform",
+    normalized_brand_name: "growth intelligence platform",
+    brand_domain: "mad4b.com",
+    base_url: "https://auth.mad4b.com",
+    site_aliases_json: '["mad4b.com","auth.mad4b.com","connector.mad4b.com","connect.mad4b.com","n8n.mad4b.com"]',
     primary_site_key: null,
-    default_wp_api_base: "https://allroyalegypt.com/wp-json/wp/v2",
+    default_wp_api_base: `https://${platformCmsFixtureDomain}/wp-json/wp/v2`,
     brand_core_ready: "Yes",
     write_allowed: "TRUE",
     status: "Active",
