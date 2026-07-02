@@ -227,7 +227,7 @@ assert.equal(resolved.mutations_executed, false);
 assert.equal(resolved.secrets_included, false);
 
 const cached = await brandWorkspaceContextResolve(
-  { brand_name: "اول رويال ايجيبت" },
+  { brand_name: "منصة ذكاء النمو" },
   { auth, pool }
 );
 assert.equal(cached.ok, true);
