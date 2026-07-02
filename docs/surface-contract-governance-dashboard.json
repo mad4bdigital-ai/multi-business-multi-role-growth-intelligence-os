@@ -6,44 +6,43 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 466,
-    "docs_complete_count": 462,
-    "docs_gap_count": 4,
-    "docs_completion_percent": 99.14,
+    "migrations_with_surfaces": 467,
+    "docs_complete_count": 464,
+    "docs_gap_count": 3,
+    "docs_completion_percent": 99.36,
     "surface_totals": {
       "plugins": 12,
-      "tools": 2195,
-      "views": 428,
+      "tools": 2197,
+      "views": 429,
       "policies": 168,
       "routes": 613
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 395,
-      "views": 171,
+      "tools": 396,
+      "views": 172,
       "policies": 109,
       "routes": 246
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 4,
-      "deployment_parity_checklist.md": 4,
-      "docs/ai-docs-agent-governance.md": 4,
-      "docs/auto-docs-agent/README.md": 4,
-      "docs/change-documentation-governance.md": 4
+      "Updating Registry Patch Index.md": 3,
+      "deployment_parity_checklist.md": 3,
+      "docs/ai-docs-agent-governance.md": 3,
+      "docs/auto-docs-agent/README.md": 3,
+      "docs/change-documentation-governance.md": 3
     },
     "gap_severity_counts": {
       "high": 2,
-      "medium": 2,
+      "medium": 1,
       "low": 0,
-      "none": 462
+      "none": 464
     },
     "high_risk_missing_docs": [
       "1025_sprint69_activation_archive_dynamic_control_authority.sql",
       "1025_sprint69_growth_audit_evidence_admin_tenant_support.sql"
     ],
     "medium_risk_missing_docs": [
-      "1030_sprint69_canonical_capability_domain.sql",
-      "20260630_dynamic_capability_governance_persistence.sql"
+      "1030_sprint69_canonical_capability_domain.sql"
     ],
     "safety_marker_counts": {
       "no_provider_call": 464,
@@ -51,7 +50,7 @@
       "no_raw_secrets": 461,
       "no_external_send": 463,
       "no_external_write": 461,
-      "secrets_included_false": 465
+      "secrets_included_false": 466
     },
     "safety_marker_gap_migrations": 1,
     "route_coverage": {
@@ -76,19 +75,19 @@
   "queue": {
     "total_items": 6,
     "class_counts": {
-      "critical_review": 2,
+      "critical_review": 1,
       "high_review": 2,
       "medium_review": 2,
-      "low_review": 0
+      "low_review": 1
     }
   },
   "triage": {
     "total_items": 6,
     "class_counts": {
-      "new_surface_immediate_review": 4,
-      "safety_marker_review": 2
+      "new_surface_immediate_review": 3,
+      "safety_marker_review": 3
     },
-    "gate_candidate_count": 4
+    "gate_candidate_count": 3
   },
   "gate": {
     "ok": false,
@@ -97,45 +96,6 @@
     "blocking_new_item_count": 6
   },
   "top_immediate_items": [
-    {
-      "migration_file": "20260630_dynamic_capability_governance_persistence.sql",
-      "score": 828,
-      "queue_class": "critical_review",
-      "triage_class": "new_surface_immediate_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "medium",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "verify_tool_registry_binding",
-        "verify_policy_seed_readiness",
-        "verify_readback_view"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
-        "runtime-registry-review",
-        "runtime-policy-review",
-        "db-readback-review"
-      ],
-      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
     {
       "migration_file": "1025_sprint69_growth_audit_evidence_admin_tenant_support.sql",
       "score": 732,

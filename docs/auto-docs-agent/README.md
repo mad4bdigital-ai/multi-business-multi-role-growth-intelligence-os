@@ -1,5 +1,7 @@
 # Automated Docs Agent Notes
 
+> Auto-docs coverage for Spec 007 must include `20260630_dynamic_capability_governance_persistence.sql` and `20260701_dynamic_capability_certification_readback.sql`, their bounded Admin preview tools, the compilation/readback views, and the existing adapter/certification/evidence authorities they reuse. Generated notes must not claim runtime cutover, provider execution, credential payload access, raw-secret output, external send/write, automatic callable promotion, or successful apply from static schema evidence alone. Missing, stale, revoked, conflicting, or ambiguous adapter/certification/readback evidence remains blocking for apply; `secrets_included=false`.
+
 ## Migration 1024 Generated-Documentation Expectations
 
 When `1024_sprint69_openapi_endpoint_inventory_sync.sql` or its route/OpenAPI surfaces change, the docs agent must refresh work maps and surface-contract evidence while preserving the inventory-only safety classification. Generated outputs must state that synchronization does not auto-promote endpoints or create tool exports, and that production apply remains separately governed.
