@@ -9,9 +9,16 @@
     "tasks_completed": [
       "T001", "T002", "T003", "T004", "T005", "T006", "T007", "T008", "T009",
       "T010", "T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019",
-      "T020", "T021", "T022", "T023", "T024", "T025", "T026"
+      "T020", "T021", "T022", "T023", "T024", "T025", "T026",
+      "T046", "T047", "T048", "T049", "T050", "T051", "T052", "T053",
+      "T054", "T055", "T056", "T057", "T058", "T059", "T060", "T061",
+      "T062", "T063", "T064", "T065", "T066", "T067", "T068", "T069", "T070",
+      "T071", "T072", "T082", "T083", "T084"
     ],
-    "tasks_remaining_range": "T027-T114",
+    "tasks_completed_count": 56,
+    "tasks_remaining_count": 58,
+    "tasks_remaining_range": "T027-T045,T073-T081,T085-T114",
+    "tasks_remaining_note": "T046-T072 and T082-T084 are already complete and are intentionally excluded from the remaining range.",
     "pull_request": 1969,
     "branch": "gpt/001-capability-security-phase2-canonical-domain",
     "merge_scope": "canonical_capability_domain_alias_registry_and_integrity"

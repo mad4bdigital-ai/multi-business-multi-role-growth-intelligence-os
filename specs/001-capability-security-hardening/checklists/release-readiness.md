@@ -11,6 +11,7 @@ Evidence sources:
 - `../traceability.md`
 - `../rollout.md`
 - `../tasks.md`
+- `../phase12-verification-release-readiness.md`
 
 ## Scope and governance
 
@@ -77,6 +78,21 @@ Evidence sources:
 - [ ] Device/local connector approval remains required.
 - [ ] Full release-readiness approval remains blocked by the unchecked controls above.
 - [ ] Explicit production-promotion approval has not been granted.
+
+## Phase 12 release gates
+
+- [ ] T103 full unit/integration/security suites have current-head CI evidence.
+- [ ] T104 acceptance matrix A01-J08 has run in staging preview mode.
+- [ ] T105 shadow mismatches have been triaged with zero unreviewed P0/P1 mismatch.
+- [ ] T106 latency and resource budgets have been ratified against the Phase 1 baseline.
+- [ ] T107 dependency-outage drills prove fail-closed behavior.
+- [ ] T108 bounded staging mutations have approval, readback, cleanup, and rollback metadata.
+- [ ] T109 security and architecture reviews are complete.
+- [ ] T110 rollback exercise preserves P0 containment.
+- [ ] T111 this checklist is complete with evidence links.
+- [ ] T112 explicit production-promotion approval is recorded.
+- [ ] T113 enforcement-group rollout has monitoring evidence.
+- [ ] T114 legacy branches are retired only after stability and parity criteria pass.
 
 ## Current decision
 
