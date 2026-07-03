@@ -15324,63 +15324,6 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
 
-  /platform/orchestration/ads-provider/snapshot-propose:
-    post:
-      x-openai-isConsequential: false
-      tags: [platform-plugins]
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: adsProviderGovernanceSnapshotPropose
-      summary: Propose Ads Provider Governance snapshot and recommendation candidates
-      description: >
-        Admin-only proposal surface that derives a snapshot_candidate and
-        recommendation_candidate for Ads Provider Governance from existing
-        registry and ledger metadata. This route is proposal-only and does not
-        write snapshots or recommendations, call providers, read credential
-        payloads, mutate spend, perform external writes, deploy, publish, or
-        return secrets.
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              properties:
-                provider_key:
-                  type: string
-                  default: google_ads
-      responses:
-        '200':
-          description: Ads Provider Governance snapshot proposal
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-                required: [ok, provider_key, plugin_key, mode, writes_database, snapshot_candidate, recommendation_candidate, execution, secrets_included]
-                properties:
-                  ok: { type: boolean, enum: [true] }
-                  provider_key: { type: string }
-                  plugin_key: { type: string }
-                  mode: { type: string, enum: [proposal_only] }
-                  writes_database: { type: boolean, enum: [false] }
-                  snapshot_candidate: { type: object, additionalProperties: true }
-                  recommendation_candidate: { type: object, additionalProperties: true }
-                  execution:
-                    type: object
-                    additionalProperties: true
-                    properties:
-                      will_record_snapshot: { type: boolean, enum: [false] }
-                      will_record_recommendation: { type: boolean, enum: [false] }
-                      will_execute_provider_call: { type: boolean, enum: [false] }
-                      will_read_credential_payload: { type: boolean, enum: [false] }
-                      will_change_spend: { type: boolean, enum: [false] }
-                      will_external_write: { type: boolean, enum: [false] }
-                      will_deploy: { type: boolean, enum: [false] }
-                      will_publish: { type: boolean, enum: [false] }
-                  secrets_included: { type: boolean, enum: [false] }
   /admin/repository-automation/run:
     post:
       x-openai-isConsequential: true
@@ -15463,63 +15406,6 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
 
-  /platform/orchestration/ads-provider/snapshot-propose:
-    post:
-      x-openai-isConsequential: false
-      tags: [platform-plugins]
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: adsProviderGovernanceSnapshotPropose
-      summary: Propose Ads Provider Governance snapshot and recommendation candidates
-      description: >
-        Admin-only proposal surface that derives a snapshot_candidate and
-        recommendation_candidate for Ads Provider Governance from existing
-        registry and ledger metadata. This route is proposal-only and does not
-        write snapshots or recommendations, call providers, read credential
-        payloads, mutate spend, perform external writes, deploy, publish, or
-        return secrets.
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              properties:
-                provider_key:
-                  type: string
-                  default: google_ads
-      responses:
-        '200':
-          description: Ads Provider Governance snapshot proposal
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-                required: [ok, provider_key, plugin_key, mode, writes_database, snapshot_candidate, recommendation_candidate, execution, secrets_included]
-                properties:
-                  ok: { type: boolean, enum: [true] }
-                  provider_key: { type: string }
-                  plugin_key: { type: string }
-                  mode: { type: string, enum: [proposal_only] }
-                  writes_database: { type: boolean, enum: [false] }
-                  snapshot_candidate: { type: object, additionalProperties: true }
-                  recommendation_candidate: { type: object, additionalProperties: true }
-                  execution:
-                    type: object
-                    additionalProperties: true
-                    properties:
-                      will_record_snapshot: { type: boolean, enum: [false] }
-                      will_record_recommendation: { type: boolean, enum: [false] }
-                      will_execute_provider_call: { type: boolean, enum: [false] }
-                      will_read_credential_payload: { type: boolean, enum: [false] }
-                      will_change_spend: { type: boolean, enum: [false] }
-                      will_external_write: { type: boolean, enum: [false] }
-                      will_deploy: { type: boolean, enum: [false] }
-                      will_publish: { type: boolean, enum: [false] }
-                  secrets_included: { type: boolean, enum: [false] }
   /admin/repository-automation/status:
     post:
       x-openai-isConsequential: false
