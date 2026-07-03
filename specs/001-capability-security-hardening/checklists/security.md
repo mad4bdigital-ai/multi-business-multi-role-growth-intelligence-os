@@ -55,7 +55,7 @@
 
 ## Audit and privacy
 
-- [ ] Every platform attempt has a persisted decision trace; T092 remains open.
+- [x] Shared Platform Plugin decision attempts persist structured decision traces into audit payload evidence under T092.
 - [x] Reviewed gate states are explicit.
 - [ ] The global invariant that no allowed decision contains an unevaluated required gate remains open under T045.
 - [x] Audit payload evidence includes tamper-evident SHA-256 digest chaining, immutable field metadata, bounded previews, and no-secret evidence under T094.

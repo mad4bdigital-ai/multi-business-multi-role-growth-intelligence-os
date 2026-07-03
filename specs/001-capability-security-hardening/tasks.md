@@ -130,7 +130,7 @@
 
 - [x] **T090** Implement component-level activation/readiness projection. `[FR-045]`
 - [x] **T091** Define health freshness policy and eliminate registered-equals-healthy language. `[FR-046]`
-- [ ] **T092** Persist structured decision traces. `[FR-047, FR-048]`
+- [x] **T092** Persist structured decision traces. `[FR-047, FR-048]`
 - [x] **T093** Add public-safe trace projection and governed admin detail. `[FR-049]`
 - [x] **T094** Implement immutable/tamper-evident audit controls. `[FR-050]`
 - [x] **T095** Add metrics and alerts for invariant violations.
