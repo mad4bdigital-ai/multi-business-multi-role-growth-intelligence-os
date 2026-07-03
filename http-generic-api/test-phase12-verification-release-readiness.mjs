@@ -189,8 +189,8 @@ for (const prTriageEvidence of [
 for (const publishReadinessEvidence of [
   "Phase 12 Remote Publish Readiness",
   "ahead-only",
-  "by 11 commits",
-  "e8f27754..ad38f18d",
+  "by 12 commits",
+  "e8f27754..fb02a74f",
   "zero remote-only commits",
   "publish workflow requires the `gh` CLI",
   "push this branch first",
