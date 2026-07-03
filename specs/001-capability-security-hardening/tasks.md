@@ -116,15 +116,15 @@
 
 ## Phase 9 — Mutation approval and integrations
 
-- [ ] **T081** Define explicit mutation-policy enum. `[FR-019]`
+- [x] **T081** Define explicit mutation-policy enum. `[FR-019]`
 - [x] **T082** Bind approval to capability, subject, tenant, target, request digest, and expiry.
 - [x] **T083** Add approval replay protection and consumption state.
 - [x] **T084** Add preflight and same-cycle readback hooks. `[FR-044]`
-- [ ] **T085** Implement Cloudflare zone ownership and record protection. `[FR-042]`
-- [ ] **T086** Implement Cloudflare preview/readback/rollback metadata. `[FR-042, FR-044]`
-- [ ] **T087** Implement n8n instance-mode and ownership binding. `[FR-043]`
-- [ ] **T088** Separate n8n read/run/activate permissions. `[FR-043]`
-- [ ] **T089** Add mutation and integration tests. `[H01-H09, I01-I07]`
+- [x] **T085** Implement Cloudflare zone ownership and record protection. `[FR-042]`
+- [x] **T086** Implement Cloudflare preview/readback/rollback metadata. `[FR-042, FR-044]`
+- [x] **T087** Implement n8n instance-mode and ownership binding. `[FR-043]`
+- [x] **T088** Separate n8n read/run/activate permissions. `[FR-043]`
+- [x] **T089** Add mutation and integration tests. `[H01-H09, I01-I07]`
 
 ## Phase 10 — Status and observability
 
