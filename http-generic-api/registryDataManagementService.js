@@ -65,35 +65,11 @@ export function normalizeTableRegistration(row = {}) {
   const allowedOperations = asArray(row.allowed_operations_json);
   const enabledSurfaces = asArray(row.enabled_surfaces_json);
   const defaultValues = asObject(row.default_values_json);
-
-  return {
-    ...row,
-    primaryKeyColumns,
-    readableColumns,
-    writableColumns,
-    creatableColumns,
-    patchableColumns,
-    filterableColumns,
-    requiredCreateColumns,
-    jsonColumns,
-    allowedOperations,
-    enabledSurfaces,
-    defaultValues,
-    maxLimit: Number(row.max_limit || DEFAULT_MAX_LIMIT),
-  };
+  return { ...row, primaryKeyColumns, readableColumns, writableColumns, creatableColumns, patchableColumns, filterableColumns, requiredCreateColumns, jsonColumns, allowedOperations, enabledSurfaces, defaultValues, maxLimit: Number(row.max_limit || DEFAULT_MAX_LIMIT) };
 }
 
 export function validateRegisteredColumns(registry) {
-  const groups = [
-    registry.primaryKeyColumns,
-    registry.readableColumns,
-    registry.writableColumns,
-    registry.creatableColumns,
-    registry.patchableColumns,
-    registry.filterableColumns,
-    registry.requiredCreateColumns,
-    [registry.tenant_column, registry.workspace_column, registry.soft_delete_column].filter(Boolean),
-  ];
+  const groups = [registry.primaryKeyColumns, registry.readableColumns, registry.writableColumns, registry.creatableColumns, registry.patchableColumns, registry.filterableColumns, registry.requiredCreateColumns, [registry.tenant_column, registry.workspace_column, registry.soft_delete_column].filter(Boolean)];
   for (const column of groups.flat()) {
     quoteIdentifier(column);
     if (containsSecretLikeColumn(column)) {
@@ -103,30 +79,17 @@ export function validateRegisteredColumns(registry) {
 }
 
 function assertSurfaceAllowed(registry, surface) {
-  if (!registry.enabledSurfaces.includes(surface)) {
-    throw new DataManagementError("data_table_surface_not_allowed", "This data table is not exposed on the requested surface.", 403, { table_key: registry.table_key, surface });
-  }
+  if (!registry.enabledSurfaces.includes(surface)) throw new DataManagementError("data_table_surface_not_allowed", "This data table is not exposed on the requested surface.", 403, { table_key: registry.table_key, surface });
 }
 
 function assertOperationAllowed(registry, operation) {
-  if (!registry.allowedOperations.includes(operation)) {
-    throw new DataManagementError("data_table_operation_not_allowed", "This operation is not enabled for the requested data table.", 403, { table_key: registry.table_key, operation });
-  }
+  if (!registry.allowedOperations.includes(operation)) throw new DataManagementError("data_table_operation_not_allowed", "This operation is not enabled for the requested data table.", 403, { table_key: registry.table_key, operation });
 }
 
 export async function loadTableRegistration({ tableKey, surface, pool = getPool() } = {}) {
   const cleanTableKey = String(tableKey || "").trim();
-  if (!/^[a-z0-9_.:-]{2,191}$/i.test(cleanTableKey)) {
-    throw new DataManagementError("invalid_table_key", "A valid table_key is required.", 400);
-  }
-
-  const [rows] = await pool.query(
-    `SELECT *
-       FROM platform_data_table_registry
-      WHERE table_key = ? AND status = 'active'
-      LIMIT 1`,
-    [cleanTableKey]
-  );
+  if (!/^[a-z0-9_.:-]{2,191}$/i.test(cleanTableKey)) throw new DataManagementError("invalid_table_key", "A valid table_key is required.", 400);
+  const [rows] = await pool.query("SELECT * FROM platform_data_table_registry WHERE table_key = ? AND status = 'active' LIMIT 1", [cleanTableKey]);
   const registry = rows[0] ? normalizeTableRegistration(rows[0]) : null;
   if (!registry) throw new DataManagementError("data_table_not_registered", "The requested data table is not registered.", 404, { table_key: cleanTableKey });
   assertSurfaceAllowed(registry, surface);
@@ -135,23 +98,8 @@ export async function loadTableRegistration({ tableKey, surface, pool = getPool(
 }
 
 export async function listTableRegistrations({ surface, pool = getPool() } = {}) {
-  const [rows] = await pool.query(
-    `SELECT table_key, display_name, description, scope_mode, allowed_operations_json, enabled_surfaces_json, status, updated_at
-       FROM platform_data_table_registry
-      WHERE status = 'active'
-      ORDER BY sort_order ASC, table_key ASC`
-  );
-  return rows
-    .map(normalizeTableRegistration)
-    .filter((row) => row.enabledSurfaces.includes(surface))
-    .map((row) => ({
-      table_key: row.table_key,
-      display_name: row.display_name,
-      description: row.description,
-      scope_mode: row.scope_mode,
-      allowed_operations: row.allowedOperations,
-      secrets_included: false,
-    }));
+  const [rows] = await pool.query("SELECT table_key, display_name, description, scope_mode, allowed_operations_json, enabled_surfaces_json, status, updated_at FROM platform_data_table_registry WHERE status = 'active' ORDER BY sort_order ASC, table_key ASC");
+  return rows.map(normalizeTableRegistration).filter((row) => row.enabledSurfaces.includes(surface)).map((row) => ({ table_key: row.table_key, display_name: row.display_name, description: row.description, scope_mode: row.scope_mode, allowed_operations: row.allowedOperations, secrets_included: false }));
 }
 
 function pushRequiredParam(params, value, code) {
@@ -163,9 +111,7 @@ function buildScopeWhere(registry, context, params) {
   const clauses = [];
   const tenantColumn = String(registry.tenant_column || "").trim();
   if (context.surface === "tenant") {
-    if (!tenantColumn) {
-      throw new DataManagementError("tenant_scope_column_required", "Tenant data tables must declare a tenant scope column.", 500, { table_key: registry.table_key });
-    }
+    if (!tenantColumn) throw new DataManagementError("tenant_scope_column_required", "Tenant data tables must declare a tenant scope column.", 500, { table_key: registry.table_key });
     clauses.push(`${quoteIdentifier(tenantColumn)} = ?`);
     params.push(context.tenantId);
   } else if (context.tenantId && tenantColumn) {
@@ -176,9 +122,7 @@ function buildScopeWhere(registry, context, params) {
 }
 
 function buildPrimaryKeyWhere(registry, rowId, params) {
-  if (registry.primaryKeyColumns.length !== 1) {
-    throw new DataManagementError("single_primary_key_required", "Generic row operations require exactly one registered primary key column.", 500, { table_key: registry.table_key });
-  }
+  if (registry.primaryKeyColumns.length !== 1) throw new DataManagementError("single_primary_key_required", "Generic row operations require exactly one registered primary key column.", 500, { table_key: registry.table_key });
   const pk = registry.primaryKeyColumns[0];
   pushRequiredParam(params, String(rowId || "").trim(), "row_id_required");
   return `${quoteIdentifier(pk)} = ?`;
@@ -195,24 +139,15 @@ function normalizeRowPayload(input, registry, mode, context) {
     if (defaultValue === "$user_id") row[column] = context.userId;
     if (defaultValue === "$now") row[column] = new Date().toISOString();
   }
-  if (context.surface === "tenant" && registry.tenant_column) {
-    row[registry.tenant_column] = context.tenantId;
-  }
-
+  if (context.surface === "tenant" && registry.tenant_column) row[registry.tenant_column] = context.tenantId;
   const columns = Object.keys(row);
   if (!columns.length) throw new DataManagementError("empty_row_payload", "At least one registered column is required.", 400);
   for (const column of columns) {
-    if (!allowed.has(column)) {
-      throw new DataManagementError("unregistered_or_readonly_column", "The payload contains a column that is not writable for this operation.", 400, { table_key: registry.table_key, column });
-    }
-    if (containsSecretLikeColumn(column)) {
-      throw new DataManagementError("secret_like_column_not_allowed", "Secret-like columns are not accepted by generic data management routes.", 400, { column });
-    }
+    if (!allowed.has(column)) throw new DataManagementError("unregistered_or_readonly_column", "The payload contains a column that is not writable for this operation.", 400, { table_key: registry.table_key, column });
+    if (containsSecretLikeColumn(column)) throw new DataManagementError("secret_like_column_not_allowed", "Secret-like columns are not accepted by generic data management routes.", 400, { column });
   }
   for (const column of required) {
-    if (row[column] == null || row[column] === "") {
-      throw new DataManagementError("required_column_missing", "A required create column is missing.", 400, { table_key: registry.table_key, column });
-    }
+    if (row[column] == null || row[column] === "") throw new DataManagementError("required_column_missing", "A required create column is missing.", 400, { table_key: registry.table_key, column });
   }
   return row;
 }
@@ -230,10 +165,7 @@ async function readOneRow({ registry, rowId, context, pool = getPool() }) {
   const params = [];
   const columns = registry.readableColumns.map(quoteIdentifier).join(", ");
   const where = [buildPrimaryKeyWhere(registry, rowId, params), ...buildScopeWhere(registry, context, params)].join(" AND ");
-  const [rows] = await pool.query(
-    `SELECT ${columns} FROM ${quoteIdentifier(registry.physical_table_name)} WHERE ${where} LIMIT 1`,
-    params
-  );
+  const [rows] = await pool.query(`SELECT ${columns} FROM ${quoteIdentifier(registry.physical_table_name)} WHERE ${where} LIMIT 1`, params);
   return rows[0] || null;
 }
 
@@ -243,31 +175,18 @@ export async function listRows({ tableKey, surface, tenantId, userId, query = {}
   const context = { surface, tenantId, userId };
   const params = [];
   const where = buildScopeWhere(registry, context, params);
-
   for (const column of registry.filterableColumns) {
     const value = query[column];
     if (value == null || value === "") continue;
     where.push(`${quoteIdentifier(column)} = ?`);
     params.push(String(value));
   }
-
   const limit = normalizeLimit(query.limit, registry.maxLimit);
   const cursor = normalizeCursor(query.cursor);
   const columns = registry.readableColumns.map(quoteIdentifier).join(", ");
-  const sql = `SELECT ${columns}
-                 FROM ${quoteIdentifier(registry.physical_table_name)}
-                ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
-                ORDER BY ${quoteIdentifier(registry.primaryKeyColumns[0])} ASC
-                LIMIT ? OFFSET ?`;
+  const sql = `SELECT ${columns} FROM ${quoteIdentifier(registry.physical_table_name)} ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY ${quoteIdentifier(registry.primaryKeyColumns[0])} ASC LIMIT ? OFFSET ?`;
   const [rows] = await pool.query(sql, [...params, limit, cursor]);
-  return {
-    ok: true,
-    table_key: registry.table_key,
-    rows,
-    count: rows.length,
-    page: { cursor, nextCursor: rows.length === limit ? String(cursor + limit) : null, hasMore: rows.length === limit },
-    secrets_included: false,
-  };
+  return { ok: true, table_key: registry.table_key, rows, count: rows.length, page: { cursor, nextCursor: rows.length === limit ? String(cursor + limit) : null, hasMore: rows.length === limit }, secrets_included: false };
 }
 
 export async function getRow({ tableKey, rowId, surface, tenantId, userId, pool = getPool() } = {}) {
@@ -285,12 +204,7 @@ export async function createRow({ tableKey, surface, tenantId, userId, row, pool
   const columns = Object.keys(payload);
   const values = columns.map((column) => serializeValue(registry, column, payload[column]));
   const placeholders = columns.map(() => "?").join(", ");
-  await pool.query(
-    `INSERT INTO ${quoteIdentifier(registry.physical_table_name)}
-       (${columns.map(quoteIdentifier).join(", ")})
-     VALUES (${placeholders})`,
-    values
-  );
+  await pool.query(`INSERT INTO ${quoteIdentifier(registry.physical_table_name)} (${columns.map(quoteIdentifier).join(", ")}) VALUES (${placeholders})`, values);
   const rowId = payload[registry.primaryKeyColumns[0]];
   return { ok: true, table_key: registry.table_key, created: true, readback: await readOneRow({ registry, rowId, context, pool }), secrets_included: false };
 }
@@ -305,12 +219,7 @@ export async function patchRow({ tableKey, rowId, surface, tenantId, userId, row
   const params = columns.map((column) => serializeValue(registry, column, payload[column]));
   const whereParams = [];
   const where = [buildPrimaryKeyWhere(registry, rowId, whereParams), ...buildScopeWhere(registry, context, whereParams)].join(" AND ");
-  const [result] = await pool.query(
-    `UPDATE ${quoteIdentifier(registry.physical_table_name)}
-        SET ${columns.map((column) => `${quoteIdentifier(column)} = ?`).join(", ")}
-      WHERE ${where}`,
-    [...params, ...whereParams]
-  );
+  const [result] = await pool.query(`UPDATE ${quoteIdentifier(registry.physical_table_name)} SET ${columns.map((column) => `${quoteIdentifier(column)} = ?`).join(", ")} WHERE ${where}`, [...params, ...whereParams]);
   if (!result.affectedRows) throw new DataManagementError("data_table_row_not_found", "The requested row was not found in scope.", 404, { table_key: registry.table_key });
   return { ok: true, table_key: registry.table_key, patched: true, readback: await readOneRow({ registry, rowId, context, pool }), secrets_included: false };
 }
@@ -323,20 +232,9 @@ export async function archiveRow({ tableKey, rowId, surface, tenantId, userId, p
   const params = [registry.soft_delete_value || "archived"];
   const whereParams = [];
   const where = [buildPrimaryKeyWhere(registry, rowId, whereParams), ...buildScopeWhere(registry, context, whereParams)].join(" AND ");
-  const [result] = await pool.query(
-    `UPDATE ${quoteIdentifier(registry.physical_table_name)}
-        SET ${quoteIdentifier(registry.soft_delete_column)} = ?
-      WHERE ${where}`,
-    [...params, ...whereParams]
-  );
+  const [result] = await pool.query(`UPDATE ${quoteIdentifier(registry.physical_table_name)} SET ${quoteIdentifier(registry.soft_delete_column)} = ? WHERE ${where}`, [...params, ...whereParams]);
   if (!result.affectedRows) throw new DataManagementError("data_table_row_not_found", "The requested row was not found in scope.", 404, { table_key: registry.table_key });
   return { ok: true, table_key: registry.table_key, archived: true, readback: await readOneRow({ registry, rowId, context, pool }), secrets_included: false };
 }
 
-export const _testingRegistryDataManagementService = {
-  asArray,
-  asObject,
-  containsSecretLikeColumn,
-  normalizeTableRegistration,
-  normalizeLimit,
-};
+export const _testingRegistryDataManagementService = { asArray, asObject, containsSecretLikeColumn, normalizeTableRegistration, normalizeLimit };
