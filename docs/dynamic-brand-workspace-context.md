@@ -33,7 +33,7 @@ Example:
 {
   "name": "brand_workspace_context_resolve",
   "tool_args": {
-    "brand_name": "اول رويال ايجيبت"
+    "brand_name": "منصة ذكاء النمو"
   }
 }
 ```
@@ -64,10 +64,10 @@ The agent applies the registered text skill to the original value and the return
 {
   "name": "brand_workspace_context_resolve",
   "tool_args": {
-    "brand_name": "اول رويال ايجيبت",
+    "brand_name": "منصة ذكاء النمو",
     "candidate_refs": [
-      "all royal egypt",
-      "allroyalegypt"
+      "growth intelligence platform",
+      "mad4b.com"
     ]
   }
 }
