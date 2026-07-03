@@ -120,9 +120,11 @@ node test-release-readiness-migration-drift.mjs
 node test-platform-plugin-strict-request-contract.mjs
 node test-security-decision-engine.mjs
 node test-platform-plugin-resolver.mjs
+npm run schemas:check
+npm run schemas:guard
 ```
 
-Observed local warning: `QUEUE_DISABLED` was printed for the strict request contract test because `REDIS_URL` was unset and queue features were disabled locally.
+Observed local warnings: `QUEUE_DISABLED` was printed for strict request/platform route tests because `REDIS_URL` was unset and queue features were disabled locally; `schemas:check` and `schemas:guard` printed the existing `tenant_core: 28 operations exceeds warning limit 26` warning; `schemas:guard` also reported missing DB environment variables for optional system endpoint export listing.
 
 ## Release Blocking Rules
 

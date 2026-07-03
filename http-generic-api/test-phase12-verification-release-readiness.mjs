@@ -144,6 +144,9 @@ for (const integrationBaseline of [
   "5e0cde4c",
   "node test-release-readiness-migration-drift.mjs",
   "node test-platform-plugin-strict-request-contract.mjs",
+  "npm run schemas:check",
+  "npm run schemas:guard",
+  "tenant_core: 28 operations exceeds warning limit 26",
   "does not prove the phase branches are reconciled",
 ]) {
   assert(phase12.includes(integrationBaseline), `phase12 must preserve integration baseline: ${integrationBaseline}`);
