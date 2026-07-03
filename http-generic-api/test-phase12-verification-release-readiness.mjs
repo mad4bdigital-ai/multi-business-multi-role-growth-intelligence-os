@@ -101,7 +101,7 @@ assert.equal(completion.evidence.release_readiness.production_promotion_authoriz
 assert.equal(completion.secrets_included, false);
 
 assert(phase12.includes("Local Phase Branch Inventory"));
-for (const branchCommit of ["9264bfc0", "8b1f8085", "07ea3279", "28760484", "4cb45f8b", "4abfc702"]) {
+for (const branchCommit of ["9264bfc0", "8b1f8085", "07ea3279", "28760484", "4cb45f8b", "94dc4e64"]) {
   assert(phase12.includes(branchCommit), `phase12 local branch inventory must include ${branchCommit}`);
 }
 assert.equal(completion.evidence.phase_branch_rollup.status, "local_phase_branches_implemented_pending_reconciliation_ci_and_release_gates");

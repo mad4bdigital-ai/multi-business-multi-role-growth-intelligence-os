@@ -74,16 +74,16 @@ Local warnings and gaps:
 
 ## Local Phase Branch Inventory
 
-Recorded on 2026-07-03 as a local branch rollup only. These commits prove local phase-branch closeout evidence, but they are not a substitute for branch reconciliation, integration CI, staging evidence, or governed release approval.
+Recorded on 2026-07-03 as a local branch rollup only. These commits are the minimum required local phase-branch closeout evidence and must remain ancestors of their worktree heads. They are not a substitute for branch reconciliation, integration CI, staging evidence, or governed release approval.
 
-| Phase | Tasks | Branch | Local commit | Local status | Release status |
+| Phase | Tasks | Branch | Evidence commit | Local status | Release status |
 |---|---|---|---|---|---|
 | Phase 3/4 | T027-T045 | `work/phase4-security-decision-engine-20260701` | `9264bfc0` | Implemented and locally tested | Not reconciled into integration/CI |
 | Phase 8 | T073-T080 | `work/phase8-local-consent-shell-files-20260701` | `8b1f8085` | Implemented and locally tested | Not reconciled into integration/CI |
 | Phase 9 | T081,T085-T089 | `work/phase9-mutation-integrations-20260702` | `07ea3279` | Implemented and locally tested | Not reconciled into integration/CI |
 | Phase 10 | T090-T096 | `work/phase10-status-observability-20260702` | `28760484` | Implemented and locally tested | Not reconciled into integration/CI |
 | Phase 11 | T097-T102 | `work/phase11-contract-docs-migration-20260702` | `4cb45f8b` | Implemented and locally tested | Not reconciled into integration/CI |
-| Phase 12 | T103-T114 | `work/phase12-verification-release-20260702` | `4abfc702` | Local pre-CI evidence recorded | External release gates remain blocked |
+| Phase 12 | T103-T114 | `work/phase12-verification-release-20260702` | `94dc4e64` | Local pre-CI and integration baseline evidence recorded | External release gates remain blocked |
 
 Local branch rollup: T001-T102 are complete across the phase worktrees; T103-T114 remain release-gated. Do not merge phase branches or promote production until the branches are reconciled, full CI passes, staging/approval gates complete, and the Phase 12 blockers above are closed.
 
@@ -98,7 +98,7 @@ This queue is an execution checklist for the future integration pass only. It is
 | 3 | `work/phase9-mutation-integrations-20260702` | Mutation/integration tests and task rollup at `07ea3279` | Mutation policy, Cloudflare, and n8n tests pass on integration head without new approval infrastructure |
 | 4 | `work/phase10-status-observability-20260702` | Readiness/audit and trace tests at `28760484` | Status, trace projection, audit, metrics, and alert tests pass on integration head |
 | 5 | `work/phase11-contract-docs-migration-20260702` | Contract/docs/schema tests at `4cb45f8b` | OpenAPI 3.1, schema guard, route coverage, and migration docs pass on integration head |
-| 6 | `work/phase12-verification-release-20260702` | Release evidence commits `4abfc702` and `f643955f` | Full integration test command set, GitHub CI, staging evidence, reviews, approvals, rollout, and legacy retirement gates complete |
+| 6 | `work/phase12-verification-release-20260702` | Release evidence commits through `94dc4e64` | Full integration test command set, GitHub CI, staging evidence, reviews, approvals, rollout, and legacy retirement gates complete |
 
 Queue invariants:
 
