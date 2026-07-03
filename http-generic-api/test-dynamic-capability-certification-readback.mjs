@@ -155,6 +155,67 @@ assert.equal(happy.guarantees.runtime_authority_changed, false);
 assert.equal(happy.guarantees.provider_calls_performed, false);
 assert.equal(happy.guarantees.secrets_included, false);
 
+const adapterlessInternalWrite = await buildDynamicCapabilityCertificationReadbackPreview({
+  capability_key: manifest.capability_key,
+  operation_mode: "apply",
+  runtime_surface: "repo_patch_apply",
+  environment: "production",
+}, {
+  pool: fakePool(baseRows({
+    adapters: [],
+    readbacks: [{
+      ...baseRows().readbacks[0],
+      contract_id: "contract-adapterless",
+      contract_key: "internal_sql.same_cycle_readback",
+      adapter_key: null,
+      provider_binding_constraints_json: JSON.stringify({}),
+    }],
+  })),
+  now: () => "2026-07-01T01:00:00.000Z",
+});
+assert.equal(adapterlessInternalWrite.adapter_resolution.state, "missing");
+assert.equal(adapterlessInternalWrite.diagnostics.adapter_required, false);
+assert.equal(adapterlessInternalWrite.diagnostics.adapter_requirement_sources.readback_contract, false);
+assert(!adapterlessInternalWrite.blockers.includes("ADAPTER_REQUIRED"));
+assert.equal(adapterlessInternalWrite.assurance_state, "ready_for_dispatch_shadow");
+
+const contractBoundAdapterMissing = await buildDynamicCapabilityCertificationReadbackPreview({
+  capability_key: manifest.capability_key,
+  operation_mode: "apply",
+  runtime_surface: "repo_patch_apply",
+  environment: "production",
+}, {
+  pool: fakePool(baseRows({
+    adapters: [],
+    readbacks: [{
+      ...baseRows().readbacks[0],
+      contract_id: "contract-bound-adapter",
+      contract_key: "internal_sql.adapter_bound_readback",
+      adapter_key: "internal.sql.adapter",
+      provider_binding_constraints_json: JSON.stringify({}),
+    }],
+  })),
+  now: () => "2026-07-01T01:00:00.000Z",
+});
+assert.equal(contractBoundAdapterMissing.diagnostics.adapter_required, true);
+assert.equal(contractBoundAdapterMissing.diagnostics.adapter_requirement_sources.readback_contract, true);
+assert(contractBoundAdapterMissing.blockers.includes("ADAPTER_REQUIRED"));
+assert.equal(contractBoundAdapterMissing.assurance_state, "blocked");
+
+const explicitAdapterMissing = await buildDynamicCapabilityCertificationReadbackPreview({
+  capability_key: manifest.capability_key,
+  operation_mode: "apply",
+  adapter_key: "missing.explicit.adapter",
+  runtime_surface: "repo_patch_apply",
+  environment: "production",
+}, {
+  pool: fakePool(baseRows({ adapters: [] })),
+  now: () => "2026-07-01T01:00:00.000Z",
+});
+assert.equal(explicitAdapterMissing.diagnostics.adapter_required, true);
+assert.equal(explicitAdapterMissing.diagnostics.adapter_requirement_sources.request_selector, true);
+assert(explicitAdapterMissing.blockers.includes("ADAPTER_REQUIRED"));
+
 const ambiguousAdapters = baseRows({
   adapters: [
     { ...baseRows().adapters[0], adapter_key: "adapter-a", installed_tool_key: null, resource_type: "github_file" },
