@@ -117,12 +117,15 @@ Passed on the integration worktree:
 node test-phase12-verification-release-readiness.mjs
 node test-release-readiness-tool-dispatch-integrity.mjs
 node test-release-readiness-migration-drift.mjs
+node test-approval-hold-identity-release-readiness.mjs
+node test-spec-kit-phase0-containment-evidence.mjs
 node test-platform-plugin-strict-request-contract.mjs
 node test-security-decision-engine.mjs
 node test-platform-plugin-resolver.mjs
 node test-local-project-path-repair-security.mjs
 node test-n8n-instance-mode-ownership-policy.mjs
 node test-cloudflare-mutation-policy-contract.mjs
+node test-explicit-mutation-policy-fail-closed.mjs
 node test-status-component-readiness-freshness.mjs
 node test-security-decision-trace-contract.mjs
 node test-audit-payload-evidence.mjs
@@ -130,6 +133,9 @@ node test-tenant-platform-plugin-routes.mjs
 node test-tenant-platform-plugin-openapi.mjs
 node test-platform-plugin-contract-docs.mjs
 node test-openapi-route-coverage.mjs
+node test-platform-plugin-openapi-db-tag-parity.mjs
+node test-openapi-split-regeneration-parity.mjs
+node test-platform-degradation-policy.mjs
 node test-custom-gpt-schemas.mjs
 npm run schemas:check
 npm run schemas:guard
