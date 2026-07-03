@@ -1,74 +1,182 @@
 {
-  "schema_version": 1,
-  "feature_key": "001-capability-security-hardening",
-  "title": "Unified Capability Authorization and Execution Security Hardening",
-  "status": "in_progress",
-  "delivery_mode": "multi_pr",
-  "current_increment": {
-    "phase": "Phase 2 — Canonical capability domain",
-    "tasks_completed": [
-      "T001", "T002", "T003", "T004", "T005", "T006", "T007", "T008", "T009",
-      "T010", "T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019",
-      "T020", "T021", "T022", "T023", "T024", "T025", "T026"
-    ],
-    "tasks_remaining_range": "T027-T114",
-    "pull_request": 1969,
-    "branch": "gpt/001-capability-security-phase2-canonical-domain",
-    "merge_scope": "canonical_capability_domain_alias_registry_and_integrity"
-  },
-  "requirements": {
-    "migration": true,
-    "production_verification": true,
-    "post_merge_audit": true
-  },
-  "delivery": {
-    "implementation_prs": [1969],
-    "closeout_pr": {
-      "number": 1969,
-      "branch": "gpt/001-capability-security-phase2-canonical-domain",
-      "role": "phase_increment",
-      "status": "open_ci_pending"
-    }
-  },
-  "evidence": {
-    "phase0": {
-      "status": "completed_increment",
-      "validation_record": "containment-validation.md",
-      "tenant_reverification_report": "tenant-reverification-unified-report-2026-06-23.md",
-      "report_sha256": "5874a56d4dc5c3d11bce18e3166fd509fce74317253bd2e0305ff3c50485eb6f"
-    },
-    "phase1": {
-      "status": "merged",
-      "validation_record": "phase1-discovery-evidence-2026-06-26.md",
-      "live_report_sha256": "f9be9defbd3af578195745ec262d76f5955da7e227a3abba4ef58eb20b1be65b",
-      "records_scanned": 3811,
-      "resolver_baseline": {
-        "sample_count": 100,
-        "p50_ms": 228.902,
-        "p95_ms": 271.817,
-        "p99_ms": 307.352
-      }
-    },
-    "phase2": {
-      "status": "implemented_pending_ci_and_merge",
-      "pull_request": 1969,
-      "domain_models": [
-        "CanonicalCapability",
-        "CapabilityAlias"
-      ],
-      "policy_composition": true,
-      "registry_migration": "http-generic-api/migrations/1030_sprint69_canonical_capability_domain.sql",
-      "integrity_report": "http-generic-api/scripts/capability-alias-integrity-report.mjs",
-      "focused_test": "http-generic-api/test-canonical-capability-domain.mjs",
-      "migration_applied": false,
-      "secrets_included": false
-    },
-    "release_readiness": {
-      "status": "blocked_for_full_release",
-      "phase2_merge_eligible_after_ci_and_migration_review": true,
-      "unrestricted_tenant_execution_authorized": false,
-      "production_promotion_authorized": false
-    }
-  },
-  "secrets_included": false
+    "schema_version":  1,
+    "feature_key":  "001-capability-security-hardening",
+    "title":  "Unified Capability Authorization and Execution Security Hardening",
+    "status":  "in_progress",
+    "delivery_mode":  "multi_pr",
+    "current_increment":  {
+                              "phase":  "Phase 4 - Security decision engine",
+                              "tasks_completed":  [
+                                                      "T001",
+                                                      "T002",
+                                                      "T003",
+                                                      "T004",
+                                                      "T005",
+                                                      "T006",
+                                                      "T007",
+                                                      "T008",
+                                                      "T009",
+                                                      "T010",
+                                                      "T011",
+                                                      "T012",
+                                                      "T013",
+                                                      "T014",
+                                                      "T015",
+                                                      "T016",
+                                                      "T017",
+                                                      "T018",
+                                                      "T019",
+                                                      "T020",
+                                                      "T021",
+                                                      "T022",
+                                                      "T023",
+                                                      "T024",
+                                                      "T025",
+                                                      "T026",
+                                                      "T027",
+                                                      "T028",
+                                                      "T029",
+                                                      "T030",
+                                                      "T031",
+                                                      "T032",
+                                                      "T033",
+                                                      "T034",
+                                                      "T035",
+                                                      "T036",
+                                                      "T037",
+                                                      "T038",
+                                                      "T039",
+                                                      "T040",
+                                                      "T041",
+                                                      "T042",
+                                                      "T043",
+                                                      "T044",
+                                                      "T045",
+                                                      "T046",
+                                                      "T047",
+                                                      "T048",
+                                                      "T049",
+                                                      "T050",
+                                                      "T051",
+                                                      "T052",
+                                                      "T053",
+                                                      "T054",
+                                                      "T055",
+                                                      "T056",
+                                                      "T057",
+                                                      "T058",
+                                                      "T059",
+                                                      "T060",
+                                                      "T061",
+                                                      "T062",
+                                                      "T063",
+                                                      "T064",
+                                                      "T065",
+                                                      "T066",
+                                                      "T067",
+                                                      "T068",
+                                                      "T069",
+                                                      "T070",
+                                                      "T071",
+                                                      "T072",
+                                                      "T082",
+                                                      "T083",
+                                                      "T084"
+                                                  ],
+                              "tasks_remaining_range":  "T073-T081,T085-T114",
+                              "pull_request":  null,
+                              "branch":  "work/phase4-security-decision-engine-20260701",
+                              "merge_scope":  "strict_request_contract_and_security_decision_engine",
+                              "tasks_completed_count":  75,
+                              "tasks_remaining_count":  39
+                          },
+    "requirements":  {
+                         "migration":  true,
+                         "production_verification":  true,
+                         "post_merge_audit":  true
+                     },
+    "delivery":  {
+                     "implementation_prs":  [
+                                                1969
+                                            ],
+                     "closeout_pr":  {
+                                         "number":  1969,
+                                         "branch":  "gpt/001-capability-security-phase2-canonical-domain",
+                                         "role":  "phase_increment",
+                                         "status":  "open_ci_pending"
+                                     }
+                 },
+    "evidence":  {
+                     "phase0":  {
+                                    "status":  "completed_increment",
+                                    "validation_record":  "containment-validation.md",
+                                    "tenant_reverification_report":  "tenant-reverification-unified-report-2026-06-23.md",
+                                    "report_sha256":  "5874a56d4dc5c3d11bce18e3166fd509fce74317253bd2e0305ff3c50485eb6f"
+                                },
+                     "phase1":  {
+                                    "status":  "merged",
+                                    "validation_record":  "phase1-discovery-evidence-2026-06-26.md",
+                                    "live_report_sha256":  "f9be9defbd3af578195745ec262d76f5955da7e227a3abba4ef58eb20b1be65b",
+                                    "records_scanned":  3811,
+                                    "resolver_baseline":  {
+                                                              "sample_count":  100,
+                                                              "p50_ms":  228.902,
+                                                              "p95_ms":  271.817,
+                                                              "p99_ms":  307.352
+                                                          }
+                                },
+                     "phase2":  {
+                                    "status":  "implemented_pending_ci_and_merge",
+                                    "pull_request":  1969,
+                                    "domain_models":  [
+                                                          "CanonicalCapability",
+                                                          "CapabilityAlias"
+                                                      ],
+                                    "policy_composition":  true,
+                                    "registry_migration":  "http-generic-api/migrations/1030_sprint69_canonical_capability_domain.sql",
+                                    "integrity_report":  "http-generic-api/scripts/capability-alias-integrity-report.mjs",
+                                    "focused_test":  "http-generic-api/test-canonical-capability-domain.mjs",
+                                    "migration_applied":  false,
+                                    "secrets_included":  false
+                                },
+                     "release_readiness":  {
+                                               "status":  "blocked_for_full_release",
+                                               "phase2_merge_eligible_after_ci_and_migration_review":  true,
+                                               "unrestricted_tenant_execution_authorized":  false,
+                                               "production_promotion_authorized":  false,
+                                               "phase3_phase4_merge_eligible_after_ci":  true
+                                           },
+                     "phase3":  {
+                                    "status":  "implemented_pending_ci_and_merge",
+                                    "strict_one_selector_contract":  true,
+                                    "stable_selector_errors":  [
+                                                                   "MISSING_CAPABILITY_SELECTOR",
+                                                                   "AMBIGUOUS_CAPABILITY_SELECTOR",
+                                                                   "UNKNOWN_SECURITY_CONTRACT_FIELD"
+                                                               ],
+                                    "compatibility_telemetry":  true,
+                                    "focused_tests":  [
+                                                          "http-generic-api/test-platform-plugin-strict-request-contract.mjs",
+                                                          "http-generic-api/test-tenant-platform-plugin-routes.mjs",
+                                                          "http-generic-api/test-tenant-platform-plugin-openapi.mjs"
+                                                      ],
+                                    "secrets_included":  false
+                                },
+                     "phase4":  {
+                                    "status":  "implemented_pending_ci_and_merge",
+                                    "domain_models":  [
+                                                          "SecurityDecision",
+                                                          "GateResult"
+                                                      ],
+                                    "application_use_case":  "http-generic-api/src/application/capability/platformPluginSecurityDecisionUseCase.js",
+                                    "focused_tests":  [
+                                                          "http-generic-api/test-security-decision-engine.mjs",
+                                                          "http-generic-api/test-platform-plugin-resolver.mjs"
+                                                      ],
+                                    "dispatch_ready_invariant":  true,
+                                    "preview_mode_cannot_execute":  true,
+                                    "secrets_included":  false
+                                }
+                 },
+    "secrets_included":  false
 }
