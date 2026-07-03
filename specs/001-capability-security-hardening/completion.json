@@ -139,7 +139,7 @@
       ],
       "policy_composition": true,
       "registry_migration": "http-generic-api/migrations/1030_sprint69_canonical_capability_domain.sql",
-      "registry_migration_checksum_sha256": "ce835693b2251c8845d7467e5a1a7ea0d2e6aab07b420234a500c93b75ac562a",
+      "registry_migration_checksum_sha256": "0ca3f3e87a87a1102d4ce50eef0bc979db5a4b6e8a2c68efbee9a97cea02ab77",
       "registry_migration_statement_count": 5,
       "registry_migration_preflight": {
         "status": "pass",

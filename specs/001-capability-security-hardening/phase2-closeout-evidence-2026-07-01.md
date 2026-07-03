@@ -23,12 +23,13 @@
 ## Migration 1030 Static Evidence
 
 - Migration file: `http-generic-api/migrations/1030_sprint69_canonical_capability_domain.sql`
-- SHA-256: `ce835693b2251c8845d7467e5a1a7ea0d2e6aab07b420234a500c93b75ac562a`
+- SHA-256: `0ca3f3e87a87a1102d4ce50eef0bc979db5a4b6e8a2c68efbee9a97cea02ab77`
 - Statement count: `5`
 - Preflight status: `pass`
 - Risk count: `0`
 - Destructive statement count: `0`
 - Secrets included: `false`
+- Surface-contract gate refreshed on `2026-07-03`: `docs_completion_percent=100`, `gap_queue_items=0`, `critical_review_items=0`, `openapi_missing_sql_route_count=0`.
 - Static scope:
   - creates `canonical_capabilities`
   - creates `capability_aliases`
@@ -41,7 +42,7 @@
 - Migration applied: `false`
 - Ledger/schema readback: `not_run`
 - Integrity report: `not_run`
-- Blocker: governed auth control-plane discovery was attempted with list-before-call at `https://auth.mad4b.com/gpt/tools`, but this Codex session had no connection auth layer available. The endpoint returned `401 missing_backend_api_key`.
+- Blocker: governed auth control-plane discovery was re-attempted with list-before-call at `https://auth.mad4b.com/gpt/tools` on `2026-07-03`, but this Codex session had no connection auth layer available. The endpoint returned `401 missing_backend_api_key`.
 - Fallback decision: direct database execution was not used. This preserves the auth control-plane rule and avoids unsanctioned DB mutation.
 
 ## Required Remaining Sequence

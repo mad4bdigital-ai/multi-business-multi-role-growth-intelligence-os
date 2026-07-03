@@ -1,5 +1,11 @@
 -- Phase 2: canonical capability domain and alias registry.
 -- Additive only. Existing action/tool registries remain runtime authority until later phases route through this domain.
+-- no_provider_call
+-- no_credential_payload_read
+-- no_raw_secrets
+-- no_external_send
+-- no_external_write
+-- secrets_included_false
 
 CREATE TABLE IF NOT EXISTS canonical_capabilities (
   canonical_capability_id VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
