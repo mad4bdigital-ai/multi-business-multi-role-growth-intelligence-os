@@ -688,6 +688,7 @@ export async function buildDynamicCapabilityCertificationReadbackPreview(input =
 export const _testingDynamicCapabilityCertificationReadback = {
   normalizeInput,
   resolveAdapter,
+  resolveAdapterRequirement,
   resolveCertification,
   resolveReadback,
   summarizeEvidence,
