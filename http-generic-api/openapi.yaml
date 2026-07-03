@@ -15417,7 +15417,53 @@ paths:
                 pull_number: { type: integer, minimum: 1 }
                 branch: { type: string, maxLength: 255 }
                 migration: { type: string, maxLength: 255 }
-                expected_checksum_sha256: { type: string, pattern: '^[a-f0-9]{64}
+                expected_checksum_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+                expected_statement_count: { type: integer, minimum: 1 }
+                capability_envelope_id: { type: string, maxLength: 64 }
+                confirm: { type: string, maxLength: 256 }
+                superseding_commits:
+                  type: array
+                  maxItems: 20
+                  items: { type: string, pattern: '^[a-f0-9]{40}$' }
+                changed_files:
+                  type: array
+                  maxItems: 500
+                  items: { type: string, maxLength: 500 }
+                spec_intent: { type: string, maxLength: 64 }
+                historical: { type: boolean }
+                step_args:
+                  type: object
+                  additionalProperties: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Repository automation run completed
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '202':
+          description: Repository automation is awaiting an input checkpoint
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '400':
+          description: Invalid workflow input
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '409':
+          description: Repository automation could not complete in the current state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500':
+          description: Unexpected repository automation failure
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /platform/orchestration/ads-provider/snapshot-propose:
     post:
       x-openai-isConsequential: false
       tags: [platform-plugins]
