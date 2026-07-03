@@ -129,6 +129,19 @@ Expected error:
 
 This rule is mandatory for user privacy and tenant isolation.
 
+## Credential source metadata versus active bindings
+
+Credential-source candidates describe which resolution paths are available to the runtime; they are not proof that a credential binding was selected or materialized. `selected_source.credential_source_candidates` may contain values such as `platform_managed`, `tenant_connection`, or `none`, while `selected_source.active_credential_binding_count` is the authoritative bounded signal for whether an apply envelope is credential-backed.
+
+Apply authorization must use the active-binding count:
+
+- `active_credential_binding_count = 0` may pass only when `allow_no_credential_binding = 1`.
+- A positive count must fail when `allow_credential_binding = 0`.
+- A zero count must fail when policy requires an active credential binding.
+- Candidate metadata must not create authority, substitute for a binding, trigger secret reads during preview, or override capability-envelope, provider, approval, audit, and readback requirements.
+
+Platform-managed transport may therefore remain a valid candidate for platform-owned operations without implying that a tenant or user credential payload was bound to the envelope. Live credential materialization still occurs only after all preflight and authorization gates pass.
+
 ## Runtime implementation
 
 Key files:
