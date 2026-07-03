@@ -128,6 +128,9 @@ node test-security-decision-trace-contract.mjs
 node test-audit-payload-evidence.mjs
 node test-tenant-platform-plugin-routes.mjs
 node test-tenant-platform-plugin-openapi.mjs
+node test-platform-plugin-contract-docs.mjs
+node test-openapi-route-coverage.mjs
+node test-custom-gpt-schemas.mjs
 npm run schemas:check
 npm run schemas:guard
 ```
