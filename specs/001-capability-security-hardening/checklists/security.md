@@ -58,7 +58,7 @@
 - [ ] Every platform attempt has a persisted decision trace; T092 remains open.
 - [x] Reviewed gate states are explicit.
 - [ ] The global invariant that no allowed decision contains an unevaluated required gate remains open under T045.
-- [ ] Audit immutability/tamper evidence remains open under T094.
+- [x] Audit payload evidence includes tamper-evident SHA-256 digest chaining, immutable field metadata, bounded previews, and no-secret evidence under T094.
 - [x] Reviewed tenant responses do not expose secrets or foreign-object metadata.
 - [ ] Retention and governed trace-access controls remain open under T093–T094.
 
