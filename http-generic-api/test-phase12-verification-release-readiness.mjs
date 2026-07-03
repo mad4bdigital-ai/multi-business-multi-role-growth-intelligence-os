@@ -185,6 +185,20 @@ for (const prTriageEvidence of [
 ]) {
   assert(phase12.includes(prTriageEvidence), `phase12 must preserve PR triage evidence: ${prTriageEvidence}`);
 }
+
+for (const publishReadinessEvidence of [
+  "Phase 12 Remote Publish Readiness",
+  "ahead-only",
+  "by 11 commits",
+  "e8f27754..ad38f18d",
+  "zero remote-only commits",
+  "publish workflow requires the `gh` CLI",
+  "push this branch first",
+  "wait for PR `#2059` CI",
+  "integration stack PR `#2064`",
+]) {
+  assert(phase12.includes(publishReadinessEvidence), `phase12 must preserve publish readiness evidence: ${publishReadinessEvidence}`);
+}
 assert(phase12.includes("node scripts/phase-branch-rollup-check.mjs"));
 assert(packageJson.includes("release:phase-rollup-check"));
 assert(releaseChecklist.includes("Explicit production-promotion approval has not been granted"));

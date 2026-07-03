@@ -158,6 +158,13 @@ Recorded on 2026-07-03 from the GitHub connector. This snapshot is release-plann
 
 CI verification note: the GitHub combined-status connector returned no statuses for the inspected PR head SHAs. The `gh` CLI is not installed in this environment, so Actions checks/logs could not be independently verified from the local machine. PR `#2064` body records pull-request workflow success for `fdad5c42`, while connector metadata reports current head `5e0cde4c`; treat CI as unproven until GitHub Actions checks are inspected on the current PR head.
 
+
+## Phase 12 Remote Publish Readiness
+
+Recorded on 2026-07-03 after local PR triage. Local branch `work/phase12-verification-release-20260702` is clean and ahead-only of `origin/work/phase12-verification-release-20260702` by 11 commits: `e8f27754..ad38f18d`. There are zero remote-only commits in the tracked range.
+
+Publishing is intentionally held in this environment because the GitHub publish workflow requires the `gh` CLI and `gh` is not installed locally. When `gh` is installed and authenticated, push this branch first, wait for PR `#2059` CI, then update/reconcile the integration stack PR `#2064`. This does not authorize merge; merge still requires current-head CI success and all Phase 12 release gates.
+
 ## Release Blocking Rules
 
 - Do not merge any phase branch until all phase PRs required by the plan are reviewable, CI green, and reconciled with the intended base.
