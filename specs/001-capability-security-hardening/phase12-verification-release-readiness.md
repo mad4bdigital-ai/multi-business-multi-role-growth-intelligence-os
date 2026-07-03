@@ -71,6 +71,21 @@ Local warnings and gaps:
 - `schemas:check` and `schemas:guard` passed with the existing `tenant_core: 28 operations exceeds warning limit 26` warning.
 - The Phase 12 branch does not yet contain the newer Phase 8/9 focused tests named `test-local-project-path-repair-security.mjs`, `test-n8n-instance-mode-ownership-policy.mjs`, or `test-cloudflare-mutation-policy-contract.mjs`; keep T103 awaiting full CI evidence until the phase branches are reconciled and CI runs the complete suite.
 
+## Local Phase Branch Inventory
+
+Recorded on 2026-07-03 as a local branch rollup only. These commits prove local phase-branch closeout evidence, but they are not a substitute for branch reconciliation, integration CI, staging evidence, or governed release approval.
+
+| Phase | Tasks | Branch | Local commit | Local status | Release status |
+|---|---|---|---|---|---|
+| Phase 3/4 | T027-T045 | `work/phase4-security-decision-engine-20260701` | `9264bfc0` | Implemented and locally tested | Not reconciled into integration/CI |
+| Phase 8 | T073-T080 | `work/phase8-local-consent-shell-files-20260701` | `8b1f8085` | Implemented and locally tested | Not reconciled into integration/CI |
+| Phase 9 | T081,T085-T089 | `work/phase9-mutation-integrations-20260702` | `07ea3279` | Implemented and locally tested | Not reconciled into integration/CI |
+| Phase 10 | T090-T096 | `work/phase10-status-observability-20260702` | `28760484` | Implemented and locally tested | Not reconciled into integration/CI |
+| Phase 11 | T097-T102 | `work/phase11-contract-docs-migration-20260702` | `4cb45f8b` | Implemented and locally tested | Not reconciled into integration/CI |
+| Phase 12 | T103-T114 | `work/phase12-verification-release-20260702` | `4abfc702` | Local pre-CI evidence recorded | External release gates remain blocked |
+
+Local branch rollup: T001-T102 are complete across the phase worktrees; T103-T114 remain release-gated. Do not merge phase branches or promote production until the branches are reconciled, full CI passes, staging/approval gates complete, and the Phase 12 blockers above are closed.
+
 ## Release Blocking Rules
 
 - Do not merge any phase branch until all phase PRs required by the plan are reviewable, CI green, and reconciled with the intended base.

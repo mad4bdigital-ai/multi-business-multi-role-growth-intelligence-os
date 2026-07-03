@@ -99,6 +99,24 @@ assert.equal(completion.evidence.release_readiness.status, "blocked_for_full_rel
 assert.equal(completion.evidence.release_readiness.production_promotion_authorized, false);
 assert.equal(completion.secrets_included, false);
 
+assert(phase12.includes("Local Phase Branch Inventory"));
+for (const branchCommit of ["9264bfc0", "8b1f8085", "07ea3279", "28760484", "4cb45f8b", "4abfc702"]) {
+  assert(phase12.includes(branchCommit), `phase12 local branch inventory must include ${branchCommit}`);
+}
+assert.equal(completion.evidence.phase_branch_rollup.status, "local_phase_branches_implemented_pending_reconciliation_ci_and_release_gates");
+assert.equal(completion.evidence.phase_branch_rollup.tasks_completed_count, 102);
+assert.equal(completion.evidence.phase_branch_rollup.tasks_remaining_count, 12);
+assert.equal(completion.evidence.phase_branch_rollup.tasks_remaining_range, "T103-T114");
+assert.equal(completion.evidence.phase_branch_rollup.release_merge_allowed, false);
+assert.equal(completion.evidence.phase_branch_rollup.ci_required_before_merge, true);
+assert.equal(completion.evidence.phase_branch_rollup.production_promotion_authorized, false);
+for (const completedRollupTask of ["T027", "T045", "T073", "T081", "T089", "T090", "T096", "T097", "T102"]) {
+  assert(
+    completion.evidence.phase_branch_rollup.tasks_completed.includes(completedRollupTask),
+    `phase branch rollup must include ${completedRollupTask} as locally complete`,
+  );
+}
+
 assert(releaseChecklist.includes("Explicit production-promotion approval has not been granted"));
 assert(releaseChecklist.includes("Full release-readiness approval remains blocked"));
 assert(manifest.includes("node test-phase12-verification-release-readiness.mjs"));
