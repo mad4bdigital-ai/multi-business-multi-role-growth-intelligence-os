@@ -15362,7 +15362,6 @@ paths:
                 migration: { type: string, maxLength: 255 }
                 expected_checksum_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
                 expected_statement_count: { type: integer, minimum: 1 }
-                capability_envelope_id: { type: string, maxLength: 64 }
                 confirm: { type: string, maxLength: 256 }
                 superseding_commits:
                   type: array
