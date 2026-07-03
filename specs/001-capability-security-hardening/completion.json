@@ -155,6 +155,39 @@
       "post_merge_evidence": "phase2-closeout-evidence-2026-07-01.md",
       "secrets_included": false
     },
+    "phase_branch_rollup": {
+      "status": "local_phase_branches_implemented_pending_reconciliation_ci_and_release_gates",
+      "recorded_at": "2026-07-03",
+      "tasks_completed_count": 102,
+      "tasks_remaining_count": 12,
+      "tasks_completed_range": "T001-T102",
+      "tasks_remaining_range": "T103-T114",
+      "tasks_completed": [
+        "T001", "T002", "T003", "T004", "T005", "T006", "T007", "T008", "T009",
+        "T010", "T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019",
+        "T020", "T021", "T022", "T023", "T024", "T025", "T026", "T027", "T028", "T029",
+        "T030", "T031", "T032", "T033", "T034", "T035", "T036", "T037", "T038", "T039",
+        "T040", "T041", "T042", "T043", "T044", "T045", "T046", "T047", "T048", "T049",
+        "T050", "T051", "T052", "T053", "T054", "T055", "T056", "T057", "T058", "T059",
+        "T060", "T061", "T062", "T063", "T064", "T065", "T066", "T067", "T068", "T069",
+        "T070", "T071", "T072", "T073", "T074", "T075", "T076", "T077", "T078", "T079",
+        "T080", "T081", "T082", "T083", "T084", "T085", "T086", "T087", "T088", "T089",
+        "T090", "T091", "T092", "T093", "T094", "T095", "T096", "T097", "T098", "T099",
+        "T100", "T101", "T102"
+      ],
+      "tasks_remaining": ["T103", "T104", "T105", "T106", "T107", "T108", "T109", "T110", "T111", "T112", "T113", "T114"],
+      "branch_commits": {
+        "phase3_phase4": { "branch": "work/phase4-security-decision-engine-20260701", "commit": "9264bfc0", "tasks": "T027-T045" },
+        "phase8": { "branch": "work/phase8-local-consent-shell-files-20260701", "commit": "8b1f8085", "tasks": "T073-T080" },
+        "phase9": { "branch": "work/phase9-mutation-integrations-20260702", "commit": "07ea3279", "tasks": "T081,T085-T089" },
+        "phase10": { "branch": "work/phase10-status-observability-20260702", "commit": "28760484", "tasks": "T090-T096" },
+        "phase11": { "branch": "work/phase11-contract-docs-migration-20260702", "commit": "4cb45f8b", "tasks": "T097-T102" },
+        "phase12": { "branch": "work/phase12-verification-release-20260702", "commit": "94dc4e64", "tasks": "T103-T114" }
+      },
+      "release_merge_allowed": false,
+      "ci_required_before_merge": true,
+      "production_promotion_authorized": false
+    },
     "release_readiness": {
       "status": "blocked_for_full_release",
       "phase2_merge_eligible_after_ci_and_migration_review": false,
