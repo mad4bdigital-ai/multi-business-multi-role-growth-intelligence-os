@@ -42,8 +42,8 @@
 - [ ] Heartbeat freshness and online-state enforcement remain unproved from the tenant surface.
 - [ ] Capability-support evidence remains unproved from the tenant surface.
 - [ ] Local consent is not end-to-end proved for Tenant GPT.
-- [ ] Arbitrary shell replacement with registered command capabilities remains open under T073–T074.
-- [ ] Command argument schemas, path traversal/symlink controls, and separate file permissions remain open under T074–T080.
+- [x] Arbitrary shell replacement with registered command capabilities is covered by `tenant_ssh_cli_allowlisted_execute`, DB-driven connector shell policy, and local connector policy pull evidence.
+- [x] Command argument schemas, path traversal/symlink controls, separate file permissions, output bounds, and redaction are covered by the Phase 8 local shell/file tests.
 
 ## Mutations and approvals
 

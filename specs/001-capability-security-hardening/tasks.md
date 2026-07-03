@@ -105,14 +105,14 @@
 
 - [x] **T071** Define risk-based local-consent policy. `[FR-038, FR-041]`
 - [x] **T072** Implement bounded local approval token. `[FR-041]`
-- [ ] **T073** Replace arbitrary shell exposure with registered command capabilities. `[FR-039]`
-- [ ] **T074** Define typed argument schemas and reject shell metacharacter injection.
-- [ ] **T075** Define allowlisted file roots and canonical path normalization. `[FR-040]`
-- [ ] **T076** Prevent traversal and symlink escape. `[FR-040]`
-- [ ] **T077** Separate file read/write/delete permissions.
-- [ ] **T078** Deny protected secret paths and redact output.
-- [ ] **T079** Add output/time/size bounds.
-- [ ] **T080** Add local shell/file tests. `[G01-G08]`
+- [x] **T073** Replace arbitrary shell exposure with registered command capabilities. `[FR-039]`
+- [x] **T074** Define typed argument schemas and reject shell metacharacter injection.
+- [x] **T075** Define allowlisted file roots and canonical path normalization. `[FR-040]`
+- [x] **T076** Prevent traversal and symlink escape. `[FR-040]`
+- [x] **T077** Separate file read/write/delete permissions.
+- [x] **T078** Deny protected secret paths and redact output.
+- [x] **T079** Add output/time/size bounds.
+- [x] **T080** Add local shell/file tests. `[G01-G08]`
 
 ## Phase 9 — Mutation approval and integrations
 
