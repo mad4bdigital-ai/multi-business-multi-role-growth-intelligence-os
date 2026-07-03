@@ -51,7 +51,7 @@
 - [x] Existing approval records bind capability, subject, tenant, target, request digest, and expiry where implemented.
 - [x] Existing approval replay protection and consumption state are implemented where reviewed.
 - [ ] Idempotency coverage for every retryable mutation remains open.
-- [ ] Complete high-risk preview/readback/rollback evidence remains open under T084–T089 and T108.
+- [x] High-risk Cloudflare/n8n policy contracts cover preview/readback/rollback metadata under T084-T089; bounded staging mutation execution remains open under T108.
 
 ## Audit and privacy
 
