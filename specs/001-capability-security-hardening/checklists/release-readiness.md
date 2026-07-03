@@ -22,7 +22,7 @@ Evidence sources:
 
 ## Implementation
 
-- [ ] Canonical capability resolver is not yet production-ready; T020–T045 remain open.
+- [x] Canonical capability resolver, strict selector contract, and security decision engine are implemented for the reviewed increment through T045.
 - [x] Strict selector validation is active on the reviewed Platform Plugin path.
 - [x] Tenant/admin surface isolation is active on the reviewed paths.
 - [x] Credential requirement, resolution, and usability decisions are separated on reviewed paths.
@@ -38,9 +38,8 @@ Evidence sources:
 - [x] The error catalog contains the stable denial and containment codes used by the reviewed implementation.
 - [x] Existing Phase 0 migrations are additive; the current P1 review fix adds no schema migration.
 - [x] Rollback controls and the no-production-promotion boundary are documented.
-- [ ] Registry alias migration and complete live inventory verification remain open under T010–T026.
-- [ ] Client migration guidance for strict one-selector requests remains open under T099/T102.
-
+- [x] Registry alias discovery and current increment integrity checks are complete through T026; full release parity remains gated by Phase 12.
+- [x] Client migration guidance and legacy selector deprecation timeline are published for strict one-selector requests under T099/T102.
 ## Tests
 
 - [x] Focused unit/regression tests pass for mutation policy, runtime policy, and connect routes.

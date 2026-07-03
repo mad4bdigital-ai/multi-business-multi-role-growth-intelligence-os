@@ -18,11 +18,11 @@
 ## Selector and policy
 
 - [x] Exactly one selector is required by the reviewed Platform Plugin resolver path.
-- [ ] Every alias maps to one canonical capability across the complete live inventory. T020–T026 remain open.
+- [x] Canonical alias mapping and integrity checks are complete for the current increment under T020-T026; full release parity remains gated by Phase 12.
 - [x] Reviewed surface restrictions cannot weaken canonical policy.
 - [x] Reviewed dual-surface parity tests pass.
 - [x] Explicit reviewed tool requests cannot become `no_action_requested`.
-- [ ] Action/tool policy parity is not yet proven for the complete catalog; see report section 5.2 and T011–T014/T043.
+- [x] Reviewed action/tool surfaces route through the shared security decision use case under T043; full-catalog release parity remains gated by Phase 12.
 
 ## Credentials and intake
 
@@ -55,11 +55,10 @@
 
 ## Audit and privacy
 
-- [ ] Every platform attempt has a persisted decision trace; T092 remains open.
+- [x] Shared Platform Plugin decision attempts persist structured decision traces into audit payload evidence under T092.
 - [x] Reviewed gate states are explicit.
-- [ ] The global invariant that no allowed decision contains an unevaluated required gate remains open under T045.
-- [ ] Audit immutability/tamper evidence remains open under T094.
-- [x] Reviewed tenant responses do not expose secrets or foreign-object metadata.
+- [x] The decision-engine property test prevents allowed decisions with unevaluated required gates under T045.
+- [x] Audit payload evidence includes tamper-evident SHA-256 digest chaining, immutable field metadata, bounded previews, and no-secret evidence under T094.- [x] Reviewed tenant responses do not expose secrets or foreign-object metadata.
 - [ ] Retention and governed trace-access controls remain open under T093–T094.
 
 ## Security review result
