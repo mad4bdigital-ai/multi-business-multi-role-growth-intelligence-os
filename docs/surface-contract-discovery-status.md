@@ -32,9 +32,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 471/472 (99.79%)
-- Documentation gap migrations: 1
-- Gap severity: high=0, medium=1, low=0
+- Documentation complete migrations: 472/472 (100.00%)
+- Documentation gap migrations: 0
+- Gap severity: high=0, medium=0, low=0
 - SQL route coverage in OpenAPI: 6/6 (100.00%)
 - SQL route-like literals exempted from OpenAPI scoring: 609/615
 - SQL routes missing OpenAPI path coverage: 0
@@ -65,9 +65,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Safety marker | Migrations with marker |
 |---|---:|
 | no_provider_call | 472 |
-| no_credential_payload_read | 471 |
-| no_raw_secrets | 471 |
-| no_external_send | 471 |
+| no_credential_payload_read | 472 |
+| no_raw_secrets | 472 |
+| no_external_send | 472 |
 | no_external_write | 472 |
 | secrets_included_false | 472 |
 
