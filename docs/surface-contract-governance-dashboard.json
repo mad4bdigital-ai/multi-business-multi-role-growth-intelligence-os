@@ -6,20 +6,20 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 473,
-    "docs_complete_count": 473,
+    "migrations_with_surfaces": 475,
+    "docs_complete_count": 475,
     "docs_gap_count": 0,
     "docs_completion_percent": 100,
     "surface_totals": {
       "plugins": 12,
-      "tools": 2221,
+      "tools": 2228,
       "views": 431,
       "policies": 174,
       "routes": 615
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 402,
+      "tools": 404,
       "views": 174,
       "policies": 113,
       "routes": 248
@@ -35,17 +35,17 @@
       "high": 0,
       "medium": 0,
       "low": 0,
-      "none": 473
+      "none": 475
     },
     "high_risk_missing_docs": [],
     "medium_risk_missing_docs": [],
     "safety_marker_counts": {
-      "no_provider_call": 473,
-      "no_credential_payload_read": 473,
-      "no_raw_secrets": 473,
-      "no_external_send": 473,
-      "no_external_write": 473,
-      "secrets_included_false": 473
+      "no_provider_call": 475,
+      "no_credential_payload_read": 475,
+      "no_raw_secrets": 475,
+      "no_external_send": 475,
+      "no_external_write": 475,
+      "secrets_included_false": 475
     },
     "safety_marker_gap_migrations": 0,
     "route_coverage": {

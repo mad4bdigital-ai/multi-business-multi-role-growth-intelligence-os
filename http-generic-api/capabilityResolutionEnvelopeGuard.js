@@ -86,6 +86,7 @@ export async function resolveCapabilityExecutionEnvelope({
   fallbackSources = [],
   acceptedAppKeys = [],
   acceptedIntents = [],
+  acceptedCapabilityKeys = [],
   expectedTenantId = "",
   expectedUserId = "",
   expectedCommitSha = "",
@@ -118,6 +119,15 @@ export async function resolveCapabilityExecutionEnvelope({
   const allowedApps = new Set((acceptedAppKeys || []).map((item) => compact(item, 128)).filter(Boolean));
   if (allowedApps.size > 0 && appKey && !allowedApps.has(appKey)) {
     return capabilityEnvelopeFailure("capability_resolution_envelope_app_mismatch", { envelope_id: resolvedEnvelopeId, app_key: appKey });
+  }
+
+  const capabilityKey = compact(row.capability_key, 191);
+  const allowedCapabilities = new Set((acceptedCapabilityKeys || []).map((item) => compact(item, 191)).filter(Boolean));
+  if (allowedCapabilities.size > 0 && !allowedCapabilities.has(capabilityKey)) {
+    return capabilityEnvelopeFailure("capability_resolution_envelope_capability_mismatch", {
+      envelope_id: resolvedEnvelopeId,
+      capability_key: capabilityKey || null,
+    });
   }
 
   const tenantId = compact(expectedTenantId, 64);
@@ -168,6 +178,7 @@ export async function resolveCapabilityExecutionEnvelope({
     envelope_status: row.envelope_status,
     decision: row.decision,
     app_key: row.app_key || null,
+    capability_key: row.capability_key || null,
     operation_intent: row.operation_intent || null,
     selected_source_tier: row.selected_source_tier || null,
     selected_runtime_surface: row.selected_runtime_surface || null,
