@@ -128,22 +128,22 @@
 
 ## Phase 10 — Status and observability
 
-- [ ] **T090** Implement component-level activation/readiness projection. `[FR-045]`
-- [ ] **T091** Define health freshness policy and eliminate registered-equals-healthy language. `[FR-046]`
-- [ ] **T092** Persist structured decision traces. `[FR-047, FR-048]`
-- [ ] **T093** Add public-safe trace projection and governed admin detail. `[FR-049]`
-- [ ] **T094** Implement immutable/tamper-evident audit controls. `[FR-050]`
-- [ ] **T095** Add metrics and alerts for invariant violations.
-- [ ] **T096** Add readiness and audit tests. `[J01-J08]`
+- [x] **T090** Implement component-level activation/readiness projection. `[FR-045]`
+- [x] **T091** Define health freshness policy and eliminate registered-equals-healthy language. `[FR-046]`
+- [x] **T092** Persist structured decision traces. `[FR-047, FR-048]`
+- [x] **T093** Add public-safe trace projection and governed admin detail. `[FR-049]`
+- [x] **T094** Implement immutable/tamper-evident audit controls. `[FR-050]`
+- [x] **T095** Add metrics and alerts for invariant violations.
+- [x] **T096** Add readiness and audit tests. `[J01-J08]`
 
 ## Phase 11 — Contract, documentation, and client migration
 
-- [ ] **T097** Validate OpenAPI 3.1 contract against implementation.
-- [ ] **T098** Synchronize stable error codes and response examples.
-- [ ] **T099** Publish client migration guide for one-selector requests.
-- [ ] **T100** Update architecture, folder map, API standards, and operational runbooks.
-- [ ] **T101** Run canonical/OpenAPI generation scripts required by the repository.
-- [ ] **T102** Document deprecation timeline for legacy policy paths.
+- [x] **T097** Validate OpenAPI 3.1 contract against implementation.
+- [x] **T098** Synchronize stable error codes and response examples.
+- [x] **T099** Publish client migration guide for one-selector requests.
+- [x] **T100** Update architecture, folder map, API standards, and operational runbooks.
+- [x] **T101** Run canonical/OpenAPI generation scripts required by the repository.
+- [x] **T102** Document deprecation timeline for legacy policy paths.
 
 ## Phase 12 — Verification and release
 

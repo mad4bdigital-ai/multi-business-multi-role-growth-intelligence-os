@@ -39,8 +39,7 @@ Evidence sources:
 - [x] Existing Phase 0 migrations are additive; the current P1 review fix adds no schema migration.
 - [x] Rollback controls and the no-production-promotion boundary are documented.
 - [x] Registry alias discovery and current increment integrity checks are complete through T026; full release parity remains gated by Phase 12.
-- [ ] Client migration guidance for strict one-selector requests remains open under T099/T102.
-
+- [x] Client migration guidance and legacy selector deprecation timeline are published for strict one-selector requests under T099/T102.
 ## Tests
 
 - [x] Focused unit/regression tests pass for mutation policy, runtime policy, and connect routes.
