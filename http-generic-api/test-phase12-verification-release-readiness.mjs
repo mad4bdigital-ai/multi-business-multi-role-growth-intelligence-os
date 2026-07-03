@@ -17,6 +17,7 @@ const completion = JSON.parse(
   readFileSync("../specs/001-capability-security-hardening/completion.json", "utf8"),
 );
 const manifest = readFileSync("scripts/test-manifest.mjs", "utf8");
+const packageJson = readFileSync("package.json", "utf8");
 
 for (let task = 103; task <= 114; task += 1) {
   assert(phase12.includes(`T${task}`), `phase12 readiness record must include T${task}`);
@@ -137,6 +138,8 @@ for (const queuedBranch of [
   assert(phase12.includes(queuedBranch), `phase12 reconciliation queue must include ${queuedBranch}`);
 }
 
+assert(phase12.includes("node scripts/phase-branch-rollup-check.mjs"));
+assert(packageJson.includes("release:phase-rollup-check"));
 assert(releaseChecklist.includes("Explicit production-promotion approval has not been granted"));
 assert(releaseChecklist.includes("Full release-readiness approval remains blocked"));
 assert(manifest.includes("node test-phase12-verification-release-readiness.mjs"));

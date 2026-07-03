@@ -51,6 +51,7 @@ Passed locally:
 node test-phase12-verification-release-readiness.mjs
 node test-release-readiness-tool-dispatch-integrity.mjs
 node test-release-readiness-migration-drift.mjs
+node scripts/phase-branch-rollup-check.mjs
 node test-spec-kit-phase0-containment-evidence.mjs
 node test-security-decision-engine.mjs
 node test-platform-plugin-strict-request-contract.mjs
@@ -88,7 +89,7 @@ Local branch rollup: T001-T102 are complete across the phase worktrees; T103-T11
 
 ## Pre-Merge Reconciliation Queue
 
-This queue is an execution checklist for the future integration pass only. It is not merge authorization. Do not execute any merge step until the release owner starts the reconciliation pass and confirms the current CI target branch.
+This queue is an execution checklist for the future integration pass only. It is not merge authorization. Run `node scripts/phase-branch-rollup-check.mjs` before starting the queue. Do not execute any merge step until the release owner starts the reconciliation pass and confirms the current CI target branch.
 
 | Order | Source branch | Required local evidence before queue entry | Integration gate after queue entry |
 |---|---|---|---|
