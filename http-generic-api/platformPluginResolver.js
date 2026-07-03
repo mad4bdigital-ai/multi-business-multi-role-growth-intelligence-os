@@ -7,6 +7,7 @@ import {
   buildPlatformPluginSecurityDecision,
 } from "./src/application/capability/platformPluginSecurityDecisionUseCase.js";
 import { projectSecurityDecisionTrace } from "./src/domain/capability/securityDecision.js";
+import { writeAuditPayloadEvidence } from "./auditPayloadEvidence.js";
 
 export const CredentialRequirement = Object.freeze({
   NOT_REQUIRED: "not_required",
@@ -568,6 +569,69 @@ async function loadScopedConnections({ pool, pluginKey, tenantId, userId }) {
   );
 }
 
+async function persistSecurityDecisionTrace({
+  pool,
+  writer = writeAuditPayloadEvidence,
+  securityDecision,
+  publicTrace,
+  adminTrace,
+  context = {},
+} = {}) {
+  if (!securityDecision?.trace || typeof writer !== "function") {
+    return { status: "not_attempted", reason: "decision_trace_writer_unavailable", secrets_included: false };
+  }
+  try {
+    const evidence = await writer({
+      tenant_id: context.tenant_id || null,
+      actor_id: context.user_id || context.agent_id || null,
+      actor_type: context.principal_class || null,
+      action: "security.decision_trace",
+      resource_type: "capability_security_decision",
+      resource_id: context.plugin_key || null,
+      source_table: "security_decision_trace",
+      source_pk: securityDecision.trace.trace_id || context.request_id || null,
+      evidence_type: "security_decision_trace",
+      request_payload: {
+        request_id: context.request_id || null,
+        correlation_id: context.correlation_id || null,
+        plugin_key: context.plugin_key || null,
+        selector: context.selector || null,
+        principal_class: context.principal_class || null,
+        tenant_id: context.tenant_id || null,
+        workspace_id: context.workspace_id || null,
+      },
+      response_payload: {
+        trace: securityDecision.trace,
+        trace_public: publicTrace,
+        trace_admin: adminTrace,
+        metrics: securityDecision.metrics,
+      },
+      metadata: {
+        schema_version: "security_decision_trace_persistence.v1",
+        public_projection_stored: true,
+        admin_projection_stored: true,
+        raw_gate_details_stored: false,
+        secrets_included: false,
+      },
+    }, { pool });
+    return {
+      status: "persisted",
+      evidence_id: evidence?.evidence_id || null,
+      evidence_sha256: evidence?.evidence_sha256 || null,
+      trace_id: securityDecision.trace.trace_id || null,
+      action: "security.decision_trace",
+      evidence_type: "security_decision_trace",
+      secrets_included: false,
+    };
+  } catch (err) {
+    return {
+      status: "failed",
+      error_code: err?.code || "decision_trace_persistence_failed",
+      message: compactString(err?.message || err, 240),
+      secrets_included: false,
+    };
+  }
+}
 export async function resolvePlatformPluginExecution({
   pool = getPool(),
   pluginKey,
@@ -586,6 +650,7 @@ export async function resolvePlatformPluginExecution({
   requestId = null,
   correlationId = null,
   securityAlertWriter = undefined,
+  decisionTraceWriter = writeAuditPayloadEvidence,
 } = {}) {
   const normalizedPluginKey = compactString(pluginKey, 128);
   if (!normalizedPluginKey) {
@@ -764,6 +829,26 @@ export async function resolvePlatformPluginExecution({
     actionGrant,
   });
   const dispatchReady = securityDecision.dispatch_ready;
+  const securityDecisionTracePublic = projectSecurityDecisionTrace(securityDecision.trace, { audience: "public" });
+  const securityDecisionTraceAdmin = projectSecurityDecisionTrace(securityDecision.trace, { audience: "admin" });
+  const decisionTracePersistence = await persistSecurityDecisionTrace({
+    pool,
+    writer: decisionTraceWriter,
+    securityDecision,
+    publicTrace: securityDecisionTracePublic,
+    adminTrace: securityDecisionTraceAdmin,
+    context: {
+      request_id: requestId,
+      correlation_id: correlationId,
+      plugin_key: normalizedPluginKey,
+      selector: selectorContract.selector,
+      principal_class: principalClass,
+      tenant_id: tenantId,
+      workspace_id: workspaceId,
+      user_id: userId,
+      agent_id: agentId,
+    },
+  });
 
   return {
     ok: true,
@@ -778,8 +863,9 @@ export async function resolvePlatformPluginExecution({
     principal_scope: principalScope,
     surface_resolution: surfaceExposure,
     security_decision: securityDecision,
-    security_decision_trace_public: projectSecurityDecisionTrace(securityDecision.trace, { audience: "public" }),
-    security_decision_trace_admin: projectSecurityDecisionTrace(securityDecision.trace, { audience: "admin" }),
+    security_decision_trace_public: securityDecisionTracePublic,
+    security_decision_trace_admin: securityDecisionTraceAdmin,
+    decision_trace_persistence: decisionTracePersistence,
     security_alerts: securityAlerts,
     credential_lookup: {
       required: credentialLookupRequired,

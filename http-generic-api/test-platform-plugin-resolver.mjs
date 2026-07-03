@@ -181,6 +181,10 @@ function makePool({
   assert.equal("invariant_results" in result.security_decision_trace_public, false);
   assert.equal("reason" in result.security_decision_trace_public.gate_events[0], false);
   assert.equal(result.security_decision_trace_admin.invariant_results.dispatch_ready_requires_allowed_without_approval, true);
+  assert.equal(result.decision_trace_persistence.status, "persisted");
+  assert.equal(result.decision_trace_persistence.evidence_type, "security_decision_trace");
+  assert.equal(result.decision_trace_persistence.secrets_included, false);
+  assert(pool.calls.some((call) => String(call.sql || "").includes("INSERT INTO `audit_payload_evidence`")));
   assert.equal("reason" in result.security_decision_trace_admin.gate_events[0], true);
   assert.deepEqual(
     result.security_decision.gates.map((gate) => gate.key),

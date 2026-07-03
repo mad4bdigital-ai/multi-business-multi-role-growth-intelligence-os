@@ -44,28 +44,28 @@
 
 ## Phase 3 — Strict request contract
 
-- [ ] **T027** Implement one-selector union schema at the API boundary. `[FR-001]`
-- [ ] **T028** Implement `MISSING_CAPABILITY_SELECTOR`. `[FR-001]`
-- [ ] **T029** Implement `AMBIGUOUS_CAPABILITY_SELECTOR`. `[FR-002]`
-- [ ] **T030** Reject unknown request fields where security strictness applies.
-- [ ] **T031** Remove silent selector precedence from every dispatcher path.
-- [ ] **T032** Add compatibility telemetry for legacy clients.
-- [ ] **T033** Add API integration tests for selector cases. `[A01-A05]`
+- [x] **T027** Implement one-selector union schema at the API boundary. `[FR-001]`
+- [x] **T028** Implement `MISSING_CAPABILITY_SELECTOR`. `[FR-001]`
+- [x] **T029** Implement `AMBIGUOUS_CAPABILITY_SELECTOR`. `[FR-002]`
+- [x] **T030** Reject unknown request fields where security strictness applies.
+- [x] **T031** Remove silent selector precedence from every dispatcher path.
+- [x] **T032** Add compatibility telemetry for legacy clients.
+- [x] **T033** Add API integration tests for selector cases. `[A01-A05]`
 
 ## Phase 4 — Security decision engine
 
-- [ ] **T034** Create `SecurityDecision` and `GateResult` domain models. `[FR-015]`
-- [ ] **T035** Implement principal and tenant authorization evaluator. `[FR-009-FR-014]`
-- [ ] **T036** Implement surface exposure evaluator. `[FR-010, FR-011]`
-- [ ] **T037** Implement target-resource ownership abstraction. `[FR-012, FR-013]`
-- [ ] **T038** Integrate skill evaluation as a separate gate.
-- [ ] **T039** Implement fail-closed policy completeness validator. `[FR-016, FR-021]`
-- [ ] **T040** Implement `dispatch_ready` invariant. `[FR-017]`
-- [ ] **T041** Ensure preview mode cannot execute. `[FR-018]`
-- [ ] **T042** Fix explicit tool requests incorrectly classified as `no_action_requested`. `[FR-020]`
-- [ ] **T043** Route action and tool surfaces through the same application use case.
-- [ ] **T044** Add decision-engine unit tests for all gate-state combinations. `[C01-C07]`
-- [ ] **T045** Add property test: no allowed decision contains an unevaluated required gate.
+- [x] **T034** Create `SecurityDecision` and `GateResult` domain models. `[FR-015]`
+- [x] **T035** Implement principal and tenant authorization evaluator. `[FR-009-FR-014]`
+- [x] **T036** Implement surface exposure evaluator. `[FR-010, FR-011]`
+- [x] **T037** Implement target-resource ownership abstraction. `[FR-012, FR-013]`
+- [x] **T038** Integrate skill evaluation as a separate gate.
+- [x] **T039** Implement fail-closed policy completeness validator. `[FR-016, FR-021]`
+- [x] **T040** Implement `dispatch_ready` invariant. `[FR-017]`
+- [x] **T041** Ensure preview mode cannot execute. `[FR-018]`
+- [x] **T042** Fix explicit tool requests incorrectly classified as `no_action_requested`. `[FR-020]`
+- [x] **T043** Route action and tool surfaces through the same application use case.
+- [x] **T044** Add decision-engine unit tests for all gate-state combinations. `[C01-C07]`
+- [x] **T045** Add property test: no allowed decision contains an unevaluated required gate.
 
 ## Phase 5 — Credential-policy separation
 
@@ -128,13 +128,13 @@
 
 ## Phase 10 — Status and observability
 
-- [ ] **T090** Implement component-level activation/readiness projection. `[FR-045]`
-- [ ] **T091** Define health freshness policy and eliminate registered-equals-healthy language. `[FR-046]`
-- [ ] **T092** Persist structured decision traces. `[FR-047, FR-048]`
-- [ ] **T093** Add public-safe trace projection and governed admin detail. `[FR-049]`
-- [ ] **T094** Implement immutable/tamper-evident audit controls. `[FR-050]`
-- [ ] **T095** Add metrics and alerts for invariant violations.
-- [ ] **T096** Add readiness and audit tests. `[J01-J08]`
+- [x] **T090** Implement component-level activation/readiness projection. `[FR-045]`
+- [x] **T091** Define health freshness policy and eliminate registered-equals-healthy language. `[FR-046]`
+- [x] **T092** Persist structured decision traces. `[FR-047, FR-048]`
+- [x] **T093** Add public-safe trace projection and governed admin detail. `[FR-049]`
+- [x] **T094** Implement immutable/tamper-evident audit controls. `[FR-050]`
+- [x] **T095** Add metrics and alerts for invariant violations.
+- [x] **T096** Add readiness and audit tests. `[J01-J08]`
 
 ## Phase 11 — Contract, documentation, and client migration
 
