@@ -41,6 +41,36 @@ npm run schemas:guard
 git diff --check
 ```
 
+## Local Pre-CI Evidence
+
+Recorded on 2026-07-03 from the Phase 12 worktree using the repository-local Node/npm toolchain because the managed Windows sandbox could not initialize reliably in this session. This evidence is local-only and does not satisfy CI, staging, production approval, rollout, or legacy retirement gates.
+
+Passed locally:
+
+```text
+node test-phase12-verification-release-readiness.mjs
+node test-release-readiness-tool-dispatch-integrity.mjs
+node test-release-readiness-migration-drift.mjs
+node test-spec-kit-phase0-containment-evidence.mjs
+node test-security-decision-engine.mjs
+node test-platform-plugin-strict-request-contract.mjs
+node test-platform-plugin-resolver.mjs
+node test-tenant-platform-plugin-routes.mjs
+node test-phase10-status-observability-readiness-audit.mjs
+node test-explicit-mutation-policy-fail-closed.mjs
+node test-security-decision-trace-contract.mjs
+node test-platform-plugin-contract-docs.mjs
+npm run schemas:check
+npm run schemas:guard
+git diff --check
+```
+
+Local warnings and gaps:
+
+- `test-platform-plugin-strict-request-contract.mjs`, `schemas:guard`, and route tests printed expected local environment warnings for disabled queue or missing DB environment variables.
+- `schemas:check` and `schemas:guard` passed with the existing `tenant_core: 28 operations exceeds warning limit 26` warning.
+- The Phase 12 branch does not yet contain the newer Phase 8/9 focused tests named `test-local-project-path-repair-security.mjs`, `test-n8n-instance-mode-ownership-policy.mjs`, or `test-cloudflare-mutation-policy-contract.mjs`; keep T103 awaiting full CI evidence until the phase branches are reconciled and CI runs the complete suite.
+
 ## Release Blocking Rules
 
 - Do not merge any phase branch until all phase PRs required by the plan are reviewable, CI green, and reconciled with the intended base.
