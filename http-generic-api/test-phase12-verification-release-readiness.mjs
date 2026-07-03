@@ -117,6 +117,26 @@ for (const completedRollupTask of ["T027", "T045", "T073", "T081", "T089", "T090
   );
 }
 
+for (const reconciliationBoundary of [
+  "Pre-Merge Reconciliation Queue",
+  "not merge authorization",
+  "release owner starts the reconciliation pass",
+  "Integration branch must be clean before each queue entry",
+  "Do not mark T103-T114 complete from this queue alone",
+]) {
+  assert(phase12.includes(reconciliationBoundary), `phase12 must preserve reconciliation boundary: ${reconciliationBoundary}`);
+}
+for (const queuedBranch of [
+  "work/phase4-security-decision-engine-20260701",
+  "work/phase8-local-consent-shell-files-20260701",
+  "work/phase9-mutation-integrations-20260702",
+  "work/phase10-status-observability-20260702",
+  "work/phase11-contract-docs-migration-20260702",
+  "work/phase12-verification-release-20260702",
+]) {
+  assert(phase12.includes(queuedBranch), `phase12 reconciliation queue must include ${queuedBranch}`);
+}
+
 assert(releaseChecklist.includes("Explicit production-promotion approval has not been granted"));
 assert(releaseChecklist.includes("Full release-readiness approval remains blocked"));
 assert(manifest.includes("node test-phase12-verification-release-readiness.mjs"));

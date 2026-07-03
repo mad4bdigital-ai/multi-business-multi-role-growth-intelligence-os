@@ -86,6 +86,26 @@ Recorded on 2026-07-03 as a local branch rollup only. These commits prove local 
 
 Local branch rollup: T001-T102 are complete across the phase worktrees; T103-T114 remain release-gated. Do not merge phase branches or promote production until the branches are reconciled, full CI passes, staging/approval gates complete, and the Phase 12 blockers above are closed.
 
+## Pre-Merge Reconciliation Queue
+
+This queue is an execution checklist for the future integration pass only. It is not merge authorization. Do not execute any merge step until the release owner starts the reconciliation pass and confirms the current CI target branch.
+
+| Order | Source branch | Required local evidence before queue entry | Integration gate after queue entry |
+|---|---|---|---|
+| 1 | `work/phase4-security-decision-engine-20260701` | Phase 3/4 focused tests and task rollup at `9264bfc0` | Selector, OpenAPI, resolver, and decision-engine tests pass on integration head |
+| 2 | `work/phase8-local-consent-shell-files-20260701` | Local shell/file tests and task rollup at `8b1f8085` | Shell/file tests pass on integration head without arbitrary shell exposure |
+| 3 | `work/phase9-mutation-integrations-20260702` | Mutation/integration tests and task rollup at `07ea3279` | Mutation policy, Cloudflare, and n8n tests pass on integration head without new approval infrastructure |
+| 4 | `work/phase10-status-observability-20260702` | Readiness/audit and trace tests at `28760484` | Status, trace projection, audit, metrics, and alert tests pass on integration head |
+| 5 | `work/phase11-contract-docs-migration-20260702` | Contract/docs/schema tests at `4cb45f8b` | OpenAPI 3.1, schema guard, route coverage, and migration docs pass on integration head |
+| 6 | `work/phase12-verification-release-20260702` | Release evidence commits `4abfc702` and `f643955f` | Full integration test command set, GitHub CI, staging evidence, reviews, approvals, rollout, and legacy retirement gates complete |
+
+Queue invariants:
+
+- Integration branch must be clean before each queue entry and after each conflict resolution.
+- Each queue entry must produce a local verification note before the next source branch is considered.
+- If any integration-head test fails, stop the queue, fix on the owning phase branch or a dedicated reconciliation branch, and rerun the failed gate plus affected downstream gates.
+- Do not mark T103-T114 complete from this queue alone; Phase 12 completion still requires CI, staging, approvals, rollout, and legacy retirement evidence.
+
 ## Release Blocking Rules
 
 - Do not merge any phase branch until all phase PRs required by the plan are reviewable, CI green, and reconciled with the intended base.
