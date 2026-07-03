@@ -1,14 +1,14 @@
 # Surface Contract Governance Compact
 
-- Gate: pass
-- Blocking new items: 0
-- Docs completion: 470/470 (100%)
-- Queue items: 0
+- Gate: fail
+- Blocking new items: 1
+- Docs completion: 470/471 (99.79%)
+- Queue items: 1
 - OpenAPI missing SQL routes: 0
 - OpenAPI-exempt SQL route-like literals: 609/615
 - Safety marker gap migrations: 0
-- Trend quality gate: pass
+- Trend quality gate: fail
 
 ## Top actionable
 
-- none
+- `20260702_session_archive_capability_family_authorization.sql` — high_review, score 539; add targeted patch-index, parity, and governance documentation
