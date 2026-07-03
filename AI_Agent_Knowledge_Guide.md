@@ -77,6 +77,23 @@ The semantic capability descriptor source must expose an admin-only, read-only `
 
 See `docs/semantic-capability-effective-resolution.md` and the semantic capability canonical pages in `system_bootstrap`, `direct_instructions_registry_patch`, `module_loader`, and `prompt_router`.
 
+### Generic platform resource context
+
+Use the descriptor-backed `platform_resource_context_resolve` as the primary context entry point whenever an Admin or Tenant request names a Brand, Workspace, Asset, CMS Site, or Connection. The resource may be supplied through a typed field or through generic `reference` plus `resource_type=auto`. Brand and Workspace are optional graph nodes, not mandatory starting points.
+
+Helper tools are purpose-specific:
+
+- `platform_resource_context_catalog` lists the signed principal's authorized resources with type/search filters and cursor pagination.
+- `platform_resource_context_related` expands an exact canonical resource key without language interpretation.
+- `platform_resource_context_diagnostic_handoff` returns safe Site, grant, Connection, and diagnostic-tool identifiers while keeping live connectivity `not_checked` until a provider diagnostic succeeds.
+- `platform_resource_context_readiness_smoke` is the Admin-only descriptor/schema/no-secret readiness check.
+
+When deterministic matching fails, use `resource_reference_interpreter_v1` only to generate bounded `candidate_refs` from the returned authorized catalog, then repeat the resolver call. Prompt output is never authority. The backend must still perform deterministic matching, ambiguity checks, signed principal resolution, membership validation, and effective resource authorization.
+
+Tenant-supplied `tenant_id` and `user_id` are ignored. Tenant Owner/Admin may receive Tenant-level authorized resources; Member/Viewer catalogs are filtered before prompt exposure through effective grants, user-owned Connections, and active CMS grants. Safe Connection metadata may expose only identifiers, labels, status, validation status, and credential-material presence; encrypted credentials, credential references, passwords, tokens, and headers are forbidden.
+
+The legacy `brand_workspace_context_resolve` remains available for backward compatibility and explicitly Brand-first workflows. New generic routing must use the resource-first resolver. See `docs/platform-resource-context.md`.
+
 ### Growth-audit evidence workflow
 
 For requests that compare client recommendations with a live website, Brand Core, Google strategy documents, or implementation trackers, use the shared descriptor-backed tool `growth_audit_evidence_prepare` before forming conclusions.
@@ -951,6 +968,12 @@ If auth fails:
 - `invalid_grant` in a user-owned Drive/Sheets flow means refresh-token repair may be required
 - platform bootstrap auth failures point to service account, ADC, sharing, scope, or deployment configuration
 - do not switch a platform-owned bootstrap file to user refresh-token auth just to make a probe pass
+
+### Credential source metadata and active binding evidence
+
+Credential-source candidates are routing metadata, not proof that a credential binding was materialized or selected. In capability-envelope apply authorization, `selected_source.credential_source_candidates` may describe transport choices such as `platform_managed`, `tenant_connection`, or `none`, while `selected_source.active_credential_binding_count` is the authority for whether the envelope is credential-backed.
+
+When `active_credential_binding_count = 0`, a policy with `allow_no_credential_binding = 1` may authorize the no-binding path even when the transport candidate is platform-managed. When the count is greater than zero, policies with `allow_credential_binding = 0` must remain blocked. Conversely, policies that require a credential binding must reject a zero count. Candidate metadata must never create authority, override the active-binding count, trigger credential payload reads, or weaken provider, approval, audit, and readback gates.
 
 ### Passive auth lifecycle and Google action context
 

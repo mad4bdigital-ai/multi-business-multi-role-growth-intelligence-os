@@ -1,7 +1,7 @@
 {
   "ok": true,
   "schema_version": "surface-contract-manual-safety-attestations-v1",
-  "item_count": 1,
+  "item_count": 2,
   "items": [
     {
       "migration_file": "1013_sprint69_approval_hold_identity_collation_alignment.sql",
@@ -78,6 +78,85 @@
       "migration_effects": {
         "internal_database_write": true,
         "schema_mutation": true,
+        "external_write": false,
+        "provider_call": false,
+        "credential_payload_read": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "1025_sprint69_growth_audit_evidence_admin_tenant_support.sql",
+      "migration_sha256": "4699f2b2d5fe510704600d2f5a76f384b3b35e6aefafea9c8ee7b832ff4ac94b",
+      "checksum_canonicalization": "utf8_lf_v1",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_human_review",
+      "review_status": "approved_checksum_bound_internal_sql",
+      "reviewed_by": "platform_admin:f242960c-2857-4b4d-a504-ee50f8a278b4",
+      "reviewed_at": "2026-07-02T13:47:00Z",
+      "rationale": "Human review confirmed that the checksum-bound PREPARE and EXECUTE pair selects only one idempotent internal Brand Core normalization statement or a read-only SELECT note when legacy columns are unavailable. The dynamic statement cannot call a provider, read credential payloads, return raw secrets, send externally, write externally, deploy, or authorize migration execution; all remaining statements are bounded internal registry upserts and a blocking policy seed.",
+      "execution_authorized": false,
+      "queue_class_at_attestation": "critical_review",
+      "gap_severity_at_attestation": "high",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 10,
+      "accepted_preflight_risks": {},
+      "accepted_forbidden_patterns": [
+        "\\bPREPARE\\s+[A-Za-z0-9_]+\\s+FROM\\b",
+        "^\\s*EXECUTE\\s+[A-Za-z0-9_]+\\b"
+      ],
+      "required_sql_fragments": [
+        "SET @growth_audit_brand_core_backfill_sql := IF(",
+        "PREPARE growth_audit_brand_core_backfill_stmt FROM @growth_audit_brand_core_backfill_sql;",
+        "EXECUTE growth_audit_brand_core_backfill_stmt;",
+        "DEALLOCATE PREPARE growth_audit_brand_core_backfill_stmt;",
+        "INSERT INTO `system_layer_tool_descriptor_source_registry`",
+        "INSERT INTO `tenant_platform_endpoint_tools`",
+        "INSERT INTO `platform_capability_provider_bindings`",
+        "INSERT INTO `execution_policies`"
+      ],
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 2,
+        "views": 0,
+        "policies": 1,
+        "routes": 1
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_policy_seed_readiness",
+          "targets": [
+            "growth_audit_evidence_admin_tenant_policy_v1"
+          ]
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "system_layer_tool_descriptor_source_registry",
+            "tenant_platform_endpoint_tools"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      },
+      "migration_effects": {
+        "internal_database_write": true,
+        "schema_mutation": false,
         "external_write": false,
         "provider_call": false,
         "credential_payload_read": false,
