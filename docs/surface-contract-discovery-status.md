@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 471
+- Migrations with detected surfaces: 472
 - Migrations reported here: 80
 - OpenAPI operations detected: 524
 - OpenAPI paths detected: 487
@@ -32,9 +32,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 471/471 (100.00%)
-- Documentation gap migrations: 0
-- Gap severity: high=0, medium=0, low=0
+- Documentation complete migrations: 471/472 (99.79%)
+- Documentation gap migrations: 1
+- Gap severity: high=0, medium=1, low=0
 - SQL route coverage in OpenAPI: 6/6 (100.00%)
 - SQL route-like literals exempted from OpenAPI scoring: 609/615
 - SQL routes missing OpenAPI path coverage: 0
@@ -45,7 +45,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 12 | 9 |
-| tools | 2210 | 400 |
+| tools | 2215 | 401 |
 | views | 429 | 172 |
 | policies | 172 | 111 |
 | routes | 615 | 248 |
@@ -54,22 +54,22 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 0 |
-| `deployment_parity_checklist.md` | 0 |
-| `docs/ai-docs-agent-governance.md` | 0 |
-| `docs/auto-docs-agent/README.md` | 0 |
-| `docs/change-documentation-governance.md` | 0 |
+| `Updating Registry Patch Index.md` | 1 |
+| `deployment_parity_checklist.md` | 1 |
+| `docs/ai-docs-agent-governance.md` | 1 |
+| `docs/auto-docs-agent/README.md` | 1 |
+| `docs/change-documentation-governance.md` | 1 |
 
 ### Safety Marker Coverage
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 471 |
+| no_provider_call | 472 |
 | no_credential_payload_read | 471 |
 | no_raw_secrets | 471 |
 | no_external_send | 471 |
-| no_external_write | 471 |
-| secrets_included_false | 471 |
+| no_external_write | 472 |
+| secrets_included_false | 472 |
 
 ### Route Classification Coverage
 
@@ -88,15 +88,15 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 0
+- Total queue items: 1
 - Critical review: 0
-- High review: 0
+- High review: 1
 - Medium review: 0
 - Low review: 0
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
-| none | covered | 0 | none | 0 | 0 | 0 | none |
+| `20260701_repository_operation_leases.sql` | high_review | 580 | medium | 5 | 0 | 3 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 
 
 ## Latest Surface Coverage
