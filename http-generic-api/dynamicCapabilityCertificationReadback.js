@@ -658,6 +658,7 @@ export async function buildDynamicCapabilityCertificationReadbackPreview(input =
     diagnostics: {
       mutation_effect_class: mutation,
       adapter_required: adapterRequired,
+      adapter_requirement_sources: adapterRequirement.sources,
       certification_required: certificationRequired,
       readback_required: readbackRequired,
       apply_contract_ready: request.operation_mode === "apply" && uniqueBlockers.length === 0,
