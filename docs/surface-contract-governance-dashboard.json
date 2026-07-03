@@ -6,20 +6,20 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 471,
-    "docs_complete_count": 470,
-    "docs_gap_count": 1,
-    "docs_completion_percent": 99.79,
+    "migrations_with_surfaces": 472,
+    "docs_complete_count": 472,
+    "docs_gap_count": 0,
+    "docs_completion_percent": 100,
     "surface_totals": {
       "plugins": 12,
-      "tools": 2210,
+      "tools": 2215,
       "views": 429,
       "policies": 172,
       "routes": 615
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 400,
+      "tools": 401,
       "views": 172,
       "policies": 111,
       "routes": 248
@@ -35,19 +35,19 @@
       "high": 0,
       "medium": 1,
       "low": 0,
-      "none": 470
+      "none": 472
     },
     "high_risk_missing_docs": [],
     "medium_risk_missing_docs": [
       "20260702_session_archive_capability_family_authorization.sql"
     ],
     "safety_marker_counts": {
-      "no_provider_call": 470,
-      "no_credential_payload_read": 471,
-      "no_raw_secrets": 470,
-      "no_external_send": 470,
-      "no_external_write": 470,
-      "secrets_included_false": 471
+      "no_provider_call": 472,
+      "no_credential_payload_read": 472,
+      "no_raw_secrets": 472,
+      "no_external_send": 472,
+      "no_external_write": 472,
+      "secrets_included_false": 472
     },
     "safety_marker_gap_migrations": 0,
     "route_coverage": {
