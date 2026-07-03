@@ -4,6 +4,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { splitMigrationSqlStatements } from "./migrationSqlStatements.js";
 
 const execFileAsync = promisify(execFile);
 const API_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -29,10 +30,7 @@ export function governedMigrationApplyConfirmation(migration = "") {
 }
 
 export function splitGovernedMigrationStatements(sql = "") {
-  const boundaryStart = "(?:CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:TABLE|VIEW)|CREATE\\s+(?:UNIQUE\\s+)?INDEX|INSERT\\s+(?:IGNORE\\s+)?INTO|UPDATE\\s+`?[A-Za-z0-9_]+`?|ALTER\\s+TABLE|DROP\\s+TABLE|TRUNCATE\\s+TABLE|DELETE\\s+FROM)\\b";
-  const interStatementTrivia = "(?:\\s|--[^\\n]*(?:\\n|$)|/\\*[\\s\\S]*?\\*/)*";
-  const statementBoundary = new RegExp(`;${interStatementTrivia}(?=${interStatementTrivia}(?:${boundaryStart})|$)`, "i");
-  return String(sql || "").split(statementBoundary).map((statement) => statement.trim()).filter(Boolean);
+  return splitMigrationSqlStatements(sql);
 }
 
 function normalizeInput(input = {}) {
