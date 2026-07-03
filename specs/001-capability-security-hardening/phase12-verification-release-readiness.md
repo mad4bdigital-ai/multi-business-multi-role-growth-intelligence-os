@@ -143,6 +143,21 @@ npm run schemas:guard
 
 Observed local warnings: `QUEUE_DISABLED` was printed for strict request/platform route tests because `REDIS_URL` was unset and queue features were disabled locally; `schemas:check` and `schemas:guard` printed the existing `tenant_core: 28 operations exceeds warning limit 26` warning; `schemas:guard` also reported missing DB environment variables for optional system endpoint export listing.
 
+
+## Remote PR Triage Snapshot
+
+Recorded on 2026-07-03 from the GitHub connector. This snapshot is release-planning evidence only; it does not authorize merge, push, provider execution, production mutation, or production promotion.
+
+| Priority | PR | Role | Connector state | Current action |
+|---|---|---|---|---|
+| 1 | `#2064` | Draft integration stack targeting `main` | Open draft, mergeable, head `5e0cde4c`, 67 changed files | Keep as CI/review aggregation surface only; do not merge until the full Phase 12 gates close |
+| 2 | `#2059` | Phase 12 readiness branch | Open draft, mergeable, remote head `e8f27754` | Remote PR is behind local Phase 12 evidence commits through `b8fb539d`; update only when pushing is explicitly authorized |
+| 3 | `#2057`, `#2047`, `#2039`, `#2038` | Stacked Phase 11/10/9/8 PRs | Open drafts, stacked on phase bases | Keep draft and reconcile through the integration stack rather than merging individually |
+| 4 | `#2033`, `#2032` | Phase 4 and Phase 3 base slices | Open drafts, connector reports non-mergeable against `main` | Do not merge directly; keep covered by the integration stack after branch reconciliation |
+| 5 | `#2031` | Phase 2 closeout evidence | Open non-draft, mergeable | Still blocked by governed Migration 1030 apply/readback and the no-merge rule for this plan |
+
+CI verification note: the GitHub combined-status connector returned no statuses for the inspected PR head SHAs. The `gh` CLI is not installed in this environment, so Actions checks/logs could not be independently verified from the local machine. PR `#2064` body records pull-request workflow success for `fdad5c42`, while connector metadata reports current head `5e0cde4c`; treat CI as unproven until GitHub Actions checks are inspected on the current PR head.
+
 ## Release Blocking Rules
 
 - Do not merge any phase branch until all phase PRs required by the plan are reviewable, CI green, and reconciled with the intended base.

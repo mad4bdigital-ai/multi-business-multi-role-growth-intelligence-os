@@ -169,6 +169,22 @@ for (const integrationBaseline of [
   assert(phase12.includes(integrationBaseline), `phase12 must preserve integration baseline: ${integrationBaseline}`);
 }
 
+
+for (const prTriageEvidence of [
+  "Remote PR Triage Snapshot",
+  "#2064",
+  "head `5e0cde4c`",
+  "#2059",
+  "remote head `e8f27754`",
+  "through `b8fb539d`",
+  "#2031",
+  "Migration 1030 apply/readback",
+  "combined-status connector returned no statuses",
+  "gh` CLI is not installed",
+  "treat CI as unproven",
+]) {
+  assert(phase12.includes(prTriageEvidence), `phase12 must preserve PR triage evidence: ${prTriageEvidence}`);
+}
 assert(phase12.includes("node scripts/phase-branch-rollup-check.mjs"));
 assert(packageJson.includes("release:phase-rollup-check"));
 assert(releaseChecklist.includes("Explicit production-promotion approval has not been granted"));
