@@ -62,17 +62,9 @@ function rowBody(req) {
 
 function sendError(res, error, fallbackCode = "registry_data_management_failed") {
   if (error instanceof DataManagementError) {
-    return res.status(error.status || 400).json({
-      ok: false,
-      error: { code: error.code, message: error.message, details: error.details || {} },
-      secrets_included: false,
-    });
+    return res.status(error.status || 400).json({ ok: false, error: { code: error.code, message: error.message, details: error.details || {} }, secrets_included: false });
   }
-  return res.status(500).json({
-    ok: false,
-    error: { code: fallbackCode, message: error?.message || "Registry data management failed." },
-    secrets_included: false,
-  });
+  return res.status(500).json({ ok: false, error: { code: fallbackCode, message: error?.message || "Registry data management failed." }, secrets_included: false });
 }
 
 export function buildRegistryDataManagementRoutes({ requireBackendApiKey, requireAdminPrincipal } = {}) {
@@ -89,43 +81,28 @@ export function buildRegistryDataManagementRoutes({ requireBackendApiKey, requir
   });
 
   router.get("/admin/data-tables/:table_key/rows", ...adminGuard, async (req, res) => {
-    try {
-      return res.json(await listRows({ tableKey: req.params.table_key, surface: "admin", query: req.query }));
-    } catch (error) {
-      return sendError(res, error, "admin_data_table_rows_list_failed");
-    }
+    try { return res.json(await listRows({ tableKey: req.params.table_key, surface: "admin", query: req.query })); }
+    catch (error) { return sendError(res, error, "admin_data_table_rows_list_failed"); }
   });
 
   router.get("/admin/data-tables/:table_key/rows/:row_id", ...adminGuard, async (req, res) => {
-    try {
-      return res.json(await getRow({ tableKey: req.params.table_key, rowId: req.params.row_id, surface: "admin" }));
-    } catch (error) {
-      return sendError(res, error, "admin_data_table_row_get_failed");
-    }
+    try { return res.json(await getRow({ tableKey: req.params.table_key, rowId: req.params.row_id, surface: "admin" })); }
+    catch (error) { return sendError(res, error, "admin_data_table_row_get_failed"); }
   });
 
   router.post("/admin/data-tables/:table_key/rows", ...adminGuard, async (req, res) => {
-    try {
-      return res.status(201).json(await createRow({ tableKey: req.params.table_key, surface: "admin", userId: req.auth?.user_id || req.auth?.admin_id, row: rowBody(req) }));
-    } catch (error) {
-      return sendError(res, error, "admin_data_table_row_create_failed");
-    }
+    try { return res.status(201).json(await createRow({ tableKey: req.params.table_key, surface: "admin", userId: req.auth?.user_id || req.auth?.admin_id, row: rowBody(req) })); }
+    catch (error) { return sendError(res, error, "admin_data_table_row_create_failed"); }
   });
 
   router.patch("/admin/data-tables/:table_key/rows/:row_id", ...adminGuard, async (req, res) => {
-    try {
-      return res.json(await patchRow({ tableKey: req.params.table_key, rowId: req.params.row_id, surface: "admin", userId: req.auth?.user_id || req.auth?.admin_id, row: rowBody(req) }));
-    } catch (error) {
-      return sendError(res, error, "admin_data_table_row_patch_failed");
-    }
+    try { return res.json(await patchRow({ tableKey: req.params.table_key, rowId: req.params.row_id, surface: "admin", userId: req.auth?.user_id || req.auth?.admin_id, row: rowBody(req) })); }
+    catch (error) { return sendError(res, error, "admin_data_table_row_patch_failed"); }
   });
 
   router.delete("/admin/data-tables/:table_key/rows/:row_id", ...adminGuard, async (req, res) => {
-    try {
-      return res.json(await archiveRow({ tableKey: req.params.table_key, rowId: req.params.row_id, surface: "admin", userId: req.auth?.user_id || req.auth?.admin_id }));
-    } catch (error) {
-      return sendError(res, error, "admin_data_table_row_archive_failed");
-    }
+    try { return res.json(await archiveRow({ tableKey: req.params.table_key, rowId: req.params.row_id, surface: "admin", userId: req.auth?.user_id || req.auth?.admin_id })); }
+    catch (error) { return sendError(res, error, "admin_data_table_row_archive_failed"); }
   });
 
   router.get("/me/workspaces/:tenant_id/data-tables", requireUserJwt, async (req, res) => {
@@ -192,7 +169,4 @@ export function buildRegistryDataManagementRoutes({ requireBackendApiKey, requir
   return router;
 }
 
-export const _testingRegistryDataManagementRoutes = {
-  WRITE_ROLES,
-  ARCHIVE_ROLES,
-};
+export const _testingRegistryDataManagementRoutes = { WRITE_ROLES, ARCHIVE_ROLES };
