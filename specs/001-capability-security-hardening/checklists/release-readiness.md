@@ -38,7 +38,7 @@ Evidence sources:
 - [x] Existing Phase 0 migrations are additive; the current P1 review fix adds no schema migration.
 - [x] Rollback controls and the no-production-promotion boundary are documented.
 - [ ] Registry alias migration and complete live inventory verification remain open under T010–T026.
-- [ ] Client migration guidance for strict one-selector requests remains open under T099/T102.
+- [x] Client migration guidance and legacy selector deprecation timeline are published for strict one-selector requests under T099/T102.
 
 ## Tests
 

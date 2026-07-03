@@ -138,12 +138,12 @@
 
 ## Phase 11 — Contract, documentation, and client migration
 
-- [ ] **T097** Validate OpenAPI 3.1 contract against implementation.
-- [ ] **T098** Synchronize stable error codes and response examples.
-- [ ] **T099** Publish client migration guide for one-selector requests.
-- [ ] **T100** Update architecture, folder map, API standards, and operational runbooks.
-- [ ] **T101** Run canonical/OpenAPI generation scripts required by the repository.
-- [ ] **T102** Document deprecation timeline for legacy policy paths.
+- [x] **T097** Validate OpenAPI 3.1 contract against implementation.
+- [x] **T098** Synchronize stable error codes and response examples.
+- [x] **T099** Publish client migration guide for one-selector requests.
+- [x] **T100** Update architecture, folder map, API standards, and operational runbooks.
+- [x] **T101** Run canonical/OpenAPI generation scripts required by the repository.
+- [x] **T102** Document deprecation timeline for legacy policy paths.
 
 ## Phase 12 — Verification and release
 
