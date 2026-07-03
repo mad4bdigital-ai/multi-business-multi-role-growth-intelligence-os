@@ -979,6 +979,12 @@ If auth fails:
 - platform bootstrap auth failures point to service account, ADC, sharing, scope, or deployment configuration
 - do not switch a platform-owned bootstrap file to user refresh-token auth just to make a probe pass
 
+### Credential source metadata and active binding evidence
+
+Credential-source candidates are routing metadata, not proof that a credential binding was materialized or selected. In capability-envelope apply authorization, `selected_source.credential_source_candidates` may describe transport choices such as `platform_managed`, `tenant_connection`, or `none`, while `selected_source.active_credential_binding_count` is the authority for whether the envelope is credential-backed.
+
+When `active_credential_binding_count = 0`, a policy with `allow_no_credential_binding = 1` may authorize the no-binding path even when the transport candidate is platform-managed. When the count is greater than zero, policies with `allow_credential_binding = 0` must remain blocked. Conversely, policies that require a credential binding must reject a zero count. Candidate metadata must never create authority, override the active-binding count, trigger credential payload reads, or weaken provider, approval, audit, and readback gates.
+
 ### Passive auth lifecycle and Google action context
 
 The execution boundary must separate authorization metadata from credential materialization.

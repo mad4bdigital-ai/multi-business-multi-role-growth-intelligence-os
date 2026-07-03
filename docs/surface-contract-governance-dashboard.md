@@ -4,16 +4,14 @@
 - Queue schema: surface-contract-gap-queue-v1
 - Triage schema: surface-contract-gap-triage-v1
 - Gate schema: surface-contract-new-gap-gate-v1
-- Queue items: 9
-- Triaged items: 9
-- Gate candidates: 3
-- New-gap gate: fail
-- Blocking new items: 9
-- Docs completion: 99.36%
+- Queue items: 0
+- Triaged items: 0
+- Gate candidates: 0
+- New-gap gate: pass
+- Blocking new items: 0
+- Docs completion: 100%
 - SQL route OpenAPI coverage: 100%
 
 ## Top immediate items
 
-- `1025_sprint69_growth_audit_evidence_admin_tenant_support.sql` — critical_review, add targeted patch-index, parity, and governance documentation
-- `1025_sprint69_activation_archive_dynamic_control_authority.sql` — high_review, add targeted patch-index, parity, and governance documentation
-- `1030_sprint69_canonical_capability_domain.sql` — high_review, add targeted patch-index, parity, and governance documentation
+- none

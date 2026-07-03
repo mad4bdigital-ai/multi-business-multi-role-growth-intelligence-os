@@ -99,7 +99,7 @@
       "gap_severity_at_attestation": "high",
       "preflight_status": "pass",
       "preflight_risk_count": 0,
-      "statement_count": 5,
+      "statement_count": 10,
       "accepted_preflight_risks": {},
       "accepted_forbidden_patterns": [
         "\\bPREPARE\\s+[A-Za-z0-9_]+\\s+FROM\\b",

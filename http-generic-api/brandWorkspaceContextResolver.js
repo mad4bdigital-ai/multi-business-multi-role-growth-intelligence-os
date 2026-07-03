@@ -730,14 +730,16 @@ export async function brandWorkspaceContextReadinessSmoke(_args = {}, { pool = g
   );
   const present = new Set(rows.map((row) => row.table_name));
   const fixture = [{
-    target_key: "allroyalegypt_wp",
-    brand_name: "AllRoyalEgypt Brand",
-    brand_domain: "allroyalegypt.com",
-    site_aliases_json: '["all royal egypt","allroyalegypt"]',
+    target_key: "growth_intelligence_platform",
+    brand_name: "Growth Intelligence Platform",
+    normalized_brand_name: "growth intelligence platform",
+    brand_domain: "mad4b.com",
+    base_url: "https://auth.mad4b.com",
+    site_aliases_json: '["mad4b.com","auth.mad4b.com","connector.mad4b.com","connect.mad4b.com","n8n.mad4b.com"]',
   }];
   const interpreted = resolveBrandReferenceCandidates({
-    reference: "اول رويال ايجيبت",
-    candidate_references: ["all royal egypt"],
+    reference: "منصة ذكاء النمو",
+    candidate_references: ["growth intelligence platform"],
     rows: fixture,
   });
   const checks = [
