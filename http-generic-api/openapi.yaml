@@ -15384,7 +15384,7 @@ paths:
             application/json:
               schema: { type: object, additionalProperties: true }
         '202':
-          description: Repository automation is awaiting an input checkpoint
+          description: Repository automation awaiting_input checkpoint
           content:
             application/json:
               schema: { type: object, additionalProperties: true }
