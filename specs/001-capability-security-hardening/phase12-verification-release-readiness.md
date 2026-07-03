@@ -107,6 +107,23 @@ Queue invariants:
 - If any integration-head test fails, stop the queue, fix on the owning phase branch or a dedicated reconciliation branch, and rerun the failed gate plus affected downstream gates.
 - Do not mark T103-T114 complete from this queue alone; Phase 12 completion still requires CI, staging, approvals, rollout, and legacy retirement evidence.
 
+## Integration Baseline Preflight
+
+Recorded on 2026-07-03 before any phase-branch reconciliation or merge. Integration branch `work/capability-security-hardening-integration-20260702` was clean at `5e0cde4c` and remained unmodified. This baseline proves the current integration head can run the existing release-readiness checks before queued phase reconciliation starts; it does not prove the phase branches are reconciled, CI-green, or release-ready.
+
+Passed on the integration worktree:
+
+```text
+node test-phase12-verification-release-readiness.mjs
+node test-release-readiness-tool-dispatch-integrity.mjs
+node test-release-readiness-migration-drift.mjs
+node test-platform-plugin-strict-request-contract.mjs
+node test-security-decision-engine.mjs
+node test-platform-plugin-resolver.mjs
+```
+
+Observed local warning: `QUEUE_DISABLED` was printed for the strict request contract test because `REDIS_URL` was unset and queue features were disabled locally.
+
 ## Release Blocking Rules
 
 - Do not merge any phase branch until all phase PRs required by the plan are reviewable, CI green, and reconciled with the intended base.

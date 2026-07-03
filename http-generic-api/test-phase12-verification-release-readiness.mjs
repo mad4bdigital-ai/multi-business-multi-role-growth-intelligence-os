@@ -138,6 +138,17 @@ for (const queuedBranch of [
   assert(phase12.includes(queuedBranch), `phase12 reconciliation queue must include ${queuedBranch}`);
 }
 
+for (const integrationBaseline of [
+  "Integration Baseline Preflight",
+  "work/capability-security-hardening-integration-20260702",
+  "5e0cde4c",
+  "node test-release-readiness-migration-drift.mjs",
+  "node test-platform-plugin-strict-request-contract.mjs",
+  "does not prove the phase branches are reconciled",
+]) {
+  assert(phase12.includes(integrationBaseline), `phase12 must preserve integration baseline: ${integrationBaseline}`);
+}
+
 assert(phase12.includes("node scripts/phase-branch-rollup-check.mjs"));
 assert(packageJson.includes("release:phase-rollup-check"));
 assert(releaseChecklist.includes("Explicit production-promotion approval has not been granted"));
