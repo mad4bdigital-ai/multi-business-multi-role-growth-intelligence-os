@@ -15294,7 +15294,37 @@ paths:
                 pull_number: { type: integer, minimum: 1 }
                 branch: { type: string, maxLength: 255 }
                 migration: { type: string, maxLength: 255 }
-                expected_checksum_sha256: { type: string, pattern: '^[a-f0-9]{64}
+                expected_checksum_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+                expected_statement_count: { type: integer, minimum: 1 }
+                changed_files:
+                  type: array
+                  maxItems: 500
+                  items: { type: string, maxLength: 500 }
+                spec_intent: { type: string, maxLength: 64 }
+                historical: { type: boolean }
+                step_args:
+                  type: object
+                  additionalProperties: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Repository automation plan
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '400':
+          description: Invalid workflow input
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '500':
+          description: Unexpected planning failure
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /platform/orchestration/ads-provider/snapshot-propose:
     post:
       x-openai-isConsequential: false
       tags: [platform-plugins]
