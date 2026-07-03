@@ -1083,11 +1083,12 @@ export async function runRepositoryAutomation(input = {}, deps = {}) {
   if (typeof deps.dispatch !== "function") {
     throw automationError(500, "repository_automation_dispatch_missing", "Apply mode requires a governed tool dispatcher.");
   }
-  const pool = deps.pool || getPool();
   const persist = deps.persist !== false;
+  const resolveEnvelope = deps.resolveEnvelope || resolveCapabilityExecutionEnvelope;
+  const pool = deps.pool || ((persist || resolveEnvelope === resolveCapabilityExecutionEnvelope) ? getPool() : null);
   const expectedTenantId = compact(deps.auth?.tenant_id || PLATFORM_TENANT_ID, 64);
   const expectedUserId = compact(deps.auth?.user_id || "", 64);
-  const envelope = await (deps.resolveEnvelope || resolveCapabilityExecutionEnvelope)({
+  const envelope = await resolveEnvelope({
     pool,
     source: input,
     acceptedAppKeys: ["platform_orchestration"],
