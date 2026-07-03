@@ -120,6 +120,14 @@ node test-release-readiness-migration-drift.mjs
 node test-platform-plugin-strict-request-contract.mjs
 node test-security-decision-engine.mjs
 node test-platform-plugin-resolver.mjs
+node test-local-project-path-repair-security.mjs
+node test-n8n-instance-mode-ownership-policy.mjs
+node test-cloudflare-mutation-policy-contract.mjs
+node test-status-component-readiness-freshness.mjs
+node test-security-decision-trace-contract.mjs
+node test-audit-payload-evidence.mjs
+node test-tenant-platform-plugin-routes.mjs
+node test-tenant-platform-plugin-openapi.mjs
 npm run schemas:check
 npm run schemas:guard
 ```
