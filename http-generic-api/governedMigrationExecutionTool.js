@@ -274,6 +274,10 @@ export async function runGovernedMigrationExecution(input = {}, deps = {}) {
       windowsHide: true,
     });
   } catch (error) {
+    const classified = classifyRunnerFailure(error, inspection);
+    if (classified) {
+      throw toolError(classified.code, classified.message, classified.status, classified.details);
+    }
     const details = runnerFailureDetails(error, inspection);
     const diagnostic = details.runner_error_code
       || details.stderr_summary?.split(/\r?\n/, 1)?.[0]
