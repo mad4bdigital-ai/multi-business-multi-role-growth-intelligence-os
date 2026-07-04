@@ -618,9 +618,9 @@ function uniqueSorted(values = []) {
   return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))].sort();
 }
 
-function changedPathOverlaps(changePath, changedPath) {
+function changedPathOverlaps(changePath, movedPath) {
   const left = String(changePath || "").replace(/\/+/g, "/");
-  const right = String(changedPath || "").replace(/\/+/g, "/");
+  const right = String(movedPath || "").replace(/\/+/g, "/");
   return left === right || left.startsWith(`${right}/`) || right.startsWith(`${left}/`);
 }
 
