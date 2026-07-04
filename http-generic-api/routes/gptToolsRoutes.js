@@ -2266,6 +2266,50 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       };
     }
   }
+  if (callerType === "admin" && toolKey === "runtime_dispatch_certification_issue") {
+    try {
+      const resolved = await resolveCapabilityExecutionEnvelope({
+        pool: getPool(),
+        source: args || {},
+        acceptedAppKeys: ["platform_orchestration", "platform_registry", "github"],
+        acceptedIntents: ["runtime.dispatch.certification.issue", "runtime_dispatch_certification_issue", "runtime_certification_issue"],
+        acceptedCapabilityKeys: ["runtime_dispatch_certification_issue"],
+        expectedTenantId: req?.auth?.tenant_id || PLATFORM_TENANT_ID,
+        expectedUserId: req?.auth?.user_id || "",
+        requireReadyForDispatch: true,
+        requireDispatchAllowed: true,
+        requireNoApprovalRequired: false,
+        requireNoBlockingGaps: true,
+        requireNoSecrets: true,
+      });
+      if (!resolved.ok) {
+        throw capabilityEnvelopeError(resolved, "Runtime dispatch certification issue requires a valid capability resolution envelope.");
+      }
+      const result = await issueRuntimeDispatchCertification(args || {}, {
+        pool: getPool(),
+        allowedToolKeys: VIRTUAL_ADMIN_TOOLS.map((tool) => tool.name),
+      });
+      await markCapabilityEnvelopeReferenced({
+        pool: getPool(),
+        envelopeId: resolved.envelope_id,
+        executionRef: `runtime_dispatch_certification_issue:${result.certification_key}`,
+      });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "runtime_dispatch_certification_issue_failed",
+            message: err?.message || "Runtime dispatch certification issue failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
+
   if (callerType === "admin" && toolKey === "github_pr_ci_gate") {
     try {
       const result = await getGithubPullRequestCiGate(args || {});
