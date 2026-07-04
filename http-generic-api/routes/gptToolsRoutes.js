@@ -888,6 +888,8 @@ const VIRTUAL_ADMIN_TOOLS = [
       properties: {
         branch: { type: "string" },
         expected_base_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        expected_branch_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$", description: "Optional current work-branch head SHA for same-branch continuation when the branch already has prior commits." },
+        allow_same_branch_continuation: { type: "boolean", default: false, description: "Allow writing on the same non-protected work branch when expected_branch_sha matches and moved default-branch files do not overlap the requested patch paths." },
         commit_message: { type: "string", minLength: 5, maxLength: 200 },
         capability_envelope_id: { type: "string" },
         changes: {
