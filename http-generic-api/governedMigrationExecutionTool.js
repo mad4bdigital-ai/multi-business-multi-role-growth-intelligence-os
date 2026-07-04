@@ -256,6 +256,49 @@ function classifyRunnerFailure(error, inspection) {
   };
 }
 
+function parseRunnerErrorPayload(value = "") {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  const candidates = [raw];
+  const firstBrace = raw.indexOf("{");
+  const lastBrace = raw.lastIndexOf("}");
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    candidates.push(raw.slice(firstBrace, lastBrace + 1));
+  }
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+    } catch {
+    }
+  }
+  return null;
+}
+
+function classifyRunnerFailure(error, inspection) {
+  const payload = parseRunnerErrorPayload(error?.stderr) || parseRunnerErrorPayload(error?.stdout);
+  const runnerMessage = String(payload?.error || payload?.message || error?.message || "").trim();
+  const authorizationMatch = runnerMessage.match(
+    /Migration is not authorized for governed runner:\s*([A-Za-z0-9._-]+\.sql)\s*\(([^)]+)\)/i
+  );
+  if (!authorizationMatch) return null;
+  return {
+    code: "governed_migration_authorization_required",
+    status: 409,
+    message: "Governed migration authorization is required before dry-run or apply.",
+    details: {
+      migration: inspection.migration,
+      runner_migration: authorizationMatch[1] || inspection.migration,
+      execution_mode: inspection.mode,
+      authorization_required: true,
+      authorization_reason: authorizationMatch[2] || "migration_not_authorized",
+      next_step: "run governed_migration_authorization_bootstrap for the checksum-bound migration before governed_migration_execute",
+      runner_error_message: sanitizeRunnerDiagnostic(runnerMessage, 1000) || null,
+      secrets_included: false,
+    },
+  };
+}
+
 function validateRunnerReadback(result, inspection) {
   if (!result || result.ok !== true) {
     throw toolError("governed_migration_runner_blocked", "Governed migration runner did not return a successful result.", 409, result || undefined);
