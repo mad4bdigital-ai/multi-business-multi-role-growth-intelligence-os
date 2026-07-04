@@ -40,11 +40,11 @@
     "high_risk_missing_docs": [],
     "medium_risk_missing_docs": [],
     "safety_marker_counts": {
-      "no_provider_call": 472,
-      "no_credential_payload_read": 472,
-      "no_raw_secrets": 472,
-      "no_external_send": 472,
-      "no_external_write": 472,
+      "no_provider_call": 473,
+      "no_credential_payload_read": 473,
+      "no_raw_secrets": 473,
+      "no_external_send": 473,
+      "no_external_write": 473,
       "secrets_included_false": 473
     },
     "safety_marker_gap_migrations": 0,
