@@ -34,7 +34,7 @@ UPDATE admin_platform_endpoint_tools SET
  updated_at=CURRENT_TIMESTAMP WHERE tool_key='gpt_session_turns_write_batch';
 UPDATE admin_platform_endpoint_tools SET
  tags=CONCAT_WS(',',NULLIF(tags,''),IF(FIND_IN_SET('capability_family:session_archive_write',tags)=0,'capability_family:session_archive_write',NULL),IF(FIND_IN_SET('capability_envelope',tags)=0,'capability_envelope',NULL),IF(FIND_IN_SET('typed_confirmation',tags)=0,'typed_confirmation',NULL),IF(FIND_IN_SET('same_cycle_readback',tags)=0,'same_cycle_readback',NULL)),
- input_schema=JSON_SET(IF(JSON_VALID(input_schema),CAST(input_schema AS JSON),JSON_OBJECT('type','object','properties',JSON_OBJECT(),'additionalProperties',FALSE)),
+ input_schema=JSON_SET(IF(JSON_VALID(input_schema),input_schema,JSON_OBJECT('type','object','properties',JSON_OBJECT(),'additionalProperties',FALSE)),
   '$.properties.capability_envelope_id',JSON_OBJECT('type','string','description','Required only when dry_run=false. Must resolve to session_archive_write.'),
   '$.properties.confirm',JSON_OBJECT('type','string','description','Required only when dry_run=false. Exact value APPLY_SESSION_ARCHIVE_BACKFILL.')),
  updated_at=CURRENT_TIMESTAMP WHERE tool_key='gpt_session_archive_backfill';
