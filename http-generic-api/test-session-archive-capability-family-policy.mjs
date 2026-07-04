@@ -19,4 +19,5 @@ const preflight=await evaluateGptToolDispatchPreflight({callerType:"tenant",prin
 const sessionRoutes=await readFile(new URL("./routes/gptSessionRoutes.js",import.meta.url),"utf8");assert.match(sessionRoutes,/resolveToolCapabilityFamilyAuthorization/);
 const releaseRoutes=await readFile(new URL("./routes/releaseRoutes.js",import.meta.url),"utf8");assert.match(releaseRoutes,/markCapabilityEnvelopeReferenced/);
 const migration=await readFile(new URL("./migrations/20260702_session_archive_capability_family_authorization.sql",import.meta.url),"utf8");for(const value of ["session_archive_write_capability_family_v1","capability_family:session_archive_write","APPLY_SESSION_ARCHIVE_BACKFILL","accepted_capability_keys"])assert.ok(migration.includes(value));
+assert.doesNotMatch(migration,/CAST\s*\([^)]*AS\s+JSON/i);
 console.log("session archive capability-family authorization tests passed");
