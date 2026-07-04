@@ -35,7 +35,7 @@
       "high": 1,
       "medium": 0,
       "low": 0,
-      "none": 472
+      "none": 473
     },
     "high_risk_missing_docs": [
       "1034_sprint69_repository_automation_control_plane.sql"
