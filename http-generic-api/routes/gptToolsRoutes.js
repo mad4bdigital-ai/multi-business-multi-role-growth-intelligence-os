@@ -61,6 +61,7 @@ import {
   decideGrowthIntelligenceInsightAdmin,
   refreshGrowthIntelligenceReadinessAdmin,
 } from "../growthIntelligenceAdminDecisions.js";
+import { issueRuntimeDispatchCertification } from "../runtimeDispatchCertificationIssuer.js";
 
 const execFileAsync = promisify(execFile);
 
