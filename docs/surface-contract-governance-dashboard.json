@@ -42,7 +42,7 @@
     ],
     "medium_risk_missing_docs": [],
     "safety_marker_counts": {
-      "no_provider_call": 472,
+      "no_provider_call": 471,
       "no_credential_payload_read": 472,
       "no_raw_secrets": 472,
       "no_external_send": 472,
@@ -75,7 +75,7 @@
       "critical_review": 1,
       "high_review": 0,
       "medium_review": 0,
-      "low_review": 0
+      "low_review": 1
     }
   },
   "triage": {

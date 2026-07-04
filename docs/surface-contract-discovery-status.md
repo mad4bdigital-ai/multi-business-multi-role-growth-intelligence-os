@@ -64,7 +64,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 472 |
+| no_provider_call | 471 |
 | no_credential_payload_read | 472 |
 | no_raw_secrets | 472 |
 | no_external_send | 472 |
@@ -92,7 +92,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Critical review: 1
 - High review: 0
 - Medium review: 0
-- Low review: 0
+- Low review: 1
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
