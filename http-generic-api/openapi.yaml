@@ -6832,6 +6832,364 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
+  /me/dashboard:
+    get:
+      tags: [growth-dashboard]
+      security:
+        - userJwtAuth: []
+      operationId: getMyDashboard
+      x-openai-isConsequential: false
+      summary: Read the signed-in user dashboard
+      description: >
+        Returns the signed-in user's customer-safe dashboard projection. The
+        response is backed by Activation Dynamic Tabs, growth dashboard tab
+        profiles, cursor-loaded details, and tenant/user scope from the signed
+        JWT. Missing data is reported as unavailable or partial, never as zero.
+      parameters:
+        - name: container_key
+          in: query
+          schema: { type: string }
+        - name: tab
+          in: query
+          schema: { type: string, pattern: "^tenant_[a-z0-9_]+$" }
+        - name: tab_key
+          in: query
+          schema: { type: string, pattern: "^tenant_[a-z0-9_]+$" }
+        - name: date_range
+          in: query
+          schema: { type: string }
+        - name: filters
+          in: query
+          schema: { type: string }
+          description: JSON object encoded as a query string.
+      responses:
+        '200':
+          description: User dashboard projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrowthDashboardResponse'
+        '401':
+          description: A signed tenant user JWT is required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /me/workspaces/{tenant_id}/dashboard:
+    get:
+      tags: [growth-dashboard]
+      security:
+        - userJwtAuth: []
+      operationId: getMyWorkspaceDashboard
+      x-openai-isConsequential: false
+      summary: Read the signed-in user dashboard for a tenant workspace scope
+      description: >
+        Returns the dashboard projection for the signed-in tenant scope. The
+        path tenant_id must match the tenant_id in the signed JWT; mismatches
+        fail closed with tenant_dashboard_scope_mismatch.
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: container_key
+          in: query
+          schema: { type: string }
+        - name: tab
+          in: query
+          schema: { type: string, pattern: "^tenant_[a-z0-9_]+$" }
+        - name: tab_key
+          in: query
+          schema: { type: string, pattern: "^tenant_[a-z0-9_]+$" }
+        - name: date_range
+          in: query
+          schema: { type: string }
+        - name: filters
+          in: query
+          schema: { type: string }
+          description: JSON object encoded as a query string.
+      responses:
+        '200':
+          description: Workspace-scoped user dashboard projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrowthDashboardResponse'
+        '401':
+          description: A signed tenant user JWT is required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: The requested tenant scope does not match the signed JWT.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /me/workspaces/{tenant_id}/dashboard/tabs/{tabKey}:
+    get:
+      tags: [growth-dashboard]
+      security:
+        - userJwtAuth: []
+      operationId: getMyWorkspaceDashboardTab
+      x-openai-isConsequential: false
+      summary: Read one signed-in user dashboard tab
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: tabKey
+          in: path
+          required: true
+          schema: { type: string, pattern: "^tenant_[a-z0-9_]+$" }
+        - name: container_key
+          in: query
+          schema: { type: string }
+        - name: date_range
+          in: query
+          schema: { type: string }
+        - name: filters
+          in: query
+          schema: { type: string }
+          description: JSON object encoded as a query string.
+      responses:
+        '200':
+          description: Workspace-scoped dashboard tab projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrowthDashboardResponse'
+        '401':
+          description: A signed tenant user JWT is required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: The requested tenant scope does not match the signed JWT.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /me/workspaces/{tenant_id}/dashboard/preferences:
+    get:
+      tags: [growth-dashboard]
+      security:
+        - userJwtAuth: []
+      operationId: getMyWorkspaceDashboardPreferences
+      x-openai-isConsequential: false
+      summary: Read signed-in user dashboard preferences
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Dashboard preferences.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  preferences:
+                    $ref: '#/components/schemas/GrowthDashboardPreferences'
+                  secrets_included: { type: boolean, enum: [false] }
+        '401':
+          description: A signed tenant user JWT is required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: The requested tenant scope does not match the signed JWT.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+    put:
+      tags: [growth-dashboard]
+      security:
+        - userJwtAuth: []
+      operationId: putMyWorkspaceDashboardPreferences
+      x-openai-isConsequential: true
+      summary: Update signed-in user dashboard preferences
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrowthDashboardPreferences'
+      responses:
+        '200':
+          description: Updated dashboard preferences.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  preferences:
+                    $ref: '#/components/schemas/GrowthDashboardPreferences'
+                  secrets_included: { type: boolean, enum: [false] }
+        '401':
+          description: A signed tenant user JWT is required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: The requested tenant scope does not match the signed JWT.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /me/workspaces/{tenant_id}/dashboard/digest:
+    get:
+      tags: [growth-dashboard]
+      security:
+        - userJwtAuth: []
+      operationId: getMyWorkspaceDashboardDigest
+      x-openai-isConsequential: false
+      summary: Read a compact signed-in user dashboard digest
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: container_key
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Dashboard digest.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: A signed tenant user JWT is required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: The requested tenant scope does not match the signed JWT.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /me/workspaces/{tenant_id}/dashboard/actions/{actionRefKey}/preview:
+    get:
+      tags: [growth-dashboard]
+      security:
+        - userJwtAuth: []
+      operationId: getMyWorkspaceDashboardActionPreview
+      x-openai-isConsequential: false
+      summary: Preview a signed-in user dashboard action
+      description: Preview only. Does not call providers, execute external actions, or write to external systems.
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: actionRefKey
+          in: path
+          required: true
+          schema: { type: string }
+        - name: container_key
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Dashboard action preview.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: A signed tenant user JWT is required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: The requested tenant scope does not match the signed JWT.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /me/workspaces/{tenant_id}/dashboard/recommendations/{recommendationId}/feedback:
+    post:
+      tags: [growth-dashboard]
+      security:
+        - userJwtAuth: []
+      operationId: postMyWorkspaceDashboardRecommendationFeedback
+      x-openai-isConsequential: true
+      summary: Record signed-in user dashboard recommendation feedback
+      description: Internal recommendation event write only; no provider call or external send.
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: recommendationId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [event_type]
+              properties:
+                event_type:
+                  type: string
+                  enum: [shown, opened, accepted, dismissed, executed, failed, result_observed]
+                reason_code: { type: string }
+                workspace_id: { type: string }
+                recommendation_key: { type: string }
+                tab_key: { type: string }
+                card_id: { type: string }
+                result_metric_key: { type: string }
+                result_value:
+                  type: object
+                  additionalProperties: true
+                context:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '201':
+          description: Feedback event recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid event type.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: A signed tenant user JWT is required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: The requested tenant scope does not match the signed JWT.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
   /tenant/dashboard:
     get:
       tags: [growth-dashboard]
