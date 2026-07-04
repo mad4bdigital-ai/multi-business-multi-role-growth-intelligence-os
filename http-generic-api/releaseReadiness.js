@@ -660,6 +660,8 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
       .replace(/^\s*(?:--[^\n]*\n\s*)+/g, "")
       .replace(/\s+/g, " ")
       .trim();
+    risks.push(...migrationDialectRisks(normalized));
+    risks.push(...migrationOnDuplicateColumnRisks(normalized));
     if (/^CREATE\s+TABLE\b/i.test(normalized)) {
       counts.create_table += 1;
       if (/^CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\b/i.test(normalized)) {
