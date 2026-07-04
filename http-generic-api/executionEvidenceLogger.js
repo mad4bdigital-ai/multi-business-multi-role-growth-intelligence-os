@@ -469,13 +469,22 @@ export async function writeExecutionEvidence({
   } : {};
 
   const evidenceObjects = {
-    agent: stripSensitiveEvidence(pickEvidenceObject(contextObjects, agentEvidence, ["agent_evidence", "agentEvidence", "agent"])),
-    skill: stripSensitiveEvidence(pickEvidenceObject(contextObjects, skillEvidence, ["skill_evidence", "skillEvidence", "skill"])),
+    agent: stripSensitiveEvidence({
+      ...resolvedAgentEvidence,
+      ...pickEvidenceObject(contextObjects, agentEvidence, ["agent_evidence", "agentEvidence", "agent"]),
+    }),
+    skill: stripSensitiveEvidence({
+      ...resolvedSkillEvidence,
+      ...pickEvidenceObject(contextObjects, skillEvidence, ["skill_evidence", "skillEvidence", "skill"]),
+    }),
     app: stripSensitiveEvidence(pickEvidenceObject(contextObjects, appEvidence, ["app_evidence", "appEvidence", "app"])),
     workflow: stripSensitiveEvidence(pickEvidenceObject(contextObjects, workflowEvidence, ["workflow_evidence", "workflowEvidence", "workflow"])),
     role: stripSensitiveEvidence(pickEvidenceObject(contextObjects, roleEvidence, ["role_evidence", "roleEvidence", "role"])),
     policy: stripSensitiveEvidence(pickEvidenceObject(contextObjects, policyEvidence, ["policy_evidence", "policyEvidence", "policy"])),
-    authorization: stripSensitiveEvidence(pickEvidenceObject(contextObjects, authorizationEvidence, ["authorization_evidence", "authorizationEvidence", "authorized_access", "authorizedAccess"])),
+    authorization: stripSensitiveEvidence({
+      ...resolvedAuthorizationEvidence,
+      ...pickEvidenceObject(contextObjects, authorizationEvidence, ["authorization_evidence", "authorizationEvidence", "authorized_access", "authorizedAccess"]),
+    }),
     brand: stripSensitiveEvidence(pickEvidenceObject(contextObjects, brandEvidence, ["brand_evidence", "brandEvidence", "brand"])),
     business_activity: stripSensitiveEvidence(pickEvidenceObject(contextObjects, businessActivityEvidence, ["business_activity_evidence", "businessActivityEvidence", "business_activity", "businessActivity"])),
     business_type: stripSensitiveEvidence(pickEvidenceObject(contextObjects, businessTypeEvidence, ["business_type_evidence", "businessTypeEvidence", "business_type", "businessType"])),
