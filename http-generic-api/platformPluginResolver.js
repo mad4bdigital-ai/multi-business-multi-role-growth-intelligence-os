@@ -2,6 +2,12 @@ import { getPool } from "./db.js";
 import { normalizePlatformPlugin } from "./platformPluginCatalog.js";
 import { resolvePlatformManagedTargetAuthority } from "./platformPluginTargetAuthority.js";
 import { schedulePlatformPluginSecurityAlerts } from "./platformPluginSecurityAlerts.js";
+import {
+  buildPlatformPluginPreApprovalDecision,
+  buildPlatformPluginSecurityDecision,
+} from "./src/application/capability/platformPluginSecurityDecisionUseCase.js";
+import { projectSecurityDecisionTrace } from "./src/domain/capability/securityDecision.js";
+import { writeAuditPayloadEvidence } from "./auditPayloadEvidence.js";
 
 export const CredentialRequirement = Object.freeze({
   NOT_REQUIRED: "not_required",
@@ -32,6 +38,41 @@ export const CredentialDenialCode = Object.freeze({
 
 function compactString(value = "", max = 500) {
   return String(value || "").trim().slice(0, max);
+}
+
+function selectorError(code, message, details = null) {
+  const err = new Error(message);
+  err.code = code;
+  err.status = 400;
+  if (details) err.details = details;
+  return err;
+}
+
+export function validateCapabilitySelectorContract({ actionKey = null, toolKey = null } = {}) {
+  const normalizedActionKey = compactString(actionKey || "", 191) || null;
+  const normalizedToolKey = compactString(toolKey || "", 191) || null;
+  const selectorCount = [normalizedActionKey, normalizedToolKey].filter(Boolean).length;
+  if (selectorCount === 0) {
+    throw selectorError(
+      "MISSING_CAPABILITY_SELECTOR",
+      "Exactly one capability selector is required.",
+      { required_one_of: ["action_key", "tool_key"] }
+    );
+  }
+  if (selectorCount > 1) {
+    throw selectorError(
+      "AMBIGUOUS_CAPABILITY_SELECTOR",
+      "Exactly one capability selector may be provided.",
+      { provided: ["action_key", "tool_key"].filter((field) => (field === "action_key" ? normalizedActionKey : normalizedToolKey)) }
+    );
+  }
+  return {
+    actionKey: normalizedActionKey,
+    toolKey: normalizedToolKey,
+    selector: normalizedActionKey
+      ? { type: "action_key", value: normalizedActionKey }
+      : { type: "tool_key", value: normalizedToolKey },
+  };
 }
 
 function normalize(value = "") {
@@ -528,6 +569,69 @@ async function loadScopedConnections({ pool, pluginKey, tenantId, userId }) {
   );
 }
 
+async function persistSecurityDecisionTrace({
+  pool,
+  writer = writeAuditPayloadEvidence,
+  securityDecision,
+  publicTrace,
+  adminTrace,
+  context = {},
+} = {}) {
+  if (!securityDecision?.trace || typeof writer !== "function") {
+    return { status: "not_attempted", reason: "decision_trace_writer_unavailable", secrets_included: false };
+  }
+  try {
+    const evidence = await writer({
+      tenant_id: context.tenant_id || null,
+      actor_id: context.user_id || context.agent_id || null,
+      actor_type: context.principal_class || null,
+      action: "security.decision_trace",
+      resource_type: "capability_security_decision",
+      resource_id: context.plugin_key || null,
+      source_table: "security_decision_trace",
+      source_pk: securityDecision.trace.trace_id || context.request_id || null,
+      evidence_type: "security_decision_trace",
+      request_payload: {
+        request_id: context.request_id || null,
+        correlation_id: context.correlation_id || null,
+        plugin_key: context.plugin_key || null,
+        selector: context.selector || null,
+        principal_class: context.principal_class || null,
+        tenant_id: context.tenant_id || null,
+        workspace_id: context.workspace_id || null,
+      },
+      response_payload: {
+        trace: securityDecision.trace,
+        trace_public: publicTrace,
+        trace_admin: adminTrace,
+        metrics: securityDecision.metrics,
+      },
+      metadata: {
+        schema_version: "security_decision_trace_persistence.v1",
+        public_projection_stored: true,
+        admin_projection_stored: true,
+        raw_gate_details_stored: false,
+        secrets_included: false,
+      },
+    }, { pool });
+    return {
+      status: "persisted",
+      evidence_id: evidence?.evidence_id || null,
+      evidence_sha256: evidence?.evidence_sha256 || null,
+      trace_id: securityDecision.trace.trace_id || null,
+      action: "security.decision_trace",
+      evidence_type: "security_decision_trace",
+      secrets_included: false,
+    };
+  } catch (err) {
+    return {
+      status: "failed",
+      error_code: err?.code || "decision_trace_persistence_failed",
+      message: compactString(err?.message || err, 240),
+      secrets_included: false,
+    };
+  }
+}
 export async function resolvePlatformPluginExecution({
   pool = getPool(),
   pluginKey,
@@ -546,6 +650,7 @@ export async function resolvePlatformPluginExecution({
   requestId = null,
   correlationId = null,
   securityAlertWriter = undefined,
+  decisionTraceWriter = writeAuditPayloadEvidence,
 } = {}) {
   const normalizedPluginKey = compactString(pluginKey, 128);
   if (!normalizedPluginKey) {
@@ -557,12 +662,10 @@ export async function resolvePlatformPluginExecution({
 
   const normalizedActionKey = compactString(actionKey || "", 191) || null;
   const normalizedToolKey = compactString(toolKey || "", 191) || null;
-  if (normalizedActionKey && normalizedToolKey) {
-    const err = new Error("Exactly one capability selector may be provided.");
-    err.code = "ambiguous_capability_selector";
-    err.status = 400;
-    throw err;
-  }
+  const selectorContract = validateCapabilitySelectorContract({
+    actionKey: normalizedActionKey,
+    toolKey: normalizedToolKey,
+  });
 
   const rows = await loadPluginRows({ pool, pluginKey: normalizedPluginKey, tenantId, userId });
   if (!rows.plugin) {
@@ -584,15 +687,15 @@ export async function resolvePlatformPluginExecution({
   const binding = selectBinding({
     actionBindings: rows.actionBindings,
     toolBindings: rows.toolBindings,
-    actionKey: normalizedActionKey,
-    toolKey: normalizedToolKey,
+    actionKey: selectorContract.actionKey,
+    toolKey: selectorContract.toolKey,
   });
-  const bindingState = resolveBindingState({ binding, actionKey: normalizedActionKey, toolKey: normalizedToolKey });
+  const bindingState = resolveBindingState({ binding, actionKey: selectorContract.actionKey, toolKey: selectorContract.toolKey });
   const principalScope = resolvePrincipalScope({ principalClass, tenantId, userId });
-  const surfaceExposure = resolveSurfaceExposure({ binding, toolKey: normalizedToolKey, principalClass });
-  const canonicalPolicy = normalizedToolKey
+  const surfaceExposure = resolveSurfaceExposure({ binding, toolKey: selectorContract.toolKey, principalClass });
+  const canonicalPolicy = selectorContract.toolKey
     ? { ready: false, reason: "tool_canonical_policy_mapping_required", canonical_action_key: null }
-    : { ready: true, reason: normalizedActionKey ? "action_is_canonical_policy_key" : "no_selector_preview", canonical_action_key: normalizedActionKey };
+    : { ready: true, reason: "action_is_canonical_policy_key", canonical_action_key: selectorContract.actionKey };
   const securityAlerts = schedulePlatformPluginSecurityAlerts({
     writer: securityAlertWriter,
     principalClass,
@@ -602,37 +705,27 @@ export async function resolvePlatformPluginExecution({
     requestId,
     correlationId,
     pluginKey: normalizedPluginKey,
-    actionKey: normalizedActionKey,
-    toolKey: normalizedToolKey,
+    actionKey: selectorContract.actionKey,
+    toolKey: selectorContract.toolKey,
     surfaceExposure,
     canonicalPolicy,
     actionBindings: rows.actionBindings,
   });
   const requiredSkillKey = deriveRequiredSkill({
     pluginKey: normalizedPluginKey,
-    actionKey: normalizedActionKey,
-    toolKey: normalizedToolKey,
+    actionKey: selectorContract.actionKey,
+    toolKey: selectorContract.toolKey,
     binding,
   });
   const skill = await checkSkillGrant({ pool, agentId, tenantId, requiredSkillKey });
   const pluginStatusActive = ["active", "beta"].includes(normalize(rows.plugin.status));
-  const selectorRequested = Boolean(normalizedActionKey || normalizedToolKey);
-  const credentialRequirement = selectorRequested
-    ? resolveCredentialRequirement({
-        plugin: rows.plugin,
-        binding,
-        tenantPolicy: rows.tenantPolicy,
-        requestedScope: requestedCredentialScope,
-      })
-    : {
-        requirement: CredentialRequirement.NOT_REQUIRED,
-        requested_scope: null,
-        candidate_scopes: [],
-        scope_allowed: true,
-        reason: "credential_not_required_for_preview",
-      };
+  const credentialRequirement = resolveCredentialRequirement({
+    plugin: rows.plugin,
+    binding,
+    tenantPolicy: rows.tenantPolicy,
+    requestedScope: requestedCredentialScope,
+  });
   const credentialLookupRequired = Boolean(
-    selectorRequested &&
     credentialRequirement.scope_allowed &&
     credentialRequirement.requirement === CredentialRequirement.REQUIRED &&
     credentialRequirement.candidate_scopes.some((scope) => ["user_connection", "tenant_connection"].includes(scope))
@@ -655,23 +748,12 @@ export async function resolvePlatformPluginExecution({
       })
     : [];
   const credentialDecisionEvaluated = Boolean(
-    !selectorRequested ||
     credentialRequirement.requirement === CredentialRequirement.NOT_REQUIRED ||
     !credentialRequirement.scope_allowed ||
     !credentialLookupRequired ||
     credentialLookupAuthorized
   );
-  const credential = !selectorRequested
-    ? {
-        ok: true,
-        requirement: CredentialRequirement.NOT_REQUIRED,
-        resolution_state: CredentialResolutionState.NOT_REQUIRED,
-        usability_state: CredentialUsabilityState.NOT_APPLICABLE,
-        credential_source: null,
-        reason: "credential_resolution_not_required_for_preview",
-        candidate_scopes: [],
-      }
-    : credentialDecisionEvaluated
+  const credential = credentialDecisionEvaluated
       ? resolveCredentialDecision({
           plugin: rows.plugin,
           binding,
@@ -703,30 +785,25 @@ export async function resolvePlatformPluginExecution({
   const smokeCertification = await checkSmokeCertification({
     pool,
     pluginKey: normalizedPluginKey,
-    actionKey: normalizedActionKey || normalizedToolKey,
+    actionKey: selectorContract.actionKey || selectorContract.toolKey,
     allowExpiredForRecertification: allowExpiredSmokeCertificationForRecertification === true,
   });
-  const allowed = Boolean(
-    pluginStatusActive &&
-    principalScope.ok &&
-    bindingState.ok &&
-    surfaceExposure.ok &&
-    canonicalPolicy.ready &&
-    credential.ok &&
-    targetAuthority.ok &&
-    skill.granted &&
-    smokeCertification.certified
-  );
-  const denialReasons = [];
-  if (!pluginStatusActive) denialReasons.push("plugin_not_active");
-  if (!principalScope.ok) denialReasons.push(principalScope.reason);
-  if (!bindingState.ok) denialReasons.push(bindingState.reason);
-  if (!surfaceExposure.ok) denialReasons.push(surfaceExposure.reason);
-  if (!canonicalPolicy.ready) denialReasons.push(canonicalPolicy.reason);
-  if (credentialDecisionEvaluated && !credential.ok) denialReasons.push(credential.reason);
-  if (!targetAuthority.ok) denialReasons.push(targetAuthority.reason);
-  if (!skill.granted) denialReasons.push(skill.reason);
-  if (!smokeCertification.certified) denialReasons.push(smokeCertification.reason);
+  const preApprovalDecision = buildPlatformPluginPreApprovalDecision({
+    selector: selectorContract.selector,
+    binding,
+    pluginStatusActive,
+    principalClass,
+    tenantId,
+    userId,
+    bindingState,
+    canonicalPolicy,
+    credential,
+    credentialDecisionEvaluated,
+    targetAuthority,
+    skill,
+    smokeCertification,
+  });
+  const allowed = preApprovalDecision.allowed;
 
   const defaultGrants = parseJsonArray(rows.plugin.default_action_grants, []);
   const baseApprovalRequired = Boolean(
@@ -739,42 +816,68 @@ export async function resolvePlatformPluginExecution({
     ? await checkActionGrant({
         pool,
         pluginKey: normalizedPluginKey,
-        actionKey: normalizedActionKey || normalizedToolKey,
+        actionKey: selectorContract.actionKey || selectorContract.toolKey,
         agentId,
         credential,
       })
     : { required: baseApprovalRequired, granted: !baseApprovalRequired, grant_id: null, reason: baseApprovalRequired ? "resolve_denials_before_action_grant" : "no_review_required_by_preview" };
   const approvalRequired = Boolean(baseApprovalRequired && !actionGrant.granted);
-  const dispatchReady = Boolean(allowed && !approvalRequired);
+  const securityDecision = buildPlatformPluginSecurityDecision({
+    preApprovalDecision,
+    approvalRequired,
+    baseApprovalRequired,
+    actionGrant,
+  });
+  const dispatchReady = securityDecision.dispatch_ready;
+  const securityDecisionTracePublic = projectSecurityDecisionTrace(securityDecision.trace, { audience: "public" });
+  const securityDecisionTraceAdmin = projectSecurityDecisionTrace(securityDecision.trace, { audience: "admin" });
+  const decisionTracePersistence = await persistSecurityDecisionTrace({
+    pool,
+    writer: decisionTraceWriter,
+    securityDecision,
+    publicTrace: securityDecisionTracePublic,
+    adminTrace: securityDecisionTraceAdmin,
+    context: {
+      request_id: requestId,
+      correlation_id: correlationId,
+      plugin_key: normalizedPluginKey,
+      selector: selectorContract.selector,
+      principal_class: principalClass,
+      tenant_id: tenantId,
+      workspace_id: workspaceId,
+      user_id: userId,
+      agent_id: agentId,
+    },
+  });
 
   return {
     ok: true,
     allowed,
-    reason: allowed ? "resolved" : unique(denialReasons).join("|") || "not_allowed",
+    reason: allowed ? "resolved" : preApprovalDecision.reason || "not_allowed",
     mode: dispatchReady ? "dispatch_ready" : "preview_only",
     plugin_key: normalizedPluginKey,
-    requested_action_key: normalizedActionKey,
-    requested_tool_key: normalizedToolKey,
-    selector: normalizedActionKey
-      ? { type: "action_key", value: normalizedActionKey }
-      : (normalizedToolKey ? { type: "tool_key", value: normalizedToolKey } : null),
+    requested_action_key: selectorContract.actionKey,
+    requested_tool_key: selectorContract.toolKey,
+    selector: selectorContract.selector,
     canonical_policy: canonicalPolicy,
     principal_scope: principalScope,
     surface_resolution: surfaceExposure,
+    security_decision: securityDecision,
+    security_decision_trace_public: securityDecisionTracePublic,
+    security_decision_trace_admin: securityDecisionTraceAdmin,
+    decision_trace_persistence: decisionTracePersistence,
     security_alerts: securityAlerts,
     credential_lookup: {
       required: credentialLookupRequired,
       attempted: credentialLookupAuthorized,
       authorized: credentialLookupAuthorized,
-      reason: !selectorRequested
-        ? "credential_lookup_not_required_for_preview"
-        : (credentialRequirement.requirement === CredentialRequirement.NOT_REQUIRED
+      reason: credentialRequirement.requirement === CredentialRequirement.NOT_REQUIRED
           ? "credential_lookup_not_required_by_policy"
           : (!credentialRequirement.scope_allowed
             ? "credential_scope_denied_before_lookup"
             : (credentialLookupAuthorized
               ? "authorization_and_scope_gates_passed"
-              : "blocked_before_credential_lookup"))),
+              : "blocked_before_credential_lookup")),
       row_count: connections.length,
       secrets_included: false,
     },

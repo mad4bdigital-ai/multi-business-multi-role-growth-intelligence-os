@@ -2,7 +2,7 @@
   "ok": true,
   "schema_version": "surface-contract-safety-attestations-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
-  "item_count": 46,
+  "item_count": 50,
   "items": [
     {
       "migration_file": "1003_sprint68_supervisor_chain_runtime_guards.sql",
@@ -1195,8 +1195,8 @@
       "checksum_canonicalization": "utf8_lf_v1",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_static_contract",
-      "queue_class_at_attestation": "high_review",
-      "gap_severity_at_attestation": "medium",
+      "queue_class_at_attestation": "low_review",
+      "gap_severity_at_attestation": "none",
       "preflight_status": "pass",
       "preflight_risk_count": 0,
       "statement_count": 5,
@@ -1276,6 +1276,172 @@
             "helper_tools",
             "never_request_internal_ids",
             "primary_tool"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "1031_sprint69_strict_platform_plugin_resolve_contract.sql",
+      "migration_sha256": "462a3da9bff92152d4bca2140f4a733ee127408e2b8120296a98d500e779707b",
+      "checksum_canonicalization": "utf8_lf_v1",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "high_review",
+      "gap_severity_at_attestation": "medium",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 2,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 2,
+        "views": 0,
+        "policies": 0,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "admin_platform_endpoint_tools",
+            "tenant_platform_endpoint_tools"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "1032_sprint69_cloudflare_mutation_policy_contract.sql",
+      "migration_sha256": "b1c1bae5836c40f489579dd19a3da8084ee9e3cad9535415792fe4a2ede1a6e7",
+      "checksum_canonicalization": "utf8_lf_v1",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "high_review",
+      "gap_severity_at_attestation": "medium",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 3,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 7,
+        "views": 1,
+        "policies": 1,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_policy_seed_readiness",
+          "targets": [
+            "cloudflare_zone_record_mutation_policy_v1"
+          ]
+        },
+        {
+          "action_key": "verify_readback_view",
+          "targets": [
+            "v_cloudflare_mutation_policy_readiness"
+          ]
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "admin_platform_endpoint_tools",
+            "cloudflare_mutations_require_zone_ownership_record_protection_preview_readback_and_rollback",
+            "cloudflare_zone_record_mutation_policy_v1",
+            "protected_record_classes",
+            "same_cycle_readback_required",
+            "v_cloudflare_mutation_policy_readiness",
+            "verification_record"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "1033_sprint69_n8n_instance_mode_ownership_policy.sql",
+      "migration_sha256": "674ba2df11e5e20091c1a1b5bdd74b2f035fd6a8134c2ded4eb7a8b86c19b5c9",
+      "checksum_canonicalization": "utf8_lf_v1",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "high_review",
+      "gap_severity_at_attestation": "medium",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 5,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 4,
+        "views": 1,
+        "policies": 1,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_policy_seed_readiness",
+          "targets": [
+            "n8n_instance_mode_ownership_policy_v1"
+          ]
+        },
+        {
+          "action_key": "verify_readback_view",
+          "targets": [
+            "v_n8n_instance_mode_ownership_policy_readiness"
+          ]
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "admin_platform_endpoint_tools",
+            "same_cycle_readback_required",
+            "tenant_platform_endpoint_tools",
+            "v_n8n_instance_mode_ownership_policy_readiness"
           ]
         }
       ],
@@ -1837,6 +2003,55 @@
           "action_key": "verify_tool_registry_binding",
           "targets": [
             "20260704_platform_resource_authority_grant_tool"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "20260704_runtime_dispatch_certification_issuer.sql",
+      "migration_sha256": "c03c0c4551e1218699411daa9ac891a07b5f5cebeefd555bb849a2d85f8fdd08",
+      "checksum_canonicalization": "utf8_lf_v1",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "high_review",
+      "gap_severity_at_attestation": "medium",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 2,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 6,
+        "views": 0,
+        "policies": 0,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "requires_readback",
+            "runtime_dispatch_certification_issue",
+            "runtime_dispatch_certification_issue_bootstrap_v1",
+            "runtime_dispatch_certification_issue_v1",
+            "runtime_dispatch_certification_registry",
+            "unit_test_and_policy_bootstrap_readback"
           ]
         }
       ],

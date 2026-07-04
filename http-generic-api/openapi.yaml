@@ -128,6 +128,108 @@ components:
 
   schemas:
 
+    SecurityDecisionTraceEventPublic:
+      type: object
+      additionalProperties: false
+      required: [type, gate_key, required, state, evaluated]
+      properties:
+        type: { type: string, enum: [gate_evaluated] }
+        gate_key: { type: string }
+        required: { type: boolean }
+        state: { type: string, enum: [pass, deny, not_applicable, not_evaluated] }
+        evaluated: { type: boolean }
+
+    SecurityDecisionTraceEventAdmin:
+      allOf:
+        - $ref: "#/components/schemas/SecurityDecisionTraceEventPublic"
+        - type: object
+          additionalProperties: false
+          properties:
+            reason: { type: string, nullable: true }
+            code: { type: string, nullable: true }
+            detail_keys:
+              type: array
+              items: { type: string }
+
+    SecurityDecisionTracePublic:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - outcome
+        - allowed
+        - dispatch_ready
+        - will_execute
+        - execution_mode
+        - approval_required
+        - denied_gate_count
+        - unevaluated_required_gate_count
+        - gate_events
+        - secrets_included
+      properties:
+        schema_version: { type: string, enum: [security_decision_trace.v1] }
+        trace_id: { type: string, nullable: true }
+        outcome: { type: string, enum: [allow, deny] }
+        allowed: { type: boolean }
+        dispatch_ready: { type: boolean }
+        will_execute: { type: boolean }
+        execution_mode: { type: string, enum: [preview, dispatch] }
+        approval_required: { type: boolean }
+        denied_gate_count: { type: integer, minimum: 0 }
+        unevaluated_required_gate_count: { type: integer, minimum: 0 }
+        gate_events:
+          type: array
+          items: { $ref: "#/components/schemas/SecurityDecisionTraceEventPublic" }
+        secrets_included: { type: boolean, enum: [false] }
+
+    SecurityDecisionTraceAdmin:
+      allOf:
+        - $ref: "#/components/schemas/SecurityDecisionTracePublic"
+        - type: object
+          additionalProperties: false
+          properties:
+            denied_gates:
+              type: array
+              items: { type: string }
+            unevaluated_required_gates:
+              type: array
+              items: { type: string }
+            gate_events:
+              type: array
+              items: { $ref: "#/components/schemas/SecurityDecisionTraceEventAdmin" }
+            invariant_results:
+              type: object
+              additionalProperties: { type: boolean }
+
+    SecurityDecisionMetrics:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - allowed
+        - dispatch_ready
+        - will_execute
+        - denied_gate_count
+        - unevaluated_required_gate_count
+        - invariant_violation_count
+        - violated_invariants
+        - alert_level
+        - secrets_included
+      properties:
+        schema_version: { type: string, enum: [security_decision_metrics.v1] }
+        decision_outcome: { type: string, nullable: true, enum: [allow, deny] }
+        allowed: { type: boolean }
+        dispatch_ready: { type: boolean }
+        will_execute: { type: boolean }
+        denied_gate_count: { type: integer, minimum: 0 }
+        unevaluated_required_gate_count: { type: integer, minimum: 0 }
+        invariant_violation_count: { type: integer, minimum: 0 }
+        violated_invariants:
+          type: array
+          items: { type: string }
+        alert_level: { type: string, enum: [none, warning, critical] }
+        secrets_included: { type: boolean, enum: [false] }
+
     ActivationHardRunSummaryResponse:
       type: object
       additionalProperties: true
@@ -4973,7 +5075,7 @@ paths:
         - backendBearerAuth: []
       operationId: tenantSshCliAllowlistedExecute
       summary: Execute tenant SSH allowlisted CLI command after approval
-      description: Executes a fixed allowlisted SSH command for a tenant-owned SSH connection after a matching approval request is approved. Rejects freeform commands, caps output, uses a bounded timeout, and never returns credentials.
+      description: Executes a fixed allowlisted SSH command for a tenant-owned SSH connection after a matching approval request is approved. Requires a typed command_key, rejects freeform commands and shell metacharacter argv drift, caps output, uses a bounded timeout, and never returns credentials.
       parameters:
         - name: connection_id
           in: path
@@ -4983,22 +5085,23 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
-            schema:
-              type: object
-              required: [approval_request_id, command_key]
-              additionalProperties: false
-              properties:
-                approval_request_id:
-                  type: string
-                command_key:
-                  type: string
-                  enum: [pwd, whoami, uname_s, uptime]
-                timeout_ms:
-                  type: integer
-                  minimum: 1000
-                  maximum: 10000
-                  default: 5000
+            application/json:
+              schema:
+                type: object
+                required: [approval_request_id, command_key]
+                additionalProperties: false
+                properties:
+                  approval_request_id:
+                    type: string
+                  command_key:
+                    type: string
+                    description: Typed allowlisted command selector. Freeform command text and caller-provided argv are not accepted.
+                    enum: [pwd, whoami, uname_s, uptime]
+                  timeout_ms:
+                    type: integer
+                    minimum: 1000
+                    maximum: 10000
+                    default: 5000
       responses:
         "200":
           description: SSH CLI allowlisted command executed.
@@ -16087,6 +16190,13 @@ paths:
               type: object
               additionalProperties: false
               required: [plugin_key]
+              oneOf:
+                - required: [action_key]
+                  not:
+                    required: [tool_key]
+                - required: [tool_key]
+                  not:
+                    required: [action_key]
               properties:
                 plugin_key: { type: string }
                 action_key: { type: string }
@@ -16118,11 +16228,35 @@ paths:
                   ok: { type: boolean }
                   allowed: { type: boolean }
                   reason: { type: string }
+                  security_decision:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      metrics: { $ref: "#/components/schemas/SecurityDecisionMetrics" }
+                  security_decision_trace_public:
+                    $ref: "#/components/schemas/SecurityDecisionTracePublic"
+                  security_decision_trace_admin:
+                    $ref: "#/components/schemas/SecurityDecisionTraceAdmin"
                   credential_resolution:
                     type: object
                     additionalProperties: true
                     properties:
                       denial_code: { type: string }
+                  selector:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      type: { type: string, enum: [action_key, tool_key] }
+                      value: { type: string }
+                  compatibility_telemetry:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      legacy_selector_alias_used: { type: boolean }
+                      legacy_fields:
+                        type: array
+                        items: { type: string }
+                      contract_version: { type: string, enum: [one-selector-v1] }
                   target_authorization:
                     type: object
                     additionalProperties: true
@@ -19409,6 +19543,13 @@ paths:
               type: object
               additionalProperties: false
               required: [plugin_key]
+              oneOf:
+                - required: [action_key]
+                  not:
+                    required: [tool_key]
+                - required: [tool_key]
+                  not:
+                    required: [action_key]
               properties:
                 plugin_key: { type: string }
                 action_key: { type: string }
@@ -19439,6 +19580,28 @@ paths:
                   ok: { type: boolean }
                   allowed: { type: boolean }
                   reason: { type: string }
+                  security_decision:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      metrics: { $ref: "#/components/schemas/SecurityDecisionMetrics" }
+                  security_decision_trace_public:
+                    $ref: "#/components/schemas/SecurityDecisionTracePublic"
+                  selector:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      type: { type: string, enum: [action_key, tool_key] }
+                      value: { type: string }
+                  compatibility_telemetry:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      legacy_selector_alias_used: { type: boolean }
+                      legacy_fields:
+                        type: array
+                        items: { type: string }
+                      contract_version: { type: string, enum: [one-selector-v1] }
                   target_authorization:
                     type: object
                     additionalProperties: true
