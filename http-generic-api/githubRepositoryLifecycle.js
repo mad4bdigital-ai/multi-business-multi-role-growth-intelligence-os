@@ -651,6 +651,10 @@ export async function applyGithubRepositoryChangeSet(options = {}) {
   const { owner, repo, defaultBranch, token } = await lifecycleContext(options);
   const branch = normalizeBranch(options.branch);
   const expectedBaseSha = normalizeSha(options.expected_base_sha || options.expectedBaseSha);
+  const expectedBranchSha = normalizeSha(options.expected_branch_sha || options.expectedBranchSha);
+  const allowSameBranchContinuation = options.allow_same_branch_continuation === true
+    || options.allowSameBranchContinuation === true
+    || Boolean(expectedBranchSha);
   const commitMessage = String(options.commit_message || options.commitMessage || "").trim();
   const changes = Array.isArray(options.changes) ? options.changes : [];
   if (!branch || branch === defaultBranch || PROTECTED_BRANCHES.has(branch)) throw lifecycleError(403, "github_change_set_branch_blocked", "A non-protected work branch is required.", { branch, default_branch: defaultBranch });
