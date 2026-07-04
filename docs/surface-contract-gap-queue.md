@@ -4,13 +4,69 @@
 
 ## Summary
 
-- Total queue items: 0
+- Total queue items: 4
 - Critical review: 0
-- High review: 0
+- High review: 3
 - Medium review: 0
-- Low review: 0
+- Low review: 1
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
 
-No actionable surface contract gaps detected.
+### 1. `1032_sprint69_cloudflare_mutation_policy_contract.sql`
+
+- Queue class: high_review
+- Score: 597
+- Gap severity: medium
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: none
+- Surface counts: plugins=0, tools=7, views=1, policies=1, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `cloudflare_mutations_require_zone_ownership_record_protection_preview_readback_and_rollback`, `cloudflare_zone_record_mutation_policy_v1`, `protected_record_classes`, `same_cycle_readback_required`, `v_cloudflare_mutation_policy_readiness`, `verification_record`
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `cloudflare_zone_record_mutation_policy_v1`
+- `verify_readback_view` → db-readback-review; targets: `v_cloudflare_mutation_policy_readiness`
+
+### 2. `1033_sprint69_n8n_instance_mode_ownership_policy.sql`
+
+- Queue class: high_review
+- Score: 544
+- Gap severity: medium
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: none
+- Surface counts: plugins=0, tools=4, views=1, policies=1, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `same_cycle_readback_required`, `tenant_platform_endpoint_tools`, `v_n8n_instance_mode_ownership_policy_readiness`
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `n8n_instance_mode_ownership_policy_v1`
+- `verify_readback_view` → db-readback-review; targets: `v_n8n_instance_mode_ownership_policy_readiness`
+
+### 3. `1031_sprint69_strict_platform_plugin_resolve_contract.sql`
+
+- Queue class: high_review
+- Score: 457
+- Gap severity: medium
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: none
+- Surface counts: plugins=0, tools=2, views=0, policies=0, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `tenant_platform_endpoint_tools`
+
+### 4. `1030_sprint69_canonical_capability_domain.sql`
+
+- Queue class: low_review
+- Score: 145
+- Gap severity: none
+- Missing docs: none
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=3, views=1, policies=0, routes=0
+- Remediation actions:
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_and_tenant_tool_catalogs`, `admin_platform_endpoint_tools`, `tenant_platform_endpoint_tools`
+- `verify_readback_view` → db-readback-review; targets: `v_capability_alias_integrity`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
