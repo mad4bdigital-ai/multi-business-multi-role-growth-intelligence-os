@@ -744,7 +744,7 @@ export async function applyGithubRepositoryChangeSet(options = {}) {
     const current = await readGithubTextAtCommit({
       owner,
       repo,
-      commitSha: expectedBaseSha,
+      commitSha: commitParentSha,
       filePath: source.path,
       token,
       fetchImpl: options.fetchImpl,
