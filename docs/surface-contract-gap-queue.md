@@ -8,7 +8,7 @@
 - Critical review: 1
 - High review: 0
 - Medium review: 0
-- Low review: 1
+- Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
