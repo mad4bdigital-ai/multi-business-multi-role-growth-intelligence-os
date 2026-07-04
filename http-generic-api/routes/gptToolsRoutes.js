@@ -878,7 +878,7 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "repo_patch_batch_apply",
     displayName: "Repository Batch Patch Apply",
-    description: "Create one atomic multi-file Git commit against an expected base SHA using Git trees. Supports write_file, delete_file, and apply_unified_diff; every diff is validated against the pinned base before any Git write, then the work branch is updated once with readback.",
+    description: "Create one atomic multi-file Git commit using Git trees. Supports write_file, delete_file, and apply_unified_diff. By default the work branch must be pinned to expected_base_sha; same-branch continuation may use expected_branch_sha with default-branch overlap checks and readback.",
     method: "VIRTUAL",
     path: "internal://repo-patch-batch-apply",
     tags: ["repo", "mutation", "batch", "atomic", "capability_envelope", "readback"],
