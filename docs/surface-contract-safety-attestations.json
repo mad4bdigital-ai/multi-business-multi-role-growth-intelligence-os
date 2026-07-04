@@ -1937,7 +1937,7 @@
     },
     {
       "migration_file": "20260702_session_archive_capability_family_authorization.sql",
-      "migration_sha256": "1dd29703ddbb8e21a5e72a18355a9e4b8346a9f57ef22913af0791f4f6f512b9",
+      "migration_sha256": "cb278ac7a7d5654080a5f2b9fe2909c17f3895814027c0a3c5f6faf2ccc11f14",
       "checksum_canonicalization": "utf8_lf_v1",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_static_contract",
