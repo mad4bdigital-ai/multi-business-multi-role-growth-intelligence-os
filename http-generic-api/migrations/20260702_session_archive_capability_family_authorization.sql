@@ -22,7 +22,7 @@ INSERT INTO execution_policies (policy_group,policy_key,policy_value,active,exec
       'accepted_app_keys',JSON_ARRAY('platform_orchestration'),
       'accepted_intents',JSON_ARRAY('session_archive_write','session_archive_backfill'),
       'accepted_capability_keys',JSON_ARRAY('session_archive_write'),
-      'apply_allowed_required',TRUE,'readback_required',TRUE,'audit_required',TRUE))),
+      'apply_allowed_required',TRUE,'readback_required',TRUE,'audit_required',TRUE)))) ,
   'provider_call_allowed',FALSE,'external_send_allowed',FALSE,'destructive_write_allowed',FALSE,
   'raw_secret_access_allowed',FALSE,'secrets_included',FALSE),
  'TRUE','gpt_tools_call|tool_dispatch|session_archive_write|append_turns|preview_rebuild|rebuild_transcript|gpt_session_turns_write_batch|gpt_session_archive_backfill',
