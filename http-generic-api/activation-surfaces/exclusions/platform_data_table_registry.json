@@ -1,0 +1,7 @@
+{
+  "surface_key": "platform_data_table_registry",
+  "source_table": "platform_data_table_registry",
+  "reason": "Excluded because it is an internal governance registry for allowlisted Admin and Tenant data-management routes. It defines table exposure policy and writable/readable column contracts, but it is not itself a user-visible activation surface or tenant authorization resource.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

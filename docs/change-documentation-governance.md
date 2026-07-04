@@ -1,5 +1,7 @@
 # Repo and SQL Change Documentation Governance
 
+> Change-governance contract for `1030_sprint69_canonical_capability_domain.sql`: review must confirm additive/idempotent SQL only, canonical capability and alias registry creation, readback through `v_capability_alias_integrity`, Admin/Tenant catalog backfill, and no route/infrastructure dispatch rule leakage. The migration header must retain `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`. Merge requires green CI and synchronized surface-contract documentation; production SQL apply remains a separate checksum-bound operation with governed bootstrap authorization, zero-risk preflight, migration-ledger evidence, schema/readback verification, and no deployment or provider execution.
+
 > Change-governance contract for `1029_sprint69_minimal_dynamic_brand_resolution.sql` and `1030_sprint69_generic_platform_resource_context.sql`: review must confirm additive/idempotent SQL only, expected descriptor and Tenant/Admin tool registrations, active blocking policy seeds, deterministic backend matching, signed-principal Tenant authority, bounded prompt candidates, backward compatibility, and focused resolver/wiring coverage. Both migration headers must retain `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`. Merge requires green CI and synchronized documentation; production SQL apply remains a separate checksum-bound operation with zero-risk preflight, migration-ledger evidence, schema/registry readback, and no deployment or provider execution.
 
 > Spec 007 source-link correction contract: `20260702_dynamic_capability_readback_source_link_fix.sql` is an additive idempotent migration that repairs one missing governance source link using canonical capability `platform_capability_governance_compile_persist`. Review must reject any return to zero-row-prone `INSERT ... SELECT` behavior. Merge requires the focused regression test, test-manifest registration, governed-runner allowlist, green CI, and documented ledger/row readback. No provider call, credential payload read, external send/write, runtime cutover, or secret inclusion occurs.
@@ -52,6 +54,9 @@ A change affecting `1024_sprint69_openapi_endpoint_inventory_sync.sql`, the inve
 - `1029_sprint69_minimal_dynamic_brand_resolution.sql` — SHA-256 `7c9ba638a41e4be16a78e406f519ff14c1c642e07cc5959c68de49dc9fb5d9cd`; surfaces: tools=3, policies=2, routes=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding.
 - `1030_sprint69_canonical_capability_domain.sql` — SHA-256 `d26b954de4bb7496cb77888cf445688a29f56059278854cdb97f2dd19dad3819`; surfaces: tools=3, views=1; static preflight: pass/0; runtime reviews: verify_readback_view, verify_tool_registry_binding.
 - `1030_sprint69_generic_platform_resource_context.sql` — SHA-256 `d3dc914451fa81d96b2d07dd7f44fa41a27d0beb03893ae4aae533a40a258a8a`; surfaces: tools=6, policies=2, routes=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding.
+- `1031_sprint69_strict_platform_plugin_resolve_contract.sql` — SHA-256 `462a3da9bff92152d4bca2140f4a733ee127408e2b8120296a98d500e779707b`; surfaces: tools=2; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1032_sprint69_cloudflare_mutation_policy_contract.sql` — SHA-256 `b1c1bae5836c40f489579dd19a3da8084ee9e3cad9535415792fe4a2ede1a6e7`; surfaces: tools=7, views=1, policies=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_readback_view, verify_tool_registry_binding.
+- `1033_sprint69_n8n_instance_mode_ownership_policy.sql` — SHA-256 `674ba2df11e5e20091c1a1b5bdd74b2f035fd6a8134c2ded4eb7a8b86c19b5c9`; surfaces: tools=4, views=1, policies=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_readback_view, verify_tool_registry_binding.
 - `1034_sprint69_repository_automation_control_plane.sql` — SHA-256 `2802bd37dfb3dafbf66ee35d05d040995ded44a39856e538ef3610901029777f`; surfaces: tools=4, routes=4; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
 - `20260615_tenant_growth_dashboard_product.sql` — SHA-256 `c4a2a2d19c1d0cb1270597df810b03bce6f30e5800df782b627b25b2a5edba59`; surfaces: tools=6, views=3; static preflight: pass/0; runtime reviews: verify_readback_view, verify_tool_registry_binding.
 - `20260625_repository_mutation_descriptor_policy_recovery.sql` — SHA-256 `9aa9b798a5f5d5f42f90f0f7f7f9b46a19599c81aaac5333393034667a0fc003`; surfaces: tools=7, views=1; static preflight: pass/0; runtime reviews: verify_readback_view, verify_tool_registry_binding.
@@ -63,6 +68,8 @@ A change affecting `1024_sprint69_openapi_endpoint_inventory_sync.sql`, the inve
 - `20260702_dynamic_capability_readback_source_link_fix.sql` — SHA-256 `c7a18fa6047b26448ff6e0033e02edd417fcd68b2b17fb469d05080f70f76a6b`; surfaces: tools=2; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
 - `20260702_session_archive_capability_family_authorization.sql` — SHA-256 `1dd29703ddbb8e21a5e72a18355a9e4b8346a9f57ef22913af0791f4f6f512b9`; surfaces: tools=2; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
 - `20260704_platform_resource_authority_grant_tool.sql` — SHA-256 `80e407bea72401c6e284cd3080fddbee144bd315ecc06694defcd7763a54a410`; surfaces: tools=1, routes=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `20260704_runtime_dispatch_certification_issuer.sql` — SHA-256 `c03c0c4551e1218699411daa9ac891a07b5f5cebeefd555bb849a2d85f8fdd08`; surfaces: tools=6; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `20260704_user_dashboard_dynamic_tabs_aliases.sql` — SHA-256 `567a5b10f5cfc00ce8714270a612a86cf8cbd0b72af664dca253cf465bd04cf0`; surfaces: tools=1, routes=7; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
 - `308_sprint69_activation_guidance_intelligence.sql` — SHA-256 `dde33c80a6a38b9968c76f30b12e6091b5ac794c707080c8f57d78c589df5077`; surfaces: routes=2; static preflight: pass/0; runtime reviews: none.
 - `308_sprint69_dynamic_governed_migration_reconciliation.sql` — SHA-256 `0635ebaa25216ae9e2da27b4ba08da697f14e36a73e289d3e7985878f8022fb4`; surfaces: tools=5; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
 - `309_sprint69_activation_guidance_invocation_registry.sql` — SHA-256 `1d74f06f2c6003a4a4ca78bbbe1972a2cb47ddcddeace35df847a8c4442ec28a`; surfaces: tools=5; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
@@ -261,6 +268,18 @@ Required evidence:
 - rollout notes describe revocation, replay, expiry, and incident-response implications.
 
 For local connector installers, the approved contract is authenticated direct download only. JSON install-bundle metadata and self-repair responses must not generate installer content. The `format=bat` download remains protected by backend-key authentication and an admin-principal guard.
+
+## Platform Plugin resolve contract documentation rule
+
+Changes to Platform Plugin resolve selectors, decision traces, security metrics, target authority, or approval semantics must update:
+
+- `http-generic-api/openapi.yaml`;
+- generated tenant GPT OpenAPI surfaces when tenant resolve output changes;
+- `http-generic-api/docs/platform-plugin-resolver-notes.md`;
+- `docs/platform-plugin-contract-migration-guide.md`;
+- `docs/folder-map.md` when boundaries move or a new capability/security subsystem contract is added.
+
+Required evidence: OpenAPI 3.1 validation, one-selector request tests, stable error codes (`MISSING_CAPABILITY_SELECTOR`, `AMBIGUOUS_CAPABILITY_SELECTOR`, `UNKNOWN_SECURITY_CONTRACT_FIELD`), public/admin trace projection tests, no-secret assertions, and a legacy selector deprecation timeline. Resolve remains preview/readiness only and must not authorize provider calls, credential payload reads, raw secret responses, runtime mutation, external sends/writes, or dispatch by itself.
 
 ## Support Ticket External Delivery certification docs rule
 

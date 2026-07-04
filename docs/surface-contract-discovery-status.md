@@ -19,10 +19,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 474
+- Migrations with detected surfaces: 479
 - Migrations reported here: 80
-- OpenAPI operations detected: 528
-- OpenAPI paths detected: 491
+- OpenAPI operations detected: 536
+- OpenAPI paths detected: 498
 - Documentation targets checked:
 - `Updating Registry Patch Index.md`
 - `deployment_parity_checklist.md`
@@ -32,11 +32,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 474/474 (100.00%)
+- Documentation complete migrations: 479/479 (100.00%)
 - Documentation gap migrations: 0
 - Gap severity: high=0, medium=0, low=0
-- SQL route coverage in OpenAPI: 10/10 (100.00%)
-- SQL route-like literals exempted from OpenAPI scoring: 610/620
+- SQL route coverage in OpenAPI: 17/17 (100.00%)
+- SQL route-like literals exempted from OpenAPI scoring: 610/627
 - SQL routes missing OpenAPI path coverage: 0
 - Migrations without explicit `secrets_included=false` marker: 0
 
@@ -45,10 +45,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 12 | 9 |
-| tools | 2220 | 403 |
-| views | 429 | 172 |
-| policies | 172 | 111 |
-| routes | 620 | 250 |
+| tools | 2240 | 408 |
+| views | 431 | 174 |
+| policies | 174 | 113 |
+| routes | 627 | 251 |
 
 ### Documentation Target Gaps
 
@@ -64,18 +64,18 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 474 |
-| no_credential_payload_read | 474 |
-| no_raw_secrets | 474 |
-| no_external_send | 474 |
-| no_external_write | 474 |
-| secrets_included_false | 474 |
+| no_provider_call | 479 |
+| no_credential_payload_read | 479 |
+| no_raw_secrets | 479 |
+| no_external_send | 479 |
+| no_external_write | 479 |
+| secrets_included_false | 479 |
 
 ### Route Classification Coverage
 
 | Route class | SQL route-like literals |
 |---|---:|
-| http_route | 10 |
+| http_route | 17 |
 | admin_tool_registry_route | 159 |
 | tenant_tool_registry_route | 42 |
 | system_tool_dispatch_route | 14 |
