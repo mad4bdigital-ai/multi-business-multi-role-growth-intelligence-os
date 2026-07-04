@@ -499,6 +499,16 @@ export async function writeExecutionEvidence({
   };
   const runtimeEvidenceEnvelope = {
     ...pickEvidenceObject(contextObjects, runtimeEvidence, ["runtime_evidence", "runtimeEvidence"]),
+    skill_grant_resolution: resolvedAgentSkillGrant ? {
+      status: "resolved",
+      grant_id: resolvedAgentSkillGrant.grant_id,
+      agent_key: resolvedAgentSkillGrant.agent_key,
+      skill_key: resolvedAgentSkillGrant.skill_key,
+      scope: resolvedAgentSkillGrant.grant_tenant_id ? "tenant" : "global",
+      tenant_id: resolvedAgentSkillGrant.grant_tenant_id || null,
+      brand_key: resolvedAgentSkillGrant.grant_brand_key || null,
+      secrets_included: false,
+    } : { status: "not_resolved", secrets_included: false },
     dimensions: {
       tenant_id: contextDimensions.tenant_id,
       workspace_id: contextDimensions.workspace_id,
