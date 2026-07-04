@@ -586,6 +586,55 @@ function hasTopLevelSqlKeyword(sql = "", keyword = "") {
   return false;
 }
 
+const MIGRATION_KNOWN_TABLE_COLUMNS = Object.freeze({
+  admin_platform_endpoint_tools: new Set([
+    "id", "tool_key", "display_name", "description", "http_method", "http_path",
+    "path_param_keys", "input_schema", "fixed_body", "tags", "is_enabled",
+    "sort_order", "created_at", "updated_at",
+  ]),
+  tenant_platform_endpoint_tools: new Set([
+    "id", "tool_key", "display_name", "description", "http_method", "http_path",
+    "path_param_keys", "input_schema", "fixed_body", "tags", "is_enabled",
+    "sort_order", "created_at", "updated_at",
+  ]),
+});
+
+function migrationDialectRisks(normalized = "") {
+  const source = stripSqlStringLiterals(normalized);
+  if (/\bCAST\s*\([\s\S]*?\s+AS\s+JSON\s*\)/i.test(source)) {
+    return [{
+      severity: "fail",
+      code: "mariadb_cast_as_json_not_supported",
+      statement: normalized.slice(0, 140),
+    }];
+  }
+  return [];
+}
+
+function migrationOnDuplicateColumnRisks(normalized = "") {
+  const tableMatch = normalized.match(/^INSERT\s+(?:IGNORE\s+)?INTO\s+`?([A-Za-z0-9_]+)`?\b/i);
+  const tableName = tableMatch?.[1] || "";
+  const knownColumns = MIGRATION_KNOWN_TABLE_COLUMNS[tableName];
+  if (!knownColumns) return [];
+  const duplicateIndex = normalized.search(/\bON\s+DUPLICATE\s+KEY\s+UPDATE\b/i);
+  if (duplicateIndex === -1) return [];
+  const updatePart = stripSqlStringLiterals(normalized.slice(duplicateIndex));
+  const risks = [];
+  const assignmentRegex = /`?([A-Za-z0-9_]+)`?\s*=/g;
+  for (const match of updatePart.matchAll(assignmentRegex)) {
+    const columnName = match?.[1] || "";
+    if (!columnName || knownColumns.has(columnName)) continue;
+    risks.push({
+      severity: "fail",
+      code: "on_duplicate_update_unknown_column",
+      table: tableName,
+      column: columnName,
+      statement: normalized.slice(0, 140),
+    });
+  }
+  return risks;
+}
+
 export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
   const statements = splitSqlStatements(sqlText);
   const risks = [];
