@@ -281,7 +281,7 @@ export async function runGovernedMigrationExecution(input = {}, deps = {}) {
     throw toolError(
       "governed_migration_runner_failed",
       `Governed migration runner failed: ${diagnostic}`,
-      502,
+      409,
       details
     );
   }
