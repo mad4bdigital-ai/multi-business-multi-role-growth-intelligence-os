@@ -425,6 +425,49 @@ export async function writeExecutionEvidence({
   };
   if (!contextDimensions.actor_type && contextDimensions.actor_id) contextDimensions.actor_type = contextDimensions.user_id ? "user" : "system";
 
+  const resolvedAgentSkillGrant = await resolveExecutionAgentSkillGrant(pool, contextDimensions);
+  if (resolvedAgentSkillGrant) {
+    contextDimensions.agent_id = contextDimensions.agent_id || resolvedAgentSkillGrant.agent_id;
+    contextDimensions.agent_key = contextDimensions.agent_key || resolvedAgentSkillGrant.agent_key;
+    contextDimensions.skill_id = contextDimensions.skill_id || resolvedAgentSkillGrant.skill_id;
+    contextDimensions.skill_key = contextDimensions.skill_key || resolvedAgentSkillGrant.skill_key;
+    const grantPolicyKey = `${resolvedAgentSkillGrant.skill_key}_grant_active_v1`;
+    const policyText = String(contextDimensions.policy_keys || "");
+    if (!policyText) contextDimensions.policy_keys = grantPolicyKey;
+    else if (!policyText.split(/[|,]/).map((item) => item.trim()).includes(grantPolicyKey)) {
+      contextDimensions.policy_keys = compactList([policyText, grantPolicyKey], 1000);
+    }
+  }
+
+  const resolvedAgentEvidence = resolvedAgentSkillGrant ? {
+    agent_id: resolvedAgentSkillGrant.agent_id,
+    agent_key: resolvedAgentSkillGrant.agent_key,
+    grant_id: resolvedAgentSkillGrant.grant_id,
+    grant_tenant_id: resolvedAgentSkillGrant.grant_tenant_id || null,
+    grant_brand_key: resolvedAgentSkillGrant.grant_brand_key || null,
+    grant_scope: resolvedAgentSkillGrant.grant_tenant_id ? "tenant" : "global",
+    grant_resolution_status: "resolved_from_agent_skill_grants",
+    secrets_included: false,
+  } : {};
+  const resolvedSkillEvidence = resolvedAgentSkillGrant ? {
+    skill_id: resolvedAgentSkillGrant.skill_id,
+    skill_key: resolvedAgentSkillGrant.skill_key,
+    skill_type: resolvedAgentSkillGrant.skill_type,
+    requires_approval: Boolean(resolvedAgentSkillGrant.requires_approval),
+    grant_id: resolvedAgentSkillGrant.grant_id,
+    grant_tenant_id: resolvedAgentSkillGrant.grant_tenant_id || null,
+    grant_brand_key: resolvedAgentSkillGrant.grant_brand_key || null,
+    grant_resolution_status: "resolved_from_agent_skill_grants",
+    secrets_included: false,
+  } : {};
+  const resolvedAuthorizationEvidence = resolvedAgentSkillGrant ? {
+    skill_grant_id: resolvedAgentSkillGrant.grant_id,
+    skill_grant_scope: resolvedAgentSkillGrant.grant_tenant_id ? "tenant" : "global",
+    skill_grant_tenant_id: resolvedAgentSkillGrant.grant_tenant_id || null,
+    skill_grant_brand_key: resolvedAgentSkillGrant.grant_brand_key || null,
+    secrets_included: false,
+  } : {};
+
   const evidenceObjects = {
     agent: stripSensitiveEvidence(pickEvidenceObject(contextObjects, agentEvidence, ["agent_evidence", "agentEvidence", "agent"])),
     skill: stripSensitiveEvidence(pickEvidenceObject(contextObjects, skillEvidence, ["skill_evidence", "skillEvidence", "skill"])),
