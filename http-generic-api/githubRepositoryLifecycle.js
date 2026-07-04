@@ -614,6 +614,39 @@ async function readGithubTextAtCommit({ owner, repo, commitSha, filePath, token,
   return { content, blob_sha: normalizeSha(payload.sha) || null };
 }
 
+function uniqueSorted(values = []) {
+  return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))].sort();
+}
+
+function changedPathOverlaps(changePath, changedPath) {
+  const left = String(changePath || "").replace(/\/+/g, "/");
+  const right = String(changedPath || "").replace(/\/+/g, "/");
+  return left === right || left.startsWith(`${right}/`) || right.startsWith(`${left}/`);
+}
+
+async function compareGithubCommitFiles({ owner, repo, baseSha, headSha, token, fetchImpl }) {
+  const base = normalizeSha(baseSha);
+  const head = normalizeSha(headSha);
+  if (!base || !head || base === head) {
+    return { status: base === head ? "identical" : "unavailable", ahead_by: 0, behind_by: 0, changed_paths: [], files_truncated: false };
+  }
+  const compare = await githubLifecycleRequest({
+    owner,
+    repo,
+    apiPath: `/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`,
+    token,
+    fetchImpl,
+  });
+  const files = Array.isArray(compare.payload?.files) ? compare.payload.files : [];
+  return {
+    status: String(compare.payload?.status || ""),
+    ahead_by: Number(compare.payload?.ahead_by || 0),
+    behind_by: Number(compare.payload?.behind_by || 0),
+    changed_paths: uniqueSorted(files.flatMap((file) => [file?.filename, file?.previous_filename])),
+    files_truncated: Number(compare.payload?.total_commits || 0) > 250 && files.length >= 300,
+  };
+}
+
 export async function applyGithubRepositoryChangeSet(options = {}) {
   const { owner, repo, defaultBranch, token } = await lifecycleContext(options);
   const branch = normalizeBranch(options.branch);
