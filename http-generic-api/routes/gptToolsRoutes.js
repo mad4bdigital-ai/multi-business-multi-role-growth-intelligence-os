@@ -61,6 +61,7 @@ import {
   decideGrowthIntelligenceInsightAdmin,
   refreshGrowthIntelligenceReadinessAdmin,
 } from "../growthIntelligenceAdminDecisions.js";
+import { issueRuntimeDispatchCertification } from "../runtimeDispatchCertificationIssuer.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -740,6 +741,39 @@ const VIRTUAL_ADMIN_TOOLS = [
         tag: { type: "string" },
         cursor: { type: "integer", minimum: 0, default: 0 },
         limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "runtime_dispatch_certification_issue",
+    displayName: "Issue Runtime Dispatch Certification",
+    description: "Issue one bounded runtime dispatch certification into runtime_dispatch_certification_registry. Requires a capability envelope, typed confirmation derived from certification_key, bounded evidence, expiry, same-cycle readback, no provider call, no external write, no secrets, and never grants apply_allowed=true.",
+    method: "VIRTUAL",
+    path: "internal://runtime-dispatch-certification-issue",
+    tags: ["admin", "runtime_dispatch", "certification", "state_changing", "typed_confirmation", "capability_envelope", "same_cycle_readback", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["certification_key", "surface_key", "surface_family", "tool_or_action_key", "risk_class", "last_evidence_ref", "confirm", "capability_envelope_id"],
+      properties: {
+        certification_key: { type: "string", pattern: "^[A-Za-z0-9_.:-]{3,191}$" },
+        surface_key: { type: "string", pattern: "^[A-Za-z0-9_.:-]{3,191}$" },
+        surface_family: { type: "string", pattern: "^[A-Za-z0-9_.:-]{3,128}$" },
+        tool_or_action_key: { type: "string", pattern: "^[A-Za-z0-9_.:-]{3,191}$" },
+        risk_class: { type: "string", pattern: "^[A-Za-z0-9_.:-]{1,64}$" },
+        certification_status: { type: "string", maxLength: 128, default: "ci_certified" },
+        smoke_strategy: { type: "string", maxLength: 191, default: "bounded_evidence_readback" },
+        dispatch_allowed: { type: "boolean", default: true },
+        apply_allowed: { type: "boolean", const: false, default: false },
+        requires_resource_authority: { type: "boolean", default: true },
+        requires_dry_run: { type: "boolean", default: true },
+        requires_audit_evidence: { type: "boolean", default: true },
+        requires_readback: { type: "boolean", default: true },
+        last_evidence_ref: { type: "string", minLength: 20, maxLength: 1000 },
+        expires_in_days: { type: "integer", minimum: 1, maximum: 90, default: 30 },
+        notes: { type: "string", maxLength: 1000 },
+        confirm: { type: "string" },
+        capability_envelope_id: { type: "string" },
       },
       additionalProperties: false,
     },
@@ -2232,6 +2266,50 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       };
     }
   }
+  if (callerType === "admin" && toolKey === "runtime_dispatch_certification_issue") {
+    try {
+      const resolved = await resolveCapabilityExecutionEnvelope({
+        pool: getPool(),
+        source: args || {},
+        acceptedAppKeys: ["platform_orchestration", "platform_registry", "github"],
+        acceptedIntents: ["runtime.dispatch.certification.issue", "runtime_dispatch_certification_issue", "runtime_certification_issue"],
+        acceptedCapabilityKeys: ["runtime_dispatch_certification_issue"],
+        expectedTenantId: req?.auth?.tenant_id || PLATFORM_TENANT_ID,
+        expectedUserId: req?.auth?.user_id || "",
+        requireReadyForDispatch: true,
+        requireDispatchAllowed: true,
+        requireNoApprovalRequired: false,
+        requireNoBlockingGaps: true,
+        requireNoSecrets: true,
+      });
+      if (!resolved.ok) {
+        throw capabilityEnvelopeError(resolved, "Runtime dispatch certification issue requires a valid capability resolution envelope.");
+      }
+      const result = await issueRuntimeDispatchCertification(args || {}, {
+        pool: getPool(),
+        allowedToolKeys: VIRTUAL_ADMIN_TOOLS.map((tool) => tool.name),
+      });
+      await markCapabilityEnvelopeReferenced({
+        pool: getPool(),
+        envelopeId: resolved.envelope_id,
+        executionRef: `runtime_dispatch_certification_issue:${result.certification_key}`,
+      });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "runtime_dispatch_certification_issue_failed",
+            message: err?.message || "Runtime dispatch certification issue failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
+
   if (callerType === "admin" && toolKey === "github_pr_ci_gate") {
     try {
       const result = await getGithubPullRequestCiGate(args || {});
