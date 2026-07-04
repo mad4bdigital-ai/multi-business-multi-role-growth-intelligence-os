@@ -4,25 +4,13 @@
 
 ## Summary
 
-- Total queue items: 1
+- Total queue items: 0
 - Critical review: 0
 - High review: 0
 - Medium review: 0
-- Low review: 1
+- Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
 
-### 1. `20260702_session_archive_capability_family_authorization.sql`
-
-- Queue class: low_review
-- Score: 139
-- Gap severity: none
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: `no_provider_call`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-- Surface counts: plugins=0, tools=2, views=0, policies=0, routes=0
-- Remediation actions:
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `default_decision`, `same_cycle_readback`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-
+No actionable surface contract gaps detected.
