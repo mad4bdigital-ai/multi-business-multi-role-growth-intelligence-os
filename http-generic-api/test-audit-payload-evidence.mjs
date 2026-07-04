@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   boundedEvidencePayload,
+  buildAuditEvidenceDigest,
   buildAuditPayloadEvidence,
   redactAuditPayload,
 } from './auditPayloadEvidence.js';
@@ -41,10 +42,36 @@ assert.equal(evidence.redaction_status, 'redacted');
 assert.equal(evidence.secrets_included, false);
 assert.equal(evidence.request_sha256.length, 64);
 assert.equal(evidence.response_sha256.length, 64);
+assert.equal(evidence.evidence_sha256.length, 64);
+assert.equal(evidence.previous_evidence_sha256, null);
 assert(!evidence.request_preview.includes('SHOULD_NOT_APPEAR'));
 assert(!evidence.response_preview.includes('SHOULD_NOT_APPEAR'));
 assert(JSON.parse(evidence.metadata_json).policy.secret_values_returned === false);
 assert(JSON.parse(evidence.metadata_json).policy.token_returned === false);
+assert(JSON.parse(evidence.metadata_json).tamper_evident.evidence_sha256 === evidence.evidence_sha256);
+assert(JSON.parse(evidence.metadata_json).tamper_evident.secrets_included === false);
+
+const chainedEvidence = buildAuditPayloadEvidence({
+  evidence_id: 'evidence-2',
+  action: 'audit.payload_evidence_smoke',
+  previous_evidence_sha256: evidence.evidence_sha256,
+  request_payload: { safe: 'request' },
+  response_payload: { safe: 'response' },
+});
+assert.equal(chainedEvidence.previous_evidence_sha256, evidence.evidence_sha256);
+assert.equal(JSON.parse(chainedEvidence.metadata_json).tamper_evident.previous_evidence_sha256, evidence.evidence_sha256);
+assert.notEqual(chainedEvidence.evidence_sha256, evidence.evidence_sha256);
+assert.equal(
+  buildAuditEvidenceDigest({
+    evidence_id: chainedEvidence.evidence_id,
+    action: chainedEvidence.action,
+    evidence_type: chainedEvidence.evidence_type,
+    request_sha256: chainedEvidence.request_sha256,
+    response_sha256: chainedEvidence.response_sha256,
+    previous_evidence_sha256: evidence.evidence_sha256,
+  }),
+  chainedEvidence.evidence_sha256,
+);
 
 assert(routeFile.includes('/audit/evidence/smoke'), 'audit payload evidence smoke route must exist');
 assert(routeFile.includes('writeAuditPayloadEvidence'), 'route must write bounded audit payload evidence');

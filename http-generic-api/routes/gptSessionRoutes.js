@@ -3,6 +3,10 @@ import { getPool } from "../db.js";
 import { exportSessionToDrive } from "../sessionExportPipeline.js";
 import { closeGptSessionArchive, recordGptSessionTurn } from "../sessionArchiveService.js";
 import { summarizeSessionIfNeeded, writeProvidedSessionSummary } from "../sessionSummaryService.js";
+import {
+  capabilityFamilyAuthorizationError,
+  resolveToolCapabilityFamilyAuthorization,
+} from "../toolCapabilityFamilyAuthorization.js";
 
 const VALID_TURN_ROLES = new Set(["user", "assistant", "tool"]);
 const MAX_BATCH_TURNS = 20;
@@ -569,6 +573,26 @@ export function buildGptSessionRoutes(deps) {
           return res.status(400).json({ ok: false, error: validation.error });
         }
         normalizedTurns.push(validation.turn);
+      }
+
+      const callerType = ["user_jwt", "api_credential"].includes(req.auth?.mode) ? "tenant" : "admin";
+      const capabilityFamilyAuthorization = await resolveToolCapabilityFamilyAuthorization({
+        pool,
+        callerType,
+        principal: {
+          tenant_id: req.auth?.tenant_id || null,
+          user_id: req.auth?.user_id || req.auth?.admin_id || null,
+        },
+        toolKey: "gpt_session_turns_write_batch",
+        args: { id: req.params.id, turns: normalizedTurns },
+        expectedFamily: "session_archive_write",
+        requirePolicy: true,
+      });
+      if (!capabilityFamilyAuthorization.ok) {
+        throw capabilityFamilyAuthorizationError(
+          capabilityFamilyAuthorization,
+          "Session archive write capability-family authorization denied this operation.",
+        );
       }
 
       const session = await resolveWritableSession(pool, req);

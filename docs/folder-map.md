@@ -48,6 +48,8 @@ Application services coordinate membership, authorization, lifecycle operations,
 
 Domain modules own resource descriptors, capability policy, pagination token rules, typed errors, and invariants. Domain code remains independent of transport and persistence frameworks.
 
+Capability security decisions live under `http-generic-api/src/domain/capability/`. That layer owns `SecurityDecision`, gate results, public/admin trace projection, invariant metrics, and fail-closed dispatch invariants. Routes and infrastructure may project or persist the result, but must not reimplement security decision rules.
+
 ### `src/infrastructure/`
 
 Repositories and composition modules own SQL, database access, and wiring to existing services. SQL table and field selection remains code-owned and descriptor-bound.
@@ -63,6 +65,10 @@ Additive schema migrations and registry seed data. Destructive operations requir
 ### `scripts/`
 
 Repeatable CI and maintenance utilities, including changed-surface Resource API coverage detection.
+
+### `http-generic-api/docs/` and `docs/`
+
+Subsystem-local docs under `http-generic-api/docs/` describe service-owned runtime contracts. Repository-level docs under `docs/` describe cross-cutting architecture, runbooks, migration guidance, and documentation governance. Changes that add a security contract, trace schema, or deprecation timeline must update the relevant subsystem notes plus a repository-level migration guide.
 
 ### Resource surface policy authority
 
