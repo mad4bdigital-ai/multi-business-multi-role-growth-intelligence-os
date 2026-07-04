@@ -9,4 +9,4 @@
 - Docs completion: 99.79%
 - SQL route OpenAPI coverage: 100%
 - OpenAPI-exempt SQL route-like literals: 610/620
-- Safety marker gap migrations: 1
+- Safety marker gap migrations: 0

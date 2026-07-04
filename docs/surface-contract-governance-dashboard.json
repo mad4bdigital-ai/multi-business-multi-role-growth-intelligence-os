@@ -7,9 +7,9 @@
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
     "migrations_with_surfaces": 474,
-    "docs_complete_count": 473,
-    "docs_gap_count": 1,
-    "docs_completion_percent": 99.79,
+    "docs_complete_count": 474,
+    "docs_gap_count": 0,
+    "docs_completion_percent": 100,
     "surface_totals": {
       "plugins": 12,
       "tools": 2220,
@@ -35,19 +35,19 @@
       "high": 1,
       "medium": 0,
       "low": 0,
-      "none": 473
+      "none": 474
     },
     "high_risk_missing_docs": [
       "20260704_platform_resource_authority_grant_tool.sql"
     ],
     "medium_risk_missing_docs": [],
     "safety_marker_counts": {
-      "no_provider_call": 473,
-      "no_credential_payload_read": 473,
-      "no_raw_secrets": 473,
-      "no_external_send": 473,
-      "no_external_write": 473,
-      "secrets_included_false": 473
+      "no_provider_call": 474,
+      "no_credential_payload_read": 474,
+      "no_raw_secrets": 474,
+      "no_external_send": 474,
+      "no_external_write": 474,
+      "secrets_included_false": 474
     },
     "safety_marker_gap_migrations": 1,
     "route_coverage": {
