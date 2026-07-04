@@ -107,6 +107,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-platform-plugin-action-grants.mjs`
 - `http-generic-api/test-platform-plugin-action-templates.mjs`
 - `http-generic-api/test-platform-plugin-catalog.mjs`
+- `http-generic-api/test-platform-plugin-contract-docs.mjs`
 - `http-generic-api/test-platform-plugin-contribution.mjs`
 - `http-generic-api/test-platform-plugin-install.mjs`
 - `http-generic-api/test-platform-plugin-openapi-db-tag-parity.mjs`
@@ -118,6 +119,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-platform-plugin-resolver.mjs`
 - `http-generic-api/test-platform-plugin-security-alerts.mjs`
 - `http-generic-api/test-platform-plugin-shared-tool-bindings.mjs`
+- `http-generic-api/test-platform-plugin-strict-request-contract.mjs`
 - `http-generic-api/test-platform-plugin-target-authority.mjs`
 - `http-generic-api/test-schema-overlay-json-asset-loader.mjs`
 - `http-generic-api/test-schema-overlay-resolver.mjs`

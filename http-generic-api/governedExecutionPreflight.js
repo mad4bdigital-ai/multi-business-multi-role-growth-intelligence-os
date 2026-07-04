@@ -35,6 +35,18 @@ const DECLARED_MUTATION_POLICY_TAGS = new Set([
 const READ_ONLY_FORWARDED_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const STATE_CHANGING_FORWARDED_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+export const MUTATION_POLICY_REQUIREMENT = Object.freeze({
+  REQUIRED: "mutation_policy_required",
+  NOT_REQUIRED: "mutation_policy_not_required",
+  UNCLASSIFIED: "mutation_policy_unclassified",
+});
+
+export function mutationPolicyRequirementFromBoolean(value) {
+  if (value === true) return MUTATION_POLICY_REQUIREMENT.REQUIRED;
+  if (value === false) return MUTATION_POLICY_REQUIREMENT.NOT_REQUIRED;
+  return MUTATION_POLICY_REQUIREMENT.UNCLASSIFIED;
+}
+
 function normalizedPolicyTags(tags = []) {
   return new Set((Array.isArray(tags) ? tags : String(tags || "").split(","))
     .map((tag) => String(tag || "").trim().toLowerCase())
@@ -217,6 +229,14 @@ export function classifyMutationPolicyRequirement({ method = "", tags = [], muta
     return { required: true, classification: "conservative_state_changing_default" };
   }
   return { required: null, classification: "mutation_classification_missing" };
+}
+
+export function classifyMutationPolicyRequirementEnum(input = {}) {
+  const result = classifyMutationPolicyRequirement(input);
+  return {
+    ...result,
+    requirement: mutationPolicyRequirementFromBoolean(result.required),
+  };
 }
 
 export function hasDeclaredMutationPolicy({ tags = [], mutationPolicyDeclared = null } = {}) {

@@ -61,7 +61,7 @@ for (const expected of [
   assert(migration.includes(expected), expected);
 }
 
-assert(migration.includes("    5,\n    'active'"));
+assert.match(migration, /    5,\r?\n    'active'/);
 assert(!/\bDELETE\s+FROM\b/i.test(migration));
 assert(!/\bTRUNCATE\b/i.test(migration));
 assert(!/\bDROP\s+(TABLE|VIEW|DATABASE)\b/i.test(migration));
