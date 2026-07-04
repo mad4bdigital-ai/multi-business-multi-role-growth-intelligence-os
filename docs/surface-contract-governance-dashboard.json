@@ -6,23 +6,23 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 473,
-    "docs_complete_count": 473,
+    "migrations_with_surfaces": 474,
+    "docs_complete_count": 474,
     "docs_gap_count": 0,
     "docs_completion_percent": 100,
     "surface_totals": {
       "plugins": 12,
-      "tools": 2219,
+      "tools": 2220,
       "views": 429,
       "policies": 172,
-      "routes": 619
+      "routes": 620
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 402,
+      "tools": 403,
       "views": 172,
       "policies": 111,
-      "routes": 249
+      "routes": 250
     },
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 0,
@@ -35,26 +35,26 @@
       "high": 0,
       "medium": 0,
       "low": 0,
-      "none": 473
+      "none": 474
     },
     "high_risk_missing_docs": [],
     "medium_risk_missing_docs": [],
     "safety_marker_counts": {
-      "no_provider_call": 473,
-      "no_credential_payload_read": 473,
-      "no_raw_secrets": 473,
-      "no_external_send": 473,
-      "no_external_write": 473,
-      "secrets_included_false": 473
+      "no_provider_call": 474,
+      "no_credential_payload_read": 474,
+      "no_raw_secrets": 474,
+      "no_external_send": 474,
+      "no_external_write": 474,
+      "secrets_included_false": 474
     },
     "safety_marker_gap_migrations": 0,
     "route_coverage": {
       "sql_route_count": 10,
-      "total_sql_route_like_count": 619,
-      "openapi_exempt_sql_route_count": 609,
+      "total_sql_route_like_count": 620,
+      "openapi_exempt_sql_route_count": 610,
       "route_class_counts": {
         "http_route": 10,
-        "admin_tool_registry_route": 158,
+        "admin_tool_registry_route": 159,
         "tenant_tool_registry_route": 42,
         "system_tool_dispatch_route": 14,
         "registry_only_surface": 1,
