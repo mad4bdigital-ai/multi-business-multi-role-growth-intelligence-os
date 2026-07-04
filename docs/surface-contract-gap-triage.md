@@ -4,18 +4,15 @@
 
 ## Summary
 
-- Triaged items: 4
-- Gate candidates: 3
-- New-gap gate: fail
-- Blocking new items: 4
+- Triaged items: 0
+- Gate candidates: 0
+- New-gap gate: pass
+- Blocking new items: 0
 
 ## Class counts
 
-- new_surface_immediate_review: 3
-- safety_marker_review: 1
+- none
 
 ## Immediate review candidates
 
-- `1032_sprint69_cloudflare_mutation_policy_contract.sql` — high_review, score 597; next: add targeted patch-index, parity, and governance documentation
-- `1033_sprint69_n8n_instance_mode_ownership_policy.sql` — high_review, score 544; next: add targeted patch-index, parity, and governance documentation
-- `1031_sprint69_strict_platform_plugin_resolve_contract.sql` — high_review, score 457; next: add targeted patch-index, parity, and governance documentation
+- none
