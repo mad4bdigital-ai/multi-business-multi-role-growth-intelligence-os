@@ -114,6 +114,7 @@ import { buildDynamicContainerAuthorityRoutes } from "./dynamicContainerAuthorit
 import { buildDynamicContainerTeamRoutes } from "./dynamicContainerTeamRoutes.js";
 import { buildOpenApiRegistrySyncRoutes } from "./openApiRegistrySyncRoutes.js";
 import { buildSqlCachePolicyRoutes } from "./sqlCachePolicyRoutes.js";
+import { buildRepositoryAutomationRoutes } from "./repositoryAutomationRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
@@ -186,6 +187,7 @@ export function registerRoutes(app, deps) {
   app.use(buildDynamicContainerAuthorityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildOpenApiRegistrySyncRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSqlCachePolicyRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildRepositoryAutomationRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildWorkspaceResourceRoutes());
   app.use(buildResourceApiRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSupportTicketRoutes({ ...deps, requireAdminPrincipal }));

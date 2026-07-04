@@ -5,7 +5,7 @@
 ## Summary
 
 - Total queue items: 1
-- Critical review: 0
+- Critical review: 1
 - High review: 0
 - Medium review: 0
 - Low review: 1
@@ -13,16 +13,17 @@
 
 ## Top Queue Items
 
-### 1. `20260702_session_archive_capability_family_authorization.sql`
+### 1. `1034_sprint69_repository_automation_control_plane.sql`
 
-- Queue class: low_review
-- Score: 139
-- Gap severity: none
-- Missing docs: none
+- Queue class: critical_review
+- Score: 1153
+- Gap severity: high
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
-- Safety marker gaps: `no_provider_call`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-- Surface counts: plugins=0, tools=2, views=0, policies=0, routes=0
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=4, views=0, policies=0, routes=4
 - Remediation actions:
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `default_decision`, `same_cycle_readback`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `inner_tool_authority_preserved`, `same_cycle_readback_required`, `uq_repository_automation_receipt_request`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 

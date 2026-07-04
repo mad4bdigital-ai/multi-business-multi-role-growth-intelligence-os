@@ -5,14 +5,14 @@
 ## Summary
 
 - Triaged items: 1
-- Gate candidates: 0
+- Gate candidates: 1
 - New-gap gate: fail
 - Blocking new items: 1
 
 ## Class counts
 
-- safety_marker_review: 1
+- new_surface_immediate_review: 1
 
 ## Immediate review candidates
 
-- none
+- `1034_sprint69_repository_automation_control_plane.sql` — critical_review, score 1153; next: add targeted patch-index, parity, and governance documentation

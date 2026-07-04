@@ -6,12 +6,12 @@
 - Gate schema: surface-contract-new-gap-gate-v1
 - Queue items: 1
 - Triaged items: 1
-- Gate candidates: 0
+- Gate candidates: 1
 - New-gap gate: fail
 - Blocking new items: 1
-- Docs completion: 100%
+- Docs completion: 99.79%
 - SQL route OpenAPI coverage: 100%
 
 ## Top immediate items
 
-- none
+- `1034_sprint69_repository_automation_control_plane.sql` — critical_review, add targeted patch-index, parity, and governance documentation
