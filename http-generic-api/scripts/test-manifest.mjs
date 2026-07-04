@@ -117,6 +117,7 @@ export const testCommands = [
   "node test-shared-reconciliation-continuation-policy.mjs",
   "node test-admin-branch-reconcile-adapter.mjs",
   "node test-superseded-branch-cleanup.mjs",
+  "node test-repository-automation-control-plane.mjs",
   "node test-platform-resource-recipe-capability.mjs",
   "node test-resource-recipe-apply-evidence.mjs",
   "node test-github-file-patch-plan-runtime.mjs",
