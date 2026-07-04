@@ -681,19 +681,54 @@ export async function applyGithubRepositoryChangeSet(options = {}) {
 
   const baseRef = await githubLifecycleRequest({ owner, repo, apiPath: `/git/ref/heads/${encodeBranch(defaultBranch)}`, token, fetchImpl: options.fetchImpl });
   const currentBaseSha = normalizeSha(baseRef.payload?.object?.sha);
-  if (currentBaseSha !== expectedBaseSha) {
+  const defaultBranchMoved = currentBaseSha !== expectedBaseSha;
+  let defaultBranchDrift = { status: "identical", ahead_by: 0, behind_by: 0, changed_paths: [], files_truncated: false, overlapping_paths: [] };
+  if (defaultBranchMoved && !allowSameBranchContinuation) {
     throw lifecycleError(409, "github_change_set_base_moved", "Default branch moved after the change set was prepared.", { expected_base_sha: expectedBaseSha, current_base_sha: currentBaseSha });
+  }
+  if (defaultBranchMoved) {
+    defaultBranchDrift = await compareGithubCommitFiles({ owner, repo, baseSha: expectedBaseSha, headSha: currentBaseSha, token, fetchImpl: options.fetchImpl });
+    const changePaths = normalizedChanges.map((change) => change.path);
+    const overlappingPaths = uniqueSorted(changePaths.filter((changePath) => defaultBranchDrift.changed_paths.some((changedPath) => changedPathOverlaps(changePath, changedPath))));
+    defaultBranchDrift = { ...defaultBranchDrift, overlapping_paths: overlappingPaths };
+    if (defaultBranchDrift.files_truncated) {
+      throw lifecycleError(409, "github_change_set_default_branch_compare_truncated", "Default branch moved and changed-file evidence is truncated; refusing same-branch continuation.", {
+        expected_base_sha: expectedBaseSha,
+        current_base_sha: currentBaseSha,
+        compare_status: defaultBranchDrift.status,
+        files_truncated: true,
+      });
+    }
+    if (overlappingPaths.length) {
+      throw lifecycleError(409, "github_change_set_default_branch_overlap", "Default branch moved and changed one or more requested patch paths.", {
+        expected_base_sha: expectedBaseSha,
+        current_base_sha: currentBaseSha,
+        overlapping_paths: overlappingPaths,
+        changed_paths: defaultBranchDrift.changed_paths.slice(0, 100),
+      });
+    }
   }
   const branchRef = await githubLifecycleRequest({ owner, repo, apiPath: `/git/ref/heads/${encodeBranch(branch)}`, token, fetchImpl: options.fetchImpl, allowNotFound: true });
   const branchExists = branchRef.status !== 404;
-  if (branchExists && normalizeSha(branchRef.payload?.object?.sha) !== expectedBaseSha) {
-    throw lifecycleError(409, "github_change_set_branch_not_pristine", "Existing work branch is not pinned to expected_base_sha.", {
+  const currentBranchSha = branchExists ? normalizeSha(branchRef.payload?.object?.sha) : "";
+  let commitParentSha = expectedBaseSha;
+  if (branchExists && currentBranchSha === expectedBaseSha && defaultBranchMoved) {
+    commitParentSha = currentBaseSha;
+  } else if (branchExists && currentBranchSha === expectedBaseSha) {
+    commitParentSha = expectedBaseSha;
+  } else if (branchExists && allowSameBranchContinuation && expectedBranchSha && currentBranchSha === expectedBranchSha) {
+    commitParentSha = currentBranchSha;
+  } else if (branchExists) {
+    throw lifecycleError(409, "github_change_set_branch_not_pristine", "Existing work branch head does not match expected_base_sha or expected_branch_sha.", {
       branch,
       expected_base_sha: expectedBaseSha,
-      current_branch_sha: branchRef.payload?.object?.sha || null,
+      expected_branch_sha: expectedBranchSha || null,
+      current_branch_sha: currentBranchSha || null,
+      same_branch_continuation_allowed: allowSameBranchContinuation,
     });
   }
-  const baseCommit = await githubLifecycleRequest({ owner, repo, apiPath: `/git/commits/${expectedBaseSha}`, token, fetchImpl: options.fetchImpl });
+  if (!branchExists && defaultBranchMoved) commitParentSha = currentBaseSha;
+  const baseCommit = await githubLifecycleRequest({ owner, repo, apiPath: `/git/commits/${commitParentSha}`, token, fetchImpl: options.fetchImpl });
 
   // Validate every hunk before creating any Git blob, tree, commit, or ref.
   const preparedChanges = [];
