@@ -64,11 +64,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 472 |
-| no_credential_payload_read | 472 |
-| no_raw_secrets | 472 |
-| no_external_send | 472 |
-| no_external_write | 472 |
+| no_provider_call | 473 |
+| no_credential_payload_read | 473 |
+| no_raw_secrets | 473 |
+| no_external_send | 473 |
+| no_external_write | 473 |
 | secrets_included_false | 473 |
 
 ### Route Classification Coverage
