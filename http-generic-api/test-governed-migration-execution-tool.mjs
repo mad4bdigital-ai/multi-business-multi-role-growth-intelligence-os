@@ -7,12 +7,22 @@ import {
   runGovernedMigrationExecution,
   splitGovernedMigrationStatements,
 } from "./governedMigrationExecutionTool.js";
+import { splitSqlStatements } from "./releaseReadiness.js";
 
 const MIGRATION = "1025_sprint69_resource_surface_policy_governance.sql";
 const SQL = readFileSync(`migrations/${MIGRATION}`, "utf8");
 const CHECKSUM = createHash("sha256").update(SQL, "utf8").digest("hex");
 const STATEMENT_COUNT = splitGovernedMigrationStatements(SQL).length;
 const ENVELOPE_ID = "11111111-2222-4333-8444-555555555555";
+const PARITY_MIGRATION = "1025_sprint69_growth_audit_evidence_admin_tenant_support.sql";
+const PARITY_SQL = readFileSync(`migrations/${PARITY_MIGRATION}`, "utf8");
+
+{
+  const executionStatements = splitGovernedMigrationStatements(PARITY_SQL);
+  const readinessStatements = splitSqlStatements(PARITY_SQL);
+  assert.equal(executionStatements.length, 10);
+  assert.deepEqual(executionStatements, readinessStatements);
+}
 
 function baseInput(mode = "dry_run") {
   return {
@@ -136,15 +146,23 @@ function fakeResult(mode) {
       execFile: async () => {
         const error = new Error("runner failed");
         error.code = 9;
-        error.stderr = "SECRET_DATABASE_PASSWORD=do-not-return";
+        error.signal = "SIGTERM";
+        error.stderr = "ER_CHECK_CONSTRAINT_VIOLATED: input_schema must contain valid JSON\nSECRET_DATABASE_PASSWORD=do-not-return";
+        error.stdout = "Bearer abc.def.ghi";
         throw error;
       },
     }),
     (error) => {
       assert.equal(error.code, "governed_migration_runner_failed");
+      assert.equal(error.status, 409);
       assert.equal(error.details.exit_code, 9);
-      assert.equal(error.details.stderr_preview, undefined);
-      assert.doesNotMatch(JSON.stringify(error.details), /SECRET_DATABASE_PASSWORD/);
+      assert.equal(error.details.signal, "SIGTERM");
+      assert.equal(error.details.runner_error_code, "ER_CHECK_CONSTRAINT_VIOLATED");
+      assert.match(error.details.stderr_summary, /input_schema must contain valid JSON/);
+      assert.match(error.details.stderr_summary, /SECRET_DATABASE_PASSWORD=\[redacted\]/);
+      assert.match(error.details.stdout_summary, /Bearer \[redacted\]/);
+      assert.doesNotMatch(JSON.stringify(error.details), /do-not-return|abc\.def\.ghi/);
+      assert.equal(error.details.secrets_included, false);
       return true;
     }
   );

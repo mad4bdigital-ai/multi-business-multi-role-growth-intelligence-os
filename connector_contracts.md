@@ -187,6 +187,12 @@ The initial projection covers pull-request metadata updates plus issue-label lis
 
 See `docs/github-rest-endpoint-dispatch.md`.
 
+### Credential-binding evidence
+
+Connector transport metadata and credential-binding evidence are separate contracts. `selected_source.credential_source_candidates` describes candidate resolution paths such as `platform_managed`, `tenant_connection`, or `none`; it does not prove that a credential payload was selected, decrypted, or materialized. `selected_source.active_credential_binding_count` is the bounded authority for whether an apply envelope is credential-backed.
+
+Apply authorization must therefore remain count-driven: zero active bindings may use an explicitly allowed no-credential path, a positive count must be blocked when credential-backed execution is forbidden, and a zero count must be blocked when policy requires a binding. Candidate metadata must not create authority or weaken capability-envelope, provider, approval, audit, readback, or no-secret guarantees.
+
 ## Dispatch entrypoint
 
 Connector dispatch routes through two layers:

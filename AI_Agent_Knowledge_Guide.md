@@ -77,6 +77,23 @@ The semantic capability descriptor source must expose an admin-only, read-only `
 
 See `docs/semantic-capability-effective-resolution.md` and the semantic capability canonical pages in `system_bootstrap`, `direct_instructions_registry_patch`, `module_loader`, and `prompt_router`.
 
+### Generic platform resource context
+
+Use the descriptor-backed `platform_resource_context_resolve` as the primary context entry point whenever an Admin or Tenant request names a Brand, Workspace, Asset, CMS Site, or Connection. The resource may be supplied through a typed field or through generic `reference` plus `resource_type=auto`. Brand and Workspace are optional graph nodes, not mandatory starting points.
+
+Helper tools are purpose-specific:
+
+- `platform_resource_context_catalog` lists the signed principal's authorized resources with type/search filters and cursor pagination.
+- `platform_resource_context_related` expands an exact canonical resource key without language interpretation.
+- `platform_resource_context_diagnostic_handoff` returns safe Site, grant, Connection, and diagnostic-tool identifiers while keeping live connectivity `not_checked` until a provider diagnostic succeeds.
+- `platform_resource_context_readiness_smoke` is the Admin-only descriptor/schema/no-secret readiness check.
+
+When deterministic matching fails, use `resource_reference_interpreter_v1` only to generate bounded `candidate_refs` from the returned authorized catalog, then repeat the resolver call. Prompt output is never authority. The backend must still perform deterministic matching, ambiguity checks, signed principal resolution, membership validation, and effective resource authorization.
+
+Tenant-supplied `tenant_id` and `user_id` are ignored. Tenant Owner/Admin may receive Tenant-level authorized resources; Member/Viewer catalogs are filtered before prompt exposure through effective grants, user-owned Connections, and active CMS grants. Safe Connection metadata may expose only identifiers, labels, status, validation status, and credential-material presence; encrypted credentials, credential references, passwords, tokens, and headers are forbidden.
+
+The legacy `brand_workspace_context_resolve` remains available for backward compatibility and explicitly Brand-first workflows. New generic routing must use the resource-first resolver. See `docs/platform-resource-context.md`.
+
 ### Growth-audit evidence workflow
 
 For requests that compare client recommendations with a live website, Brand Core, Google strategy documents, or implementation trackers, use the shared descriptor-backed tool `growth_audit_evidence_prepare` before forming conclusions.
@@ -104,6 +121,29 @@ Migration `314_sprint69_dynamic_audit_runtime_closure.sql` promotes the Dynamic 
 Dynamic Audit evidence is summary-only and no-secret. Direct DB calls without table/mutation metadata remain explicitly unresolved. Google Drive coverage includes platform-recorded uploads, session artifacts, and workspace assets; it does not imply observation of out-of-band Drive edits. Repo changed-file inventory is not exhaustive full-repo validation. Checkpoints may preserve runtime `main_commit_sha`, but must not infer `deployed_commit_sha`. Continuous/active classification requires fresh scheduler success and readiness thresholds to pass.
 
 Recurring bridge work must advance `platform_runtime_config.audit_log_event_bus_bridge_schedule.last_audit_log_id` as a durable keyset cursor. Rollup cycles select indexed pending statuses and rely on idempotent target writes before marking events `rolled_up`. The five-minute runtime path uses bounded fast-readiness counts; `v_dynamic_audit_pipeline_quality` remains a deep-audit surface and must not run inside each scheduler cycle. A live `enabled=false` config must cause new cycles to skip before lock acquisition or evidence writes.
+
+### SQL cache operational diagnostics
+
+The MySQL-primary SQL cache exposes four governed Admin tools:
+
+- `sql_cache_runtime_policy_get` reads the active policy and freshness state.
+- `sql_cache_runtime_policy_update` performs revision-guarded partial updates and supports dry-run.
+- `sql_cache_runtime_diagnostics_get` returns process-lifetime counters, derived hit/miss/error metrics, policy/circuit/cooldown state, and threshold-based alerts.
+- `sql_cache_controlled_load_test` runs an isolated in-memory benchmark that never touches production Redis or MySQL and verifies single-flight behavior plus the immutable `endpoints` security denylist fallback.
+
+Critical/high SQL cache runtime conditions are projected into the Admin operational-alert control plane only. Diagnostics counters reset on process restart and are runtime evidence, not durable warehouse metrics. Use `docs/runbooks/sql-cache-operations.md` for policy updates, revision conflicts, rollback, checksum reauthorization, migration ledger verification, and incident response.
+
+Governed migration child-process failures return bounded redacted diagnostics. They may include exit code, signal, detected database error code, and sanitized stderr/stdout summaries, but never raw credentials, bearer values, URL credentials, or unbounded logs.
+
+### Repository automation control plane
+
+Use the Admin-only Repository Automation Control Plane to coordinate repeated repository delivery work instead of manually chaining the same tools. The four registered surfaces are `repository_automation_plan`, `repository_automation_run`, `repository_automation_status`, and `repository_automation_hygiene_scan`. Supported templates are `pr_delivery`, `migration_release`, `post_merge_closeout`, `branch_cleanup`, `spec_lifecycle`, `hygiene_scan`, and `full_workstream`.
+
+Planning and hygiene are read-only. Apply requires a ready outer `platform_orchestration` capability envelope, but the outer envelope never replaces the nested mutation tool's own approval, typed confirmation, expected SHA/checksum, ledger, or readback contract. The orchestrator must stop at `awaiting_input` rather than inventing missing authority.
+
+Mutation retries are bounded to two transport attempts and must perform same-cycle readback before replay after 502, 503, or 504. Successful or recovered mutations persist no-secret idempotency receipts. Large responses must be fully consumed through `response_chunk_read` before fallback. PR delivery must wait for a stable post-automation head SHA, preserve the four required CI checks, use no-force branch reconciliation, and verify production/main parity after merge. Migration release must bind authorization and apply to the published checksum and statement count. Historical specifications belong under `docs/history/<topic>/`; active governed delivery remains under `specs/<feature>/`.
+
+The read-only hygiene cadence is disabled by default until a governed Admin job or n8n runner is separately certified. See `docs/repository-automation-control-plane.md`.
 
 ### Hostinger production deployment policy
 
@@ -940,6 +980,12 @@ If auth fails:
 - `invalid_grant` in a user-owned Drive/Sheets flow means refresh-token repair may be required
 - platform bootstrap auth failures point to service account, ADC, sharing, scope, or deployment configuration
 - do not switch a platform-owned bootstrap file to user refresh-token auth just to make a probe pass
+
+### Credential source metadata and active binding evidence
+
+Credential-source candidates are routing metadata, not proof that a credential binding was materialized or selected. In capability-envelope apply authorization, `selected_source.credential_source_candidates` may describe transport choices such as `platform_managed`, `tenant_connection`, or `none`, while `selected_source.active_credential_binding_count` is the authority for whether the envelope is credential-backed.
+
+When `active_credential_binding_count = 0`, a policy with `allow_no_credential_binding = 1` may authorize the no-binding path even when the transport candidate is platform-managed. When the count is greater than zero, policies with `allow_credential_binding = 0` must remain blocked. Conversely, policies that require a credential binding must reject a zero count. Candidate metadata must never create authority, override the active-binding count, trigger credential payload reads, or weaken provider, approval, audit, and readback gates.
 
 ### Passive auth lifecycle and Google action context
 

@@ -26,6 +26,10 @@ import { bootstrapGovernedMigrationAuthorization } from "../governedMigrationAut
 import { bootstrapGovernedMigrationApplyPolicy } from "../governedMigrationApplyPolicyBootstrap.js";
 import { authorizeCapabilityResolutionEnvelopeApply } from "../scripts/capability-resolution-envelope-apply-authorize.mjs";
 import { runGovernedMigrationExecution } from "../governedMigrationExecutionTool.js";
+import {
+  buildSqlCacheOperationalDiagnostics,
+  runSqlCacheControlledLoadTest,
+} from "../sqlCacheOperationalDiagnostics.js";
 import { buildActivationGatewayRolloutPlan, runActivationGatewayDarkDeploy } from "../activationGatewayRolloutTool.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import {
@@ -44,6 +48,7 @@ import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveRepor
 import { buildDynamicCapabilityGovernancePreview } from "../dynamicCapabilityGovernanceCompiler.js";
 import { buildDynamicCapabilityProjectionPreview } from "../dynamicCapabilityProjectionPreview.js";
 import { buildDynamicCapabilityEnforcementShadow } from "../dynamicCapabilityEnforcementShadow.js";
+import { buildDynamicCapabilityCertificationReadbackPreview } from "../dynamicCapabilityCertificationReadback.js";
 import {
   CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
   persistDynamicCapabilityGovernanceCompilation,
@@ -56,6 +61,7 @@ import {
   decideGrowthIntelligenceInsightAdmin,
   refreshGrowthIntelligenceReadinessAdmin,
 } from "../growthIntelligenceAdminDecisions.js";
+import { issueRuntimeDispatchCertification } from "../runtimeDispatchCertificationIssuer.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -451,6 +457,30 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "platform_capability_certification_readback_preview",
+    displayName: "Preview Capability Certification and Readback Readiness",
+    description: "Resolve the deterministic adapter candidate, reconcile generic and specialized certification authorities, select a versioned readback contract, and report acknowledgement and verification separately. Shadow only: no dispatch, provider call, mutation, credential payload read, Tenant authority change, or runtime authority cutover.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-certification-readback-preview",
+    tags: ["capability", "governance", "adapter", "certification", "readback", "shadow", "read_only", "no_execution", "legacy_authority_preserved", "no_provider_call", "no_mutation", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["capability_key"],
+      properties: {
+        capability_key: { type: "string", minLength: 1, maxLength: 191 },
+        operation_mode: { type: "string", enum: ["preview", "apply"], default: "preview" },
+        adapter_key: { type: "string", maxLength: 191 },
+        resource_type: { type: "string", maxLength: 128 },
+        provider_key: { type: "string", maxLength: 128 },
+        runtime_surface: { type: "string", maxLength: 191 },
+        contract_key: { type: "string", maxLength: 191 },
+        environment: { type: "string", maxLength: 64, default: "production" },
+        evidence_limit: { type: "integer", minimum: 1, maximum: 100, default: 25 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "platform_capability_projection_preview",
     displayName: "Preview Platform Capability Projections",
     description: "Build deterministic Admin and Tenant projection candidates from current persisted governance manifests, compare them with existing tool catalogs and export registries, summarize bounded schemas, and emit typed reconciliation gaps. Preview only: no callable export creation, no registry mutation, no provider call, and no Tenant authority change.",
@@ -641,6 +671,42 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "sql_cache_runtime_diagnostics_get",
+    displayName: "SQL Cache Runtime Diagnostics Get",
+    description: "Read process-lifetime SQL cache counters, derived hit/miss/error metrics, policy freshness, circuit/cooldown state, and threshold-based operational alerts. No cache or policy mutation is performed.",
+    method: "VIRTUAL",
+    path: "internal://sql-cache-runtime-diagnostics-get",
+    tags: ["admin", "cache", "sql_cache", "read_only", "diagnostics", "monitoring", "no_external_write", "no_provider_call", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        minimum_read_samples: { type: "integer", minimum: 1, maximum: 1000000, default: 20 },
+        low_hit_ratio: { type: "number", minimum: 0, maximum: 1, default: 0.4 },
+        high_error_rate: { type: "number", minimum: 0, maximum: 1, default: 0.05 },
+        oversize_cooldown_warning_count: { type: "integer", minimum: 1, maximum: 1000000, default: 1 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "sql_cache_controlled_load_test",
+    displayName: "SQL Cache Controlled Load Test",
+    description: "Run a bounded isolated in-memory comparison of uncached versus cached reads, verify single-flight behavior, and confirm the endpoints security denylist fallback. Production Redis and MySQL are never touched.",
+    method: "VIRTUAL",
+    path: "internal://sql-cache-controlled-load-test",
+    tags: ["admin", "cache", "sql_cache", "read_only", "diagnostics", "isolated_in_memory", "no_external_write", "no_provider_call", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        iterations: { type: "integer", minimum: 10, maximum: 2000, default: 100 },
+        concurrency: { type: "integer", minimum: 1, maximum: 200, default: 20 },
+        loader_delay_ms: { type: "integer", minimum: 0, maximum: 100, default: 5 },
+        payload_bytes: { type: "integer", minimum: 16, maximum: 262144, default: 1024 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "governed_migration_execute",
     displayName: "Governed Migration Execute",
     description: "Dry-run or apply one checksum-bound authorized migration through the governed runner. Apply requires exact typed confirmation, a ready platform_orchestration capability envelope, ledger persistence, and same-cycle schema readback.",
@@ -675,6 +741,39 @@ const VIRTUAL_ADMIN_TOOLS = [
         tag: { type: "string" },
         cursor: { type: "integer", minimum: 0, default: 0 },
         limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "runtime_dispatch_certification_issue",
+    displayName: "Issue Runtime Dispatch Certification",
+    description: "Issue one bounded runtime dispatch certification into runtime_dispatch_certification_registry. Requires a capability envelope, typed confirmation derived from certification_key, bounded evidence, expiry, same-cycle readback, no provider call, no external write, no secrets, and never grants apply_allowed=true.",
+    method: "VIRTUAL",
+    path: "internal://runtime-dispatch-certification-issue",
+    tags: ["admin", "runtime_dispatch", "certification", "state_changing", "typed_confirmation", "capability_envelope", "same_cycle_readback", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["certification_key", "surface_key", "surface_family", "tool_or_action_key", "risk_class", "last_evidence_ref", "confirm", "capability_envelope_id"],
+      properties: {
+        certification_key: { type: "string", pattern: "^[A-Za-z0-9_.:-]{3,191}$" },
+        surface_key: { type: "string", pattern: "^[A-Za-z0-9_.:-]{3,191}$" },
+        surface_family: { type: "string", pattern: "^[A-Za-z0-9_.:-]{3,128}$" },
+        tool_or_action_key: { type: "string", pattern: "^[A-Za-z0-9_.:-]{3,191}$" },
+        risk_class: { type: "string", pattern: "^[A-Za-z0-9_.:-]{1,64}$" },
+        certification_status: { type: "string", maxLength: 128, default: "ci_certified" },
+        smoke_strategy: { type: "string", maxLength: 191, default: "bounded_evidence_readback" },
+        dispatch_allowed: { type: "boolean", default: true },
+        apply_allowed: { type: "boolean", const: false, default: false },
+        requires_resource_authority: { type: "boolean", default: true },
+        requires_dry_run: { type: "boolean", default: true },
+        requires_audit_evidence: { type: "boolean", default: true },
+        requires_readback: { type: "boolean", default: true },
+        last_evidence_ref: { type: "string", minLength: 20, maxLength: 1000 },
+        expires_in_days: { type: "integer", minimum: 1, maximum: 90, default: 30 },
+        notes: { type: "string", maxLength: 1000 },
+        confirm: { type: "string" },
+        capability_envelope_id: { type: "string" },
       },
       additionalProperties: false,
     },
@@ -1931,6 +2030,9 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
   if (callerType === "admin" && toolKey === "platform_capability_enforcement_shadow_preview") {
     return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityEnforcementShadow(args) } };
   }
+  if (callerType === "admin" && toolKey === "platform_capability_certification_readback_preview") {
+    return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityCertificationReadbackPreview(args) } };
+  }
   if (callerType === "admin" && toolKey === "platform_capability_governance_compile_persist") {
     const result = await persistDynamicCapabilityGovernanceCompilation({
       ...(args || {}),
@@ -2086,6 +2188,42 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       };
     }
   }
+  if (callerType === "admin" && toolKey === "sql_cache_runtime_diagnostics_get") {
+    try {
+      const result = buildSqlCacheOperationalDiagnostics(undefined, args || {});
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: Number(err?.status || 500),
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "sql_cache_runtime_diagnostics_failed",
+            message: err?.message || "SQL cache runtime diagnostics failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
+  if (callerType === "admin" && toolKey === "sql_cache_controlled_load_test") {
+    try {
+      const result = await runSqlCacheControlledLoadTest(args || {});
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: Number(err?.status || 500),
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "sql_cache_controlled_load_test_failed",
+            message: err?.message || "SQL cache controlled load test failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
   if (callerType === "admin" && toolKey === "governed_migration_execute") {
     try {
       const result = await runGovernedMigrationExecution(args || {}, {
@@ -2128,6 +2266,50 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       };
     }
   }
+  if (callerType === "admin" && toolKey === "runtime_dispatch_certification_issue") {
+    try {
+      const resolved = await resolveCapabilityExecutionEnvelope({
+        pool: getPool(),
+        source: args || {},
+        acceptedAppKeys: ["platform_orchestration", "platform_registry", "github"],
+        acceptedIntents: ["runtime.dispatch.certification.issue", "runtime_dispatch_certification_issue", "runtime_certification_issue"],
+        acceptedCapabilityKeys: ["runtime_dispatch_certification_issue"],
+        expectedTenantId: req?.auth?.tenant_id || PLATFORM_TENANT_ID,
+        expectedUserId: req?.auth?.user_id || "",
+        requireReadyForDispatch: true,
+        requireDispatchAllowed: true,
+        requireNoApprovalRequired: false,
+        requireNoBlockingGaps: true,
+        requireNoSecrets: true,
+      });
+      if (!resolved.ok) {
+        throw capabilityEnvelopeError(resolved, "Runtime dispatch certification issue requires a valid capability resolution envelope.");
+      }
+      const result = await issueRuntimeDispatchCertification(args || {}, {
+        pool: getPool(),
+        allowedToolKeys: VIRTUAL_ADMIN_TOOLS.map((tool) => tool.name),
+      });
+      await markCapabilityEnvelopeReferenced({
+        pool: getPool(),
+        envelopeId: resolved.envelope_id,
+        executionRef: `runtime_dispatch_certification_issue:${result.certification_key}`,
+      });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "runtime_dispatch_certification_issue_failed",
+            message: err?.message || "Runtime dispatch certification issue failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
+
   if (callerType === "admin" && toolKey === "github_pr_ci_gate") {
     try {
       const result = await getGithubPullRequestCiGate(args || {});

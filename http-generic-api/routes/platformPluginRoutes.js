@@ -2,7 +2,10 @@ import { Router } from "express";
 import { resolveCallerTypeForRequest, dispatchToolForCaller } from "./gptToolsRoutes.js";
 import { getPool } from "../db.js";
 import { loadPlatformPluginCatalog } from "../platformPluginCatalog.js";
-import { resolvePlatformPluginExecution } from "../platformPluginResolver.js";
+import {
+  resolvePlatformPluginExecution,
+  validateCapabilitySelectorContract,
+} from "../platformPluginResolver.js";
 import { upsertPlatformPluginPolicy } from "../platformPluginPolicy.js";
 import { upsertPlatformPluginActionGrant } from "../platformPluginActionGrant.js";
 import { upsertPlatformPluginActionTemplate } from "../platformPluginActionTemplate.js";
@@ -83,6 +86,94 @@ function errorResponse(res, err, fallbackCode) {
   });
 }
 
+const PLATFORM_PLUGIN_RESOLVE_FIELDS = new Set([
+  "plugin_key",
+  "pluginKey",
+  "action_key",
+  "actionKey",
+  "tool_key",
+  "toolKey",
+  "tenant_id",
+  "tenantId",
+  "workspace_id",
+  "workspaceId",
+  "user_id",
+  "userId",
+  "agent_id",
+  "agentId",
+  "requested_credential_scope",
+  "requestedCredentialScope",
+  "target_resource_type",
+  "targetResourceType",
+  "target_resource_uri",
+  "targetResourceUri",
+  "target_mode",
+  "targetMode",
+]);
+
+function requestContractError(code, message, details = null) {
+  const err = new Error(message);
+  err.code = code;
+  err.status = 400;
+  if (details) err.details = details;
+  return err;
+}
+
+function valueFromAliases(input, canonicalField, legacyField) {
+  const hasCanonical = Object.prototype.hasOwnProperty.call(input, canonicalField);
+  const hasLegacy = Object.prototype.hasOwnProperty.call(input, legacyField);
+  const canonicalValue = hasCanonical ? input[canonicalField] : undefined;
+  const legacyValue = hasLegacy ? input[legacyField] : undefined;
+  const canonicalText = String(canonicalValue ?? "").trim();
+  const legacyText = String(legacyValue ?? "").trim();
+  if (hasCanonical && hasLegacy && canonicalText && legacyText && canonicalText !== legacyText) {
+    throw requestContractError(
+      "AMBIGUOUS_CAPABILITY_SELECTOR",
+      `Conflicting aliases were provided for ${canonicalField}.`,
+      { field: canonicalField, aliases: [canonicalField, legacyField] }
+    );
+  }
+  return {
+    value: canonicalText || legacyText || null,
+    legacyUsed: !canonicalText && Boolean(legacyText),
+  };
+}
+
+function parsePlatformPluginResolveContract(input = {}) {
+  const unknownFields = Object.keys(input).filter((field) => !PLATFORM_PLUGIN_RESOLVE_FIELDS.has(field));
+  if (unknownFields.length > 0) {
+    throw requestContractError(
+      "UNKNOWN_SECURITY_CONTRACT_FIELD",
+      "Unknown fields are not allowed for the platform plugin resolve security contract.",
+      { fields: unknownFields.sort() }
+    );
+  }
+  const pluginKey = valueFromAliases(input, "plugin_key", "pluginKey");
+  const action = valueFromAliases(input, "action_key", "actionKey");
+  const tool = valueFromAliases(input, "tool_key", "toolKey");
+  const selector = validateCapabilitySelectorContract({
+    actionKey: action.value,
+    toolKey: tool.value,
+  });
+  const legacyFields = [];
+  if (pluginKey.legacyUsed) legacyFields.push("pluginKey");
+  if (action.legacyUsed) legacyFields.push("actionKey");
+  if (tool.legacyUsed) legacyFields.push("toolKey");
+  return {
+    pluginKey: pluginKey.value,
+    selector,
+    compatibilityTelemetry: {
+      legacy_selector_alias_used: action.legacyUsed || tool.legacyUsed,
+      legacy_fields: legacyFields,
+      contract_version: "one-selector-v1",
+    },
+  };
+}
+
+export const _testingPlatformPluginRoutes = {
+  parsePlatformPluginResolveContract,
+};
+
 async function resolveRemoteRuntimeCanonicalDeviceId({ deviceId, tenantId = null, userId = null }) {
   const requested = String(deviceId || "").trim();
   if (!requested) return "";
@@ -124,10 +215,11 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
   router.post("/platform/plugins/resolve", ...requireAdmin, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
+      const contract = parsePlatformPluginResolveContract(input);
       const result = await resolvePlatformPluginExecution({
-        pluginKey: input.plugin_key || input.pluginKey,
-        actionKey: input.action_key || input.actionKey || null,
-        toolKey: input.tool_key || input.toolKey || null,
+        pluginKey: contract.pluginKey,
+        actionKey: contract.selector.actionKey,
+        toolKey: contract.selector.toolKey,
         tenantId: input.tenant_id || input.tenantId || null,
         workspaceId: input.workspace_id || input.workspaceId || null,
         userId: input.user_id || input.userId || null,
@@ -138,6 +230,7 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
         targetResourceUri: input.target_resource_uri || input.targetResourceUri || null,
         targetMode: input.target_mode || input.targetMode || "read_only",
       });
+      result.compatibility_telemetry = contract.compatibilityTelemetry;
       return res.status(200).json(result);
     } catch (err) { return errorResponse(res, err, "platform_plugin_resolve_failed"); }
   });

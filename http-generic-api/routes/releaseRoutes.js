@@ -3,6 +3,14 @@ import { getPool } from "../db.js";
 import { runReleaseReadiness } from "../releaseReadiness.js";
 import { runSessionArchiveSmoke } from "../sessionArchiveSmoke.js";
 import { backfillGptSessionArchiveFromJsonl } from "../sessionArchiveService.js";
+import { markCapabilityEnvelopeReferenced } from "../capabilityResolutionEnvelopeGuard.js";
+import {
+  capabilityFamilyAuthorizationError,
+  resolveToolCapabilityFamilyAuthorization,
+} from "../toolCapabilityFamilyAuthorization.js";
+
+const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
+const PLATFORM_ADMIN_USER = "platform_admin";
 
 export function buildReleaseRoutes(deps) {
   const { requireBackendApiKey } = deps;
@@ -180,6 +188,32 @@ export function buildReleaseRoutes(deps) {
         });
       }
 
+      const capabilityFamilyAuthorization = await resolveToolCapabilityFamilyAuthorization({
+        pool,
+        callerType: "admin",
+        principal: {
+          tenant_id: PLATFORM_TENANT_ID,
+          user_id: PLATFORM_ADMIN_USER,
+        },
+        toolKey: "gpt_session_archive_backfill",
+        args: req.body || {},
+        expectedFamily: "session_archive_write",
+        requirePolicy: true,
+      });
+      if (!capabilityFamilyAuthorization.ok) {
+        throw capabilityFamilyAuthorizationError(
+          capabilityFamilyAuthorization,
+          "Session archive backfill capability-family authorization denied this operation.",
+        );
+      }
+      if (capabilityFamilyAuthorization.envelope_id) {
+        await markCapabilityEnvelopeReferenced({
+          pool,
+          envelopeId: capabilityFamilyAuthorization.envelope_id,
+          executionRef: "releaseRoutes:gpt_session_archive_backfill",
+        });
+      }
+
       const results = [];
       for (const candidate of candidates.slice(0, limit)) {
         try {
@@ -209,9 +243,13 @@ export function buildReleaseRoutes(deps) {
         secrets_included: false,
       });
     } catch (err) {
-      return res.status(500).json({
+      return res.status(err.status || 500).json({
         ok: false,
-        error: { code: "gpt_session_archive_backfill_route_failed", message: err.message },
+        error: {
+          code: err.code || "gpt_session_archive_backfill_route_failed",
+          message: err.message,
+          details: err.details || undefined,
+        },
         secrets_included: false,
       });
     }

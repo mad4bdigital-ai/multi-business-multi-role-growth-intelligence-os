@@ -10,7 +10,7 @@ INSERT INTO tenant_platform_endpoint_tools (
 ) VALUES (
   'tenant_ssh_cli_allowlisted_execute',
   'Tenant SSH CLI Allowlisted Execute',
-  'Execute a fixed allowlisted SSH command for a tenant-owned SSH connection after approval. Requires approved approval_request_id and command_key; rejects freeform commands and never returns credentials.',
+  'Execute a fixed allowlisted SSH command for a tenant-owned SSH connection after approval. Requires approved approval_request_id and typed command_key; rejects freeform commands, rejects shell metacharacter argv drift, caps output, and never returns credentials.',
   'POST',
   '/me/infrastructure/ssh/connections/{connection_id}/cli/execute',
   JSON_ARRAY('connection_id'),
@@ -26,7 +26,7 @@ INSERT INTO tenant_platform_endpoint_tools (
     'additionalProperties',false
   ),
   NULL,
-  'tenant,infrastructure,ssh,cli,execute,allowlisted,approval_required,no_freeform_command,no_secrets,uses_ssh_auth,opens_network,executes_command,output_capped,auth_scoped,specific_path,state_gated',
+  'tenant,infrastructure,ssh,cli,execute,allowlisted,approval_required,typed_command_key,literal_argv,no_shell_metacharacters,no_freeform_command,no_secrets,uses_ssh_auth,opens_network,executes_command,output_capped,auth_scoped,specific_path,state_gated,file_read_permission,shell_read_permission',
   1,
   331
 )
