@@ -878,7 +878,7 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "repo_patch_batch_apply",
     displayName: "Repository Batch Patch Apply",
-    description: "Create one atomic multi-file Git commit against an expected base SHA using Git trees. Supports write_file, delete_file, and apply_unified_diff; every diff is validated against the pinned base before any Git write, then the work branch is updated once with readback.",
+    description: "Create one atomic multi-file Git commit using Git trees. Supports write_file, delete_file, and apply_unified_diff. By default the work branch must be pinned to expected_base_sha; same-branch continuation may use expected_branch_sha with default-branch overlap checks and readback.",
     method: "VIRTUAL",
     path: "internal://repo-patch-batch-apply",
     tags: ["repo", "mutation", "batch", "atomic", "capability_envelope", "readback"],
@@ -888,6 +888,8 @@ const VIRTUAL_ADMIN_TOOLS = [
       properties: {
         branch: { type: "string" },
         expected_base_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        expected_branch_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$", description: "Optional current work-branch head SHA for same-branch continuation when the branch already has prior commits." },
+        allow_same_branch_continuation: { type: "boolean", default: false, description: "Allow writing on the same non-protected work branch when expected_branch_sha matches and moved default-branch files do not overlap the requested patch paths." },
         commit_message: { type: "string", minLength: 5, maxLength: 200 },
         capability_envelope_id: { type: "string" },
         changes: {
