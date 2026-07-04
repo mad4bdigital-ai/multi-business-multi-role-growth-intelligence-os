@@ -64,11 +64,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 479 |
+| no_provider_call | 478 |
 | no_credential_payload_read | 479 |
-| no_raw_secrets | 479 |
-| no_external_send | 479 |
-| no_external_write | 479 |
+| no_raw_secrets | 478 |
+| no_external_send | 478 |
+| no_external_write | 478 |
 | secrets_included_false | 479 |
 
 ### Route Classification Coverage
@@ -88,15 +88,15 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 0
+- Total queue items: 1
 - Critical review: 0
 - High review: 0
 - Medium review: 0
-- Low review: 0
+- Low review: 1
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
-| none | covered | 0 | none | 0 | 0 | 0 | none |
+| `20260702_session_archive_capability_family_authorization.sql` | low_review | 139 | none | 0 | 0 | 4 | verify_tool_registry_binding, add_explicit_safety_markers |
 
 
 ## Latest Surface Coverage
