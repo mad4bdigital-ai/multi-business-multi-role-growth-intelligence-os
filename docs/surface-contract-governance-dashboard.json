@@ -7,9 +7,9 @@
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
     "migrations_with_surfaces": 478,
-    "docs_complete_count": 475,
-    "docs_gap_count": 3,
-    "docs_completion_percent": 99.37,
+    "docs_complete_count": 478,
+    "docs_gap_count": 0,
+    "docs_completion_percent": 100,
     "surface_totals": {
       "plugins": 12,
       "tools": 2239,
@@ -35,7 +35,7 @@
       "high": 0,
       "medium": 3,
       "low": 0,
-      "none": 475
+      "none": 478
     },
     "high_risk_missing_docs": [],
     "medium_risk_missing_docs": [
@@ -44,11 +44,11 @@
       "1033_sprint69_n8n_instance_mode_ownership_policy.sql"
     ],
     "safety_marker_counts": {
-      "no_provider_call": 477,
-      "no_credential_payload_read": 477,
-      "no_raw_secrets": 477,
-      "no_external_send": 477,
-      "no_external_write": 477,
+      "no_provider_call": 478,
+      "no_credential_payload_read": 478,
+      "no_raw_secrets": 478,
+      "no_external_send": 478,
+      "no_external_write": 478,
       "secrets_included_false": 478
     },
     "safety_marker_gap_migrations": 0,
