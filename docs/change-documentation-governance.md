@@ -1,5 +1,7 @@
 # Repo and SQL Change Documentation Governance
 
+> Change-governance contract for `1030_sprint69_canonical_capability_domain.sql`: review must confirm additive/idempotent SQL only, canonical capability and alias registry creation, readback through `v_capability_alias_integrity`, Admin/Tenant catalog backfill, and no route/infrastructure dispatch rule leakage. The migration header must retain `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`. Merge requires green CI and synchronized surface-contract documentation; production SQL apply remains a separate checksum-bound operation with governed bootstrap authorization, zero-risk preflight, migration-ledger evidence, schema/readback verification, and no deployment or provider execution.
+
 > Change-governance contract for `1029_sprint69_minimal_dynamic_brand_resolution.sql` and `1030_sprint69_generic_platform_resource_context.sql`: review must confirm additive/idempotent SQL only, expected descriptor and Tenant/Admin tool registrations, active blocking policy seeds, deterministic backend matching, signed-principal Tenant authority, bounded prompt candidates, backward compatibility, and focused resolver/wiring coverage. Both migration headers must retain `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`. Merge requires green CI and synchronized documentation; production SQL apply remains a separate checksum-bound operation with zero-risk preflight, migration-ledger evidence, schema/registry readback, and no deployment or provider execution.
 
 > Spec 007 source-link correction contract: `20260702_dynamic_capability_readback_source_link_fix.sql` is an additive idempotent migration that repairs one missing governance source link using canonical capability `platform_capability_governance_compile_persist`. Review must reject any return to zero-row-prone `INSERT ... SELECT` behavior. Merge requires the focused regression test, test-manifest registration, governed-runner allowlist, green CI, and documented ledger/row readback. No provider call, credential payload read, external send/write, runtime cutover, or secret inclusion occurs.
@@ -50,7 +52,6 @@ A change affecting `1024_sprint69_openapi_endpoint_inventory_sync.sql`, the inve
 - `1025_sprint69_resource_surface_policy_governance.sql` — SHA-256 `59b615774d0f9ff7ba43d646c8aa3cdcdd2eaa59cd9c5de5253768982b5c5493`; surfaces: tools=2, policies=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding.
 - `1028_sprint69_gpt_session_archive_actionable_ref_metrics.sql` — SHA-256 `5e133636df15f903cfa945b5e441c4a3547eaf97793f6a7cb8e78b87a5207941`; surfaces: views=3; static preflight: pass/0; runtime reviews: verify_readback_view.
 - `1029_sprint69_minimal_dynamic_brand_resolution.sql` — SHA-256 `7c9ba638a41e4be16a78e406f519ff14c1c642e07cc5959c68de49dc9fb5d9cd`; surfaces: tools=3, policies=2, routes=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding.
-- `1030_sprint69_canonical_capability_domain.sql` — SHA-256 `d26b954de4bb7496cb77888cf445688a29f56059278854cdb97f2dd19dad3819`; surfaces: tools=3, views=1; static preflight: pass/0; runtime reviews: verify_readback_view, verify_tool_registry_binding.
 - `1030_sprint69_generic_platform_resource_context.sql` — SHA-256 `d3dc914451fa81d96b2d07dd7f44fa41a27d0beb03893ae4aae533a40a258a8a`; surfaces: tools=6, policies=2, routes=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding.
 - `1034_sprint69_repository_automation_control_plane.sql` — SHA-256 `2802bd37dfb3dafbf66ee35d05d040995ded44a39856e538ef3610901029777f`; surfaces: tools=4, routes=4; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
 - `20260615_tenant_growth_dashboard_product.sql` — SHA-256 `c4a2a2d19c1d0cb1270597df810b03bce6f30e5800df782b627b25b2a5edba59`; surfaces: tools=6, views=3; static preflight: pass/0; runtime reviews: verify_readback_view, verify_tool_registry_binding.
@@ -262,6 +263,18 @@ Required evidence:
 - rollout notes describe revocation, replay, expiry, and incident-response implications.
 
 For local connector installers, the approved contract is authenticated direct download only. JSON install-bundle metadata and self-repair responses must not generate installer content. The `format=bat` download remains protected by backend-key authentication and an admin-principal guard.
+
+## Platform Plugin resolve contract documentation rule
+
+Changes to Platform Plugin resolve selectors, decision traces, security metrics, target authority, or approval semantics must update:
+
+- `http-generic-api/openapi.yaml`;
+- generated tenant GPT OpenAPI surfaces when tenant resolve output changes;
+- `http-generic-api/docs/platform-plugin-resolver-notes.md`;
+- `docs/platform-plugin-contract-migration-guide.md`;
+- `docs/folder-map.md` when boundaries move or a new capability/security subsystem contract is added.
+
+Required evidence: OpenAPI 3.1 validation, one-selector request tests, stable error codes (`MISSING_CAPABILITY_SELECTOR`, `AMBIGUOUS_CAPABILITY_SELECTOR`, `UNKNOWN_SECURITY_CONTRACT_FIELD`), public/admin trace projection tests, no-secret assertions, and a legacy selector deprecation timeline. Resolve remains preview/readiness only and must not authorize provider calls, credential payload reads, raw secret responses, runtime mutation, external sends/writes, or dispatch by itself.
 
 ## Support Ticket External Delivery certification docs rule
 
