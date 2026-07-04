@@ -11,4 +11,4 @@
 
 ## Top actionable
 
-- none
+- `20260704_platform_resource_authority_grant_tool.sql` — critical_review, score 745; add targeted patch-index, parity, and governance documentation
