@@ -1,3 +1,13 @@
+SQL Cache Operational Observability
+
+The MySQL-primary SQL cache runtime must expose bounded Admin diagnostics derived from process-lifetime counters and the active runtime policy. Required evidence includes hits, misses, stores, errors, bypasses, unavailable skips, circuit-open skips, oversized-value skips, single-flight joins, in-flight count, active cooldown count, policy freshness, and circuit state.
+
+Derived metrics must include hit ratio, miss ratio, and error rate with explicit sample counts and thresholds. Critical or high states such as enabled-but-unavailable, open circuit, stale policy, or high error rate must be projected into the Admin operational-alert control plane. Tenant surfaces must not receive platform-wide SQL cache runtime evidence.
+
+Controlled SQL cache load tests must run in isolated process memory, must not touch production Redis or MySQL, and must verify both single-flight reduction and the immutable `endpoints` security denylist fallback. Synthetic benchmark results are regression evidence only and must not be represented as production capacity evidence.
+
+Governed migration child-process failures must return bounded redacted diagnostics including exit code, signal, detected provider/database error code, and sanitized stderr/stdout summaries. Credential-like assignments, bearer values, URL credentials, raw secrets, and unbounded logs are forbidden.
+
 - derived_surfaces_expected_to_refresh
 - observability_validation_state
 - observability_issues when applicable
@@ -968,3 +978,42 @@ Activation summaries must derive attention totals and previews from this unified
 ## Governed GitHub Branch Cleanup Sweep
 
 `github_branch_cleanup_sweep` is the bounded repository-maintenance orchestrator for stale disposable branches. Planning must default to read-only, resolve the actual GitHub default branch and base SHA, exclude open-PR and protected branches, prove zero unique commits, apply a minimum-age threshold, cap scan and delete counts, and return a deterministic evidence fingerprint plus typed confirmation. Apply must require fresh base/fingerprint evidence and a capability envelope, rerun the plan before mutation, delegate each candidate to `deleteGithubBranchRef`, stop on the first branch-level failure, and require same-cycle missing-ref readback. Force deletion, unbounded scanning, generic fallback deletion, and automatic retry after an unknown provider outcome are forbidden.
+
+## Repository Automation Control Plane Rule
+
+When repository delivery, migration release, operational closeout, branch cleanup, Spec lifecycle, or recurring hygiene is coordinated through the Repository Automation Control Plane, `system_bootstrap` must preserve compound-run authority separately from action authority.
+
+Required behavior:
+
+- planning and hygiene scans remain read-only
+- apply requires a fresh outer `platform_orchestration` capability envelope
+- the outer envelope authorizes orchestration only and never replaces nested tool envelopes, approvals, typed confirmations, SHA/checksum pins, ledgers, or readbacks
+- missing nested mutation authority must produce `awaiting_input` with a resumable checkpoint
+- auto-approval and auto-generation of typed confirmations are forbidden
+- force push, direct provider credential injection, and freeform mutation SQL are forbidden
+- PR delivery must stabilize automated documentation commits before pinning the final head SHA
+- CI auto-recovery may dispatch only after missing-check evidence and separate mutation approval
+- deployment parity must use GitHub `main` plus the production checkout readback; routine SSH fallback is forbidden
+- migration release must bind authorization, dry-run, apply, ledger, and business-state readback to the published checksum and statement count
+- active governed delivery remains under `specs/<feature>/`; implemented or superseded reference material belongs under `docs/history/<topic>/`
+- scheduled hygiene remains read-only and disabled until a governed Admin job or n8n runner is separately certified
+
+Unknown mutation outcomes:
+
+- 502, 503, and 504 responses must not trigger immediate replay
+- the orchestrator must perform action-specific readback first
+- a proved completion must create or update a no-secret mutation receipt and suppress replay
+- if readback does not prove completion, at most one bounded retry is allowed
+- each request must use a stable request hash and idempotency key
+- all required response chunks must be consumed before alternative-surface fallback
+
+Required orchestration evidence includes:
+
+- automation key and deterministic plan hash
+- current stage and resumable status
+- step attempt counts
+- request hashes and idempotency keys
+- provider or internal receipt summaries
+- readback result and recovery classification
+- final completed, awaiting_input, blocked, failed, or cancelled status
+- `secrets_included = false`

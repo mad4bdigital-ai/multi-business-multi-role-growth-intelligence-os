@@ -6,23 +6,23 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 462,
-    "docs_complete_count": 462,
+    "migrations_with_surfaces": 479,
+    "docs_complete_count": 479,
     "docs_gap_count": 0,
     "docs_completion_percent": 100,
     "surface_totals": {
       "plugins": 12,
-      "tools": 2172,
-      "views": 426,
-      "policies": 166,
-      "routes": 610
+      "tools": 2240,
+      "views": 431,
+      "policies": 174,
+      "routes": 627
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 392,
-      "views": 169,
-      "policies": 107,
-      "routes": 244
+      "tools": 408,
+      "views": 174,
+      "policies": 113,
+      "routes": 251
     },
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 0,
@@ -35,33 +35,33 @@
       "high": 0,
       "medium": 0,
       "low": 0,
-      "none": 462
+      "none": 479
     },
     "high_risk_missing_docs": [],
     "medium_risk_missing_docs": [],
     "safety_marker_counts": {
-      "no_provider_call": 462,
-      "no_credential_payload_read": 462,
-      "no_raw_secrets": 462,
-      "no_external_send": 462,
-      "no_external_write": 462,
-      "secrets_included_false": 462
+      "no_provider_call": 479,
+      "no_credential_payload_read": 479,
+      "no_raw_secrets": 479,
+      "no_external_send": 479,
+      "no_external_write": 479,
+      "secrets_included_false": 479
     },
     "safety_marker_gap_migrations": 0,
     "route_coverage": {
-      "sql_route_count": 6,
-      "total_sql_route_like_count": 610,
-      "openapi_exempt_sql_route_count": 604,
+      "sql_route_count": 17,
+      "total_sql_route_like_count": 627,
+      "openapi_exempt_sql_route_count": 610,
       "route_class_counts": {
-        "http_route": 6,
-        "admin_tool_registry_route": 156,
-        "tenant_tool_registry_route": 40,
-        "system_tool_dispatch_route": 13,
+        "http_route": 17,
+        "admin_tool_registry_route": 159,
+        "tenant_tool_registry_route": 42,
+        "system_tool_dispatch_route": 14,
         "registry_only_surface": 1,
         "false_positive_route_like_string": 0,
         "legacy_closure_route_reviewed": 394
       },
-      "openapi_documented_sql_route_count": 6,
+      "openapi_documented_sql_route_count": 17,
       "openapi_missing_sql_route_count": 0,
       "openapi_sql_route_coverage_percent": 100,
       "route_openapi_gaps": []

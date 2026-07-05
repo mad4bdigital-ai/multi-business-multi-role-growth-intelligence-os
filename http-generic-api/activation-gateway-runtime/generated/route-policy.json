@@ -1,5 +1,5 @@
 {
-  "content_hash_sha256": "961c765e2d9eee8b1892e73a3b250e4dbb7a949c05b4e47e0c5ac1d563611aba",
+  "content_hash_sha256": "ee06b8aa2e79a6e2f66ed080eca559e91fe39a210fee29ac315499a312ac3b60",
   "deployment_signature_required": true,
   "manifest_version": 1,
   "mutation_stale_policy": "deny",
@@ -10,6 +10,8 @@
     {
       "allowed_query_parameters": [
         "attention_limit",
+        "chunk_ttl_minutes",
+        "max_response_chars",
         "profile"
       ],
       "auth_profiles": [
@@ -172,8 +174,10 @@
     },
     {
       "allowed_query_parameters": [
+        "chunk_ttl_minutes",
         "include_raw",
         "limit",
+        "max_response_chars",
         "offset",
         "raw_max_chars",
         "tenant_id",
@@ -198,6 +202,8 @@
     {
       "allowed_query_parameters": [
         "attention_limit",
+        "chunk_ttl_minutes",
+        "max_response_chars",
         "profile"
       ],
       "auth_profiles": [
@@ -270,6 +276,7 @@
     },
     {
       "allowed_query_parameters": [
+        "chunk_ttl_minutes",
         "close_previous_sessions",
         "container_key",
         "conversation_ref",

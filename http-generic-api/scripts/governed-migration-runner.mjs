@@ -90,7 +90,13 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "250_sprint68_gpt_conversation_capture_contract_monitoring.sql",
   "1023_sprint69_sql_cache_runtime_policy.sql",
   "1028_sprint69_gpt_session_archive_actionable_ref_metrics.sql",
+  "1029_sprint69_minimal_dynamic_brand_resolution.sql",
+  "1030_sprint69_generic_platform_resource_context.sql",
   "20260629_sql_cache_admin_tool_export.sql",
+  "1031_sprint69_operational_alert_mutation_readback_policy.sql",
+  "1032_sprint69_pr1950_superseded_branch_cleanup_override.sql",
+  "1033_sprint69_pr1950_cleanup_override_removal.sql",
+  "1034_sprint69_repository_automation_control_plane.sql",
   "251_sprint68_dynamic_memory_scope_types.sql",
   "252_sprint68_memory_scope_links_foundation.sql",
   "253_sprint68_session_insight_candidates_foundation.sql",
@@ -261,6 +267,9 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "1011_sprint69_governed_repository_engine_v6.sql",
   "319_sprint69_dynamic_container_authority_foundation.sql",
   "320_sprint69_dynamic_container_authority_runtime_contracts.sql",
+  "20260630_dynamic_capability_governance_persistence.sql",
+  "20260701_dynamic_capability_certification_readback.sql",
+  "20260702_dynamic_capability_readback_source_link_fix.sql",
 ]);
 
 const RUNNER_VERSION = "governed-migration-runner-v2";

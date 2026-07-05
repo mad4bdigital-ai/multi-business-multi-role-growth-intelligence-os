@@ -1,0 +1,368 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import {
+  CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
+  persistDynamicCapabilityGovernanceCompilation,
+} from "./dynamicCapabilityGovernancePersistence.js";
+
+const preview = {
+  compiler_version: "dynamic-capability-governance-compiler-v3",
+  source_revision_hash: "a".repeat(64),
+  filters: { limit: 2, gap_limit: 10, capability_key: null, source_table: null, after_key: null },
+  page: { has_more: false, next_cursor: null, final_result_complete: true },
+  counts: {
+    source_rows: 2,
+    manifest_count: 2,
+    gap_count: 1,
+    returned_gap_count: 1,
+    blocked_manifest_count: 1,
+    shadow_ready_manifest_count: 1,
+  },
+  manifests: [
+    {
+      capability_key: "platform.capability.read",
+      effect_class: "read_only",
+      risk_class: "A",
+      authority_requirement_type: "invocation",
+      status: "shadow_ready",
+      rollout_mode: "shadow",
+      source: { table: "tenant_platform_endpoint_tools", key: "platform_capability_read" },
+      manifest_hash: "b".repeat(64),
+      secrets_included: false,
+    },
+    {
+      capability_key: "platform.alert.sync",
+      effect_class: "internal_write",
+      risk_class: "B",
+      authority_requirement_type: "none",
+      status: "blocked",
+      rollout_mode: "shadow",
+      source: { table: "admin_platform_endpoint_tools", key: "activation_operational_attention_sync_api" },
+      manifest_hash: "c".repeat(64),
+      secrets_included: false,
+    },
+  ],
+  gaps: [
+    {
+      capability_key: "platform.alert.sync",
+      gap_key: "READBACK_CONTRACT_REQUIRED",
+      gap_severity: "medium",
+      gap_description: "State-changing capability lacks a current readback contract.",
+      source_table: "admin_platform_endpoint_tools",
+      source_key: "activation_operational_attention_sync_api",
+      blocks_dispatch: false,
+    },
+  ],
+};
+
+function createFakePool() {
+  const state = {
+    calls: [],
+    began: false,
+    committed: false,
+    rolledBack: false,
+    released: false,
+    run: null,
+    manifestInsertCount: 0,
+    gapInsertCount: 0,
+    uuidCounter: 0,
+  };
+
+  const connection = {
+    async beginTransaction() { state.began = true; },
+    async commit() { state.committed = true; },
+    async rollback() { state.rolledBack = true; },
+    release() { state.released = true; },
+    async query(sql, params = []) {
+      const normalized = String(sql).replace(/\s+/g, " ").trim();
+      state.calls.push({ sql: normalized, params });
+      if (normalized.includes("GET_LOCK")) return [[{ acquired: 1 }]];
+      if (normalized.startsWith("INSERT INTO platform_capability_compilation_runs")) {
+        state.run = {
+          run_id: params[0],
+          idempotency_key: params[1],
+          compiler_version: params[2],
+          status: "running",
+          source_revision_hash: params[3],
+          input_hash: params[4],
+          output_hash: null,
+          source_count: params[6],
+          compiled_manifest_count: params[7],
+          persisted_manifest_count: 0,
+          reused_manifest_count: 0,
+          gap_count: params[8],
+          blocked_manifest_count: params[9],
+          shadow_ready_manifest_count: params[10],
+          capability_envelope_id: params[12],
+          secrets_included: 0,
+        };
+        return [{ affectedRows: 1 }];
+      }
+      if (normalized.includes("FROM platform_capability_compiled_manifests") && normalized.includes("source_revision_hash=?")) return [[]];
+      if (normalized.includes("FROM platform_capability_compiled_manifests") && normalized.includes("ORDER BY manifest_version")) return [[]];
+      if (normalized.startsWith("UPDATE platform_capability_compiled_manifests")) return [{ affectedRows: 0 }];
+      if (normalized.startsWith("INSERT INTO platform_capability_compiled_manifests")) {
+        state.manifestInsertCount += 1;
+        return [{ affectedRows: 1 }];
+      }
+      if (normalized.startsWith("INSERT INTO platform_capability_manifest_source_links")) return [{ affectedRows: 1 }];
+      if (normalized.startsWith("INSERT INTO platform_capability_governance_gap_snapshots")) {
+        state.gapInsertCount += 1;
+        return [{ affectedRows: 1 }];
+      }
+      if (normalized.startsWith("UPDATE platform_capability_compilation_runs")) {
+        state.run = {
+          ...state.run,
+          status: "complete",
+          output_hash: params[0],
+          persisted_manifest_count: params[1],
+          reused_manifest_count: params[2],
+          completed_at: "2026-06-30T00:00:00.000Z",
+        };
+        return [{ affectedRows: 1 }];
+      }
+      if (normalized.includes("FROM platform_capability_compilation_runs") && normalized.includes("WHERE run_id=?")) return [[state.run]];
+      if (normalized.includes("COUNT(*) AS created_manifest_count")) {
+        return [[{ created_manifest_count: state.manifestInsertCount, current_created_manifest_count: state.manifestInsertCount }]];
+      }
+      if (normalized.includes("COUNT(*) AS persisted_gap_count")) {
+        return [[{ persisted_gap_count: state.gapInsertCount, blocking_gap_count: 0 }]];
+      }
+      if (normalized.includes("RELEASE_LOCK")) return [[{ released: 1 }]];
+      throw new Error(`Unexpected SQL: ${normalized}`);
+    },
+  };
+
+  const pool = {
+    state,
+    async query(sql, params = []) {
+      const normalized = String(sql).replace(/\s+/g, " ").trim();
+      state.calls.push({ sql: normalized, params });
+      if (normalized.includes("FROM platform_capability_compilation_runs") && normalized.includes("idempotency_key=?")) return [[]];
+      throw new Error(`Unexpected pool SQL: ${normalized}`);
+    },
+    async getConnection() { return connection; },
+  };
+  return pool;
+}
+
+let uuidCounter = 0;
+let envelopeResolveCount = 0;
+let envelopeReferenceCount = 0;
+const resolveEnvelope = async (input) => {
+  envelopeResolveCount += 1;
+  assert.deepEqual(input.acceptedAppKeys, ["platform_orchestration"]);
+  assert.equal(input.acceptedIntents.includes("platform_capability_governance_compile_persist"), true);
+  assert.equal(input.requireReadyForDispatch, true);
+  assert.equal(input.requireDispatchAllowed, true);
+  assert.equal(input.requireNoApprovalRequired, true);
+  assert.equal(input.requireNoBlockingGaps, true);
+  assert.equal(input.requireNoSecrets, true);
+  return {
+    ok: true,
+    envelope_id: input.envelopeId,
+    app_key: "platform_orchestration",
+    operation_intent: "platform_capability_governance_compile_persist",
+    apply_allowed: true,
+    secrets_included: false,
+  };
+};
+const markReferenced = async (input) => {
+  envelopeReferenceCount += 1;
+  assert.match(input.executionRef, /^capability-governance-run:/);
+  return { ok: true, envelope_id: input.envelopeId, status: "capability_resolution_envelope_referenced", secrets_included: false };
+};
+const pool = createFakePool();
+const result = await persistDynamicCapabilityGovernanceCompilation({
+  idempotency_key: "persist-test-001",
+  expected_source_revision_hash: preview.source_revision_hash,
+  confirm: CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
+  capability_envelope_id: "envelope-001",
+  requested_by: "test",
+}, {
+  pool,
+  previewBuilder: async () => preview,
+  resolveEnvelope,
+  markReferenced,
+  auth: { tenant_id: "00000000-0000-0000-0000-000000000000", user_id: "platform_admin" },
+  uuid: () => `00000000-0000-4000-8000-${String(++uuidCounter).padStart(12, "0")}`,
+});
+
+assert.equal(result.ok, true);
+assert.equal(result.replayed, false);
+assert.equal(result.readback_complete, true);
+assert.equal(result.counts.compiled_manifest_count, 2);
+assert.equal(result.counts.persisted_manifest_count, 2);
+assert.equal(result.counts.reused_manifest_count, 0);
+assert.equal(result.counts.persisted_gap_count, 1);
+assert.equal(result.provider_calls_performed, false);
+assert.equal(result.tenant_authority_changed, false);
+assert.equal(result.secrets_included, false);
+assert.equal(pool.state.began, true);
+assert.equal(pool.state.committed, true);
+assert.equal(pool.state.rolledBack, false);
+assert.equal(pool.state.released, true);
+assert.equal(pool.state.manifestInsertCount, 2);
+assert.equal(pool.state.gapInsertCount, 1);
+assert.equal(envelopeResolveCount, 1);
+assert.equal(envelopeReferenceCount, 1);
+assert.equal(result.envelope_readback.status, "capability_resolution_envelope_referenced");
+
+await assert.rejects(
+  () => persistDynamicCapabilityGovernanceCompilation({
+    idempotency_key: "persist-test-002",
+    expected_source_revision_hash: preview.source_revision_hash,
+    confirm: "WRONG",
+    capability_envelope_id: "envelope-002",
+  }, { pool: createFakePool(), previewBuilder: async () => preview }),
+  (error) => error.code === "capability_governance_typed_confirmation_required"
+);
+
+await assert.rejects(
+  () => persistDynamicCapabilityGovernanceCompilation({
+    idempotency_key: "persist-test-003",
+    expected_source_revision_hash: "d".repeat(64),
+    confirm: CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
+    capability_envelope_id: "envelope-003",
+  }, { pool: createFakePool(), previewBuilder: async () => preview, resolveEnvelope }),
+  (error) => error.code === "capability_governance_source_revision_mismatch"
+);
+
+await assert.rejects(
+  () => persistDynamicCapabilityGovernanceCompilation({
+    idempotency_key: "persist-test-004",
+    expected_source_revision_hash: preview.source_revision_hash,
+    confirm: CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
+    capability_envelope_id: "envelope-004",
+    gap_limit: 1,
+  }, {
+    pool: createFakePool(),
+    resolveEnvelope,
+    previewBuilder: async () => ({
+      ...preview,
+      counts: { ...preview.counts, gap_count: 2, returned_gap_count: 1 },
+    }),
+  }),
+  (error) => error.code === "capability_governance_gap_snapshot_truncated"
+);
+
+const conflictPool = {
+  async query(sql) {
+    const normalized = String(sql).replace(/\s+/g, " ").trim();
+    assert.match(normalized, /FROM platform_capability_compilation_runs/);
+    return [[{
+      run_id: "existing-run",
+      idempotency_key: "persist-test-005",
+      compiler_version: preview.compiler_version,
+      status: "complete",
+      source_revision_hash: preview.source_revision_hash,
+      input_hash: "e".repeat(64),
+      output_hash: "f".repeat(64),
+      source_count: 2,
+      compiled_manifest_count: 2,
+      persisted_manifest_count: 2,
+      reused_manifest_count: 0,
+      gap_count: 1,
+      blocked_manifest_count: 1,
+      shadow_ready_manifest_count: 1,
+      capability_envelope_id: "different-envelope",
+      secrets_included: 0,
+    }]];
+  },
+};
+await assert.rejects(
+  () => persistDynamicCapabilityGovernanceCompilation({
+    idempotency_key: "persist-test-005",
+    expected_source_revision_hash: preview.source_revision_hash,
+    confirm: CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
+    capability_envelope_id: "envelope-005",
+  }, { pool: conflictPool, previewBuilder: async () => preview, resolveEnvelope }),
+  (error) => error.code === "capability_governance_idempotency_conflict"
+);
+
+await assert.rejects(
+  () => persistDynamicCapabilityGovernanceCompilation({
+    idempotency_key: "persist-test-006",
+    expected_source_revision_hash: preview.source_revision_hash,
+    confirm: CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
+    capability_envelope_id: "missing-envelope",
+  }, {
+    pool: createFakePool(),
+    previewBuilder: async () => preview,
+    resolveEnvelope: async () => ({
+      ok: false,
+      status: "capability_resolution_envelope_not_found",
+      envelope_required: true,
+      secrets_included: false,
+    }),
+  }),
+  (error) => error.code === "capability_resolution_envelope_not_found" && error.status === 403
+);
+
+await assert.rejects(
+  () => persistDynamicCapabilityGovernanceCompilation({
+    idempotency_key: "persist-test-007",
+    expected_source_revision_hash: preview.source_revision_hash,
+    confirm: CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
+    capability_envelope_id: "dispatch-only-envelope",
+  }, {
+    pool: createFakePool(),
+    previewBuilder: async () => preview,
+    resolveEnvelope: async () => ({
+      ok: true,
+      app_key: "platform_orchestration",
+      operation_intent: "platform_capability_governance_compile_persist",
+      apply_allowed: false,
+      secrets_included: false,
+    }),
+  }),
+  (error) => error.code === "capability_governance_apply_not_authorized" && error.status === 403
+);
+
+const migrationPath = new URL("./migrations/20260630_dynamic_capability_governance_persistence.sql", import.meta.url);
+const migration = fs.readFileSync(migrationPath, "utf8");
+for (const table of [
+  "platform_capability_compilation_runs",
+  "platform_capability_compiled_manifests",
+  "platform_capability_manifest_source_links",
+  "platform_capability_governance_gap_snapshots",
+]) {
+  assert.equal(migration.includes(`CREATE TABLE IF NOT EXISTS \`${table}\``), true, table);
+}
+assert.equal(migration.includes("current_capability_key"), true);
+assert.equal(migration.includes("uq_pccm_current_capability"), true);
+assert.equal(migration.includes("canonical_capability_authority','platform_plugin_capabilities'"), true);
+assert.equal(migration.includes("no_provider_call"), true);
+assert.equal(migration.includes("secrets_included=false"), true);
+for (const expected of [
+  "platform_capability_governance_compile_persist",
+  "platform_plugin_capabilities",
+  "platform_plugin_bindings",
+  "platform_plugin_capability_exports",
+  "app_integration_action_bindings",
+  "app_integration_tool_bindings",
+  "runtime_dispatch_certification_registry",
+  "capability_apply_authorization_policy_registry",
+  "PERSIST_CAPABILITY_GOVERNANCE_COMPILATION",
+  "platform_capability_governance_compile_persist_policy_v1",
+]) {
+  assert.equal(migration.includes(expected), true, `migration must include ${expected}`);
+}
+
+const runnerSource = fs.readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
+assert.equal(runnerSource.includes("20260630_dynamic_capability_governance_persistence.sql"), true);
+
+const serviceSource = fs.readFileSync(new URL("./dynamicCapabilityGovernancePersistence.js", import.meta.url), "utf8");
+assert.equal(serviceSource.includes("resolveCapabilityExecutionEnvelope"), true);
+assert.equal(serviceSource.includes("markCapabilityEnvelopeReferenced"), true);
+assert.equal(serviceSource.includes("capability_governance_apply_not_authorized"), true);
+assert.equal(serviceSource.includes("acceptedAppKeys: [PERSISTENCE_APP_KEY]"), true);
+
+const routesSource = fs.readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
+const persistenceToolKey = "platform_capability_governance_compile_persist";
+assert.equal(routesSource.includes(`name: "${persistenceToolKey}"`), true);
+assert.equal(routesSource.includes(`toolKey === "${persistenceToolKey}"`), true);
+assert.equal(routesSource.includes("await persistDynamicCapabilityGovernanceCompilation"), true);
+assert.equal(routesSource.includes("auth: req?.auth || {}"), true);
+
+console.log("dynamic capability governance persistence tests passed");

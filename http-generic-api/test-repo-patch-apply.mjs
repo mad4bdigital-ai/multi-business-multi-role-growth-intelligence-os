@@ -62,6 +62,7 @@ pass("missing commit_message is rejected with repo_patch_missing_message");
 // ── Protected branch policy static contract ───────────────────────────────────
 {
   const source = readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
+  const lifecycleSource = readFileSync(new URL("./githubRepositoryLifecycle.js", import.meta.url), "utf8");
   assert.ok(source.includes("repo_patch_protected_branch"));
   assert.ok(source.includes("REPO_PATCH_ALLOW_PROTECTED_BRANCH"));
   assert.ok(source.includes("defaultRepoPatchBranch"));
@@ -85,6 +86,13 @@ pass("missing commit_message is rejected with repo_patch_missing_message");
   const batchSchema = source.slice(batchSchemaStart, batchSchemaEnd);
   assert.ok(batchSchema.includes('"apply_unified_diff"'), "repo_patch_batch_apply schema must expose apply_unified_diff");
   assert.ok(batchSchema.includes('diff: { type: "string"'), "repo_patch_batch_apply schema must accept a unified diff body");
+  assert.ok(batchSchema.includes("expected_branch_sha"), "repo_patch_batch_apply schema must support same-branch continuation head pinning");
+  assert.ok(batchSchema.includes("allow_same_branch_continuation"), "repo_patch_batch_apply schema must expose explicit same-branch continuation intent");
+  assert.ok(lifecycleSource.includes("github_change_set_default_branch_overlap"), "repo patch batch must stop when moved main overlaps requested patch paths");
+  assert.ok(lifecycleSource.includes("github_change_set_default_branch_compare_truncated"), "repo patch batch must fail closed if moved-main changed-file evidence is truncated");
+  assert.ok(lifecycleSource.includes("expected_branch_sha"), "repo patch batch must validate existing work branch head for continuation");
+  assert.ok(lifecycleSource.includes("same_branch_continuation_used"), "repo patch batch readback must disclose continuation mode");
+  assert.ok(lifecycleSource.includes("default_branch_drift"), "repo patch batch readback must disclose moved-main drift evidence");
   assert.ok(source.includes("repo_existing_blob_commit_apply"), "admin tool catalog must expose existing-blob commits");
   assert.ok(source.includes("applyGithubExistingBlobChangeSet"), "existing-blob tool must dispatch through the repository lifecycle service");
   assert.ok(source.includes("expected_head_sha"), "existing-blob tool must require optimistic branch-head validation");

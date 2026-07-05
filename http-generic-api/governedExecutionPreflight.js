@@ -1,6 +1,8 @@
 import { summarizePolicies } from "./runtimePolicyLoader.js";
 import { resolveRuntimePolicyContext, summarizePlatformPolicyRules } from "./runtimePolicyResolver.js";
 import { resolveBrandCoreRepairCandidates } from "./repairPolicyRouter.js";
+import { resolveDynamicResourceAuthority } from "./dynamicResourceAuthority.js";
+import { capabilityFamilyFromTags, resolveToolCapabilityFamilyAuthorization } from "./toolCapabilityFamilyAuthorization.js";
 
 function parseBoolean(value, fallback = false) {
   if (typeof value === "boolean") return value;
@@ -33,6 +35,18 @@ const DECLARED_MUTATION_POLICY_TAGS = new Set([
 const READ_ONLY_FORWARDED_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const STATE_CHANGING_FORWARDED_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+export const MUTATION_POLICY_REQUIREMENT = Object.freeze({
+  REQUIRED: "mutation_policy_required",
+  NOT_REQUIRED: "mutation_policy_not_required",
+  UNCLASSIFIED: "mutation_policy_unclassified",
+});
+
+export function mutationPolicyRequirementFromBoolean(value) {
+  if (value === true) return MUTATION_POLICY_REQUIREMENT.REQUIRED;
+  if (value === false) return MUTATION_POLICY_REQUIREMENT.NOT_REQUIRED;
+  return MUTATION_POLICY_REQUIREMENT.UNCLASSIFIED;
+}
+
 function normalizedPolicyTags(tags = []) {
   return new Set((Array.isArray(tags) ? tags : String(tags || "").split(","))
     .map((tag) => String(tag || "").trim().toLowerCase())
@@ -62,22 +76,7 @@ function classifyAdminControlMutationRequirement(args = {}) {
   const action = String(args.action || "run").trim().toLowerCase();
 
   if (tool === "db") {
-    const sql = stripLeadingSqlComments(args.sql);
-    if (!sql) return null;
-    const statements = sql
-      .split(/;(?=(?:[^']*'[^']*')*[^']*$)/)
-      .map((statement) => statement.trim())
-      .filter(Boolean);
-    if (statements.length !== 1) return true;
-    const statement = statements[0];
-    if (/^(?:SELECT|SHOW|DESCRIBE|DESC|EXPLAIN)\b/i.test(statement)) {
-      const statefulRead = /\bINTO\s+(?:OUTFILE|DUMPFILE)\b|\bFOR\s+UPDATE\b|\bLOCK\s+IN\s+SHARE\s+MODE\b|:=|\bGET_LOCK\s*\(|\bRELEASE_LOCK\s*\(/i;
-      return statefulRead.test(statement);
-    }
-    if (/^(?:INSERT|UPDATE|DELETE|REPLACE|CREATE|ALTER|DROP|TRUNCATE|RENAME|GRANT|REVOKE|CALL|SET|LOAD|LOCK|UNLOCK|START|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)\b/i.test(statement)) {
-      return true;
-    }
-    return null;
+    return classifyAdminControlDbSql(args.sql).mutation_required;
   }
 
   if (tool === "hostinger" || tool === "cloudflare") {
@@ -106,6 +105,67 @@ function classifyAdminControlMutationRequirement(args = {}) {
   }
 
   return null;
+}
+
+function splitSqlStatementsForPolicy(sql = "") {
+  const statements = [];
+  let current = "";
+  let quote = null;
+  let lineComment = false;
+  let blockComment = false;
+  const source = String(sql || "");
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    const next = source[index + 1];
+    if (lineComment) {
+      if (char === "\n") { lineComment = false; current += " "; }
+      continue;
+    }
+    if (blockComment) {
+      if (char === "*" && next === "/") { blockComment = false; index += 1; current += " "; }
+      continue;
+    }
+    if (!quote && char === "-" && next === "-") { lineComment = true; index += 1; continue; }
+    if (!quote && char === "#") { lineComment = true; continue; }
+    if (!quote && char === "/" && next === "*") { blockComment = true; index += 1; continue; }
+    if (quote) {
+      current += char;
+      if (char === "\\" && next) { current += next; index += 1; }
+      else if (char === quote) {
+        if (next === quote) { current += next; index += 1; }
+        else quote = null;
+      }
+      continue;
+    }
+    if (["'", "\"", "`"].includes(char)) { quote = char; current += char; continue; }
+    if (char === ";") { if (current.trim()) statements.push(current.trim()); current = ""; continue; }
+    current += char;
+  }
+  if (current.trim()) statements.push(current.trim());
+  return statements;
+}
+
+export function classifyAdminControlDbSql(sql = "") {
+  const statements = splitSqlStatementsForPolicy(sql);
+  if (!statements.length) return { mutation_required: null, classification: "sql_missing", statement_count: 0 };
+  if (statements.length > 1) return { mutation_required: true, classification: "multi_statement_sql", statement_count: statements.length };
+  const statement = stripLeadingSqlComments(statements[0]);
+  const keyword = (statement.match(/^([A-Za-z]+)/)?.[1] || "").toUpperCase();
+  const reads = new Set(["SELECT", "SHOW", "DESCRIBE", "DESC", "EXPLAIN"]);
+  const mutations = new Set(["INSERT", "UPDATE", "DELETE", "REPLACE", "MERGE", "UPSERT", "CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME", "GRANT", "REVOKE", "SET", "CALL", "DO", "LOAD", "BEGIN", "START", "COMMIT", "ROLLBACK", "SAVEPOINT", "RELEASE", "LOCK", "UNLOCK"]);
+  const statefulRead = /\bINTO\s+(?:OUTFILE|DUMPFILE)\b|\bFOR\s+UPDATE\b|\bLOCK\s+IN\s+SHARE\s+MODE\b|:=|\bGET_LOCK\s*\(|\bRELEASE_LOCK\s*\(/i;
+  const stateful = statefulRead.test(statement);
+  if (reads.has(keyword)) {
+    return { mutation_required: stateful, classification: stateful ? "stateful_read_sql" : "single_statement_read_sql", statement_count: 1 };
+  }
+  if (keyword === "WITH") {
+    const normalized = statement.toUpperCase();
+    if (/\b(INSERT|UPDATE|DELETE|REPLACE|MERGE)\b/.test(normalized)) return { mutation_required: true, classification: "cte_mutation_sql", statement_count: 1 };
+    if (/\bSELECT\b/.test(normalized)) return { mutation_required: stateful, classification: stateful ? "cte_stateful_read_sql" : "cte_read_sql", statement_count: 1 };
+    return { mutation_required: null, classification: "cte_sql_unclassified", statement_count: 1 };
+  }
+  if (mutations.has(keyword)) return { mutation_required: true, classification: "single_statement_mutation_sql", statement_count: 1 };
+  return { mutation_required: null, classification: "sql_unclassified", statement_count: 1 };
 }
 
 export function resolveGptToolInvocationMutationRequirement({ toolKey = "", args = {}, method = "", tags = [] } = {}) {
@@ -169,6 +229,14 @@ export function classifyMutationPolicyRequirement({ method = "", tags = [], muta
     return { required: true, classification: "conservative_state_changing_default" };
   }
   return { required: null, classification: "mutation_classification_missing" };
+}
+
+export function classifyMutationPolicyRequirementEnum(input = {}) {
+  const result = classifyMutationPolicyRequirement(input);
+  return {
+    ...result,
+    requirement: mutationPolicyRequirementFromBoolean(result.required),
+  };
 }
 
 export function hasDeclaredMutationPolicy({ tags = [], mutationPolicyDeclared = null } = {}) {
@@ -468,14 +536,38 @@ export async function evaluateSupportTicketExternalProviderGatePreflight({ chann
   return makePreflightResult({ classification: warnings.length ? "allow_with_policy_warnings" : "allow", policies, warnings, errors, evidence, runtimePolicyResolution });
 }
 
-export async function evaluateGptToolDispatchPreflight({ callerType = "tenant", toolKey = "", args = {}, method = "", tags = [], mutationRequired = null, mutationPolicyDeclared = null } = {}, deps = {}) {
+export async function evaluateGptToolDispatchPreflight({ callerType = "tenant", toolKey = "", args = {}, method = "", tags = [], mutationRequired = null, mutationPolicyDeclared = null, principal = {} } = {}, deps = {}) {
   const invocationMutationRequired = mutationRequired === null
     ? resolveGptToolInvocationMutationRequirement({ toolKey, args, method, tags })
     : mutationRequired;
+  const expectedCapabilityFamily = capabilityFamilyFromTags(tags);
+  const capabilityFamilyAuthorization = await resolveToolCapabilityFamilyAuthorization({
+    pool: deps.pool,
+    callerType,
+    principal,
+    toolKey,
+    args,
+    expectedFamily: expectedCapabilityFamily,
+    requirePolicy: Boolean(expectedCapabilityFamily),
+  });
+  const dynamicResourceAuthority = deps.skipSurfaceAuthority === true
+    ? { ok: true, required: false, reason_code: "dynamic_resource_authority_test_bypass", mutation_policy_declared: false, secrets_included: false }
+    : await resolveDynamicResourceAuthority({ callerType, principal, toolKey, args, mutationRequired: invocationMutationRequired, pool: deps.pool });
   const mutation = classifyMutationPolicyRequirement({ method, tags, mutationRequired: invocationMutationRequired });
-  const declaredMutationPolicy = hasDeclaredMutationPolicy({ tags, mutationPolicyDeclared });
-  const { runtimePolicyResolution, policies } = await resolvePolicies({ execution_scope: ["gpt_tools_call", "tool_dispatch", toolKey].filter(Boolean), affects_layer: ["gptToolsRoutes", callerType].filter(Boolean) }, deps);
-  const evidence = { operation: "gpt_tools_call", caller_type: callerType, tool_key: toolKey, method: method || null, tags, invocation_mutation_required: invocationMutationRequired, mutation_policy_requirement: mutation, mutation_policy_declared: declaredMutationPolicy, matching_policy_count: policies.length };
+  const declaredMutationPolicy = hasDeclaredMutationPolicy({ tags, mutationPolicyDeclared })
+    || dynamicResourceAuthority.mutation_policy_declared === true
+    || capabilityFamilyAuthorization.mutation_policy_declared === true;
+  const { runtimePolicyResolution, policies } = await resolvePolicies({
+    execution_scope: ["gpt_tools_call", "tool_dispatch", toolKey, capabilityFamilyAuthorization.capability_family, capabilityFamilyAuthorization.operation].filter(Boolean),
+    affects_layer: ["gptToolsRoutes", callerType].filter(Boolean),
+  }, deps);
+  const evidence = { operation: "gpt_tools_call", caller_type: callerType, tool_key: toolKey, method: method || null, tags, invocation_mutation_required: invocationMutationRequired, mutation_policy_requirement: mutation, mutation_policy_declared: declaredMutationPolicy, dynamic_resource_authority: dynamicResourceAuthority, capability_family_authorization: capabilityFamilyAuthorization, matching_policy_count: policies.length };
+  if (capabilityFamilyAuthorization.applicable && !capabilityFamilyAuthorization.ok) {
+    return makePreflightResult({ classification: "blocked", policies, errors: [capabilityFamilyAuthorization.reason_code], evidence, runtimePolicyResolution });
+  }
+  if (!dynamicResourceAuthority.ok) {
+    return makePreflightResult({ classification: "blocked", policies, errors: [dynamicResourceAuthority.reason_code || "dynamic_resource_authority_denied"], evidence, runtimePolicyResolution });
+  }
   if (mutation.required === null) return makeMutationPolicyBlock({ operation: "gpt_tools_call", reason: "mutation_classification_missing", mutation, evidence, runtimePolicyResolution });
   if (mutation.required && !declaredMutationPolicy) {
     return makeMutationPolicyBlock({ operation: "gpt_tools_call", reason: "explicit_mutation_policy_not_configured", mutation, evidence, runtimePolicyResolution });
@@ -483,7 +575,11 @@ export async function evaluateGptToolDispatchPreflight({ callerType = "tenant", 
   if (!policies.length) {
     return makePreflightResult({ classification: mutation.required ? "allow_with_declared_mutation_policy" : "allow", evidence: { ...evidence, reason: mutation.required ? "descriptor_mutation_policy_declared" : "read_only_tool_without_execution_policy" }, runtimePolicyResolution });
   }
-  const blockingPolicies = policies.filter(policyAllowsBlocking);
+  const blockingPolicies = policies.filter((policy) => policyAllowsBlocking(policy)
+    && policy.policy_key !== capabilityFamilyAuthorization.policy_key);
+  if (capabilityFamilyAuthorization.applicable && capabilityFamilyAuthorization.ok && !blockingPolicies.length) {
+    return makePreflightResult({ classification: "allow_with_capability_family_authorization", policies, evidence, runtimePolicyResolution });
+  }
   return makePreflightResult({ classification: blockingPolicies.length ? "requires_policy_specific_evaluation" : "allow_with_policy_advisory", policies, warnings: blockingPolicies.length ? ["matching_blocking_tool_dispatch_policies_require_specific_evaluation"] : [], evidence, runtimePolicyResolution });
 }
 
