@@ -109,10 +109,10 @@ assert(localManagerWindows.includes('PickInstalledApp'), 'Windows app must provi
 assert(localManagerWindows.includes('PickSupportedApp'), 'Windows app must provide supported app templates for known local app grants');
 assert(localManagerWindows.includes('Supported apps'), 'Windows app must show the supported app template button in the capability dialog');
 assert(localManagerWindows.includes('SupportedAppTemplates'), 'Windows app must keep supported app templates visible in the local UI');
-assert(localManagerWindows.includes('new("chrome", "Google Chrome"'), 'Windows app supported templates must include Chrome');
-assert(localManagerWindows.includes('new("edge", "Microsoft Edge"'), 'Windows app supported templates must include Edge');
-assert(localManagerWindows.includes('new("vscode", "Visual Studio Code"'), 'Windows app supported templates must include VS Code');
-assert(localManagerWindows.includes('new("cursor", "Cursor"'), 'Windows app supported templates must include Cursor');
+assert(localManagerWindows.includes('"chrome", "Google Chrome"'), 'Windows app supported templates must include Chrome');
+assert(localManagerWindows.includes('"edge", "Microsoft Edge"'), 'Windows app supported templates must include Edge');
+assert(localManagerWindows.includes('"vscode", "Visual Studio Code"'), 'Windows app supported templates must include VS Code');
+assert(localManagerWindows.includes('"cursor", "Cursor"'), 'Windows app supported templates must include Cursor');
 assert(localManagerDeviceLinkService.includes('supported_apps'), 'device controls settings must expose supported app templates to the app');
 assert(localManagerDeviceLinkService.includes('app_alias: "chrome"'), 'backend supported app templates must include Chrome');
 assert(localManagerDeviceLinkService.includes('app_alias: "vscode"'), 'backend supported app templates must include VS Code');
