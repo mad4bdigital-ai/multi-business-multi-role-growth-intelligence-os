@@ -40,6 +40,13 @@ assert.doesNotMatch(migration, /encrypted_credentials|value_ciphertext|secret_va
 assert.match(logger, /BLOCKED_EVIDENCE_KEY_PATTERN/);
 assert.match(logger, /runtimeEvidenceEnvelope/);
 assert.match(logger, /execution_evidence_status/);
+assert.match(logger, /resolveExecutionAgentSkillGrant/);
+assert.match(logger, /agent_skill_grants/);
+assert.match(logger, /DEFAULT_EXECUTION_EVIDENCE_AGENT_KEY = "admin_gpt_assistant"/);
+assert.match(logger, /github_repository_recovery_adapter/);
+assert.match(logger, /platform_registry_database_recovery/);
+assert.match(logger, /g\.tenant_id IS NULL OR g\.tenant_id = \?/);
+assert.match(logger, /skill_grant_resolution/);
 
 const captured = { insert: null, update: null, fullContextUpdate: null };
 const pool = {
