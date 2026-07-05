@@ -71,17 +71,27 @@ internal sealed class SignedInstallerCoordinator
         var target = Path.GetFullPath(Path.Combine(
             _updatesRoot,
             $"{prefix}-{safeDeviceId}-{Guid.NewGuid():N}.bat"));
+        var tempTarget = target + ".download";
         AssertOwnedInstallerPath(target);
+        AssertOwnedInstallerPath(tempTarget, allowDownloadExtension: true);
+        DeleteIfExists(tempTarget);
 
         using var client = CreateGovernedHttpClient();
         using var response = await client.GetAsync(downloadUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         response.EnsureSuccessStatusCode();
         await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken))
-        await using (var destination = File.Create(target))
+        await using (var destination = new FileStream(
+            tempTarget,
+            FileMode.CreateNew,
+            FileAccess.Write,
+            FileShare.None,
+            bufferSize: 81920,
+            options: FileOptions.Asynchronous | FileOptions.SequentialScan))
         {
             await source.CopyToAsync(destination, cancellationToken);
             await destination.FlushAsync(cancellationToken);
         }
+        File.Move(tempTarget, target, overwrite: false);
 
         var fileInfo = new FileInfo(target);
         fileInfo.Refresh();
