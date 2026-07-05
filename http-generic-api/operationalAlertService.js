@@ -1298,7 +1298,8 @@ export async function updateOperationalAlertLifecycle({
     }
     const [result] = await connection.query(
     `UPDATE operational_alerts
-        SET lifecycle_status = ?, lifecycle_actor = ?, lifecycle_note = ?,
+        SET lifecycle_status = ?, lifecycle_revision = lifecycle_revision + 1,
+            lifecycle_actor = ?, lifecycle_note = ?,
             acknowledged_at = COALESCE(?, acknowledged_at),
             resolved_at = ?, resolution_note = CASE WHEN ? = 'resolved' THEN ? ELSE resolution_note END,
             updated_at = CURRENT_TIMESTAMP
