@@ -78,6 +78,11 @@ function sha256(value) {
   return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
 }
 
+function normalizeSha256(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return /^[a-f0-9]{64}$/.test(raw) ? raw : null;
+}
+
 function deterministicAlertKey(parts = []) {
   return `alert.${sha256(parts.map((part) => String(part ?? "")).join("|"))}`;
 }
