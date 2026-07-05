@@ -21,6 +21,16 @@ assert.ok(routes.includes("secrets_included: false"));
 assert.match(routes, /for \(const turn of normalizedTurns\)[\s\S]+turnIndex \+= 1/);
 assert.ok(!routes.includes("content_rows"));
 
+assert.ok(gptToolsRoutes.includes("SESSION_ARCHIVE_PRE_FINAL_CAPTURE_GATE"));
+assert.ok(gptToolsRoutes.includes("pre_final_capture_required"));
+assert.ok(gptToolsRoutes.includes("explicit_session_pin_pre_final_capture_required"));
+assert.ok(gptToolsRoutes.includes("latest_active_session_pre_final_capture_required"));
+assert.ok(gptToolsRoutes.includes("attachSessionArchiveCaptureGate"));
+assert.ok(gptToolsRoutes.includes("session_archive_capture_gate"));
+assert.ok(gptToolsRoutes.includes("tool_turn_archive_readback_failed"));
+assert.ok(gptToolsRoutes.includes('toolKey === "gpt_session_turns_write_batch"'));
+assert.ok(!gptToolsRoutes.includes("latest_active_session_fallback"));
+
 assert.ok(activationRoutes.includes("turn_capture_policy"));
 assert.ok(activationRoutes.includes("required_for_full_transcript"));
 assert.ok(activationRoutes.includes("gpt_session_turns_write_batch"));
