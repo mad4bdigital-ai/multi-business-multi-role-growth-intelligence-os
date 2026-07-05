@@ -413,6 +413,7 @@ const SYSTEM_LAYER_TOOLS = [
       required: [],
     },
   },
+  ...CAPABILITY_ENABLEMENT_SYSTEM_TOOLS,
 ];
 
 const VALID_STATUSES = new Set(["active", "pending", "error", "archived"]);
