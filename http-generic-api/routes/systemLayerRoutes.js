@@ -77,6 +77,10 @@ import { BRAND_WORKSPACE_CONTEXT_SYSTEM_TOOLS } from "../brandWorkspaceContextRe
 import * as BrandWorkspaceContextRuntime from "../brandWorkspaceContextResolver.js";
 import { PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS } from "../platformResourceContextResolver.js";
 import * as PlatformResourceContextRuntime from "../platformResourceContextResolver.js";
+import {
+  CAPABILITY_ENABLEMENT_SYSTEM_TOOLS,
+} from "../capabilityEnablementBroker.js";
+import * as CapabilityEnablementBrokerRuntime from "../capabilityEnablementBroker.js";
 import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
 
 const SYSTEM_LAYER_TOOLS = [
