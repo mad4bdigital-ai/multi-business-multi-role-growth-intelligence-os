@@ -642,7 +642,8 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
   if (includePersisted) {
     queries.push(safeRows(
       "operational_alerts",
-      `SELECT alert_id, alert_key, source_type, source_ref, source_record_id,
+      `SELECT alert_id, alert_key, operation_fingerprint_sha256, resource_fingerprint_sha256,
+              source_type, source_ref, source_record_id,
               tenant_id, user_id, workspace_id, container_key, category, severity,
               title, summary, reason_code, lifecycle_status, verification_state,
               evidence_type, evidence_ref, evidence_json, execution_log_id, trace_id,
