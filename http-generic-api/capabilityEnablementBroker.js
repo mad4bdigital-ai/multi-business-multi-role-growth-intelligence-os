@@ -123,8 +123,11 @@ export function classifyEnablementDecision({ effective = null, dryRun = null, op
   if (effectiveStatus === "workspace_not_registered" || effectiveStatus === "workspace_not_ready") {
     return { decision: "needs_resource_binding", reason_codes: ["WORKSPACE_CONTEXT_MISSING"], next_allowed_mode: "diagnose" };
   }
-  if (effectiveStatus === "capability_not_registered" || effectiveStatus === "capability_binding_missing") {
+  if (effectiveStatus === "capability_not_registered") {
     return { decision: "blocked_policy_denied", reason_codes: ["CAPABILITY_NOT_REGISTERED"], next_allowed_mode: "diagnose" };
+  }
+  if (effectiveStatus === "capability_binding_missing") {
+    return { decision: "needs_execution_enablement", reason_codes: ["CAPABILITY_BINDING_MISSING"], next_allowed_mode: "diagnose" };
   }
   if (CREDENTIAL_STATUSES.has(effectiveStatus)) {
     return { decision: "needs_credential", reason_codes: [effectiveStatus === "connection_not_validated" ? "CONNECTION_NOT_VALIDATED" : "CONNECTION_MISSING"], next_allowed_mode: "diagnose" };
