@@ -168,10 +168,30 @@ async function countConversationTurns(pool, sessionId) {
   };
 }
 
-async function findActiveSessionForCaller(pool, req, args = {}) {
+function buildPreFinalCaptureGate(session = null, reasonCode = "pre_final_capture_required") {
+  return {
+    ...SESSION_ARCHIVE_PRE_FINAL_CAPTURE_GATE,
+    reason_code: reasonCode,
+    session_id: session?.session_id || null,
+    archive_binding: session?.archive_binding || null,
+    turn_counts: session?.turn_counts || null,
+  };
+}
+
+function attachSessionArchiveCaptureGate(resultForClient, archiveResult) {
+  if (!archiveResult?.capture_gate) return resultForClient;
+  if (!resultForClient?.body || typeof resultForClient.body !== "object" || Array.isArray(resultForClient.body)) {
+    return resultForClient;
+  }
+  resultForClient.body.session_archive_capture_gate = archiveResult.capture_gate;
+  return resultForClient;
+}
+
+async function findActiveSessionForCaller(pool, req, args = {}, options = {}) {
   const tenantId = String(req?.auth?.tenant_id || PLATFORM_TENANT_ID);
   const userId = req?.auth?.user_id || null;
   const pinnedSessionId = resolveGptSessionPin(req, args);
+  const allowUncapturedConversation = options.allowUncapturedConversation === true;
   const baseSelect = `SELECT session_id, tenant_id, user_id, originator, session_status, started_at,
             drive_folder_id, drive_doc_id, drive_doc_url, drive_doc_part_index, drive_doc_part_count,
             drive_jsonl_id, drive_jsonl_url
@@ -188,7 +208,17 @@ async function findActiveSessionForCaller(pool, req, args = {}) {
       LIMIT 1`,
       [pinnedSessionId, tenantId, userId]
     );
-    return rows[0] ? { ...rows[0], archive_binding: "explicit_session_pin" } : null;
+    if (!rows[0]) return null;
+    const counts = await countConversationTurns(pool, rows[0].session_id);
+    if (counts.conversation_turns > 0 || allowUncapturedConversation) {
+      return { ...rows[0], archive_binding: "explicit_session_pin", turn_counts: counts };
+    }
+    return {
+      ...rows[0],
+      archive_binding: "explicit_session_pin_pre_final_capture_required",
+      turn_counts: counts,
+      pre_final_capture_required: true,
+    };
   }
 
   const [rows] = await pool.query(
@@ -209,7 +239,12 @@ async function findActiveSessionForCaller(pool, req, args = {}) {
   }
   if (rows?.[0]) {
     const counts = await countConversationTurns(pool, rows[0].session_id);
-    return { ...rows[0], archive_binding: "latest_active_session_fallback", turn_counts: counts };
+    return {
+      ...rows[0],
+      archive_binding: "latest_active_session_pre_final_capture_required",
+      turn_counts: counts,
+      pre_final_capture_required: true,
+    };
   }
   return null;
 }
