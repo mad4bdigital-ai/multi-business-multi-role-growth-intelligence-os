@@ -1,0 +1,51 @@
+{
+  "surface_key": "capability_enablement_requests",
+  "display_name": "Capability Enablement Requests",
+  "description": "Tenant-scoped no-secret Capability Enablement Broker decision ledger for bounded readiness, reason-code, and next-mode visibility.",
+  "source_table": "capability_enablement_requests",
+  "covered_source_tables": [
+    "capability_enablement_requests"
+  ],
+  "result_key_column": "request_id",
+  "result_label_column": "capability_key",
+  "tenant_column": "tenant_id",
+  "user_column": "user_id",
+  "status_column": "decision",
+  "active_status_values": [
+    "ready_for_dispatch",
+    "ready_for_preview",
+    "needs_approval",
+    "needs_resource_binding",
+    "needs_credential",
+    "needs_certification",
+    "needs_execution_enablement",
+    "needs_preflight",
+    "blocked_missing_membership",
+    "blocked_out_of_scope",
+    "blocked_policy_denied",
+    "blocked_apply_not_supported",
+    "blocked_secret_boundary",
+    "degraded_contract"
+  ],
+  "result_columns": [
+    "request_id",
+    "tenant_id",
+    "user_id",
+    "caller_type",
+    "capability_key",
+    "operation_intent",
+    "app_key",
+    "runtime_surface",
+    "workspace_id",
+    "decision",
+    "next_allowed_mode",
+    "created_at",
+    "expires_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 50,
+  "sort_order": 334,
+  "status": "active",
+  "notes": "Excludes reason_codes_json, classification_json, projection_json, hashes, resource_uri, provider payloads, credential payloads, approval material, raw resolver output, and secrets. Tenant projection remains bounded by tenant_id/user_id."
+}
