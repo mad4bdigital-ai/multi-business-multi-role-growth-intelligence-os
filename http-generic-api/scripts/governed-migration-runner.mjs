@@ -333,6 +333,25 @@ function sha256(value = "") {
   return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function normalizeCapabilityEnvelopeId(value = "") {
+  const id = String(value || "").trim();
+  return UUID_PATTERN.test(id) ? id : "";
+}
+
+async function governedMigrationLedgerSupportsCapabilityEnvelopeColumn() {
+  try {
+    const [rows] = await getPool().query(
+      "SELECT COUNT(*) AS count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'governed_migration_ledger' AND column_name = 'capability_envelope_id'"
+    );
+    return Number(rows?.[0]?.count || 0) > 0;
+  } catch (error) {
+    if (/doesn't exist|ER_NO_SUCH_TABLE/i.test(String(error?.message || ""))) return false;
+    throw error;
+  }
+}
+
 async function findLedgerEntry(migration, checksum, mode = "record_only") {
   try {
     const [rows] = await getPool().query(
