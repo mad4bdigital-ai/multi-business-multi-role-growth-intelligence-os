@@ -1033,7 +1033,7 @@ async function upsertAlert(connection, item, syncRunId) {
        lifecycle_status, verification_state, evidence_type, evidence_ref, evidence_json,
        execution_log_id, trace_id, occurrence_count, first_seen_at, last_seen_at, last_sync_run_id,
        recommended_action_key, requires_confirmation, manual_known_issue, secrets_included)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
      ON DUPLICATE KEY UPDATE
        tenant_id = VALUES(tenant_id), user_id = VALUES(user_id), workspace_id = VALUES(workspace_id),
        container_key = VALUES(container_key), source_ref = VALUES(source_ref), source_record_id = VALUES(source_record_id),
