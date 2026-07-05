@@ -126,11 +126,14 @@ export function classifyEnablementDecision({ effective = null, dryRun = null, op
     return { decision: "blocked_apply_not_supported", reason_codes: ["APPLY_AUTHORITY_NOT_AUTO_GRANTABLE"], next_allowed_mode: "diagnose" };
   }
   if (effective?.ok === false) {
-    const code = normalize(effective.error?.code || "effective_capability_failed");
+    const rawCode = safeText(effective.error?.code || "EFFECTIVE_CAPABILITY_RESOLUTION_FAILED", 128).toUpperCase();
+    const code = normalize(rawCode);
     if (code.includes("membership")) return { decision: "blocked_missing_membership", reason_codes: ["MEMBERSHIP_REQUIRED"], next_allowed_mode: "none" };
     if (code.includes("tenant") || code.includes("user")) return { decision: "blocked_out_of_scope", reason_codes: ["TENANT_OR_USER_CONTEXT_REQUIRED"], next_allowed_mode: "diagnose" };
     if (code.includes("workspace")) return { decision: "needs_resource_binding", reason_codes: ["WORKSPACE_CONTEXT_MISSING"], next_allowed_mode: "diagnose" };
-    if (code.includes("capability")) return { decision: "blocked_policy_denied", reason_codes: ["CAPABILITY_NOT_REGISTERED"], next_allowed_mode: "diagnose" };
+    if (code.includes("capability_binding_missing")) return { decision: "needs_execution_enablement", reason_codes: ["CAPABILITY_BINDING_MISSING"], next_allowed_mode: "diagnose" };
+    if (code.includes("capability_not_registered")) return { decision: "blocked_policy_denied", reason_codes: ["CAPABILITY_NOT_REGISTERED"], next_allowed_mode: "diagnose" };
+    if (code.includes("capability")) return { decision: "blocked_policy_denied", reason_codes: [rawCode || "CAPABILITY_NOT_REGISTERED"], next_allowed_mode: "diagnose" };
     return { decision: "degraded_contract", reason_codes: ["EFFECTIVE_CAPABILITY_RESOLUTION_FAILED"], next_allowed_mode: "diagnose" };
   }
   if (effectiveStatus === "workspace_membership_required") return { decision: "blocked_missing_membership", reason_codes: ["MEMBERSHIP_REQUIRED"], next_allowed_mode: "none" };
