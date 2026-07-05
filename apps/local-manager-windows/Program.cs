@@ -776,6 +776,8 @@ internal static class Program
                 return;
             }
 
+            if (!await RequireCurrentVersionForPrivilegedActionAsync("Connector capabilities")) return;
+
             try
             {
                 EnsureLocalFiles(_status);
