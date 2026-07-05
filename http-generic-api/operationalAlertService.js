@@ -1304,7 +1304,7 @@ export async function updateOperationalAlertLifecycle({
             resolved_at = ?, resolution_note = CASE WHEN ? = 'resolved' THEN ? ELSE resolution_note END,
             updated_at = CURRENT_TIMESTAMP
       WHERE ${where.join(" AND ")}`,
-    [normalizedStatus, actor, note, acknowledgedAt, resolvedAt, normalizedStatus, note, ...params]
+    [normalizedStatus, normalizedActor, normalizedNote, acknowledgedAt, resolvedAt, normalizedStatus, normalizedNote, ...params]
   );
   if (!safeNumber(result?.affectedRows)) {
     const error = new Error("Operational alert was not found or is outside the caller scope.");
