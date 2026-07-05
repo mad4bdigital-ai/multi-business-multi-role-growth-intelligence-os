@@ -229,4 +229,49 @@ function readyDryRun(overrides = {}) {
   assert.equal(calls.length, 1);
 }
 
+{
+  const classification = classifyEnablementDecision({
+    effective: {
+      ok: false,
+      status: "blocked",
+      error: {
+        code: "CAPABILITY_BINDING_MISSING",
+        message: "No active provider binding exists for the capability.",
+        details: { capability_key: "content.article.publish" },
+      },
+      secrets_included: false,
+    },
+    dryRun: readyDryRun({ decision: "blocked_requires_setup", blocking_gaps: ["app_integration_missing_or_unresolved"] }),
+    operationIntent: "read",
+  });
+  assert.equal(classification.decision, "needs_execution_enablement");
+  assert.deepEqual(classification.reason_codes, ["CAPABILITY_BINDING_MISSING"]);
+  const actions = buildCapabilityEnablementNextActions(classification, {
+    effective: { ok: false, status: "blocked", error: { code: "CAPABILITY_BINDING_MISSING" }, secrets_included: false },
+    dryRun: readyDryRun({ decision: "blocked_requires_setup" }),
+  });
+  assert.equal(actions[0].action, "request_capability_provider_binding_or_plugin_action_grant");
+  assert.equal(actions[0].required_role, "platform_admin");
+  assert.equal(actions[0].reason_code, "CAPABILITY_BINDING_MISSING");
+}
+
+{
+  const classification = classifyEnablementDecision({
+    effective: readyEffective({
+      status: "connection_not_validated",
+      ready: false,
+      checks: { membership_ready: true, resource_authority_ready: true, connection_ready: false, runtime_certification_ready: true },
+    }),
+    dryRun: readyDryRun(),
+    operationIntent: "read",
+  });
+  assert.equal(classification.decision, "needs_credential");
+  assert.deepEqual(classification.reason_codes, ["CONNECTION_NOT_VALIDATED"]);
+  const actions = buildCapabilityEnablementNextActions(classification, {
+    effective: readyEffective({ status: "connection_not_validated", ready: false }),
+    dryRun: readyDryRun(),
+  });
+  assert.equal(actions[0].action, "validate_connection");
+}
+
 console.log("capability enablement broker tests passed");
