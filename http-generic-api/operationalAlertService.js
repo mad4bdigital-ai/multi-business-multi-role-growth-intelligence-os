@@ -1052,6 +1052,8 @@ async function upsertAlert(connection, item, syncRunId) {
       alertId,
       item.alert_key,
       item.fingerprint_sha256,
+      item.operation_fingerprint_sha256,
+      item.resource_fingerprint_sha256,
       item.tenant_id,
       item.user_id,
       item.workspace_id,
