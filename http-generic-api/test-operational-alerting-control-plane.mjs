@@ -336,7 +336,12 @@ function testRepositoryContracts() {
   assert.match(mutationReadbackMigration, /activation_operational_attention_sync_api/);
   assert.match(mutationReadbackMigration, /activation_operational_alert_lifecycle_api/);
   assert.match(mutationReadbackMigration, /readback,same_cycle_readback/);
+  assert.match(lifecycleFingerprintMigration, /operational_alert_lifecycle_events/);
+  assert.match(lifecycleFingerprintMigration, /operation_fingerprint_sha256/);
+  assert.match(lifecycleFingerprintMigration, /resource_fingerprint_sha256/);
+  assert.match(lifecycleFingerprintMigration, /no later success for the same operation and resource fingerprints/);
   assert.match(governedMigrationRunner, /1031_sprint69_operational_alert_mutation_readback_policy\.sql/);
+  assert.match(governedMigrationRunner, /20260704_operational_alert_lifecycle_fingerprints\.sql/);
 
   for (const key of _testingOperationalAlerts.KNOWN_ISSUE_KEYS) {
     assert.ok(migration.includes(key), `migration must seed ${key}`);
