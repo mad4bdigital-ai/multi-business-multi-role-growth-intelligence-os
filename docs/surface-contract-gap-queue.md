@@ -4,10 +4,10 @@
 
 ## Summary
 
-- Total queue items: 3
+- Total queue items: 4
 - Critical review: 2
 - High review: 1
-- Medium review: 0
+- Medium review: 1
 - Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
@@ -56,4 +56,17 @@
 - `document_surface_contract` → docs-agent/human-review; targets: `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `1025_sprint69_github_ref_dispatch_catalog_persistence`, `db_admin_tool`, `github_git_ref_readback_v1`, `github_rest_endpoint_dispatch`, `mutation_preflight_required`, `ptdb_github_rest_dispatch_get_git_ref_head`, `ptdb_github_rest_dispatch_get_reference`, `requires_runtime_preflight`, `requires_same_cycle_readback`, `same_cycle_readback_required`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 4. `1035_sprint69_capability_enablement_broker_ledgers.sql`
+
+- Queue class: medium_review
+- Score: 282
+- Gap severity: low
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: none
+- Surface counts: plugins=0, tools=0, views=1, policies=0, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_readback_view` → db-readback-review; targets: `v_capability_enablement_decision_rollup`
 
