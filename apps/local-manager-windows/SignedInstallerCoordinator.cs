@@ -209,15 +209,23 @@ internal sealed class SignedInstallerCoordinator
         return Convert.ToHexString(hash);
     }
 
-    private void AssertOwnedInstallerPath(string path)
+    private void AssertOwnedInstallerPath(string path, bool allowDownloadExtension = false)
     {
         var relative = Path.GetRelativePath(_updatesRoot, path);
+        var extension = Path.GetExtension(path);
+        var extensionAllowed = string.Equals(extension, ".bat", StringComparison.OrdinalIgnoreCase)
+            || (allowDownloadExtension && string.Equals(extension, ".download", StringComparison.OrdinalIgnoreCase));
         if (relative.StartsWith("..", StringComparison.Ordinal)
             || Path.IsPathRooted(relative)
-            || !string.Equals(Path.GetExtension(path), ".bat", StringComparison.OrdinalIgnoreCase))
+            || !extensionAllowed)
         {
             throw new InvalidOperationException("Installer path is outside the governed Local Manager updates folder.");
         }
+    }
+
+    private static void DeleteIfExists(string path)
+    {
+        if (File.Exists(path)) File.Delete(path);
     }
 
     private static string SafeFileSegment(string value)
