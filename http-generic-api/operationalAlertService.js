@@ -469,6 +469,8 @@ function mapPersistedAlert(row) {
     verificationState: row.verification_state,
     evidenceType: row.evidence_type,
     evidenceRef: row.evidence_ref,
+    operationFingerprintSha256: row.operation_fingerprint_sha256,
+    resourceFingerprintSha256: row.resource_fingerprint_sha256,
     evidence,
     executionLogId: row.execution_log_id,
     traceId: row.trace_id,
