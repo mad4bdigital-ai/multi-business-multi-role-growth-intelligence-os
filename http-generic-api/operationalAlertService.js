@@ -1035,6 +1035,8 @@ async function upsertAlert(connection, item, syncRunId) {
        recommended_action_key, requires_confirmation, manual_known_issue, secrets_included)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
      ON DUPLICATE KEY UPDATE
+       operation_fingerprint_sha256 = VALUES(operation_fingerprint_sha256),
+       resource_fingerprint_sha256 = VALUES(resource_fingerprint_sha256),
        tenant_id = VALUES(tenant_id), user_id = VALUES(user_id), workspace_id = VALUES(workspace_id),
        container_key = VALUES(container_key), source_ref = VALUES(source_ref), source_record_id = VALUES(source_record_id),
        category = VALUES(category), severity = VALUES(severity), title = VALUES(title), summary = VALUES(summary),
