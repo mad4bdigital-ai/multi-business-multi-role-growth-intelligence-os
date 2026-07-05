@@ -1348,11 +1348,27 @@ export async function updateOperationalAlertLifecycle({
       LIMIT 1`,
     params
   );
+  const [eventRows] = await connection.query(
+    `SELECT event_id, alert_id, from_status, to_status, lifecycle_revision, actor_id, actor_type, note, idempotency_key, created_at
+       FROM operational_alert_lifecycle_events
+      WHERE event_id = ?
+      LIMIT 1`,
+    [eventId]
+  );
+  await connection.commit();
   return {
     ok: true,
+    idempotent_replay: false,
     alert: sanitizeEvidence(rows[0] || {}),
+    event: sanitizeEvidence(eventRows[0] || {}),
     secrets_included: false,
   };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 export const _testingOperationalAlerts = {
