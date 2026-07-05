@@ -85,6 +85,8 @@ assert(localManagerAutopilot.includes('sc.exe'), 'autopilot must query the requi
 assert(windowsAppRegistration.includes('CurrentVersion\\Uninstall\\Mad4B.LocalManager.Windows'), 'Windows app registration must use the per-user uninstall registry');
 assert(windowsAppRegistration.includes('QuietUninstallString'), 'Windows app registration must publish a quiet uninstall command');
 assert(windowsAppRegistration.includes('--uninstall'), 'Windows app must support removal from Installed Apps');
+assert(signedInstallerCoordinator.includes('await destination.FlushAsync(cancellationToken);'), 'Windows signed installer download must flush the file before size validation');
+assert(signedInstallerCoordinator.includes('fileInfo.Refresh();'), 'Windows signed installer download must refresh file metadata before size validation');
 assert(localManagerWindows.includes('secrets_included = false'), 'desktop polling diagnostics must remain secret-safe');
 assert(localManagerWindows.includes('Capabilities'), 'Windows app must expose capability choices');
 assert(localManagerWindows.includes('ConfigureConnectorCapabilitiesAsync'), 'Windows app must request capability installer from user action');
