@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const routes = readFileSync(new URL("./routes/gptSessionRoutes.js", import.meta.url), "utf8");
+const gptToolsRoutes = readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
 const activationRoutes = readFileSync(new URL("./routes/activationRoutes.js", import.meta.url), "utf8");
 const migration = readFileSync(new URL("./migrations/219_sprint67_gpt_session_turn_batch_write_tool.sql", import.meta.url), "utf8");
 const runner = readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
@@ -19,6 +20,16 @@ assert.ok(routes.includes("drive_doc_and_jsonl"));
 assert.ok(routes.includes("secrets_included: false"));
 assert.match(routes, /for \(const turn of normalizedTurns\)[\s\S]+turnIndex \+= 1/);
 assert.ok(!routes.includes("content_rows"));
+
+assert.ok(gptToolsRoutes.includes("SESSION_ARCHIVE_PRE_FINAL_CAPTURE_GATE"));
+assert.ok(gptToolsRoutes.includes("pre_final_capture_required"));
+assert.ok(gptToolsRoutes.includes("explicit_session_pin_pre_final_capture_required"));
+assert.ok(gptToolsRoutes.includes("latest_active_session_pre_final_capture_required"));
+assert.ok(gptToolsRoutes.includes("attachSessionArchiveCaptureGate"));
+assert.ok(gptToolsRoutes.includes("session_archive_capture_gate"));
+assert.ok(gptToolsRoutes.includes("tool_turn_archive_readback_failed"));
+assert.ok(gptToolsRoutes.includes('toolKey === "gpt_session_turns_write_batch"'));
+assert.ok(!gptToolsRoutes.includes("latest_active_session_fallback"));
 
 assert.ok(activationRoutes.includes("turn_capture_policy"));
 assert.ok(activationRoutes.includes("required_for_full_transcript"));
