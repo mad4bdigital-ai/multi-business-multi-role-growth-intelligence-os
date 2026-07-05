@@ -1231,7 +1231,9 @@ export async function updateOperationalAlertLifecycle({
   alertId,
   lifecycleStatus,
   actor = "platform_admin",
+  actorType = "platform_admin",
   note = null,
+  idempotencyKey = null,
 } = {}) {
   const subject = resolveSubject(sessionContext || {}, explicitSubject);
   const normalizedStatus = String(lifecycleStatus || "").toLowerCase();
