@@ -82,6 +82,16 @@ const MAX_TOOL_RESPONSE_CHUNK_TTL_MS = 2 * 60 * 60 * 1000;
 const MIN_TOOL_RESPONSE_CHUNK_TTL_MS = 5 * 60 * 1000;
 const TOOL_RESPONSE_CHUNK_CACHE = new Map();
 
+const SESSION_ARCHIVE_PRE_FINAL_CAPTURE_GATE = Object.freeze({
+  status: "required",
+  reason_code: "pre_final_capture_required",
+  write_tool: "gpt_session_turns_write_batch",
+  required_roles: Object.freeze(["user", "assistant"]),
+  readback_required: true,
+  archive_policy: "write the user prompt and assistant reply before final response or before archiving tool turns",
+  secrets_included: false,
+});
+
 export const CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT = Object.freeze({
   policy: "chunk_read_before_alternative_surface",
   required_when: "response_chunked_true_or_page_has_more_true",
