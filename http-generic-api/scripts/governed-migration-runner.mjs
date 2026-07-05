@@ -275,7 +275,7 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
 const RUNNER_VERSION = "governed-migration-runner-v2";
 
 function parseArgs(argv = process.argv.slice(2)) {
-  const parsed = { mode: "dry_run", migration: "", confirm: "", recordOnly: false };
+  const parsed = { mode: "dry_run", migration: "", confirm: "", recordOnly: false, capabilityEnvelopeId: "" };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = String(argv[i] || "");
     if (arg === "--dry-run") parsed.mode = "dry_run";
@@ -285,6 +285,8 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg.startsWith("--migration=")) parsed.migration = arg.slice("--migration=".length);
     else if (arg === "--confirm") parsed.confirm = String(argv[++i] || "");
     else if (arg.startsWith("--confirm=")) parsed.confirm = arg.slice("--confirm=".length);
+    else if (arg === "--capability-envelope-id") parsed.capabilityEnvelopeId = String(argv[++i] || "");
+    else if (arg.startsWith("--capability-envelope-id=")) parsed.capabilityEnvelopeId = arg.slice("--capability-envelope-id=".length);
     else throw new Error(`Unsupported argument: ${arg}`);
   }
   return parsed;
