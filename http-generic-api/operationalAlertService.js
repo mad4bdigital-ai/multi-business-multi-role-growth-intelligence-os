@@ -1256,7 +1256,47 @@ export async function updateOperationalAlertLifecycle({
   const normalizedIdempotencyKey = idempotencyKey ? String(idempotencyKey).trim().slice(0, 191) : null;
   const resolvedAt = normalizedStatus === "resolved" ? new Date() : null;
   const acknowledgedAt = ["acknowledged", "investigating"].includes(normalizedStatus) ? new Date() : null;
-  const [result] = await getPool().query(
+  const connection = await getPool().getConnection();
+  try {
+    await connection.beginTransaction();
+    const [currentRows] = await connection.query(
+      `SELECT alert_id, alert_key, tenant_id, user_id, workspace_id, source_type, source_record_id,
+              lifecycle_status, lifecycle_revision, operation_fingerprint_sha256, resource_fingerprint_sha256
+         FROM operational_alerts
+        WHERE ${where.join(" AND ")}
+        LIMIT 1
+        FOR UPDATE`,
+      params
+    );
+    const current = currentRows[0];
+    if (!current) {
+      const error = new Error("Operational alert was not found or is outside the caller scope.");
+      error.code = "operational_alert_not_found";
+      error.status = 404;
+      throw error;
+    }
+    const fromStatus = current.lifecycle_status || null;
+    const nextRevision = safeNumber(current.lifecycle_revision) + 1;
+    if (normalizedIdempotencyKey) {
+      const [existingEvents] = await connection.query(
+        `SELECT event_id, alert_id, from_status, to_status, lifecycle_revision, actor_id, actor_type, note, idempotency_key, created_at
+           FROM operational_alert_lifecycle_events
+          WHERE alert_id = ? AND idempotency_key = ?
+          LIMIT 1`,
+        [current.alert_id, normalizedIdempotencyKey]
+      );
+      if (existingEvents[0]) {
+        await connection.commit();
+        return {
+          ok: true,
+          idempotent_replay: true,
+          alert: sanitizeEvidence(current),
+          event: sanitizeEvidence(existingEvents[0]),
+          secrets_included: false,
+        };
+      }
+    }
+    const [result] = await connection.query(
     `UPDATE operational_alerts
         SET lifecycle_status = ?, lifecycle_actor = ?, lifecycle_note = ?,
             acknowledged_at = COALESCE(?, acknowledged_at),
