@@ -358,6 +358,8 @@ function mapExecutionAlerts(rows = []) {
         evidence: {
           entry_type: row.entry_type,
           operation_key: row.operation_key,
+          operation_fingerprint_sha256: executionOperationFingerprint(row),
+          resource_fingerprint_sha256: executionResourceFingerprint(row),
           failure_reason: row.failure_reason,
           execution_class: row.execution_class,
           execution_status: status,
