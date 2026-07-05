@@ -197,6 +197,10 @@ function testOperationalAlertLifecycleFingerprintFoundation() {
   const unrelatedResourceAlerts = _testingOperationalAlerts.mapExecutionAlerts([repoAFailure, repoBSuccess]);
   assert.equal(unrelatedResourceAlerts.length, 1, "success on repo-b must not resolve failure on repo-a");
   assert.equal(unrelatedResourceAlerts[0].evidence.resource_id, "repo-a");
+  assert.match(unrelatedResourceAlerts[0].operation_fingerprint_sha256, /^[a-f0-9]{64}$/);
+  assert.match(unrelatedResourceAlerts[0].resource_fingerprint_sha256, /^[a-f0-9]{64}$/);
+  assert.equal(unrelatedResourceAlerts[0].operation_fingerprint_sha256, unrelatedResourceAlerts[0].evidence.operation_fingerprint_sha256);
+  assert.equal(unrelatedResourceAlerts[0].resource_fingerprint_sha256, unrelatedResourceAlerts[0].evidence.resource_fingerprint_sha256);
   assert.match(unrelatedResourceAlerts[0].evidence.operation_fingerprint_sha256, /^[a-f0-9]{64}$/);
   assert.match(unrelatedResourceAlerts[0].evidence.resource_fingerprint_sha256, /^[a-f0-9]{64}$/);
 
@@ -301,6 +305,11 @@ function testRepositoryContracts() {
   assert.match(service, /notification_skipped_count/);
   assert.match(openapi, /notification_skipped_count/);
   assert.match(service, /alert_reconciled_before_delivery/);
+  assert.match(service, /operation_fingerprint_sha256, resource_fingerprint_sha256/);
+  assert.match(service, /operation_fingerprint_sha256 = VALUES\(operation_fingerprint_sha256\)/);
+  assert.match(service, /resource_fingerprint_sha256 = VALUES\(resource_fingerprint_sha256\)/);
+  assert.match(service, /operationFingerprintSha256: row\.operation_fingerprint_sha256/);
+  assert.match(service, /resourceFingerprintSha256: row\.resource_fingerprint_sha256/);
   assert.match(reconciliationMigration, /active_effective_scope_key/);
   assert.match(reconciliationMigration, /uq_agent_skill_grants_active_effective_scope/);
   assert.match(reconciliationMigration, /p0_reconciliation_required/);
