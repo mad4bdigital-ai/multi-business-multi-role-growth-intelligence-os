@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const connectorAgent = readFileSync('routes/connectorAgentRoutes.js', 'utf8');
 const localManager = readFileSync('routes/localManagerBetaRoutes.js', 'utf8');
+const localManagerDeviceLinkService = readFileSync('services/localManagerDeviceLinkService.js', 'utf8');
 const installRoutes = readFileSync('routes/localConnectorInstallRoutes.js', 'utf8');
 const proxyRoutes = readFileSync('routes/connectorProxyRoutes.js', 'utf8');
 const localManagerWindows = readFileSync('../apps/local-manager-windows/Program.cs', 'utf8');
