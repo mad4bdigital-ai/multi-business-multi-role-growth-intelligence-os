@@ -264,6 +264,10 @@ export async function runGovernedMigrationExecution(input = {}, deps = {}) {
   const runnerPath = deps.runnerPath || DEFAULT_RUNNER_PATH;
   const args = [runnerPath, `--migration=${inspection.migration}`, inspection.mode === "apply" ? "--apply" : "--dry-run"];
   if (inspection.mode === "apply") args.push(`--confirm=${inspection.required_confirmation}`);
+  const approvedCapabilityEnvelopeId = capability?.envelope_id || inspection.capabilityEnvelopeId || "";
+  if (inspection.mode === "apply" && approvedCapabilityEnvelopeId) {
+    args.push(`--capability-envelope-id=${approvedCapabilityEnvelopeId}`);
+  }
   const execute = deps.execFile || execFileAsync;
   let execution;
   try {
@@ -295,7 +299,7 @@ export async function runGovernedMigrationExecution(input = {}, deps = {}) {
   return {
     ...result,
     execution_mode: inspection.mode,
-    capability_envelope_id: capability?.envelope_id || null,
+    capability_envelope_id: approvedCapabilityEnvelopeId || null,
     checksum_verified_before_execution: true,
     statement_count_verified_before_execution: true,
     same_cycle_readback_verified: true,
