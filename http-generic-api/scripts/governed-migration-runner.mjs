@@ -603,6 +603,7 @@ async function main() {
     results,
     before_schema_objects,
     after_schema_objects,
+    capabilityEnvelopeId,
   });
 
   console.log(JSON.stringify({
