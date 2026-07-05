@@ -911,6 +911,80 @@ internal static class Program
             public override string ToString() => $"{DisplayName} — {ExecutablePath}";
         }
 
+        private sealed record SupportedAppChoice(string Alias, string DisplayName, string ExecutablePath)
+        {
+            public override string ToString() => $"{DisplayName} ({Alias}) — {ExecutablePath}";
+        }
+
+        private static SupportedAppChoice? PickSupportedApp(IWin32Window owner)
+        {
+            var apps = DiscoverSupportedApps().OrderBy(app => app.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+            if (apps.Count == 0)
+            {
+                MessageBox.Show(owner, "No supported app templates were found on this Windows profile. Use Installed apps or Browse instead.", "Supported apps", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return null;
+            }
+
+            using var form = new Form
+            {
+                Text = "Choose supported app",
+                StartPosition = FormStartPosition.CenterParent,
+                Size = new Size(760, 520),
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                Font = new Font("Segoe UI", 10)
+            };
+            var filter = new TextBox { PlaceholderText = "Search supported apps…", Location = new Point(16, 16), Size = new Size(710, 30) };
+            var list = new ListBox { Location = new Point(16, 56), Size = new Size(710, 360), HorizontalScrollbar = true };
+            var ok = new Button { Text = "Use selected", DialogResult = DialogResult.OK, Location = new Point(500, 430), Size = new Size(130, 34) };
+            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(642, 430), Size = new Size(82, 34) };
+            void RefreshList()
+            {
+                var q = filter.Text.Trim();
+                list.Items.Clear();
+                foreach (var app in apps.Where(app => string.IsNullOrWhiteSpace(q) || app.DisplayName.Contains(q, StringComparison.OrdinalIgnoreCase) || app.Alias.Contains(q, StringComparison.OrdinalIgnoreCase) || app.ExecutablePath.Contains(q, StringComparison.OrdinalIgnoreCase)).Take(300))
+                {
+                    list.Items.Add(app);
+                }
+                if (list.Items.Count > 0 && list.SelectedIndex < 0) list.SelectedIndex = 0;
+            }
+            filter.TextChanged += (_, _) => RefreshList();
+            list.DoubleClick += (_, _) => { if (list.SelectedItem is not null) form.DialogResult = DialogResult.OK; };
+            form.Controls.AddRange(new Control[] { filter, list, ok, cancel });
+            form.AcceptButton = ok;
+            form.CancelButton = cancel;
+            RefreshList();
+            return form.ShowDialog(owner) == DialogResult.OK ? list.SelectedItem as SupportedAppChoice : null;
+        }
+
+        private static IEnumerable<SupportedAppChoice> DiscoverSupportedApps()
+        {
+            var seenAliases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var template in SupportedAppTemplates())
+            {
+                foreach (var candidate in template.Candidates.Select(Environment.ExpandEnvironmentVariables))
+                {
+                    if (string.IsNullOrWhiteSpace(candidate) || !File.Exists(candidate)) continue;
+                    if (!seenAliases.Add(template.Alias)) continue;
+                    yield return new SupportedAppChoice(template.Alias, template.DisplayName, candidate);
+                    break;
+                }
+            }
+        }
+
+        private static IEnumerable<(string Alias, string DisplayName, string[] Candidates)> SupportedAppTemplates()
+        {
+            var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            yield return ("edge", "Microsoft Edge", new[] { Path.Combine(programFilesX86, "Microsoft", "Edge", "Application", "msedge.exe"), Path.Combine(programFiles, "Microsoft", "Edge", "Application", "msedge.exe") });
+            yield return ("chrome", "Google Chrome", new[] { Path.Combine(programFiles, "Google", "Chrome", "Application", "chrome.exe"), Path.Combine(programFilesX86, "Google", "Chrome", "Application", "chrome.exe") });
+            yield return ("vscode", "Visual Studio Code", new[] { Path.Combine(localAppData, "Programs", "Microsoft VS Code", "Code.exe"), Path.Combine(programFiles, "Microsoft VS Code", "Code.exe") });
+            yield return ("notepad", "Windows Notepad", new[] { Path.Combine(windows, "System32", "notepad.exe") });
+        }
+
         private static InstalledAppChoice? PickInstalledApp(IWin32Window owner)
         {
             var apps = DiscoverInstalledApps().OrderBy(app => app.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
