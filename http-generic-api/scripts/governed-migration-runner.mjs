@@ -446,7 +446,13 @@ async function recordMigrationLedger({
       JSON.stringify(metadata),
     ]
   );
-  return { run_id, runner_version: RUNNER_VERSION, recorded: true };
+  if (normalizedCapabilityEnvelopeId && await governedMigrationLedgerSupportsCapabilityEnvelopeColumn()) {
+    await getPool().query(
+      "UPDATE governed_migration_ledger SET capability_envelope_id = ? WHERE run_id = ?",
+      [normalizedCapabilityEnvelopeId, run_id]
+    );
+  }
+  return { run_id, runner_version: RUNNER_VERSION, recorded: true, capability_envelope_id: normalizedCapabilityEnvelopeId || null };
 }
 
 async function main() {
