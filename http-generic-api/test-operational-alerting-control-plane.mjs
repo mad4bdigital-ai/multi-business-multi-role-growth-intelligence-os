@@ -157,6 +157,63 @@ function testP0ReconciliationSemantics() {
   );
 }
 
+function executionRow(overrides = {}) {
+  return {
+    id: 100,
+    tenant_id: "tenant-1",
+    workspace_id: "workspace-1",
+    entry_type: "sync_execution",
+    execution_status: "failed",
+    app_key: "github",
+    workflow_key: "repo_sync",
+    output_summary: "github_get_contents failed: upstream_error",
+    failure_reason: "upstream_error",
+    route_status: "failed",
+    target_type: "repository",
+    target_id: "repo-a",
+    resource_type: "github_repository",
+    resource_id: "repo-a",
+    created_at: "2026-07-04T10:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function testOperationalAlertLifecycleFingerprintFoundation() {
+  const row = executionRow();
+  assert.match(_testingOperationalAlerts.executionOperationFingerprint(row), /^[a-f0-9]{64}$/);
+  assert.match(_testingOperationalAlerts.executionResourceFingerprint(row), /^[a-f0-9]{64}$/);
+
+  const repoAFailure = executionRow({ id: 101, target_id: "repo-a", resource_id: "repo-a", created_at: "2026-07-04T10:00:00.000Z" });
+  const repoBSuccess = executionRow({
+    id: 102,
+    execution_status: "success",
+    output_summary: "github_get_contents completed with status success (200)",
+    failure_reason: null,
+    route_status: "resolved",
+    target_id: "repo-b",
+    resource_id: "repo-b",
+    created_at: "2026-07-04T10:05:00.000Z",
+  });
+  const unrelatedResourceAlerts = _testingOperationalAlerts.mapExecutionAlerts([repoAFailure, repoBSuccess]);
+  assert.equal(unrelatedResourceAlerts.length, 1, "success on repo-b must not resolve failure on repo-a");
+  assert.equal(unrelatedResourceAlerts[0].evidence.resource_id, "repo-a");
+  assert.match(unrelatedResourceAlerts[0].evidence.operation_fingerprint_sha256, /^[a-f0-9]{64}$/);
+  assert.match(unrelatedResourceAlerts[0].evidence.resource_fingerprint_sha256, /^[a-f0-9]{64}$/);
+
+  const repoASuccess = executionRow({
+    id: 103,
+    execution_status: "success",
+    output_summary: "github_get_contents completed with status success (200)",
+    failure_reason: null,
+    route_status: "resolved",
+    target_id: "repo-a",
+    resource_id: "repo-a",
+    created_at: "2026-07-04T10:06:00.000Z",
+  });
+  const matchingResourceAlerts = _testingOperationalAlerts.mapExecutionAlerts([repoAFailure, repoASuccess]);
+  assert.equal(matchingResourceAlerts.length, 0, "later success on repo-a must resolve failure on repo-a");
+}
+
 function testDedupeAndLifecyclePrecedence() {
   const live = _testingOperationalAlerts.candidate({
     alertKey: "alert.test",
@@ -226,6 +283,7 @@ function testRepositoryContracts() {
   const migration = read("./migrations/1013_sprint69_operational_alerting_control_plane.sql");
   const reconciliationMigration = read("./migrations/1015_sprint69_operational_alerting_p0_reconciliation.sql");
   const mutationReadbackMigration = read("./migrations/1031_sprint69_operational_alert_mutation_readback_policy.sql");
+  const lifecycleFingerprintMigration = read("./migrations/20260704_operational_alert_lifecycle_fingerprints.sql");
   const governedMigrationRunner = read("./scripts/governed-migration-runner.mjs");
   const openapi = read("./openapi.yaml");
   const memory = read("../memory_schema.json");
@@ -278,7 +336,12 @@ function testRepositoryContracts() {
   assert.match(mutationReadbackMigration, /activation_operational_attention_sync_api/);
   assert.match(mutationReadbackMigration, /activation_operational_alert_lifecycle_api/);
   assert.match(mutationReadbackMigration, /readback,same_cycle_readback/);
+  assert.match(lifecycleFingerprintMigration, /operational_alert_lifecycle_events/);
+  assert.match(lifecycleFingerprintMigration, /operation_fingerprint_sha256/);
+  assert.match(lifecycleFingerprintMigration, /resource_fingerprint_sha256/);
+  assert.match(lifecycleFingerprintMigration, /no later success for the same operation and resource fingerprints/);
   assert.match(governedMigrationRunner, /1031_sprint69_operational_alert_mutation_readback_policy\.sql/);
+  assert.match(governedMigrationRunner, /20260704_operational_alert_lifecycle_fingerprints\.sql/);
 
   for (const key of _testingOperationalAlerts.KNOWN_ISSUE_KEYS) {
     assert.ok(migration.includes(key), `migration must seed ${key}`);
@@ -303,6 +366,7 @@ async function main() {
   testSensitiveEvidenceStripping();
   testStableKeysAndExecutionGrouping();
   testP0ReconciliationSemantics();
+  testOperationalAlertLifecycleFingerprintFoundation();
   testDedupeAndLifecyclePrecedence();
   testSummaryAndRouteInputs();
   testRepositoryContracts();
