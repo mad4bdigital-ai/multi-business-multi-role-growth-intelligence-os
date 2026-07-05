@@ -193,6 +193,8 @@ export function buildCapabilityEnablementNextActions(classification = {}, { effe
   if (reasonCodes.has("CONNECTION_MISSING")) push("complete_credential_intake", "tenant_owner", "CONNECTION_MISSING");
   if (reasonCodes.has("CONNECTION_NOT_VALIDATED")) push("validate_connection", "tenant_owner", "CONNECTION_NOT_VALIDATED");
   if (reasonCodes.has("CREDENTIAL_BINDING_MISSING")) push("run_credential_effective_plan", "tenant_owner", "CREDENTIAL_BINDING_MISSING");
+  if (reasonCodes.has("CAPABILITY_BINDING_MISSING")) push("request_capability_provider_binding_or_plugin_action_grant", "platform_admin", "CAPABILITY_BINDING_MISSING");
+  if (reasonCodes.has("CAPABILITY_NOT_REGISTERED")) push("register_semantic_capability_or_request_platform_review", "platform_admin", "CAPABILITY_NOT_REGISTERED");
   if (reasonCodes.has("CAPABILITY_NOT_GRANTED")) push("create_action_grant_or_approval_hold", "tenant_owner", "CAPABILITY_NOT_GRANTED");
   if (reasonCodes.has("RESOURCE_AUTHORITY_MISSING")) push("create_resource_authority_binding", "tenant_owner_or_platform_admin", "RESOURCE_AUTHORITY_MISSING");
   if (reasonCodes.has("DISPATCH_CERTIFICATION_MISSING")) push("run_scenario_readback_and_issue_dispatch_certification", "platform_admin", "DISPATCH_CERTIFICATION_MISSING");
