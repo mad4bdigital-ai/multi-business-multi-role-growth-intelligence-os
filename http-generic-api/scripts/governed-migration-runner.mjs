@@ -573,6 +573,7 @@ async function main() {
       ledgerMode: "record_only",
       appliedBy: "governed_migration_runner_backfill",
       extraMetadata: { record_only_backfill: true, sql_applied_by_this_run: false },
+      capabilityEnvelopeId,
     });
     console.log(JSON.stringify({
       ok: true,
