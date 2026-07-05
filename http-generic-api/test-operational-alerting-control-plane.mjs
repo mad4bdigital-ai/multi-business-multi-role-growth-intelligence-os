@@ -305,6 +305,11 @@ function testRepositoryContracts() {
   assert.match(service, /notification_skipped_count/);
   assert.match(openapi, /notification_skipped_count/);
   assert.match(service, /alert_reconciled_before_delivery/);
+  assert.match(service, /operation_fingerprint_sha256, resource_fingerprint_sha256/);
+  assert.match(service, /operation_fingerprint_sha256 = VALUES\(operation_fingerprint_sha256\)/);
+  assert.match(service, /resource_fingerprint_sha256 = VALUES\(resource_fingerprint_sha256\)/);
+  assert.match(service, /operationFingerprintSha256: row\.operation_fingerprint_sha256/);
+  assert.match(service, /resourceFingerprintSha256: row\.resource_fingerprint_sha256/);
   assert.match(reconciliationMigration, /active_effective_scope_key/);
   assert.match(reconciliationMigration, /uq_agent_skill_grants_active_effective_scope/);
   assert.match(reconciliationMigration, /p0_reconciliation_required/);
