@@ -193,3 +193,18 @@ bounded disposable create-ref certification succeeds with same-cycle ref readbac
 cleanup. Do not use SSH, restart, or redeploy to substitute for the missing SQL contract,
 and do not mark the acknowledged operational alert resolved from repository or runtime
 commit parity alone.
+
+## GitHub REST dispatcher registry metadata rollout
+
+Migrations `1025_sprint69_github_ref_dispatch_catalog_persistence.sql` and
+`1026_sprint69_github_actions_runs_read_dispatch.sql` are SQL registry metadata
+changes, not Hostinger deployment actions. Merging the repository change may trigger
+normal `main` auto-deploy, but live readiness is still split into repository parity,
+runtime parity, and SQL registry parity.
+
+Production completion requires the governed migration ledger to record the exact
+checksums, `github_rest_endpoint_dispatch` to list `github_get_git_ref_head`,
+`github_get_reference`, and `github_list_workflow_runs_for_repo`, dispatch binding
+integrity to report zero gaps, and read-only same-cycle GitHub ref/workflow-run
+readback to succeed through endpoint authority. A restart or redeploy alone must not
+be used as a substitute for those SQL and dispatcher readbacks.

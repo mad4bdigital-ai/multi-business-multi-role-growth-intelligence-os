@@ -1,0 +1,36 @@
+{
+  "surface_key": "capability_enablement_steps",
+  "display_name": "Capability Enablement Steps",
+  "description": "Admin-only no-secret Capability Enablement Broker proposed next-step ledger for operational readiness analysis.",
+  "source_table": "capability_enablement_steps",
+  "covered_source_tables": [
+    "capability_enablement_steps"
+  ],
+  "result_key_column": "step_id",
+  "result_label_column": "action_key",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": [
+    "proposed",
+    "accepted",
+    "superseded",
+    "cancelled"
+  ],
+  "result_columns": [
+    "step_id",
+    "request_id",
+    "step_order",
+    "action_key",
+    "required_role",
+    "reason_code",
+    "status",
+    "created_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 100,
+  "sort_order": 335,
+  "status": "active",
+  "notes": "Excludes proposal_json and any execution payload. This ledger is proposal-only metadata and must not contain credential payloads, provider responses, approval secrets, or external mutation results. Tenant users should consume bounded request-level projection instead."
+}

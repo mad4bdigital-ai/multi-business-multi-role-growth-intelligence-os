@@ -16,6 +16,9 @@ export function buildReleaseRoutes(deps) {
   const { requireBackendApiKey } = deps;
   const router = Router();
   const sessionArchiveSmokeRunner = deps.runSessionArchiveSmoke || runSessionArchiveSmoke;
+  const getPoolFn = deps.getPool || getPool;
+  const resolveCapabilityFamilyAuthorizationFn = deps.resolveToolCapabilityFamilyAuthorization || resolveToolCapabilityFamilyAuthorization;
+  const markCapabilityEnvelopeReferencedFn = deps.markCapabilityEnvelopeReferenced || markCapabilityEnvelopeReferenced;
 
   async function handleReadiness(req, res) {
     try {
@@ -113,6 +116,33 @@ export function buildReleaseRoutes(deps) {
 
   async function handleSessionArchiveSmoke(req, res) {
     try {
+      const pool = getPoolFn();
+      const capabilityFamilyAuthorization = await resolveCapabilityFamilyAuthorizationFn({
+        pool,
+        callerType: "admin",
+        principal: {
+          tenant_id: PLATFORM_TENANT_ID,
+          user_id: PLATFORM_ADMIN_USER,
+        },
+        toolKey: "release_session_archive_smoke",
+        args: req.body || {},
+        expectedFamily: "session_archive_write",
+        requirePolicy: true,
+      });
+      if (!capabilityFamilyAuthorization.ok) {
+        throw capabilityFamilyAuthorizationError(
+          capabilityFamilyAuthorization,
+          "Session archive smoke capability-family authorization denied this operation.",
+        );
+      }
+      if (capabilityFamilyAuthorization.envelope_id) {
+        await markCapabilityEnvelopeReferencedFn({
+          pool,
+          envelopeId: capabilityFamilyAuthorization.envelope_id,
+          executionRef: "releaseRoutes:release_session_archive_smoke",
+        });
+      }
+
       const result = await sessionArchiveSmokeRunner({
         tenantId: req.body?.tenant_id,
         userId: req.body?.user_id,

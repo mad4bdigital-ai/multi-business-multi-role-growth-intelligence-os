@@ -1372,6 +1372,7 @@ async function executeGitHubRestFallbackCore(args = []) {
     const method = parseGithubApiMethod(args);
     const fieldValues = parseGithubFieldValues(args);
     const allowedContentsRead = method === "GET" && /^\/contents\/.+/.test(apiTarget);
+    const allowedCheckRunAnnotationsRead = method === "GET" && /^\/check-runs\/\d+\/annotations(?:\?.*)?$/.test(apiTarget); if (allowedCheckRunAnnotationsRead) { const payload = await githubRestJson({ owner, repo, apiPath: apiTarget, token, method }); return { stdout: JSON.stringify(payload, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback for read-only check-run annotations.\n", exit_code: 0, fallback: "github_rest", }; }
       const allowedRead = method === "GET" && (
         apiTarget.startsWith("/compare/") ||
         apiTarget.startsWith("/pulls") ||

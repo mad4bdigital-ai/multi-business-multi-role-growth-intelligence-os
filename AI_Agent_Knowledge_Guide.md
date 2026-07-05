@@ -77,6 +77,16 @@ The semantic capability descriptor source must expose an admin-only, read-only `
 
 See `docs/semantic-capability-effective-resolution.md` and the semantic capability canonical pages in `system_bootstrap`, `direct_instructions_registry_patch`, `module_loader`, and `prompt_router`.
 
+### Capability Enablement Broker runtime
+
+The descriptor source `capability_enablement_broker_v1` is the long-term governance entry point for role-aware capability enablement. It exposes `capability_enablement_resolve`, `capability_enablement_proposal_preview`, `capability_enablement_decision_report`, `capability_enablement_tenant_projection`, and `capability_enablement_readiness_smoke` through the system-layer descriptor registry.
+
+The broker runtime remains no-provider and no-external-mutation. It may compose `tenantEffectiveCapabilityPreview` and `runCapabilityResolutionDryRun` to classify readiness, produce next actions, generate guided proposal metadata, and optionally write bounded no-secret internal request/step ledger rows when `record_decision=true`. It must not call providers, create or approve envelopes, promote credentials, issue runtime dispatch certifications, grant apply authority, execute external mutations, or return secrets. Apply/publish/deploy/spend/destructive intents must remain blocked or proposed as explicit next actions until a separate policy, typed approval, and readback contract authorize a specific handoff.
+
+Release readiness must show `capability_enablement_broker_v1` as a descriptor source with five tools, zero missing handlers, readiness classification `capability_enablement_broker_ready`, required ledger tables and rollup view present, and checks confirming no provider call, no external mutation, no auto-approval, no certification issuance, explicit-only internal persistence, and no secrets. Explicit handoff execution remains delegated to existing governed tools and must not be embedded inside the broker.
+
+Operational details and the backlog live in `docs/capability-enablement-broker-runtime.md`.
+
 ### Generic platform resource context
 
 Use the descriptor-backed `platform_resource_context_resolve` as the primary context entry point whenever an Admin or Tenant request names a Brand, Workspace, Asset, CMS Site, or Connection. The resource may be supplied through a typed field or through generic `reference` plus `resource_type=auto`. Brand and Workspace are optional graph nodes, not mandatory starting points.
@@ -499,7 +509,9 @@ Customer agents must:
 
 ### Local Manager connector capability installer governance
 
-Local Manager is now the app-owned surface for connector repair and capability installer application. For repair and capability flows, the app must request a short-lived installer link from `POST /local-connector/install/device-download-link` using its DPAPI-protected device token. App-owned flows must send `app_managed=true` and `suppress_pause=true`, launch the returned BAT through Windows UAC, handle UAC cancellation, wait for the elevated process when possible, then refresh controls.
+Local Manager is now the app-owned surface for connector repair and capability installer application.
+
+Local Manager Windows `0.2.15` must register its per-user installation under the Windows uninstall registry so it appears in Installed Apps and supports explicit and quiet uninstall commands, and must flush and close signed installer downloads before file-size and SHA validation. After startup or successful device linking, the app checks the `cloudflared` and `local-connector` Windows service footprint. Missing services indicate a fresh/formatted Windows installation and trigger the existing short-lived signed repair installer through UAC; stopped services remain a bounded recovery suggestion. Desktop command polling classifies DNS failures, same-cycle DNS recovery, Cloudflare tunnel `1033`/HTTP `530`, platform-origin `502`/`503`/`504`, rate limits, timeouts, and transport failures into secret-safe diagnostics with backoff. Recovered status remains forbidden without same-cycle service/provider readback. For repair and capability flows, the app must request a short-lived installer link from `POST /local-connector/install/device-download-link` using its DPAPI-protected device token. App-owned flows must send `app_managed=true` and `suppress_pause=true`, launch the returned BAT through Windows UAC, handle UAC cancellation, wait for the elevated process when possible, then refresh controls.
 
 Do not treat `section=settings` refresh as proof that capabilities were applied. Validate the effective connector behavior after a capability installer runs:
 
