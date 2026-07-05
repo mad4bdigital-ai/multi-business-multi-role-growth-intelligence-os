@@ -1312,8 +1312,36 @@ export async function updateOperationalAlertLifecycle({
     error.status = 404;
     throw error;
   }
-  const [rows] = await getPool().query(
-    `SELECT alert_id, alert_key, severity, title, lifecycle_status, verification_state,
+  await connection.query(
+    `INSERT INTO operational_alert_lifecycle_events
+      (event_id, alert_id, alert_key, tenant_id, user_id, workspace_id, source_type, source_record_id,
+       from_status, to_status, lifecycle_revision, event_type, actor_id, actor_type, note, idempotency_key,
+       operation_fingerprint_sha256, resource_fingerprint_sha256, evidence_json, secrets_included)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'lifecycle_status_changed', ?, ?, ?, ?, ?, ?, ?, 0)`,
+    [
+      eventId,
+      current.alert_id,
+      current.alert_key,
+      current.tenant_id,
+      current.user_id,
+      current.workspace_id,
+      current.source_type,
+      current.source_record_id,
+      fromStatus,
+      normalizedStatus,
+      nextRevision,
+      normalizedActor,
+      normalizedActorType,
+      normalizedNote,
+      normalizedIdempotencyKey,
+      current.operation_fingerprint_sha256,
+      current.resource_fingerprint_sha256,
+      JSON.stringify(sanitizeEvidence({ from_status: fromStatus, to_status: normalizedStatus, actor_type: normalizedActorType })),
+    ]
+  );
+
+  const [rows] = await connection.query(
+    `SELECT alert_id, alert_key, severity, title, lifecycle_status, lifecycle_revision, verification_state,
             lifecycle_actor, lifecycle_note, acknowledged_at, resolved_at, updated_at
        FROM operational_alerts
       WHERE ${where.join(" AND ")}
