@@ -981,7 +981,7 @@ internal static class Program
             var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
             yield return ("edge", "Microsoft Edge", new[] { Path.Combine(programFilesX86, "Microsoft", "Edge", "Application", "msedge.exe"), Path.Combine(programFiles, "Microsoft", "Edge", "Application", "msedge.exe") });
             yield return ("chrome", "Google Chrome", new[] { Path.Combine(programFiles, "Google", "Chrome", "Application", "chrome.exe"), Path.Combine(programFilesX86, "Google", "Chrome", "Application", "chrome.exe") });
-            yield return ("vscode", "Visual Studio Code", new[] { Path.Combine(localAppData, "Programs", "Microsoft VS Code", "Code.exe"), Path.Combine(programFiles, "Microsoft VS Code", "Code.exe") });
+            yield return ("vscode", "Visual Studio Code", new[] { Path.Combine(localAppData, "Programs", "Microsoft VS Code", "Code.exe"), Path.Combine(programFiles, "Microsoft VS Code", "Code.exe") }); yield return ("cursor", "Cursor", new[] { Path.Combine(localAppData, "Programs", "Cursor", "Cursor.exe"), Path.Combine(programFiles, "Cursor", "Cursor.exe") });
             yield return ("notepad", "Windows Notepad", new[] { Path.Combine(windows, "System32", "notepad.exe") });
         }
 
