@@ -299,7 +299,7 @@ export async function runGovernedMigrationExecution(input = {}, deps = {}) {
   return {
     ...result,
     execution_mode: inspection.mode,
-    capability_envelope_id: capability?.envelope_id || null,
+    capability_envelope_id: approvedCapabilityEnvelopeId || null,
     checksum_verified_before_execution: true,
     statement_count_verified_before_execution: true,
     same_cycle_readback_verified: true,
