@@ -366,6 +366,7 @@ async function main() {
   testSensitiveEvidenceStripping();
   testStableKeysAndExecutionGrouping();
   testP0ReconciliationSemantics();
+  testOperationalAlertLifecycleFingerprintFoundation();
   testDedupeAndLifecyclePrecedence();
   testSummaryAndRouteInputs();
   testRepositoryContracts();
