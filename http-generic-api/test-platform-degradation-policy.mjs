@@ -37,6 +37,7 @@ assert(activation.includes("buildTenantActivationSnapshot"));
 assert(activation.includes("tenant_dynamic_snapshot"));
 assert(activation.includes("managed_brands"));
 const tools = readFileSync("routes/gptToolsRoutes.js", "utf8");
+// Keep this aligned with the pre-final session archive capture gate; the legacy latest-active fallback must remain absent.
 assert(tools.includes("SESSION_ARCHIVE_PRE_FINAL_CAPTURE_GATE"));
 assert(tools.includes("pre_final_capture_required"));
 assert(tools.includes("latest_active_session_pre_final_capture_required"));
