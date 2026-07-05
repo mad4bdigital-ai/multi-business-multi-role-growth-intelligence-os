@@ -78,6 +78,11 @@ function sha256(value) {
   return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
 }
 
+function normalizeSha256(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return /^[a-f0-9]{64}$/.test(raw) ? raw : null;
+}
+
 function deterministicAlertKey(parts = []) {
   return `alert.${sha256(parts.map((part) => String(part ?? "")).join("|"))}`;
 }
@@ -152,6 +157,8 @@ function candidate({
   manualKnownIssue = false,
   persisted = false,
   alertId = null,
+  operationFingerprintSha256 = null,
+  resourceFingerprintSha256 = null,
 } = {}) {
   const stableKey = alertKey || deterministicAlertKey([
     sourceType,
@@ -164,6 +171,8 @@ function candidate({
     alert_id: alertId,
     alert_key: stableKey,
     fingerprint_sha256: sha256(stableKey),
+    operation_fingerprint_sha256: normalizeSha256(operationFingerprintSha256),
+    resource_fingerprint_sha256: normalizeSha256(resourceFingerprintSha256),
     source_type: sourceType,
     source_ref: sourceRef,
     source_record_id: sourceRecordId === null || sourceRecordId === undefined ? null : String(sourceRecordId),
@@ -224,18 +233,34 @@ function executionOperationKey(row = {}) {
     || "execution";
 }
 
-function executionRecoveryKey(row = {}) {
+function executionResourceIdentity(row = {}) {
   return [
-    row.tenant_id || "global",
-    row.workspace_id || "no_workspace",
-    row.entry_type || "execution",
-    row.app_key || "no_app",
-    row.workflow_key || row.workflow_id || "no_workflow",
-    executionOperationKey(row),
     row.target_type || "no_target_type",
     row.target_id || "no_target",
     row.resource_type || "no_resource_type",
     row.resource_id || "no_resource",
+  ].join("|");
+}
+
+function executionOperationFingerprint(row = {}) {
+  return sha256([
+    row.entry_type || "execution",
+    row.app_key || "no_app",
+    row.workflow_key || row.workflow_id || "no_workflow",
+    executionOperationKey(row),
+  ].join("|"));
+}
+
+function executionResourceFingerprint(row = {}) {
+  return sha256(executionResourceIdentity(row));
+}
+
+function executionRecoveryKey(row = {}) {
+  return [
+    row.tenant_id || "global",
+    row.workspace_id || "no_workspace",
+    executionOperationFingerprint(row),
+    executionResourceFingerprint(row),
   ].join("|");
 }
 
@@ -332,6 +357,8 @@ function mapExecutionAlerts(rows = []) {
         verificationState: "verified",
         evidenceType: "execution_log",
         evidenceRef: `execution-log://` + row.latest_id,
+        operationFingerprintSha256: executionOperationFingerprint(row),
+        resourceFingerprintSha256: executionResourceFingerprint(row),
         executionLogId: row.latest_id,
         traceId: row.execution_trace_id_writeback,
         occurrenceCount: row.occurrence_count,
@@ -342,6 +369,8 @@ function mapExecutionAlerts(rows = []) {
         evidence: {
           entry_type: row.entry_type,
           operation_key: row.operation_key,
+          operation_fingerprint_sha256: executionOperationFingerprint(row),
+          resource_fingerprint_sha256: executionResourceFingerprint(row),
           failure_reason: row.failure_reason,
           execution_class: row.execution_class,
           execution_status: status,
@@ -440,6 +469,8 @@ function mapPersistedAlert(row) {
     verificationState: row.verification_state,
     evidenceType: row.evidence_type,
     evidenceRef: row.evidence_ref,
+    operationFingerprintSha256: row.operation_fingerprint_sha256,
+    resourceFingerprintSha256: row.resource_fingerprint_sha256,
     evidence,
     executionLogId: row.execution_log_id,
     traceId: row.trace_id,
@@ -611,7 +642,8 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
   if (includePersisted) {
     queries.push(safeRows(
       "operational_alerts",
-      `SELECT alert_id, alert_key, source_type, source_ref, source_record_id,
+      `SELECT alert_id, alert_key, operation_fingerprint_sha256, resource_fingerprint_sha256,
+              source_type, source_ref, source_record_id,
               tenant_id, user_id, workspace_id, container_key, category, severity,
               title, summary, reason_code, lifecycle_status, verification_state,
               evidence_type, evidence_ref, evidence_json, execution_log_id, trace_id,
@@ -995,13 +1027,16 @@ async function upsertAlert(connection, item, syncRunId) {
   const alertId = item.alert_id || randomUUID();
   await connection.query(
     `INSERT INTO operational_alerts
-      (alert_id, alert_key, fingerprint_sha256, tenant_id, user_id, workspace_id, container_key,
+      (alert_id, alert_key, fingerprint_sha256, operation_fingerprint_sha256, resource_fingerprint_sha256,
+       tenant_id, user_id, workspace_id, container_key,
        source_type, source_ref, source_record_id, category, severity, title, summary, reason_code,
        lifecycle_status, verification_state, evidence_type, evidence_ref, evidence_json,
        execution_log_id, trace_id, occurrence_count, first_seen_at, last_seen_at, last_sync_run_id,
        recommended_action_key, requires_confirmation, manual_known_issue, secrets_included)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
      ON DUPLICATE KEY UPDATE
+       operation_fingerprint_sha256 = VALUES(operation_fingerprint_sha256),
+       resource_fingerprint_sha256 = VALUES(resource_fingerprint_sha256),
        tenant_id = VALUES(tenant_id), user_id = VALUES(user_id), workspace_id = VALUES(workspace_id),
        container_key = VALUES(container_key), source_ref = VALUES(source_ref), source_record_id = VALUES(source_record_id),
        category = VALUES(category), severity = VALUES(severity), title = VALUES(title), summary = VALUES(summary),
@@ -1017,6 +1052,8 @@ async function upsertAlert(connection, item, syncRunId) {
       alertId,
       item.alert_key,
       item.fingerprint_sha256,
+      item.operation_fingerprint_sha256,
+      item.resource_fingerprint_sha256,
       item.tenant_id,
       item.user_id,
       item.workspace_id,
@@ -1251,6 +1288,9 @@ export const _testingOperationalAlerts = {
   groupExecutionRows,
   mapExecutionAlerts,
   executionOperationKey,
+  executionResourceIdentity,
+  executionOperationFingerprint,
+  executionResourceFingerprint,
   executionRecoveryKey,
   groupSkillApprovalRows,
   notificationEligible,

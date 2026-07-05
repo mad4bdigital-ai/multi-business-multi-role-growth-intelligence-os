@@ -61,6 +61,7 @@ import {
   decideGrowthIntelligenceInsightAdmin,
   refreshGrowthIntelligenceReadinessAdmin,
 } from "../growthIntelligenceAdminDecisions.js";
+import { issueRuntimeDispatchCertification } from "../runtimeDispatchCertificationIssuer.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -80,6 +81,16 @@ const DEFAULT_TOOL_RESPONSE_CHUNK_TTL_MS = 15 * 60 * 1000;
 const MAX_TOOL_RESPONSE_CHUNK_TTL_MS = 2 * 60 * 60 * 1000;
 const MIN_TOOL_RESPONSE_CHUNK_TTL_MS = 5 * 60 * 1000;
 const TOOL_RESPONSE_CHUNK_CACHE = new Map();
+
+const SESSION_ARCHIVE_PRE_FINAL_CAPTURE_GATE = Object.freeze({
+  status: "required",
+  reason_code: "pre_final_capture_required",
+  write_tool: "gpt_session_turns_write_batch",
+  required_roles: Object.freeze(["user", "assistant"]),
+  readback_required: true,
+  archive_policy: "write the user prompt and assistant reply before final response or before archiving tool turns",
+  secrets_included: false,
+});
 
 export const CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT = Object.freeze({
   policy: "chunk_read_before_alternative_surface",
@@ -157,10 +168,30 @@ async function countConversationTurns(pool, sessionId) {
   };
 }
 
-async function findActiveSessionForCaller(pool, req, args = {}) {
+function buildPreFinalCaptureGate(session = null, reasonCode = "pre_final_capture_required") {
+  return {
+    ...SESSION_ARCHIVE_PRE_FINAL_CAPTURE_GATE,
+    reason_code: reasonCode,
+    session_id: session?.session_id || null,
+    archive_binding: session?.archive_binding || null,
+    turn_counts: session?.turn_counts || null,
+  };
+}
+
+function attachSessionArchiveCaptureGate(resultForClient, archiveResult) {
+  if (!archiveResult?.capture_gate) return resultForClient;
+  if (!resultForClient?.body || typeof resultForClient.body !== "object" || Array.isArray(resultForClient.body)) {
+    return resultForClient;
+  }
+  resultForClient.body.session_archive_capture_gate = archiveResult.capture_gate;
+  return resultForClient;
+}
+
+async function findActiveSessionForCaller(pool, req, args = {}, options = {}) {
   const tenantId = String(req?.auth?.tenant_id || PLATFORM_TENANT_ID);
   const userId = req?.auth?.user_id || null;
   const pinnedSessionId = resolveGptSessionPin(req, args);
+  const allowUncapturedConversation = options.allowUncapturedConversation === true;
   const baseSelect = `SELECT session_id, tenant_id, user_id, originator, session_status, started_at,
             drive_folder_id, drive_doc_id, drive_doc_url, drive_doc_part_index, drive_doc_part_count,
             drive_jsonl_id, drive_jsonl_url
@@ -177,7 +208,17 @@ async function findActiveSessionForCaller(pool, req, args = {}) {
       LIMIT 1`,
       [pinnedSessionId, tenantId, userId]
     );
-    return rows[0] ? { ...rows[0], archive_binding: "explicit_session_pin" } : null;
+    if (!rows[0]) return null;
+    const counts = await countConversationTurns(pool, rows[0].session_id);
+    if (counts.conversation_turns > 0 || allowUncapturedConversation) {
+      return { ...rows[0], archive_binding: "explicit_session_pin", turn_counts: counts };
+    }
+    return {
+      ...rows[0],
+      archive_binding: "explicit_session_pin_pre_final_capture_required",
+      turn_counts: counts,
+      pre_final_capture_required: true,
+    };
   }
 
   const [rows] = await pool.query(
@@ -198,7 +239,12 @@ async function findActiveSessionForCaller(pool, req, args = {}) {
   }
   if (rows?.[0]) {
     const counts = await countConversationTurns(pool, rows[0].session_id);
-    return { ...rows[0], archive_binding: "latest_active_session_fallback", turn_counts: counts };
+    return {
+      ...rows[0],
+      archive_binding: "latest_active_session_pre_final_capture_required",
+      turn_counts: counts,
+      pre_final_capture_required: true,
+    };
   }
   return null;
 }
@@ -206,10 +252,26 @@ async function findActiveSessionForCaller(pool, req, args = {}) {
 async function recordToolDispatchTurn(req, toolKey, args, result) {
   try {
     const pool = getPool();
-    const session = await findActiveSessionForCaller(pool, req, args);
+    const allowUncapturedConversation = toolKey === "gpt_session_turns_write_batch";
+    const session = await findActiveSessionForCaller(pool, req, args, { allowUncapturedConversation });
     if (!session) {
       console.warn(`[gpt-tools] skipped auto-record turn for ${toolKey}: no explicit GPT session pin and no active session with user/assistant turns`);
-      return null;
+      return {
+        ok: false,
+        skipped: true,
+        reason_code: "no_active_gpt_action_session",
+        capture_gate: buildPreFinalCaptureGate(null, "no_active_gpt_action_session"),
+      };
+    }
+    if (session.pre_final_capture_required) {
+      console.warn(`[gpt-tools] skipped auto-record turn for ${toolKey}: pre-final user/assistant capture is required before tool turns are archived`);
+      return {
+        ok: false,
+        skipped: true,
+        reason_code: "pre_final_capture_required",
+        session_id: session.session_id,
+        capture_gate: buildPreFinalCaptureGate(session, "pre_final_capture_required"),
+      };
     }
 
     const [[{ max_idx }]] = await pool.query(
@@ -234,7 +296,7 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       truncatedResult,
     ].join("\n");
 
-    return await recordGptSessionTurn({
+    const writeback = await recordGptSessionTurn({
       pool,
       session,
       role: "tool",
@@ -242,9 +304,16 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       action_key: toolKey,
       turnIndex,
     });
+    return { ok: true, ...writeback };
   } catch (err) {
     console.warn(`[gpt-tools] auto-record turn failed for ${toolKey}: ${err.message}`);
-    return null;
+    return {
+      ok: false,
+      skipped: true,
+      reason_code: "tool_turn_archive_readback_failed",
+      error: { code: err.code || "tool_turn_archive_failed", message: err.message },
+      capture_gate: buildPreFinalCaptureGate(null, "tool_turn_archive_readback_failed"),
+    };
   }
 }
 
@@ -745,6 +814,39 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "runtime_dispatch_certification_issue",
+    displayName: "Issue Runtime Dispatch Certification",
+    description: "Issue one bounded runtime dispatch certification into runtime_dispatch_certification_registry. Requires a capability envelope, typed confirmation derived from certification_key, bounded evidence, expiry, same-cycle readback, no provider call, no external write, no secrets, and never grants apply_allowed=true.",
+    method: "VIRTUAL",
+    path: "internal://runtime-dispatch-certification-issue",
+    tags: ["admin", "runtime_dispatch", "certification", "state_changing", "typed_confirmation", "capability_envelope", "same_cycle_readback", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["certification_key", "surface_key", "surface_family", "tool_or_action_key", "risk_class", "last_evidence_ref", "confirm", "capability_envelope_id"],
+      properties: {
+        certification_key: { type: "string", pattern: "^[A-Za-z0-9_.:-]{3,191}$" },
+        surface_key: { type: "string", pattern: "^[A-Za-z0-9_.:-]{3,191}$" },
+        surface_family: { type: "string", pattern: "^[A-Za-z0-9_.:-]{3,128}$" },
+        tool_or_action_key: { type: "string", pattern: "^[A-Za-z0-9_.:-]{3,191}$" },
+        risk_class: { type: "string", pattern: "^[A-Za-z0-9_.:-]{1,64}$" },
+        certification_status: { type: "string", maxLength: 128, default: "ci_certified" },
+        smoke_strategy: { type: "string", maxLength: 191, default: "bounded_evidence_readback" },
+        dispatch_allowed: { type: "boolean", default: true },
+        apply_allowed: { type: "boolean", const: false, default: false },
+        requires_resource_authority: { type: "boolean", default: true },
+        requires_dry_run: { type: "boolean", default: true },
+        requires_audit_evidence: { type: "boolean", default: true },
+        requires_readback: { type: "boolean", default: true },
+        last_evidence_ref: { type: "string", minLength: 20, maxLength: 1000 },
+        expires_in_days: { type: "integer", minimum: 1, maximum: 90, default: 30 },
+        notes: { type: "string", maxLength: 1000 },
+        confirm: { type: "string" },
+        capability_envelope_id: { type: "string" },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "github_pr_ci_gate",
     displayName: "GitHub Pull Request CI Gate",
     description: "Read one PR, compare its head with the current base, and aggregate required check-runs into one merge-readiness decision. No mutation or secret return.",
@@ -844,7 +946,7 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "repo_patch_batch_apply",
     displayName: "Repository Batch Patch Apply",
-    description: "Create one atomic multi-file Git commit against an expected base SHA using Git trees. Supports write_file, delete_file, and apply_unified_diff; every diff is validated against the pinned base before any Git write, then the work branch is updated once with readback.",
+    description: "Create one atomic multi-file Git commit using Git trees. Supports write_file, delete_file, and apply_unified_diff. By default the work branch must be pinned to expected_base_sha; same-branch continuation may use expected_branch_sha with default-branch overlap checks and readback.",
     method: "VIRTUAL",
     path: "internal://repo-patch-batch-apply",
     tags: ["repo", "mutation", "batch", "atomic", "capability_envelope", "readback"],
@@ -854,6 +956,8 @@ const VIRTUAL_ADMIN_TOOLS = [
       properties: {
         branch: { type: "string" },
         expected_base_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        expected_branch_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$", description: "Optional current work-branch head SHA for same-branch continuation when the branch already has prior commits." },
+        allow_same_branch_continuation: { type: "boolean", default: false, description: "Allow writing on the same non-protected work branch when expected_branch_sha matches and moved default-branch files do not overlap the requested patch paths." },
         commit_message: { type: "string", minLength: 5, maxLength: 200 },
         capability_envelope_id: { type: "string" },
         changes: {
@@ -1951,10 +2055,11 @@ async function dispatchTool(callerType, toolKey, args, req) {
         })
       : result?.body,
   };
-  // Best-effort: archive the dispatch as a tool turn so admin GPT sessions get a
-  // complete transcript without depending on the GPT calling writeSessionTurn.
-  // Errors are logged and swallowed so the tool result still flows through.
-  await recordToolDispatchTurn(req, toolKey, args, resultForClient);
+  // Best-effort: archive the dispatch as a tool turn only after the exchange has
+  // user/assistant capture. Missing capture is surfaced as a pre-final gate so
+  // the GPT can call gpt_session_turns_write_batch before the final response.
+  const archiveResult = await recordToolDispatchTurn(req, toolKey, args, resultForClient);
+  attachSessionArchiveCaptureGate(resultForClient, archiveResult);
   return resultForClient;
 }
 
@@ -2232,6 +2337,50 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       };
     }
   }
+  if (callerType === "admin" && toolKey === "runtime_dispatch_certification_issue") {
+    try {
+      const resolved = await resolveCapabilityExecutionEnvelope({
+        pool: getPool(),
+        source: args || {},
+        acceptedAppKeys: ["platform_orchestration", "platform_registry", "github"],
+        acceptedIntents: ["runtime.dispatch.certification.issue", "runtime_dispatch_certification_issue", "runtime_certification_issue"],
+        acceptedCapabilityKeys: ["runtime_dispatch_certification_issue"],
+        expectedTenantId: req?.auth?.tenant_id || PLATFORM_TENANT_ID,
+        expectedUserId: req?.auth?.user_id || "",
+        requireReadyForDispatch: true,
+        requireDispatchAllowed: true,
+        requireNoApprovalRequired: false,
+        requireNoBlockingGaps: true,
+        requireNoSecrets: true,
+      });
+      if (!resolved.ok) {
+        throw capabilityEnvelopeError(resolved, "Runtime dispatch certification issue requires a valid capability resolution envelope.");
+      }
+      const result = await issueRuntimeDispatchCertification(args || {}, {
+        pool: getPool(),
+        allowedToolKeys: VIRTUAL_ADMIN_TOOLS.map((tool) => tool.name),
+      });
+      await markCapabilityEnvelopeReferenced({
+        pool: getPool(),
+        envelopeId: resolved.envelope_id,
+        executionRef: `runtime_dispatch_certification_issue:${result.certification_key}`,
+      });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "runtime_dispatch_certification_issue_failed",
+            message: err?.message || "Runtime dispatch certification issue failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
+
   if (callerType === "admin" && toolKey === "github_pr_ci_gate") {
     try {
       const result = await getGithubPullRequestCiGate(args || {});

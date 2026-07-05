@@ -141,3 +141,19 @@ create-ref request returns `201` and passes same-cycle reference readback plus c
 The migration itself performs no provider call, credential payload read, external send,
 or external write. Never use a runtime restart or repository redeploy as a substitute
 for the SQL readback and provider certification gates.
+
+## GitHub REST dispatcher registry metadata runtime sync
+
+For `1025_sprint69_github_ref_dispatch_catalog_persistence.sql` and
+`1026_sprint69_github_actions_runs_read_dispatch.sql`, runtime sync is necessary but
+not sufficient. Repository merge and Hostinger commit parity only prove that the
+migration and tests are available to the deployed codebase; they do not prove that the
+SQL registry has applied the dispatcher metadata.
+
+Resolve the rollout only after the governed migration ledger records the exact
+checksums, the Admin tool schema reads back `github_get_git_ref_head`,
+`github_get_reference`, and `github_list_workflow_runs_for_repo`, endpoint exports and
+dispatch bindings are active, `platform_tool_binding_integrity_audit` reports
+`gap_count=0`, and live read-only GitHub ref/workflow-runs evidence returns through
+`runtime_endpoint_call`. Record these states separately from `/health` and `/version`
+runtime parity; never mark the SQL/dispatcher state complete from deploy evidence alone.

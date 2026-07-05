@@ -51,7 +51,7 @@ function fakeResult(mode) {
     ...base,
     applies_sql: true,
     statements_executed: STATEMENT_COUNT,
-    ledger: { recorded: true, run_id: "run-1025" },
+    ledger: { recorded: true, run_id: "run-1025", capability_envelope_id: ENVELOPE_ID },
   };
 }
 
@@ -118,11 +118,13 @@ function fakeResult(mode) {
     execFile: async (_command, args) => {
       assert.ok(args.includes("--apply"));
       assert.ok(args.includes(`--confirm=${governedMigrationApplyConfirmation(MIGRATION)}`));
+      assert.ok(args.includes(`--capability-envelope-id=${ENVELOPE_ID}`));
       return { stdout: JSON.stringify(fakeResult("apply")), stderr: "" };
     },
   });
   assert.equal(authorized, true);
   assert.equal(result.ledger.recorded, true);
+  assert.equal(result.ledger.capability_envelope_id, ENVELOPE_ID);
   assert.equal(result.capability_envelope_id, ENVELOPE_ID);
 }
 
