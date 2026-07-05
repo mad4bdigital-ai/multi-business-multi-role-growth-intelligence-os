@@ -599,6 +599,8 @@ internal static class Program
                 return;
             }
 
+            if (!await RequireCurrentVersionForPrivilegedActionAsync("Repair connector")) return;
+
             try
             {
                 EnsureLocalFiles(_status);
