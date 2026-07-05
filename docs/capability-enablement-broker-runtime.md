@@ -2,9 +2,9 @@
 
 ## Purpose
 
-The Capability Enablement Broker is the long-term governance entry point for role-aware capability enablement. It composes existing platform primitives into one diagnose-only decision surface before any runtime moves toward approval, credential readiness, certification, or execution.
+The Capability Enablement Broker is the long-term governance entry point for role-aware capability enablement. It composes existing platform primitives into one decision surface before any runtime moves toward approval, credential readiness, certification, or execution.
 
-The current runtime MVP is intentionally conservative. It classifies readiness and returns next actions, but it does not mutate authorization state or call external providers.
+The broker remains conservative: it classifies readiness, records no-secret internal evidence when explicitly requested, returns guided next-action proposals, and exposes tenant-safe projections. It does not execute providers, promote credentials, approve envelopes, issue certifications, grant apply authority, or perform external writes.
 
 ## Runtime surfaces
 
@@ -13,23 +13,29 @@ The broker is exposed through the system-layer descriptor source `capability_ena
 Descriptor tools:
 
 - `capability_enablement_resolve`
+- `capability_enablement_proposal_preview`
+- `capability_enablement_decision_report`
+- `capability_enablement_tenant_projection`
 - `capability_enablement_readiness_smoke`
 
-The source is validated by `system_layer_descriptor_callability_audit` and release readiness. A healthy release-readiness run must show the descriptor source present, two descriptor tools, zero missing handlers, and readiness classification `capability_enablement_broker_ready`.
+The source is validated by `system_layer_descriptor_callability_audit` and release readiness. A healthy release-readiness run must show the descriptor source present, five descriptor tools, zero missing handlers, and readiness classification `capability_enablement_broker_ready`.
 
-## Diagnose-only contract
+## Contract
 
-The MVP must preserve these guarantees:
+The broker must preserve these guarantees:
 
 - no provider calls
 - no credential payload reads
-- no envelope creation from inside the broker
+- no envelope creation from inside the broker except proposal metadata that points to the existing envelope tools
 - no envelope auto-approval
 - no credential promotion
 - no dispatch certification issuance
 - no apply authority grant
 - no external writes
 - no secrets in output
+- no tenant/user override for tenant principals
+
+Internal SQL persistence is explicit only. `capability_enablement_resolve` records a request/step ledger only when `record_decision=true`; otherwise it remains read-only/diagnostic. Ledger writes are internal, no-secret, bounded, and never authorization state changes.
 
 The broker may call existing no-secret internal resolvers:
 
@@ -59,7 +65,7 @@ The broker may return these decision families:
 
 `blocked_apply_not_supported` is intentional. Apply/publish/deploy/spend/destructive intents must remain behind explicit policy, authority, typed approval, runtime certification, and readback. The broker must not silently auto-grant those flows.
 
-## Long-term support phases
+## Implemented support phases
 
 ### Phase 1: Diagnose-only MVP
 
@@ -73,34 +79,38 @@ Scope:
 - focused tests
 - release-readiness callability evidence
 
-No database migrations or provider executions are introduced by the MVP.
-
 ### Phase 2: Request and step ledger
 
-Add internal SQL ledgers for durable observability:
+Status: implemented as additive schema plus explicit runtime persistence.
+
+Tables and views:
 
 - `capability_enablement_requests`
 - `capability_enablement_steps`
+- `v_capability_enablement_decision_rollup`
 
-These tables should record decision metadata, reason codes, selected next actions, resolver hashes, and readback evidence. They must not store credential payloads, raw secrets, or unbounded prompts.
-
-Phase 2 remains diagnose-only unless a separate policy explicitly permits a specific orchestration step.
+These surfaces record decision metadata, reason codes, selected next actions, resolver hashes, projections, and no-secret readback evidence. They must not store credential payloads, raw secrets, unbounded prompts, or external-provider responses.
 
 ### Phase 3: Guided orchestration proposals
 
-Allow the broker to propose, but not execute, bounded next-step plans:
+Status: implemented as proposal-only output.
+
+The broker can propose bounded next-step plans:
 
 - resource authority binding plan
 - credential effective plan
-- envelope request plan
+- envelope request/approval plan
 - dispatch certification proposal
 - execution enablement proposal
+- existing runtime guard handoff plan
 
-Plans must be typed, scoped, expiring, no-secret, and reviewable. Any state-changing apply remains delegated to existing governed tools.
+Plans are reviewable metadata only. They are not executable dispatches and do not replace existing governed tools.
 
 ### Phase 4: Explicit handoff execution
 
-Only after separate approval and certification may the broker hand off to existing mutation tools. The broker still must not bypass:
+Status: intentionally not auto-executing.
+
+The broker can return handoff proposals, but actual execution remains delegated to existing mutation tools and must still pass:
 
 - capability envelope approval
 - typed confirmation
@@ -110,18 +120,42 @@ Only after separate approval and certification may the broker hand off to existi
 - idempotency/reservation checks
 - audit logging
 
+## Tenant-safe projection
+
+`capability_enablement_tenant_projection` gives tenants a bounded no-secret view of their recent broker decisions:
+
+- capability
+- operation intent
+- decision
+- next allowed mode
+- reason codes
+- created timestamp
+
+It does not expose raw registry rows, credentials, cross-tenant data, or provider responses.
+
+## Admin observability
+
+`capability_enablement_decision_report` provides no-secret aggregate and recent-decision reporting for Admins. It is intended for trend analysis around:
+
+- credential gaps
+- resource-authority gaps
+- certification gaps
+- approval requirements
+- ready-for-dispatch rate
+
 ## Release readiness requirements
 
 A release that changes broker behavior must include:
 
-- focused tests for classification, secret-boundary blocking, and readiness smoke
+- focused tests for classification, secret-boundary blocking, proposal previews, internal persistence, reports, tenant projection, and readiness smoke
 - descriptor callability pass
 - zero missing handlers
+- required ledger tables and rollup view present
 - no-secret output evidence
 - no provider-call evidence
-- no mutation evidence
+- no external-mutation evidence
 - PR CI gate pass
-- release readiness pass
+- release readiness pass after schema apply and deployment
 
 ## Production deployment policy
 
@@ -130,15 +164,16 @@ A release that changes broker behavior must include:
 Post-merge verification should confirm:
 
 1. the merge commit is an ancestor of `main`;
-2. release readiness passes on the current runtime;
-3. descriptor callability includes `capability_enablement_broker_v1`;
-4. Hostinger production Git HEAD is verified through the approved auto-deploy readback path.
+2. the ledger migration has been applied through the governed migration runner;
+3. release readiness passes on the current runtime;
+4. descriptor callability includes `capability_enablement_broker_v1` with five tools;
+5. Hostinger production Git HEAD is verified through the approved auto-deploy readback path.
 
 If SSH probe execution is disabled, classify production-head verification as gated, not as runtime failure. Do not enable SSH or run manual deploys unless Auto Deploy is demonstrably unavailable and a fresh break-glass approval exists.
 
 ## OpenAPI and system tool documentation
 
-The broker tools are descriptor-backed system tools. If an OpenAPI schema exposes system tool enumeration, it must include the two broker tools and their no-secret diagnose-only constraints. If the OpenAPI schema exposes only generic `/system/tools` dispatch, do not add fake direct HTTP paths for broker tools.
+The broker tools are descriptor-backed system tools. If an OpenAPI schema exposes system tool enumeration, it must include the five broker tools and their no-secret constraints. If the OpenAPI schema exposes only generic `/system/tools` dispatch, do not add fake direct HTTP paths for broker tools.
 
 Any future public or tenant-facing API route must use OpenAPI 3.1, stable operation IDs, explicit schemas, consistent error envelopes, auth/permission documentation, and no-secret examples.
 
@@ -148,11 +183,10 @@ Secret-like input keys must block resolution before resolver or dry-run calls. T
 
 Tenant principals must not be allowed to override tenant or user identity. Admin override use must be explicit in output metadata.
 
-## Follow-up backlog
+## Remaining backlog
 
-- Add SQL request/step ledgers.
-- Add bounded readback report for recent broker decisions.
+- Apply `1035_sprint69_capability_enablement_broker_ledgers.sql` after merge through the governed migration runner.
+- Add dashboard visualizations over `v_capability_enablement_decision_rollup` if product UX needs them.
 - Add docs-agent/OpenAPI generator alignment if system tool schemas are emitted into OpenAPI.
-- Add tenant-safe projection after request/step ledgers are available.
 - Add scenario recipes only after positive smoke certification and policy approval.
 - Keep auto-actions disabled until each action class has a separate policy, approval, and readback contract.
