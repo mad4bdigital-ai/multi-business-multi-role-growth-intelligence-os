@@ -531,6 +531,7 @@ async function main() {
       requirements: artifactNames(requirements),
       before_schema_objects,
       required_confirmation: confirmationFor(migration, { recordOnly: args.recordOnly }),
+      capability_envelope_id: capabilityEnvelopeId || null,
       secrets_included: false,
     }, null, 2));
     return;
