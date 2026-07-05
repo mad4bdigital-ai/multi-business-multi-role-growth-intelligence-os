@@ -77,6 +77,16 @@ The semantic capability descriptor source must expose an admin-only, read-only `
 
 See `docs/semantic-capability-effective-resolution.md` and the semantic capability canonical pages in `system_bootstrap`, `direct_instructions_registry_patch`, `module_loader`, and `prompt_router`.
 
+### Capability Enablement Broker runtime
+
+The descriptor source `capability_enablement_broker_v1` is the long-term governance entry point for role-aware capability enablement. It exposes `capability_enablement_resolve` and `capability_enablement_readiness_smoke` through the system-layer descriptor registry.
+
+The current broker runtime is diagnose-only. It may compose `tenantEffectiveCapabilityPreview` and `runCapabilityResolutionDryRun` to classify readiness and return next actions, but it must not call providers, create or approve envelopes, promote credentials, issue runtime dispatch certifications, grant apply authority, execute mutations, or return secrets. Apply/publish/deploy/spend/destructive intents must remain blocked or proposed as explicit next actions until a separate policy, typed approval, and readback contract authorize a specific handoff.
+
+Release readiness must show `capability_enablement_broker_v1` as a descriptor source with two tools, zero missing handlers, readiness classification `capability_enablement_broker_ready`, and checks confirming no provider call, no mutation, no auto-approval, no certification issuance, and no secrets. Long-term implementation phases are request/step ledger, guided orchestration proposals, then explicit handoff execution through existing governed tools only.
+
+Operational details and the backlog live in `docs/capability-enablement-broker-runtime.md`.
+
 ### Generic platform resource context
 
 Use the descriptor-backed `platform_resource_context_resolve` as the primary context entry point whenever an Admin or Tenant request names a Brand, Workspace, Asset, CMS Site, or Connection. The resource may be supplied through a typed field or through generic `reference` plus `resource_type=auto`. Brand and Workspace are optional graph nodes, not mandatory starting points.
