@@ -670,6 +670,7 @@ adminContainerProjectionPreview:
       '400': { $ref: '#/responses/BadRequest' }
       '401': { $ref: '#/responses/Unauthorized' }
       '403': { $ref: '#/responses/Forbidden' }
+      '503': { $ref: '#/responses/ServiceUnavailable' }
       '500': { $ref: '#/responses/InternalError' }
 
 containerAuthorityProjections:
