@@ -322,7 +322,9 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
         alertId: req.params.alertId,
         lifecycleStatus: req.body?.lifecycle_status,
         actor: queryText(req.body?.actor || req.auth?.user_id || "platform_admin", 191),
+        actorType: queryText(req.body?.actor_type || (req.auth?.mode === "user_jwt" ? "tenant_user" : "platform_admin"), 64),
         note: queryText(req.body?.note, 2000),
+        idempotencyKey: queryText(req.body?.idempotency_key, 191),
       }));
     } catch (err) {
       return errorResponse(res, err, "activation_operational_alert_lifecycle_failed");
