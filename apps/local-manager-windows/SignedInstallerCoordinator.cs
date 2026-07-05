@@ -204,9 +204,29 @@ internal sealed class SignedInstallerCoordinator
 
     private static async Task<string> ComputeSha256Async(string path, CancellationToken cancellationToken)
     {
-        await using var stream = File.OpenRead(path);
-        var hash = await SHA256.HashDataAsync(stream, cancellationToken);
-        return Convert.ToHexString(hash);
+        IOException? lastIoException = null;
+        for (var attempt = 1; attempt <= 5; attempt++)
+        {
+            try
+            {
+                await using var stream = new FileStream(
+                    path,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read,
+                    bufferSize: 81920,
+                    options: FileOptions.Asynchronous | FileOptions.SequentialScan);
+                var hash = await SHA256.HashDataAsync(stream, cancellationToken);
+                return Convert.ToHexString(hash);
+            }
+            catch (IOException ex) when (attempt < 5)
+            {
+                lastIoException = ex;
+                await Task.Delay(TimeSpan.FromMilliseconds(200 * attempt), cancellationToken);
+            }
+        }
+
+        throw lastIoException ?? new IOException("Installer file could not be read for SHA256 validation.");
     }
 
     private void AssertOwnedInstallerPath(string path, bool allowDownloadExtension = false)
