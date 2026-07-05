@@ -6,8 +6,8 @@
 - Queue items: 0
 - OpenAPI missing SQL routes: 0
 - OpenAPI-exempt SQL route-like literals: 610/627
-- Safety marker gap migrations: 1
-- Trend quality gate: fail
+- Safety marker gap migrations: 0
+- Trend quality gate: pass
 
 ## Top actionable
 
