@@ -459,6 +459,10 @@ async function main() {
   const args = parseArgs();
   const migration = path.basename(args.migration || "");
   if (!migration) throw new Error("--migration is required.");
+  const capabilityEnvelopeId = normalizeCapabilityEnvelopeId(args.capabilityEnvelopeId);
+  if (args.capabilityEnvelopeId && !capabilityEnvelopeId) {
+    throw new Error("--capability-envelope-id must be a UUID when provided.");
+  }
   const authorization = await getMigrationAuthorization(migration, { mode: args.mode });
   if (!authorization.authorized) {
     throw new Error(`Migration is not authorized for governed runner: ${migration} (${authorization.reason})`);
