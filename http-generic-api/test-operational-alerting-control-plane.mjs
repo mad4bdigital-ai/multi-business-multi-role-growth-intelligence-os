@@ -157,6 +157,64 @@ function testP0ReconciliationSemantics() {
   );
 }
 
+function testExecutionFingerprintResourceIsolation() {
+  const failedRepoA = {
+    id: 20,
+    tenant_id: "tenant-1",
+    workspace_id: "workspace-1",
+    entry_type: "sync_execution",
+    app_key: "github",
+    workflow_key: "repo_sync",
+    execution_status: "failed",
+    failure_reason: "external_credential_connection_not_found",
+    output_summary: "github_get_contents failed: external_credential_connection_not_found",
+    target_type: "repository",
+    target_id: "repo-a",
+    resource_type: "github_repository",
+    resource_id: "repo-a",
+    created_at: "2026-07-04T10:00:00.000Z",
+  };
+  const successRepoB = {
+    ...failedRepoA,
+    id: 21,
+    execution_status: "success",
+    failure_reason: null,
+    output_summary: "github_get_contents completed with status success (200)",
+    target_id: "repo-b",
+    resource_id: "repo-b",
+    created_at: "2026-07-04T10:05:00.000Z",
+  };
+  const successRepoA = {
+    ...successRepoB,
+    id: 22,
+    target_id: "repo-a",
+    resource_id: "repo-a",
+    created_at: "2026-07-04T10:06:00.000Z",
+  };
+
+  assert.match(_testingOperationalAlerts.executionOperationFingerprint(failedRepoA), /^[a-f0-9]{64}$/);
+  assert.match(_testingOperationalAlerts.executionResourceFingerprint(failedRepoA), /^[a-f0-9]{64}$/);
+  assert.equal(
+    _testingOperationalAlerts.executionOperationFingerprint(failedRepoA),
+    _testingOperationalAlerts.executionOperationFingerprint(successRepoB),
+    "matching operations must have matching operation fingerprints"
+  );
+  assert.notEqual(
+    _testingOperationalAlerts.executionResourceFingerprint(failedRepoA),
+    _testingOperationalAlerts.executionResourceFingerprint(successRepoB),
+    "different resources must have different resource fingerprints"
+  );
+
+  const isolatedAlerts = _testingOperationalAlerts.mapExecutionAlerts([failedRepoA, successRepoB]);
+  assert.equal(isolatedAlerts.length, 1, "success on repo-b must not resolve failure on repo-a");
+  assert.equal(isolatedAlerts[0].evidence.resource_id, "repo-a");
+  assert.match(isolatedAlerts[0].evidence.operation_fingerprint_sha256, /^[a-f0-9]{64}$/);
+  assert.match(isolatedAlerts[0].evidence.resource_fingerprint_sha256, /^[a-f0-9]{64}$/);
+
+  const resolvedAlerts = _testingOperationalAlerts.mapExecutionAlerts([failedRepoA, successRepoA]);
+  assert.equal(resolvedAlerts.length, 0, "later success on repo-a must resolve the repo-a failure");
+}
+
 function testDedupeAndLifecyclePrecedence() {
   const live = _testingOperationalAlerts.candidate({
     alertKey: "alert.test",
