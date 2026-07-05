@@ -171,6 +171,8 @@ function candidate({
     alert_id: alertId,
     alert_key: stableKey,
     fingerprint_sha256: sha256(stableKey),
+    operation_fingerprint_sha256: normalizeSha256(operationFingerprintSha256),
+    resource_fingerprint_sha256: normalizeSha256(resourceFingerprintSha256),
     source_type: sourceType,
     source_ref: sourceRef,
     source_record_id: sourceRecordId === null || sourceRecordId === undefined ? null : String(sourceRecordId),
