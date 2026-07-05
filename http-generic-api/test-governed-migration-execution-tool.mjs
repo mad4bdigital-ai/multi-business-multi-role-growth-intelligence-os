@@ -51,7 +51,7 @@ function fakeResult(mode) {
     ...base,
     applies_sql: true,
     statements_executed: STATEMENT_COUNT,
-    ledger: { recorded: true, run_id: "run-1025" },
+    ledger: { recorded: true, run_id: "run-1025", capability_envelope_id: ENVELOPE_ID },
   };
 }
 
