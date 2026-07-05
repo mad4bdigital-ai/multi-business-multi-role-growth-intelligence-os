@@ -985,57 +985,6 @@ internal static class Program
             yield return ("notepad", "Windows Notepad", new[] { Path.Combine(windows, "System32", "notepad.exe") });
         }
 
-        private sealed record SupportedAppTemplate(string Alias, string DisplayName, string[] CandidatePaths)
-        {
-            public string ExecutablePath => CandidatePaths.Select(ExpandKnownPath).FirstOrDefault(File.Exists) ?? "";
-            public override string ToString() => string.IsNullOrWhiteSpace(ExecutablePath)
-                ? $"{DisplayName} ({Alias}) — not detected; browse after selection"
-                : $"{DisplayName} ({Alias}) — {ExecutablePath}";
-        }
-
-        private static readonly SupportedAppTemplate[] SupportedAppTemplates =
-        {
-            new("chrome", "Google Chrome", new[] { @"%ProgramFiles%\Google\Chrome\Application\chrome.exe", @"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" }),
-            new("edge", "Microsoft Edge", new[] { @"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe", @"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" }),
-            new("vscode", "Visual Studio Code", new[] { @"%LocalAppData%\Programs\Microsoft VS Code\Code.exe", @"%ProgramFiles%\Microsoft VS Code\Code.exe" }),
-            new("cursor", "Cursor", new[] { @"%LocalAppData%\Programs\Cursor\Cursor.exe", @"%ProgramFiles%\Cursor\Cursor.exe" }),
-            new("notepad", "Windows Notepad", new[] { @"%SystemRoot%\System32\notepad.exe" }),
-            new("git_bash", "Git Bash", new[] { @"%ProgramFiles%\Git\git-bash.exe", @"%ProgramFiles(x86)%\Git\git-bash.exe" })
-        };
-
-        private static InstalledAppChoice? PickSupportedApp(IWin32Window owner)
-        {
-            using var form = new Form
-            {
-                Text = "Choose supported app",
-                StartPosition = FormStartPosition.CenterParent,
-                Size = new Size(760, 520),
-                FormBorderStyle = FormBorderStyle.FixedDialog,
-                MaximizeBox = false,
-                MinimizeBox = false,
-                Font = new Font("Segoe UI", 10)
-            };
-            var note = new Label
-            {
-                Text = "Supported templates are common governed app grants. If the app is not detected, select it then use Browse to choose the executable path.",
-                Location = new Point(16, 16),
-                Size = new Size(710, 48)
-            };
-            var list = new ListBox { Location = new Point(16, 72), Size = new Size(710, 344), HorizontalScrollbar = true };
-            foreach (var template in SupportedAppTemplates.OrderBy(app => app.DisplayName, StringComparer.OrdinalIgnoreCase)) list.Items.Add(template);
-            if (list.Items.Count > 0) list.SelectedIndex = 0;
-            var ok = new Button { Text = "Use selected", DialogResult = DialogResult.OK, Location = new Point(500, 430), Size = new Size(130, 34) };
-            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(642, 430), Size = new Size(82, 34) };
-            list.DoubleClick += (_, _) => { if (list.SelectedItem is not null) form.DialogResult = DialogResult.OK; };
-            form.Controls.AddRange(new Control[] { note, list, ok, cancel });
-            form.AcceptButton = ok;
-            form.CancelButton = cancel;
-            if (form.ShowDialog(owner) != DialogResult.OK || list.SelectedItem is not SupportedAppTemplate selected) return null;
-            return new InstalledAppChoice(selected.DisplayName, selected.ExecutablePath);
-        }
-
-        private static string ExpandKnownPath(string path) => Environment.ExpandEnvironmentVariables(path);
-
         private static InstalledAppChoice? PickInstalledApp(IWin32Window owner)
         {
             var apps = DiscoverInstalledApps().OrderBy(app => app.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
