@@ -1,7 +1,7 @@
 {
   "ok": true,
   "schema_version": "surface-contract-manual-safety-attestations-v1",
-  "item_count": 2,
+  "item_count": 3,
   "items": [
     {
       "migration_file": "1013_sprint69_approval_hold_identity_collation_alignment.sql",
@@ -134,6 +134,94 @@
           "targets": [
             "system_layer_tool_descriptor_source_registry",
             "tenant_platform_endpoint_tools"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      },
+      "migration_effects": {
+        "internal_database_write": true,
+        "schema_mutation": false,
+        "external_write": false,
+        "provider_call": false,
+        "credential_payload_read": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "1026_sprint69_github_actions_runs_read_dispatch.sql",
+      "migration_sha256": "911073a565b2aadc1c1a78bb9489c290b187a036b128cd1a986a5418577a53d9",
+      "checksum_canonicalization": "utf8_lf_v1",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_human_review",
+      "review_status": "approved_checksum_bound_internal_sql",
+      "reviewed_by": "platform_admin:f242960c-2857-4b4d-a504-ee50f8a278b4",
+      "reviewed_at": "2026-07-05T22:40:00Z",
+      "rationale": "Human review confirmed that the checksum-bound migration only registers read-only GitHub Actions workflow-run endpoint metadata in internal registry tables and schemas. It does not execute the endpoint, call GitHub, read credential payloads, include raw secrets, send externally, write externally, deploy, or authorize migration execution. The route-like surface is documented for OpenAPI and runtime binding review only.",
+      "execution_authorized": false,
+      "queue_class_at_attestation": "critical_review",
+      "gap_severity_at_attestation": "high",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 5,
+      "accepted_preflight_risks": {},
+      "accepted_forbidden_patterns": [],
+      "required_sql_fragments": [
+        "github_list_workflow_runs_for_repo",
+        "/repos/{owner}/{repo}/actions/runs",
+        "ACT-GH-REST-043",
+        "github_actions_runs_read",
+        "github_actions_workflow_runs_list",
+        "github_actions_runs_list_readback_v1",
+        "ptdb_github_rest_dispatch_workflow_runs_list",
+        "method_and_path_from_endpoints_only",
+        "same_cycle_readback_required",
+        "caller_supplied_authorization_forbidden"
+      ],
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 12,
+        "views": 0,
+        "policies": 0,
+        "routes": 1
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "review_openapi_contract",
+          "targets": [
+            "/repos/{owner}/{repo}/actions/runs"
+          ]
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "1026_sprint69_github_actions_runs_read_dispatch",
+            "db_admin_tool",
+            "exclude_pull_requests",
+            "github_actions_runs_list_readback_v1",
+            "github_actions_workflow_runs_list",
+            "github_list_workflow_runs_for_repo",
+            "github_rest_endpoint_dispatch",
+            "mutation_preflight_required",
+            "ptdb_github_rest_dispatch_workflow_runs_list",
+            "requires_runtime_preflight",
+            "requires_same_cycle_readback",
+            "same_cycle_readback_required"
           ]
         }
       ],
