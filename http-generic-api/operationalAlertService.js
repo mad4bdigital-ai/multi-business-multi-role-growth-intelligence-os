@@ -1249,6 +1249,11 @@ export async function updateOperationalAlertLifecycle({
     where.push("tenant_id = ?");
     params.push(subject.tenant_id || "__missing_tenant__");
   }
+  const eventId = randomUUID();
+  const normalizedActorType = String(actorType || (subject.is_admin ? "platform_admin" : "tenant_user")).slice(0, 64);
+  const normalizedActor = String(actor || subject.user_id || "platform_admin").slice(0, 191);
+  const normalizedNote = note ? String(note).slice(0, 2000) : null;
+  const normalizedIdempotencyKey = idempotencyKey ? String(idempotencyKey).trim().slice(0, 191) : null;
   const resolvedAt = normalizedStatus === "resolved" ? new Date() : null;
   const acknowledgedAt = ["acknowledged", "investigating"].includes(normalizedStatus) ? new Date() : null;
   const [result] = await getPool().query(
