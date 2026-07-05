@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 482
+- Migrations with detected surfaces: 483
 - Migrations reported here: 80
 - OpenAPI operations detected: 536
 - OpenAPI paths detected: 498
@@ -32,33 +32,33 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 480/482 (99.59%)
-- Documentation gap migrations: 2
-- Gap severity: high=1, medium=1, low=0
+- Documentation complete migrations: 480/483 (99.38%)
+- Documentation gap migrations: 3
+- Gap severity: high=1, medium=2, low=0
 - SQL route coverage in OpenAPI: 17/18 (94.44%)
 - SQL route-like literals exempted from OpenAPI scoring: 610/628
 - SQL routes missing OpenAPI path coverage: 1
-- Migrations without explicit `secrets_included=false` marker: 0
+- Migrations without explicit `secrets_included=false` marker: 1
 
 ### Surface Totals
 
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 12 | 9 |
-| tools | 2262 | 410 |
+| tools | 2271 | 411 |
 | views | 432 | 175 |
-| policies | 174 | 113 |
+| policies | 175 | 114 |
 | routes | 628 | 252 |
 
 ### Documentation Target Gaps
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 0 |
-| `deployment_parity_checklist.md` | 0 |
-| `docs/ai-docs-agent-governance.md` | 2 |
-| `docs/auto-docs-agent/README.md` | 2 |
-| `docs/change-documentation-governance.md` | 0 |
+| `Updating Registry Patch Index.md` | 1 |
+| `deployment_parity_checklist.md` | 1 |
+| `docs/ai-docs-agent-governance.md` | 3 |
+| `docs/auto-docs-agent/README.md` | 3 |
+| `docs/change-documentation-governance.md` | 1 |
 
 ### Safety Marker Coverage
 
@@ -88,8 +88,8 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 2
-- Critical review: 1
+- Total queue items: 3
+- Critical review: 2
 - High review: 1
 - Medium review: 0
 - Low review: 0
@@ -97,6 +97,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `1026_sprint69_github_actions_runs_read_dispatch.sql` | critical_review | 1016 | high | 2 | 1 | 5 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
+| `20260705_session_archive_capture_gate_and_smoke_policy.sql` | critical_review | 730 | medium | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness, add_explicit_safety_markers |
 | `1025_sprint69_github_ref_dispatch_catalog_persistence.sql` | high_review | 599 | medium | 2 | 0 | 5 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 
 
