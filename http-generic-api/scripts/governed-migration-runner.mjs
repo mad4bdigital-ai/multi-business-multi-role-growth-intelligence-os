@@ -94,6 +94,7 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "1030_sprint69_generic_platform_resource_context.sql",
   "20260629_sql_cache_admin_tool_export.sql",
   "1031_sprint69_operational_alert_mutation_readback_policy.sql",
+  "20260704_operational_alert_lifecycle_fingerprints.sql",
   "1032_sprint69_pr1950_superseded_branch_cleanup_override.sql",
   "1033_sprint69_pr1950_cleanup_override_removal.sql",
   "1034_sprint69_repository_automation_control_plane.sql",
