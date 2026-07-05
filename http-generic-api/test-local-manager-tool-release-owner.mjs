@@ -32,12 +32,12 @@ assert(connectorAgent.includes('local_tool_release_owner: "mad4b-local-manager"'
 assert(localManager.includes('local release owner for platform tools'), 'public app page must explain Local Manager tool release ownership');
 assert(localManager.includes('manifest-driven local tool installation'), 'link flow must explain manifest-driven local tool installation');
 assert(localManager.includes('Mad4B Local Manager Admin Tools'), 'admin page must distinguish governed installer tools');
-assert(localManager.includes('LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.14"'), 'public Local Manager update route must advertise Windows 0.2.14');
-assert(localManager.includes('Mad4B-Local-Manager-Setup-0.2.14.exe'), 'public Local Manager download route must point at Windows 0.2.14 assets');
-assert(localManagerProject.includes('<Version>0.2.14</Version>'), 'Windows project Version must match advertised release');
-assert(localManagerProject.includes('<AssemblyVersion>0.2.14.0</AssemblyVersion>'), 'Windows project AssemblyVersion must match advertised release');
-assert(localManagerProject.includes('<FileVersion>0.2.14.0</FileVersion>'), 'Windows project FileVersion must match advertised release');
-assert(localManagerProject.includes('<InformationalVersion>0.2.14-installer-download-flush</InformationalVersion>'), 'Windows project InformationalVersion must identify the installer download flush fix');
+assert(localManager.includes('LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.15"'), 'public Local Manager update route must advertise Windows 0.2.15');
+assert(localManager.includes('Mad4B-Local-Manager-Setup-0.2.15.exe'), 'public Local Manager download route must point at Windows 0.2.15 assets');
+assert(localManagerProject.includes('<Version>0.2.15</Version>'), 'Windows project Version must match advertised release');
+assert(localManagerProject.includes('<AssemblyVersion>0.2.15.0</AssemblyVersion>'), 'Windows project AssemblyVersion must match advertised release');
+assert(localManagerProject.includes('<FileVersion>0.2.15.0</FileVersion>'), 'Windows project FileVersion must match advertised release');
+assert(localManagerProject.includes('<InformationalVersion>0.2.15-installer-download-dispose-before-sha</InformationalVersion>'), 'Windows project InformationalVersion must identify the installer download dispose-before-sha fix');
 
 assert(installRoutes.includes('LOCAL_CONNECTOR_CAPABILITY_FLAGS'), 'installer route must define explicit capability flag mapping');
 assert(installRoutes.includes('powershell_admin: "CONNECTOR_POWERSHELL_ENABLED"'), 'PowerShell capability must map only through explicit opt-in');
@@ -85,8 +85,10 @@ assert(localManagerAutopilot.includes('sc.exe'), 'autopilot must query the requi
 assert(windowsAppRegistration.includes('CurrentVersion\\Uninstall\\Mad4B.LocalManager.Windows'), 'Windows app registration must use the per-user uninstall registry');
 assert(windowsAppRegistration.includes('QuietUninstallString'), 'Windows app registration must publish a quiet uninstall command');
 assert(windowsAppRegistration.includes('--uninstall'), 'Windows app must support removal from Installed Apps');
+assert(signedInstallerCoordinator.includes('await using (var destination = File.Create(target))'), 'Windows signed installer download must scope the destination stream');
 assert(signedInstallerCoordinator.includes('await destination.FlushAsync(cancellationToken);'), 'Windows signed installer download must flush the file before size validation');
 assert(signedInstallerCoordinator.includes('fileInfo.Refresh();'), 'Windows signed installer download must refresh file metadata before size validation');
+assert(signedInstallerCoordinator.indexOf('return new SignedInstallerDownload') > signedInstallerCoordinator.indexOf('fileInfo.Refresh();'), 'Windows signed installer download must calculate SHA only after validation and stream disposal scope');
 assert(localManagerWindows.includes('secrets_included = false'), 'desktop polling diagnostics must remain secret-safe');
 assert(localManagerWindows.includes('Capabilities'), 'Windows app must expose capability choices');
 assert(localManagerWindows.includes('ConfigureConnectorCapabilitiesAsync'), 'Windows app must request capability installer from user action');

@@ -76,10 +76,12 @@ internal sealed class SignedInstallerCoordinator
         using var client = CreateGovernedHttpClient();
         using var response = await client.GetAsync(downloadUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         response.EnsureSuccessStatusCode();
-        await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
-        await using var destination = File.Create(target);
-        await source.CopyToAsync(destination, cancellationToken);
-        await destination.FlushAsync(cancellationToken);
+        await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken))
+        await using (var destination = File.Create(target))
+        {
+            await source.CopyToAsync(destination, cancellationToken);
+            await destination.FlushAsync(cancellationToken);
+        }
 
         var fileInfo = new FileInfo(target);
         fileInfo.Refresh();
