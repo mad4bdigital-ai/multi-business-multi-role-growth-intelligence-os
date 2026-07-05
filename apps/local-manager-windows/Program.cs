@@ -485,6 +485,64 @@ internal static class Program
             }
         }
 
+        private async Task<bool> RequireCurrentVersionForPrivilegedActionAsync(string actionName)
+        {
+            try
+            {
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+                var infoUrl = UpdateInfoUrl + "?current_version=" + Uri.EscapeDataString(CurrentSemVer());
+                using var response = await client.GetAsync(infoUrl);
+                var text = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    _status.Text = actionName + " blocked: could not verify the latest Local Manager version.";
+                    _output.Text = JsonSerializer.Serialize(new
+                    {
+                        privileged_action_blocked = true,
+                        action = actionName,
+                        reason = "update_check_failed",
+                        status_code = (int)response.StatusCode,
+                        current_version = CurrentSemVer(),
+                        secrets_included = false
+                    }, _json);
+                    return false;
+                }
+
+                var info = JsonSerializer.Deserialize<WindowsUpdateInfo>(text, _json);
+                if (info?.Ok == true && info.UpdateAvailable == true)
+                {
+                    _status.Text = actionName + " blocked until Local Manager is updated to " + info.LatestVersion + ".";
+                    _output.Text = JsonSerializer.Serialize(new
+                    {
+                        privileged_action_blocked = true,
+                        action = actionName,
+                        reason = "local_manager_update_required",
+                        current_version = info.CurrentVersion ?? CurrentSemVer(),
+                        latest_version = info.LatestVersion,
+                        secrets_included = false
+                    }, _json);
+                    await CheckAndInstallUpdateAsync(true);
+                    return false;
+                }
+
+                return info?.Ok == true;
+            }
+            catch (Exception ex)
+            {
+                _status.Text = actionName + " blocked: update status could not be verified.";
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    privileged_action_blocked = true,
+                    action = actionName,
+                    reason = "update_check_exception",
+                    error = ex.Message,
+                    current_version = CurrentSemVer(),
+                    secrets_included = false
+                }, _json);
+                return false;
+            }
+        }
+
         private async Task RunStartupAutopilotAsync()
         {
             if (_autopilotRecoveryRunning || _autopilotRecoveryAttempted) return;
