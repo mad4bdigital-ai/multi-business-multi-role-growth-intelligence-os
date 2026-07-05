@@ -12,6 +12,7 @@ const localManagerWindowsInstallerSurface = localManagerWindows + signedInstalle
 const localManagerProject = readFileSync('../apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj', 'utf8');
 const localManagerAutopilot = readFileSync('../apps/local-manager-windows/LocalManagerAutopilot.cs', 'utf8');
 const windowsAppRegistration = readFileSync('../apps/local-manager-windows/WindowsAppRegistration.cs', 'utf8');
+const localManagerDeviceLinkService = readFileSync('services/localManagerDeviceLinkService.js', 'utf8');
 
 assert(connectorAgent.includes('const AGENT_VERSION = "2026.05.28.1"'), 'connector agent version must move for DB-driven shell policy release');
 assert(connectorAgent.includes('"browser4-adapter.mjs"'), 'Browser4 adapter must be shipped by connector-agent manifest');
