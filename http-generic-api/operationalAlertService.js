@@ -157,6 +157,8 @@ function candidate({
   manualKnownIssue = false,
   persisted = false,
   alertId = null,
+  operationFingerprintSha256 = null,
+  resourceFingerprintSha256 = null,
 } = {}) {
   const stableKey = alertKey || deterministicAlertKey([
     sourceType,
