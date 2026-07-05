@@ -224,18 +224,34 @@ function executionOperationKey(row = {}) {
     || "execution";
 }
 
-function executionRecoveryKey(row = {}) {
+function executionResourceIdentity(row = {}) {
   return [
-    row.tenant_id || "global",
-    row.workspace_id || "no_workspace",
-    row.entry_type || "execution",
-    row.app_key || "no_app",
-    row.workflow_key || row.workflow_id || "no_workflow",
-    executionOperationKey(row),
     row.target_type || "no_target_type",
     row.target_id || "no_target",
     row.resource_type || "no_resource_type",
     row.resource_id || "no_resource",
+  ].join("|");
+}
+
+function executionOperationFingerprint(row = {}) {
+  return sha256([
+    row.entry_type || "execution",
+    row.app_key || "no_app",
+    row.workflow_key || row.workflow_id || "no_workflow",
+    executionOperationKey(row),
+  ].join("|"));
+}
+
+function executionResourceFingerprint(row = {}) {
+  return sha256(executionResourceIdentity(row));
+}
+
+function executionRecoveryKey(row = {}) {
+  return [
+    row.tenant_id || "global",
+    row.workspace_id || "no_workspace",
+    executionOperationFingerprint(row),
+    executionResourceFingerprint(row),
   ].join("|");
 }
 
