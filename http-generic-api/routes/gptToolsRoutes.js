@@ -2055,10 +2055,11 @@ async function dispatchTool(callerType, toolKey, args, req) {
         })
       : result?.body,
   };
-  // Best-effort: archive the dispatch as a tool turn so admin GPT sessions get a
-  // complete transcript without depending on the GPT calling writeSessionTurn.
-  // Errors are logged and swallowed so the tool result still flows through.
-  await recordToolDispatchTurn(req, toolKey, args, resultForClient);
+  // Best-effort: archive the dispatch as a tool turn only after the exchange has
+  // user/assistant capture. Missing capture is surfaced as a pre-final gate so
+  // the GPT can call gpt_session_turns_write_batch before the final response.
+  const archiveResult = await recordToolDispatchTurn(req, toolKey, args, resultForClient);
+  attachSessionArchiveCaptureGate(resultForClient, archiveResult);
   return resultForClient;
 }
 
