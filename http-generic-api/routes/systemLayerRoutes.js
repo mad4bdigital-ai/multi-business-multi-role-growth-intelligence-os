@@ -482,6 +482,13 @@ const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
     readiness_tool: "platform_resource_context_readiness_smoke",
     readiness_args: {},
   },
+  {
+    source_key: "capability_enablement_broker_v1",
+    tools: CAPABILITY_ENABLEMENT_SYSTEM_TOOLS,
+    handlers: CapabilityEnablementBrokerRuntime,
+    readiness_tool: "capability_enablement_readiness_smoke",
+    readiness_args: {},
+  },
 ];
 
 function snakeToolNameToCamelHandlerName(name = "") {
