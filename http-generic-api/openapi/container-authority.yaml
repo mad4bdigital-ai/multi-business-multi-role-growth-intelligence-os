@@ -678,7 +678,7 @@ containerAuthorityProjections:
     tags: [container-authority]
     operationId: createContainerAuthorityProjection
     summary: Dry-run or SQL-only apply the legacy identity projection
-    description: Uses brands.target_key as canonical Brand identity and holds ambiguous workspace, Brand, Activity, or Workflow mappings instead of guessing. Apply remains provider-free and projects Platform Graph rows as context-only.
+    description: Uses brands.target_key as canonical Brand identity and holds ambiguous workspace, Brand, Activity, or Workflow mappings instead of guessing. Apply remains provider-free and projects Platform Graph rows as context-only. Source-loading dependency failures return the shared `503 ServiceUnavailable` error response.
     security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
     requestBody:
       required: false
