@@ -1269,6 +1269,8 @@ export const _testingOperationalAlerts = {
   groupExecutionRows,
   mapExecutionAlerts,
   executionOperationKey,
+  executionOperationFingerprint,
+  executionResourceFingerprint,
   executionRecoveryKey,
   groupSkillApprovalRows,
   notificationEligible,
