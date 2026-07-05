@@ -410,14 +410,19 @@ async function recordMigrationLedger({
   ledgerMode = "apply",
   appliedBy = process.env.GOVERNED_MIGRATION_APPLIED_BY || "governed_migration_runner",
   extraMetadata = {},
+  capabilityEnvelopeId = "",
 }) {
   const run_id = randomUUID();
+  const normalizedCapabilityEnvelopeId = normalizeCapabilityEnvelopeId(capabilityEnvelopeId);
   const metadata = {
     node_version: process.version,
     platform: process.platform,
     runner_pid: process.pid,
     ...extraMetadata,
   };
+  if (normalizedCapabilityEnvelopeId) {
+    metadata.capability_envelope_id = normalizedCapabilityEnvelopeId;
+  }
   await getPool().query(
     `INSERT INTO governed_migration_ledger
       (run_id, migration_file, migration_checksum_sha256, applied_by, runner_version, mode,
