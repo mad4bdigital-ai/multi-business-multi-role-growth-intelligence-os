@@ -79,8 +79,10 @@ internal sealed class SignedInstallerCoordinator
         await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
         await using var destination = File.Create(target);
         await source.CopyToAsync(destination, cancellationToken);
+        await destination.FlushAsync(cancellationToken);
 
         var fileInfo = new FileInfo(target);
+        fileInfo.Refresh();
         if (!fileInfo.Exists || fileInfo.Length < MinimumInstallerBytes)
         {
             throw new InvalidOperationException("Downloaded installer file is missing or too small.");
