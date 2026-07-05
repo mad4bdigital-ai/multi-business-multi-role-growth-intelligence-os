@@ -252,10 +252,26 @@ async function findActiveSessionForCaller(pool, req, args = {}, options = {}) {
 async function recordToolDispatchTurn(req, toolKey, args, result) {
   try {
     const pool = getPool();
-    const session = await findActiveSessionForCaller(pool, req, args);
+    const allowUncapturedConversation = toolKey === "gpt_session_turns_write_batch";
+    const session = await findActiveSessionForCaller(pool, req, args, { allowUncapturedConversation });
     if (!session) {
       console.warn(`[gpt-tools] skipped auto-record turn for ${toolKey}: no explicit GPT session pin and no active session with user/assistant turns`);
-      return null;
+      return {
+        ok: false,
+        skipped: true,
+        reason_code: "no_active_gpt_action_session",
+        capture_gate: buildPreFinalCaptureGate(null, "no_active_gpt_action_session"),
+      };
+    }
+    if (session.pre_final_capture_required) {
+      console.warn(`[gpt-tools] skipped auto-record turn for ${toolKey}: pre-final user/assistant capture is required before tool turns are archived`);
+      return {
+        ok: false,
+        skipped: true,
+        reason_code: "pre_final_capture_required",
+        session_id: session.session_id,
+        capture_gate: buildPreFinalCaptureGate(session, "pre_final_capture_required"),
+      };
     }
 
     const [[{ max_idx }]] = await pool.query(
@@ -280,7 +296,7 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       truncatedResult,
     ].join("\n");
 
-    return await recordGptSessionTurn({
+    const writeback = await recordGptSessionTurn({
       pool,
       session,
       role: "tool",
@@ -288,9 +304,16 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       action_key: toolKey,
       turnIndex,
     });
+    return { ok: true, ...writeback };
   } catch (err) {
     console.warn(`[gpt-tools] auto-record turn failed for ${toolKey}: ${err.message}`);
-    return null;
+    return {
+      ok: false,
+      skipped: true,
+      reason_code: "tool_turn_archive_readback_failed",
+      error: { code: err.code || "tool_turn_archive_failed", message: err.message },
+      capture_gate: buildPreFinalCaptureGate(null, "tool_turn_archive_readback_failed"),
+    };
   }
 }
 
