@@ -1027,7 +1027,8 @@ async function upsertAlert(connection, item, syncRunId) {
   const alertId = item.alert_id || randomUUID();
   await connection.query(
     `INSERT INTO operational_alerts
-      (alert_id, alert_key, fingerprint_sha256, tenant_id, user_id, workspace_id, container_key,
+      (alert_id, alert_key, fingerprint_sha256, operation_fingerprint_sha256, resource_fingerprint_sha256,
+       tenant_id, user_id, workspace_id, container_key,
        source_type, source_ref, source_record_id, category, severity, title, summary, reason_code,
        lifecycle_status, verification_state, evidence_type, evidence_ref, evidence_json,
        execution_log_id, trace_id, occurrence_count, first_seen_at, last_seen_at, last_sync_run_id,
