@@ -693,6 +693,14 @@ internal static class Program
                     if (string.IsNullOrWhiteSpace(appAlias.Text)) appAlias.Text = SafeFileSegment(Path.GetFileNameWithoutExtension(dialog.FileName)).ToLowerInvariant();
                 }
             };
+            var supportedApps = new Button { Text = "Supported apps", Location = new Point(482, 222), Size = new Size(120, 32) };
+            supportedApps.Click += (_, _) =>
+            {
+                var selected = PickSupportedApp(form);
+                if (selected is null) return;
+                appAlias.Text = selected.Alias;
+                appPath.Text = selected.ExecutablePath;
+            };
             var discoverApps = new Button { Text = "Installed apps", Location = new Point(614, 222), Size = new Size(110, 32) };
             discoverApps.Click += (_, _) =>
             {
