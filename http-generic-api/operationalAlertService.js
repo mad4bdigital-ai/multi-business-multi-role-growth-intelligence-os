@@ -357,6 +357,8 @@ function mapExecutionAlerts(rows = []) {
         verificationState: "verified",
         evidenceType: "execution_log",
         evidenceRef: `execution-log://` + row.latest_id,
+        operationFingerprintSha256: executionOperationFingerprint(row),
+        resourceFingerprintSha256: executionResourceFingerprint(row),
         executionLogId: row.latest_id,
         traceId: row.execution_trace_id_writeback,
         occurrenceCount: row.occurrence_count,
