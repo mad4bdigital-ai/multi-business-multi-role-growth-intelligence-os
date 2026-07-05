@@ -40,7 +40,7 @@ for (const required of [
 }
 
 assert.match(migration, /'method', 'get'/);
-assert.match(migration, /'method', 'GET'/);
+assert.match(migration, /'github_rest', 'GET',/);
 assert.match(migration, /JSON_QUOTE\('github_list_workflow_runs_for_repo'\)/);
 assert.match(migration, /'\$\.properties\.tool_args\.properties\.endpoint_key\.enum'/);
 assert.match(migration, /'\$\.properties\.tool_args\.properties\.query\.properties\.head_sha'/);
