@@ -412,6 +412,9 @@ responses:
   InternalError:
     description: Unexpected container authority failure. No stack trace or secret is returned.
     content: { application/json: { schema: { $ref: '#/schemas/ErrorResponse' } } }
+  ServiceUnavailable:
+    description: Temporary container projection dependency failure.
+    content: { application/json: { schema: { $ref: '#/schemas/ErrorResponse' } } }
 
 containerContextResolutions:
   post:
