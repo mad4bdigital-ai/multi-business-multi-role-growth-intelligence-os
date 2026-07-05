@@ -106,6 +106,12 @@ assert(localManagerWindowsInstallerSurface.includes('permission_grants'), 'Windo
 assert(localManagerWindows.includes('OpenFileDialog'), 'Windows app must let users choose app/helper executables locally');
 assert(localManagerWindows.includes('FolderBrowserDialog'), 'Windows app must let users choose allowed paths locally');
 assert(localManagerWindows.includes('PickInstalledApp'), 'Windows app must provide installed-app discovery for easier app grants');
+assert(localManagerWindows.includes('Supported apps'), 'Windows app must expose supported app templates in the capability UI');
+assert(localManagerWindows.includes('PickSupportedApp'), 'Windows app must let users choose supported app templates without relying only on registry discovery');
+assert(localManagerWindows.includes('SupportedAppTemplates'), 'Windows app must define supported app templates for common local grants');
+assert(localManagerWindows.includes('"edge"') && localManagerWindows.includes('"chrome"') && localManagerWindows.includes('"vscode"') && localManagerWindows.includes('"notepad"'), 'Windows app supported templates must include common browser/editor/notepad grants');
+assert(localManagerDeviceLinkService.includes('supported_apps'), 'device settings controls must expose supported app grant templates');
+assert(localManagerDeviceLinkService.includes('app_alias: "edge"') && localManagerDeviceLinkService.includes('app_alias: "chrome"') && localManagerDeviceLinkService.includes('app_alias: "vscode"') && localManagerDeviceLinkService.includes('app_alias: "notepad"'), 'backend settings controls must list supported app templates for the Windows UI');
 assert(localManagerWindows.includes('Registry.CurrentUser') && localManagerWindows.includes('Registry.LocalMachine'), 'installed-app discovery must read per-user and machine uninstall registries');
 assert(localManagerWindowsInstallerSurface.includes('RunAsAdminRequired'), 'Windows app must surface local Administrator requirement');
 
