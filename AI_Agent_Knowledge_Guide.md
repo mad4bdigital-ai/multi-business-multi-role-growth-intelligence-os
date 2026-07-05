@@ -1,5 +1,11 @@
 # AI Agent Knowledge Guide
 
+## Dynamic Container Projection Closeout Authority
+
+Spec 006 Dynamic Container projection preview must remain dry-run, SQL-source-only, and shadow-only until a separately authorized projection apply and production verification complete. The projection source loader reads authority sources sequentially to avoid exhausting the bounded MySQL pool. A source-read dependency failure returns `503` with `container_projection_source_load_failed`, `stage=load_projection_sources`, and a bounded source name through the shared error envelope. It must not expose SQL text, stack traces, credential identifiers, tokens, headers, secrets, or raw provider payloads.
+
+Agents must not treat projection preview, shadow evidence, sample generation, or completion metadata as authority to enable enforcement, promotion, provider calls, credential reads, or production activation. Closeout evidence belongs in `specs/006-platform-dynamic-workflow-runtime/completion.json`; unresolved production deploy parity, shadow sample minimums, retention, latency, and audit coverage remain post-merge gates unless the same-cycle runtime evidence proves them.
+
 ## OpenAPI Endpoint Inventory Synchronization Authority
 
 Migration `1024_sprint69_openapi_endpoint_inventory_sync.sql` and `openApiEndpointInventorySync.js` maintain SQL endpoint inventory from committed OpenAPI operations. This is discovery metadata only: rows remain non-callable and pending governance review, OpenAPI extensions do not create runtime authority, and callable promotion requires a separate governed migration or approval flow. Manual apply requires `SYNC_OPENAPI_ENDPOINT_INVENTORY`, a ready `platform_orchestration` capability envelope, advisory locking, transaction boundaries, and same-cycle readback. Startup apply is runtime-config controlled and can be stopped with `OPENAPI_ENDPOINT_INVENTORY_SYNC_DISABLED=true`.
