@@ -84,7 +84,7 @@ surfaces:
 
   tenant_activation:
     mode: generated_from_openapi
-    output_file: openapi.tenant-gpt.activation.yaml
+    output_file: openapi/openapi.tenant-gpt.activation.yaml
     server_url: https://activation.mad4b.com
     auth_profile: tenant_oauth
     hard_operation_limit: 10
