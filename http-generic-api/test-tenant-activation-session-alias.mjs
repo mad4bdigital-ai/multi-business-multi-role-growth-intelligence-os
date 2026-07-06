@@ -74,8 +74,8 @@ try {
 
 const source = fs.readFileSync("openapi.yaml", "utf8");
 const sourceDoc = YAML.parse(source);
-const tenantActivation = YAML.parse(fs.readFileSync("openapi.tenant-gpt.activation.yaml", "utf8"));
-const adminActivation = YAML.parse(fs.readFileSync("openapi.custom-gpt.activation-admin.yaml", "utf8"));
+const tenantActivation = YAML.parse(fs.readFileSync("openapi/openapi.tenant-gpt.activation.yaml", "utf8"));
+const adminActivation = YAML.parse(fs.readFileSync("openapi/openapi.custom-gpt.activation-admin.yaml", "utf8"));
 const policy = JSON.parse(fs.readFileSync("../edge/activation-gateway/generated/route-policy.json", "utf8"));
 
 const tenantOp = sourceDoc.paths?.["/tenant/activation/session-context"]?.get;

@@ -7,7 +7,7 @@ const connectRoutes = readFileSync("routes/connectRoutes.js", "utf8");
 const tenantMigration = readFileSync("migrations/100_sprint63_onboarding_recovery_control_plane.sql", "utf8");
 const tenantInstructions = readFileSync("../GPT_Tenant_Connector_Instructions.md", "utf8");
 const tenantKnowledge = readFileSync("../GPT_Tenant_Connector_Knowledge.md", "utf8");
-const tenantSchema = readFileSync("openapi.tenant-gpt.auth.yaml", "utf8");
+const tenantSchema = readFileSync("openapi/openapi.tenant-gpt.auth.yaml", "utf8");
 
 assert(
   tenantMigration.includes("connect_escalate") && tenantMigration.includes("/connect/escalate"),
