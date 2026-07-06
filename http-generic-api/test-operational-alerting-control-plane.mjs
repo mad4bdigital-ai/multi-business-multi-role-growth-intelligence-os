@@ -301,6 +301,11 @@ function testRepositoryContracts() {
   assert.match(service, /operational_alert_notification_outbox/);
   assert.match(service, /resolution_skipped_due_to_degraded_sources/);
   assert.match(service, /truncated_sources/);
+  assert.match(service, /collectExecutionLogSource/);
+  assert.match(service, /EXECUTION_LOG_MAX_ROWS = 10000/);
+  assert.match(service, /sql_primary_execution_log_table/);
+  assert.match(service, /source_authority: "sql_primary_runtime_tables_plus_operational_alert_lifecycle"/);
+  assert.match(service, /sheets_recovery_not_used_for_operational_alerts/);
   assert.match(service, /groupSkillApprovalRows/);
   assert.match(service, /notification_skipped_count/);
   assert.match(openapi, /notification_skipped_count/);

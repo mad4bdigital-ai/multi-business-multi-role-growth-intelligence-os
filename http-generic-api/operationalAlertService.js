@@ -10,8 +10,10 @@ const ALLOWED_LIFECYCLE_STATES = new Set(["open", "acknowledged", "investigating
 const ALERT_EXECUTION_STATUSES = new Set(["failed", "degraded", "blocked", "blocked_with_choice_required", "success_with_warnings", "passed_with_follow_up"]);
 const SUCCESS_EXECUTION_STATUSES = new Set(["success", "succeeded", "completed", "pass", "passed"]);
 const RECOVERY_STATUS_PATTERN = /(recovered|fallback.*used|resolved|succeeded|completed)/i;
+const EXECUTION_LOG_BATCH_SIZE = 1000;
+const EXECUTION_LOG_MAX_ROWS = 10000;
 const SOURCE_ROW_CAPS = Object.freeze({
-  execution_log: 1000,
+  execution_log: EXECUTION_LOG_MAX_ROWS,
   connected_systems: 500,
   v_activation_pending_tasks: 500,
   v_activation_agent_catalog: 500,
@@ -108,6 +110,56 @@ async function safeRows(source, sql, params = [], pool = getPool()) {
     return { source, ok: true, rows: Array.isArray(rows) ? rows : [] };
   } catch (error) {
     return { source, ok: false, rows: [], error: compactError(error) };
+  }
+}
+
+async function collectExecutionLogSource({ tenantExecution, boundedLookback, pool = getPool() } = {}) {
+  const rows = [];
+  let cursorId = null;
+  let truncated = false;
+  try {
+    while (rows.length < EXECUTION_LOG_MAX_ROWS) {
+      const remaining = EXECUTION_LOG_MAX_ROWS - rows.length;
+      const limit = Math.min(EXECUTION_LOG_BATCH_SIZE + 1, remaining + 1);
+      const [batchRows] = await pool.query(
+        `SELECT e.id, e.entry_type, e.execution_class, e.execution_status, e.recovery_status,
+                e.recovery_notes, e.route_status, e.execution_trace_id_writeback,
+                e.tenant_id, e.workspace_id, e.user_id, e.brand_key, e.app_key,
+                e.agent_key, e.skill_key, e.workflow_id, e.workflow_key,
+                e.engine_key, e.logic_key, e.parent_action_key, e.endpoint_key,
+                e.action_key, e.tool_key, e.resource_type, e.resource_id,
+                e.target_type, e.target_id, e.failure_reason, e.output_summary, e.created_at
+           FROM execution_log e
+          WHERE ${tenantExecution.sql}
+            AND e.created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+            AND e.execution_status IN ('failed','degraded','blocked','blocked_with_choice_required','success_with_warnings','passed_with_follow_up','success','succeeded','completed','pass','passed')
+            AND (? IS NULL OR e.id < ?)
+          ORDER BY e.id DESC
+          LIMIT ?`,
+        [...tenantExecution.params, boundedLookback, cursorId, cursorId, limit]
+      );
+      const batch = Array.isArray(batchRows) ? batchRows : [];
+      if (!batch.length) break;
+      const take = batch.slice(0, Math.min(batch.length, remaining, EXECUTION_LOG_BATCH_SIZE));
+      rows.push(...take);
+      const hasMore = batch.length > take.length || batch.length > EXECUTION_LOG_BATCH_SIZE;
+      cursorId = take[take.length - 1]?.id || cursorId;
+      if (!hasMore) break;
+      if (rows.length >= EXECUTION_LOG_MAX_ROWS) {
+        truncated = true;
+        break;
+      }
+    }
+    return {
+      source: "execution_log",
+      ok: true,
+      rows,
+      row_cap: EXECUTION_LOG_MAX_ROWS,
+      truncated,
+      authority: "sql_primary_execution_log_table",
+    };
+  } catch (error) {
+    return { source: "execution_log", ok: false, rows: [], row_cap: EXECUTION_LOG_MAX_ROWS, truncated: false, error: compactError(error) };
   }
 }
 
@@ -526,23 +578,7 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
   const boundedLookback = boundedInt(lookbackHours, 168, 1, 24 * 90);
 
   const queries = [
-    safeRows(
-      "execution_log",
-      `SELECT e.id, e.entry_type, e.execution_class, e.execution_status, e.recovery_status,
-              e.recovery_notes, e.route_status, e.execution_trace_id_writeback,
-              e.tenant_id, e.workspace_id, e.user_id, e.brand_key, e.app_key,
-              e.agent_key, e.skill_key, e.workflow_id, e.workflow_key,
-              e.engine_key, e.logic_key, e.parent_action_key, e.endpoint_key,
-              e.action_key, e.tool_key, e.resource_type, e.resource_id,
-              e.target_type, e.target_id, e.failure_reason, e.output_summary, e.created_at
-         FROM execution_log e
-        WHERE ${tenantExecution.sql}
-          AND e.created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
-          AND e.execution_status IN ('failed','degraded','blocked','blocked_with_choice_required','success_with_warnings','passed_with_follow_up','success','succeeded','completed','pass','passed')
-        ORDER BY e.created_at DESC
-        LIMIT 1000`,
-      [...tenantExecution.params, boundedLookback]
-    ),
+    collectExecutionLogSource({ tenantExecution, boundedLookback }),
     safeRows(
       "connected_systems",
       `SELECT system_id, tenant_id, system_key, display_name, provider_family,
@@ -882,13 +918,14 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
     subject,
     alerts: mergeCandidates(alerts),
     source_health: results.map((result) => {
-      const rowCap = SOURCE_ROW_CAPS[result.source] || null;
+      const rowCap = result.row_cap ?? SOURCE_ROW_CAPS[result.source] ?? null;
       return {
         source: result.source,
         ok: result.ok,
         row_count: result.rows.length,
         row_cap: rowCap,
-        truncated: Boolean(result.ok && rowCap && result.rows.length >= rowCap),
+        truncated: Boolean(result.truncated ?? (result.ok && rowCap && result.rows.length >= rowCap)),
+        authority: result.authority || "sql_primary_runtime_table",
         error: result.error || null,
       };
     }),
@@ -974,7 +1011,7 @@ export async function readOperationalAlerts({
     attempted: true,
     ok: degradedSources.length === 0 && truncatedSources.length === 0 && missingKnownIssueKeys.length === 0,
     activation_layer: "operational_alerting_control_plane",
-    source_authority: "sql_runtime_evidence_sources_plus_operational_alert_lifecycle",
+    source_authority: "sql_primary_runtime_tables_plus_operational_alert_lifecycle",
     subject,
     summary: {
       ...summary,
@@ -1006,6 +1043,8 @@ export async function readOperationalAlerts({
     source_health: collected.source_health,
     policy: {
       execution_log_is_evidence_not_alert_queue: true,
+      execution_log_uses_sql_primary_table_only: true,
+      sheets_recovery_not_used_for_operational_alerts: true,
       known_issues_are_preserved_until_lifecycle_resolution: true,
       dynamic_sources_are_read_live: true,
       dedupe_uses_stable_alert_key: true,
