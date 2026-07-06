@@ -113,6 +113,56 @@ async function safeRows(source, sql, params = [], pool = getPool()) {
   }
 }
 
+async function collectExecutionLogSource({ tenantExecution, boundedLookback, pool = getPool() } = {}) {
+  const rows = [];
+  let cursorId = null;
+  let truncated = false;
+  try {
+    while (rows.length < EXECUTION_LOG_MAX_ROWS) {
+      const remaining = EXECUTION_LOG_MAX_ROWS - rows.length;
+      const limit = Math.min(EXECUTION_LOG_BATCH_SIZE + 1, remaining + 1);
+      const [batchRows] = await pool.query(
+        `SELECT e.id, e.entry_type, e.execution_class, e.execution_status, e.recovery_status,
+                e.recovery_notes, e.route_status, e.execution_trace_id_writeback,
+                e.tenant_id, e.workspace_id, e.user_id, e.brand_key, e.app_key,
+                e.agent_key, e.skill_key, e.workflow_id, e.workflow_key,
+                e.engine_key, e.logic_key, e.parent_action_key, e.endpoint_key,
+                e.action_key, e.tool_key, e.resource_type, e.resource_id,
+                e.target_type, e.target_id, e.failure_reason, e.output_summary, e.created_at
+           FROM execution_log e
+          WHERE ${tenantExecution.sql}
+            AND e.created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+            AND e.execution_status IN ('failed','degraded','blocked','blocked_with_choice_required','success_with_warnings','passed_with_follow_up','success','succeeded','completed','pass','passed')
+            AND (? IS NULL OR e.id < ?)
+          ORDER BY e.id DESC
+          LIMIT ?`,
+        [...tenantExecution.params, boundedLookback, cursorId, cursorId, limit]
+      );
+      const batch = Array.isArray(batchRows) ? batchRows : [];
+      if (!batch.length) break;
+      const take = batch.slice(0, Math.min(batch.length, remaining, EXECUTION_LOG_BATCH_SIZE));
+      rows.push(...take);
+      const hasMore = batch.length > take.length || batch.length > EXECUTION_LOG_BATCH_SIZE;
+      cursorId = take[take.length - 1]?.id || cursorId;
+      if (!hasMore) break;
+      if (rows.length >= EXECUTION_LOG_MAX_ROWS) {
+        truncated = true;
+        break;
+      }
+    }
+    return {
+      source: "execution_log",
+      ok: true,
+      rows,
+      row_cap: EXECUTION_LOG_MAX_ROWS,
+      truncated,
+      authority: "sql_primary_execution_log_table",
+    };
+  } catch (error) {
+    return { source: "execution_log", ok: false, rows: [], row_cap: EXECUTION_LOG_MAX_ROWS, truncated: false, error: compactError(error) };
+  }
+}
+
 async function collectSqlCacheRuntimeSource() {
   try {
     return {
