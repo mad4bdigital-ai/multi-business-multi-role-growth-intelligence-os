@@ -11,7 +11,7 @@ const ALERT_EXECUTION_STATUSES = new Set(["failed", "degraded", "blocked", "bloc
 const SUCCESS_EXECUTION_STATUSES = new Set(["success", "succeeded", "completed", "pass", "passed"]);
 const RECOVERY_STATUS_PATTERN = /(recovered|fallback.*used|resolved|succeeded|completed)/i;
 const EXECUTION_LOG_BATCH_SIZE = 1000;
-const EXECUTION_LOG_MAX_ROWS = 10000;
+const EXECUTION_LOG_MAX_ROWS = 50000;
 const SOURCE_ROW_CAPS = Object.freeze({
   execution_log: EXECUTION_LOG_MAX_ROWS,
   connected_systems: 500,
