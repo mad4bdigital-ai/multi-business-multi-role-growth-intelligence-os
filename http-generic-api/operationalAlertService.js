@@ -395,6 +395,7 @@ function groupExecutionRows(rows = []) {
       row.failure_reason || "no_failure_reason",
       row.route_status || "no_route_status",
     ].join("|");
+    const occurrenceCount = Math.max(safeNumber(row.occurrence_count, 1), 1);
     const existing = groups.get(key);
     if (!existing) {
       groups.set(key, {
@@ -402,7 +403,7 @@ function groupExecutionRows(rows = []) {
         execution_status: status,
         operation_key: executionOperationKey(row),
         recovery_key: executionRecoveryKey(row),
-        occurrence_count: 1,
+        occurrence_count: occurrenceCount,
         first_seen_at: row.created_at,
         last_seen_at: row.created_at,
         latest_id: row.id,
