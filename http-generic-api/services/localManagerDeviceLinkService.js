@@ -964,6 +964,17 @@ export async function getDeviceControls(req, res) {
       }
     }
 
+    if (section === "settings" && controlTemplates && baseControls.settings?.capability_consent) {
+      baseControls.settings.capability_consent.registry_source = controlTemplates.source;
+      baseControls.settings.capability_consent.registry_table = controlTemplates.registry_table;
+      baseControls.settings.capability_consent.registry_loaded_at = controlTemplates.last_loaded_at;
+      baseControls.settings.capability_consent.supported_capabilities = controlTemplates.supported_capabilities;
+      baseControls.settings.capability_consent.supported_apps = controlTemplates.supported_apps;
+      if (baseControls.settings.capability_consent.dynamic_grants) {
+        baseControls.settings.capability_consent.dynamic_grants.supported_apps = controlTemplates.supported_apps;
+      }
+    }
+
     const n8nConnector = section === "n8n" ? await resolveOrCreateTenantN8nProfile(device) : null;
     return res.status(200).json({
       ok: true,
