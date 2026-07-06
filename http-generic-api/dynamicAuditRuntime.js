@@ -36,6 +36,10 @@ const DEFAULT_CONFIG = Object.freeze({
   migration_reconciliation_enabled: false,
   migration_reconciliation_apply: false,
   migration_reconciliation_limit: 2000,
+  session_archive_stale_closure_enabled: false,
+  session_archive_stale_closure_stale_days: 3,
+  session_archive_stale_closure_limit: 25,
+  session_archive_stale_closure_user_email: null,
   run_on_startup: true,
 });
 
