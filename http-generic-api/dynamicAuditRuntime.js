@@ -732,6 +732,7 @@ export async function runDynamicAuditCycle(options = {}, dependencies = {}) {
     const drive = await produceDriveEvents(connection, config.source_limit);
     const release = await produceReleaseReadinessEvent(connection);
     const repo = await produceRepoFileAudit(connection, commitSha, config.source_limit);
+    const sessionArchiveClosure = await runSessionArchiveStaleClosureAutosweep(connection, config);
     const rollup = await runAuditEventRollupBuilder(
       { apply: true, confirm: AUDIT_ROLLUP_CONFIRMATION, limit: config.batch_limit },
       { pool }
