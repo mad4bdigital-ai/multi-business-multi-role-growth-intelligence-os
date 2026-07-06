@@ -33,7 +33,7 @@ for (const expected of [
   "openapi.gpt-action.local-connector.yaml",
   "openapi.gpt-action.dev-dispatcher.yaml",
 ]) {
-  assert(existsSync(resolve(new URL("./openapi/", apiRoot), expected)), `missing relocated schema artifact ${expected}`);
+  assert(existsSync(resolve(apiRoot, "openapi", expected)), `missing relocated schema artifact ${expected}`);
 }
 
 console.log("openapi schema output path guard passed");
