@@ -273,7 +273,7 @@ function assertNonConsequentialOperation(doc, operationId) {
 
 section("schema inventory");
 for (const file of Object.keys(ACTIVE_SCHEMAS)) {
-  assert(`${file} exists`, existsSync(resolve(__dirname, file)));
+  assert(`${file} exists`, existsSync(schemaPath(file)));
 }
 for (const file of OBSOLETE_SCHEMAS) {
   assert(`${file} is deleted`, !existsSync(resolve(__dirname, file)));
