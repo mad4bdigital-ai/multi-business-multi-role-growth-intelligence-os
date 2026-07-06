@@ -20,8 +20,14 @@ function collectOperations(doc) {
   return operations;
 }
 
+function schemaPath(file) {
+  const relocated = `openapi/${file}`;
+  if (existsSync(relocated)) return relocated;
+  return file;
+}
+
 function loadYaml(file) {
-  return YAML.parse(readFileSync(file, "utf8"));
+  return YAML.parse(readFileSync(schemaPath(file), "utf8"));
 }
 
 function resolveJsonPointer(doc, pointer) {
