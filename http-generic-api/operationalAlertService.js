@@ -111,52 +111,116 @@ async function safeRows(source, sql, params = [], pool = getPool()) {
 }
 
 async function collectExecutionLogSource({ tenantExecution, boundedLookback, pool = getPool() } = {}) {
-  const rows = [];
-  let cursorId = null;
-  let truncated = false;
+  const tenantSuccessSql = String(tenantExecution.sql || "1 = 1").replace(/\be\./g, "s.");
+  const operationKeySql = `COALESCE(NULLIF(e.action_key, ''), NULLIF(e.endpoint_key, ''), NULLIF(e.tool_key, ''),
+                NULLIF(e.parent_action_key, ''), NULLIF(e.workflow_key, ''), NULLIF(e.workflow_id, ''),
+                NULLIF(e.app_key, ''), NULLIF(e.entry_type, ''), 'execution')`;
+  const successOperationKeySql = `COALESCE(NULLIF(s.action_key, ''), NULLIF(s.endpoint_key, ''), NULLIF(s.tool_key, ''),
+                NULLIF(s.parent_action_key, ''), NULLIF(s.workflow_key, ''), NULLIF(s.workflow_id, ''),
+                NULLIF(s.app_key, ''), NULLIF(s.entry_type, ''), 'execution')`;
   try {
-    while (rows.length < EXECUTION_LOG_MAX_ROWS) {
-      const remaining = EXECUTION_LOG_MAX_ROWS - rows.length;
-      const limit = Math.min(EXECUTION_LOG_BATCH_SIZE + 1, remaining + 1);
-      const [batchRows] = await pool.query(
-        `SELECT e.id, e.entry_type, e.execution_class, e.execution_status, e.recovery_status,
-                e.recovery_notes, e.route_status, e.execution_trace_id_writeback,
-                e.tenant_id, e.workspace_id, e.user_id, e.brand_key, e.app_key,
-                e.agent_key, e.skill_key, e.workflow_id, e.workflow_key,
-                e.engine_key, e.logic_key, e.parent_action_key, e.endpoint_key,
-                e.action_key, e.tool_key, e.resource_type, e.resource_id,
-                e.target_type, e.target_id, e.failure_reason, e.output_summary, e.created_at
-           FROM execution_log e
-          WHERE ${tenantExecution.sql}
-            AND e.created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
-            AND e.execution_status IN ('failed','degraded','blocked','blocked_with_choice_required','success_with_warnings','passed_with_follow_up','success','succeeded','completed','pass','passed')
-            AND (? IS NULL OR e.id < ?)
-          ORDER BY e.id DESC
-          LIMIT ?`,
-        [...tenantExecution.params, boundedLookback, cursorId, cursorId, limit]
-      );
-      const batch = Array.isArray(batchRows) ? batchRows : [];
-      if (!batch.length) break;
-      const take = batch.slice(0, Math.min(batch.length, remaining, EXECUTION_LOG_BATCH_SIZE));
-      rows.push(...take);
-      const hasMore = batch.length > take.length || batch.length > EXECUTION_LOG_BATCH_SIZE;
-      cursorId = take[take.length - 1]?.id || cursorId;
-      if (!hasMore) break;
-      if (rows.length >= EXECUTION_LOG_MAX_ROWS) {
-        truncated = true;
-        break;
-      }
-    }
+    const [rows] = await pool.query(
+      `SELECT g.id, g.entry_type, g.execution_class, g.execution_status, g.recovery_status,
+              g.recovery_notes, g.route_status, g.execution_trace_id_writeback,
+              g.tenant_id, g.workspace_id, g.user_id, g.brand_key, g.app_key,
+              g.agent_key, g.skill_key, g.workflow_id, g.workflow_key,
+              g.engine_key, g.logic_key, g.parent_action_key, g.endpoint_key,
+              g.action_key, g.tool_key, g.resource_type, g.resource_id,
+              g.target_type, g.target_id, g.failure_reason, g.output_summary,
+              g.last_seen_at AS created_at, g.occurrence_count, g.first_seen_at,
+              g.last_seen_at, g.latest_id, g.operation_key
+         FROM (
+           SELECT MAX(e.id) AS id,
+                  MAX(e.entry_type) AS entry_type,
+                  MAX(e.execution_class) AS execution_class,
+                  LOWER(e.execution_status) AS execution_status,
+                  MAX(e.recovery_status) AS recovery_status,
+                  MAX(e.recovery_notes) AS recovery_notes,
+                  MAX(e.route_status) AS route_status,
+                  MAX(e.execution_trace_id_writeback) AS execution_trace_id_writeback,
+                  e.tenant_id,
+                  e.workspace_id,
+                  MAX(e.user_id) AS user_id,
+                  MAX(e.brand_key) AS brand_key,
+                  e.app_key,
+                  MAX(e.agent_key) AS agent_key,
+                  MAX(e.skill_key) AS skill_key,
+                  e.workflow_id,
+                  e.workflow_key,
+                  MAX(e.engine_key) AS engine_key,
+                  MAX(e.logic_key) AS logic_key,
+                  e.parent_action_key,
+                  e.endpoint_key,
+                  e.action_key,
+                  e.tool_key,
+                  e.resource_type,
+                  e.resource_id,
+                  e.target_type,
+                  e.target_id,
+                  e.failure_reason,
+                  MAX(e.output_summary) AS output_summary,
+                  COUNT(*) AS occurrence_count,
+                  MIN(e.created_at) AS first_seen_at,
+                  MAX(e.created_at) AS last_seen_at,
+                  MAX(e.id) AS latest_id,
+                  ${operationKeySql} AS operation_key,
+                  COALESCE(e.tenant_id, 'global') AS recovery_tenant_key,
+                  COALESCE(e.workspace_id, 'no_workspace') AS recovery_workspace_key,
+                  COALESCE(e.entry_type, 'execution') AS recovery_entry_type,
+                  COALESCE(e.app_key, 'no_app') AS recovery_app_key,
+                  COALESCE(e.workflow_key, e.workflow_id, 'no_workflow') AS recovery_workflow_key,
+                  COALESCE(e.target_type, 'no_target_type') AS recovery_target_type,
+                  COALESCE(e.target_id, 'no_target') AS recovery_target_id,
+                  COALESCE(e.resource_type, 'no_resource_type') AS recovery_resource_type,
+                  COALESCE(e.resource_id, 'no_resource') AS recovery_resource_id
+             FROM execution_log e
+            WHERE ${tenantExecution.sql}
+              AND e.created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+              AND e.execution_status IN ('failed','degraded','blocked','blocked_with_choice_required','success_with_warnings','passed_with_follow_up')
+              AND NOT (
+                ${operationKeySql} = 'unknown_endpoint_smoke'
+                AND LOWER(COALESCE(e.failure_reason, '')) IN ('parent_action_not_found','endpoint_not_found','invalid_request')
+              )
+            GROUP BY COALESCE(e.tenant_id, 'global'), COALESCE(e.workspace_id, 'no_workspace'),
+                     COALESCE(e.entry_type, 'execution'), COALESCE(e.app_key, 'no_app'),
+                     COALESCE(e.workflow_key, e.workflow_id, 'no_workflow'), ${operationKeySql},
+                     COALESCE(e.target_type, 'no_target_type'), COALESCE(e.target_id, 'no_target'),
+                     COALESCE(e.resource_type, 'no_resource_type'), COALESCE(e.resource_id, 'no_resource'),
+                     LOWER(e.execution_status), COALESCE(e.failure_reason, 'no_failure_reason'),
+                     COALESCE(e.route_status, 'no_route_status')
+         ) g
+        WHERE NOT EXISTS (
+          SELECT 1
+            FROM execution_log s
+           WHERE ${tenantSuccessSql}
+             AND s.created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+             AND s.execution_status IN ('success','succeeded','completed','pass','passed')
+             AND s.created_at > g.last_seen_at
+             AND COALESCE(s.tenant_id, 'global') = g.recovery_tenant_key
+             AND COALESCE(s.workspace_id, 'no_workspace') = g.recovery_workspace_key
+             AND COALESCE(s.entry_type, 'execution') = g.recovery_entry_type
+             AND COALESCE(s.app_key, 'no_app') = g.recovery_app_key
+             AND COALESCE(s.workflow_key, s.workflow_id, 'no_workflow') = g.recovery_workflow_key
+             AND ${successOperationKeySql} = g.operation_key
+             AND COALESCE(s.target_type, 'no_target_type') = g.recovery_target_type
+             AND COALESCE(s.target_id, 'no_target') = g.recovery_target_id
+             AND COALESCE(s.resource_type, 'no_resource_type') = g.recovery_resource_type
+             AND COALESCE(s.resource_id, 'no_resource') = g.recovery_resource_id
+          LIMIT 1
+        )
+        ORDER BY g.last_seen_at DESC`,
+      [...tenantExecution.params, boundedLookback, ...tenantExecution.params, boundedLookback]
+    );
     return {
       source: "execution_log",
       ok: true,
-      rows,
-      row_cap: EXECUTION_LOG_MAX_ROWS,
-      truncated,
-      authority: "sql_primary_execution_log_table",
+      rows: Array.isArray(rows) ? rows : [],
+      truncated: false,
+      authority: "sql_primary_execution_log_aggregate",
+      aggregation: "operation_resource_failure_groups",
     };
   } catch (error) {
-    return { source: "execution_log", ok: false, rows: [], row_cap: EXECUTION_LOG_MAX_ROWS, truncated: false, error: compactError(error) };
+    return { source: "execution_log", ok: false, rows: [], truncated: false, error: compactError(error) };
   }
 }
 
