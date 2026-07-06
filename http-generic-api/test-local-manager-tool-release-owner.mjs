@@ -138,6 +138,16 @@ assert(localManagerDeviceLinkService.includes('supported_browsers'), 'device con
 assert(localManagerDeviceLinkService.includes('supported_browser_providers'), 'device controls settings must expose external browser providers separately');
 assert(localManagerDeviceLinkService.includes('supported_browser_adapters'), 'device controls settings must expose browser plugin adapters separately');
 assert(localManagerDeviceLinkService.includes('supported_agent_surfaces'), 'device controls settings must expose agent and automation surfaces separately');
+assert(localManagerDeviceLinkService.includes('supported_managed_mad4b_services'), 'device controls settings must expose Mad4B-managed service-side app templates separately');
+assert(localManagerDeviceLinkService.includes('supported_tenant_local_services'), 'device controls settings must expose tenant local device-side app templates separately');
+assert(localManagerDeviceLinkService.includes('template_key: "managed_n8n_client"'), 'App Manager registry must seed the Mad4B-managed n8n client');
+assert(localManagerDeviceLinkService.includes('template_key: "tenant_dedicated_n8n"'), 'App Manager registry must seed tenant-dedicated local n8n');
+assert(localManagerDeviceLinkService.includes('app_manager_scope: "managed_mad4b_service_side"'), 'managed service-side apps must carry app_manager_scope metadata');
+assert(localManagerDeviceLinkService.includes('app_manager_scope: "tenant_local_device_side"'), 'tenant local device-side apps must carry app_manager_scope metadata');
+assert(localManagerDeviceLinkService.includes('current_hosting_target: "essam_local_device"'), 'managed n8n client must record current Essam local-device hosting target');
+assert(localManagerDeviceLinkService.includes('future_hosting_target: "vps"'), 'managed n8n client must record future VPS migration target');
+assert(localManagerDeviceLinkService.includes('integration_type: "managed_service_client"'), 'Mad4B-managed service-side apps must be classified as managed_service_client');
+assert(localManagerDeviceLinkService.includes('integration_type: "tenant_local_service"'), 'tenant local device-side apps must be classified as tenant_local_service');
 assert(localManagerDeviceLinkService.includes('template_key: "firefox"'), 'dynamic browser registry must seed Firefox');
 assert(localManagerDeviceLinkService.includes('template_key: "brave"'), 'dynamic browser registry must seed Brave');
 assert(localManagerDeviceLinkService.includes('template_key: "opera"'), 'dynamic browser registry must seed Opera');
