@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 487
+- Migrations with detected surfaces: 488
 - Migrations reported here: 80
 - OpenAPI operations detected: 536
 - OpenAPI paths detected: 498
@@ -32,7 +32,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 487/487 (100.00%)
+- Documentation complete migrations: 488/488 (100.00%)
 - Documentation gap migrations: 0
 - Gap severity: high=0, medium=0, low=0
 - SQL route coverage in OpenAPI: 17/17 (100.00%)
@@ -46,7 +46,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 |---|---:|---:|
 | plugins | 12 | 9 |
 | tools | 2280 | 414 |
-| views | 433 | 176 |
+| views | 434 | 177 |
 | policies | 175 | 114 |
 | routes | 629 | 253 |
 
@@ -64,12 +64,12 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 487 |
-| no_credential_payload_read | 487 |
-| no_raw_secrets | 487 |
-| no_external_send | 487 |
-| no_external_write | 487 |
-| secrets_included_false | 487 |
+| no_provider_call | 488 |
+| no_credential_payload_read | 488 |
+| no_raw_secrets | 488 |
+| no_external_send | 488 |
+| no_external_write | 488 |
+| secrets_included_false | 488 |
 
 ### Route Classification Coverage
 
