@@ -178,6 +178,7 @@ internal static class Program
         private readonly DeviceControlClient _deviceControlClient = new(BaseUrl);
         private readonly ConnectorCapabilityVerifier _connectorCapabilityVerifier;
         private readonly SignedInstallerCoordinator _signedInstallerCoordinator = new(BaseUrl, UpdatesRoot);
+        private readonly HashSet<string> _lastRequestedCapabilities = new(StringComparer.OrdinalIgnoreCase);
 
         public MainForm()
         {
