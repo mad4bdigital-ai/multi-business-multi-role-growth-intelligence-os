@@ -45,8 +45,6 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - `http-generic-api/openapi.custom-gpt.activation-admin.yaml`
 - `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml`
-- `http-generic-api/openapi.gpt-action.dev-diagnostics.yaml`
-- `http-generic-api/openapi.gpt-action.dev-dispatcher.yaml`
 - `http-generic-api/openapi.gpt-action.local-connector.yaml`
 - `http-generic-api/openapi.tenant-gpt.activation.yaml`
 - `http-generic-api/openapi.tenant-gpt.auth.yaml`
@@ -64,6 +62,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/custom-gpt-contract-guard.yml`
 - `.github/workflows/docs-agent.yml`
 - `.github/workflows/dr-certification-readiness.yml`
+- `.github/workflows/http-generic-api-fanout-relocation.yml`
 - `.github/workflows/local-manager-windows.yml`
 - `.github/workflows/openapi-auto-sync.yml`
 - `.github/workflows/platform-completion-cleanup-readback.yml`
@@ -103,6 +102,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-openapi-route-coverage.mjs`
 - `http-generic-api/test-openapi-split-governance.mjs`
 - `http-generic-api/test-openapi-split-regeneration-parity.mjs`
+- `http-generic-api/test-platform-endpoint-export-schema-parity.mjs`
 - `http-generic-api/test-platform-evolution-openapi-docs.mjs`
 - `http-generic-api/test-platform-plugin-action-grants.mjs`
 - `http-generic-api/test-platform-plugin-action-templates.mjs`

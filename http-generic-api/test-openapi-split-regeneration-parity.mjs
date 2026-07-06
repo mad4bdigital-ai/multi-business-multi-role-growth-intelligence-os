@@ -1,14 +1,20 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import YAML from "yaml";
 
 const METHODS = new Set(["get", "post", "put", "delete", "patch", "options", "head", "trace"]);
 const registry = YAML.parse(readFileSync("../canonicals/openapi/custom-gpt-surfaces.yaml", "utf8"));
 
+function schemaPath(file) {
+  const relocated = `openapi/${file}`;
+  if (existsSync(relocated)) return relocated;
+  return file;
+}
+
 function loadSurface(surfaceKey) {
   const surface = registry.surfaces[surfaceKey];
   assert(surface, `missing registry surface ${surfaceKey}`);
-  return YAML.parse(readFileSync(surface.output_file, "utf8"));
+  return YAML.parse(readFileSync(schemaPath(surface.output_file), "utf8"));
 }
 
 function operationSignatures(doc) {

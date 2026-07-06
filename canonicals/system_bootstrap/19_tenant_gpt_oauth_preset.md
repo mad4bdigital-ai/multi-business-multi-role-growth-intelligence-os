@@ -17,7 +17,7 @@ The canonical Tenant GPT Action configuration is:
 | Token Exchange Method | `Default (POST request)` |
 | Allowed Callback URL | `https://chat.openai.com/aip/g-d36db295032b9022dd77233041763f513e8ba5fa/oauth/callback` |
 
-Configure both Action connections with the same Client ID, Client Secret, authorization URL, token URL, scopes, and callback allowlist. The schemas remain separate because they use different public servers and operation budgets. The Activation Gateway forwards allowed requests to `auth.mad4b.com`; it does not mint tokens or make business authorization decisions.
+Configure both Action connections with the same Client ID, Client Secret, authorization URL, token URL, scopes, and callback allowlist. The schemas remain separate because GPT Builder requires distinct public servers and the surfaces have different operation budgets. On Hostinger Cloud deployments, Cloudflare is DNS/proxy configuration only: `activation.mad4b.com` resolves to the same Node application and the in-app Activation Host Gateway only allows Activation routes and Activation schemas. It blocks `/auth/oauth/*` on the activation host; OAuth remains on `auth.mad4b.com`. The gateway does not mint tokens or make business authorization decisions. The normal production promotion path is merge to `main`; Hostinger Cloud auto-deploys the application after the merge. Do not use SSH deploy/restart or Cloudflare Worker rollout as the normal path for this surface.
 
 Scopes:
 

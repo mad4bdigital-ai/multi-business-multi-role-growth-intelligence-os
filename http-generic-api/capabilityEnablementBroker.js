@@ -113,6 +113,86 @@ function dryRunGaps(result = null) {
   return Array.isArray(result?.blocking_gaps) ? result.blocking_gaps.map((gap) => safeText(gap, 128)).filter(Boolean) : [];
 }
 
+function safeUuid(value = "") {
+  const text = safeText(value, 64);
+  return /^[0-9a-fA-F-]{36}$/.test(text) ? text : "";
+}
+
+function valuesCompatible(requested = "", actual = "") {
+  const req = safeText(requested, 191);
+  const row = safeText(actual, 191);
+  return !req || !row || req === row;
+}
+
+function envelopeRuntimeCompatible(args = {}, row = {}) {
+  const runtime = safeText(args.runtime_surface, 191);
+  const selected = safeText(row.selected_runtime_surface, 191);
+  return valuesCompatible(runtime, selected) || valuesCompatible(runtime, row.capability_key);
+}
+
+async function loadApprovedCapabilityEnvelope(pool, args = {}, scope = {}) {
+  const envelopeId = safeUuid(args.capability_envelope_id);
+  if (!envelopeId) return null;
+  const [rows] = await pool.query(
+    `SELECT envelope_id, tenant_id, user_id, workspace_id, app_key, capability_key, operation_intent,
+            selected_runtime_surface, authority_status, decision, envelope_status, dispatch_allowed,
+            apply_allowed, expires_at, secrets_included
+       FROM capability_resolution_envelope_ledger
+      WHERE envelope_id = ?
+      LIMIT 1`,
+    [envelopeId]
+  );
+  const row = rows?.[0] || null;
+  if (!row) return { ok: false, status: "not_found", envelope_id: envelopeId, reason_codes: ["ENVELOPE_NOT_FOUND"], secrets_included: false };
+  const expiresAt = row.expires_at ? new Date(row.expires_at) : null;
+  const nowExpired = expiresAt instanceof Date && !Number.isNaN(expiresAt.getTime()) ? expiresAt.getTime() <= Date.now() : false;
+  const mismatches = [];
+  if (row.envelope_status !== "ready_for_dispatch") mismatches.push("ENVELOPE_NOT_APPROVED");
+  if (Number(row.dispatch_allowed || 0) !== 1) mismatches.push("DISPATCH_NOT_ALLOWED");
+  if (Number(row.secrets_included || 0) !== 0) mismatches.push("ENVELOPE_SECRET_FLAG_SET");
+  if (nowExpired) mismatches.push("ENVELOPE_EXPIRED");
+  if (!valuesCompatible(scope.tenant_id, row.tenant_id)) mismatches.push("TENANT_MISMATCH");
+  if (!valuesCompatible(scope.user_id, row.user_id)) mismatches.push("USER_MISMATCH");
+  if (!valuesCompatible(args.workspace_id, row.workspace_id)) mismatches.push("WORKSPACE_MISMATCH");
+  if (!valuesCompatible(args.app_key, row.app_key)) mismatches.push("APP_MISMATCH");
+  if (!valuesCompatible(args.capability_key, row.capability_key)) mismatches.push("CAPABILITY_MISMATCH");
+  if (!valuesCompatible(args.operation_intent, row.operation_intent)) mismatches.push("OPERATION_INTENT_MISMATCH");
+  if (!envelopeRuntimeCompatible(args, row)) mismatches.push("RUNTIME_SURFACE_MISMATCH");
+  const projection = {
+    envelope_id: row.envelope_id,
+    status: row.envelope_status,
+    decision: row.decision,
+    authority_status: row.authority_status,
+    dispatch_allowed: Number(row.dispatch_allowed || 0) === 1,
+    apply_allowed: false,
+    expires_at: row.expires_at || null,
+    secrets_included: false,
+  };
+  if (mismatches.length) return { ok: false, status: "not_usable", reason_codes: mismatches, ...projection };
+  return { ok: true, status: "approved", reason_codes: [], ...projection };
+}
+
+function applyApprovedEnvelopeToDryRun(dryRun = null, envelope = null) {
+  if (!dryRun || envelope?.ok !== true) return dryRun;
+  if (dryRun.decision !== "ready_requires_approval") return dryRun;
+  return {
+    ...dryRun,
+    decision: "ready_for_dispatch",
+    authority: {
+      ...(dryRun.authority || {}),
+      passed: Array.from(new Set([...(dryRun.authority?.passed || []), "capability_envelope_approved"])),
+      approved_envelope: envelope,
+    },
+    gates: {
+      ...(dryRun.gates || {}),
+      approval_required: false,
+      dispatch_allowed: true,
+      apply_allowed: false,
+      secrets_included: false,
+    },
+  };
+}
+
 function capabilityResolutionErrorCode(result = null) {
   return safeText(result?.error?.code || result?.status || "", 128).toUpperCase();
 }
@@ -469,6 +549,7 @@ export const CAPABILITY_ENABLEMENT_SYSTEM_TOOLS = Object.freeze([
         resource_ref: { type: "string", maxLength: 255 },
         resource_uri: { type: "string", maxLength: 512 },
         runtime_surface: { type: "string", maxLength: 191 },
+        capability_envelope_id: { type: "string", maxLength: 64, description: "Optional existing approved capability envelope id for diagnose-only handoff readiness classification." },
         include_explain: { type: "boolean", default: false },
       },
       additionalProperties: false,
@@ -491,6 +572,7 @@ export const CAPABILITY_ENABLEMENT_SYSTEM_TOOLS = Object.freeze([
         resource_ref: { type: "string", maxLength: 255 },
         resource_uri: { type: "string", maxLength: 512 },
         runtime_surface: { type: "string", maxLength: 191 },
+        capability_envelope_id: { type: "string", maxLength: 64, description: "Optional existing approved capability envelope id for diagnose-only handoff readiness classification." },
       },
       additionalProperties: false,
     },
@@ -541,8 +623,10 @@ export async function capabilityEnablementResolve(args = {}, context = {}) {
   const operationIntent = safeText(args.operation_intent || "read", 64);
   let effective = null;
   let dryRun = null;
+  let approvedEnvelope = null;
   let effectiveError = null;
   let dryRunError = null;
+  let envelopeError = null;
 
   if (!capabilityKey) {
     return { ok: false, tool: "capability_enablement_resolve", request_id: requestId, error: { code: "CAPABILITY_KEY_REQUIRED", message: "capability_key is required." }, secrets_included: false };
@@ -576,6 +660,14 @@ export async function capabilityEnablementResolve(args = {}, context = {}) {
         effectiveError = effectiveError || error;
       }
     }
+    if (args.capability_envelope_id) {
+      try {
+        approvedEnvelope = await loadApprovedCapabilityEnvelope(context.pool || getPool(), args, scope);
+        dryRun = applyApprovedEnvelopeToDryRun(dryRun, approvedEnvelope);
+      } catch (error) {
+        envelopeError = error;
+      }
+    }
   }
 
   const classification = classifyEnablementDecision({ effective, dryRun, operationIntent, secretBoundaryFailed });
@@ -603,13 +695,24 @@ export async function capabilityEnablementResolve(args = {}, context = {}) {
       membership: effective?.checks?.membership_ready === true ? "passed" : "not_ready",
       resource_authority: effective?.checks?.resource_authority_ready === true || dryRun?.authority?.status === "passed" ? "passed" : "not_ready",
       credential: effective?.checks?.connection_ready === true ? "passed" : "not_ready_or_not_required",
-      envelope: "not_created_diagnose_only",
+      envelope: approvedEnvelope?.ok === true ? "approved" : (approvedEnvelope ? "not_usable" : "not_created_diagnose_only"),
       certification: effective?.checks?.runtime_certification_ready === true ? "passed" : "not_ready_or_not_required",
     },
     next_actions: nextActions,
     effective_capability: publicEffectiveProjection(effective),
     dry_run: publicDryRunProjection(dryRun),
-    errors: { effective_capability: compactError(effectiveError), dry_run: compactError(dryRunError) },
+    approved_envelope: approvedEnvelope ? {
+      ok: approvedEnvelope.ok === true,
+      status: approvedEnvelope.status,
+      envelope_id: approvedEnvelope.envelope_id,
+      decision: approvedEnvelope.decision || null,
+      authority_status: approvedEnvelope.authority_status || null,
+      dispatch_allowed: approvedEnvelope.dispatch_allowed === true,
+      apply_allowed: false,
+      reason_codes: approvedEnvelope.reason_codes || [],
+      secrets_included: false,
+    } : null,
+    errors: { effective_capability: compactError(effectiveError), dry_run: compactError(dryRunError), envelope: compactError(envelopeError) },
     auto_actions_taken: [],
     proposals: [],
     provider_calls_made: 0,

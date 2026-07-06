@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import YAML from "yaml";
 
 const METHOD_NAMES = new Set(["get", "post", "put", "delete", "patch", "options", "head", "trace"]);
@@ -20,8 +20,14 @@ function collectOperations(doc) {
   return operations;
 }
 
+function schemaPath(file) {
+  const relocated = `openapi/${file}`;
+  if (existsSync(relocated)) return relocated;
+  return file;
+}
+
 function loadYaml(file) {
-  return YAML.parse(readFileSync(file, "utf8"));
+  return YAML.parse(readFileSync(schemaPath(file), "utf8"));
 }
 
 function resolveJsonPointer(doc, pointer) {
