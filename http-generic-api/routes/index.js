@@ -142,6 +142,7 @@ function registerOptionalSqlEndpointRegistryRoutes(app, deps) {
 }
 
 export function registerRoutes(app, deps) {
+  app.use(buildActivationHostGatewayRoutes());
   app.use(buildDeploymentInfoRoutes());
   app.use(buildBackupArtifactRoutes(deps));
   app.use(buildDevDbRestoreRoutes({ ...deps, requireAdminPrincipal }));
