@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const apiRoot = new URL("./", import.meta.url);
-const repoRoot = new URL("../", apiRoot);
-const surfaces = readFileSync(new URL("./openapi/custom-gpt-surfaces.yaml", repoRoot), "utf8");
+const apiRoot = fileURLToPath(new URL("./", import.meta.url));
+const repoRoot = resolve(apiRoot, "..");
+const surfaces = readFileSync(resolve(repoRoot, "canonicals/openapi/custom-gpt-surfaces.yaml"), "utf8");
 const apiRootEntries = readdirSync(apiRoot);
 
 const staleRootSchemas = apiRootEntries
