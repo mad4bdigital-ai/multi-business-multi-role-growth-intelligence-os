@@ -4,26 +4,13 @@
 
 ## Summary
 
-- Total queue items: 1
+- Total queue items: 0
 - Critical review: 0
-- High review: 1
+- High review: 0
 - Medium review: 0
 - Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
 
-### 1. `1036_sprint69_remote_runtime_deploy_dispatch_certification_renewal.sql`
-
-- Queue class: high_review
-- Score: 548
-- Gap severity: medium
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- Missing OpenAPI routes: none
-- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
-- Surface counts: plugins=0, tools=3, views=0, policies=0, routes=0
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `bounded_evidence_readback`, `positive_dry_run_passed_execution_gated_certified`, `release_readiness_55cff305_ebe6_4616_88a0_4e19040937f4_runtime_verification_ea0a81a9_ssh_probe_dry_run_dispatch_ready_true`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
-
+No actionable surface contract gaps detected.
