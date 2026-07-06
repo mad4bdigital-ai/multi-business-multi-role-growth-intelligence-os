@@ -173,6 +173,12 @@ assert.equal(migration955.coverage.route_coverage.missing_count, 0, "admin tool 
 assert.equal(migration955.coverage.route_coverage.exempted_route_count, 5, "migration 955 external delivery control routes must be OpenAPI-exempt registry routes");
 assert(migration955.coverage.route_coverage.route_classifications.every((entry) => entry.route_class === "admin_tool_registry_route"), "migration 955 route literals must be classified as admin_tool_registry_route");
 
+const migration1026 = report.all_migrations.find((entry) => entry.migration_file === "1026_sprint69_github_actions_runs_read_dispatch.sql");
+assert(migration1026, "migration 1026 must be discoverable for registry-driven provider endpoint route classification");
+assert.equal(migration1026.coverage.route_coverage.missing_count, 0, "registry-driven GitHub provider endpoint routes in migration 1026 must not be treated as public OpenAPI gaps");
+assert(migration1026.coverage.route_coverage.route_classifications.some((entry) => entry.route === "/repos/{owner}/{repo}/actions/runs"), "migration 1026 must preserve route classification evidence for the GitHub Actions workflow-runs provider path");
+assert(migration1026.coverage.route_coverage.route_classifications.every((entry) => entry.route_class === "registry_only_surface"), "migration 1026 route literals must be classified as registry_only_surface");
+
 const migration286 = report.all_migrations.find((entry) => entry.migration_file === "286_sprint68_platform_schema_contract_completion_registry.sql");
 assert(migration286, "migration 286 must be discoverable for synthetic endpoint schema route classification");
 assert.equal(migration286.coverage.route_coverage.missing_count, 0, "synthetic endpoint-native schema routes in migration 286 must not be treated as OpenAPI gaps");
