@@ -1,14 +1,14 @@
 # Surface Contract Governance Compact
 
-- Gate: pass
-- Blocking new items: 0
-- Docs completion: 486/486 (100%)
-- Queue items: 0
+- Gate: fail
+- Blocking new items: 1
+- Docs completion: 486/487 (99.79%)
+- Queue items: 1
 - OpenAPI missing SQL routes: 0
-- OpenAPI-exempt SQL route-like literals: 611/628
+- OpenAPI-exempt SQL route-like literals: 612/629
 - Safety marker gap migrations: 0
-- Trend quality gate: pass
+- Trend quality gate: fail
 
 ## Top actionable
 
-- none
+- `1036_sprint69_governance_debt_cleanup.sql` — high_review, score 652; add targeted patch-index, parity, and governance documentation
