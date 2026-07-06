@@ -78,6 +78,7 @@ async function loadRuntimeConfig(connection) {
     "audit_log_event_bus_bridge_schedule",
     "audit_event_rollup_builder_schedule",
     "governed_migration_reconciliation_scheduler",
+    "session_archive_stale_closure_autosweep",
   ];
   const [rows] = await connection.query(
     `SELECT config_key,config_json,status,note,updated_at
