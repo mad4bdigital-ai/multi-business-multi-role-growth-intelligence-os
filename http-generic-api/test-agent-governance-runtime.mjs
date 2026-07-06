@@ -618,7 +618,7 @@ for (const path of [
 const migrationRunner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 assert(migrationRunner.includes("245_sprint68_agent_governance_runtime.sql"));
 
-const tenantSpec = readFileSync("openapi.tenant-gpt.auth.yaml", "utf8");
+const tenantSpec = readFileSync("openapi/openapi.tenant-gpt.auth.yaml", "utf8");
 assert.equal(tenantSpec.includes("/platform/agent-governance/"), false);
 
 const schema = JSON.parse(readFileSync("../memory_schema.json", "utf8"));

@@ -14,6 +14,7 @@ import {
 const READINESS_OBJECTS = [
   "platform_semantic_capabilities",
   "platform_capability_provider_bindings",
+  "platform_tool_dispatch_bindings",
   "workspace_resource_grants",
   "credential_bindings",
   "capability_resolution_envelope_ledger",
@@ -131,6 +132,66 @@ function readyDryRun(overrides = {}) {
 }
 
 {
+  const queries = [];
+  const pool = {
+    async query(sql, params) {
+      queries.push({ sql, params });
+      assert.match(sql, /capability_resolution_envelope_ledger/);
+      return [[{
+        envelope_id: "11111111-1111-4111-8111-111111111111",
+        tenant_id: "tenant-override",
+        user_id: "user-override",
+        workspace_id: "workspace-1",
+        app_key: "github",
+        capability_key: "repo_patch_apply",
+        operation_intent: "write",
+        selected_runtime_surface: "repo_patch_apply",
+        authority_status: "passed",
+        decision: "ready_for_dispatch",
+        envelope_status: "ready_for_dispatch",
+        dispatch_allowed: 1,
+        apply_allowed: 0,
+        expires_at: new Date(Date.now() + 60_000).toISOString(),
+        secrets_included: 0,
+      }]];
+    },
+  };
+  const result = await capabilityEnablementResolve(
+    {
+      capability_key: "repo_patch_apply",
+      operation_intent: "write",
+      tenant_id: "tenant-override",
+      user_id: "user-override",
+      app_key: "github",
+      workspace_id: "workspace-1",
+      runtime_surface: "repo_patch_apply",
+      capability_envelope_id: "11111111-1111-4111-8111-111111111111",
+    },
+    {
+      auth: { is_admin: true, tenant_id: "platform-tenant", user_id: "admin-user" },
+      pool,
+      tenantEffectiveCapabilityPreview: async () => readyEffective(),
+      runCapabilityResolutionDryRun: async () => readyDryRun({
+        decision: "ready_requires_approval",
+        gates: { approval_required: true, dispatch_allowed: true, apply_allowed: false, secrets_included: false },
+      }),
+    }
+  );
+  assert.equal(queries.length, 1);
+  assert.equal(result.decision, "ready_for_dispatch");
+  assert.equal(result.checks.envelope, "approved");
+  assert.equal(result.approved_envelope.ok, true);
+  assert.equal(result.dry_run.decision, "ready_for_dispatch");
+  assert.equal(result.dry_run.gates.approval_required, false);
+  assert.equal(result.dry_run.authority.approved_envelope.ok, true);
+  assert.equal(result.proposals[0].action, "dispatch_with_existing_runtime_guard");
+  assert.equal(result.proposals[0].handoff_ready, true);
+  assert.equal(result.provider_calls_made, 0);
+  assert.equal(result.external_mutations_executed, false);
+  assert.equal(result.secrets_included, false);
+}
+
+{
   const writes = [];
   const pool = {
     async query(sql, params) {
@@ -154,6 +215,7 @@ function readyDryRun(overrides = {}) {
   assert.equal(writes.length, 3);
   assert.match(writes[0].sql, /capability_enablement_requests/);
   assert.match(writes[2].sql, /capability_enablement_steps/);
+  assert.equal(writes.some((write) => /CAST\(\? AS JSON\)/.test(write.sql)), false);
 }
 
 {
@@ -180,6 +242,67 @@ function readyDryRun(overrides = {}) {
   assert.equal(preview.tool, "capability_enablement_proposal_preview");
   assert.equal(preview.proposals.length, 1);
   assert.equal(preview.mutations_executed, false);
+}
+
+{
+  const poolQueries = [];
+  const pool = {
+    async query(sql, params) {
+      poolQueries.push({ sql, params });
+      assert.match(sql, /platform_tool_dispatch_bindings/);
+      return [[{
+        binding_id: "ptdb_repo_patch_apply_put_contents",
+        parent_action_key: "github_api_mcp",
+        endpoint_key: "create_or_update_file_contents",
+        export_key: "github_api_mcp:create_or_update_file_contents",
+        tool_key: "repo_patch_apply",
+        surface_class: "virtual_admin_tool",
+        scope_class: "admin",
+        capability_key: "github_file_patch_apply",
+        operation_intent: "github_repo_patch",
+        runtime_surface: "repo_patch_apply",
+        readback_policy_key: "github_file_sha_readback_v1",
+        partial_success_policy_key: "github_file_patch_no_partial_write_v1",
+        atomicity_mode: "single_file_mutation",
+        status: "active",
+        metadata_json: "{\"secrets_included\":false}",
+      }]];
+    },
+  };
+  const result = await capabilityEnablementResolve(
+    { capability_key: "repo_patch_apply", operation_intent: "write", app_key: "github", runtime_surface: "repo_patch_apply" },
+    {
+      auth: { is_admin: true, tenant_id: "tenant-1", user_id: "admin-user" },
+      pool,
+      tenantEffectiveCapabilityPreview: async () => ({ ok: false, status: "blocked", error: { code: "CAPABILITY_NOT_REGISTERED", message: "missing semantic capability" }, secrets_included: false }),
+      runCapabilityResolutionDryRun: async () => readyDryRun({ authority: { status: "passed", passed: ["dispatch_certification_present"] } }),
+    }
+  );
+  assert.equal(poolQueries.length, 1);
+  assert.equal(result.ok, true);
+  assert.equal(result.decision, "ready_for_dispatch");
+  assert.equal(result.effective_capability.status, "virtual_admin_tool_ready");
+  assert.equal(result.effective_capability.bridge.source, "platform_tool_dispatch_bindings");
+  assert.equal(result.effective_capability.binding.tool_key, "repo_patch_apply");
+  assert.equal(result.effective_capability.runtime.apply_allowed, false);
+  assert.equal(result.provider_calls_made, 0);
+  assert.equal(result.external_mutations_executed, false);
+  assert.equal(result.secrets_included, false);
+}
+
+{
+  const result = await capabilityEnablementResolve(
+    { capability_key: "repo_patch_apply", operation_intent: "write", app_key: "github", runtime_surface: "repo_patch_apply" },
+    {
+      auth: { is_admin: false, tenant_id: "tenant-1", user_id: "user-1" },
+      pool: { async query() { throw new Error("tenant principals must not query virtual admin bridge"); } },
+      tenantEffectiveCapabilityPreview: async () => ({ ok: false, status: "blocked", error: { code: "CAPABILITY_NOT_REGISTERED", message: "missing semantic capability" }, secrets_included: false }),
+      runCapabilityResolutionDryRun: async () => readyDryRun(),
+    }
+  );
+  assert.equal(result.decision, "blocked_policy_denied");
+  assert.deepEqual(result.reason_codes, ["CAPABILITY_NOT_REGISTERED"]);
+  assert.equal(result.secrets_included, false);
 }
 
 {
@@ -227,6 +350,51 @@ function readyDryRun(overrides = {}) {
   assert.equal(smoke.apply_allowed, false);
   assert.equal(smoke.secrets_included, false);
   assert.equal(calls.length, 1);
+}
+
+{
+  const classification = classifyEnablementDecision({
+    effective: {
+      ok: false,
+      status: "blocked",
+      error: {
+        code: "CAPABILITY_BINDING_MISSING",
+        message: "No active provider binding exists for the capability.",
+        details: { capability_key: "content.article.publish" },
+      },
+      secrets_included: false,
+    },
+    dryRun: readyDryRun({ decision: "blocked_requires_setup", blocking_gaps: ["app_integration_missing_or_unresolved"] }),
+    operationIntent: "read",
+  });
+  assert.equal(classification.decision, "needs_execution_enablement");
+  assert.deepEqual(classification.reason_codes, ["CAPABILITY_BINDING_MISSING"]);
+  const actions = buildCapabilityEnablementNextActions(classification, {
+    effective: { ok: false, status: "blocked", error: { code: "CAPABILITY_BINDING_MISSING" }, secrets_included: false },
+    dryRun: readyDryRun({ decision: "blocked_requires_setup" }),
+  });
+  assert.equal(actions[0].action, "request_capability_provider_binding_or_plugin_action_grant");
+  assert.equal(actions[0].required_role, "platform_admin");
+  assert.equal(actions[0].reason_code, "CAPABILITY_BINDING_MISSING");
+}
+
+{
+  const classification = classifyEnablementDecision({
+    effective: readyEffective({
+      status: "connection_not_validated",
+      ready: false,
+      checks: { membership_ready: true, resource_authority_ready: true, connection_ready: false, runtime_certification_ready: true },
+    }),
+    dryRun: readyDryRun(),
+    operationIntent: "read",
+  });
+  assert.equal(classification.decision, "needs_credential");
+  assert.deepEqual(classification.reason_codes, ["CONNECTION_NOT_VALIDATED"]);
+  const actions = buildCapabilityEnablementNextActions(classification, {
+    effective: readyEffective({ status: "connection_not_validated", ready: false }),
+    dryRun: readyDryRun(),
+  });
+  assert.equal(actions[0].action, "validate_connection");
 }
 
 console.log("capability enablement broker tests passed");

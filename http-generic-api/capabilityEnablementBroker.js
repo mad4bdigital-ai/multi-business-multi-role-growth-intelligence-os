@@ -6,6 +6,7 @@ import { runCapabilityResolutionDryRun } from "./scripts/capability-resolution-d
 const REQUIRED_READINESS_OBJECTS = Object.freeze([
   "platform_semantic_capabilities",
   "platform_capability_provider_bindings",
+  "platform_tool_dispatch_bindings",
   "workspace_resource_grants",
   "credential_bindings",
   "capability_resolution_envelope_ledger",
@@ -17,7 +18,7 @@ const REQUIRED_READINESS_OBJECTS = Object.freeze([
 ]);
 
 const APPLY_INTENTS = new Set(["apply", "publish", "deploy", "spend", "delete", "destructive"]);
-const READY_EFFECTIVE_STATUSES = new Set(["ready", "canary_ready", "shadow_ready"]);
+const READY_EFFECTIVE_STATUSES = new Set(["ready", "canary_ready", "shadow_ready", "virtual_admin_tool_ready"]);
 const CREDENTIAL_STATUSES = new Set(["connection_not_found", "connection_not_validated"]);
 const MAX_LIMIT = 100;
 
@@ -112,6 +113,202 @@ function dryRunGaps(result = null) {
   return Array.isArray(result?.blocking_gaps) ? result.blocking_gaps.map((gap) => safeText(gap, 128)).filter(Boolean) : [];
 }
 
+function safeUuid(value = "") {
+  const text = safeText(value, 64);
+  return /^[0-9a-fA-F-]{36}$/.test(text) ? text : "";
+}
+
+function valuesCompatible(requested = "", actual = "") {
+  const req = safeText(requested, 191);
+  const row = safeText(actual, 191);
+  return !req || !row || req === row;
+}
+
+function envelopeRuntimeCompatible(args = {}, row = {}) {
+  const runtime = safeText(args.runtime_surface, 191);
+  const selected = safeText(row.selected_runtime_surface, 191);
+  return valuesCompatible(runtime, selected) || valuesCompatible(runtime, row.capability_key);
+}
+
+async function loadApprovedCapabilityEnvelope(pool, args = {}, scope = {}) {
+  const envelopeId = safeUuid(args.capability_envelope_id);
+  if (!envelopeId) return null;
+  const [rows] = await pool.query(
+    `SELECT envelope_id, tenant_id, user_id, workspace_id, app_key, capability_key, operation_intent,
+            selected_runtime_surface, authority_status, decision, envelope_status, dispatch_allowed,
+            apply_allowed, expires_at, secrets_included
+       FROM capability_resolution_envelope_ledger
+      WHERE envelope_id = ?
+      LIMIT 1`,
+    [envelopeId]
+  );
+  const row = rows?.[0] || null;
+  if (!row) return { ok: false, status: "not_found", envelope_id: envelopeId, reason_codes: ["ENVELOPE_NOT_FOUND"], secrets_included: false };
+  const expiresAt = row.expires_at ? new Date(row.expires_at) : null;
+  const nowExpired = expiresAt instanceof Date && !Number.isNaN(expiresAt.getTime()) ? expiresAt.getTime() <= Date.now() : false;
+  const mismatches = [];
+  if (row.envelope_status !== "ready_for_dispatch") mismatches.push("ENVELOPE_NOT_APPROVED");
+  if (Number(row.dispatch_allowed || 0) !== 1) mismatches.push("DISPATCH_NOT_ALLOWED");
+  if (Number(row.secrets_included || 0) !== 0) mismatches.push("ENVELOPE_SECRET_FLAG_SET");
+  if (nowExpired) mismatches.push("ENVELOPE_EXPIRED");
+  if (!valuesCompatible(scope.tenant_id, row.tenant_id)) mismatches.push("TENANT_MISMATCH");
+  if (!valuesCompatible(scope.user_id, row.user_id)) mismatches.push("USER_MISMATCH");
+  if (!valuesCompatible(args.workspace_id, row.workspace_id)) mismatches.push("WORKSPACE_MISMATCH");
+  if (!valuesCompatible(args.app_key, row.app_key)) mismatches.push("APP_MISMATCH");
+  if (!valuesCompatible(args.capability_key, row.capability_key)) mismatches.push("CAPABILITY_MISMATCH");
+  if (!valuesCompatible(args.operation_intent, row.operation_intent)) mismatches.push("OPERATION_INTENT_MISMATCH");
+  if (!envelopeRuntimeCompatible(args, row)) mismatches.push("RUNTIME_SURFACE_MISMATCH");
+  const projection = {
+    envelope_id: row.envelope_id,
+    status: row.envelope_status,
+    decision: row.decision,
+    authority_status: row.authority_status,
+    dispatch_allowed: Number(row.dispatch_allowed || 0) === 1,
+    apply_allowed: false,
+    expires_at: row.expires_at || null,
+    secrets_included: false,
+  };
+  if (mismatches.length) return { ok: false, status: "not_usable", reason_codes: mismatches, ...projection };
+  return { ok: true, status: "approved", reason_codes: [], ...projection };
+}
+
+function applyApprovedEnvelopeToDryRun(dryRun = null, envelope = null) {
+  if (!dryRun || envelope?.ok !== true) return dryRun;
+  if (dryRun.decision !== "ready_requires_approval") return dryRun;
+  return {
+    ...dryRun,
+    decision: "ready_for_dispatch",
+    authority: {
+      ...(dryRun.authority || {}),
+      passed: Array.from(new Set([...(dryRun.authority?.passed || []), "capability_envelope_approved"])),
+      approved_envelope: envelope,
+    },
+    gates: {
+      ...(dryRun.gates || {}),
+      approval_required: false,
+      dispatch_allowed: true,
+      apply_allowed: false,
+      secrets_included: false,
+    },
+  };
+}
+
+function capabilityResolutionErrorCode(result = null) {
+  return safeText(result?.error?.code || result?.status || "", 128).toUpperCase();
+}
+
+function shouldTryVirtualAdminToolBridge(effective = null, auth = {}) {
+  if (!isAdminPrincipal(auth)) return false;
+  if (effective?.ok !== false) return false;
+  const code = capabilityResolutionErrorCode(effective);
+  return code === "CAPABILITY_NOT_REGISTERED" || code === "CAPABILITY_BINDING_MISSING";
+}
+
+function virtualBridgeCandidates(args = {}, dryRun = null) {
+  return Array.from(new Set([
+    safeText(args.runtime_surface, 191),
+    safeText(args.capability_key, 191),
+    safeText(args.app_key, 128),
+    safeText(dryRun?.selected_source?.selected_runtime_surface, 191),
+    safeText(dryRun?.capability?.capability_key, 191),
+  ].filter(Boolean)));
+}
+
+function rankVirtualBridgeRow(row = {}, candidates = []) {
+  const exact = new Set(candidates);
+  if (exact.has(row.tool_key)) return 0;
+  if (exact.has(row.runtime_surface)) return 1;
+  if (exact.has(row.capability_key)) return 2;
+  return 10;
+}
+
+async function resolveVirtualAdminToolBridge(pool, args = {}, scope = {}, dryRun = null) {
+  const candidates = virtualBridgeCandidates(args, dryRun);
+  if (!candidates.length) return null;
+  const placeholders = candidates.map(() => "?").join(", ");
+  const params = [...candidates, ...candidates, ...candidates];
+  const [rows] = await pool.query(
+    `SELECT binding_id, parent_action_key, endpoint_key, export_key, tool_key, surface_class, scope_class,
+            capability_key, operation_intent, runtime_surface, readback_policy_key, partial_success_policy_key,
+            atomicity_mode, status, metadata_json
+       FROM platform_tool_dispatch_bindings
+      WHERE status = 'active'
+        AND scope_class = 'admin'
+        AND surface_class IN ('virtual_admin_tool', 'db_admin_tool')
+        AND (tool_key IN (${placeholders}) OR runtime_surface IN (${placeholders}) OR capability_key IN (${placeholders}))
+      LIMIT 20`,
+    params
+  );
+  const ranked = [...(rows || [])].sort((a, b) => rankVirtualBridgeRow(a, candidates) - rankVirtualBridgeRow(b, candidates));
+  const row = ranked[0];
+  if (!row) return null;
+  const dispatchReady = dryRun?.authority?.status === "passed" || dryRun?.gates?.dispatch_allowed === true;
+  return {
+    ok: true,
+    status: "virtual_admin_tool_ready",
+    ready: dispatchReady,
+    workspace: dryRun?.request_context ? {
+      tenant_id: dryRun.request_context.tenant_id || scope.tenant_id || null,
+      workspace_id: dryRun.request_context.workspace_id || safeText(args.workspace_id, 64) || null,
+      workspace_key: dryRun.request_context.workspace_key || safeText(args.workspace_key, 191) || null,
+    } : null,
+    membership: { status: scope.user_id ? "admin_override" : "admin", role: "platform_admin" },
+    capability: {
+      capability_key: safeText(args.capability_key, 191),
+      virtual_capability_key: row.capability_key || null,
+      operation_key: safeText(args.operation_intent, 64) || row.operation_intent || null,
+      risk_class: dryRun?.capability?.risk_class || "high",
+      source: "virtual_admin_tool_bridge",
+    },
+    binding: {
+      binding_id: row.binding_id,
+      tool_key: row.tool_key,
+      surface_class: row.surface_class,
+      scope_class: row.scope_class,
+      app_key: safeText(args.app_key || dryRun?.capability?.app_key, 128) || null,
+      parent_action_key: row.parent_action_key,
+      endpoint_key: row.endpoint_key,
+      operation_intent: row.operation_intent,
+      runtime_surface: row.runtime_surface,
+      readback_policy_key: row.readback_policy_key,
+      atomicity_mode: row.atomicity_mode,
+    },
+    authority: {
+      dispatch_binding_present: true,
+      dispatch_binding_status: row.status,
+      dry_run_authority_status: dryRun?.authority?.status || null,
+      readback_policy_key: row.readback_policy_key,
+      partial_success_policy_key: row.partial_success_policy_key || null,
+    },
+    runtime: {
+      export_key: row.export_key || row.tool_key,
+      runtime_surface: row.runtime_surface || row.tool_key,
+      dispatch_allowed: dryRun?.gates?.dispatch_allowed === true,
+      apply_allowed: false,
+      atomicity_mode: row.atomicity_mode,
+    },
+    checks: {
+      membership_ready: true,
+      resource_authority_ready: dryRun?.authority?.status === "passed" || dryRun?.gates?.dispatch_allowed === true,
+      connection_ready: true,
+      runtime_certification_ready: Array.isArray(dryRun?.authority?.passed) ? dryRun.authority.passed.includes("dispatch_certification_present") : false,
+      virtual_admin_tool_bridge_ready: true,
+    },
+    bridge: {
+      source: "platform_tool_dispatch_bindings",
+      binding_id: row.binding_id,
+      tool_key: row.tool_key,
+      surface_class: row.surface_class,
+      credential_boundary: "platform_managed_or_not_required",
+      provider_calls_made: 0,
+      external_mutations_executed: false,
+      secrets_included: false,
+    },
+    manifest_hash: hashJson({ binding_id: row.binding_id, tool_key: row.tool_key, runtime_surface: row.runtime_surface, dry_run_decision: dryRun?.decision || null }),
+    secrets_included: false,
+  };
+}
+
 export function classifyEnablementDecision({ effective = null, dryRun = null, operationIntent = "read", secretBoundaryFailed = false } = {}) {
   const effectiveStatus = effectiveStatusFrom(effective);
   const dryRunDecision = dryRunDecisionFrom(dryRun);
@@ -126,11 +323,14 @@ export function classifyEnablementDecision({ effective = null, dryRun = null, op
     return { decision: "blocked_apply_not_supported", reason_codes: ["APPLY_AUTHORITY_NOT_AUTO_GRANTABLE"], next_allowed_mode: "diagnose" };
   }
   if (effective?.ok === false) {
-    const code = normalize(effective.error?.code || "effective_capability_failed");
+    const rawCode = safeText(effective.error?.code || "EFFECTIVE_CAPABILITY_RESOLUTION_FAILED", 128).toUpperCase();
+    const code = normalize(rawCode);
     if (code.includes("membership")) return { decision: "blocked_missing_membership", reason_codes: ["MEMBERSHIP_REQUIRED"], next_allowed_mode: "none" };
     if (code.includes("tenant") || code.includes("user")) return { decision: "blocked_out_of_scope", reason_codes: ["TENANT_OR_USER_CONTEXT_REQUIRED"], next_allowed_mode: "diagnose" };
     if (code.includes("workspace")) return { decision: "needs_resource_binding", reason_codes: ["WORKSPACE_CONTEXT_MISSING"], next_allowed_mode: "diagnose" };
-    if (code.includes("capability")) return { decision: "blocked_policy_denied", reason_codes: ["CAPABILITY_NOT_REGISTERED"], next_allowed_mode: "diagnose" };
+    if (code.includes("capability_binding_missing")) return { decision: "needs_execution_enablement", reason_codes: ["CAPABILITY_BINDING_MISSING"], next_allowed_mode: "diagnose" };
+    if (code.includes("capability_not_registered")) return { decision: "blocked_policy_denied", reason_codes: ["CAPABILITY_NOT_REGISTERED"], next_allowed_mode: "diagnose" };
+    if (code.includes("capability")) return { decision: "blocked_policy_denied", reason_codes: [rawCode || "CAPABILITY_NOT_REGISTERED"], next_allowed_mode: "diagnose" };
     return { decision: "degraded_contract", reason_codes: ["EFFECTIVE_CAPABILITY_RESOLUTION_FAILED"], next_allowed_mode: "diagnose" };
   }
   if (effectiveStatus === "workspace_membership_required") return { decision: "blocked_missing_membership", reason_codes: ["MEMBERSHIP_REQUIRED"], next_allowed_mode: "none" };
@@ -166,6 +366,8 @@ export function buildCapabilityEnablementNextActions(classification = {}, { effe
   if (reasonCodes.has("CONNECTION_MISSING")) push("complete_credential_intake", "tenant_owner", "CONNECTION_MISSING");
   if (reasonCodes.has("CONNECTION_NOT_VALIDATED")) push("validate_connection", "tenant_owner", "CONNECTION_NOT_VALIDATED");
   if (reasonCodes.has("CREDENTIAL_BINDING_MISSING")) push("run_credential_effective_plan", "tenant_owner", "CREDENTIAL_BINDING_MISSING");
+  if (reasonCodes.has("CAPABILITY_BINDING_MISSING")) push("request_capability_provider_binding_or_plugin_action_grant", "platform_admin", "CAPABILITY_BINDING_MISSING");
+  if (reasonCodes.has("CAPABILITY_NOT_REGISTERED")) push("register_semantic_capability_or_request_platform_review", "platform_admin", "CAPABILITY_NOT_REGISTERED");
   if (reasonCodes.has("CAPABILITY_NOT_GRANTED")) push("create_action_grant_or_approval_hold", "tenant_owner", "CAPABILITY_NOT_GRANTED");
   if (reasonCodes.has("RESOURCE_AUTHORITY_MISSING")) push("create_resource_authority_binding", "tenant_owner_or_platform_admin", "RESOURCE_AUTHORITY_MISSING");
   if (reasonCodes.has("DISPATCH_CERTIFICATION_MISSING")) push("run_scenario_readback_and_issue_dispatch_certification", "platform_admin", "DISPATCH_CERTIFICATION_MISSING");
@@ -242,6 +444,7 @@ function publicEffectiveProjection(effective = null) {
     authority: effective.authority || null,
     runtime: effective.runtime || null,
     checks: effective.checks || null,
+    bridge: effective.bridge || null,
     manifest_hash: effective.manifest_hash || null,
     secrets_included: false,
   };
@@ -278,7 +481,7 @@ async function recordCapabilityEnablementResult(pool, result, args = {}) {
        (request_id, tenant_id, user_id, caller_type, capability_key, operation_intent, app_key, runtime_surface, workspace_id, resource_uri,
         decision, next_allowed_mode, reason_codes_json, input_hash_sha256, effective_hash_sha256, dry_run_hash_sha256,
         classification_json, projection_json, provider_calls_made, external_mutations_executed, internal_persistence_executed, secrets_included, expires_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?, ?, CAST(? AS JSON), CAST(? AS JSON), ?, ?, 1, 0, DATE_ADD(NOW(), INTERVAL 90 DAY))
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, DATE_ADD(NOW(), INTERVAL 90 DAY))
      ON DUPLICATE KEY UPDATE decision=VALUES(decision), next_allowed_mode=VALUES(next_allowed_mode), reason_codes_json=VALUES(reason_codes_json),
        projection_json=VALUES(projection_json), secrets_included=0`,
     [
@@ -309,7 +512,7 @@ async function recordCapabilityEnablementResult(pool, result, args = {}) {
     await pool.query(
       `INSERT INTO capability_enablement_steps
          (step_id, request_id, step_order, action_key, required_role, reason_code, status, proposal_json, secrets_included)
-       VALUES (?, ?, ?, ?, ?, ?, 'proposed', CAST(? AS JSON), 0)`,
+       VALUES (?, ?, ?, ?, ?, ?, 'proposed', ?, 0)`,
       [
         `cebs_${crypto.randomUUID()}`,
         result.request_id,
@@ -346,6 +549,7 @@ export const CAPABILITY_ENABLEMENT_SYSTEM_TOOLS = Object.freeze([
         resource_ref: { type: "string", maxLength: 255 },
         resource_uri: { type: "string", maxLength: 512 },
         runtime_surface: { type: "string", maxLength: 191 },
+        capability_envelope_id: { type: "string", maxLength: 64, description: "Optional existing approved capability envelope id for diagnose-only handoff readiness classification." },
         include_explain: { type: "boolean", default: false },
       },
       additionalProperties: false,
@@ -368,6 +572,7 @@ export const CAPABILITY_ENABLEMENT_SYSTEM_TOOLS = Object.freeze([
         resource_ref: { type: "string", maxLength: 255 },
         resource_uri: { type: "string", maxLength: 512 },
         runtime_surface: { type: "string", maxLength: 191 },
+        capability_envelope_id: { type: "string", maxLength: 64, description: "Optional existing approved capability envelope id for diagnose-only handoff readiness classification." },
       },
       additionalProperties: false,
     },
@@ -418,8 +623,10 @@ export async function capabilityEnablementResolve(args = {}, context = {}) {
   const operationIntent = safeText(args.operation_intent || "read", 64);
   let effective = null;
   let dryRun = null;
+  let approvedEnvelope = null;
   let effectiveError = null;
   let dryRunError = null;
+  let envelopeError = null;
 
   if (!capabilityKey) {
     return { ok: false, tool: "capability_enablement_resolve", request_id: requestId, error: { code: "CAPABILITY_KEY_REQUIRED", message: "capability_key is required." }, secrets_included: false };
@@ -444,6 +651,22 @@ export async function capabilityEnablementResolve(args = {}, context = {}) {
     } catch (error) {
       dryRunError = error;
       dryRun = null;
+    }
+    if (shouldTryVirtualAdminToolBridge(effective, auth)) {
+      try {
+        const bridged = await (context.resolveVirtualAdminToolBridge || resolveVirtualAdminToolBridge)(context.pool || getPool(), args, scope, dryRun);
+        if (bridged?.ok === true) effective = bridged;
+      } catch (error) {
+        effectiveError = effectiveError || error;
+      }
+    }
+    if (args.capability_envelope_id) {
+      try {
+        approvedEnvelope = await loadApprovedCapabilityEnvelope(context.pool || getPool(), args, scope);
+        dryRun = applyApprovedEnvelopeToDryRun(dryRun, approvedEnvelope);
+      } catch (error) {
+        envelopeError = error;
+      }
     }
   }
 
@@ -472,13 +695,24 @@ export async function capabilityEnablementResolve(args = {}, context = {}) {
       membership: effective?.checks?.membership_ready === true ? "passed" : "not_ready",
       resource_authority: effective?.checks?.resource_authority_ready === true || dryRun?.authority?.status === "passed" ? "passed" : "not_ready",
       credential: effective?.checks?.connection_ready === true ? "passed" : "not_ready_or_not_required",
-      envelope: "not_created_diagnose_only",
+      envelope: approvedEnvelope?.ok === true ? "approved" : (approvedEnvelope ? "not_usable" : "not_created_diagnose_only"),
       certification: effective?.checks?.runtime_certification_ready === true ? "passed" : "not_ready_or_not_required",
     },
     next_actions: nextActions,
     effective_capability: publicEffectiveProjection(effective),
     dry_run: publicDryRunProjection(dryRun),
-    errors: { effective_capability: compactError(effectiveError), dry_run: compactError(dryRunError) },
+    approved_envelope: approvedEnvelope ? {
+      ok: approvedEnvelope.ok === true,
+      status: approvedEnvelope.status,
+      envelope_id: approvedEnvelope.envelope_id,
+      decision: approvedEnvelope.decision || null,
+      authority_status: approvedEnvelope.authority_status || null,
+      dispatch_allowed: approvedEnvelope.dispatch_allowed === true,
+      apply_allowed: false,
+      reason_codes: approvedEnvelope.reason_codes || [],
+      secrets_included: false,
+    } : null,
+    errors: { effective_capability: compactError(effectiveError), dry_run: compactError(dryRunError), envelope: compactError(envelopeError) },
     auto_actions_taken: [],
     proposals: [],
     provider_calls_made: 0,

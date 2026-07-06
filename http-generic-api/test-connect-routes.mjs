@@ -124,8 +124,8 @@ try {
   {
     // MCP-style tenant schema plus direct tenant Platform Plugin self-serve actions.
     // Connect/system operations are still accessed via callTool (discovered through listTools).
-    const doc = YAML.parse(readFileSync("openapi.tenant-gpt.auth.yaml", "utf8"));
-    const activationDoc = YAML.parse(readFileSync("openapi.tenant-gpt.activation.yaml", "utf8"));
+    const doc = YAML.parse(readFileSync("openapi/openapi.tenant-gpt.auth.yaml", "utf8"));
+    const activationDoc = YAML.parse(readFileSync("openapi/openapi.tenant-gpt.activation.yaml", "utf8"));
     const exposedPaths = Object.keys(doc.paths || {});
     const securityScheme = doc.components?.securitySchemes?.userBearerAuth;
     const callToolSchema = doc.paths?.["/system/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
@@ -690,7 +690,7 @@ section("connect api auth scope");
   section("local connector GPT action schema");
 
   {
-    const doc = YAML.parse(readFileSync("openapi.gpt-action.local-connector.yaml", "utf8"));
+    const doc = YAML.parse(readFileSync("openapi/openapi.gpt-action.local-connector.yaml", "utf8"));
     const exposedPaths = Object.keys(doc.paths || {});
     const allOperations = exposedPaths.flatMap((pathKey) => {
       const pathItem = doc.paths[pathKey] || {};
@@ -1019,7 +1019,7 @@ const doc = (() => {
       releaseMigrationSource.includes("Mad4B-Local-Manager-Setup.exe"));
     const deviceLinkSource = readFileSync("services/localManagerDeviceLinkService.js", "utf8");
     assert("local manager Windows default download redirects to public EXE release asset",
-      betaSource.includes("Mad4B-Local-Manager-Setup-0.2.15.exe") &&
+      betaSource.includes("Mad4B-Local-Manager-Setup-0.2.16.exe") &&
       betaSource.includes("releases/download/local-manager-windows-latest") &&
       !betaSource.includes("Mad4B-Local-Manager-Windows-Bootstrap.ps1") &&
       !betaSource.includes("connector_secret") &&

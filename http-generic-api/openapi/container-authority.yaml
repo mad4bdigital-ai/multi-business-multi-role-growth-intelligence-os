@@ -412,6 +412,9 @@ responses:
   InternalError:
     description: Unexpected container authority failure. No stack trace or secret is returned.
     content: { application/json: { schema: { $ref: '#/schemas/ErrorResponse' } } }
+  ServiceUnavailable:
+    description: Temporary container projection dependency failure.
+    content: { application/json: { schema: { $ref: '#/schemas/ErrorResponse' } } }
 
 containerContextResolutions:
   post:
@@ -667,6 +670,7 @@ adminContainerProjectionPreview:
       '400': { $ref: '#/responses/BadRequest' }
       '401': { $ref: '#/responses/Unauthorized' }
       '403': { $ref: '#/responses/Forbidden' }
+      '503': { $ref: '#/responses/ServiceUnavailable' }
       '500': { $ref: '#/responses/InternalError' }
 
 containerAuthorityProjections:
@@ -674,7 +678,7 @@ containerAuthorityProjections:
     tags: [container-authority]
     operationId: createContainerAuthorityProjection
     summary: Dry-run or SQL-only apply the legacy identity projection
-    description: Uses brands.target_key as canonical Brand identity and holds ambiguous workspace, Brand, Activity, or Workflow mappings instead of guessing. Apply remains provider-free and projects Platform Graph rows as context-only.
+    description: Uses brands.target_key as canonical Brand identity and holds ambiguous workspace, Brand, Activity, or Workflow mappings instead of guessing. Apply remains provider-free and projects Platform Graph rows as context-only. Source-loading dependency failures return the shared `503 ServiceUnavailable` error response.
     security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
     requestBody:
       required: false

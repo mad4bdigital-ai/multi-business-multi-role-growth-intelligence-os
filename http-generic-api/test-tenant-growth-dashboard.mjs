@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import YAML from "yaml";
 import {
   normalizeDashboardPreferences,
@@ -9,7 +9,13 @@ import {
   _testingTenantGrowthDashboard,
 } from "./tenantGrowthDashboardService.js";
 
-const read = (path) => readFileSync(path, "utf8");
+const read = (path) => {
+  if (path.startsWith("openapi.") && path.endsWith(".yaml")) {
+    const relocated = `openapi/${path}`;
+    if (existsSync(relocated)) return readFileSync(relocated, "utf8");
+  }
+  return readFileSync(path, "utf8");
+};
 
 const normalized = normalizeDashboardPreferences({
   active_container_key: "workspace:one",

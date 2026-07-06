@@ -79,6 +79,24 @@ function testStableKeysAndExecutionGrouping() {
   assert.equal(grouped[0].occurrence_count, 2);
   assert.equal(grouped[0].latest_id, 2);
   assert.equal(grouped[0].execution_trace_id_writeback, "trace-2");
+
+  const preAggregated = _testingOperationalAlerts.groupExecutionRows([
+    {
+      id: 7,
+      tenant_id: "tenant-1",
+      workspace_id: "workspace-1",
+      execution_status: "failed",
+      entry_type: "workflow",
+      app_key: "github",
+      workflow_key: "ci",
+      route_status: "failed",
+      failure_reason: "failed_validation",
+      occurrence_count: 23,
+      created_at: "2026-06-14T12:00:00.000Z",
+    },
+  ]);
+  assert.equal(preAggregated.length, 1);
+  assert.equal(preAggregated[0].occurrence_count, 23, "SQL pre-aggregated execution counts must be preserved");
 }
 
 function testP0ReconciliationSemantics() {
@@ -301,6 +319,15 @@ function testRepositoryContracts() {
   assert.match(service, /operational_alert_notification_outbox/);
   assert.match(service, /resolution_skipped_due_to_degraded_sources/);
   assert.match(service, /truncated_sources/);
+  assert.match(service, /collectExecutionLogSource/);
+  assert.doesNotMatch(service, /EXECUTION_LOG_MAX_ROWS/);
+  assert.doesNotMatch(service, /execution_log: EXECUTION_LOG_MAX_ROWS/);
+  assert.match(service, /COUNT\(\*\) AS occurrence_count/);
+  assert.match(service, /WHERE NOT EXISTS/);
+  assert.match(service, /sql_primary_execution_log_aggregate/);
+  assert.match(service, /aggregation: "operation_resource_failure_groups"/);
+  assert.match(service, /source_authority: "sql_primary_runtime_tables_plus_operational_alert_lifecycle"/);
+  assert.match(service, /sheets_recovery_not_used_for_operational_alerts/);
   assert.match(service, /groupSkillApprovalRows/);
   assert.match(service, /notification_skipped_count/);
   assert.match(openapi, /notification_skipped_count/);
@@ -310,6 +337,14 @@ function testRepositoryContracts() {
   assert.match(service, /resource_fingerprint_sha256 = VALUES\(resource_fingerprint_sha256\)/);
   assert.match(service, /operationFingerprintSha256: row\.operation_fingerprint_sha256/);
   assert.match(service, /resourceFingerprintSha256: row\.resource_fingerprint_sha256/);
+  assert.match(service, /FOR UPDATE/);
+  assert.match(service, /lifecycle_revision = lifecycle_revision \+ 1/);
+  assert.match(service, /INSERT INTO operational_alert_lifecycle_events/);
+  assert.match(service, /idempotency_key = \?/);
+  assert.match(service, /idempotent_replay: true/);
+  assert.match(service, /event: sanitizeEvidence/);
+  assert.match(routes, /actorType: queryText\(req\.body\?\.actor_type/);
+  assert.match(routes, /idempotencyKey: queryText\(req\.body\?\.idempotency_key/);
   assert.match(reconciliationMigration, /active_effective_scope_key/);
   assert.match(reconciliationMigration, /uq_agent_skill_grants_active_effective_scope/);
   assert.match(reconciliationMigration, /p0_reconciliation_required/);

@@ -485,6 +485,64 @@ internal static class Program
             }
         }
 
+        private async Task<bool> RequireCurrentVersionForPrivilegedActionAsync(string actionName)
+        {
+            try
+            {
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+                var infoUrl = UpdateInfoUrl + "?current_version=" + Uri.EscapeDataString(CurrentSemVer());
+                using var response = await client.GetAsync(infoUrl);
+                var text = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    _status.Text = actionName + " blocked: could not verify the latest Local Manager version.";
+                    _output.Text = JsonSerializer.Serialize(new
+                    {
+                        privileged_action_blocked = true,
+                        action = actionName,
+                        reason = "update_check_failed",
+                        status_code = (int)response.StatusCode,
+                        current_version = CurrentSemVer(),
+                        secrets_included = false
+                    }, _json);
+                    return false;
+                }
+
+                var info = JsonSerializer.Deserialize<WindowsUpdateInfo>(text, _json);
+                if (info?.Ok == true && info.UpdateAvailable == true)
+                {
+                    _status.Text = actionName + " blocked until Local Manager is updated to " + info.LatestVersion + ".";
+                    _output.Text = JsonSerializer.Serialize(new
+                    {
+                        privileged_action_blocked = true,
+                        action = actionName,
+                        reason = "local_manager_update_required",
+                        current_version = info.CurrentVersion ?? CurrentSemVer(),
+                        latest_version = info.LatestVersion,
+                        secrets_included = false
+                    }, _json);
+                    await CheckAndInstallUpdateAsync(true);
+                    return false;
+                }
+
+                return info?.Ok == true;
+            }
+            catch (Exception ex)
+            {
+                _status.Text = actionName + " blocked: update status could not be verified.";
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    privileged_action_blocked = true,
+                    action = actionName,
+                    reason = "update_check_exception",
+                    error = ex.Message,
+                    current_version = CurrentSemVer(),
+                    secrets_included = false
+                }, _json);
+                return false;
+            }
+        }
+
         private async Task RunStartupAutopilotAsync()
         {
             if (_autopilotRecoveryRunning || _autopilotRecoveryAttempted) return;
@@ -540,6 +598,8 @@ internal static class Program
                 _output.Text = "No linked device token.\r\nUse 'Link this device' first.";
                 return;
             }
+
+            if (!await RequireCurrentVersionForPrivilegedActionAsync("Repair connector")) return;
 
             try
             {
@@ -633,6 +693,14 @@ internal static class Program
                     if (string.IsNullOrWhiteSpace(appAlias.Text)) appAlias.Text = SafeFileSegment(Path.GetFileNameWithoutExtension(dialog.FileName)).ToLowerInvariant();
                 }
             };
+            var supportedApps = new Button { Text = "Supported apps", Location = new Point(482, 222), Size = new Size(120, 32) };
+            supportedApps.Click += (_, _) =>
+            {
+                var selected = PickSupportedApp(form);
+                if (selected is null) return;
+                appAlias.Text = selected.Alias;
+                appPath.Text = selected.ExecutablePath;
+            };
             var discoverApps = new Button { Text = "Installed apps", Location = new Point(614, 222), Size = new Size(110, 32) };
             discoverApps.Click += (_, _) =>
             {
@@ -674,7 +742,7 @@ internal static class Program
             };
             var ok = new Button { Text = "Create installer", DialogResult = DialogResult.OK, Location = new Point(488, 508), Size = new Size(130, 34) };
             var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(626, 508), Size = new Size(82, 34) };
-            form.Controls.AddRange(new Control[] { intro, powershell, windowsControl, appLabel, appAlias, appPath, browseApp, discoverApps, folderLabel, allowedPath, browseFolder, helperLabel, helperAlias, helperPath, browseHelper, warning, ok, cancel });
+            form.Controls.AddRange(new Control[] { intro, powershell, windowsControl, appLabel, appAlias, appPath, browseApp, supportedApps, discoverApps, folderLabel, allowedPath, browseFolder, helperLabel, helperAlias, helperPath, browseHelper, warning, ok, cancel });
             form.AcceptButton = ok;
             form.CancelButton = cancel;
 
@@ -715,6 +783,8 @@ internal static class Program
                 _status.Text = "No connector capability or permission changes selected.";
                 return;
             }
+
+            if (!await RequireCurrentVersionForPrivilegedActionAsync("Connector capabilities")) return;
 
             try
             {
@@ -839,6 +909,80 @@ internal static class Program
         private sealed record InstalledAppChoice(string DisplayName, string ExecutablePath)
         {
             public override string ToString() => $"{DisplayName} — {ExecutablePath}";
+        }
+
+        private sealed record SupportedAppChoice(string Alias, string DisplayName, string ExecutablePath)
+        {
+            public override string ToString() => $"{DisplayName} ({Alias}) — {ExecutablePath}";
+        }
+
+        private static SupportedAppChoice? PickSupportedApp(IWin32Window owner)
+        {
+            var apps = DiscoverSupportedApps().OrderBy(app => app.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+            if (apps.Count == 0)
+            {
+                MessageBox.Show(owner, "No supported app templates were found on this Windows profile. Use Installed apps or Browse instead.", "Supported apps", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return null;
+            }
+
+            using var form = new Form
+            {
+                Text = "Choose supported app",
+                StartPosition = FormStartPosition.CenterParent,
+                Size = new Size(760, 520),
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                Font = new Font("Segoe UI", 10)
+            };
+            var filter = new TextBox { PlaceholderText = "Search supported apps…", Location = new Point(16, 16), Size = new Size(710, 30) };
+            var list = new ListBox { Location = new Point(16, 56), Size = new Size(710, 360), HorizontalScrollbar = true };
+            var ok = new Button { Text = "Use selected", DialogResult = DialogResult.OK, Location = new Point(500, 430), Size = new Size(130, 34) };
+            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(642, 430), Size = new Size(82, 34) };
+            void RefreshList()
+            {
+                var q = filter.Text.Trim();
+                list.Items.Clear();
+                foreach (var app in apps.Where(app => string.IsNullOrWhiteSpace(q) || app.DisplayName.Contains(q, StringComparison.OrdinalIgnoreCase) || app.Alias.Contains(q, StringComparison.OrdinalIgnoreCase) || app.ExecutablePath.Contains(q, StringComparison.OrdinalIgnoreCase)).Take(300))
+                {
+                    list.Items.Add(app);
+                }
+                if (list.Items.Count > 0 && list.SelectedIndex < 0) list.SelectedIndex = 0;
+            }
+            filter.TextChanged += (_, _) => RefreshList();
+            list.DoubleClick += (_, _) => { if (list.SelectedItem is not null) form.DialogResult = DialogResult.OK; };
+            form.Controls.AddRange(new Control[] { filter, list, ok, cancel });
+            form.AcceptButton = ok;
+            form.CancelButton = cancel;
+            RefreshList();
+            return form.ShowDialog(owner) == DialogResult.OK ? list.SelectedItem as SupportedAppChoice : null;
+        }
+
+        private static IEnumerable<SupportedAppChoice> DiscoverSupportedApps()
+        {
+            var seenAliases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var template in SupportedAppTemplates())
+            {
+                foreach (var candidate in template.Candidates.Select(Environment.ExpandEnvironmentVariables))
+                {
+                    if (string.IsNullOrWhiteSpace(candidate) || !File.Exists(candidate)) continue;
+                    if (!seenAliases.Add(template.Alias)) continue;
+                    yield return new SupportedAppChoice(template.Alias, template.DisplayName, candidate);
+                    break;
+                }
+            }
+        }
+
+        private static IEnumerable<(string Alias, string DisplayName, string[] Candidates)> SupportedAppTemplates()
+        {
+            var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            yield return ("edge", "Microsoft Edge", new[] { Path.Combine(programFilesX86, "Microsoft", "Edge", "Application", "msedge.exe"), Path.Combine(programFiles, "Microsoft", "Edge", "Application", "msedge.exe") });
+            yield return ("chrome", "Google Chrome", new[] { Path.Combine(programFiles, "Google", "Chrome", "Application", "chrome.exe"), Path.Combine(programFilesX86, "Google", "Chrome", "Application", "chrome.exe") });
+            yield return ("vscode", "Visual Studio Code", new[] { Path.Combine(localAppData, "Programs", "Microsoft VS Code", "Code.exe"), Path.Combine(programFiles, "Microsoft VS Code", "Code.exe") }); yield return ("cursor", "Cursor", new[] { Path.Combine(localAppData, "Programs", "Cursor", "Cursor.exe"), Path.Combine(programFiles, "Cursor", "Cursor.exe") });
+            yield return ("notepad", "Windows Notepad", new[] { Path.Combine(windows, "System32", "notepad.exe") });
         }
 
         private static InstalledAppChoice? PickInstalledApp(IWin32Window owner)
