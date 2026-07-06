@@ -18,7 +18,7 @@ surfaces:
 
   activation_admin:
     mode: generated_from_openapi
-    output_file: openapi.custom-gpt.activation-admin.yaml
+    output_file: openapi/openapi.custom-gpt.activation-admin.yaml
     server_url: https://activation.mad4b.com
     auth_profile: admin_service
     hard_operation_limit: 20
