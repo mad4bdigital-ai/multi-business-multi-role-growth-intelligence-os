@@ -1398,7 +1398,7 @@ async function executeGitHubRestFallbackCore(args = []) {
       || allowedBranchRefUpdate
     );
     if (!allowedRead && !allowedMutation) {
-      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus guarded PR close, PR update-branch, PR merge, workflow dispatches, repo merges, guarded branch ref updates, and guarded contents PUT mutations.");
+      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits/contents/release/artifact reads plus guarded PR close, PR update-branch, PR merge, workflow dispatches, repo merges, guarded branch ref updates, and guarded contents PUT mutations.");
       err.status = 501;
       err.code = "github_rest_api_unsupported_path";
       err.details = { apiTarget, method };
