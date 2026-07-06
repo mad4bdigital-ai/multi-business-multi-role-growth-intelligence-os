@@ -690,7 +690,7 @@ section("connect api auth scope");
   section("local connector GPT action schema");
 
   {
-    const doc = YAML.parse(readFileSync("openapi.gpt-action.local-connector.yaml", "utf8"));
+    const doc = YAML.parse(readFileSync("openapi/openapi.gpt-action.local-connector.yaml", "utf8"));
     const exposedPaths = Object.keys(doc.paths || {});
     const allOperations = exposedPaths.flatMap((pathKey) => {
       const pathItem = doc.paths[pathKey] || {};
