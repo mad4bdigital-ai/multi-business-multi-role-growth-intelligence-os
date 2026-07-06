@@ -14,6 +14,7 @@ import {
 const READINESS_OBJECTS = [
   "platform_semantic_capabilities",
   "platform_capability_provider_bindings",
+  "platform_tool_dispatch_bindings",
   "workspace_resource_grants",
   "credential_bindings",
   "capability_resolution_envelope_ledger",
