@@ -201,12 +201,14 @@ flowchart TD
 | `governed_repository_intelligence_engine_policy_v1` | 1 |
 | `governed_repository_mutation_plan_v6_policy_v1` | 1 |
 | `gpt_session_pre_final_capture_gate_policy_v1` | 1 |
+| `gpt_tool_default_declared_mutation_policy_v1` | 1 |
 | `growth_audit_evidence_admin_tenant_policy_v1` | 1 |
 | `hostinger_deploy_release_apply_policy_v1` | 4 |
 | `hostinger_restart_app_apply_policy_v1` | 3 |
 | `intelligence_policy_rules_required_policy_v1` | 1 |
 | `intentional_safety_block_classification_policy_v1` | 1 |
 | `legacy_surface_bridge_policy_v1` | 1 |
+| `missing_endpoint_registry_first_policy_v1` | 1 |
 | `model_never_executes_tools_policy_v1` | 1 |
 | `n8n_instance_mode_ownership_policy_v1` | 1 |
 | `no_hidden_execution_policy_v1` | 3 |
