@@ -332,6 +332,10 @@ function testRepositoryContracts() {
   assert.match(service, /notification_skipped_count/);
   assert.match(openapi, /notification_skipped_count/);
   assert.match(service, /alert_reconciled_before_delivery/);
+  assert.match(service, /autoResolveStaleAlerts/);
+  assert.match(service, /system_auto_resolution/);
+  assert.match(service, /sync:\$\{runId\}:auto_resolve/);
+  assert.match(service, /auto_resolution_reason: "source_no_longer_emitted"/);
   assert.match(service, /operation_fingerprint_sha256, resource_fingerprint_sha256/);
   assert.match(service, /operation_fingerprint_sha256 = VALUES\(operation_fingerprint_sha256\)/);
   assert.match(service, /resource_fingerprint_sha256 = VALUES\(resource_fingerprint_sha256\)/);
