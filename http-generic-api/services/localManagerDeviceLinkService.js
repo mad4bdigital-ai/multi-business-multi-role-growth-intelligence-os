@@ -855,6 +855,9 @@ async function loadLocalManagerControlTemplates() {
     const supportedBrowserProviders = supportedApps.filter((item) => item.surface_type === "browser_runtime" && item.integration_type === "external_provider");
     const supportedBrowserAdapters = supportedCapabilities.filter((item) => item.surface_type === "browser_adapter" || item.integration_type === "plugin_adapter");
     const supportedAgentSurfaces = supportedCapabilities.filter((item) => item.surface_type === "agent_surface" || item.surface_type === "automation_surface");
+    const allControlSurfaces = supportedCapabilities.concat(supportedApps);
+    const supportedManagedMad4bServices = allControlSurfaces.filter((item) => item.metadata?.app_manager_scope === "managed_mad4b_service_side" || item.execution_location === "mad4b_service_side" || item.integration_type === "managed_service_client");
+    const supportedTenantLocalServices = allControlSurfaces.filter((item) => item.metadata?.app_manager_scope === "tenant_local_device_side" || item.execution_location === "tenant_local_device" || item.integration_type === "tenant_local_service");
     return {
       source: "db",
       registry_table: "local_manager_control_templates",
@@ -864,6 +867,8 @@ async function loadLocalManagerControlTemplates() {
       supported_browser_providers: supportedBrowserProviders,
       supported_browser_adapters: supportedBrowserAdapters,
       supported_agent_surfaces: supportedAgentSurfaces,
+      supported_managed_mad4b_services: supportedManagedMad4bServices,
+      supported_tenant_local_services: supportedTenantLocalServices,
       last_loaded_at: new Date().toISOString(),
       secrets_included: false,
     };
