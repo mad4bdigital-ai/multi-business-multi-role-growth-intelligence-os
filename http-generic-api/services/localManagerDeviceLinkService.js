@@ -814,6 +814,11 @@ function normalizeControlTemplate(row) {
       env_flag: row.env_flag || null,
       risk: row.risk_class || "interactive",
       note: metadata.note || "Governed Local Manager capability loaded from registry.",
+      surface_type: metadata.surface_type || "capability",
+      execution_location: metadata.execution_location || "local_device",
+      integration_type: metadata.integration_type || "capability",
+      credential_scope: metadata.credential_scope || "device",
+      requires_credentials: Boolean(metadata.requires_credentials),
       metadata,
     };
   }
