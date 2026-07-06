@@ -763,7 +763,7 @@ section("Sprint 55: admin scope-sharing controller");
 section("Sprint 56: device-tools MCP facade");
 {
   const routesFile = readFileSync(resolve(__dirname, "routes/deviceToolsRoutes.js"), "utf8");
-  const dispatcherSchema = readFileSync(resolve(__dirname, "openapi.custom-gpt.auth-dispatcher.yaml"), "utf8");
+  const dispatcherSchema = readFileSync(schemaPath("openapi.custom-gpt.auth-dispatcher.yaml"), "utf8");
   const parentSchema = readFileSync(resolve(__dirname, "openapi.yaml"), "utf8");
   const gptToolsFile = readFileSync(resolve(__dirname, "routes/gptToolsRoutes.js"), "utf8");
 
