@@ -757,6 +757,7 @@ export async function runDynamicAuditCycle(options = {}, dependencies = {}) {
         drive,
         release,
         repo,
+        session_archive_stale_closure: sessionArchiveClosure,
         rollup,
         checkpoint,
         lifecycle_snapshot: lifecycleSnapshot,
