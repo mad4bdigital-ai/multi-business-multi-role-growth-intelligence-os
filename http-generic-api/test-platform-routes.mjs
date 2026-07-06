@@ -183,6 +183,21 @@ section("GET /openapi*.yaml - public scoped schemas");
   ok("wrong host cannot fetch tenant schema", wrongHost.status === 404, `got ${wrongHost.status}`);
 }
 
+section("activation host gateway boundary");
+{
+  const root = await getWithHost("/", "activation.mad4b.com");
+  ok("activation host root returns scoped discovery", root.status === 200, `got ${root.status}`);
+  ok("activation host root uses activation scope", root.body.scope === "activation", `got ${root.body.scope}`);
+
+  const oauth = await getWithHost("/auth/oauth/authorize", "activation.mad4b.com");
+  ok("activation host rejects OAuth routes", oauth.status === 404, `got ${oauth.status}`);
+  ok("activation host OAuth rejection is explicit", oauth.body.error?.code === "ACTIVATION_HOST_OAUTH_NOT_ALLOWED", JSON.stringify(oauth.body));
+
+  const coreRoute = await getWithHost("/system/tools", "activation.mad4b.com");
+  ok("activation host rejects core routes", coreRoute.status === 404, `got ${coreRoute.status}`);
+  ok("activation host core route rejection is explicit", coreRoute.body.error?.code === "ACTIVATION_HOST_ROUTE_NOT_ALLOWED", JSON.stringify(coreRoute.body));
+}
+
 section("GET /tenant-gpt/oauth-preset - public auth preset");
 {
   const r = await getWithHost("/tenant-gpt/oauth-preset", "auth.mad4b.com");
