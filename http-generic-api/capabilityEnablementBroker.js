@@ -278,7 +278,7 @@ async function recordCapabilityEnablementResult(pool, result, args = {}) {
        (request_id, tenant_id, user_id, caller_type, capability_key, operation_intent, app_key, runtime_surface, workspace_id, resource_uri,
         decision, next_allowed_mode, reason_codes_json, input_hash_sha256, effective_hash_sha256, dry_run_hash_sha256,
         classification_json, projection_json, provider_calls_made, external_mutations_executed, internal_persistence_executed, secrets_included, expires_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?, ?, CAST(? AS JSON), CAST(? AS JSON), ?, ?, 1, 0, DATE_ADD(NOW(), INTERVAL 90 DAY))
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, DATE_ADD(NOW(), INTERVAL 90 DAY))
      ON DUPLICATE KEY UPDATE decision=VALUES(decision), next_allowed_mode=VALUES(next_allowed_mode), reason_codes_json=VALUES(reason_codes_json),
        projection_json=VALUES(projection_json), secrets_included=0`,
     [
@@ -309,7 +309,7 @@ async function recordCapabilityEnablementResult(pool, result, args = {}) {
     await pool.query(
       `INSERT INTO capability_enablement_steps
          (step_id, request_id, step_order, action_key, required_role, reason_code, status, proposal_json, secrets_included)
-       VALUES (?, ?, ?, ?, ?, ?, 'proposed', CAST(? AS JSON), 0)`,
+       VALUES (?, ?, ?, ?, ?, ?, 'proposed', ?, 0)`,
       [
         `cebs_${crypto.randomUUID()}`,
         result.request_id,
