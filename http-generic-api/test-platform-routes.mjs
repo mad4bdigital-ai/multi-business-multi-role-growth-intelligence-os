@@ -60,6 +60,7 @@ const HEALTH_DEPS = {
 
 const app = express();
 app.use(express.json());
+app.use(buildActivationHostGatewayRoutes());
 app.use(buildRootDiscoveryRoutes());
 app.use(buildHealthRoutes(HEALTH_DEPS));
 app.use((req, _res, next) => {
