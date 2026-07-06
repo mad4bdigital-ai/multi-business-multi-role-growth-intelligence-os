@@ -310,6 +310,14 @@ function testRepositoryContracts() {
   assert.match(service, /resource_fingerprint_sha256 = VALUES\(resource_fingerprint_sha256\)/);
   assert.match(service, /operationFingerprintSha256: row\.operation_fingerprint_sha256/);
   assert.match(service, /resourceFingerprintSha256: row\.resource_fingerprint_sha256/);
+  assert.match(service, /FOR UPDATE/);
+  assert.match(service, /lifecycle_revision = lifecycle_revision \+ 1/);
+  assert.match(service, /INSERT INTO operational_alert_lifecycle_events/);
+  assert.match(service, /idempotency_key = \?/);
+  assert.match(service, /idempotent_replay: true/);
+  assert.match(service, /event: sanitizeEvidence/);
+  assert.match(routes, /actorType: queryText\(req\.body\?\.actor_type/);
+  assert.match(routes, /idempotencyKey: queryText\(req\.body\?\.idempotency_key/);
   assert.match(reconciliationMigration, /active_effective_scope_key/);
   assert.match(reconciliationMigration, /uq_agent_skill_grants_active_effective_scope/);
   assert.match(reconciliationMigration, /p0_reconciliation_required/);

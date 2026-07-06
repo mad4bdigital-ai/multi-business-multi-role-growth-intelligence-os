@@ -1231,7 +1231,9 @@ export async function updateOperationalAlertLifecycle({
   alertId,
   lifecycleStatus,
   actor = "platform_admin",
+  actorType = "platform_admin",
   note = null,
+  idempotencyKey = null,
 } = {}) {
   const subject = resolveSubject(sessionContext || {}, explicitSubject);
   const normalizedStatus = String(lifecycleStatus || "").toLowerCase();
@@ -1247,16 +1249,62 @@ export async function updateOperationalAlertLifecycle({
     where.push("tenant_id = ?");
     params.push(subject.tenant_id || "__missing_tenant__");
   }
+  const eventId = randomUUID();
+  const normalizedActorType = String(actorType || (subject.is_admin ? "platform_admin" : "tenant_user")).slice(0, 64);
+  const normalizedActor = String(actor || subject.user_id || "platform_admin").slice(0, 191);
+  const normalizedNote = note ? String(note).slice(0, 2000) : null;
+  const normalizedIdempotencyKey = idempotencyKey ? String(idempotencyKey).trim().slice(0, 191) : null;
   const resolvedAt = normalizedStatus === "resolved" ? new Date() : null;
   const acknowledgedAt = ["acknowledged", "investigating"].includes(normalizedStatus) ? new Date() : null;
-  const [result] = await getPool().query(
+  const connection = await getPool().getConnection();
+  try {
+    await connection.beginTransaction();
+    const [currentRows] = await connection.query(
+      `SELECT alert_id, alert_key, tenant_id, user_id, workspace_id, source_type, source_record_id,
+              lifecycle_status, lifecycle_revision, operation_fingerprint_sha256, resource_fingerprint_sha256
+         FROM operational_alerts
+        WHERE ${where.join(" AND ")}
+        LIMIT 1
+        FOR UPDATE`,
+      params
+    );
+    const current = currentRows[0];
+    if (!current) {
+      const error = new Error("Operational alert was not found or is outside the caller scope.");
+      error.code = "operational_alert_not_found";
+      error.status = 404;
+      throw error;
+    }
+    const fromStatus = current.lifecycle_status || null;
+    const nextRevision = safeNumber(current.lifecycle_revision) + 1;
+    if (normalizedIdempotencyKey) {
+      const [existingEvents] = await connection.query(
+        `SELECT event_id, alert_id, from_status, to_status, lifecycle_revision, actor_id, actor_type, note, idempotency_key, created_at
+           FROM operational_alert_lifecycle_events
+          WHERE alert_id = ? AND idempotency_key = ?
+          LIMIT 1`,
+        [current.alert_id, normalizedIdempotencyKey]
+      );
+      if (existingEvents[0]) {
+        await connection.commit();
+        return {
+          ok: true,
+          idempotent_replay: true,
+          alert: sanitizeEvidence(current),
+          event: sanitizeEvidence(existingEvents[0]),
+          secrets_included: false,
+        };
+      }
+    }
+    const [result] = await connection.query(
     `UPDATE operational_alerts
-        SET lifecycle_status = ?, lifecycle_actor = ?, lifecycle_note = ?,
+        SET lifecycle_status = ?, lifecycle_revision = lifecycle_revision + 1,
+            lifecycle_actor = ?, lifecycle_note = ?,
             acknowledged_at = COALESCE(?, acknowledged_at),
             resolved_at = ?, resolution_note = CASE WHEN ? = 'resolved' THEN ? ELSE resolution_note END,
             updated_at = CURRENT_TIMESTAMP
       WHERE ${where.join(" AND ")}`,
-    [normalizedStatus, actor, note, acknowledgedAt, resolvedAt, normalizedStatus, note, ...params]
+    [normalizedStatus, normalizedActor, normalizedNote, acknowledgedAt, resolvedAt, normalizedStatus, normalizedNote, ...params]
   );
   if (!safeNumber(result?.affectedRows)) {
     const error = new Error("Operational alert was not found or is outside the caller scope.");
@@ -1264,19 +1312,63 @@ export async function updateOperationalAlertLifecycle({
     error.status = 404;
     throw error;
   }
-  const [rows] = await getPool().query(
-    `SELECT alert_id, alert_key, severity, title, lifecycle_status, verification_state,
+  await connection.query(
+    `INSERT INTO operational_alert_lifecycle_events
+      (event_id, alert_id, alert_key, tenant_id, user_id, workspace_id, source_type, source_record_id,
+       from_status, to_status, lifecycle_revision, event_type, actor_id, actor_type, note, idempotency_key,
+       operation_fingerprint_sha256, resource_fingerprint_sha256, evidence_json, secrets_included)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'lifecycle_status_changed', ?, ?, ?, ?, ?, ?, ?, 0)`,
+    [
+      eventId,
+      current.alert_id,
+      current.alert_key,
+      current.tenant_id,
+      current.user_id,
+      current.workspace_id,
+      current.source_type,
+      current.source_record_id,
+      fromStatus,
+      normalizedStatus,
+      nextRevision,
+      normalizedActor,
+      normalizedActorType,
+      normalizedNote,
+      normalizedIdempotencyKey,
+      current.operation_fingerprint_sha256,
+      current.resource_fingerprint_sha256,
+      JSON.stringify(sanitizeEvidence({ from_status: fromStatus, to_status: normalizedStatus, actor_type: normalizedActorType })),
+    ]
+  );
+
+  const [rows] = await connection.query(
+    `SELECT alert_id, alert_key, severity, title, lifecycle_status, lifecycle_revision, verification_state,
             lifecycle_actor, lifecycle_note, acknowledged_at, resolved_at, updated_at
        FROM operational_alerts
       WHERE ${where.join(" AND ")}
       LIMIT 1`,
     params
   );
+  const [eventRows] = await connection.query(
+    `SELECT event_id, alert_id, from_status, to_status, lifecycle_revision, actor_id, actor_type, note, idempotency_key, created_at
+       FROM operational_alert_lifecycle_events
+      WHERE event_id = ?
+      LIMIT 1`,
+    [eventId]
+  );
+  await connection.commit();
   return {
     ok: true,
+    idempotent_replay: false,
     alert: sanitizeEvidence(rows[0] || {}),
+    event: sanitizeEvidence(eventRows[0] || {}),
     secrets_included: false,
   };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 export const _testingOperationalAlerts = {
