@@ -725,7 +725,9 @@ function localManagerControlTemplateSeeds() {
     { template_type: "capability", template_key: "windows_control", label: "Windows app/process control", env_flag: "CONNECTOR_WIN_ENABLED", risk_class: "high", sort_order: 20, surface_type: "desktop_control", execution_location: "local_device", integration_type: "capability", credential_scope: "device", metadata: { note: "Break-glass/desktop-control only. Enables governed /win proxy after local elevated reinstall." } },
     { template_type: "capability", template_key: "hermes_agent_surface", label: "Hermes Agent Surface", env_flag: "CONNECTOR_HERMES_AGENT_SURFACE_ENABLED", risk_class: "interactive", sort_order: 30, surface_type: "agent_surface", execution_location: "local_device", integration_type: "capability", credential_scope: "tenant", metadata: { note: "Enables governed local Hermes agent surface controls when tenant policy grants it." } },
     { template_type: "capability", template_key: "auto_browser", label: "Auto Browser", env_flag: "CONNECTOR_AUTO_BROWSER_ENABLED", risk_class: "interactive", sort_order: 40, surface_type: "automation_surface", execution_location: "platform_managed", integration_type: "capability", credential_scope: "tenant", metadata: { note: "Enables governed automated browser surface controls when tenant policy grants it." } },
-    { template_type: "app", template_key: "edge", label: "Microsoft Edge", process_name: "msedge", browser: true, capability_class: "browser", risk_class: "interactive", sort_order: 100, surface_type: "browser_runtime", execution_location: "local_device", integration_type: "local_app", credential_scope: "none" },
+    { template_type: "app", template_key: "managed_n8n_client", label: "Managed n8n Client", process_name: "n8n", browser: false, capability_class: "workflow_runtime", risk_class: "managed", sort_order: 50, surface_type: "workflow_runtime", execution_location: "mad4b_service_side", integration_type: "managed_service_client", credential_scope: "tenant", metadata: { app_manager_scope: "managed_mad4b_service_side", current_hosting_target: "essam_local_device", future_hosting_target: "vps", managed_by: "mad4b", tenant_installs_local_service: false, note: "Mad4B-managed n8n client. Currently may run on Essam local device during bootstrap; target hosting is VPS/platform service side." } },
+    { template_type: "app", template_key: "tenant_dedicated_n8n", label: "Dedicated tenant n8n", process_name: "n8n", browser: false, capability_class: "workflow_runtime", risk_class: "interactive", sort_order: 60, surface_type: "workflow_runtime", execution_location: "tenant_local_device", integration_type: "tenant_local_service", credential_scope: "tenant", metadata: { app_manager_scope: "tenant_local_device_side", managed_by: "tenant", tenant_installs_local_service: true, writes_local_files: true, note: "Tenant-dedicated n8n installation that is installed and run on the tenant local device." } },
+    { template_type: "app", template_key: "edge", label: "Microsoft Edge", process_name: "msedge", browser: true, capability_class: "browser", risk_class: "interactive", sort_order: 100, surface_type: "browser_runtime", execution_location: "local_device", integration_type: "local_app", credential_scope: "none", metadata: { app_manager_scope: "tenant_local_device_side" } },
     { template_type: "app", template_key: "chrome", label: "Google Chrome", process_name: "chrome", browser: true, capability_class: "browser", risk_class: "interactive", sort_order: 110, surface_type: "browser_runtime", execution_location: "local_device", integration_type: "local_app", credential_scope: "none" },
     { template_type: "app", template_key: "firefox", label: "Mozilla Firefox", process_name: "firefox", browser: true, capability_class: "browser", risk_class: "interactive", sort_order: 112, surface_type: "browser_runtime", execution_location: "local_device", integration_type: "local_app", credential_scope: "none" },
     { template_type: "app", template_key: "brave", label: "Brave Browser", process_name: "brave", browser: true, capability_class: "browser", risk_class: "interactive", sort_order: 114, surface_type: "browser_runtime", execution_location: "local_device", integration_type: "local_app", credential_scope: "none" },
@@ -853,6 +855,9 @@ async function loadLocalManagerControlTemplates() {
     const supportedBrowserProviders = supportedApps.filter((item) => item.surface_type === "browser_runtime" && item.integration_type === "external_provider");
     const supportedBrowserAdapters = supportedCapabilities.filter((item) => item.surface_type === "browser_adapter" || item.integration_type === "plugin_adapter");
     const supportedAgentSurfaces = supportedCapabilities.filter((item) => item.surface_type === "agent_surface" || item.surface_type === "automation_surface");
+    const allControlSurfaces = supportedCapabilities.concat(supportedApps);
+    const supportedManagedMad4bServices = allControlSurfaces.filter((item) => item.metadata?.app_manager_scope === "managed_mad4b_service_side" || item.execution_location === "mad4b_service_side" || item.integration_type === "managed_service_client");
+    const supportedTenantLocalServices = allControlSurfaces.filter((item) => item.metadata?.app_manager_scope === "tenant_local_device_side" || item.execution_location === "tenant_local_device" || item.integration_type === "tenant_local_service");
     return {
       source: "db",
       registry_table: "local_manager_control_templates",
@@ -862,6 +867,8 @@ async function loadLocalManagerControlTemplates() {
       supported_browser_providers: supportedBrowserProviders,
       supported_browser_adapters: supportedBrowserAdapters,
       supported_agent_surfaces: supportedAgentSurfaces,
+      supported_managed_mad4b_services: supportedManagedMad4bServices,
+      supported_tenant_local_services: supportedTenantLocalServices,
       last_loaded_at: new Date().toISOString(),
       secrets_included: false,
     };
@@ -899,6 +906,8 @@ async function loadLocalManagerControlTemplates() {
       supported_browser_providers: supportedApps.filter((item) => item.surface_type === "browser_runtime" && item.integration_type === "external_provider"),
       supported_browser_adapters: supportedCapabilities.filter((item) => item.surface_type === "browser_adapter" || item.integration_type === "plugin_adapter"),
       supported_agent_surfaces: supportedCapabilities.filter((item) => item.surface_type === "agent_surface" || item.surface_type === "automation_surface"),
+      supported_managed_mad4b_services: supportedCapabilities.concat(supportedApps).filter((item) => item.metadata?.app_manager_scope === "managed_mad4b_service_side" || item.execution_location === "mad4b_service_side" || item.integration_type === "managed_service_client"),
+      supported_tenant_local_services: supportedCapabilities.concat(supportedApps).filter((item) => item.metadata?.app_manager_scope === "tenant_local_device_side" || item.execution_location === "tenant_local_device" || item.integration_type === "tenant_local_service"),
       last_loaded_at: new Date().toISOString(),
       secrets_included: false,
     };
@@ -1035,12 +1044,16 @@ export async function getDeviceControls(req, res) {
       baseControls.settings.capability_consent.supported_browser_providers = controlTemplates.supported_browser_providers;
       baseControls.settings.capability_consent.supported_browser_adapters = controlTemplates.supported_browser_adapters;
       baseControls.settings.capability_consent.supported_agent_surfaces = controlTemplates.supported_agent_surfaces;
+      baseControls.settings.capability_consent.supported_managed_mad4b_services = controlTemplates.supported_managed_mad4b_services;
+      baseControls.settings.capability_consent.supported_tenant_local_services = controlTemplates.supported_tenant_local_services;
       if (baseControls.settings.capability_consent.dynamic_grants) {
         baseControls.settings.capability_consent.dynamic_grants.supported_apps = controlTemplates.supported_apps;
         baseControls.settings.capability_consent.dynamic_grants.supported_browsers = controlTemplates.supported_browsers;
         baseControls.settings.capability_consent.dynamic_grants.supported_browser_providers = controlTemplates.supported_browser_providers;
         baseControls.settings.capability_consent.dynamic_grants.supported_browser_adapters = controlTemplates.supported_browser_adapters;
         baseControls.settings.capability_consent.dynamic_grants.supported_agent_surfaces = controlTemplates.supported_agent_surfaces;
+        baseControls.settings.capability_consent.dynamic_grants.supported_managed_mad4b_services = controlTemplates.supported_managed_mad4b_services;
+        baseControls.settings.capability_consent.dynamic_grants.supported_tenant_local_services = controlTemplates.supported_tenant_local_services;
       }
     }
 

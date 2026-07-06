@@ -178,6 +178,7 @@ internal static class Program
         private readonly DeviceControlClient _deviceControlClient = new(BaseUrl);
         private readonly ConnectorCapabilityVerifier _connectorCapabilityVerifier;
         private readonly SignedInstallerCoordinator _signedInstallerCoordinator = new(BaseUrl, UpdatesRoot);
+        private readonly HashSet<string> _lastRequestedCapabilities = new(StringComparer.OrdinalIgnoreCase);
 
         public MainForm()
         {
@@ -687,7 +688,11 @@ internal static class Program
                 CheckOnClick = true,
                 HorizontalScrollbar = true
             };
-            foreach (var capability in dynamicCapabilities) dynamicList.Items.Add(capability);
+            foreach (var capability in dynamicCapabilities)
+            {
+                var index = dynamicList.Items.Add(capability);
+                if (_lastRequestedCapabilities.Contains(capability.Key)) dynamicList.SetItemChecked(index, true);
+            }
             var powershell = new CheckBox
             {
                 Text = "Admin PowerShell recovery (/ps)",
@@ -700,6 +705,8 @@ internal static class Program
                 Location = new Point(22, 122),
                 Size = new Size(480, 28)
             };
+            powershell.Checked = _lastRequestedCapabilities.Contains("powershell_admin");
+            windowsControl.Checked = _lastRequestedCapabilities.Contains("windows_control");
             var appLabel = new Label { Text = "Optional app executable grant", Location = new Point(22, 160), Size = new Size(690, 22) };
             var appAlias = new TextBox { PlaceholderText = "app alias e.g. photoshop", Location = new Point(22, 188), Size = new Size(180, 28) };
             var appPath = new TextBox { PlaceholderText = "C:\\Path\\To\\App.exe", Location = new Point(212, 188), Size = new Size(390, 28) };
@@ -774,6 +781,9 @@ internal static class Program
             {
                 if (item is DynamicCapabilityChoice capability && !string.IsNullOrWhiteSpace(capability.Key)) requestedCapabilities.Add(capability.Key);
             }
+            _lastRequestedCapabilities.Clear();
+            foreach (var capability in requestedCapabilities) _lastRequestedCapabilities.Add(capability);
+
             var selectedApps = new List<object>();
             if (!string.IsNullOrWhiteSpace(appPath.Text))
             {
