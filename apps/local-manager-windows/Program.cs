@@ -705,6 +705,8 @@ internal static class Program
                 Location = new Point(22, 122),
                 Size = new Size(480, 28)
             };
+            powershell.Checked = _lastRequestedCapabilities.Contains("powershell_admin");
+            windowsControl.Checked = _lastRequestedCapabilities.Contains("windows_control");
             var appLabel = new Label { Text = "Optional app executable grant", Location = new Point(22, 160), Size = new Size(690, 22) };
             var appAlias = new TextBox { PlaceholderText = "app alias e.g. photoshop", Location = new Point(22, 188), Size = new Size(180, 28) };
             var appPath = new TextBox { PlaceholderText = "C:\\Path\\To\\App.exe", Location = new Point(212, 188), Size = new Size(390, 28) };
