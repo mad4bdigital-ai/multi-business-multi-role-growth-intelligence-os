@@ -6,38 +6,40 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 489,
+    "migrations_with_surfaces": 490,
     "docs_complete_count": 488,
-    "docs_gap_count": 1,
-    "docs_completion_percent": 99.8,
+    "docs_gap_count": 2,
+    "docs_completion_percent": 99.59,
     "surface_totals": {
       "plugins": 12,
-      "tools": 2283,
+      "tools": 2300,
       "views": 434,
-      "policies": 175,
-      "routes": 629
+      "policies": 176,
+      "routes": 632
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 415,
+      "tools": 416,
       "views": 177,
-      "policies": 114,
-      "routes": 253
+      "policies": 115,
+      "routes": 254
     },
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 1,
       "deployment_parity_checklist.md": 1,
-      "docs/ai-docs-agent-governance.md": 1,
-      "docs/auto-docs-agent/README.md": 1,
+      "docs/ai-docs-agent-governance.md": 2,
+      "docs/auto-docs-agent/README.md": 2,
       "docs/change-documentation-governance.md": 1
     },
     "gap_severity_counts": {
-      "high": 0,
+      "high": 1,
       "medium": 1,
       "low": 0,
       "none": 488
     },
-    "high_risk_missing_docs": [],
+    "high_risk_missing_docs": [
+      "1038_sprint69_github_actions_workflow_control_dispatch.sql"
+    ],
     "medium_risk_missing_docs": [
       "1037_sprint69_record_only_authorization_retirement.sql"
     ],
@@ -47,19 +49,19 @@
       "no_raw_secrets": 489,
       "no_external_send": 489,
       "no_external_write": 489,
-      "secrets_included_false": 489
+      "secrets_included_false": 490
     },
     "safety_marker_gap_migrations": 0,
     "route_coverage": {
       "sql_route_count": 17,
-      "total_sql_route_like_count": 629,
-      "openapi_exempt_sql_route_count": 612,
+      "total_sql_route_like_count": 632,
+      "openapi_exempt_sql_route_count": 615,
       "route_class_counts": {
         "http_route": 17,
         "admin_tool_registry_route": 160,
         "tenant_tool_registry_route": 42,
         "system_tool_dispatch_route": 14,
-        "registry_only_surface": 2,
+        "registry_only_surface": 5,
         "false_positive_route_like_string": 0,
         "legacy_closure_route_reviewed": 394
       },
@@ -70,28 +72,70 @@
     }
   },
   "queue": {
-    "total_items": 1,
+    "total_items": 2,
     "class_counts": {
-      "critical_review": 0,
+      "critical_review": 1,
       "high_review": 1,
       "medium_review": 0,
       "low_review": 0
     }
   },
   "triage": {
-    "total_items": 1,
+    "total_items": 2,
     "class_counts": {
-      "new_surface_immediate_review": 1
+      "new_surface_immediate_review": 2
     },
-    "gate_candidate_count": 1
+    "gate_candidate_count": 2
   },
   "gate": {
     "ok": false,
     "mode": "future_only_all_new_gaps",
-    "new_item_count": 1,
-    "blocking_new_item_count": 1
+    "new_item_count": 2,
+    "blocking_new_item_count": 2
   },
   "top_immediate_items": [
+    {
+      "migration_file": "1038_sprint69_github_actions_workflow_control_dispatch.sql",
+      "score": 969,
+      "queue_class": "critical_review",
+      "triage_class": "new_surface_immediate_review",
+      "gate_scope": "new_gap_gate_candidate",
+      "gap_severity": "high",
+      "missing_docs": [
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send",
+        "no_external_write"
+      ],
+      "remediation_action_keys": [
+        "document_surface_contract",
+        "verify_tool_registry_binding",
+        "verify_policy_seed_readiness",
+        "add_explicit_safety_markers"
+      ],
+      "owner_hints": [
+        "docs-agent/human-review",
+        "runtime-registry-review",
+        "runtime-policy-review",
+        "safety-contract-review"
+      ],
+      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
     {
       "migration_file": "1037_sprint69_record_only_authorization_retirement.sql",
       "score": 489,

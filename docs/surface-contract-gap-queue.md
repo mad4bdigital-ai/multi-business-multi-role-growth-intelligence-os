@@ -4,8 +4,8 @@
 
 ## Summary
 
-- Total queue items: 1
-- Critical review: 0
+- Total queue items: 2
+- Critical review: 1
 - High review: 1
 - Medium review: 0
 - Low review: 0
@@ -13,7 +13,22 @@
 
 ## Top Queue Items
 
-### 1. `1037_sprint69_record_only_authorization_retirement.sql`
+### 1. `1038_sprint69_github_actions_workflow_control_dispatch.sql`
+
+- Queue class: critical_review
+- Score: 969
+- Gap severity: high
+- Missing docs: `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=17, views=0, policies=1, routes=3
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `1038_sprint69_github_actions_workflow_control_dispatch`, `admin_platform_endpoint_tools`, `db_admin_tool`, `execution_readiness`, `github_actions_workflow_control_readback_v1`, `github_create_workflow_dispatch`, `github_rest_endpoint_dispatch`, `mutation_preflight_required`, `platform_endpoint_tool_exports`, `platform_tool_dispatch_bindings`, `ptdb_github_rest_dispatch_`, `required_readback`, ...and 5 more
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `missing_endpoint_registry_first_policy_v1`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 2. `1037_sprint69_record_only_authorization_retirement.sql`
 
 - Queue class: high_review
 - Score: 489

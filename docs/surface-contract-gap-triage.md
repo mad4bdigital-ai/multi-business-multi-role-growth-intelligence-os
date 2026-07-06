@@ -4,15 +4,16 @@
 
 ## Summary
 
-- Triaged items: 1
-- Gate candidates: 1
+- Triaged items: 2
+- Gate candidates: 2
 - New-gap gate: fail
-- Blocking new items: 1
+- Blocking new items: 2
 
 ## Class counts
 
-- new_surface_immediate_review: 1
+- new_surface_immediate_review: 2
 
 ## Immediate review candidates
 
+- `1038_sprint69_github_actions_workflow_control_dispatch.sql` — critical_review, score 969; next: add targeted patch-index, parity, and governance documentation
 - `1037_sprint69_record_only_authorization_retirement.sql` — high_review, score 489; next: add targeted patch-index, parity, and governance documentation
