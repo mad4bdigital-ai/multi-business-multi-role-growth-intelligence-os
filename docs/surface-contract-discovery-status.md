@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 488
+- Migrations with detected surfaces: 490
 - Migrations reported here: 80
 - OpenAPI operations detected: 536
 - OpenAPI paths detected: 498
@@ -32,11 +32,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 488/488 (100.00%)
+- Documentation complete migrations: 490/490 (100.00%)
 - Documentation gap migrations: 0
 - Gap severity: high=0, medium=0, low=0
 - SQL route coverage in OpenAPI: 17/17 (100.00%)
-- SQL route-like literals exempted from OpenAPI scoring: 612/629
+- SQL route-like literals exempted from OpenAPI scoring: 615/632
 - SQL routes missing OpenAPI path coverage: 0
 - Migrations without explicit `secrets_included=false` marker: 0
 
@@ -45,10 +45,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 12 | 9 |
-| tools | 2280 | 414 |
+| tools | 2300 | 416 |
 | views | 434 | 177 |
-| policies | 175 | 114 |
-| routes | 629 | 253 |
+| policies | 176 | 115 |
+| routes | 632 | 254 |
 
 ### Documentation Target Gaps
 
@@ -64,12 +64,12 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 488 |
-| no_credential_payload_read | 488 |
-| no_raw_secrets | 488 |
-| no_external_send | 488 |
-| no_external_write | 488 |
-| secrets_included_false | 488 |
+| no_provider_call | 490 |
+| no_credential_payload_read | 490 |
+| no_raw_secrets | 490 |
+| no_external_send | 490 |
+| no_external_write | 490 |
+| secrets_included_false | 490 |
 
 ### Route Classification Coverage
 
@@ -79,7 +79,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | admin_tool_registry_route | 160 |
 | tenant_tool_registry_route | 42 |
 | system_tool_dispatch_route | 14 |
-| registry_only_surface | 2 |
+| registry_only_surface | 5 |
 | false_positive_route_like_string | 0 |
 | legacy_closure_route_reviewed | 394 |
 

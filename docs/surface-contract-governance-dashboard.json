@@ -6,23 +6,23 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 488,
-    "docs_complete_count": 488,
+    "migrations_with_surfaces": 490,
+    "docs_complete_count": 490,
     "docs_gap_count": 0,
     "docs_completion_percent": 100,
     "surface_totals": {
       "plugins": 12,
-      "tools": 2280,
+      "tools": 2300,
       "views": 434,
-      "policies": 175,
-      "routes": 629
+      "policies": 176,
+      "routes": 632
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 414,
+      "tools": 416,
       "views": 177,
-      "policies": 114,
-      "routes": 253
+      "policies": 115,
+      "routes": 254
     },
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 0,
@@ -35,29 +35,29 @@
       "high": 0,
       "medium": 0,
       "low": 0,
-      "none": 488
+      "none": 490
     },
     "high_risk_missing_docs": [],
     "medium_risk_missing_docs": [],
     "safety_marker_counts": {
-      "no_provider_call": 488,
-      "no_credential_payload_read": 488,
-      "no_raw_secrets": 488,
-      "no_external_send": 488,
-      "no_external_write": 488,
-      "secrets_included_false": 488
+      "no_provider_call": 490,
+      "no_credential_payload_read": 490,
+      "no_raw_secrets": 490,
+      "no_external_send": 490,
+      "no_external_write": 490,
+      "secrets_included_false": 490
     },
     "safety_marker_gap_migrations": 0,
     "route_coverage": {
       "sql_route_count": 17,
-      "total_sql_route_like_count": 629,
-      "openapi_exempt_sql_route_count": 612,
+      "total_sql_route_like_count": 632,
+      "openapi_exempt_sql_route_count": 615,
       "route_class_counts": {
         "http_route": 17,
         "admin_tool_registry_route": 160,
         "tenant_tool_registry_route": 42,
         "system_tool_dispatch_route": 14,
-        "registry_only_surface": 2,
+        "registry_only_surface": 5,
         "false_positive_route_like_string": 0,
         "legacy_closure_route_reviewed": 394
       },

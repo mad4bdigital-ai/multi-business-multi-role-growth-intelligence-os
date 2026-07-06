@@ -207,6 +207,7 @@ flowchart TD
 | `intelligence_policy_rules_required_policy_v1` | 1 |
 | `intentional_safety_block_classification_policy_v1` | 1 |
 | `legacy_surface_bridge_policy_v1` | 1 |
+| `missing_endpoint_registry_first_policy_v1` | 1 |
 | `model_never_executes_tools_policy_v1` | 1 |
 | `n8n_instance_mode_ownership_policy_v1` | 1 |
 | `no_hidden_execution_policy_v1` | 3 |
