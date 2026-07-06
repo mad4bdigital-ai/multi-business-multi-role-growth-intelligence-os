@@ -169,6 +169,16 @@ section("GET /openapi*.yaml - public scoped schemas");
   ok("auth host serves admin Activation schema", adminActivationSchema.status === 200, `got ${adminActivationSchema.status}`);
   ok("admin Activation schema targets activation host", adminActivationSchema.text.includes("url: https://activation.mad4b.com"));
 
+  const activationTenantSchema = await getTextWithHost("/openapi.tenant-gpt.activation.yaml", "activation.mad4b.com");
+  ok("activation host serves tenant Activation schema", activationTenantSchema.status === 200, `got ${activationTenantSchema.status}`);
+  ok("activation host tenant schema targets activation host", activationTenantSchema.text.includes("url: https://activation.mad4b.com"));
+
+  const activationAdminSchema = await getTextWithHost("/openapi.custom-gpt.activation-admin.yaml", "activation.mad4b.com");
+  ok("activation host serves admin Activation schema", activationAdminSchema.status === 200, `got ${activationAdminSchema.status}`);
+
+  const activationCoreSchema = await getTextWithHost("/openapi.tenant-gpt.auth.yaml", "activation.mad4b.com");
+  ok("activation host does not serve tenant Core schema", activationCoreSchema.status === 404, `got ${activationCoreSchema.status}`);
+
   const wrongHost = await getTextWithHost("/openapi.tenant-gpt.auth.yaml", "api.mad4b.com");
   ok("wrong host cannot fetch tenant schema", wrongHost.status === 404, `got ${wrongHost.status}`);
 }
