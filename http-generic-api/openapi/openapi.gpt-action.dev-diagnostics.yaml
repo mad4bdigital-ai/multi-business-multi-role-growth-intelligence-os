@@ -1,0 +1,12 @@
+openapi: 3.1.0
+info:
+  title: Deprecated Dev Diagnostics Schema
+  version: 0.0.0
+  summary: Deprecated alias. Use openapi.gpt-action.dev-dispatcher.yaml.
+  description: This file is intentionally retained as a deprecated marker only. The active dev.mad4b.com Custom GPT action schema is http-generic-api/openapi.gpt-action.dev-dispatcher.yaml. Do not configure this file as a GPT Action connector.
+servers:
+  - url: https://dev.mad4b.com
+    description: Deprecated; use openapi.gpt-action.dev-dispatcher.yaml
+paths: {}
+components:
+  schemas: {}
