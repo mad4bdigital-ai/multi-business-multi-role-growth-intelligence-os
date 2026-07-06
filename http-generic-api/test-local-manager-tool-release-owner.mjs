@@ -119,6 +119,10 @@ assert(localManagerWindows.includes('"chrome", "Google Chrome"'), 'Windows app s
 assert(localManagerWindows.includes('"edge", "Microsoft Edge"'), 'Windows app supported templates must include Edge');
 assert(localManagerWindows.includes('"vscode", "Visual Studio Code"'), 'Windows app supported templates must include VS Code');
 assert(localManagerWindows.includes('"cursor", "Cursor"'), 'Windows app supported templates must include Cursor');
+assert(localManagerWindows.includes('"firefox", "Mozilla Firefox"'), 'Windows app local fallback templates must include Firefox');
+assert(localManagerWindows.includes('"brave", "Brave Browser"'), 'Windows app local fallback templates must include Brave');
+assert(localManagerWindows.includes('"opera", "Opera"'), 'Windows app local fallback templates must include Opera');
+assert(localManagerWindows.includes('"chromium", "Chromium"'), 'Windows app local fallback templates must include Chromium');
 assert(localManagerDeviceLinkService.includes('local_manager_control_templates'), 'device controls settings must load supported capabilities/apps from a DB registry table');
 assert(localManagerDeviceLinkService.includes('loadLocalManagerControlTemplates'), 'device controls settings must use the dynamic Local Manager control template loader');
 assert(localManagerDeviceLinkService.includes('registry_source'), 'device controls settings must expose the registry source to the Windows app');
