@@ -158,6 +158,12 @@ When the governed Hostinger SSH deploy executor is used, treat its deployment re
 
 Do not use GitHub Actions to deploy `connector.mad4b.com`; that hostname must stay on the Cloudflare Tunnel/local-service path so it can recover Hostinger/auth outages.
 
+## Temporary Hostinger SSH executor gate
+
+Migration `1037_sprint69_temporary_hostinger_ssh_executor_gate.sql` is a time-bounded runtime configuration repair for the governed Hostinger deploy-release path. It temporarily enables `remote_runtime_hostinger_ssh_executor_enabled` only for the production target `b49fe2ae-5974-11f1-9baf-8e76a7e1749f`, requires the post-merge deploy capability envelope to supply the actual expected commit SHA, and sets `config_json.expires_at` two hours after apply.
+
+The migration does not deploy, restart, call providers, read credential payloads, expose secrets, or bypass the deploy capability envelope. Actual deploy release still requires a fresh deploy envelope, approval, dry-run `dispatch_ready=true`, SSH executor apply, and post-deploy `/health` plus `/version` readback. After runtime parity is verified, the gate must be disabled again through a separate governed migration or policy-controlled config update.
+
 ## Security notes
 
 - Do not commit `.env`, API keys, private keys, Hostinger credentials, or Cloudflare tokens.

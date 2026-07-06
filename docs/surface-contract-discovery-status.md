@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 493
+- Migrations with detected surfaces: 494
 - Migrations reported here: 80
 - OpenAPI operations detected: 536
 - OpenAPI paths detected: 498
@@ -32,7 +32,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 490/493 (99.39%)
+- Documentation complete migrations: 491/494 (99.39%)
 - Documentation gap migrations: 3
 - Gap severity: high=1, medium=2, low=0
 - SQL route coverage in OpenAPI: 17/19 (89.47%)
@@ -45,7 +45,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 12 | 9 |
-| tools | 2335 | 419 |
+| tools | 2336 | 420 |
 | views | 434 | 177 |
 | policies | 177 | 116 |
 | routes | 634 | 255 |
@@ -69,7 +69,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | no_raw_secrets | 490 |
 | no_external_send | 490 |
 | no_external_write | 490 |
-| secrets_included_false | 492 |
+| secrets_included_false | 493 |
 
 ### Route Classification Coverage
 
@@ -88,11 +88,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 4
+- Total queue items: 5
 - Critical review: 2
 - High review: 1
 - Medium review: 0
-- Low review: 1
+- Low review: 2
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
@@ -100,6 +100,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `1031_sprint69_github_actions_diagnostics_endpoints_seed.sql` | critical_review | 1071 | high | 5 | 2 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `20260706_session_archive_stale_closure_autosweep.sql` | high_review | 511 | medium | 5 | 0 | 3 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `20260702_session_archive_capability_family_authorization.sql` | low_review | 128 | none | 0 | 0 | 3 | verify_tool_registry_binding, add_explicit_safety_markers |
+| `1037_sprint69_temporary_hostinger_ssh_executor_gate.sql` | low_review | 101 | none | 0 | 0 | 5 | verify_tool_registry_binding, add_explicit_safety_markers |
 
 
 ## Latest Surface Coverage
