@@ -35,19 +35,19 @@
       "high": 0,
       "medium": 1,
       "low": 0,
-      "none": 484
+      "none": 485
     },
     "high_risk_missing_docs": [],
     "medium_risk_missing_docs": [
       "1036_sprint69_remote_runtime_deploy_dispatch_certification_renewal.sql"
     ],
     "safety_marker_counts": {
-      "no_provider_call": 484,
-      "no_credential_payload_read": 484,
-      "no_raw_secrets": 484,
-      "no_external_send": 484,
-      "no_external_write": 484,
-      "secrets_included_false": 484
+      "no_provider_call": 485,
+      "no_credential_payload_read": 485,
+      "no_raw_secrets": 485,
+      "no_external_send": 485,
+      "no_external_write": 485,
+      "secrets_included_false": 485
     },
     "safety_marker_gap_migrations": 1,
     "route_coverage": {
