@@ -578,23 +578,7 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
   const boundedLookback = boundedInt(lookbackHours, 168, 1, 24 * 90);
 
   const queries = [
-    safeRows(
-      "execution_log",
-      `SELECT e.id, e.entry_type, e.execution_class, e.execution_status, e.recovery_status,
-              e.recovery_notes, e.route_status, e.execution_trace_id_writeback,
-              e.tenant_id, e.workspace_id, e.user_id, e.brand_key, e.app_key,
-              e.agent_key, e.skill_key, e.workflow_id, e.workflow_key,
-              e.engine_key, e.logic_key, e.parent_action_key, e.endpoint_key,
-              e.action_key, e.tool_key, e.resource_type, e.resource_id,
-              e.target_type, e.target_id, e.failure_reason, e.output_summary, e.created_at
-         FROM execution_log e
-        WHERE ${tenantExecution.sql}
-          AND e.created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
-          AND e.execution_status IN ('failed','degraded','blocked','blocked_with_choice_required','success_with_warnings','passed_with_follow_up','success','succeeded','completed','pass','passed')
-        ORDER BY e.created_at DESC
-        LIMIT 1000`,
-      [...tenantExecution.params, boundedLookback]
-    ),
+    collectExecutionLogSource({ tenantExecution, boundedLookback }),
     safeRows(
       "connected_systems",
       `SELECT system_id, tenant_id, system_key, display_name, provider_family,
