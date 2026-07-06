@@ -309,7 +309,7 @@ async function recordCapabilityEnablementResult(pool, result, args = {}) {
     await pool.query(
       `INSERT INTO capability_enablement_steps
          (step_id, request_id, step_order, action_key, required_role, reason_code, status, proposal_json, secrets_included)
-       VALUES (?, ?, ?, ?, ?, ?, 'proposed', CAST(? AS JSON), 0)`,
+       VALUES (?, ?, ?, ?, ?, ?, 'proposed', ?, 0)`,
       [
         `cebs_${crypto.randomUUID()}`,
         result.request_id,
