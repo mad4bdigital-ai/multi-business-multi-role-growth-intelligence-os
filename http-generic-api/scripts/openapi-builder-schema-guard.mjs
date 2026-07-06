@@ -6,6 +6,7 @@ import YAML from "yaml";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const API_ROOT = path.resolve(__dirname, "..");
+export const OPENAPI_DIR = path.resolve(API_ROOT, "openapi");
 const METHODS = new Set(["get", "post", "put", "delete", "patch", "options", "head", "trace"]);
 export const DEFAULT_SCHEMA_FILES = [
   "openapi.custom-gpt.auth-dispatcher.yaml",
