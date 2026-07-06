@@ -488,6 +488,7 @@ export const testCommands = [
   "node test-migrate-sql-adapter.mjs",
   "node test-expand-schema-logic.mjs",
   "node test-custom-gpt-schemas.mjs",
+  "node test-openapi-schema-output-paths.mjs",
   "node test-platform-knowledge-graph.mjs",
   "node test-repo-patch-apply.mjs",
   "node test-repo-patch-capability-envelope-requirement.mjs",
