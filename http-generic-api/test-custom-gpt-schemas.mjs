@@ -323,6 +323,23 @@ for (const [file, expected] of Object.entries(ACTIVE_SCHEMAS)) {
   }
 }
 
+section("GPT Builder server host separation");
+{
+  const adminCore = loadSchema("openapi.custom-gpt.auth-dispatcher.yaml");
+  const adminActivation = loadSchema("openapi.custom-gpt.activation-admin.yaml");
+  const tenantCore = loadSchema("openapi.tenant-gpt.auth.yaml");
+  const tenantActivation = loadSchema("openapi.tenant-gpt.activation.yaml");
+
+  assert("tenant Core and Activation schemas use distinct server URLs",
+    tenantCore.servers?.[0]?.url === "https://auth.mad4b.com" &&
+    tenantActivation.servers?.[0]?.url === "https://activation.mad4b.com" &&
+    tenantCore.servers?.[0]?.url !== tenantActivation.servers?.[0]?.url);
+  assert("admin Core and Activation schemas use distinct server URLs",
+    adminCore.servers?.[0]?.url === "https://auth.mad4b.com" &&
+    adminActivation.servers?.[0]?.url === "https://activation.mad4b.com" &&
+    adminCore.servers?.[0]?.url !== adminActivation.servers?.[0]?.url);
+}
+
 section("dispatcher contracts");
 {
   const adminDoc = loadSchema("openapi.custom-gpt.auth-dispatcher.yaml");
