@@ -719,6 +719,131 @@ export async function getDeviceSession(req, res) {
   }
 }
 
+function localManagerControlTemplateSeeds() {
+  return [
+    { template_type: "capability", template_key: "powershell_admin", label: "Admin PowerShell recovery", env_flag: "CONNECTOR_POWERSHELL_ENABLED", risk_class: "high", sort_order: 10, metadata: { note: "Break-glass recovery only. Enables governed /ps proxy after local elevated reinstall." } },
+    { template_type: "capability", template_key: "windows_control", label: "Windows app/process control", env_flag: "CONNECTOR_WIN_ENABLED", risk_class: "high", sort_order: 20, metadata: { note: "Break-glass/desktop-control only. Enables governed /win proxy after local elevated reinstall." } },
+    { template_type: "capability", template_key: "hermes_agent_surface", label: "Hermes Agent Surface", env_flag: "CONNECTOR_HERMES_AGENT_SURFACE_ENABLED", risk_class: "interactive", sort_order: 30, metadata: { note: "Enables governed local Hermes agent surface controls when tenant policy grants it." } },
+    { template_type: "capability", template_key: "auto_browser", label: "Auto Browser", env_flag: "CONNECTOR_AUTO_BROWSER_ENABLED", risk_class: "interactive", sort_order: 40, metadata: { note: "Enables governed automated browser surface controls when tenant policy grants it." } },
+    { template_type: "app", template_key: "edge", label: "Microsoft Edge", process_name: "msedge", browser: true, capability_class: "browser", risk_class: "interactive", sort_order: 100 },
+    { template_type: "app", template_key: "chrome", label: "Google Chrome", process_name: "chrome", browser: true, capability_class: "browser", risk_class: "interactive", sort_order: 110 },
+    { template_type: "app", template_key: "vscode", label: "Visual Studio Code", process_name: "Code", browser: false, capability_class: "developer_tool", risk_class: "interactive", sort_order: 120 },
+    { template_type: "app", template_key: "cursor", label: "Cursor", process_name: "Cursor", browser: false, capability_class: "developer_tool", risk_class: "interactive", sort_order: 130 },
+    { template_type: "app", template_key: "open_claude", label: "Open Claude", process_name: "Claude", browser: false, capability_class: "agent_surface", risk_class: "interactive", sort_order: 140, metadata: { aliases: ["open_cloude"] } },
+    { template_type: "app", template_key: "open_claw", label: "Open Claw", process_name: "OpenClaw", browser: false, capability_class: "agent_surface", risk_class: "interactive", sort_order: 150, metadata: { aliases: ["open_claw", "open_claude_claw"] } },
+    { template_type: "app", template_key: "notepad", label: "Windows Notepad", process_name: "notepad", browser: false, capability_class: "desktop_app", risk_class: "low", sort_order: 900 },
+    { template_type: "app", template_key: "git_bash", label: "Git Bash", process_name: "git-bash", browser: false, capability_class: "developer_tool", risk_class: "interactive", sort_order: 910 },
+  ];
+}
+
+async function ensureLocalManagerControlTemplatesTable() {
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS \`local_manager_control_templates\` (
+      \`template_id\` VARCHAR(128) NOT NULL,
+      \`template_type\` ENUM('capability','app','helper') NOT NULL,
+      \`template_key\` VARCHAR(128) NOT NULL,
+      \`label\` VARCHAR(191) NOT NULL,
+      \`env_flag\` VARCHAR(128) NULL,
+      \`process_name\` VARCHAR(191) NULL,
+      \`browser\` TINYINT(1) NOT NULL DEFAULT 0,
+      \`capability_class\` VARCHAR(128) NULL,
+      \`risk_class\` VARCHAR(64) NOT NULL DEFAULT 'interactive',
+      \`metadata_json\` JSON NULL,
+      \`sort_order\` INT NOT NULL DEFAULT 1000,
+      \`status\` ENUM('active','disabled','deprecated') NOT NULL DEFAULT 'active',
+      \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`template_id\`),
+      UNIQUE KEY \`uq_local_manager_control_template\` (\`template_type\`, \`template_key\`),
+      KEY \`idx_local_manager_control_status\` (\`status\`, \`template_type\`, \`sort_order\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+}
+
+async function seedLocalManagerControlTemplates() {
+  const rows = localManagerControlTemplateSeeds();
+  for (const row of rows) {
+    await getPool().query(
+      `INSERT INTO \`local_manager_control_templates\`
+        (template_id, template_type, template_key, label, env_flag, process_name, browser, capability_class, risk_class, metadata_json, sort_order, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+       ON DUPLICATE KEY UPDATE
+         label = VALUES(label), env_flag = VALUES(env_flag), process_name = VALUES(process_name), browser = VALUES(browser),
+         capability_class = VALUES(capability_class), risk_class = VALUES(risk_class), metadata_json = VALUES(metadata_json),
+         sort_order = VALUES(sort_order), updated_at = NOW()`,
+      [
+        `local-manager-${row.template_type}-${row.template_key}`,
+        row.template_type,
+        row.template_key,
+        row.label,
+        row.env_flag || null,
+        row.process_name || null,
+        row.browser ? 1 : 0,
+        row.capability_class || null,
+        row.risk_class || "interactive",
+        jsonString(row.metadata || {}),
+        Number(row.sort_order || 1000),
+      ]
+    );
+  }
+}
+
+function normalizeControlTemplate(row) {
+  const metadata = parseJson(row.metadata_json) || {};
+  if (row.template_type === "capability") {
+    return {
+      key: row.template_key,
+      label: row.label,
+      env_flag: row.env_flag || null,
+      risk: row.risk_class || "interactive",
+      note: metadata.note || "Governed Local Manager capability loaded from registry.",
+      metadata,
+    };
+  }
+  return {
+    app_alias: row.template_key,
+    display_name: row.label,
+    process_name: row.process_name || row.template_key,
+    browser: Boolean(Number(row.browser || 0)),
+    capability_class: row.capability_class || "desktop_app",
+    risk_class: row.risk_class || "interactive",
+    metadata,
+  };
+}
+
+async function loadLocalManagerControlTemplates() {
+  try {
+    await ensureLocalManagerControlTemplatesTable();
+    await seedLocalManagerControlTemplates();
+    const [rows] = await getPool().query(
+      `SELECT * FROM \`local_manager_control_templates\`
+        WHERE status = 'active' AND template_type IN ('capability','app')
+        ORDER BY template_type ASC, sort_order ASC, label ASC`
+    );
+    const supportedCapabilities = rows.filter((row) => row.template_type === "capability").map(normalizeControlTemplate);
+    const supportedApps = rows.filter((row) => row.template_type === "app").map(normalizeControlTemplate);
+    return {
+      source: "db",
+      registry_table: "local_manager_control_templates",
+      supported_capabilities: supportedCapabilities,
+      supported_apps: supportedApps,
+      last_loaded_at: new Date().toISOString(),
+      secrets_included: false,
+    };
+  } catch (err) {
+    const fallbackRows = localManagerControlTemplateSeeds();
+    return {
+      source: "code_fallback",
+      registry_table: "local_manager_control_templates",
+      error: { code: err?.code || "control_template_registry_unavailable", message: err?.message || String(err) },
+      supported_capabilities: fallbackRows.filter((row) => row.template_type === "capability").map((row) => ({ key: row.template_key, label: row.label, env_flag: row.env_flag || null, risk: row.risk_class || "interactive", note: row.metadata?.note || "Fallback Local Manager capability.", metadata: row.metadata || {} })),
+      supported_apps: fallbackRows.filter((row) => row.template_type === "app").map((row) => ({ app_alias: row.template_key, display_name: row.label, process_name: row.process_name || row.template_key, browser: Boolean(row.browser), capability_class: row.capability_class || "desktop_app", risk_class: row.risk_class || "interactive", metadata: row.metadata || {} })),
+      last_loaded_at: new Date().toISOString(),
+      secrets_included: false,
+    };
+  }
+}
+
 export async function getDeviceControls(req, res) {
   try {
     const device = await requireLocalManagerDevice(req);
