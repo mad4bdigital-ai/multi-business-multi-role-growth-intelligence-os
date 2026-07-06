@@ -364,6 +364,7 @@ function publicEffectiveProjection(effective = null) {
     authority: effective.authority || null,
     runtime: effective.runtime || null,
     checks: effective.checks || null,
+    bridge: effective.bridge || null,
     manifest_hash: effective.manifest_hash || null,
     secrets_included: false,
   };
