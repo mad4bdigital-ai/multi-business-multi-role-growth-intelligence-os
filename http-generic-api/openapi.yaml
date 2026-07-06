@@ -19,6 +19,7 @@ info:
     (3) Release operations Ã¢â‚¬â€ /release/readiness, /release/readiness-history,
         /release/entity-classification
     Platform endpoints accept admin/service authentication via BACKEND_API_KEY, or user authentication via a signed login JWT.
+    Activation GPT Action traffic uses the distinct https://activation.mad4b.com server URL. On Hostinger Cloud deployments, that host is enforced by the in-app Activation Host Gateway while Cloudflare remains DNS/proxy configuration only. OAuth endpoints stay on https://auth.mad4b.com and are rejected on the activation host. The production promotion path is merge to main followed by Hostinger Cloud auto-deploy; SSH deploy/restart and Cloudflare Worker rollout are not the normal path for this surface.
 
 servers:
   - url: https://auth.mad4b.com
