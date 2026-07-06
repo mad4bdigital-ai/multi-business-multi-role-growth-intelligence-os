@@ -1817,11 +1817,27 @@ async function storeToolResponseForChunks(body, optionsSource = {}, deps = {}) {
   return { chunkId, serialized, ttlMs, expiresAt: new Date(durable.expires_at).getTime() };
 }
 
-export function shouldChunkDispatchedToolResponse(toolKey = "") {
-  return String(toolKey || "").trim() !== "response_chunk_read";
+export function isGovernedToolResponseChunkEnvelope(body = {}) {
+  return Boolean(
+    body
+    && typeof body === "object"
+    && body.response_chunked === true
+    && typeof body.chunk_id === "string"
+    && body.chunk_id.length > 0
+    && typeof body.chunk === "string"
+    && body.page
+    && typeof body.page === "object"
+    && body.continuation
+    && typeof body.continuation === "object"
+  );
+}
+
+export function shouldChunkDispatchedToolResponse(toolKey = "", body = null) {
+  return String(toolKey || "").trim() !== "response_chunk_read" && !isGovernedToolResponseChunkEnvelope(body);
 }
 
 export async function maybeChunkToolResponseBody(body, optionsSource = {}, deps = {}) {
+  if (isGovernedToolResponseChunkEnvelope(body)) return body;
   const options = normalizeResponseOptions(
     optionsSource?.response_options || optionsSource?._response || optionsSource || {}
   );
