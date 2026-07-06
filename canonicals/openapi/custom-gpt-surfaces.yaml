@@ -3,7 +3,7 @@ source_openapi: http-generic-api/openapi.yaml
 surfaces:
   admin_core:
     mode: generated_from_openapi
-    output_file: openapi.custom-gpt.auth-dispatcher.yaml
+    output_file: openapi/openapi.custom-gpt.auth-dispatcher.yaml
     server_url: https://auth.mad4b.com
     auth_profile: admin_service
     hard_operation_limit: 30
@@ -18,7 +18,7 @@ surfaces:
 
   activation_admin:
     mode: generated_from_openapi
-    output_file: openapi.custom-gpt.activation-admin.yaml
+    output_file: openapi/openapi.custom-gpt.activation-admin.yaml
     server_url: https://activation.mad4b.com
     auth_profile: admin_service
     hard_operation_limit: 20
@@ -42,7 +42,7 @@ surfaces:
 
   tenant_core:
     mode: generated_from_openapi
-    output_file: openapi.tenant-gpt.auth.yaml
+    output_file: openapi/openapi.tenant-gpt.auth.yaml
     server_url: https://auth.mad4b.com
     auth_profile: tenant_oauth
     hard_operation_limit: 30
@@ -84,7 +84,7 @@ surfaces:
 
   tenant_activation:
     mode: generated_from_openapi
-    output_file: openapi.tenant-gpt.activation.yaml
+    output_file: openapi/openapi.tenant-gpt.activation.yaml
     server_url: https://activation.mad4b.com
     auth_profile: tenant_oauth
     hard_operation_limit: 10
@@ -104,7 +104,7 @@ surfaces:
   local_connector_admin:
     mode: canonical_copy
     canonical_file: canonicals/openapi/local-connector.openapi.yaml
-    output_file: openapi.gpt-action.local-connector.yaml
+    output_file: openapi/openapi.gpt-action.local-connector.yaml
     server_url: https://connector.mad4b.com
     auth_profile: device_admin
     hard_operation_limit: 30
@@ -112,7 +112,7 @@ surfaces:
 
   development:
     mode: externally_managed
-    output_file: openapi.gpt-action.dev-dispatcher.yaml
+    output_file: openapi/openapi.gpt-action.dev-dispatcher.yaml
     server_url: https://dev.mad4b.com
     auth_profile: development
     hard_operation_limit: 30
