@@ -14,6 +14,9 @@ import {
   AUDIT_ROLLUP_CONFIRMATION,
   runAuditEventRollupBuilder,
 } from "./scripts/audit-event-rollup-builder.mjs";
+import { closeGptSessionArchive } from "./sessionArchiveService.js";
+import { exportSessionToDrive } from "./sessionExportPipeline.js";
+import { writeProvidedSessionSummary } from "./sessionSummaryService.js";
 
 const CYCLE_LOCK = "dynamic_audit.runtime_cycle.v1";
 const DEFAULT_SCOPE = Object.freeze({
