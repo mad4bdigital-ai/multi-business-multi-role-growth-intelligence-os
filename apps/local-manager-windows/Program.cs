@@ -1142,6 +1142,10 @@ internal static class Program
             var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
             yield return ("edge", "Microsoft Edge", new[] { Path.Combine(programFilesX86, "Microsoft", "Edge", "Application", "msedge.exe"), Path.Combine(programFiles, "Microsoft", "Edge", "Application", "msedge.exe") });
             yield return ("chrome", "Google Chrome", new[] { Path.Combine(programFiles, "Google", "Chrome", "Application", "chrome.exe"), Path.Combine(programFilesX86, "Google", "Chrome", "Application", "chrome.exe") });
+            yield return ("firefox", "Mozilla Firefox", new[] { Path.Combine(programFiles, "Mozilla Firefox", "firefox.exe"), Path.Combine(programFilesX86, "Mozilla Firefox", "firefox.exe") });
+            yield return ("brave", "Brave Browser", new[] { Path.Combine(programFiles, "BraveSoftware", "Brave-Browser", "Application", "brave.exe"), Path.Combine(programFilesX86, "BraveSoftware", "Brave-Browser", "Application", "brave.exe") });
+            yield return ("opera", "Opera", new[] { Path.Combine(localAppData, "Programs", "Opera", "launcher.exe"), Path.Combine(programFiles, "Opera", "launcher.exe") });
+            yield return ("chromium", "Chromium", new[] { Path.Combine(programFiles, "Chromium", "Application", "chrome.exe"), Path.Combine(programFilesX86, "Chromium", "Application", "chrome.exe") });
             yield return ("vscode", "Visual Studio Code", new[] { Path.Combine(localAppData, "Programs", "Microsoft VS Code", "Code.exe"), Path.Combine(programFiles, "Microsoft VS Code", "Code.exe") }); yield return ("cursor", "Cursor", new[] { Path.Combine(localAppData, "Programs", "Cursor", "Cursor.exe"), Path.Combine(programFiles, "Cursor", "Cursor.exe") });
             yield return ("notepad", "Windows Notepad", new[] { Path.Combine(windows, "System32", "notepad.exe") });
         }
