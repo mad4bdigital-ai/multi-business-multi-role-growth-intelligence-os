@@ -829,6 +829,11 @@ function normalizeControlTemplate(row) {
     browser: Boolean(Number(row.browser || 0)),
     capability_class: row.capability_class || "desktop_app",
     risk_class: row.risk_class || "interactive",
+    surface_type: metadata.surface_type || row.capability_class || "desktop_app",
+    execution_location: metadata.execution_location || "local_device",
+    integration_type: metadata.integration_type || "local_app",
+    credential_scope: metadata.credential_scope || "none",
+    requires_credentials: Boolean(metadata.requires_credentials),
     metadata,
   };
 }
