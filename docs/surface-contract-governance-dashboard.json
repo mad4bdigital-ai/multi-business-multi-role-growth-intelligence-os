@@ -98,10 +98,10 @@
     "gate_candidate_count": 3
   },
   "gate": {
-    "ok": false,
+    "ok": true,
     "mode": "future_only_all_new_gaps",
-    "new_item_count": 5,
-    "blocking_new_item_count": 5
+    "new_item_count": 0,
+    "blocking_new_item_count": 0
   },
   "top_immediate_items": [
     {
