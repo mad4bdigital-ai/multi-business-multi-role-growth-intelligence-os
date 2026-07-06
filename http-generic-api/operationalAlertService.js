@@ -918,13 +918,14 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
     subject,
     alerts: mergeCandidates(alerts),
     source_health: results.map((result) => {
-      const rowCap = SOURCE_ROW_CAPS[result.source] || null;
+      const rowCap = result.row_cap ?? SOURCE_ROW_CAPS[result.source] ?? null;
       return {
         source: result.source,
         ok: result.ok,
         row_count: result.rows.length,
         row_cap: rowCap,
-        truncated: Boolean(result.ok && rowCap && result.rows.length >= rowCap),
+        truncated: Boolean(result.truncated ?? (result.ok && rowCap && result.rows.length >= rowCap)),
+        authority: result.authority || "sql_primary_runtime_table",
         error: result.error || null,
       };
     }),
