@@ -48,6 +48,12 @@ The safe operational sequence is:
 5. Re-run live-code readback for the expected route symbols.
 6. Only then issue the secure credential-intake link.
 
+## Temporary executor-gate recovery
+
+Use `1037_sprint69_temporary_hostinger_ssh_executor_gate.sql` only when the deploy release surface is certified, dry-run dispatch-ready, production parity is blocked by a stale deployed commit, and the normal Hostinger auto-deploy path has not moved the runtime. The gate is intentionally temporary: it records the target id, no-provider/no-credential/no-secret flags, and an `expires_at` value in `platform_runtime_config.config_json`. The actual expected deploy commit must come from the post-merge deploy capability envelope and runtime readback.
+
+This gate does not prove deployment. Treat it as enabling the executor path for one governed deploy attempt. Completion still requires migration ledger readback, deploy executor acceptance/completion, runtime `/health` and `/version` parity, and a follow-up disable/readback of the executor gate. If deployment transport is interrupted, use the deployment run readback instead of guessing success or failure.
+
 ## Prohibited shortcuts
 
 - Do not paste SSH, DB, API, or Hostinger credentials into chat.
