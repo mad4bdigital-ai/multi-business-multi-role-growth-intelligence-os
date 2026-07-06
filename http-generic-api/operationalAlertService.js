@@ -1043,6 +1043,8 @@ export async function readOperationalAlerts({
     source_health: collected.source_health,
     policy: {
       execution_log_is_evidence_not_alert_queue: true,
+      execution_log_uses_sql_primary_table_only: true,
+      sheets_recovery_not_used_for_operational_alerts: true,
       known_issues_are_preserved_until_lifecycle_resolution: true,
       dynamic_sources_are_read_live: true,
       dedupe_uses_stable_alert_key: true,
