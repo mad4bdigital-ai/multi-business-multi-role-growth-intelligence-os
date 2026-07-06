@@ -84,7 +84,7 @@ function makePool() {
 
 {
   const openapi = readFileSync("openapi.yaml", "utf8");
-  const tenantOpenapi = readFileSync("openapi.tenant-gpt.auth.yaml", "utf8");
+  const tenantOpenapi = readFileSync("openapi/openapi.tenant-gpt.auth.yaml", "utf8");
   const migration = readFileSync("migrations/1031_sprint69_strict_platform_plugin_resolve_contract.sql", "utf8");
   const notes = readFileSync("docs/platform-plugin-resolver-notes.md", "utf8");
   assert.match(openapi, /\/platform\/plugins\/resolve:[\s\S]*oneOf:/);

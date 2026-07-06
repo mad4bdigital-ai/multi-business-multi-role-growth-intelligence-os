@@ -101,8 +101,14 @@ function section(name) {
   console.log(`\n== ${name}`);
 }
 
+function schemaPath(file) {
+  const relocated = resolve(__dirname, "openapi", file);
+  if (existsSync(relocated)) return relocated;
+  return resolve(__dirname, file);
+}
+
 function loadSchema(file) {
-  const source = readFileSync(resolve(__dirname, file), "utf8");
+  const source = readFileSync(schemaPath(file), "utf8");
   try {
     return YAML.parse(source);
   } catch (error) {
@@ -267,7 +273,7 @@ function assertNonConsequentialOperation(doc, operationId) {
 
 section("schema inventory");
 for (const file of Object.keys(ACTIVE_SCHEMAS)) {
-  assert(`${file} exists`, existsSync(resolve(__dirname, file)));
+  assert(`${file} exists`, existsSync(schemaPath(file)));
 }
 for (const file of OBSOLETE_SCHEMAS) {
   assert(`${file} is deleted`, !existsSync(resolve(__dirname, file)));
@@ -774,7 +780,7 @@ section("Sprint 55: admin scope-sharing controller");
 section("Sprint 56: device-tools MCP facade");
 {
   const routesFile = readFileSync(resolve(__dirname, "routes/deviceToolsRoutes.js"), "utf8");
-  const dispatcherSchema = readFileSync(resolve(__dirname, "openapi.custom-gpt.auth-dispatcher.yaml"), "utf8");
+  const dispatcherSchema = readFileSync(schemaPath("openapi.custom-gpt.auth-dispatcher.yaml"), "utf8");
   const parentSchema = readFileSync(resolve(__dirname, "openapi.yaml"), "utf8");
   const gptToolsFile = readFileSync(resolve(__dirname, "routes/gptToolsRoutes.js"), "utf8");
 

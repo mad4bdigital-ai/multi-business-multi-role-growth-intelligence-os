@@ -124,8 +124,8 @@ try {
   {
     // MCP-style tenant schema plus direct tenant Platform Plugin self-serve actions.
     // Connect/system operations are still accessed via callTool (discovered through listTools).
-    const doc = YAML.parse(readFileSync("openapi.tenant-gpt.auth.yaml", "utf8"));
-    const activationDoc = YAML.parse(readFileSync("openapi.tenant-gpt.activation.yaml", "utf8"));
+    const doc = YAML.parse(readFileSync("openapi/openapi.tenant-gpt.auth.yaml", "utf8"));
+    const activationDoc = YAML.parse(readFileSync("openapi/openapi.tenant-gpt.activation.yaml", "utf8"));
     const exposedPaths = Object.keys(doc.paths || {});
     const securityScheme = doc.components?.securitySchemes?.userBearerAuth;
     const callToolSchema = doc.paths?.["/system/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
@@ -690,7 +690,7 @@ section("connect api auth scope");
   section("local connector GPT action schema");
 
   {
-    const doc = YAML.parse(readFileSync("openapi.gpt-action.local-connector.yaml", "utf8"));
+    const doc = YAML.parse(readFileSync("openapi/openapi.gpt-action.local-connector.yaml", "utf8"));
     const exposedPaths = Object.keys(doc.paths || {});
     const allOperations = exposedPaths.flatMap((pathKey) => {
       const pathItem = doc.paths[pathKey] || {};
