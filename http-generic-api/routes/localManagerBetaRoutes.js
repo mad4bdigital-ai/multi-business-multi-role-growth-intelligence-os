@@ -884,7 +884,15 @@ async function latestLocalManagerWindowsRelease() {
         ORDER BY COALESCE(published_at, updated_at, created_at) DESC, version DESC
         LIMIT 1`
     );
-    return rows[0] ? { ...rows[0], source: "db" } : localManagerFallbackReleaseRow();
+    const fallback = localManagerFallbackReleaseRow();
+    if (!rows[0]) return fallback;
+    const selected = { ...rows[0], source: "db" };
+    const fallbackVersion = normalizeVersion(fallback.version);
+    const selectedVersion = normalizeVersion(selected.version);
+    if (compareSemver(fallbackVersion, selectedVersion) > 0) {
+      return { ...fallback, source: "code_fallback_newer_than_db", stale_db_version: selected.version || null, stale_db_release_id: selected.release_id || null };
+    }
+    return selected;
   } catch {
     return localManagerFallbackReleaseRow();
   }
