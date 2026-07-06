@@ -7,7 +7,7 @@ const ROOT = process.cwd();
 const MANIFEST_PATH = path.join(ROOT, "resource-api-coverage.manifest.json");
 const ROUTE_PATH = path.join(ROOT, "routes", "resourceApiRoutes.js");
 const OPENAPI_PATH = path.join(ROOT, "openapi.yaml");
-const TENANT_OPENAPI_PATH = path.join(ROOT, "openapi.tenant-gpt.auth.yaml");
+const TENANT_OPENAPI_PATH = path.join(ROOT, "openapi", "openapi.tenant-gpt.auth.yaml");
 const REQUIRED_STATES = new Set([
   "active", "existing_writer_only", "existing_runtime_only", "existing_workflows_only",
   "existing_decision_routes_only", "completed_state_only", "readback_guarded",
