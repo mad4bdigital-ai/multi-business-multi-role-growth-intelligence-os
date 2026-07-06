@@ -694,9 +694,9 @@ internal static class Program
                 }
             };
             var supportedApps = new Button { Text = "Supported apps", Location = new Point(482, 222), Size = new Size(120, 32) };
-            supportedApps.Click += (_, _) =>
+            supportedApps.Click += async (_, _) =>
             {
-                var selected = PickSupportedApp(form);
+                var selected = await PickSupportedAppAsync(form, token);
                 if (selected is null) return;
                 appAlias.Text = selected.Alias;
                 appPath.Text = selected.ExecutablePath;
