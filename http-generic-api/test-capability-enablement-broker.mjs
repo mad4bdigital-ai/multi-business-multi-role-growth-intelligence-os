@@ -132,6 +132,66 @@ function readyDryRun(overrides = {}) {
 }
 
 {
+  const queries = [];
+  const pool = {
+    async query(sql, params) {
+      queries.push({ sql, params });
+      assert.match(sql, /capability_resolution_envelope_ledger/);
+      return [[{
+        envelope_id: "11111111-1111-4111-8111-111111111111",
+        tenant_id: "tenant-override",
+        user_id: "user-override",
+        workspace_id: "workspace-1",
+        app_key: "github",
+        capability_key: "repo_patch_apply",
+        operation_intent: "write",
+        selected_runtime_surface: "repo_patch_apply",
+        authority_status: "passed",
+        decision: "ready_for_dispatch",
+        envelope_status: "ready_for_dispatch",
+        dispatch_allowed: 1,
+        apply_allowed: 0,
+        expires_at: new Date(Date.now() + 60_000).toISOString(),
+        secrets_included: 0,
+      }]];
+    },
+  };
+  const result = await capabilityEnablementResolve(
+    {
+      capability_key: "repo_patch_apply",
+      operation_intent: "write",
+      tenant_id: "tenant-override",
+      user_id: "user-override",
+      app_key: "github",
+      workspace_id: "workspace-1",
+      runtime_surface: "repo_patch_apply",
+      capability_envelope_id: "11111111-1111-4111-8111-111111111111",
+    },
+    {
+      auth: { is_admin: true, tenant_id: "platform-tenant", user_id: "admin-user" },
+      pool,
+      tenantEffectiveCapabilityPreview: async () => readyEffective(),
+      runCapabilityResolutionDryRun: async () => readyDryRun({
+        decision: "ready_requires_approval",
+        gates: { approval_required: true, dispatch_allowed: true, apply_allowed: false, secrets_included: false },
+      }),
+    }
+  );
+  assert.equal(queries.length, 1);
+  assert.equal(result.decision, "ready_for_dispatch");
+  assert.equal(result.checks.envelope, "approved");
+  assert.equal(result.approved_envelope.ok, true);
+  assert.equal(result.dry_run.decision, "ready_for_dispatch");
+  assert.equal(result.dry_run.gates.approval_required, false);
+  assert.equal(result.dry_run.authority.approved_envelope.ok, true);
+  assert.equal(result.proposals[0].action, "dispatch_with_existing_runtime_guard");
+  assert.equal(result.proposals[0].handoff_ready, true);
+  assert.equal(result.provider_calls_made, 0);
+  assert.equal(result.external_mutations_executed, false);
+  assert.equal(result.secrets_included, false);
+}
+
+{
   const writes = [];
   const pool = {
     async query(sql, params) {
