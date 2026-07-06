@@ -1223,8 +1223,6 @@ export async function synchronizeOperationalAlerts({
       upserted += 1;
     }
     if (incompleteSources.length === 0) {
-      const staleWhere = subject.is_admin ? "1 = 1" : "tenant_id = ?";
-      const staleParams = subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__"];
       resolved = await autoResolveStaleAlerts(connection, { subject, runId, requestedBy });
     } else {
       resolutionSkipped = true;
