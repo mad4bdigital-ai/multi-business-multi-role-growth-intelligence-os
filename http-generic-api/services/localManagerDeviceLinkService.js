@@ -906,6 +906,8 @@ async function loadLocalManagerControlTemplates() {
       supported_browser_providers: supportedApps.filter((item) => item.surface_type === "browser_runtime" && item.integration_type === "external_provider"),
       supported_browser_adapters: supportedCapabilities.filter((item) => item.surface_type === "browser_adapter" || item.integration_type === "plugin_adapter"),
       supported_agent_surfaces: supportedCapabilities.filter((item) => item.surface_type === "agent_surface" || item.surface_type === "automation_surface"),
+      supported_managed_mad4b_services: supportedCapabilities.concat(supportedApps).filter((item) => item.metadata?.app_manager_scope === "managed_mad4b_service_side" || item.execution_location === "mad4b_service_side" || item.integration_type === "managed_service_client"),
+      supported_tenant_local_services: supportedCapabilities.concat(supportedApps).filter((item) => item.metadata?.app_manager_scope === "tenant_local_device_side" || item.execution_location === "tenant_local_device" || item.integration_type === "tenant_local_service"),
       last_loaded_at: new Date().toISOString(),
       secrets_included: false,
     };
