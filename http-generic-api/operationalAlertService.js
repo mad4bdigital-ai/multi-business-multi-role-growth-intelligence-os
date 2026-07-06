@@ -988,6 +988,7 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
         row_cap: rowCap,
         truncated: Boolean(result.truncated ?? (result.ok && rowCap && result.rows.length >= rowCap)),
         authority: result.authority || "sql_primary_runtime_table",
+        aggregation: result.aggregation || null,
         error: result.error || null,
       };
     }),
