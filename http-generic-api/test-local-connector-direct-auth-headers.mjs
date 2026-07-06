@@ -1,4 +1,10 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+
+function schemaPath(file) {
+  const relocated = `openapi/${file}`;
+  if (existsSync(relocated)) return relocated;
+  return file;
+}
 
 function assert(label, condition, detail = '') {
   if (!condition) {
