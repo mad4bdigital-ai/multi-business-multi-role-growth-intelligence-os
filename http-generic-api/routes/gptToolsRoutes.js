@@ -77,6 +77,9 @@ const DEFAULT_TOOL_LIST_LIMIT = 50;
 const MAX_TOOL_LIST_LIMIT = 200;
 const DEFAULT_TOOL_RESPONSE_MAX_CHARS = 45000;
 const MAX_TOOL_RESPONSE_MAX_CHARS = 150000;
+const DEFAULT_TOOL_RESPONSE_CLIENT_BUDGET_CHARS = 60000;
+const DEFAULT_TOOL_RESPONSE_ENVELOPE_OVERHEAD_CHARS = 12000;
+const MIN_TOOL_RESPONSE_MAX_CHARS = 5000;
 const DEFAULT_TOOL_RESPONSE_CHUNK_TTL_MS = 15 * 60 * 1000;
 const MAX_TOOL_RESPONSE_CHUNK_TTL_MS = 2 * 60 * 60 * 1000;
 const MIN_TOOL_RESPONSE_CHUNK_TTL_MS = 5 * 60 * 1000;
@@ -1720,13 +1723,31 @@ function parseJson(value) {
 function normalizeResponseOptions(value = {}) {
   const options = value && typeof value === "object" ? value : {};
   return {
-    maxChars: clampNumber(options.max_chars ?? options.max_response_chars, DEFAULT_TOOL_RESPONSE_MAX_CHARS, 5000, MAX_TOOL_RESPONSE_MAX_CHARS),
+    maxChars: resolveAdaptiveToolResponseMaxChars(options),
     cursor: clampNumber(options.cursor ?? options.response_cursor, 0, 0, Number.MAX_SAFE_INTEGER),
     chunkTtlMs: Number(options.chunk_ttl_ms ?? options.response_chunk_ttl_ms ?? 0) || null,
     chunkTtlMinutes: Number(options.chunk_ttl_minutes ?? options.response_chunk_ttl_minutes ?? 0) || null,
   };
 }
 
+
+export function resolveAdaptiveToolResponseMaxChars(value = {}) {
+  const options = value && typeof value === "object" ? value : {};
+  const clientBudget = clampNumber(
+    options.client_response_budget_chars ?? options.response_budget_chars ?? options.max_response_envelope_chars,
+    DEFAULT_TOOL_RESPONSE_CLIENT_BUDGET_CHARS,
+    MIN_TOOL_RESPONSE_MAX_CHARS * 2,
+    MAX_TOOL_RESPONSE_MAX_CHARS,
+  );
+  const envelopeOverhead = clampNumber(
+    options.response_envelope_overhead_chars ?? options.envelope_overhead_chars,
+    DEFAULT_TOOL_RESPONSE_ENVELOPE_OVERHEAD_CHARS,
+    2000,
+    Math.max(2000, clientBudget - MIN_TOOL_RESPONSE_MAX_CHARS),
+  );
+  const adaptiveMax = Math.max(MIN_TOOL_RESPONSE_MAX_CHARS, Math.min(MAX_TOOL_RESPONSE_MAX_CHARS, clientBudget - envelopeOverhead));
+  return clampNumber(options.max_chars ?? options.max_response_chars, Math.min(DEFAULT_TOOL_RESPONSE_MAX_CHARS, adaptiveMax), MIN_TOOL_RESPONSE_MAX_CHARS, adaptiveMax);
+}
 export function resolveToolResponseChunkTtlMs(options = {}, serializedLength = 0) {
   const normalized = normalizeResponseOptions(options?.response_options || options?._response || options || {});
   const requestedMs = normalized.chunkTtlMs || (normalized.chunkTtlMinutes ? normalized.chunkTtlMinutes * 60 * 1000 : 0);
