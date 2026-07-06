@@ -747,7 +747,7 @@ export async function runDynamicAuditCycle(options = {}, dependencies = {}) {
     }, { pool });
     const readiness = await readDynamicReadiness(connection);
     result = {
-      ok: Boolean(migrationReconciliation.ok && bridge.ok && rollup.ok && lifecycleSnapshot.ok),
+      ok: Boolean(migrationReconciliation.ok && bridge.ok && sessionArchiveClosure.ok && rollup.ok && lifecycleSnapshot.ok),
       run_id: runId,
       mode: options.mode || "scheduled",
       commit_sha: commitSha,
