@@ -1377,7 +1377,9 @@ async function executeGitHubRestFallbackCore(args = []) {
         apiTarget.startsWith("/compare/") ||
         apiTarget.startsWith("/pulls") ||
         apiTarget.startsWith("/commits/") ||
-        allowedContentsRead
+        allowedContentsRead ||
+        allowedReleaseMetadataRead ||
+        allowedWorkflowRunArtifactsRead
       );
     const allowedContentsMutation = githubContentsMutationAllowed(apiTarget, method);
     const allowedBranchRefUpdate = githubBranchRefUpdateAllowed(apiTarget, method);
