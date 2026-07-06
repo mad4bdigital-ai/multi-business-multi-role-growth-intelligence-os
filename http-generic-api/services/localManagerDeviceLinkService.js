@@ -849,11 +849,19 @@ async function loadLocalManagerControlTemplates() {
     );
     const supportedCapabilities = rows.filter((row) => row.template_type === "capability").map(normalizeControlTemplate);
     const supportedApps = rows.filter((row) => row.template_type === "app").map(normalizeControlTemplate);
+    const supportedBrowsers = supportedApps.filter((item) => item.surface_type === "browser_runtime" && item.integration_type === "local_app");
+    const supportedBrowserProviders = supportedApps.filter((item) => item.surface_type === "browser_runtime" && item.integration_type === "external_provider");
+    const supportedBrowserAdapters = supportedCapabilities.filter((item) => item.surface_type === "browser_adapter" || item.integration_type === "plugin_adapter");
+    const supportedAgentSurfaces = supportedCapabilities.filter((item) => item.surface_type === "agent_surface" || item.surface_type === "automation_surface");
     return {
       source: "db",
       registry_table: "local_manager_control_templates",
       supported_capabilities: supportedCapabilities,
       supported_apps: supportedApps,
+      supported_browsers: supportedBrowsers,
+      supported_browser_providers: supportedBrowserProviders,
+      supported_browser_adapters: supportedBrowserAdapters,
+      supported_agent_surfaces: supportedAgentSurfaces,
       last_loaded_at: new Date().toISOString(),
       secrets_included: false,
     };
