@@ -195,9 +195,16 @@ function isCli() {
   return process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 }
 
+function resolveSchemaPath(file) {
+  if (path.isAbsolute(file)) return file;
+  const openapiPath = path.resolve(OPENAPI_DIR, file);
+  if (fs.existsSync(openapiPath)) return openapiPath;
+  return path.resolve(API_ROOT, file);
+}
+
 if (isCli()) {
   const requested = process.argv.slice(2).filter((arg) => !arg.startsWith("--"));
-  const files = (requested.length ? requested : DEFAULT_SCHEMA_FILES).map((file) => path.resolve(API_ROOT, file));
+  const files = (requested.length ? requested : DEFAULT_SCHEMA_FILES).map(resolveSchemaPath);
   const issues = validateOpenApiFiles(files);
   if (issues.length) {
     console.error(`OpenAPI Builder schema guard failed with ${issues.length} issue(s):`);
