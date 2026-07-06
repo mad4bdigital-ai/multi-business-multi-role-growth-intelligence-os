@@ -14,6 +14,9 @@ import {
   AUDIT_ROLLUP_CONFIRMATION,
   runAuditEventRollupBuilder,
 } from "./scripts/audit-event-rollup-builder.mjs";
+import { closeGptSessionArchive } from "./sessionArchiveService.js";
+import { exportSessionToDrive } from "./sessionExportPipeline.js";
+import { writeProvidedSessionSummary } from "./sessionSummaryService.js";
 
 const CYCLE_LOCK = "dynamic_audit.runtime_cycle.v1";
 const DEFAULT_SCOPE = Object.freeze({
@@ -33,6 +36,10 @@ const DEFAULT_CONFIG = Object.freeze({
   migration_reconciliation_enabled: false,
   migration_reconciliation_apply: false,
   migration_reconciliation_limit: 2000,
+  session_archive_stale_closure_enabled: false,
+  session_archive_stale_closure_stale_days: 3,
+  session_archive_stale_closure_limit: 25,
+  session_archive_stale_closure_user_email: null,
   run_on_startup: true,
 });
 
@@ -71,6 +78,7 @@ async function loadRuntimeConfig(connection) {
     "audit_log_event_bus_bridge_schedule",
     "audit_event_rollup_builder_schedule",
     "governed_migration_reconciliation_scheduler",
+    "session_archive_stale_closure_autosweep",
   ];
   const [rows] = await connection.query(
     `SELECT config_key,config_json,status,note,updated_at
@@ -83,8 +91,10 @@ async function loadRuntimeConfig(connection) {
   const bridgeRow = byKey.get("audit_log_event_bus_bridge_schedule");
   const rollupRow = byKey.get("audit_event_rollup_builder_schedule");
   const migrationReconciliationRow = byKey.get("governed_migration_reconciliation_scheduler");
+  const sessionArchiveClosureRow = byKey.get("session_archive_stale_closure_autosweep");
   const schedulerConfig = safeJsonParse(schedulerRow?.config_json, {});
   const migrationReconciliationConfig = safeJsonParse(migrationReconciliationRow?.config_json, {});
+  const sessionArchiveClosureConfig = safeJsonParse(sessionArchiveClosureRow?.config_json, {});
   return {
     ...DEFAULT_CONFIG,
     ...safeJsonParse(bridgeRow?.config_json, {}),
@@ -98,6 +108,21 @@ async function loadRuntimeConfig(connection) {
       1,
       Math.min(Number(migrationReconciliationConfig.migration_limit || 2000), 2000)
     ),
+    session_archive_stale_closure_enabled:
+      sessionArchiveClosureRow?.status !== "disabled" &&
+      sessionArchiveClosureConfig.enabled === true,
+    session_archive_stale_closure_stale_days: Math.max(
+      1,
+      Math.min(Number(sessionArchiveClosureConfig.stale_days || 3), 30)
+    ),
+    session_archive_stale_closure_limit: Math.max(
+      1,
+      Math.min(Number(sessionArchiveClosureConfig.limit || 25), 100)
+    ),
+    session_archive_stale_closure_user_email:
+      typeof sessionArchiveClosureConfig.user_email === "string"
+        ? sessionArchiveClosureConfig.user_email.slice(0, 320)
+        : null,
     enabled:
       schedulerRow?.status !== "disabled" &&
       schedulerConfig.enabled !== false &&
@@ -363,6 +388,136 @@ async function produceRepoFileAudit(connection, commitSha, limit) {
   return { run_inserted: 1, findings_inserted: findingsInserted, run_id: runId };
 }
 
+async function runSessionArchiveStaleClosureAutosweep(connection, config) {
+  if (config.session_archive_stale_closure_enabled !== true) {
+    return { ok: true, skipped: true, reason: "runtime_config_disabled", secrets_included: false };
+  }
+
+  const staleDays = Math.max(1, Math.min(Number(config.session_archive_stale_closure_stale_days || 3), 30));
+  const limit = Math.max(1, Math.min(Number(config.session_archive_stale_closure_limit || 25), 100));
+  const userEmail = config.session_archive_stale_closure_user_email || null;
+  const summary = `Auto-closed stale active GPT session after more than ${staleDays} days since last archived turn. Drive-backed turn coverage was verified before closure.`;
+
+  const [candidates] = await connection.query(
+    `WITH turn_counts AS (
+       SELECT session_id COLLATE utf8mb4_unicode_ci AS session_id,
+              COUNT(*) AS sql_turn_rows,
+              MAX(created_at) AS latest_turn_at,
+              SUM(CASE
+                    WHEN drive_doc_id IS NULL OR drive_doc_id = ''
+                      OR drive_anchor IS NULL OR drive_anchor = ''
+                      OR content_sha256 IS NULL OR content_sha256 = ''
+                      OR storage_mode <> 'drive'
+                    THEN 1 ELSE 0
+                  END) AS storage_gap_turns
+         FROM gpt_session_turns
+        GROUP BY session_id COLLATE utf8mb4_unicode_ci
+     )
+     SELECT s.*, tc.sql_turn_rows, tc.latest_turn_at, tc.storage_gap_turns
+       FROM customer_sessions s
+       JOIN turn_counts tc
+         ON tc.session_id = s.session_id COLLATE utf8mb4_unicode_ci
+      WHERE s.session_status = 'active'
+        AND s.originator = 'gpt_action'
+        AND s.turn_count > 0
+        AND tc.storage_gap_turns = 0
+        AND tc.latest_turn_at < UTC_TIMESTAMP() - INTERVAL ? DAY
+      ORDER BY tc.latest_turn_at ASC
+      LIMIT ?`,
+    [staleDays, limit]
+  );
+
+  const closed = [];
+  const failures = [];
+  for (const candidate of candidates) {
+    try {
+      await connection.query(
+        `UPDATE customer_sessions
+            SET session_status = 'completed', ended_at = COALESCE(ended_at, NOW())
+          WHERE session_id = ? AND session_status = 'active'`,
+        [candidate.session_id]
+      );
+      const [[freshSession]] = await connection.query(
+        "SELECT * FROM customer_sessions WHERE session_id = ? LIMIT 1",
+        [candidate.session_id]
+      );
+      const session = freshSession || candidate;
+      const archiveClose = await closeGptSessionArchive({ pool: connection, session, summary });
+      const [[summarySession]] = await connection.query(
+        "SELECT * FROM customer_sessions WHERE session_id = ? LIMIT 1",
+        [candidate.session_id]
+      );
+      const summaryResult = await writeProvidedSessionSummary({
+        pool: connection,
+        session: summarySession || session,
+        summaryText: summary,
+        run_id: `stale_closure_${String(candidate.session_id).slice(0, 48)}`,
+      });
+
+      let driveResult = null;
+      let driveExportError = null;
+      try {
+        driveResult = await exportSessionToDrive(candidate.session_id, userEmail);
+      } catch (error) {
+        driveExportError = boundedText(error?.message || error, 500);
+      }
+
+      const [[readback]] = await connection.query(
+        `SELECT session_id, session_status, archive_status, ended_at,
+                drive_export_id, drive_export_url, drive_exported_at,
+                turn_count, archive_last_written_at
+           FROM customer_sessions
+          WHERE session_id = ?
+          LIMIT 1`,
+        [candidate.session_id]
+      );
+      const readbackOk =
+        readback?.session_status === 'completed' &&
+        readback?.archive_status === 'closed' &&
+        Boolean(readback?.drive_export_url);
+      closed.push({
+        session_id: candidate.session_id,
+        latest_turn_at: candidate.latest_turn_at,
+        turn_count: Number(candidate.turn_count || 0),
+        sql_turn_rows: Number(candidate.sql_turn_rows || 0),
+        archive_status: readback?.archive_status || null,
+        session_status: readback?.session_status || null,
+        drive_export_url_present: Boolean(readback?.drive_export_url),
+        readback_ok: readbackOk,
+        archive_ok: archiveClose?.ok === true,
+        summary_ok: summaryResult?.ok === true,
+        drive_export_ok: Boolean(driveResult?.drive_file_id || readback?.drive_export_id),
+        drive_export_error: driveExportError,
+        secrets_included: false,
+      });
+    } catch (error) {
+      failures.push({
+        session_id: candidate.session_id,
+        latest_turn_at: candidate.latest_turn_at,
+        error: {
+          code: error?.code || "session_archive_stale_closure_failed",
+          message: boundedText(error?.message || error, 500),
+        },
+        secrets_included: false,
+      });
+    }
+  }
+
+  return {
+    ok: failures.length === 0,
+    enabled: true,
+    stale_days: staleDays,
+    candidate_count: candidates.length,
+    closed_count: closed.filter((item) => item.readback_ok).length,
+    partial_count: closed.filter((item) => !item.readback_ok).length,
+    failed_count: failures.length,
+    closed,
+    failures,
+    raw_payload_stored: false,
+    secrets_included: false,
+  };
+}
+
 async function readDynamicReadiness(connection) {
   const [rows] = await connection.query(
     `SELECT
@@ -577,6 +732,7 @@ export async function runDynamicAuditCycle(options = {}, dependencies = {}) {
     const drive = await produceDriveEvents(connection, config.source_limit);
     const release = await produceReleaseReadinessEvent(connection);
     const repo = await produceRepoFileAudit(connection, commitSha, config.source_limit);
+    const sessionArchiveClosure = await runSessionArchiveStaleClosureAutosweep(connection, config);
     const rollup = await runAuditEventRollupBuilder(
       { apply: true, confirm: AUDIT_ROLLUP_CONFIRMATION, limit: config.batch_limit },
       { pool }
@@ -591,7 +747,7 @@ export async function runDynamicAuditCycle(options = {}, dependencies = {}) {
     }, { pool });
     const readiness = await readDynamicReadiness(connection);
     result = {
-      ok: Boolean(migrationReconciliation.ok && bridge.ok && rollup.ok && lifecycleSnapshot.ok),
+      ok: Boolean(migrationReconciliation.ok && bridge.ok && sessionArchiveClosure.ok && rollup.ok && lifecycleSnapshot.ok),
       run_id: runId,
       mode: options.mode || "scheduled",
       commit_sha: commitSha,
@@ -601,6 +757,7 @@ export async function runDynamicAuditCycle(options = {}, dependencies = {}) {
         drive,
         release,
         repo,
+        session_archive_stale_closure: sessionArchiveClosure,
         rollup,
         checkpoint,
         lifecycle_snapshot: lifecycleSnapshot,
