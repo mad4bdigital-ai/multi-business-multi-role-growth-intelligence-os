@@ -18,7 +18,10 @@ import {
   recordContainerPerformanceSample,
   storeIdempotentResult
 } from "./dynamicContainerAuthorityRepository.js";
-import { buildLegacyContainerProjectionPlan } from "./dynamicContainerProjectionService.js";
+import {
+  buildLegacyContainerProjectionPlan,
+  _testingDynamicContainerProjectionService
+} from "./dynamicContainerProjectionService.js";
 import { _testingDynamicContainerOverrideService } from "./dynamicContainerOverrideService.js";
 
 const TENANT = "tenant-1";
@@ -301,6 +304,39 @@ const namespaceMismatch=await buildLegacyContainerProjectionPlan({
   sourceRows:{ ...projectionSources,workspaces:[{ ...projectionSources.workspaces[0],linked_brand_key:"Brand One" }] }
 });
 assert(namespaceMismatch.issues.some(row => row.issue_code === "workspace_brand_key_namespace_mismatch" && row.status === "held"));
+
+const sequentialSourceExecutor={
+  active:0,maxActive:0,calls:[],
+  query:async sql => {
+    sequentialSourceExecutor.active += 1;
+    sequentialSourceExecutor.maxActive = Math.max(sequentialSourceExecutor.maxActive,sequentialSourceExecutor.active);
+    sequentialSourceExecutor.calls.push(String(sql));
+    await new Promise(resolve => setImmediate(resolve));
+    sequentialSourceExecutor.active -= 1;
+    return [[],[]];
+  }
+};
+const sequentialSources=await _testingDynamicContainerProjectionService.loadProjectionSources(sequentialSourceExecutor);
+assert.equal(sequentialSourceExecutor.calls.length,13);
+assert.equal(sequentialSourceExecutor.maxActive,1);
+assert.deepEqual(Object.keys(sequentialSources),[
+  "tenants","workspaces","brands","brandPaths","activities","workflows","memberships","roleAssignments",
+  "workspaceGrants","workspaceAppLinks","actionGrants","skillGrants","workspaceAssets"
+]);
+
+const failingSourceExecutor={
+  query:async sql => {
+    if(String(sql).includes("FROM brands")) throw Object.assign(new Error("simulated source timeout"),{ code:"ETIMEDOUT" });
+    return [[],[]];
+  }
+};
+await assert.rejects(
+  () => _testingDynamicContainerProjectionService.loadProjectionSources(failingSourceExecutor),
+  error => error.code === "container_projection_source_load_failed"
+    && error.status === 503
+    && error.details?.[0]?.stage === "load_projection_sources"
+    && error.details?.[0]?.source === "brands"
+);
 
 function placeholderExecutor() {
   const calls=[];

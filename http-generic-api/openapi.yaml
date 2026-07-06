@@ -6728,7 +6728,9 @@ paths:
               properties:
                 lifecycle_status: { type: string, enum: [open, acknowledged, investigating, resolved, ignored] }
                 actor: { type: string, maxLength: 191 }
+                actor_type: { type: string, maxLength: 64, default: platform_admin }
                 note: { type: string, maxLength: 2000 }
+                idempotency_key: { type: string, maxLength: 191 }
       responses:
         '200':
           description: Updated lifecycle readback.

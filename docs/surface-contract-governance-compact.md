@@ -1,15 +1,14 @@
 # Surface Contract Governance Compact
 
-- Gate: fail
-- Blocking new items: 2
-- Docs completion: 480/482 (99.59%)
-- Queue items: 2
-- OpenAPI missing SQL routes: 1
-- OpenAPI-exempt SQL route-like literals: 610/628
+- Gate: pass
+- Blocking new items: 0
+- Docs completion: 484/484 (100%)
+- Queue items: 0
+- OpenAPI missing SQL routes: 0
+- OpenAPI-exempt SQL route-like literals: 611/628
 - Safety marker gap migrations: 0
-- Trend quality gate: fail
+- Trend quality gate: pass
 
 ## Top actionable
 
-- `1026_sprint69_github_actions_runs_read_dispatch.sql` — critical_review, score 1016; classify route-like strings, then add OpenAPI contract or false-positive exemption
-- `1025_sprint69_github_ref_dispatch_catalog_persistence.sql` — high_review, score 599; add targeted patch-index, parity, and governance documentation
+- none
