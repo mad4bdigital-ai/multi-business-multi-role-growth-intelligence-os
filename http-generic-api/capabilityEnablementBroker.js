@@ -568,6 +568,14 @@ export async function capabilityEnablementResolve(args = {}, context = {}) {
       dryRunError = error;
       dryRun = null;
     }
+    if (shouldTryVirtualAdminToolBridge(effective, auth)) {
+      try {
+        const bridged = await (context.resolveVirtualAdminToolBridge || resolveVirtualAdminToolBridge)(context.pool || getPool(), args, scope, dryRun);
+        if (bridged?.ok === true) effective = bridged;
+      } catch (error) {
+        effectiveError = effectiveError || error;
+      }
+    }
   }
 
   const classification = classifyEnablementDecision({ effective, dryRun, operationIntent, secretBoundaryFailed });
