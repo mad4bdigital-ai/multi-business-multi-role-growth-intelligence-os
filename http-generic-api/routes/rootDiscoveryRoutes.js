@@ -139,7 +139,7 @@ export function buildRootDiscoveryRoutes() {
     }
 
     try {
-      const schema = await readFile(resolve(SCHEMA_DIR, requestedFile), "utf8");
+      const schema = await readPublicSchemaFile(requestedFile);
       return res
         .status(200)
         .type("application/yaml")
