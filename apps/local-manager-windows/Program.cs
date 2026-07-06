@@ -916,7 +916,14 @@ internal static class Program
             public override string ToString() => $"{DisplayName} ({Alias}) — {ExecutablePath}";
         }
 
-        private static SupportedAppChoice? PickSupportedApp(IWin32Window owner)
+        private sealed record DynamicCapabilityChoice(string Key, string Label, string SurfaceType, string IntegrationType)
+        {
+            public override string ToString() => string.IsNullOrWhiteSpace(SurfaceType)
+                ? $"{Label} ({Key})"
+                : $"{Label} ({Key}) — {SurfaceType}/{IntegrationType}";
+        }
+
+        private async Task<SupportedAppChoice?> PickSupportedAppAsync(IWin32Window owner, string token)
         {
             var apps = DiscoverSupportedApps().OrderBy(app => app.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
             if (apps.Count == 0)
