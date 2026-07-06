@@ -549,6 +549,7 @@ export const CAPABILITY_ENABLEMENT_SYSTEM_TOOLS = Object.freeze([
         resource_ref: { type: "string", maxLength: 255 },
         resource_uri: { type: "string", maxLength: 512 },
         runtime_surface: { type: "string", maxLength: 191 },
+        capability_envelope_id: { type: "string", maxLength: 64, description: "Optional existing approved capability envelope id for diagnose-only handoff readiness classification." },
         include_explain: { type: "boolean", default: false },
       },
       additionalProperties: false,
