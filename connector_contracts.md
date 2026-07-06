@@ -193,6 +193,19 @@ Connector transport metadata and credential-binding evidence are separate contra
 
 Apply authorization must therefore remain count-driven: zero active bindings may use an explicitly allowed no-credential path, a positive count must be blocked when credential-backed execution is forbidden, and a zero count must be blocked when policy requires a binding. Candidate metadata must not create authority or weaken capability-envelope, provider, approval, audit, readback, or no-secret guarantees.
 
+## Dynamic Container projection source loader
+
+The Dynamic Container projection source loader is an internal runtime contract, not a connector transport. It reads the SQL authority tables used by `dynamic_container_projection_dry_run` and `container-authority/projections`.
+
+- Public caller: `dynamicContainerProjectionService.buildLegacyContainerProjectionPlan()`.
+- Route surfaces: `/admin/container-authority/projection-preview` and `/container-authority/projections`.
+- Behavior: source queries execute sequentially to stay within bounded database pool limits and produce deterministic dependency diagnosis.
+- Error contract: a source read failure throws `container_projection_source_load_failed` with HTTP `503`, `stage=load_projection_sources`, and a bounded source name.
+- Safety: no provider call, credential payload read, external write, enforcement, promotion, secret return, raw SQL echo, or stack trace exposure.
+- Testing: regression coverage asserts maximum source-query concurrency of one and verifies the structured source failure envelope.
+
+This loader must remain an application/infrastructure boundary helper. Route handlers map its structured errors into the shared API envelope; they must not embed source-loading business logic or perform ad hoc database reads for projection planning.
+
 ## Dispatch entrypoint
 
 Connector dispatch routes through two layers:

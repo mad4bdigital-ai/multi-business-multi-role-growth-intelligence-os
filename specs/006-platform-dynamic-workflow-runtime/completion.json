@@ -5,67 +5,45 @@
   "status": "in_progress",
   "delivery_mode": "multi_pr",
   "current_increment": {
-    "phase": "Authority Scope shadow readiness evaluation",
+    "phase": "projection_loader_and_runtime_closeout_final_pr",
     "design_version": "0.3.0",
-    "pull_request": 1929,
-    "branch": "gpt/006-platform-dynamic-workflow-runtime",
+    "pull_request": 1978,
+    "branch": "gpt/006-container-projection-source-loader",
     "implementation_started": true,
-    "production_activation_authorized": false
+    "implementation_merged": true,
+    "migrations_executed": true,
+    "projection_loader_fix_in_pr": true,
+    "production_activation_authorized": false,
+    "enforcement_mode": "shadow_only"
   },
   "requirements": {
     "migration": true,
     "production_verification": true,
-    "post_merge_audit": true
+    "post_merge_audit": true,
+    "projection_dry_run": true,
+    "shadow_observation": true
   },
   "delivery": {
-    "implementation_prs": [
-      {
-        "number": 1941,
-        "branch": "gpt/006-authority-scope-foundation",
-        "role": "authority_scope_foundation",
-        "status": "ci_passed_review_pending",
-        "verification_reference": "github_pr_ci_gate:1941",
-        "base_branch": "gpt/006-platform-dynamic-workflow-runtime",
-        "enforcement_mode": "shadow_only",
-        "migration_executed": false
-      },
-      {
-        "number": 1945,
-        "branch": "gpt/006-authority-scope-shadow-integration",
-        "role": "authority_scope_shadow_integration",
-        "status": "ci_passed_review_pending",
-        "verification_reference": "github_pr_ci_gate:1945",
-        "base_branch": "gpt/006-authority-scope-foundation",
-        "enforcement_mode": "shadow_only",
-        "migration_executed": false
-      },
-      {
-        "number": 1949,
-        "branch": "gpt/006-authority-scope-shadow-evidence",
-        "role": "authority_scope_shadow_evidence",
-        "status": "ci_passed_review_pending",
-        "verification_reference": "github_pr_ci_gate:1949",
-        "base_branch": "gpt/006-authority-scope-shadow-integration",
-        "enforcement_mode": "shadow_only",
-        "migration_executed": false
-      },
-      {
-        "number": 1955,
-        "branch": "gpt/006-authority-scope-shadow-readiness",
-        "role": "authority_scope_shadow_readiness",
-        "status": "ci_passed_review_pending",
-        "verification_reference": "github_pr_ci_gate:1955",
-        "base_branch": "gpt/006-authority-scope-shadow-evidence",
-        "enforcement_mode": "shadow_only",
-        "migration_executed": false
-      }
-    ],
-    "closeout_pr": {
+    "design_pr": {
       "number": 1929,
       "branch": "gpt/006-platform-dynamic-workflow-runtime",
       "role": "design_and_planning",
       "status": "merged",
       "merge_sha": "8c5e50c131b1b21f0b915b7b01a97f17b1c823a5"
+    },
+    "final_pr": {
+      "number": 1978,
+      "branch": "gpt/006-container-projection-source-loader",
+      "role": "projection_loader_fix_and_runtime_closeout",
+      "status": "ready_for_fresh_ci",
+      "supersedes_prs": [1968],
+      "scope": [
+        "bounded_projection_source_loading",
+        "structured_projection_dependency_error",
+        "openapi_503_contract",
+        "runtime_closeout_evidence",
+        "documentation_alignment"
+      ]
     }
   },
   "evidence": {
@@ -77,16 +55,11 @@
       "github_readback": "pass"
     },
     "implementation": {
-      "status": "in_progress",
-      "current_pr": 1955,
-      "slices": [
-        "authority_scope_foundation",
-        "authority_scope_shadow_integration",
-        "authority_scope_shadow_evidence",
-        "authority_scope_shadow_readiness"
-      ],
-      "ci_status": "pass",
-      "mergeable_state": "clean",
+      "status": "merged_runtime_validation_in_progress",
+      "current_pr": 1978,
+      "ci_status": "pending_fresh_head",
+      "mergeable_state": "pending_readback",
+      "production_effect": "additive_schema_shadow_observability_and_dry_run_projection_fix_only",
       "scope": [
         "domain_invariants",
         "shadow_resolver",
@@ -100,26 +73,76 @@
         "tenant_filtered_evidence_readback",
         "shadow_readiness_evaluator",
         "read_only_readiness_views",
-        "tests"
-      ],
-      "production_effect": "none"
+        "bounded_projection_source_loading",
+        "structured_projection_dependency_error",
+        "tests",
+        "openapi_contract"
+      ]
     },
-    "ci": {
+    "migration": {
       "status": "pass",
-      "pull_requests": [1941, 1945, 1949, 1955],
-      "required_checks_per_pr": 4,
-      "successful_checks_per_pr": 4,
-      "failed_checks": 0,
-      "verification_references": [
-        "github_pr_ci_gate:1941",
-        "github_pr_ci_gate:1945",
-        "github_pr_ci_gate:1949",
-        "github_pr_ci_gate:1955"
+      "migration_executed": true,
+      "authorization_status": "authorized",
+      "dry_run_status": "pass",
+      "preflight_risk_count": 0,
+      "same_cycle_schema_readback": true,
+      "schema_objects": [
+        "authority_scope_registry",
+        "authority_scope_shadow_evidence",
+        "v_authority_scope_shadow_summary",
+        "v_container_rollout_readiness_v2"
+      ]
+    },
+    "projection_loader": {
+      "status": "ready_for_fresh_ci",
+      "failure_before_fix": "container_authority_internal_error during projection source loading",
+      "fix": "sequential SQL source loading with structured 503 dependency error",
+      "max_source_query_concurrency": 1,
+      "structured_error_code": "container_projection_source_load_failed",
+      "structured_error_status": 503,
+      "stage": "load_projection_sources",
+      "provider_calls": false,
+      "credential_payload_reads": false,
+      "external_writes": false,
+      "secrets_included": false
+    },
+    "shadow_observation": {
+      "status": "pending_runtime_samples",
+      "enforcement_mode": "shadow_only",
+      "authority_granted": false,
+      "promotion_requested": false,
+      "provider_calls": false,
+      "external_writes": false,
+      "required_before_completion": [
+        "minimum_sample_count_reached",
+        "unresolved_count_zero",
+        "mismatch_percent_within_policy",
+        "retention_window_verified",
+        "latency_budget_verified",
+        "audit_coverage_verified"
+      ]
+    },
+    "production_verification": {
+      "status": "pending_post_merge_deploy",
+      "reason": "Exact deployed commit parity and live projection dry-run require deployment of the final PR merge SHA."
+    },
+    "post_merge_audit": {
+      "status": "pending_post_merge",
+      "required_checks": [
+        "registry_seed_readback",
+        "projection_dry_run_success_or_structured_503_source_diagnostic",
+        "shadow_evidence_non_authoritative_invariants",
+        "readiness_view_readback",
+        "fail_open_persistence_behavior",
+        "no_secret_or_credential_payload_reads",
+        "no_enforcement_or_promotion"
       ]
     },
     "release_readiness": {
-      "status": "pending",
-      "reason": "Design approval, implementation reviews, governed migration execution, deployed shadow observation, evidence retention verification, readiness-window verification, and production verification remain outstanding."
+      "status": "pending_post_merge_deploy",
+      "spec_scope_schema_gaps": 0,
+      "spec_scope_migration_candidates": 0,
+      "reason": "Spec 006 migrations and schema readback passed. Final PR 1978 must pass fresh CI, merge, deploy, run projection dry-run, collect shadow observation, verify retention and latency, and complete post-merge audit."
     }
   },
   "secrets_included": false
