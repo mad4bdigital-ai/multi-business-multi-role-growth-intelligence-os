@@ -4,11 +4,11 @@
 
 ## Summary
 
-- Total queue items: 4
+- Total queue items: 5
 - Critical review: 2
 - High review: 1
 - Medium review: 0
-- Low review: 1
+- Low review: 2
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
@@ -69,4 +69,17 @@
 - Remediation actions:
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `default_decision`, `same_cycle_readback`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_raw_secrets`, `no_external_write`
+
+### 5. `1037_sprint69_temporary_hostinger_ssh_executor_gate.sql`
+
+- Queue class: low_review
+- Score: 101
+- Gap severity: none
+- Missing docs: none
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=0
+- Remediation actions:
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `provider_dispatch_allowed`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
