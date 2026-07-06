@@ -3,7 +3,7 @@
   "schema_version": "surface-contract-gap-baseline-v1",
   "baseline_scope": "legacy_backlog_and_current_new_gap_baseline",
   "baseline_policy": "future gates fail only for critical/high queue items absent from this baseline",
-  "baseline_item_count": 100,
+  "baseline_item_count": 105,
   "baseline_files": [
     "047_sprint47b_gpt_tool_registry.sql",
     "049_sprint47d_tool_registry_recovery.sql",
