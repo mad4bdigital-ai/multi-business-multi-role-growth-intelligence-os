@@ -8,6 +8,9 @@
 --   - No destructive update.
 --   - No provider call, no external send, no secret read or return.
 --   - Keeps Google file-read capability bindings in shadow mode.
+-- Readback:
+--   Row-count, active-status, and resource-ID verification must be executed outside
+--   this migration through governed DB readback after apply.
 
 UPDATE `brand_core`
    SET `doc_id` = CASE `id`
@@ -40,14 +43,3 @@ UPDATE `brand_core`
      OR TRIM(`doc_id`) = ''
      OR (`id` = 86 AND (`file_id` IS NULL OR TRIM(`file_id`) = ''))
    );
-
-SELECT
-  COUNT(*) AS dona_brand_core_rows,
-  SUM(CASE WHEN COALESCE(NULLIF(TRIM(`active_status`), ''), '') = 'TRUE' THEN 1 ELSE 0 END) AS active_rows,
-  SUM(CASE WHEN `id` = 86 AND COALESCE(NULLIF(TRIM(`file_id`), ''), '') <> '' THEN 1
-           WHEN `id` <> 86 AND COALESCE(NULLIF(TRIM(`doc_id`), ''), '') <> '' THEN 1
-           ELSE 0 END) AS resource_id_rows
-FROM `brand_core`
-WHERE `brand_key` = 'donatours_wp'
-  AND `brand_name` = 'DONA Tours'
-  AND `id` BETWEEN 76 AND 86;
