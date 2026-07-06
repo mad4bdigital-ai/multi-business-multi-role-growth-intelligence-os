@@ -947,6 +947,38 @@ internal static class Program
                 : $"{Label} ({Key}) — {SurfaceType}/{IntegrationType}";
         }
 
+        private async Task<IReadOnlyList<DynamicCapabilityChoice>> LoadDynamicCapabilityChoicesAsync(string token)
+        {
+            try
+            {
+                var response = await _deviceControlClient.GetAsync("settings", token);
+                if (!response.IsSuccessStatusCode || string.IsNullOrWhiteSpace(response.RawText)) return Array.Empty<DynamicCapabilityChoice>();
+                return ParseDynamicCapabilityChoices(response.RawText)
+                    .GroupBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
+                    .Select(group => group.First())
+                    .OrderBy(item => item.Label, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            catch
+            {
+                return Array.Empty<DynamicCapabilityChoice>();
+            }
+        }
+
+        private static IEnumerable<DynamicCapabilityChoice> ParseDynamicCapabilityChoices(string rawJson)
+        {
+            using var document = JsonDocument.Parse(rawJson);
+            foreach (var item in FindNamedArrayItems(document.RootElement, "supported_capabilities").Concat(FindNamedArrayItems(document.RootElement, "supported_browser_adapters")).Concat(FindNamedArrayItems(document.RootElement, "supported_agent_surfaces")))
+            {
+                var key = JsonString(item, "key") ?? JsonString(item, "app_alias");
+                var label = JsonString(item, "label") ?? JsonString(item, "display_name") ?? key;
+                var surfaceType = JsonString(item, "surface_type") ?? "capability";
+                var integrationType = JsonString(item, "integration_type") ?? "capability";
+                if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(label)) continue;
+                yield return new DynamicCapabilityChoice(key, label, surfaceType, integrationType);
+            }
+        }
+
         private async Task<SupportedAppChoice?> PickSupportedAppAsync(IWin32Window owner, string token)
         {
             var apps = (await DiscoverSupportedAppsAsync(token)).OrderBy(app => app.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
