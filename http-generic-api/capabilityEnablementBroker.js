@@ -18,7 +18,7 @@ const REQUIRED_READINESS_OBJECTS = Object.freeze([
 ]);
 
 const APPLY_INTENTS = new Set(["apply", "publish", "deploy", "spend", "delete", "destructive"]);
-const READY_EFFECTIVE_STATUSES = new Set(["ready", "canary_ready", "shadow_ready"]);
+const READY_EFFECTIVE_STATUSES = new Set(["ready", "canary_ready", "shadow_ready", "virtual_admin_tool_ready"]);
 const CREDENTIAL_STATUSES = new Set(["connection_not_found", "connection_not_validated"]);
 const MAX_LIMIT = 100;
 
