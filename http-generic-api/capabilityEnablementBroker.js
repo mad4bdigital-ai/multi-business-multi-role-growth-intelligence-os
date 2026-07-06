@@ -113,6 +113,86 @@ function dryRunGaps(result = null) {
   return Array.isArray(result?.blocking_gaps) ? result.blocking_gaps.map((gap) => safeText(gap, 128)).filter(Boolean) : [];
 }
 
+function safeUuid(value = "") {
+  const text = safeText(value, 64);
+  return /^[0-9a-fA-F-]{36}$/.test(text) ? text : "";
+}
+
+function valuesCompatible(requested = "", actual = "") {
+  const req = safeText(requested, 191);
+  const row = safeText(actual, 191);
+  return !req || !row || req === row;
+}
+
+function envelopeRuntimeCompatible(args = {}, row = {}) {
+  const runtime = safeText(args.runtime_surface, 191);
+  const selected = safeText(row.selected_runtime_surface, 191);
+  return valuesCompatible(runtime, selected) || valuesCompatible(runtime, row.capability_key);
+}
+
+async function loadApprovedCapabilityEnvelope(pool, args = {}, scope = {}) {
+  const envelopeId = safeUuid(args.capability_envelope_id);
+  if (!envelopeId) return null;
+  const [rows] = await pool.query(
+    `SELECT envelope_id, tenant_id, user_id, workspace_id, app_key, capability_key, operation_intent,
+            selected_runtime_surface, authority_status, decision, envelope_status, dispatch_allowed,
+            apply_allowed, expires_at, secrets_included
+       FROM capability_resolution_envelope_ledger
+      WHERE envelope_id = ?
+      LIMIT 1`,
+    [envelopeId]
+  );
+  const row = rows?.[0] || null;
+  if (!row) return { ok: false, status: "not_found", envelope_id: envelopeId, reason_codes: ["ENVELOPE_NOT_FOUND"], secrets_included: false };
+  const expiresAt = row.expires_at ? new Date(row.expires_at) : null;
+  const nowExpired = expiresAt instanceof Date && !Number.isNaN(expiresAt.getTime()) ? expiresAt.getTime() <= Date.now() : false;
+  const mismatches = [];
+  if (row.envelope_status !== "ready_for_dispatch") mismatches.push("ENVELOPE_NOT_APPROVED");
+  if (Number(row.dispatch_allowed || 0) !== 1) mismatches.push("DISPATCH_NOT_ALLOWED");
+  if (Number(row.secrets_included || 0) !== 0) mismatches.push("ENVELOPE_SECRET_FLAG_SET");
+  if (nowExpired) mismatches.push("ENVELOPE_EXPIRED");
+  if (!valuesCompatible(scope.tenant_id, row.tenant_id)) mismatches.push("TENANT_MISMATCH");
+  if (!valuesCompatible(scope.user_id, row.user_id)) mismatches.push("USER_MISMATCH");
+  if (!valuesCompatible(args.workspace_id, row.workspace_id)) mismatches.push("WORKSPACE_MISMATCH");
+  if (!valuesCompatible(args.app_key, row.app_key)) mismatches.push("APP_MISMATCH");
+  if (!valuesCompatible(args.capability_key, row.capability_key)) mismatches.push("CAPABILITY_MISMATCH");
+  if (!valuesCompatible(args.operation_intent, row.operation_intent)) mismatches.push("OPERATION_INTENT_MISMATCH");
+  if (!envelopeRuntimeCompatible(args, row)) mismatches.push("RUNTIME_SURFACE_MISMATCH");
+  const projection = {
+    envelope_id: row.envelope_id,
+    status: row.envelope_status,
+    decision: row.decision,
+    authority_status: row.authority_status,
+    dispatch_allowed: Number(row.dispatch_allowed || 0) === 1,
+    apply_allowed: false,
+    expires_at: row.expires_at || null,
+    secrets_included: false,
+  };
+  if (mismatches.length) return { ok: false, status: "not_usable", reason_codes: mismatches, ...projection };
+  return { ok: true, status: "approved", reason_codes: [], ...projection };
+}
+
+function applyApprovedEnvelopeToDryRun(dryRun = null, envelope = null) {
+  if (!dryRun || envelope?.ok !== true) return dryRun;
+  if (dryRun.decision !== "ready_requires_approval") return dryRun;
+  return {
+    ...dryRun,
+    decision: "ready_for_dispatch",
+    authority: {
+      ...(dryRun.authority || {}),
+      passed: Array.from(new Set([...(dryRun.authority?.passed || []), "capability_envelope_approved"])),
+      approved_envelope: envelope,
+    },
+    gates: {
+      ...(dryRun.gates || {}),
+      approval_required: false,
+      dispatch_allowed: true,
+      apply_allowed: false,
+      secrets_included: false,
+    },
+  };
+}
+
 function capabilityResolutionErrorCode(result = null) {
   return safeText(result?.error?.code || result?.status || "", 128).toUpperCase();
 }
