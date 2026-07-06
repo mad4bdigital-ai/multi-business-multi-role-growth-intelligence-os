@@ -44,6 +44,8 @@ The broker may call existing no-secret internal resolvers:
 
 Both calls are used only to classify readiness and produce next-action guidance.
 
+For Admin-only virtual tools that are intentionally not provider endpoint semantic capabilities, the broker may also use a guarded virtual-admin bridge. This bridge is allowed only when the semantic resolver returns `CAPABILITY_NOT_REGISTERED` or `CAPABILITY_BINDING_MISSING`, the caller is an Admin principal, and an active `platform_tool_dispatch_bindings` row exists with `scope_class='admin'` and `surface_class` in `virtual_admin_tool` or `db_admin_tool`. The bridge is diagnostic metadata only: it does not execute the tool, call a provider, read credentials, create approvals, issue certifications, grant apply authority, or return secrets.
+
 ## Decision model
 
 The broker may return these decision families:

@@ -6,6 +6,7 @@ import { runCapabilityResolutionDryRun } from "./scripts/capability-resolution-d
 const REQUIRED_READINESS_OBJECTS = Object.freeze([
   "platform_semantic_capabilities",
   "platform_capability_provider_bindings",
+  "platform_tool_dispatch_bindings",
   "workspace_resource_grants",
   "credential_bindings",
   "capability_resolution_envelope_ledger",
@@ -17,7 +18,7 @@ const REQUIRED_READINESS_OBJECTS = Object.freeze([
 ]);
 
 const APPLY_INTENTS = new Set(["apply", "publish", "deploy", "spend", "delete", "destructive"]);
-const READY_EFFECTIVE_STATUSES = new Set(["ready", "canary_ready", "shadow_ready"]);
+const READY_EFFECTIVE_STATUSES = new Set(["ready", "canary_ready", "shadow_ready", "virtual_admin_tool_ready"]);
 const CREDENTIAL_STATUSES = new Set(["connection_not_found", "connection_not_validated"]);
 const MAX_LIMIT = 100;
 
@@ -110,6 +111,122 @@ function dryRunDecisionFrom(result = null) {
 
 function dryRunGaps(result = null) {
   return Array.isArray(result?.blocking_gaps) ? result.blocking_gaps.map((gap) => safeText(gap, 128)).filter(Boolean) : [];
+}
+
+function capabilityResolutionErrorCode(result = null) {
+  return safeText(result?.error?.code || result?.status || "", 128).toUpperCase();
+}
+
+function shouldTryVirtualAdminToolBridge(effective = null, auth = {}) {
+  if (!isAdminPrincipal(auth)) return false;
+  if (effective?.ok !== false) return false;
+  const code = capabilityResolutionErrorCode(effective);
+  return code === "CAPABILITY_NOT_REGISTERED" || code === "CAPABILITY_BINDING_MISSING";
+}
+
+function virtualBridgeCandidates(args = {}, dryRun = null) {
+  return Array.from(new Set([
+    safeText(args.runtime_surface, 191),
+    safeText(args.capability_key, 191),
+    safeText(args.app_key, 128),
+    safeText(dryRun?.selected_source?.selected_runtime_surface, 191),
+    safeText(dryRun?.capability?.capability_key, 191),
+  ].filter(Boolean)));
+}
+
+function rankVirtualBridgeRow(row = {}, candidates = []) {
+  const exact = new Set(candidates);
+  if (exact.has(row.tool_key)) return 0;
+  if (exact.has(row.runtime_surface)) return 1;
+  if (exact.has(row.capability_key)) return 2;
+  return 10;
+}
+
+async function resolveVirtualAdminToolBridge(pool, args = {}, scope = {}, dryRun = null) {
+  const candidates = virtualBridgeCandidates(args, dryRun);
+  if (!candidates.length) return null;
+  const placeholders = candidates.map(() => "?").join(", ");
+  const params = [...candidates, ...candidates, ...candidates];
+  const [rows] = await pool.query(
+    `SELECT binding_id, parent_action_key, endpoint_key, export_key, tool_key, surface_class, scope_class,
+            capability_key, operation_intent, runtime_surface, readback_policy_key, partial_success_policy_key,
+            atomicity_mode, status, metadata_json
+       FROM platform_tool_dispatch_bindings
+      WHERE status = 'active'
+        AND scope_class = 'admin'
+        AND surface_class IN ('virtual_admin_tool', 'db_admin_tool')
+        AND (tool_key IN (${placeholders}) OR runtime_surface IN (${placeholders}) OR capability_key IN (${placeholders}))
+      LIMIT 20`,
+    params
+  );
+  const ranked = [...(rows || [])].sort((a, b) => rankVirtualBridgeRow(a, candidates) - rankVirtualBridgeRow(b, candidates));
+  const row = ranked[0];
+  if (!row) return null;
+  const dispatchReady = dryRun?.authority?.status === "passed" || dryRun?.gates?.dispatch_allowed === true;
+  return {
+    ok: true,
+    status: "virtual_admin_tool_ready",
+    ready: dispatchReady,
+    workspace: dryRun?.request_context ? {
+      tenant_id: dryRun.request_context.tenant_id || scope.tenant_id || null,
+      workspace_id: dryRun.request_context.workspace_id || safeText(args.workspace_id, 64) || null,
+      workspace_key: dryRun.request_context.workspace_key || safeText(args.workspace_key, 191) || null,
+    } : null,
+    membership: { status: scope.user_id ? "admin_override" : "admin", role: "platform_admin" },
+    capability: {
+      capability_key: safeText(args.capability_key, 191),
+      virtual_capability_key: row.capability_key || null,
+      operation_key: safeText(args.operation_intent, 64) || row.operation_intent || null,
+      risk_class: dryRun?.capability?.risk_class || "high",
+      source: "virtual_admin_tool_bridge",
+    },
+    binding: {
+      binding_id: row.binding_id,
+      tool_key: row.tool_key,
+      surface_class: row.surface_class,
+      scope_class: row.scope_class,
+      app_key: safeText(args.app_key || dryRun?.capability?.app_key, 128) || null,
+      parent_action_key: row.parent_action_key,
+      endpoint_key: row.endpoint_key,
+      operation_intent: row.operation_intent,
+      runtime_surface: row.runtime_surface,
+      readback_policy_key: row.readback_policy_key,
+      atomicity_mode: row.atomicity_mode,
+    },
+    authority: {
+      dispatch_binding_present: true,
+      dispatch_binding_status: row.status,
+      dry_run_authority_status: dryRun?.authority?.status || null,
+      readback_policy_key: row.readback_policy_key,
+      partial_success_policy_key: row.partial_success_policy_key || null,
+    },
+    runtime: {
+      export_key: row.export_key || row.tool_key,
+      runtime_surface: row.runtime_surface || row.tool_key,
+      dispatch_allowed: dryRun?.gates?.dispatch_allowed === true,
+      apply_allowed: false,
+      atomicity_mode: row.atomicity_mode,
+    },
+    checks: {
+      membership_ready: true,
+      resource_authority_ready: dryRun?.authority?.status === "passed" || dryRun?.gates?.dispatch_allowed === true,
+      connection_ready: true,
+      runtime_certification_ready: Array.isArray(dryRun?.authority?.passed) ? dryRun.authority.passed.includes("dispatch_certification_present") : false,
+      virtual_admin_tool_bridge_ready: true,
+    },
+    bridge: {
+      source: "platform_tool_dispatch_bindings",
+      binding_id: row.binding_id,
+      tool_key: row.tool_key,
+      surface_class: row.surface_class,
+      credential_boundary: "platform_managed_or_not_required",
+      provider_calls_made: 0,
+      external_mutations_executed: false,
+      secrets_included: false,
+    },
+    manifest_hash: hashJson({ binding_id: row.binding_id, tool_key: row.tool_key, runtime_surface: row.runtime_surface, dry_run_decision: dryRun?.decision || null }),
+    secrets_included: false,
+  };
 }
 
 export function classifyEnablementDecision({ effective = null, dryRun = null, operationIntent = "read", secretBoundaryFailed = false } = {}) {
@@ -247,6 +364,7 @@ function publicEffectiveProjection(effective = null) {
     authority: effective.authority || null,
     runtime: effective.runtime || null,
     checks: effective.checks || null,
+    bridge: effective.bridge || null,
     manifest_hash: effective.manifest_hash || null,
     secrets_included: false,
   };
@@ -449,6 +567,14 @@ export async function capabilityEnablementResolve(args = {}, context = {}) {
     } catch (error) {
       dryRunError = error;
       dryRun = null;
+    }
+    if (shouldTryVirtualAdminToolBridge(effective, auth)) {
+      try {
+        const bridged = await (context.resolveVirtualAdminToolBridge || resolveVirtualAdminToolBridge)(context.pool || getPool(), args, scope, dryRun);
+        if (bridged?.ok === true) effective = bridged;
+      } catch (error) {
+        effectiveError = effectiveError || error;
+      }
     }
   }
 
