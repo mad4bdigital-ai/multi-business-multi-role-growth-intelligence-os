@@ -1225,18 +1225,7 @@ export async function synchronizeOperationalAlerts({
     if (incompleteSources.length === 0) {
       const staleWhere = subject.is_admin ? "1 = 1" : "tenant_id = ?";
       const staleParams = subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__"];
-      const [staleResult] = await connection.query(
-        `UPDATE operational_alerts
-            SET lifecycle_status = 'resolved', resolved_at = NOW(),
-                resolution_note = 'Source no longer emitted the alert during the latest successful synchronization.',
-                updated_at = CURRENT_TIMESTAMP
-          WHERE ${staleWhere}
-            AND manual_known_issue = 0
-            AND lifecycle_status IN ('open','acknowledged','investigating')
-            AND COALESCE(last_sync_run_id, '') <> ?`,
-        [...staleParams, runId]
-      );
-      resolved = safeNumber(staleResult?.affectedRows);
+      resolved = await autoResolveStaleAlerts(connection, { subject, runId, requestedBy });
     } else {
       resolutionSkipped = true;
     }
