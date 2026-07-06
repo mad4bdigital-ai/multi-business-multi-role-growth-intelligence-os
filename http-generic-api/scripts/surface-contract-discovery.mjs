@@ -159,6 +159,17 @@ function classifyRoute(route, source = "") {
       reason: "Route literal belongs to a tenant tool registry row and is governed through tenant tool dispatch rather than inferred as a standalone Express route.",
     };
   }
+  if (/INSERT\s+INTO\s+endpoints/i.test(source)
+    && /transport_action_key/i.test(source)
+    && /http_generic_api/i.test(source)
+    && /method_and_path_from_endpoints_only/i.test(source)) {
+    return {
+      route,
+      route_class: "registry_only_surface",
+      openapi_required: false,
+      reason: "Route literal belongs to a registry-driven provider endpoint row whose method and path are resolved from endpoint authority through http_generic_api; it is not a standalone public Express route.",
+    };
+  }
   if (/\/admin\/system\/tools\/call|\/system\/tools\/call/.test(route)) {
     return {
       route,

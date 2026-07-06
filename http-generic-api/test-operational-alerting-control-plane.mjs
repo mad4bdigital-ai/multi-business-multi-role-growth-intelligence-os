@@ -79,6 +79,24 @@ function testStableKeysAndExecutionGrouping() {
   assert.equal(grouped[0].occurrence_count, 2);
   assert.equal(grouped[0].latest_id, 2);
   assert.equal(grouped[0].execution_trace_id_writeback, "trace-2");
+
+  const preAggregated = _testingOperationalAlerts.groupExecutionRows([
+    {
+      id: 7,
+      tenant_id: "tenant-1",
+      workspace_id: "workspace-1",
+      execution_status: "failed",
+      entry_type: "workflow",
+      app_key: "github",
+      workflow_key: "ci",
+      route_status: "failed",
+      failure_reason: "failed_validation",
+      occurrence_count: 23,
+      created_at: "2026-06-14T12:00:00.000Z",
+    },
+  ]);
+  assert.equal(preAggregated.length, 1);
+  assert.equal(preAggregated[0].occurrence_count, 23, "SQL pre-aggregated execution counts must be preserved");
 }
 
 function testP0ReconciliationSemantics() {
@@ -157,6 +175,67 @@ function testP0ReconciliationSemantics() {
   );
 }
 
+function executionRow(overrides = {}) {
+  return {
+    id: 100,
+    tenant_id: "tenant-1",
+    workspace_id: "workspace-1",
+    entry_type: "sync_execution",
+    execution_status: "failed",
+    app_key: "github",
+    workflow_key: "repo_sync",
+    output_summary: "github_get_contents failed: upstream_error",
+    failure_reason: "upstream_error",
+    route_status: "failed",
+    target_type: "repository",
+    target_id: "repo-a",
+    resource_type: "github_repository",
+    resource_id: "repo-a",
+    created_at: "2026-07-04T10:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function testOperationalAlertLifecycleFingerprintFoundation() {
+  const row = executionRow();
+  assert.match(_testingOperationalAlerts.executionOperationFingerprint(row), /^[a-f0-9]{64}$/);
+  assert.match(_testingOperationalAlerts.executionResourceFingerprint(row), /^[a-f0-9]{64}$/);
+
+  const repoAFailure = executionRow({ id: 101, target_id: "repo-a", resource_id: "repo-a", created_at: "2026-07-04T10:00:00.000Z" });
+  const repoBSuccess = executionRow({
+    id: 102,
+    execution_status: "success",
+    output_summary: "github_get_contents completed with status success (200)",
+    failure_reason: null,
+    route_status: "resolved",
+    target_id: "repo-b",
+    resource_id: "repo-b",
+    created_at: "2026-07-04T10:05:00.000Z",
+  });
+  const unrelatedResourceAlerts = _testingOperationalAlerts.mapExecutionAlerts([repoAFailure, repoBSuccess]);
+  assert.equal(unrelatedResourceAlerts.length, 1, "success on repo-b must not resolve failure on repo-a");
+  assert.equal(unrelatedResourceAlerts[0].evidence.resource_id, "repo-a");
+  assert.match(unrelatedResourceAlerts[0].operation_fingerprint_sha256, /^[a-f0-9]{64}$/);
+  assert.match(unrelatedResourceAlerts[0].resource_fingerprint_sha256, /^[a-f0-9]{64}$/);
+  assert.equal(unrelatedResourceAlerts[0].operation_fingerprint_sha256, unrelatedResourceAlerts[0].evidence.operation_fingerprint_sha256);
+  assert.equal(unrelatedResourceAlerts[0].resource_fingerprint_sha256, unrelatedResourceAlerts[0].evidence.resource_fingerprint_sha256);
+  assert.match(unrelatedResourceAlerts[0].evidence.operation_fingerprint_sha256, /^[a-f0-9]{64}$/);
+  assert.match(unrelatedResourceAlerts[0].evidence.resource_fingerprint_sha256, /^[a-f0-9]{64}$/);
+
+  const repoASuccess = executionRow({
+    id: 103,
+    execution_status: "success",
+    output_summary: "github_get_contents completed with status success (200)",
+    failure_reason: null,
+    route_status: "resolved",
+    target_id: "repo-a",
+    resource_id: "repo-a",
+    created_at: "2026-07-04T10:06:00.000Z",
+  });
+  const matchingResourceAlerts = _testingOperationalAlerts.mapExecutionAlerts([repoAFailure, repoASuccess]);
+  assert.equal(matchingResourceAlerts.length, 0, "later success on repo-a must resolve failure on repo-a");
+}
+
 function testDedupeAndLifecyclePrecedence() {
   const live = _testingOperationalAlerts.candidate({
     alertKey: "alert.test",
@@ -226,6 +305,7 @@ function testRepositoryContracts() {
   const migration = read("./migrations/1013_sprint69_operational_alerting_control_plane.sql");
   const reconciliationMigration = read("./migrations/1015_sprint69_operational_alerting_p0_reconciliation.sql");
   const mutationReadbackMigration = read("./migrations/1031_sprint69_operational_alert_mutation_readback_policy.sql");
+  const lifecycleFingerprintMigration = read("./migrations/20260704_operational_alert_lifecycle_fingerprints.sql");
   const governedMigrationRunner = read("./scripts/governed-migration-runner.mjs");
   const openapi = read("./openapi.yaml");
   const memory = read("../memory_schema.json");
@@ -239,10 +319,32 @@ function testRepositoryContracts() {
   assert.match(service, /operational_alert_notification_outbox/);
   assert.match(service, /resolution_skipped_due_to_degraded_sources/);
   assert.match(service, /truncated_sources/);
+  assert.match(service, /collectExecutionLogSource/);
+  assert.doesNotMatch(service, /EXECUTION_LOG_MAX_ROWS/);
+  assert.doesNotMatch(service, /execution_log: EXECUTION_LOG_MAX_ROWS/);
+  assert.match(service, /COUNT\(\*\) AS occurrence_count/);
+  assert.match(service, /WHERE NOT EXISTS/);
+  assert.match(service, /sql_primary_execution_log_aggregate/);
+  assert.match(service, /aggregation: "operation_resource_failure_groups"/);
+  assert.match(service, /source_authority: "sql_primary_runtime_tables_plus_operational_alert_lifecycle"/);
+  assert.match(service, /sheets_recovery_not_used_for_operational_alerts/);
   assert.match(service, /groupSkillApprovalRows/);
   assert.match(service, /notification_skipped_count/);
   assert.match(openapi, /notification_skipped_count/);
   assert.match(service, /alert_reconciled_before_delivery/);
+  assert.match(service, /operation_fingerprint_sha256, resource_fingerprint_sha256/);
+  assert.match(service, /operation_fingerprint_sha256 = VALUES\(operation_fingerprint_sha256\)/);
+  assert.match(service, /resource_fingerprint_sha256 = VALUES\(resource_fingerprint_sha256\)/);
+  assert.match(service, /operationFingerprintSha256: row\.operation_fingerprint_sha256/);
+  assert.match(service, /resourceFingerprintSha256: row\.resource_fingerprint_sha256/);
+  assert.match(service, /FOR UPDATE/);
+  assert.match(service, /lifecycle_revision = lifecycle_revision \+ 1/);
+  assert.match(service, /INSERT INTO operational_alert_lifecycle_events/);
+  assert.match(service, /idempotency_key = \?/);
+  assert.match(service, /idempotent_replay: true/);
+  assert.match(service, /event: sanitizeEvidence/);
+  assert.match(routes, /actorType: queryText\(req\.body\?\.actor_type/);
+  assert.match(routes, /idempotencyKey: queryText\(req\.body\?\.idempotency_key/);
   assert.match(reconciliationMigration, /active_effective_scope_key/);
   assert.match(reconciliationMigration, /uq_agent_skill_grants_active_effective_scope/);
   assert.match(reconciliationMigration, /p0_reconciliation_required/);
@@ -278,7 +380,12 @@ function testRepositoryContracts() {
   assert.match(mutationReadbackMigration, /activation_operational_attention_sync_api/);
   assert.match(mutationReadbackMigration, /activation_operational_alert_lifecycle_api/);
   assert.match(mutationReadbackMigration, /readback,same_cycle_readback/);
+  assert.match(lifecycleFingerprintMigration, /operational_alert_lifecycle_events/);
+  assert.match(lifecycleFingerprintMigration, /operation_fingerprint_sha256/);
+  assert.match(lifecycleFingerprintMigration, /resource_fingerprint_sha256/);
+  assert.match(lifecycleFingerprintMigration, /no later success for the same operation and resource fingerprints/);
   assert.match(governedMigrationRunner, /1031_sprint69_operational_alert_mutation_readback_policy\.sql/);
+  assert.match(governedMigrationRunner, /20260704_operational_alert_lifecycle_fingerprints\.sql/);
 
   for (const key of _testingOperationalAlerts.KNOWN_ISSUE_KEYS) {
     assert.ok(migration.includes(key), `migration must seed ${key}`);
@@ -303,6 +410,7 @@ async function main() {
   testSensitiveEvidenceStripping();
   testStableKeysAndExecutionGrouping();
   testP0ReconciliationSemantics();
+  testOperationalAlertLifecycleFingerprintFoundation();
   testDedupeAndLifecyclePrecedence();
   testSummaryAndRouteInputs();
   testRepositoryContracts();
