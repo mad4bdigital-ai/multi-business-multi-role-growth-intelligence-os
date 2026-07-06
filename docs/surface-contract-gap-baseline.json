@@ -103,13 +103,18 @@
     "282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql",
     "283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql",
     "284_sprint68_session_insight_backlog_target_write_executor.sql",
+    "1030_sprint69_default_blocker_recovery_governance_seed.sql",
+    "1031_sprint69_github_actions_diagnostics_endpoints_seed.sql",
+    "1037_sprint69_temporary_hostinger_ssh_executor_gate.sql",
+    "20260702_session_archive_capability_family_authorization.sql",
+    "20260706_session_archive_stale_closure_autosweep.sql",
     "906_sprint68_ticket_external_delivery_completion_certification.sql",
     "955_sprint68_external_delivery_admin_control_surface.sql"
   ],
   "baseline_class_counts": {
-    "safety_marker_review": 33,
+    "safety_marker_review": 35,
     "openapi_contract_review": 60,
-    "new_surface_immediate_review": 7
+    "new_surface_immediate_review": 10
   },
   "safety": {
     "executes_provider_calls": false,
