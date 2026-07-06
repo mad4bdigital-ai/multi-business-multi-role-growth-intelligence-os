@@ -112,7 +112,7 @@ surfaces:
 
   development:
     mode: externally_managed
-    output_file: openapi.gpt-action.dev-dispatcher.yaml
+    output_file: openapi/openapi.gpt-action.dev-dispatcher.yaml
     server_url: https://dev.mad4b.com
     auth_profile: development
     hard_operation_limit: 30
