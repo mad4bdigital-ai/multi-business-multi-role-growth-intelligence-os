@@ -1052,6 +1052,8 @@ export async function getDeviceControls(req, res) {
         baseControls.settings.capability_consent.dynamic_grants.supported_browser_providers = controlTemplates.supported_browser_providers;
         baseControls.settings.capability_consent.dynamic_grants.supported_browser_adapters = controlTemplates.supported_browser_adapters;
         baseControls.settings.capability_consent.dynamic_grants.supported_agent_surfaces = controlTemplates.supported_agent_surfaces;
+        baseControls.settings.capability_consent.dynamic_grants.supported_managed_mad4b_services = controlTemplates.supported_managed_mad4b_services;
+        baseControls.settings.capability_consent.dynamic_grants.supported_tenant_local_services = controlTemplates.supported_tenant_local_services;
       }
     }
 
