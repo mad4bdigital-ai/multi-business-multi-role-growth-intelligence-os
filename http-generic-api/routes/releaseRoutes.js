@@ -16,6 +16,9 @@ export function buildReleaseRoutes(deps) {
   const { requireBackendApiKey } = deps;
   const router = Router();
   const sessionArchiveSmokeRunner = deps.runSessionArchiveSmoke || runSessionArchiveSmoke;
+  const getPoolFn = deps.getPool || getPool;
+  const resolveCapabilityFamilyAuthorizationFn = deps.resolveToolCapabilityFamilyAuthorization || resolveToolCapabilityFamilyAuthorization;
+  const markCapabilityEnvelopeReferencedFn = deps.markCapabilityEnvelopeReferenced || markCapabilityEnvelopeReferenced;
 
   async function handleReadiness(req, res) {
     try {
@@ -113,8 +116,8 @@ export function buildReleaseRoutes(deps) {
 
   async function handleSessionArchiveSmoke(req, res) {
     try {
-      const pool = getPool();
-      const capabilityFamilyAuthorization = await resolveToolCapabilityFamilyAuthorization({
+      const pool = getPoolFn();
+      const capabilityFamilyAuthorization = await resolveCapabilityFamilyAuthorizationFn({
         pool,
         callerType: "admin",
         principal: {
@@ -133,7 +136,7 @@ export function buildReleaseRoutes(deps) {
         );
       }
       if (capabilityFamilyAuthorization.envelope_id) {
-        await markCapabilityEnvelopeReferenced({
+        await markCapabilityEnvelopeReferencedFn({
           pool,
           envelopeId: capabilityFamilyAuthorization.envelope_id,
           executionRef: "releaseRoutes:release_session_archive_smoke",
