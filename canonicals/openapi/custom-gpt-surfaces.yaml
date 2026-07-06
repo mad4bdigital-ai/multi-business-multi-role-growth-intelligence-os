@@ -42,7 +42,7 @@ surfaces:
 
   tenant_core:
     mode: generated_from_openapi
-    output_file: openapi.tenant-gpt.auth.yaml
+    output_file: openapi/openapi.tenant-gpt.auth.yaml
     server_url: https://auth.mad4b.com
     auth_profile: tenant_oauth
     hard_operation_limit: 30
