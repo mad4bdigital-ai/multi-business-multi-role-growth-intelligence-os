@@ -139,6 +139,8 @@ async function loadScopedRows(subject) {
     signalSubscriptions,
     preferences,
     relationships,
+    capabilityEnablementRequests,
+    capabilityEnablementRollup,
     relationshipTypes,
   ] = await Promise.all([
     safeRows(
