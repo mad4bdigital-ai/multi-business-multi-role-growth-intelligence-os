@@ -4,18 +4,15 @@
 
 ## Summary
 
-- Triaged items: 5
-- Gate candidates: 3
-- New-gap gate: fail
-- Blocking new items: 5
+- Triaged items: 1
+- Gate candidates: 1
+- New-gap gate: pass
+- Blocking new items: 0
 
 ## Class counts
 
-- new_surface_immediate_review: 3
-- safety_marker_review: 2
+- new_surface_immediate_review: 1
 
 ## Immediate review candidates
 
-- `1030_sprint69_default_blocker_recovery_governance_seed.sql` — critical_review, score 1079; next: add targeted patch-index, parity, and governance documentation
 - `1031_sprint69_github_actions_diagnostics_endpoints_seed.sql` — critical_review, score 1071; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
-- `20260706_session_archive_stale_closure_autosweep.sql` — high_review, score 511; next: add targeted patch-index, parity, and governance documentation
