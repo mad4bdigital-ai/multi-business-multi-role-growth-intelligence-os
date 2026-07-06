@@ -770,6 +770,10 @@ internal static class Program
             var requestedCapabilities = new List<string>();
             if (powershell.Checked) requestedCapabilities.Add("powershell_admin");
             if (windowsControl.Checked) requestedCapabilities.Add("windows_control");
+            foreach (var item in dynamicList.CheckedItems)
+            {
+                if (item is DynamicCapabilityChoice capability && !string.IsNullOrWhiteSpace(capability.Key)) requestedCapabilities.Add(capability.Key);
+            }
             var selectedApps = new List<object>();
             if (!string.IsNullOrWhiteSpace(appPath.Text))
             {
