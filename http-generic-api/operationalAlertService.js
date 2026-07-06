@@ -1327,6 +1327,70 @@ export async function synchronizeOperationalAlerts({
   };
 }
 
+async function autoResolveStaleAlerts(connection, { subject, runId, requestedBy } = {}) {
+  const staleWhere = subject.is_admin ? "1 = 1" : "tenant_id = ?";
+  const staleParams = subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__"];
+  const note = "Source no longer emitted the alert during the latest successful synchronization.";
+  const actorId = String(requestedBy || "operational_alert_sync").slice(0, 191);
+  const [rows] = await connection.query(
+    `SELECT alert_id, alert_key, tenant_id, user_id, workspace_id, source_type, source_record_id,
+            lifecycle_status, lifecycle_revision, operation_fingerprint_sha256, resource_fingerprint_sha256
+       FROM operational_alerts
+      WHERE ${staleWhere}
+        AND manual_known_issue = 0
+        AND lifecycle_status IN ('open','acknowledged','investigating')
+        AND COALESCE(last_sync_run_id, '') <> ?
+      FOR UPDATE`,
+    [...staleParams, runId]
+  );
+  for (const row of rows) {
+    const fromStatus = row.lifecycle_status || null;
+    const nextRevision = safeNumber(row.lifecycle_revision) + 1;
+    const eventId = randomUUID();
+    const idempotencyKey = `sync:${runId}:auto_resolve:${row.alert_id}`.slice(0, 191);
+    await connection.query(
+      `UPDATE operational_alerts
+          SET lifecycle_status = 'resolved', lifecycle_revision = lifecycle_revision + 1,
+              lifecycle_actor = ?, lifecycle_note = ?, resolved_at = COALESCE(resolved_at, NOW()),
+              resolution_note = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE alert_id = ?`,
+      [actorId, note, note, row.alert_id]
+    );
+    await connection.query(
+      `INSERT INTO operational_alert_lifecycle_events
+        (event_id, alert_id, alert_key, tenant_id, user_id, workspace_id, source_type, source_record_id,
+         from_status, to_status, lifecycle_revision, event_type, actor_id, actor_type, note, idempotency_key,
+         operation_fingerprint_sha256, resource_fingerprint_sha256, evidence_json, secrets_included)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'resolved', ?, 'lifecycle_status_changed', ?, 'system_auto_resolution', ?, ?, ?, ?, ?, 0)`,
+      [
+        eventId,
+        row.alert_id,
+        row.alert_key,
+        row.tenant_id,
+        row.user_id,
+        row.workspace_id,
+        row.source_type,
+        row.source_record_id,
+        fromStatus,
+        nextRevision,
+        actorId,
+        note,
+        idempotencyKey,
+        row.operation_fingerprint_sha256,
+        row.resource_fingerprint_sha256,
+        JSON.stringify(sanitizeEvidence({
+          from_status: fromStatus,
+          to_status: "resolved",
+          sync_run_id: runId,
+          actor_type: "system_auto_resolution",
+          auto_resolution_reason: "source_no_longer_emitted",
+        })),
+      ]
+    );
+  }
+  return rows.length;
+}
+
 export async function updateOperationalAlertLifecycle({
   sessionContext = null,
   explicitSubject = {},
