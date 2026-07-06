@@ -925,7 +925,7 @@ internal static class Program
 
         private async Task<SupportedAppChoice?> PickSupportedAppAsync(IWin32Window owner, string token)
         {
-            var apps = DiscoverSupportedApps().OrderBy(app => app.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+            var apps = (await DiscoverSupportedAppsAsync(token)).OrderBy(app => app.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
             if (apps.Count == 0)
             {
                 MessageBox.Show(owner, "No supported app templates were found on this Windows profile. Use Installed apps or Browse instead.", "Supported apps", MessageBoxButtons.OK, MessageBoxIcon.Information);
