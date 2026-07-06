@@ -99,6 +99,10 @@ assert(localManagerWindows.includes('RequireCurrentVersionForPrivilegedActionAsy
 assert(localManagerWindows.includes('local_manager_update_required'), 'Windows app must explain stale-version privileged action blocking');
 assert(localManagerWindows.includes('if (!await RequireCurrentVersionForPrivilegedActionAsync("Repair connector")) return;'), 'Repair connector must be gated on current app version');
 assert(localManagerWindows.includes('if (!await RequireCurrentVersionForPrivilegedActionAsync("Connector capabilities")) return;'), 'Connector capability installer must be gated on current app version');
+assert(localManagerWindows.includes('_lastRequestedCapabilities'), 'Windows capability dialog must preserve checked capability selections within the app session');
+assert(localManagerWindows.includes('dynamicList.SetItemChecked'), 'Windows capability dialog must restore checked dynamic registry capabilities when reopened');
+assert(localManagerWindows.includes('powershell.Checked = _lastRequestedCapabilities.Contains("powershell_admin")'), 'Windows capability dialog must restore PowerShell checkbox state when reopened');
+assert(localManagerWindows.includes('windowsControl.Checked = _lastRequestedCapabilities.Contains("windows_control")'), 'Windows capability dialog must restore Windows control checkbox state when reopened');
 assert(localManagerWindows.includes('secrets_included = false'), 'desktop polling diagnostics must remain secret-safe');
 assert(localManagerWindows.includes('Capabilities'), 'Windows app must expose capability choices');
 assert(localManagerWindows.includes('ConfigureConnectorCapabilitiesAsync'), 'Windows app must request capability installer from user action');
