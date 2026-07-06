@@ -867,12 +867,38 @@ async function loadLocalManagerControlTemplates() {
     };
   } catch (err) {
     const fallbackRows = localManagerControlTemplateSeeds();
+    const supportedCapabilities = fallbackRows.filter((row) => row.template_type === "capability").map((row) => {
+      const metadata = {
+        ...(row.metadata || {}),
+        surface_type: row.surface_type || row.capability_class || row.template_type,
+        execution_location: row.execution_location || "local_device",
+        integration_type: row.integration_type || "capability",
+        credential_scope: row.credential_scope || "device",
+        requires_credentials: Boolean(row.metadata?.requires_credentials || row.integration_type === "external_provider"),
+      };
+      return { key: row.template_key, label: row.label, env_flag: row.env_flag || null, risk: row.risk_class || "interactive", note: metadata.note || "Fallback Local Manager capability.", ...metadata, metadata };
+    });
+    const supportedApps = fallbackRows.filter((row) => row.template_type === "app").map((row) => {
+      const metadata = {
+        ...(row.metadata || {}),
+        surface_type: row.surface_type || row.capability_class || "desktop_app",
+        execution_location: row.execution_location || "local_device",
+        integration_type: row.integration_type || "local_app",
+        credential_scope: row.credential_scope || "none",
+        requires_credentials: Boolean(row.metadata?.requires_credentials || row.integration_type === "external_provider"),
+      };
+      return { app_alias: row.template_key, display_name: row.label, process_name: row.process_name || row.template_key, browser: Boolean(row.browser), capability_class: row.capability_class || "desktop_app", risk_class: row.risk_class || "interactive", ...metadata, metadata };
+    });
     return {
       source: "code_fallback",
       registry_table: "local_manager_control_templates",
       error: { code: err?.code || "control_template_registry_unavailable", message: err?.message || String(err) },
-      supported_capabilities: fallbackRows.filter((row) => row.template_type === "capability").map((row) => ({ key: row.template_key, label: row.label, env_flag: row.env_flag || null, risk: row.risk_class || "interactive", note: row.metadata?.note || "Fallback Local Manager capability.", metadata: row.metadata || {} })),
-      supported_apps: fallbackRows.filter((row) => row.template_type === "app").map((row) => ({ app_alias: row.template_key, display_name: row.label, process_name: row.process_name || row.template_key, browser: Boolean(row.browser), capability_class: row.capability_class || "desktop_app", risk_class: row.risk_class || "interactive", metadata: row.metadata || {} })),
+      supported_capabilities: supportedCapabilities,
+      supported_apps: supportedApps,
+      supported_browsers: supportedApps.filter((item) => item.surface_type === "browser_runtime" && item.integration_type === "local_app"),
+      supported_browser_providers: supportedApps.filter((item) => item.surface_type === "browser_runtime" && item.integration_type === "external_provider"),
+      supported_browser_adapters: supportedCapabilities.filter((item) => item.surface_type === "browser_adapter" || item.integration_type === "plugin_adapter"),
+      supported_agent_surfaces: supportedCapabilities.filter((item) => item.surface_type === "agent_surface" || item.surface_type === "automation_surface"),
       last_loaded_at: new Date().toISOString(),
       secrets_included: false,
     };
