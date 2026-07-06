@@ -320,8 +320,12 @@ function testRepositoryContracts() {
   assert.match(service, /resolution_skipped_due_to_degraded_sources/);
   assert.match(service, /truncated_sources/);
   assert.match(service, /collectExecutionLogSource/);
-  assert.match(service, /EXECUTION_LOG_MAX_ROWS = 50000/);
-  assert.match(service, /sql_primary_execution_log_table/);
+  assert.doesNotMatch(service, /EXECUTION_LOG_MAX_ROWS/);
+  assert.doesNotMatch(service, /execution_log: EXECUTION_LOG_MAX_ROWS/);
+  assert.match(service, /COUNT\(\*\) AS occurrence_count/);
+  assert.match(service, /WHERE NOT EXISTS/);
+  assert.match(service, /sql_primary_execution_log_aggregate/);
+  assert.match(service, /aggregation: "operation_resource_failure_groups"/);
   assert.match(service, /source_authority: "sql_primary_runtime_tables_plus_operational_alert_lifecycle"/);
   assert.match(service, /sheets_recovery_not_used_for_operational_alerts/);
   assert.match(service, /groupSkillApprovalRows/);
