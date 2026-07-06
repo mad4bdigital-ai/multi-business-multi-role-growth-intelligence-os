@@ -4,13 +4,26 @@
 
 ## Summary
 
-- Total queue items: 0
+- Total queue items: 1
 - Critical review: 0
-- High review: 0
+- High review: 1
 - Medium review: 0
 - Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
 
-No actionable surface contract gaps detected.
+### 1. `1036_sprint69_capability_enablement_virtual_admin_tool_bridge.sql`
+
+- Queue class: high_review
+- Score: 536
+- Gap severity: medium
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_raw_secrets`, `no_external_send`
+- Surface counts: plugins=0, tools=5, views=0, policies=0, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `github_file_absence_readback_v1`, `github_file_sha_readback_v1`, `requires_same_cycle_readback`, `sprint69_capability_enablement_virtual_admin_tool_bridge`, `virtual_admin_tool`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_raw_secrets`, `no_external_send`
+
