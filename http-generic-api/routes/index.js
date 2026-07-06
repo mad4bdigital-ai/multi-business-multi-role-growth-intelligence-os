@@ -1,6 +1,7 @@
 import { buildHealthRoutes } from "./healthRoutes.js";
 import { buildStatusRoutes } from "./statusRoutes.js";
 import { buildActivationRoutes } from "./activationRoutes.js";
+import { buildActivationHostGatewayRoutes } from "./activationHostGatewayRoutes.js";
 import { buildActivationHardRunRoutes } from "./activationHardRunRoutes.js";
 import { buildTenantGrowthDashboardRoutes } from "./tenantGrowthDashboardRoutes.js";
 import { buildTenantActivationOverlayRoutes } from "./tenantActivationOverlayRoutes.js";
