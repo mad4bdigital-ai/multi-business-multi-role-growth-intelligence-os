@@ -388,6 +388,136 @@ async function produceRepoFileAudit(connection, commitSha, limit) {
   return { run_inserted: 1, findings_inserted: findingsInserted, run_id: runId };
 }
 
+async function runSessionArchiveStaleClosureAutosweep(connection, config) {
+  if (config.session_archive_stale_closure_enabled !== true) {
+    return { ok: true, skipped: true, reason: "runtime_config_disabled", secrets_included: false };
+  }
+
+  const staleDays = Math.max(1, Math.min(Number(config.session_archive_stale_closure_stale_days || 3), 30));
+  const limit = Math.max(1, Math.min(Number(config.session_archive_stale_closure_limit || 25), 100));
+  const userEmail = config.session_archive_stale_closure_user_email || null;
+  const summary = `Auto-closed stale active GPT session after more than ${staleDays} days since last archived turn. Drive-backed turn coverage was verified before closure.`;
+
+  const [candidates] = await connection.query(
+    `WITH turn_counts AS (
+       SELECT session_id COLLATE utf8mb4_unicode_ci AS session_id,
+              COUNT(*) AS sql_turn_rows,
+              MAX(created_at) AS latest_turn_at,
+              SUM(CASE
+                    WHEN drive_doc_id IS NULL OR drive_doc_id = ''
+                      OR drive_anchor IS NULL OR drive_anchor = ''
+                      OR content_sha256 IS NULL OR content_sha256 = ''
+                      OR storage_mode <> 'drive'
+                    THEN 1 ELSE 0
+                  END) AS storage_gap_turns
+         FROM gpt_session_turns
+        GROUP BY session_id COLLATE utf8mb4_unicode_ci
+     )
+     SELECT s.*, tc.sql_turn_rows, tc.latest_turn_at, tc.storage_gap_turns
+       FROM customer_sessions s
+       JOIN turn_counts tc
+         ON tc.session_id = s.session_id COLLATE utf8mb4_unicode_ci
+      WHERE s.session_status = 'active'
+        AND s.originator = 'gpt_action'
+        AND s.turn_count > 0
+        AND tc.storage_gap_turns = 0
+        AND tc.latest_turn_at < UTC_TIMESTAMP() - INTERVAL ? DAY
+      ORDER BY tc.latest_turn_at ASC
+      LIMIT ?`,
+    [staleDays, limit]
+  );
+
+  const closed = [];
+  const failures = [];
+  for (const candidate of candidates) {
+    try {
+      await connection.query(
+        `UPDATE customer_sessions
+            SET session_status = 'completed', ended_at = COALESCE(ended_at, NOW())
+          WHERE session_id = ? AND session_status = 'active'`,
+        [candidate.session_id]
+      );
+      const [[freshSession]] = await connection.query(
+        "SELECT * FROM customer_sessions WHERE session_id = ? LIMIT 1",
+        [candidate.session_id]
+      );
+      const session = freshSession || candidate;
+      const archiveClose = await closeGptSessionArchive({ pool: connection, session, summary });
+      const [[summarySession]] = await connection.query(
+        "SELECT * FROM customer_sessions WHERE session_id = ? LIMIT 1",
+        [candidate.session_id]
+      );
+      const summaryResult = await writeProvidedSessionSummary({
+        pool: connection,
+        session: summarySession || session,
+        summaryText: summary,
+        run_id: `stale_closure_${String(candidate.session_id).slice(0, 48)}`,
+      });
+
+      let driveResult = null;
+      let driveExportError = null;
+      try {
+        driveResult = await exportSessionToDrive(candidate.session_id, userEmail);
+      } catch (error) {
+        driveExportError = boundedText(error?.message || error, 500);
+      }
+
+      const [[readback]] = await connection.query(
+        `SELECT session_id, session_status, archive_status, ended_at,
+                drive_export_id, drive_export_url, drive_exported_at,
+                turn_count, archive_last_written_at
+           FROM customer_sessions
+          WHERE session_id = ?
+          LIMIT 1`,
+        [candidate.session_id]
+      );
+      const readbackOk =
+        readback?.session_status === 'completed' &&
+        readback?.archive_status === 'closed' &&
+        Boolean(readback?.drive_export_url);
+      closed.push({
+        session_id: candidate.session_id,
+        latest_turn_at: candidate.latest_turn_at,
+        turn_count: Number(candidate.turn_count || 0),
+        sql_turn_rows: Number(candidate.sql_turn_rows || 0),
+        archive_status: readback?.archive_status || null,
+        session_status: readback?.session_status || null,
+        drive_export_url_present: Boolean(readback?.drive_export_url),
+        readback_ok: readbackOk,
+        archive_ok: archiveClose?.ok === true,
+        summary_ok: summaryResult?.ok === true,
+        drive_export_ok: Boolean(driveResult?.drive_file_id || readback?.drive_export_id),
+        drive_export_error: driveExportError,
+        secrets_included: false,
+      });
+    } catch (error) {
+      failures.push({
+        session_id: candidate.session_id,
+        latest_turn_at: candidate.latest_turn_at,
+        error: {
+          code: error?.code || "session_archive_stale_closure_failed",
+          message: boundedText(error?.message || error, 500),
+        },
+        secrets_included: false,
+      });
+    }
+  }
+
+  return {
+    ok: failures.length === 0,
+    enabled: true,
+    stale_days: staleDays,
+    candidate_count: candidates.length,
+    closed_count: closed.filter((item) => item.readback_ok).length,
+    partial_count: closed.filter((item) => !item.readback_ok).length,
+    failed_count: failures.length,
+    closed,
+    failures,
+    raw_payload_stored: false,
+    secrets_included: false,
+  };
+}
+
 async function readDynamicReadiness(connection) {
   const [rows] = await connection.query(
     `SELECT
