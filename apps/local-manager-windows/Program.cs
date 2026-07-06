@@ -688,7 +688,11 @@ internal static class Program
                 CheckOnClick = true,
                 HorizontalScrollbar = true
             };
-            foreach (var capability in dynamicCapabilities) dynamicList.Items.Add(capability);
+            foreach (var capability in dynamicCapabilities)
+            {
+                var index = dynamicList.Items.Add(capability);
+                if (_lastRequestedCapabilities.Contains(capability.Key)) dynamicList.SetItemChecked(index, true);
+            }
             var powershell = new CheckBox
             {
                 Text = "Admin PowerShell recovery (/ps)",
