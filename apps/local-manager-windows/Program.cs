@@ -652,6 +652,12 @@ internal static class Program
                 return;
             }
 
+            var dynamicCapabilities = (await LoadDynamicCapabilityChoicesAsync(token))
+                .Where(item => !string.Equals(item.Key, "powershell_admin", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(item.Key, "windows_control", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(item => item.Label, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
             using var form = new Form
             {
                 Text = "Connector capabilities",
