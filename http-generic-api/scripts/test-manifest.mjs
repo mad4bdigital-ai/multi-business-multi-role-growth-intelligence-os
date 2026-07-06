@@ -301,6 +301,7 @@ export const testCommands = [
   "node test-tenant-database-schema-read.mjs",
   "node test-tenant-database-query-readonly.mjs",
   "node test-governed-migration-runner-tenant-db-query-readonly-allowlist.mjs",
+  "node test-migration-placement-guard.mjs",
   "node test-governed-migration-reconciler.mjs",
   "node test-github-multi-parent-policy-record-only-reconciliation.mjs",
   "node test-governed-migration-authorization-bootstrap.mjs",
