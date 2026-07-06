@@ -965,6 +965,104 @@ internal static class Program
             return form.ShowDialog(owner) == DialogResult.OK ? list.SelectedItem as SupportedAppChoice : null;
         }
 
+        private async Task<IEnumerable<SupportedAppChoice>> DiscoverSupportedAppsAsync(string token)
+        {
+            var localFallback = DiscoverSupportedApps().ToList();
+            try
+            {
+                var response = await _deviceControlClient.GetAsync("settings", token);
+                if (!response.IsSuccessStatusCode || string.IsNullOrWhiteSpace(response.RawText)) return localFallback;
+                var backendChoices = ParseSupportedAppChoices(response.RawText).ToList();
+                if (backendChoices.Count == 0) return localFallback;
+                return MergeSupportedAppChoices(backendChoices.Concat(localFallback));
+            }
+            catch
+            {
+                return localFallback;
+            }
+        }
+
+        private static IEnumerable<SupportedAppChoice> MergeSupportedAppChoices(IEnumerable<SupportedAppChoice> choices)
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var choice in choices)
+            {
+                if (string.IsNullOrWhiteSpace(choice.Alias) || string.IsNullOrWhiteSpace(choice.ExecutablePath)) continue;
+                if (!seen.Add(choice.Alias)) continue;
+                yield return choice;
+            }
+        }
+
+        private static IEnumerable<SupportedAppChoice> ParseSupportedAppChoices(string rawJson)
+        {
+            using var document = JsonDocument.Parse(rawJson);
+            foreach (var item in FindNamedArrayItems(document.RootElement, "supported_apps"))
+            {
+                var integrationType = JsonString(item, "integration_type");
+                var surfaceType = JsonString(item, "surface_type");
+                if (!string.Equals(integrationType, "local_app", StringComparison.OrdinalIgnoreCase)) continue;
+                if (!string.IsNullOrWhiteSpace(surfaceType) && !string.Equals(surfaceType, "browser_runtime", StringComparison.OrdinalIgnoreCase) && !string.Equals(surfaceType, "desktop_app", StringComparison.OrdinalIgnoreCase)) continue;
+                var alias = JsonString(item, "app_alias") ?? JsonString(item, "key");
+                var displayName = JsonString(item, "display_name") ?? JsonString(item, "label") ?? alias;
+                var processName = JsonString(item, "process_name") ?? alias;
+                var executablePath = JsonString(item, "executable_path") ?? DetectKnownExecutable(alias, processName);
+                if (string.IsNullOrWhiteSpace(alias) || string.IsNullOrWhiteSpace(displayName) || string.IsNullOrWhiteSpace(executablePath)) continue;
+                yield return new SupportedAppChoice(alias, displayName, executablePath);
+            }
+            foreach (var item in FindNamedArrayItems(document.RootElement, "supported_browsers"))
+            {
+                var alias = JsonString(item, "app_alias") ?? JsonString(item, "key");
+                var displayName = JsonString(item, "display_name") ?? JsonString(item, "label") ?? alias;
+                var processName = JsonString(item, "process_name") ?? alias;
+                var executablePath = JsonString(item, "executable_path") ?? DetectKnownExecutable(alias, processName);
+                if (string.IsNullOrWhiteSpace(alias) || string.IsNullOrWhiteSpace(displayName) || string.IsNullOrWhiteSpace(executablePath)) continue;
+                yield return new SupportedAppChoice(alias, displayName, executablePath);
+            }
+        }
+
+        private static IEnumerable<JsonElement> FindNamedArrayItems(JsonElement element, string propertyName)
+        {
+            if (element.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var property in element.EnumerateObject())
+                {
+                    if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase) && property.Value.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var item in property.Value.EnumerateArray()) yield return item;
+                    }
+                    foreach (var nested in FindNamedArrayItems(property.Value, propertyName)) yield return nested;
+                }
+            }
+            else if (element.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in element.EnumerateArray()) foreach (var nested in FindNamedArrayItems(item, propertyName)) yield return nested;
+            }
+        }
+
+        private static string? JsonString(JsonElement element, string propertyName)
+        {
+            if (element.ValueKind != JsonValueKind.Object) return null;
+            foreach (var property in element.EnumerateObject())
+            {
+                if (!string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase)) continue;
+                return property.Value.ValueKind == JsonValueKind.String ? property.Value.GetString() : property.Value.ToString();
+            }
+            return null;
+        }
+
+        private static string? DetectKnownExecutable(string? alias, string? processName)
+        {
+            foreach (var template in SupportedAppTemplates())
+            {
+                if (!string.Equals(template.Alias, alias, StringComparison.OrdinalIgnoreCase) && !string.Equals(template.Alias, processName, StringComparison.OrdinalIgnoreCase)) continue;
+                foreach (var candidate in template.Candidates.Select(Environment.ExpandEnvironmentVariables))
+                {
+                    if (!string.IsNullOrWhiteSpace(candidate) && File.Exists(candidate)) return candidate;
+                }
+            }
+            return null;
+        }
+
         private static IEnumerable<SupportedAppChoice> DiscoverSupportedApps()
         {
             var seenAliases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
