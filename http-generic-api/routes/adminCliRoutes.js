@@ -1372,12 +1372,14 @@ async function executeGitHubRestFallbackCore(args = []) {
     const method = parseGithubApiMethod(args);
     const fieldValues = parseGithubFieldValues(args);
     const allowedContentsRead = method === "GET" && /^\/contents\/.+/.test(apiTarget);
-    const allowedCheckRunAnnotationsRead = method === "GET" && /^\/check-runs\/\d+\/annotations(?:\?.*)?$/.test(apiTarget); if (allowedCheckRunAnnotationsRead) { const payload = await githubRestJson({ owner, repo, apiPath: apiTarget, token, method }); return { stdout: JSON.stringify(payload, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback for read-only check-run annotations.\n", exit_code: 0, fallback: "github_rest", }; }
+    const allowedCheckRunAnnotationsRead = method === "GET" && /^\/check-runs\/\d+\/annotations(?:\?.*)?$/.test(apiTarget); const allowedReleaseMetadataRead = method === "GET" && /^\/releases\/tags\/[^/?#]+(?:\?.*)?$/.test(apiTarget); const allowedWorkflowRunArtifactsRead = method === "GET" && /^\/actions\/runs\/\d+\/artifacts(?:\?.*)?$/.test(apiTarget); if (allowedReleaseMetadataRead || allowedWorkflowRunArtifactsRead) { const payload = await githubRestJson({ owner, repo, apiPath: apiTarget, token, method }); return { stdout: JSON.stringify(payload, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback for read-only release/artifact metadata.\n", exit_code: 0, fallback: "github_rest", }; } if (allowedCheckRunAnnotationsRead) { const payload = await githubRestJson({ owner, repo, apiPath: apiTarget, token, method }); return { stdout: JSON.stringify(payload, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback for read-only check-run annotations.\n", exit_code: 0, fallback: "github_rest", }; }
       const allowedRead = method === "GET" && (
         apiTarget.startsWith("/compare/") ||
         apiTarget.startsWith("/pulls") ||
         apiTarget.startsWith("/commits/") ||
-        allowedContentsRead
+        allowedContentsRead ||
+        allowedReleaseMetadataRead ||
+        allowedWorkflowRunArtifactsRead
       );
     const allowedContentsMutation = githubContentsMutationAllowed(apiTarget, method);
     const allowedBranchRefUpdate = githubBranchRefUpdateAllowed(apiTarget, method);
@@ -1396,7 +1398,7 @@ async function executeGitHubRestFallbackCore(args = []) {
       || allowedBranchRefUpdate
     );
     if (!allowedRead && !allowedMutation) {
-      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus guarded PR close, PR update-branch, PR merge, workflow dispatches, repo merges, guarded branch ref updates, and guarded contents PUT mutations.");
+      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits/contents/release/artifact reads plus guarded PR close, PR update-branch, PR merge, workflow dispatches, repo merges, guarded branch ref updates, and guarded contents PUT mutations.");
       err.status = 501;
       err.code = "github_rest_api_unsupported_path";
       err.details = { apiTarget, method };
