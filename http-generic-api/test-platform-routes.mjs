@@ -24,6 +24,7 @@ import { buildBatchRoutes }            from "./routes/batchRoutes.js";
 import { buildHealthRoutes }           from "./routes/healthRoutes.js";
 import { buildLegalRoutes }            from "./routes/legalRoutes.js";
 import { buildRootDiscoveryRoutes }    from "./routes/rootDiscoveryRoutes.js";
+import { buildActivationHostGatewayRoutes } from "./routes/activationHostGatewayRoutes.js";
 import { buildSystemLayerRoutes }      from "./routes/systemLayerRoutes.js";
 
 let passed = 0;
