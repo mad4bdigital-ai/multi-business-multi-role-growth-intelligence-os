@@ -108,6 +108,21 @@ async function loadRuntimeConfig(connection) {
       1,
       Math.min(Number(migrationReconciliationConfig.migration_limit || 2000), 2000)
     ),
+    session_archive_stale_closure_enabled:
+      sessionArchiveClosureRow?.status !== "disabled" &&
+      sessionArchiveClosureConfig.enabled === true,
+    session_archive_stale_closure_stale_days: Math.max(
+      1,
+      Math.min(Number(sessionArchiveClosureConfig.stale_days || 3), 30)
+    ),
+    session_archive_stale_closure_limit: Math.max(
+      1,
+      Math.min(Number(sessionArchiveClosureConfig.limit || 25), 100)
+    ),
+    session_archive_stale_closure_user_email:
+      typeof sessionArchiveClosureConfig.user_email === "string"
+        ? sessionArchiveClosureConfig.user_email.slice(0, 320)
+        : null,
     enabled:
       schedulerRow?.status !== "disabled" &&
       schedulerConfig.enabled !== false &&
