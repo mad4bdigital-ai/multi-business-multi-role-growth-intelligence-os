@@ -101,8 +101,14 @@ function section(name) {
   console.log(`\n== ${name}`);
 }
 
+function schemaPath(file) {
+  const relocated = resolve(__dirname, "openapi", file);
+  if (existsSync(relocated)) return relocated;
+  return resolve(__dirname, file);
+}
+
 function loadSchema(file) {
-  const source = readFileSync(resolve(__dirname, file), "utf8");
+  const source = readFileSync(schemaPath(file), "utf8");
   try {
     return YAML.parse(source);
   } catch (error) {
