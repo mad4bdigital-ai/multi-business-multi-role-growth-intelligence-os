@@ -1,5 +1,13 @@
 # AI Agent Knowledge Guide
 
+## In-app Activation Host Gateway
+
+`activation.mad4b.com` is the distinct GPT Builder Action server URL for Tenant and Admin Activation schemas. On Hostinger Cloud deployments, Cloudflare is DNS/proxy configuration only and must not be treated as the runtime gateway. The Node application mounted on the Hostinger app enforces the activation host boundary through `http-generic-api/routes/activationHostGatewayRoutes.js` before normal route registration.
+
+Activation host requests may serve only `/`, `/health`, Activation OpenAPI schemas, `/activation/*`, and `/tenant/activation/*`. OAuth authorization and token exchange remain exclusively on `auth.mad4b.com`; `/auth/oauth/*` on `activation.mad4b.com` must return an explicit `ACTIVATION_HOST_OAUTH_NOT_ALLOWED` structured error. The gateway strips cookies, preserves bearer-token activation transport, returns `secrets_included=false`, and must not mint tokens, resolve credentials, perform business authorization, call providers, or transform Activation business responses.
+
+This boundary exists because GPT Builder requires distinct public servers across Action schemas. Do not collapse Activation schemas back to `https://auth.mad4b.com`. Production deployment for this Hostinger Cloud app is the GitHub-to-Hostinger auto-deploy path: merge the approved PR to `main`, then Hostinger deploys the latest main automatically. Do not use SSH restart/deploy or Cloudflare Worker rollout as the normal promotion path. Cloudflare Worker Activation Gateway rollout remains separate and disabled unless its signed attestation, resource binding, feature gate, dark-deploy readback, and custom-domain rollout evidence are complete.
+
 ## Dynamic Container Projection Closeout Authority
 
 Spec 006 Dynamic Container projection preview must remain dry-run, SQL-source-only, and shadow-only until a separately authorized projection apply and production verification complete. The projection source loader reads authority sources sequentially to avoid exhausting the bounded MySQL pool. A source-read dependency failure returns `503` with `container_projection_source_load_failed`, `stage=load_projection_sources`, and a bounded source name through the shared error envelope. It must not expose SQL text, stack traces, credential identifiers, tokens, headers, secrets, or raw provider payloads.

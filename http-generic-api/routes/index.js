@@ -1,6 +1,7 @@
 import { buildHealthRoutes } from "./healthRoutes.js";
 import { buildStatusRoutes } from "./statusRoutes.js";
 import { buildActivationRoutes } from "./activationRoutes.js";
+import { buildActivationHostGatewayRoutes } from "./activationHostGatewayRoutes.js";
 import { buildActivationHardRunRoutes } from "./activationHardRunRoutes.js";
 import { buildTenantGrowthDashboardRoutes } from "./tenantGrowthDashboardRoutes.js";
 import { buildTenantActivationOverlayRoutes } from "./tenantActivationOverlayRoutes.js";
@@ -141,6 +142,7 @@ function registerOptionalSqlEndpointRegistryRoutes(app, deps) {
 }
 
 export function registerRoutes(app, deps) {
+  app.use(buildActivationHostGatewayRoutes());
   app.use(buildDeploymentInfoRoutes());
   app.use(buildBackupArtifactRoutes(deps));
   app.use(buildDevDbRestoreRoutes({ ...deps, requireAdminPrincipal }));

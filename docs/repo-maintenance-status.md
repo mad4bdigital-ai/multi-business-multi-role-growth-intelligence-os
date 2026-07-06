@@ -43,7 +43,11 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 ## Generated / Scoped OpenAPI Schemas
 
-- none
+- `http-generic-api/openapi.custom-gpt.activation-admin.yaml`
+- `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml`
+- `http-generic-api/openapi.gpt-action.local-connector.yaml`
+- `http-generic-api/openapi.tenant-gpt.activation.yaml`
+- `http-generic-api/openapi.tenant-gpt.auth.yaml`
 
 ## Route Coverage Allowlist
 
