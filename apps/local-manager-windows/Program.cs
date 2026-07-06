@@ -672,8 +672,22 @@ internal static class Program
             {
                 Text = "Choose optional high-risk capabilities to enable on this device.\nThey require a device-scoped installer and local Administrator approval.",
                 Location = new Point(18, 18),
-                Size = new Size(500, 52)
+                Size = new Size(480, 52)
             };
+            var dynamicLabel = new Label
+            {
+                Text = "Registry capabilities",
+                Location = new Point(520, 18),
+                Size = new Size(190, 22)
+            };
+            var dynamicList = new CheckedListBox
+            {
+                Location = new Point(520, 44),
+                Size = new Size(190, 116),
+                CheckOnClick = true,
+                HorizontalScrollbar = true
+            };
+            foreach (var capability in dynamicCapabilities) dynamicList.Items.Add(capability);
             var powershell = new CheckBox
             {
                 Text = "Admin PowerShell recovery (/ps)",
