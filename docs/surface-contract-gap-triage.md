@@ -4,18 +4,15 @@
 
 ## Summary
 
-- Triaged items: 4
-- Gate candidates: 3
-- New-gap gate: fail
-- Blocking new items: 4
+- Triaged items: 0
+- Gate candidates: 0
+- New-gap gate: pass
+- Blocking new items: 0
 
 ## Class counts
 
-- new_surface_immediate_review: 3
-- standard_backlog_review: 1
+- none
 
 ## Immediate review candidates
 
-- `1026_sprint69_github_actions_runs_read_dispatch.sql` — critical_review, score 1016; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
-- `20260705_session_archive_capture_gate_and_smoke_policy.sql` — critical_review, score 730; next: add targeted patch-index, parity, and governance documentation
-- `1025_sprint69_github_ref_dispatch_catalog_persistence.sql` — high_review, score 599; next: add targeted patch-index, parity, and governance documentation
+- none
