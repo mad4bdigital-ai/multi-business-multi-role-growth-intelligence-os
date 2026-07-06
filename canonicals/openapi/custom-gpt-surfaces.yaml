@@ -104,7 +104,7 @@ surfaces:
   local_connector_admin:
     mode: canonical_copy
     canonical_file: canonicals/openapi/local-connector.openapi.yaml
-    output_file: openapi.gpt-action.local-connector.yaml
+    output_file: openapi/openapi.gpt-action.local-connector.yaml
     server_url: https://connector.mad4b.com
     auth_profile: device_admin
     hard_operation_limit: 30
