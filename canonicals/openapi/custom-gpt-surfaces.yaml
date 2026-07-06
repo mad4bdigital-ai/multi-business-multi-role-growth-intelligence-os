@@ -3,7 +3,7 @@ source_openapi: http-generic-api/openapi.yaml
 surfaces:
   admin_core:
     mode: generated_from_openapi
-    output_file: openapi.custom-gpt.auth-dispatcher.yaml
+    output_file: openapi/openapi.custom-gpt.auth-dispatcher.yaml
     server_url: https://auth.mad4b.com
     auth_profile: admin_service
     hard_operation_limit: 30
