@@ -853,6 +853,7 @@ export async function getDeviceControls(req, res) {
       return res.status(400).json({ ok: false, error: { code: "invalid_control_section", message: "Unsupported device control section." }, secrets_included: false });
     }
 
+    const controlTemplates = section === "settings" ? await loadLocalManagerControlTemplates() : null;
     const baseControls = {
       overview: {
         label: "Device overview",
