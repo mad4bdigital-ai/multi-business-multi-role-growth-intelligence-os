@@ -1011,7 +1011,7 @@ export async function readOperationalAlerts({
     attempted: true,
     ok: degradedSources.length === 0 && truncatedSources.length === 0 && missingKnownIssueKeys.length === 0,
     activation_layer: "operational_alerting_control_plane",
-    source_authority: "sql_runtime_evidence_sources_plus_operational_alert_lifecycle",
+    source_authority: "sql_primary_runtime_tables_plus_operational_alert_lifecycle",
     subject,
     summary: {
       ...summary,
