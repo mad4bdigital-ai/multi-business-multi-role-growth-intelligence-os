@@ -652,6 +652,12 @@ internal static class Program
                 return;
             }
 
+            var dynamicCapabilities = (await LoadDynamicCapabilityChoicesAsync(token))
+                .Where(item => !string.Equals(item.Key, "powershell_admin", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(item.Key, "windows_control", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(item => item.Label, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
             using var form = new Form
             {
                 Text = "Connector capabilities",
@@ -666,8 +672,22 @@ internal static class Program
             {
                 Text = "Choose optional high-risk capabilities to enable on this device.\nThey require a device-scoped installer and local Administrator approval.",
                 Location = new Point(18, 18),
-                Size = new Size(500, 52)
+                Size = new Size(480, 52)
             };
+            var dynamicLabel = new Label
+            {
+                Text = "Registry capabilities",
+                Location = new Point(520, 18),
+                Size = new Size(190, 22)
+            };
+            var dynamicList = new CheckedListBox
+            {
+                Location = new Point(520, 44),
+                Size = new Size(190, 116),
+                CheckOnClick = true,
+                HorizontalScrollbar = true
+            };
+            foreach (var capability in dynamicCapabilities) dynamicList.Items.Add(capability);
             var powershell = new CheckBox
             {
                 Text = "Admin PowerShell recovery (/ps)",
@@ -694,9 +714,9 @@ internal static class Program
                 }
             };
             var supportedApps = new Button { Text = "Supported apps", Location = new Point(482, 222), Size = new Size(120, 32) };
-            supportedApps.Click += (_, _) =>
+            supportedApps.Click += async (_, _) =>
             {
-                var selected = PickSupportedApp(form);
+                var selected = await PickSupportedAppAsync(form, token);
                 if (selected is null) return;
                 appAlias.Text = selected.Alias;
                 appPath.Text = selected.ExecutablePath;
@@ -742,7 +762,7 @@ internal static class Program
             };
             var ok = new Button { Text = "Create installer", DialogResult = DialogResult.OK, Location = new Point(488, 508), Size = new Size(130, 34) };
             var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(626, 508), Size = new Size(82, 34) };
-            form.Controls.AddRange(new Control[] { intro, powershell, windowsControl, appLabel, appAlias, appPath, browseApp, supportedApps, discoverApps, folderLabel, allowedPath, browseFolder, helperLabel, helperAlias, helperPath, browseHelper, warning, ok, cancel });
+            form.Controls.AddRange(new Control[] { intro, dynamicLabel, dynamicList, powershell, windowsControl, appLabel, appAlias, appPath, browseApp, supportedApps, discoverApps, folderLabel, allowedPath, browseFolder, helperLabel, helperAlias, helperPath, browseHelper, warning, ok, cancel });
             form.AcceptButton = ok;
             form.CancelButton = cancel;
 
@@ -750,6 +770,10 @@ internal static class Program
             var requestedCapabilities = new List<string>();
             if (powershell.Checked) requestedCapabilities.Add("powershell_admin");
             if (windowsControl.Checked) requestedCapabilities.Add("windows_control");
+            foreach (var item in dynamicList.CheckedItems)
+            {
+                if (item is DynamicCapabilityChoice capability && !string.IsNullOrWhiteSpace(capability.Key)) requestedCapabilities.Add(capability.Key);
+            }
             var selectedApps = new List<object>();
             if (!string.IsNullOrWhiteSpace(appPath.Text))
             {
@@ -916,9 +940,48 @@ internal static class Program
             public override string ToString() => $"{DisplayName} ({Alias}) — {ExecutablePath}";
         }
 
-        private static SupportedAppChoice? PickSupportedApp(IWin32Window owner)
+        private sealed record DynamicCapabilityChoice(string Key, string Label, string SurfaceType, string IntegrationType)
         {
-            var apps = DiscoverSupportedApps().OrderBy(app => app.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+            public override string ToString() => string.IsNullOrWhiteSpace(SurfaceType)
+                ? $"{Label} ({Key})"
+                : $"{Label} ({Key}) — {SurfaceType}/{IntegrationType}";
+        }
+
+        private async Task<IReadOnlyList<DynamicCapabilityChoice>> LoadDynamicCapabilityChoicesAsync(string token)
+        {
+            try
+            {
+                var response = await _deviceControlClient.GetAsync("settings", token);
+                if (!response.IsSuccessStatusCode || string.IsNullOrWhiteSpace(response.RawText)) return Array.Empty<DynamicCapabilityChoice>();
+                return ParseDynamicCapabilityChoices(response.RawText)
+                    .GroupBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
+                    .Select(group => group.First())
+                    .OrderBy(item => item.Label, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            catch
+            {
+                return Array.Empty<DynamicCapabilityChoice>();
+            }
+        }
+
+        private static IEnumerable<DynamicCapabilityChoice> ParseDynamicCapabilityChoices(string rawJson)
+        {
+            using var document = JsonDocument.Parse(rawJson);
+            foreach (var item in FindNamedArrayItems(document.RootElement, "supported_capabilities").Concat(FindNamedArrayItems(document.RootElement, "supported_browser_adapters")).Concat(FindNamedArrayItems(document.RootElement, "supported_agent_surfaces")))
+            {
+                var key = JsonString(item, "key") ?? JsonString(item, "app_alias");
+                var label = JsonString(item, "label") ?? JsonString(item, "display_name") ?? key;
+                var surfaceType = JsonString(item, "surface_type") ?? "capability";
+                var integrationType = JsonString(item, "integration_type") ?? "capability";
+                if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(label)) continue;
+                yield return new DynamicCapabilityChoice(key, label, surfaceType, integrationType);
+            }
+        }
+
+        private async Task<SupportedAppChoice?> PickSupportedAppAsync(IWin32Window owner, string token)
+        {
+            var apps = (await DiscoverSupportedAppsAsync(token)).OrderBy(app => app.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
             if (apps.Count == 0)
             {
                 MessageBox.Show(owner, "No supported app templates were found on this Windows profile. Use Installed apps or Browse instead.", "Supported apps", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -958,6 +1021,104 @@ internal static class Program
             return form.ShowDialog(owner) == DialogResult.OK ? list.SelectedItem as SupportedAppChoice : null;
         }
 
+        private async Task<IEnumerable<SupportedAppChoice>> DiscoverSupportedAppsAsync(string token)
+        {
+            var localFallback = DiscoverSupportedApps().ToList();
+            try
+            {
+                var response = await _deviceControlClient.GetAsync("settings", token);
+                if (!response.IsSuccessStatusCode || string.IsNullOrWhiteSpace(response.RawText)) return localFallback;
+                var backendChoices = ParseSupportedAppChoices(response.RawText).ToList();
+                if (backendChoices.Count == 0) return localFallback;
+                return MergeSupportedAppChoices(backendChoices.Concat(localFallback));
+            }
+            catch
+            {
+                return localFallback;
+            }
+        }
+
+        private static IEnumerable<SupportedAppChoice> MergeSupportedAppChoices(IEnumerable<SupportedAppChoice> choices)
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var choice in choices)
+            {
+                if (string.IsNullOrWhiteSpace(choice.Alias) || string.IsNullOrWhiteSpace(choice.ExecutablePath)) continue;
+                if (!seen.Add(choice.Alias)) continue;
+                yield return choice;
+            }
+        }
+
+        private static IEnumerable<SupportedAppChoice> ParseSupportedAppChoices(string rawJson)
+        {
+            using var document = JsonDocument.Parse(rawJson);
+            foreach (var item in FindNamedArrayItems(document.RootElement, "supported_apps"))
+            {
+                var integrationType = JsonString(item, "integration_type");
+                var surfaceType = JsonString(item, "surface_type");
+                if (!string.Equals(integrationType, "local_app", StringComparison.OrdinalIgnoreCase)) continue;
+                if (!string.IsNullOrWhiteSpace(surfaceType) && !string.Equals(surfaceType, "browser_runtime", StringComparison.OrdinalIgnoreCase) && !string.Equals(surfaceType, "desktop_app", StringComparison.OrdinalIgnoreCase)) continue;
+                var alias = JsonString(item, "app_alias") ?? JsonString(item, "key");
+                var displayName = JsonString(item, "display_name") ?? JsonString(item, "label") ?? alias;
+                var processName = JsonString(item, "process_name") ?? alias;
+                var executablePath = JsonString(item, "executable_path") ?? DetectKnownExecutable(alias, processName);
+                if (string.IsNullOrWhiteSpace(alias) || string.IsNullOrWhiteSpace(displayName) || string.IsNullOrWhiteSpace(executablePath)) continue;
+                yield return new SupportedAppChoice(alias, displayName, executablePath);
+            }
+            foreach (var item in FindNamedArrayItems(document.RootElement, "supported_browsers"))
+            {
+                var alias = JsonString(item, "app_alias") ?? JsonString(item, "key");
+                var displayName = JsonString(item, "display_name") ?? JsonString(item, "label") ?? alias;
+                var processName = JsonString(item, "process_name") ?? alias;
+                var executablePath = JsonString(item, "executable_path") ?? DetectKnownExecutable(alias, processName);
+                if (string.IsNullOrWhiteSpace(alias) || string.IsNullOrWhiteSpace(displayName) || string.IsNullOrWhiteSpace(executablePath)) continue;
+                yield return new SupportedAppChoice(alias, displayName, executablePath);
+            }
+        }
+
+        private static IEnumerable<JsonElement> FindNamedArrayItems(JsonElement element, string propertyName)
+        {
+            if (element.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var property in element.EnumerateObject())
+                {
+                    if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase) && property.Value.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var item in property.Value.EnumerateArray()) yield return item;
+                    }
+                    foreach (var nested in FindNamedArrayItems(property.Value, propertyName)) yield return nested;
+                }
+            }
+            else if (element.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in element.EnumerateArray()) foreach (var nested in FindNamedArrayItems(item, propertyName)) yield return nested;
+            }
+        }
+
+        private static string? JsonString(JsonElement element, string propertyName)
+        {
+            if (element.ValueKind != JsonValueKind.Object) return null;
+            foreach (var property in element.EnumerateObject())
+            {
+                if (!string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase)) continue;
+                return property.Value.ValueKind == JsonValueKind.String ? property.Value.GetString() : property.Value.ToString();
+            }
+            return null;
+        }
+
+        private static string? DetectKnownExecutable(string? alias, string? processName)
+        {
+            foreach (var template in SupportedAppTemplates())
+            {
+                if (!string.Equals(template.Alias, alias, StringComparison.OrdinalIgnoreCase) && !string.Equals(template.Alias, processName, StringComparison.OrdinalIgnoreCase)) continue;
+                foreach (var candidate in template.Candidates.Select(Environment.ExpandEnvironmentVariables))
+                {
+                    if (!string.IsNullOrWhiteSpace(candidate) && File.Exists(candidate)) return candidate;
+                }
+            }
+            return null;
+        }
+
         private static IEnumerable<SupportedAppChoice> DiscoverSupportedApps()
         {
             var seenAliases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -981,6 +1142,10 @@ internal static class Program
             var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
             yield return ("edge", "Microsoft Edge", new[] { Path.Combine(programFilesX86, "Microsoft", "Edge", "Application", "msedge.exe"), Path.Combine(programFiles, "Microsoft", "Edge", "Application", "msedge.exe") });
             yield return ("chrome", "Google Chrome", new[] { Path.Combine(programFiles, "Google", "Chrome", "Application", "chrome.exe"), Path.Combine(programFilesX86, "Google", "Chrome", "Application", "chrome.exe") });
+            yield return ("firefox", "Mozilla Firefox", new[] { Path.Combine(programFiles, "Mozilla Firefox", "firefox.exe"), Path.Combine(programFilesX86, "Mozilla Firefox", "firefox.exe") });
+            yield return ("brave", "Brave Browser", new[] { Path.Combine(programFiles, "BraveSoftware", "Brave-Browser", "Application", "brave.exe"), Path.Combine(programFilesX86, "BraveSoftware", "Brave-Browser", "Application", "brave.exe") });
+            yield return ("opera", "Opera", new[] { Path.Combine(localAppData, "Programs", "Opera", "launcher.exe"), Path.Combine(programFiles, "Opera", "launcher.exe") });
+            yield return ("chromium", "Chromium", new[] { Path.Combine(programFiles, "Chromium", "Application", "chrome.exe"), Path.Combine(programFilesX86, "Chromium", "Application", "chrome.exe") });
             yield return ("vscode", "Visual Studio Code", new[] { Path.Combine(localAppData, "Programs", "Microsoft VS Code", "Code.exe"), Path.Combine(programFiles, "Microsoft VS Code", "Code.exe") }); yield return ("cursor", "Cursor", new[] { Path.Combine(localAppData, "Programs", "Cursor", "Cursor.exe"), Path.Combine(programFiles, "Cursor", "Cursor.exe") });
             yield return ("notepad", "Windows Notepad", new[] { Path.Combine(windows, "System32", "notepad.exe") });
         }
