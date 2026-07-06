@@ -621,8 +621,10 @@ export async function capabilityEnablementResolve(args = {}, context = {}) {
   const operationIntent = safeText(args.operation_intent || "read", 64);
   let effective = null;
   let dryRun = null;
+  let approvedEnvelope = null;
   let effectiveError = null;
   let dryRunError = null;
+  let envelopeError = null;
 
   if (!capabilityKey) {
     return { ok: false, tool: "capability_enablement_resolve", request_id: requestId, error: { code: "CAPABILITY_KEY_REQUIRED", message: "capability_key is required." }, secrets_included: false };
