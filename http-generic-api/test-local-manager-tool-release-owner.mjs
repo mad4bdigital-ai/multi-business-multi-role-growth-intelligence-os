@@ -106,9 +106,13 @@ assert(localManagerWindowsInstallerSurface.includes('permission_grants'), 'Windo
 assert(localManagerWindows.includes('OpenFileDialog'), 'Windows app must let users choose app/helper executables locally');
 assert(localManagerWindows.includes('FolderBrowserDialog'), 'Windows app must let users choose allowed paths locally');
 assert(localManagerWindows.includes('PickInstalledApp'), 'Windows app must provide installed-app discovery for easier app grants');
-assert(localManagerWindows.includes('PickSupportedApp'), 'Windows app must provide supported app templates for known local app grants');
+assert(localManagerWindows.includes('PickSupportedAppAsync'), 'Windows app must load supported app templates from backend settings controls when available');
+assert(localManagerWindows.includes('LoadDynamicCapabilityChoicesAsync'), 'Windows app must load dynamic capability choices from backend settings controls');
+assert(localManagerWindows.includes('ParseDynamicCapabilityChoices'), 'Windows app must parse dynamic capability registry groups');
+assert(localManagerWindows.includes('supported_browser_adapters'), 'Windows app must consume supported browser adapter groups from settings controls');
+assert(localManagerWindows.includes('supported_agent_surfaces'), 'Windows app must consume supported agent surface groups from settings controls');
 assert(localManagerWindows.includes('Supported apps'), 'Windows app must show the supported app template button in the capability dialog');
-assert(localManagerWindows.includes('SupportedAppTemplates'), 'Windows app must keep supported app templates visible in the local UI');
+assert(localManagerWindows.includes('SupportedAppTemplates'), 'Windows app must keep local supported app fallback templates visible');
 assert(localManagerWindows.includes('"chrome", "Google Chrome"'), 'Windows app supported templates must include Chrome');
 assert(localManagerWindows.includes('"edge", "Microsoft Edge"'), 'Windows app supported templates must include Edge');
 assert(localManagerWindows.includes('"vscode", "Visual Studio Code"'), 'Windows app supported templates must include VS Code');
