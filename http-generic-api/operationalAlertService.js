@@ -410,7 +410,7 @@ function groupExecutionRows(rows = []) {
       });
       continue;
     }
-    existing.occurrence_count += 1;
+    existing.occurrence_count += occurrenceCount;
     if (new Date(row.created_at) < new Date(existing.first_seen_at)) existing.first_seen_at = row.created_at;
     if (new Date(row.created_at) >= new Date(existing.last_seen_at)) {
       Object.assign(existing, row, {
