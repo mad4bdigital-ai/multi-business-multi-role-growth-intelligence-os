@@ -8,8 +8,8 @@
   "blocking_new_item_count": 0,
   "docs_completion_percent": 100,
   "openapi_sql_route_coverage_percent": 100,
-  "openapi_exempt_sql_route_count": 611,
-  "total_sql_route_like_count": 628,
+  "openapi_exempt_sql_route_count": 612,
+  "total_sql_route_like_count": 629,
   "safety_marker_gap_migrations": 0,
   "trend_quality_gate": {
     "ok": true,
