@@ -10,8 +10,10 @@ const ALLOWED_LIFECYCLE_STATES = new Set(["open", "acknowledged", "investigating
 const ALERT_EXECUTION_STATUSES = new Set(["failed", "degraded", "blocked", "blocked_with_choice_required", "success_with_warnings", "passed_with_follow_up"]);
 const SUCCESS_EXECUTION_STATUSES = new Set(["success", "succeeded", "completed", "pass", "passed"]);
 const RECOVERY_STATUS_PATTERN = /(recovered|fallback.*used|resolved|succeeded|completed)/i;
+const EXECUTION_LOG_BATCH_SIZE = 1000;
+const EXECUTION_LOG_MAX_ROWS = 10000;
 const SOURCE_ROW_CAPS = Object.freeze({
-  execution_log: 1000,
+  execution_log: EXECUTION_LOG_MAX_ROWS,
   connected_systems: 500,
   v_activation_pending_tasks: 500,
   v_activation_agent_catalog: 500,
