@@ -154,6 +154,7 @@ function readyDryRun(overrides = {}) {
   assert.equal(writes.length, 3);
   assert.match(writes[0].sql, /capability_enablement_requests/);
   assert.match(writes[2].sql, /capability_enablement_steps/);
+  assert.equal(writes.some((write) => /CAST\(\? AS JSON\)/.test(write.sql)), false);
 }
 
 {
