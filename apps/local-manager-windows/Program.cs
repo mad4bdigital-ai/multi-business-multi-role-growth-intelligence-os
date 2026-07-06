@@ -781,6 +781,9 @@ internal static class Program
             {
                 if (item is DynamicCapabilityChoice capability && !string.IsNullOrWhiteSpace(capability.Key)) requestedCapabilities.Add(capability.Key);
             }
+            _lastRequestedCapabilities.Clear();
+            foreach (var capability in requestedCapabilities) _lastRequestedCapabilities.Add(capability);
+
             var selectedApps = new List<object>();
             if (!string.IsNullOrWhiteSpace(appPath.Text))
             {
