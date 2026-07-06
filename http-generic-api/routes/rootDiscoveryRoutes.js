@@ -6,7 +6,17 @@ import { buildTenantGptOAuthPreset } from "../tenantGptOAuthPreset.js";
 import { resolveTenantGptOAuthClientConfig } from "../tenantGptOAuthClientConfig.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SCHEMA_DIR = resolve(__dirname, "..");
+const SCHEMA_ROOT_DIR = resolve(__dirname, "..");
+const SCHEMA_ARTIFACT_DIR = resolve(SCHEMA_ROOT_DIR, "openapi");
+
+async function readPublicSchemaFile(schemaFile) {
+  try {
+    return await readFile(resolve(SCHEMA_ARTIFACT_DIR, schemaFile), "utf8");
+  } catch (err) {
+    if (err?.code !== "ENOENT") throw err;
+    return readFile(resolve(SCHEMA_ROOT_DIR, schemaFile), "utf8");
+  }
+}
 
 const DEFAULT_SCOPE = {
   scope: "runtime",
@@ -129,7 +139,7 @@ export function buildRootDiscoveryRoutes() {
     }
 
     try {
-      const schema = await readFile(resolve(SCHEMA_DIR, requestedFile), "utf8");
+      const schema = await readPublicSchemaFile(requestedFile);
       return res
         .status(200)
         .type("application/yaml")
