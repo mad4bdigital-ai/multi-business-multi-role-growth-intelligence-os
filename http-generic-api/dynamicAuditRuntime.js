@@ -91,8 +91,10 @@ async function loadRuntimeConfig(connection) {
   const bridgeRow = byKey.get("audit_log_event_bus_bridge_schedule");
   const rollupRow = byKey.get("audit_event_rollup_builder_schedule");
   const migrationReconciliationRow = byKey.get("governed_migration_reconciliation_scheduler");
+  const sessionArchiveClosureRow = byKey.get("session_archive_stale_closure_autosweep");
   const schedulerConfig = safeJsonParse(schedulerRow?.config_json, {});
   const migrationReconciliationConfig = safeJsonParse(migrationReconciliationRow?.config_json, {});
+  const sessionArchiveClosureConfig = safeJsonParse(sessionArchiveClosureRow?.config_json, {});
   return {
     ...DEFAULT_CONFIG,
     ...safeJsonParse(bridgeRow?.config_json, {}),
