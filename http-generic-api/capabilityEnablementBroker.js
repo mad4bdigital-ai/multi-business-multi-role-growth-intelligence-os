@@ -658,6 +658,14 @@ export async function capabilityEnablementResolve(args = {}, context = {}) {
         effectiveError = effectiveError || error;
       }
     }
+    if (args.capability_envelope_id) {
+      try {
+        approvedEnvelope = await loadApprovedCapabilityEnvelope(context.pool || getPool(), args, scope);
+        dryRun = applyApprovedEnvelopeToDryRun(dryRun, approvedEnvelope);
+      } catch (error) {
+        envelopeError = error;
+      }
+    }
   }
 
   const classification = classifyEnablementDecision({ effective, dryRun, operationIntent, secretBoundaryFailed });
