@@ -195,7 +195,7 @@ const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 const lifecycleSource = readFileSync("databaseTableLifecycle.js", "utf8");
 const schema = JSON.parse(readFileSync("schemas/http-generic-api/growth-intelligence-report-v1.schema.json", "utf8"));
 const openapi = readFileSync("openapi.yaml", "utf8");
-const tenantGpt = readFileSync("openapi.tenant-gpt.auth.yaml", "utf8");
+const tenantGpt = readFileSync("openapi/openapi.tenant-gpt.auth.yaml", "utf8");
 const growthRoutes = readFileSync("routes/growthIntelligenceRoutes.js", "utf8");
 const workflowRoutes = readFileSync("routes/workflowOrchestrationRoutes.js", "utf8");
 assert.doesNotMatch(migration, /\b(?:DROP|TRUNCATE|DELETE)\b/i);
