@@ -14,6 +14,7 @@ import {
 const READINESS_OBJECTS = [
   "platform_semantic_capabilities",
   "platform_capability_provider_bindings",
+  "platform_tool_dispatch_bindings",
   "workspace_resource_grants",
   "credential_bindings",
   "capability_resolution_envelope_ledger",
@@ -181,6 +182,67 @@ function readyDryRun(overrides = {}) {
   assert.equal(preview.tool, "capability_enablement_proposal_preview");
   assert.equal(preview.proposals.length, 1);
   assert.equal(preview.mutations_executed, false);
+}
+
+{
+  const poolQueries = [];
+  const pool = {
+    async query(sql, params) {
+      poolQueries.push({ sql, params });
+      assert.match(sql, /platform_tool_dispatch_bindings/);
+      return [[{
+        binding_id: "ptdb_repo_patch_apply_put_contents",
+        parent_action_key: "github_api_mcp",
+        endpoint_key: "create_or_update_file_contents",
+        export_key: "github_api_mcp:create_or_update_file_contents",
+        tool_key: "repo_patch_apply",
+        surface_class: "virtual_admin_tool",
+        scope_class: "admin",
+        capability_key: "github_file_patch_apply",
+        operation_intent: "github_repo_patch",
+        runtime_surface: "repo_patch_apply",
+        readback_policy_key: "github_file_sha_readback_v1",
+        partial_success_policy_key: "github_file_patch_no_partial_write_v1",
+        atomicity_mode: "single_file_mutation",
+        status: "active",
+        metadata_json: "{\"secrets_included\":false}",
+      }]];
+    },
+  };
+  const result = await capabilityEnablementResolve(
+    { capability_key: "repo_patch_apply", operation_intent: "write", app_key: "github", runtime_surface: "repo_patch_apply" },
+    {
+      auth: { is_admin: true, tenant_id: "tenant-1", user_id: "admin-user" },
+      pool,
+      tenantEffectiveCapabilityPreview: async () => ({ ok: false, status: "blocked", error: { code: "CAPABILITY_NOT_REGISTERED", message: "missing semantic capability" }, secrets_included: false }),
+      runCapabilityResolutionDryRun: async () => readyDryRun({ authority: { status: "passed", passed: ["dispatch_certification_present"] } }),
+    }
+  );
+  assert.equal(poolQueries.length, 1);
+  assert.equal(result.ok, true);
+  assert.equal(result.decision, "ready_for_dispatch");
+  assert.equal(result.effective_capability.status, "virtual_admin_tool_ready");
+  assert.equal(result.effective_capability.bridge.source, "platform_tool_dispatch_bindings");
+  assert.equal(result.effective_capability.binding.tool_key, "repo_patch_apply");
+  assert.equal(result.effective_capability.runtime.apply_allowed, false);
+  assert.equal(result.provider_calls_made, 0);
+  assert.equal(result.external_mutations_executed, false);
+  assert.equal(result.secrets_included, false);
+}
+
+{
+  const result = await capabilityEnablementResolve(
+    { capability_key: "repo_patch_apply", operation_intent: "write", app_key: "github", runtime_surface: "repo_patch_apply" },
+    {
+      auth: { is_admin: false, tenant_id: "tenant-1", user_id: "user-1" },
+      pool: { async query() { throw new Error("tenant principals must not query virtual admin bridge"); } },
+      tenantEffectiveCapabilityPreview: async () => ({ ok: false, status: "blocked", error: { code: "CAPABILITY_NOT_REGISTERED", message: "missing semantic capability" }, secrets_included: false }),
+      runCapabilityResolutionDryRun: async () => readyDryRun(),
+    }
+  );
+  assert.equal(result.decision, "blocked_policy_denied");
+  assert.deepEqual(result.reason_codes, ["CAPABILITY_NOT_REGISTERED"]);
+  assert.equal(result.secrets_included, false);
 }
 
 {
