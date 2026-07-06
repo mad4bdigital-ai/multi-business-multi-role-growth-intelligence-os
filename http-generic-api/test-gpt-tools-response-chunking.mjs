@@ -7,6 +7,7 @@ import {
   isGovernedToolResponseChunkEnvelope,
   maybeChunkToolResponseBody,
   paginateItems,
+  resolveAdaptiveToolResponseMaxChars,
   readCachedToolResponseChunk,
   resolveToolResponseChunkTtlMs,
   shouldChunkDispatchedToolResponse,
@@ -160,6 +161,14 @@ async function main() {
     "already chunked governed envelopes must not be re-chunked into nested chunk payloads",
   );
   assert.equal(shouldChunkDispatchedToolResponse("github_rest_endpoint_dispatch", existingChunkEnvelope), false);
+
+  assert.equal(resolveAdaptiveToolResponseMaxChars({ max_chars: 150000 }), 45000);
+  assert.equal(
+    resolveAdaptiveToolResponseMaxChars({ max_chars: 150000, client_response_budget_chars: 60000, response_envelope_overhead_chars: 12000 }),
+    48000,
+    "requested chunks must be clamped to the effective client budget minus response envelope overhead",
+  );
+  assert.equal(resolveAdaptiveToolResponseMaxChars({ max_chars: 4000 }), 5000);
 
   const paged = paginateItems([
     { name: "alpha_tool", tags: ["repo"] },
