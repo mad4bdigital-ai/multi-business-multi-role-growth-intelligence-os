@@ -791,7 +791,14 @@ async function seedLocalManagerControlTemplates() {
         row.browser ? 1 : 0,
         row.capability_class || null,
         row.risk_class || "interactive",
-        jsonString(row.metadata || {}),
+        jsonString({
+          ...(row.metadata || {}),
+          surface_type: row.surface_type || row.capability_class || row.template_type,
+          execution_location: row.execution_location || "local_device",
+          integration_type: row.integration_type || (row.template_type === "app" ? "local_app" : "capability"),
+          credential_scope: row.credential_scope || "device",
+          requires_credentials: Boolean(row.metadata?.requires_credentials || row.integration_type === "external_provider"),
+        }),
         Number(row.sort_order || 1000),
       ]
     );
