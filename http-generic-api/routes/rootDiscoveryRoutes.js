@@ -73,6 +73,20 @@ const SCOPES_BY_HOST = {
       admin_activation: "openapi.custom-gpt.activation-admin.yaml"
     }
   },
+  "activation.mad4b.com": {
+    scope: "activation",
+    schema_file: "openapi.tenant-gpt.activation.yaml",
+    primary_paths: [
+      "/activation/session-context",
+      "/activation/platform-access",
+      "/tenant/activation/session-context",
+      "/tenant/activation/awareness"
+    ],
+    schema_variants: {
+      tenant_activation: "openapi.tenant-gpt.activation.yaml",
+      admin_activation: "openapi.custom-gpt.activation-admin.yaml"
+    }
+  },
   "ops.mad4b.com": {
     scope: "ops",
     schema_file: "openapi.custom-gpt.ops.yaml",
