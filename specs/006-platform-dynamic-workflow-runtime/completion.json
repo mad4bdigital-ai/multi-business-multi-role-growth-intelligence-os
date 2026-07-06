@@ -3,7 +3,7 @@
   "feature_key": "006-platform-dynamic-workflow-runtime",
   "title": "Platform Dynamic Workflow Runtime",
   "status": "in_progress",
-  "delivery_mode": "single_final_pr",
+  "delivery_mode": "multi_pr",
   "current_increment": {
     "phase": "projection_loader_and_runtime_closeout_final_pr",
     "design_version": "0.3.0",
