@@ -23,7 +23,8 @@ const dashboard = JSON.parse(dashboardSurface);
 assert.equal(dashboard.source_table, "v_capability_enablement_operational_dashboard");
 assert.equal(dashboard.include_for_admin, true);
 assert.equal(dashboard.include_for_tenant, true);
-assert.equal(dashboard.result_columns.includes("secret_rows"), true);
+assert.equal(dashboard.result_columns.includes("safety_redaction_rows"), true);
+assert.equal(dashboard.result_columns.includes("secret_rows"), false);
 assert.equal(dashboard.result_columns.includes("classification_json"), false);
 
 const attention = JSON.parse(attentionSurface);

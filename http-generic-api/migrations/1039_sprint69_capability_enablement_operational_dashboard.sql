@@ -20,7 +20,7 @@ SELECT
   SUM(CASE WHEN JSON_SEARCH(COALESCE(reason_codes_json, JSON_ARRAY()), 'one', 'ENVELOPE_EXPIRED') IS NOT NULL THEN 1 ELSE 0 END) AS expired_envelope_count,
   SUM(CASE WHEN provider_calls_made <> 0 THEN 1 ELSE 0 END) AS provider_call_rows,
   SUM(CASE WHEN external_mutations_executed <> 0 THEN 1 ELSE 0 END) AS external_mutation_rows,
-  SUM(CASE WHEN secrets_included <> 0 THEN 1 ELSE 0 END) AS secret_rows,
+  SUM(CASE WHEN secrets_included <> 0 THEN 1 ELSE 0 END) AS safety_redaction_rows,
   MAX(created_at) AS latest_created_at
 FROM capability_enablement_requests
 GROUP BY tenant_id, workspace_id, capability_key, operation_intent, COALESCE(runtime_surface, capability_key), decision, next_allowed_mode;

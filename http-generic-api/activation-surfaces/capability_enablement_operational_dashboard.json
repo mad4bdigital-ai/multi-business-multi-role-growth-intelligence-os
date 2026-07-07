@@ -9,7 +9,7 @@
   "tenant_column": "tenant_id",
   "status_column": "decision",
   "active_status_values": ["ready_for_dispatch", "ready_for_preview", "needs_approval", "needs_resource_binding", "needs_credential", "needs_certification", "needs_execution_enablement", "blocked_policy_denied", "blocked_secret_boundary", "degraded_contract"],
-  "result_columns": ["tenant_id", "workspace_id", "capability_key", "operation_intent", "runtime_surface", "decision", "next_allowed_mode", "request_count", "ready_for_dispatch_count", "needs_approval_count", "blocked_count", "expired_envelope_count", "provider_call_rows", "external_mutation_rows", "secret_rows", "latest_created_at"],
+  "result_columns": ["tenant_id", "workspace_id", "capability_key", "operation_intent", "runtime_surface", "decision", "next_allowed_mode", "request_count", "ready_for_dispatch_count", "needs_approval_count", "blocked_count", "expired_envelope_count", "provider_call_rows", "external_mutation_rows", "safety_redaction_rows", "latest_created_at"],
   "include_for_admin": true,
   "include_for_tenant": true,
   "max_rows": 50,
