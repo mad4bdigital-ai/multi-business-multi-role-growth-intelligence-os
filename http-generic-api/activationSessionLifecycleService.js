@@ -60,12 +60,10 @@ async function findActiveSession(pool, subject = {}) {
       WHERE originator = 'gpt_action'
         AND tenant_id = ?
         AND (? IS NULL OR user_id = ?)
-        AND (? IS NULL OR workspace_key = ?)
-        AND (? IS NULL OR brand_key = ?)
         AND session_status IN ('pending','active')
       ORDER BY started_at DESC
       LIMIT 1`,
-    [tenantId, userId, userId, workspaceKey, workspaceKey, brandKey, brandKey]
+    [tenantId, userId, userId]
   );
   return result.ok ? result.rows[0] || null : null;
 }
