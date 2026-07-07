@@ -650,6 +650,8 @@ export function buildSessionRoutes(deps) {
         let plan_id, run_id, dispatchErr;
         try {
           plan_id = randomUUID();
+          let turnContexts = [];
+          try { turnContexts = JSON.parse(item.turn_contexts_json || "[]"); } catch { turnContexts = []; }
 
           // Build a plan whose steps carry the session context for the assimilation workflow
           await pool.query(
