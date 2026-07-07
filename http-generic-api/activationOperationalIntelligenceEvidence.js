@@ -445,6 +445,12 @@ function buildTabBadges(rows) {
       critical: rows.signals.rows.filter((row) => row.severity === "critical").length,
       failed: rows.signals.rows.filter((row) => row.signal_status === "failed").length,
     },
+    capability_enablement: {
+      ready_for_dispatch: rows.capabilityEnablementRequests.rows.filter((row) => row.decision === "ready_for_dispatch").length,
+      needs_approval: rows.capabilityEnablementRequests.rows.filter((row) => row.decision === "needs_approval").length,
+      blocked: rows.capabilityEnablementRequests.rows.filter((row) => String(row.decision || "").startsWith("blocked")).length,
+      expired_envelopes: rows.capabilityEnablementRequests.rows.filter((row) => parseJsonValue(row.reason_codes_json, []).includes("ENVELOPE_EXPIRED")).length,
+    },
   };
 }
 
