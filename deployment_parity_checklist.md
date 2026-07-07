@@ -1,5 +1,11 @@
 # Deployment Parity Checklist
 
+## Temporary Hostinger executor hard-disable
+
+Migration `1041_sprint69_hard_disable_temporary_hostinger_executor_gate.sql` hard-disables the temporary Hostinger SSH executor gate after readback showed the resource-authority binding was revoked but the runtime config still read back as active. It sets the runtime config status to `disabled` and all deploy/restart/provider/credential flags to false. It performs no deploy, restart, provider call, credential payload read, raw-secret access, external send, or external write.
+
+The migration must be applied through the governed migration runner with checksum and statement-count binding, then followed by same-cycle DB readback that confirms `enabled=false`, `deploy_allowed=false`, `restart_allowed=false`, and `status='disabled'`.
+
 ## Temporary Hostinger deploy-gate status normalization
 
 Migration `1040_sprint69_normalize_temporary_hostinger_gate_statuses.sql` normalizes status enum values left by the cleanup migration after production parity readback. It sets `platform_runtime_config.status='disabled'` for the SSH executor gate and `platform_resource_authority_bindings.status='revoked'` for the temporary Hostinger deploy binding. It performs no deploy, restart, provider call, credential payload read, raw-secret access, external send, or external write.
