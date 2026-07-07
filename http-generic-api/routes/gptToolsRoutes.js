@@ -233,11 +233,9 @@ async function findActiveSessionForCaller(pool, req, args = {}, options = {}) {
         AND originator = 'gpt_action'
         AND tenant_id = ?
         AND (user_id <=> ?)
-        AND (? IS NULL OR workspace_key = ?)
-        AND (? IS NULL OR brand_key = ?)
         AND session_status NOT IN ('completed', 'closed')
       LIMIT 1`,
-      [pinnedSessionId, tenantId, userId, workspaceKey, workspaceKey, brandKey, brandKey]
+      [pinnedSessionId, tenantId, userId]
     );
     if (!rows[0]) return null;
     const counts = await countConversationTurns(pool, rows[0].session_id);
