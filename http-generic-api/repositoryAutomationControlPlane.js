@@ -918,7 +918,7 @@ async function executeRepositoryInventory(input, dispatch) {
     credential_scope: "platform",
     timeout_seconds: 60,
   }));
-  const repoData = githubData(result)?.repository || githubData(result)?.data?.repository || null;
+  const repoData = githubRepositoryData(result);
   if (!result.ok || !repoData) return { ok: false, status: "inventory_failed", provider: safeSummary(result.body), secrets_included: false };
   const refs = repoData.refs?.nodes || [];
   const refNames = new Set(refs.map((ref) => ref.name));
