@@ -779,6 +779,65 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "governed_migration_schema_readback",
+    displayName: "Governed Migration Schema Readback",
+    description: "Read-only, checksum-bound schema and ledger readback for one governed migration. This tool does not accept freeform SQL, does not read row data, does not call providers, and does not execute migrations.",
+    method: "VIRTUAL",
+    path: "internal://governed-migration-schema-readback",
+    tags: ["admin", "migration", "read_only", "schema_readback", "ledger_readback", "no_freeform_sql", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["migration", "expected_checksum_sha256", "expected_statement_count"],
+      properties: {
+        migration: { type: "string", pattern: "^[A-Za-z0-9._-]+\\.sql$" },
+        expected_checksum_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        expected_statement_count: { type: "integer", minimum: 1, maximum: 5000 },
+        expected_tables: { type: "array", maxItems: 50, items: { type: "string", pattern: "^[A-Za-z0-9_]+$" } },
+        expected_columns: {
+          type: "array",
+          maxItems: 200,
+          items: {
+            type: "object",
+            required: ["table", "column"],
+            properties: {
+              table: { type: "string", pattern: "^[A-Za-z0-9_]+$" },
+              column: { type: "string", pattern: "^[A-Za-z0-9_]+$" },
+            },
+            additionalProperties: false,
+          },
+        },
+        expected_indexes: {
+          type: "array",
+          maxItems: 200,
+          items: {
+            type: "object",
+            required: ["table", "index"],
+            properties: {
+              table: { type: "string", pattern: "^[A-Za-z0-9_]+$" },
+              index: { type: "string", pattern: "^[A-Za-z0-9_]+$" },
+            },
+            additionalProperties: false,
+          },
+        },
+        expected_rule_conditions: {
+          type: "array",
+          maxItems: 50,
+          items: {
+            type: "object",
+            required: ["rule_key", "source_type", "condition_key"],
+            properties: {
+              rule_key: { type: "string", minLength: 1, maxLength: 191 },
+              source_type: { type: "string", minLength: 1, maxLength: 128 },
+              condition_key: { type: "string", minLength: 1, maxLength: 512 },
+            },
+            additionalProperties: false,
+          },
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "governed_migration_execute",
     displayName: "Governed Migration Execute",
     description: "Dry-run or apply one checksum-bound authorized migration through the governed runner. Apply requires exact typed confirmation, a ready platform_orchestration capability envelope, ledger persistence, and same-cycle schema readback.",
