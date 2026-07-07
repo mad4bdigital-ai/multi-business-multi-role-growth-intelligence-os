@@ -748,7 +748,11 @@ async function dispatchWithReceipt({ pool, runId, step, args, dispatch, readback
 
 function normalizeRuntimeEndpointResultBody(result) {
   let body = toolBody(result) || {};
-  for (let depth = 0; depth < 5; depth += 1) {
+  for (let depth = 0; depth < 6; depth += 1) {
+    if (body?.result?.result?.body && typeof body.result.result.body === "object") {
+      body = body.result.result.body;
+      continue;
+    }
     if (body?.result?.body && typeof body.result.body === "object") {
       body = body.result.body;
       continue;
