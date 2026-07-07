@@ -365,6 +365,20 @@ function testRepositoryContracts() {
   assert.match(tenantOverlayRoutes, /chunk_ttl_minutes/);
   assert.match(gptToolsRoutes, /shouldChunkDispatchedToolResponse/);
   assert.match(gptToolsRoutes, /response_chunk_read/);
+  assert.match(gptToolsRoutes, /resolveGptSessionContext/);
+  assert.match(gptToolsRoutes, /x-workspace-key/);
+  assert.match(gptToolsRoutes, /x-brand-key/);
+  assert.match(gptToolsRoutes, /workspace_key = \?/);
+  assert.match(gptToolsRoutes, /brand_key = \?/);
+  assert.match(sessionSummaryService, /workspace_key = \?/);
+  assert.match(sessionSummaryService, /cs\.brand_key = \?/);
+  assert.match(sessionSummaryService, /LEFT JOIN `customer_sessions` cs ON cs\.session_id = ss\.session_id/);
+  assert.match(lifecycleService, /workspaceKey \|\| "workspace:unspecified"/);
+  assert.match(lifecycleService, /brandKey \|\| "brand:unspecified"/);
+  assert.match(lifecycleService, /s\.workspace_key = \?/);
+  assert.match(lifecycleService, /s\.brand_key = \?/);
+  assert.match(activationRoutes, /workspace_key: workspaceKey/);
+  assert.match(activationRoutes, /brand_key: brandKey/);
 
   assert.match(dynamicTabs, /loadSectionRowsBatch/);
   assert.match(dynamicTabs, /batch_query_count/);
