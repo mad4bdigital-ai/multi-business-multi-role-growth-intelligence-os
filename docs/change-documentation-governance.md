@@ -1,5 +1,7 @@
 # Repo and SQL Change Documentation Governance
 
+> `1040_sprint69_normalize_temporary_hostinger_gate_statuses.sql` documents final status normalization for temporary Hostinger deployment recovery gates. It performs no deploy, no provider call, no credential payload read, no raw secret, no external send/write, and only normalizes enum-backed audit states to `disabled` and `revoked` after parity cleanup.
+
 > `1039_sprint69_disable_temporary_hostinger_deploy_gates.sql` documents closure of temporary Hostinger deployment recovery gates after production parity readback. It performs no deploy, no provider call, no credential payload read, no raw secret, no external send/write, and exists only to mark temporary executor/resource-authority recovery surfaces inactive.
 
 > `1038_sprint69_hostinger_deploy_resource_authority_binding.sql` documents a temporary Hostinger deploy resource-authority repair. It adds no provider call, no credential payload read, no raw secret, no external send/write, and no deploy execution. It exists only to let governed deploy-envelope preflight prove target-bound `deploy` authority before runtime parity recovery.
