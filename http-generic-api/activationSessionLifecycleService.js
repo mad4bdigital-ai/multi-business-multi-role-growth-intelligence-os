@@ -171,12 +171,18 @@ export async function resolveActivationSessionLifecycle({
         status_written: null,
         read_only: true,
         reused_existing_session: Boolean(existing),
+        context_read: {
+          tenant_id: existing?.tenant_id || tenantId,
+          user_id: existing?.user_id || userId,
+          workspace_key: existing?.workspace_key || workspaceKey,
+          brand_key: existing?.brand_key || brandKey,
+        },
       },
     };
   }
 
   if (sessionPolicy !== "create_new" && idempotencyKey) {
-    const reusable = await findReusableRun(pool, { tenantId, userId, idempotencyKey, reuseWindowHours });
+    const reusable = await findReusableRun(pool, { tenantId, userId, workspaceKey, brandKey, idempotencyKey, reuseWindowHours });
     if (reusable.ok && reusable.row) {
       await touchReusableRun(pool, reusable.row, responseProfile);
       return {
