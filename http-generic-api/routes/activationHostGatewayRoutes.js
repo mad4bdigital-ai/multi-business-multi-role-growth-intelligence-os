@@ -1,6 +1,13 @@
 import { Router } from "express";
+import { readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export const ACTIVATION_HOST_GATEWAY_HOST = "activation.mad4b.com";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const SCHEMA_ROOT_DIR = resolve(__dirname, "..");
+const SCHEMA_ARTIFACT_DIR = resolve(SCHEMA_ROOT_DIR, "openapi");
 
 const ALLOWED_EXACT_PATHS = new Set([
   "/",
