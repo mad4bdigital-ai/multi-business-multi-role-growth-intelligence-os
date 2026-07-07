@@ -18,21 +18,29 @@
 - [x] Ambiguous selection fails closed.
 - [x] Stale approvals and envelopes cannot be reused.
 - [x] Shadow mode performs no provider mutation.
+- [x] Canonical capability and endpoint alias resolution has live schema/readiness evidence.
+- [x] Bounded tenant shadow decision persistence exists in the resolver implementation.
 - [ ] Root OpenAPI, generated clients, and acceptance tests are updated during implementation.
+- [ ] Typed subject-action-resource-context decision input is implemented beyond capability preview arguments.
+- [ ] Relationship revision vectors are resolved and bound into decisions.
+- [ ] Grant, contextual policy, obligations, and mismatch taxonomy are complete.
 
-## Pre-PR2 readiness
+## Pre-PR2 and remaining-task readiness
 
 - [x] Security, runtime, tenant and platform terminology has one accepted glossary.
 - [x] Canonical capability authority is `platform_semantic_capabilities`, not routes or tools.
 - [x] Existing grants and relationships remain scoped authorities during migration.
 - [x] Envelope and evidence ledgers are reused rather than duplicated.
 - [x] Future additive migration scope is bounded and requires a separate reviewed PR.
-- [x] PR2 remains intentionally not started.
+- [x] PR #1976 pre-PR2 readiness is merged and its branch is deleted.
+- [x] Remaining-task loop is active after explicit instruction.
 
 ## Delivery
 
 - [x] Delivery mode is `multi_pr`.
 - [x] PR1 implementation, CI, merge, ancestry and branch-cleanup evidence is recorded.
 - [x] PR1 handoff evidence PR #1967 is merged.
+- [x] Pre-PR2 readiness PR #1976 is merged.
+- [x] T010 and T015 evidence is recorded.
 - [ ] Remaining implementation and migration evidence is recorded.
 - [ ] Production verification and post-merge audit are complete.
