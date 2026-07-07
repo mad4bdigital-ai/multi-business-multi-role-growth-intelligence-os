@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const migration = readFileSync(
-  "migrations/20260707_repair_malformed_platform_pending_task.sql",
+  new URL("./migrations/20260707_repair_malformed_platform_pending_task.sql", import.meta.url),
   "utf8"
 );
 
