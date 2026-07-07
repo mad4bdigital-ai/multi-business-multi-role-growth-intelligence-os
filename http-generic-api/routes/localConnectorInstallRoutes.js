@@ -1125,7 +1125,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
   // for its own linked device without requiring a platform/admin bearer token.
   router.post("/local-connector/install/device-download-link", async (req, res) => {
     try {
-      const device = await requireLocalManagerDevice(req);
+      const device = await requireFreshLocalManagerDeviceForPrivilegedInstaller(req);
       const format = String(req.body?.format || "bat").trim().toLowerCase();
       const ttl = Math.max(5, Math.min(60, Number(req.body?.ttl_minutes || 30)));
       const permissionGrants = normalizePermissionGrants({ ...(req.body?.permission_grants || {}), capabilities: req.body?.capabilities || [] });
