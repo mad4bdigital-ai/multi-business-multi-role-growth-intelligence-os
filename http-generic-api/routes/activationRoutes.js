@@ -1173,6 +1173,8 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
         node_id: "platform.global",
         tenant_id: tenantId,
         user_id: userId,
+        workspace_key: workspaceKey,
+        brand_key: brandKey,
         depth: 1,
         memory_limit: 5,
       },
