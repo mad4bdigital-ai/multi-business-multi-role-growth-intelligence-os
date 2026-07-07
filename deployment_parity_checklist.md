@@ -1,5 +1,29 @@
 # Deployment Parity Checklist
 
+## Temporary Hostinger executor hard-disable
+
+Migration `1041_sprint69_hard_disable_temporary_hostinger_executor_gate.sql` hard-disables the temporary Hostinger SSH executor gate after readback showed the resource-authority binding was revoked but the runtime config still read back as active. It sets the runtime config status to `disabled` and all deploy/restart/provider/credential flags to false. It performs no deploy, restart, provider call, credential payload read, raw-secret access, external send, or external write.
+
+The migration must be applied through the governed migration runner with checksum and statement-count binding, then followed by same-cycle DB readback that confirms `enabled=false`, `deploy_allowed=false`, `restart_allowed=false`, and `status='disabled'`.
+
+## Temporary Hostinger deploy-gate status normalization
+
+Migration `1040_sprint69_normalize_temporary_hostinger_gate_statuses.sql` normalizes status enum values left by the cleanup migration after production parity readback. It sets `platform_runtime_config.status='disabled'` for the SSH executor gate and `platform_resource_authority_bindings.status='revoked'` for the temporary Hostinger deploy binding. It performs no deploy, restart, provider call, credential payload read, raw-secret access, external send, or external write.
+
+The migration is checksum-bound in the governed migration runner and must be followed by same-cycle DB readback showing the runtime config disabled and the binding revoked.
+
+## Temporary Hostinger deploy-gate cleanup
+
+Migration `1039_sprint69_disable_temporary_hostinger_deploy_gates.sql` disables the temporary Hostinger SSH executor gate and inactivates the temporary `remote_runtime_target` deploy authority binding after production parity verification run `1b619912-fc20-46f8-a000-37d80e115a8b` confirmed expected and deployed commit `308146d11050ebb473b4f85f1ff54feab7e41aac`. It performs no deploy, restart, provider call, credential payload read, raw-secret access, external send, or external write; it only closes temporary recovery gates after successful readback.
+
+Checksum: `6bea59de59ab79295b4cc500f635602755a3a66478d3d4e26124d06d0d304b12`.
+
+## Temporary Hostinger deploy resource authority binding
+
+Migration `1038_sprint69_hostinger_deploy_resource_authority_binding.sql` repairs the deploy-release preflight root cause by adding a two-hour `platform_resource_authority_bindings` row for the production Hostinger runtime target and mode `deploy`. This migration does not deploy, restart, call providers, read credential payloads, expose secrets, or perform external writes. Actual parity recovery still requires a fresh deploy dry-run with `dispatch_ready=true`, an approved deploy capability envelope, bounded SSH execution, `/health` and `/version` readback, and expiry or disablement of the temporary authority after verification.
+
+Checksum: `be45dacbadf79dc14e69c2898044df3a959bf96dc5e4badc9a2569debf746849`.
+
 > DONA Brand Core readiness repair parity for `1037_sprint69_dona_brand_core_readiness_data_repair.sql`: rollout is incomplete until the governed migration ledger records the exact checksum, dry-run/apply both report zero-risk preflight, rows 76-86 for `donatours_wp` read back with `active_status='TRUE'`, rows 76-85 read back with non-empty `doc_id`, row 86 reads back with non-empty `file_id`, and `growth_audit_evidence_prepare` for `donatours.com` no longer returns `brand_core_strategy_not_ready`. This data repair performs no schema change, provider call, browser action, credential payload read, raw-secret output, external send/write, deployment, or Google file-read rollout; `files.object.read` remains `shadow`.
 
 > GitHub Actions workflow-control parity for `1038_sprint69_github_actions_workflow_control_dispatch.sql`: rollout is incomplete until the governed migration ledger records the exact checksum, endpoint rows read back active and ready for `github_rerun_workflow_run`, `github_rerun_failed_jobs_for_workflow_run`, and `github_create_workflow_dispatch`, `github_rest_endpoint_dispatch` exposes all three endpoint keys, `platform_endpoint_tool_exports` and `platform_tool_dispatch_bindings` contain active admin-only bindings, and `missing_endpoint_registry_first_policy_v1` reads back active and blocking. Migration apply must not call GitHub, rerun or dispatch workflows, read credential payloads, expose raw secrets, send/write externally, deploy, or broaden raw fallback behavior. Runtime mutation remains a separate governed admin action with endpoint-authority method/path/schema and same-cycle workflow-run readback.

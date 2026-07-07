@@ -1,6 +1,6 @@
 # Capability Enablement Broker Operational Runbook
 
-This runbook captures the first production-safe handoff pattern for the Capability Enablement Broker.
+This runbook captures the production-safe handoff pattern for the Capability Enablement Broker.
 
 ## Purpose
 
@@ -20,18 +20,9 @@ A request is handoff-ready only when all of the following are true:
 - `external_mutations_executed = false`
 - `secrets_included = false`
 
-## First real handoff evidence
-
-The first real handoff used `repo_patch_apply` to create this runbook after a fresh `capability_enablement_resolve` returned `ready_for_dispatch` with an approved capability envelope. This proves the broker can graduate an Admin virtual tool from diagnosis to a governed dispatch handoff without bypassing capability envelopes or readback policy.
-
 ## Operational dashboard
 
-Operators should track:
-
-- Latest decisions by capability, operation, tenant, and workspace.
-- Common reason codes such as `ENVELOPE_APPROVAL_REQUIRED`, `ENVELOPE_EXPIRED`, `CAPABILITY_NOT_REGISTERED`, `CAPABILITY_BINDING_MISSING`, `WORKSPACE_CONTEXT_MISSING`, and `SECRET_BOUNDARY_FAILED`.
-- Handoff readiness counts for `ready_for_dispatch` and `needs_approval`.
-- Expired-envelope and policy-denied queues.
+Operators should track latest decisions, common reason codes, handoff readiness counts, expired-envelope queues, policy-denied queues, and safety counters for provider calls, external mutations, and secrets.
 
 ## Safety notes
 

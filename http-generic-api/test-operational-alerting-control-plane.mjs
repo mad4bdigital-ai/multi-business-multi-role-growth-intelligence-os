@@ -402,6 +402,8 @@ function testRepositoryContracts() {
     "/tenant/activation/operational-attention:",
   ]) assert.ok(openapi.includes(path), `OpenAPI must include ${path}`);
   assert.match(openapi, /OperationalAlert:/);
+  assert.match(openapi, /operation_fingerprint_sha256/);
+  assert.match(openapi, /resource_fingerprint_sha256/);
   assert.match(openapi, /OperationalAlertReadResponse:/);
   assert.match(memory, /operational_alerting_state/);
   assert.match(auditCanonical, /Operational Alerting Evidence Contract/);
