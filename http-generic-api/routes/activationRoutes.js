@@ -1047,6 +1047,8 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
       pool,
       tenant_id: tenantId,
       user_id: userId,
+      workspace_key: workspaceKey,
+      brand_key: brandKey,
       limit,
     });
     summaries = {
