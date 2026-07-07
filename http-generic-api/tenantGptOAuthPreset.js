@@ -12,9 +12,10 @@ export const TENANT_GPT_SCOPE_LINKS = [
 export const TENANT_GPT_SCOPE = TENANT_GPT_SCOPE_LINKS.join(" ");
 
 export const TENANT_GPT_CALLBACK_URLS_TO_ALLOW = [
-  "https://chat.openai.com/aip/g-d36db295032b9022dd77233041763f513e8ba5fa/oauth/callback",
-  "https://chat.openai.com/aip/{g-GPT-ID}/oauth/callback",
+  "https://chatgpt.com/aip/g-65442952db39d61b19ccc4826d57e363de1b4455/oauth/callback",
   "https://chatgpt.com/aip/{g-GPT-ID}/oauth/callback",
+  "https://chat.openai.com/aip/{g-GPT-ID}/oauth/callback",
+  "https://chat.openai.com/aip/g-d36db295032b9022dd77233041763f513e8ba5fa/oauth/callback",
 ];
 
 export function buildTenantGptOAuthPreset({
