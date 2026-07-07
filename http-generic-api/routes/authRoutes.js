@@ -638,6 +638,7 @@ export function buildAuthRoutes(deps) {
         return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "token and redirect_uri are required." } });
       }
       const query = (sql, params) => resolvePool().query(sql, params);
+      const canonicalRedirectUri = canonicalizeTenantGptRedirectUri(redirect_uri);
       if (!(await isAllowedTenantGptRedirectUri(redirect_uri, query))) {
         return res.status(400).json({ ok: false, error: { code: "invalid_redirect_uri", message: "redirect_uri is not allowed for the Tenant GPT client." } });
       }
