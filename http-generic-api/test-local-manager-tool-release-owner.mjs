@@ -13,6 +13,15 @@ const localManagerProject = readFileSync('../apps/local-manager-windows/Mad4B.Lo
 const localManagerAutopilot = readFileSync('../apps/local-manager-windows/LocalManagerAutopilot.cs', 'utf8');
 const windowsAppRegistration = readFileSync('../apps/local-manager-windows/WindowsAppRegistration.cs', 'utf8');
 
+const advertisedVersionMatch = localManager.match(/LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "([0-9]+\.[0-9]+\.[0-9]+)"/);
+assert(advertisedVersionMatch, 'Local Manager update route must declare LOCAL_MANAGER_WINDOWS_LATEST_VERSION');
+const advertisedWindowsVersion = advertisedVersionMatch[1];
+assert(localManagerProject.includes(`<Version>${advertisedWindowsVersion}</Version>`), 'Windows project Version must match update route version');
+assert(localManagerProject.includes(`<AssemblyVersion>${advertisedWindowsVersion}.0</AssemblyVersion>`), 'Windows project AssemblyVersion must match update route version');
+assert(localManagerProject.includes(`<FileVersion>${advertisedWindowsVersion}.0</FileVersion>`), 'Windows project FileVersion must match update route version');
+assert(localManager.includes(`Mad4B-Local-Manager-Setup-${advertisedWindowsVersion}.exe`), 'Local Manager EXE asset URL must include the advertised update route version');
+assert(localManager.includes(`Mad4B-Local-Manager-Setup-${advertisedWindowsVersion}.exe.sha256.json`), 'Local Manager SHA256 URL must include the advertised update route version');
+
 assert(connectorAgent.includes('const AGENT_VERSION = "2026.05.28.1"'), 'connector agent version must move for DB-driven shell policy release');
 assert(connectorAgent.includes('"browser4-adapter.mjs"'), 'Browser4 adapter must be shipped by connector-agent manifest');
 assert(connectorAgent.includes('LOCAL_TOOL_RELEASES'), 'connector-agent manifest must define local tool releases');
@@ -33,14 +42,14 @@ assert(connectorAgent.includes('local_tool_release_owner: "mad4b-local-manager"'
 assert(localManager.includes('local release owner for platform tools'), 'public app page must explain Local Manager tool release ownership');
 assert(localManager.includes('manifest-driven local tool installation'), 'link flow must explain manifest-driven local tool installation');
 assert(localManager.includes('Mad4B Local Manager Admin Tools'), 'admin page must distinguish governed installer tools');
-assert(localManager.includes('LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.16"'), 'public Local Manager update route must advertise Windows 0.2.16');
-assert(localManager.includes('Mad4B-Local-Manager-Setup-0.2.16.exe'), 'public Local Manager download route must point at Windows 0.2.16 assets');
+assert(localManager.includes('LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.17"'), 'public Local Manager update route must advertise Windows 0.2.17');
+assert(localManager.includes('Mad4B-Local-Manager-Setup-0.2.17.exe'), 'public Local Manager download route must point at Windows 0.2.17 assets');
 assert(localManager.includes('code_fallback_newer_than_db'), 'Local Manager update route must ignore stale DB release rows when the code fallback advertises a newer semver');
 assert(localManager.includes('stale_db_version'), 'Local Manager update route must expose stale DB release evidence without secrets');
-assert(localManagerProject.includes('<Version>0.2.16</Version>'), 'Windows project Version must match advertised release');
-assert(localManagerProject.includes('<AssemblyVersion>0.2.16.0</AssemblyVersion>'), 'Windows project AssemblyVersion must match advertised release');
-assert(localManagerProject.includes('<FileVersion>0.2.16.0</FileVersion>'), 'Windows project FileVersion must match advertised release');
-assert(localManagerProject.includes('<InformationalVersion>0.2.16-root-guard-atomic-installer-download</InformationalVersion>'), 'Windows project InformationalVersion must identify the stale-version guard and atomic installer download hardening');
+assert(localManagerProject.includes('<Version>0.2.17</Version>'), 'Windows project Version must match advertised release');
+assert(localManagerProject.includes('<AssemblyVersion>0.2.17.0</AssemblyVersion>'), 'Windows project AssemblyVersion must match advertised release');
+assert(localManagerProject.includes('<FileVersion>0.2.17.0</FileVersion>'), 'Windows project FileVersion must match advertised release');
+assert(localManagerProject.includes('<InformationalVersion>0.2.17-dynamic-registry-state-app-scope</InformationalVersion>'), 'Windows project InformationalVersion must identify the dynamic registry and app-scope build');
 
 assert(installRoutes.includes('LOCAL_CONNECTOR_CAPABILITY_FLAGS'), 'installer route must define explicit capability flag mapping');
 assert(installRoutes.includes('powershell_admin: "CONNECTOR_POWERSHELL_ENABLED"'), 'PowerShell capability must map only through explicit opt-in');
