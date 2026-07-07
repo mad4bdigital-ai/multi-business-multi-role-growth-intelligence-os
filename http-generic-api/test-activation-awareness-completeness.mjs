@@ -380,6 +380,10 @@ function testRepositoryContracts() {
   assert.match(lifecycleService, /s\.brand_key = \?/);
   assert.match(activationRoutes, /workspace_key: workspaceKey/);
   assert.match(activationRoutes, /brand_key: brandKey/);
+  assert.match(mcpRuntime, /workspace_key: \{ type: "string"/);
+  assert.match(mcpRuntime, /brand_key: \{ type: "string"/);
+  assert.match(mcpRuntime, /ss\.workspace_key = \?/);
+  assert.match(mcpRuntime, /cs\.brand_key = \?/);
 
   assert.match(dynamicTabs, /loadSectionRowsBatch/);
   assert.match(dynamicTabs, /batch_query_count/);
