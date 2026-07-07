@@ -746,8 +746,24 @@ async function dispatchWithReceipt({ pool, runId, step, args, dispatch, readback
   return first;
 }
 
+function normalizeRuntimeEndpointResultBody(result) {
+  let body = toolBody(result) || {};
+  for (let depth = 0; depth < 5; depth += 1) {
+    if (body?.result?.body && typeof body.result.body === "object") {
+      body = body.result.body;
+      continue;
+    }
+    if (body?.body && typeof body.body === "object") {
+      body = body.body;
+      continue;
+    }
+    break;
+  }
+  return body || {};
+}
+
 function githubData(result) {
-  const body = toolBody(result) || {};
+  const body = normalizeRuntimeEndpointResultBody(result);
   return body?.data?.data || body?.data || body;
 }
 
