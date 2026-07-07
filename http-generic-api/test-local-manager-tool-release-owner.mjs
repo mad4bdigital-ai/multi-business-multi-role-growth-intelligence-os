@@ -38,9 +38,9 @@ assert(localManager.includes('Mad4B-Local-Manager-Setup-0.2.16.exe'), 'public Lo
 assert(localManager.includes('code_fallback_newer_than_db'), 'Local Manager update route must ignore stale DB release rows when the code fallback advertises a newer semver');
 assert(localManager.includes('stale_db_version'), 'Local Manager update route must expose stale DB release evidence without secrets');
 assert(localManagerProject.includes('<Version>0.2.16</Version>'), 'Windows project Version must match advertised release');
-assert(localManagerProject.includes('<AssemblyVersion>0.2.16.0</AssemblyVersion>'), 'Windows project AssemblyVersion must match advertised release');
-assert(localManagerProject.includes('<FileVersion>0.2.16.0</FileVersion>'), 'Windows project FileVersion must match advertised release');
-assert(localManagerProject.includes('<InformationalVersion>0.2.16-root-guard-atomic-installer-download</InformationalVersion>'), 'Windows project InformationalVersion must identify the stale-version guard and atomic installer download hardening');
+assert(localManagerProject.includes('<AssemblyVersion>0.2.17.0</AssemblyVersion>'), 'Windows project AssemblyVersion must match advertised release');
+assert(localManagerProject.includes('<FileVersion>0.2.17.0</FileVersion>'), 'Windows project FileVersion must match advertised release');
+assert(localManagerProject.includes('<InformationalVersion>0.2.17-dynamic-registry-state-app-scope</InformationalVersion>'), 'Windows project InformationalVersion must identify the dynamic registry and app-scope build');
 
 assert(installRoutes.includes('LOCAL_CONNECTOR_CAPABILITY_FLAGS'), 'installer route must define explicit capability flag mapping');
 assert(installRoutes.includes('powershell_admin: "CONNECTOR_POWERSHELL_ENABLED"'), 'PowerShell capability must map only through explicit opt-in');
