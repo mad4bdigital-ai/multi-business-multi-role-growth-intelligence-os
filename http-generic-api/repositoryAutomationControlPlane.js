@@ -826,9 +826,8 @@ async function executeDeploymentParity(input, dispatch) {
     timeout_seconds: 60,
   }));
   const localBody = toolBody(local)?.result || toolBody(local);
-  const remoteBody = githubData(remote)?.data || githubData(remote);
   const productionSha = compact(localBody?.head_sha || "", 64);
-  const mainSha = compact(remoteBody?.object?.sha || remoteBody?.sha || "", 64);
+  const mainSha = githubRefSha(remote);
   const clean = /^## HEAD \(no branch\)\s*$/m.test(String(localBody?.status || "").trim()) || /working tree clean/i.test(String(localBody?.status || ""));
   const parity = local.ok && remote.ok && productionSha && mainSha && productionSha === mainSha && clean;
   return {
