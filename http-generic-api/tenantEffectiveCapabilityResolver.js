@@ -654,6 +654,17 @@ export const TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS = Object.freeze([
       required: ["capability_key"],
       properties: {
         capability_key: { type: "string" },
+        decision_input: {
+          type: "object",
+          description: "Optional typed subject-action-resource-context decision input. Tenant/user subject values are advisory for tenant principals and are replaced by authenticated authority.",
+          properties: {
+            subject: { type: "object", additionalProperties: true },
+            action: { type: "object", additionalProperties: true },
+            resource: { type: "object", additionalProperties: true },
+            context: { type: "object", additionalProperties: true },
+          },
+          additionalProperties: false,
+        },
         workspace_id: { type: "string" },
         workspace_key: { type: "string" },
         resource_ref: { type: "string" },
