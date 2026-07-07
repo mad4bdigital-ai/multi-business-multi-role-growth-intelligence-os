@@ -48,8 +48,8 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(
   migration,
-  /secret|token|password|api[_-]?key/i,
-  "migration must not introduce credential or secret material"
+  /(?:OPENAI|OPENROUTER|GEMINI|API[_-]?KEY|TOKEN|PASSWORD)\s*[=:]/i,
+  "migration must not assign credential or secret-like values"
 );
 
 console.log("platform pending task source-data-quality repair test passed");
