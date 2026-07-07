@@ -283,7 +283,8 @@ export async function bootstrapGovernedMigrationApplyPolicy(input = {}, deps = {
   });
   return {
     ok: true,
-    policy_created: true,
+    policy_created: !policyUpgradeRequired,
+    policy_upgraded: policyUpgradeRequired,
     idempotent: false,
     policy: readback,
     capability_envelope_id: envelope.envelope_id,
