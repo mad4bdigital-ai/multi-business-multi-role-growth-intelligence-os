@@ -1,5 +1,11 @@
 # Hostinger Runtime Sync Guard
 
+## Temporary deploy-gate cleanup
+
+After production parity is verified, use `1039_sprint69_disable_temporary_hostinger_deploy_gates.sql` to close the temporary recovery surfaces created by migrations 1037 and 1038. The cleanup disables `remote_runtime_hostinger_ssh_executor_enabled`, marks the runtime config inactive, and inactivates the temporary Hostinger deploy resource-authority binding for `hostinger://auth.mad4b.com/production`.
+
+This cleanup is not a deploy signal. It performs no provider call, no credential payload read, no raw-secret access, no external send/write, and no SSH execution. Verify `/health`, `/version`, and commit parity first, then run the governed migration authorization, dry-run, apply, and same-cycle DB readback.
+
 ## Temporary deploy resource authority recovery
 
 Use `1038_sprint69_hostinger_deploy_resource_authority_binding.sql` when deploy dry-run is ready but deploy-envelope creation or `admin_control` shell preflight is blocked by `dynamic_resource_authority_denied` for the production Hostinger target. It inserts one two-hour binding for `resource_type=remote_runtime_target`, `resource_uri=hostinger://auth.mad4b.com/production`, and `allowed_modes_json=['deploy']`.
