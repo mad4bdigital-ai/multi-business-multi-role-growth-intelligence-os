@@ -572,6 +572,7 @@ export async function buildActivationOperationalIntelligenceEvidence({ sessionCo
     .map(([surface, result]) => ({ surface, error: result.error }));
 
   const attentionQueue = buildAttentionQueue(rows, containerResult.containers);
+  const capabilityEnablement = buildCapabilityEnablementDashboard(rows);
   const connectorPacks = buildConnectorPacks(rows);
   const fallbackNegotiation = buildFallbackNegotiation(connectorPacks);
   const containerGraph = buildContainerGraph(rows, containerResult.containers);
