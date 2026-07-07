@@ -63,6 +63,11 @@ assert.equal(schema.fields[0].secret, true);
 const metadata = JSON.parse(inserted[0].params[12]);
 assert.equal(metadata.intake_scope, "platform");
 assert.equal(metadata.credential_field, "ssh_password");
+assert.equal(metadata.target_id, "target-hostinger");
+assert.equal(metadata.raw_secret, "[redacted]");
+assert.equal(metadata.nested.api_key, "[redacted]");
+assert.equal(metadata.nested.note, "safe-note");
+assert.equal(metadata.private_key_preview, "[redacted]");
 assert.deepEqual(metadata.platform_secret_mappings, [{ credential_field: "ssh_password", secret_key: "ssh_password", secret_type: "ssh_password" }]);
 assert.equal(metadata.secrets_must_not_be_returned, true);
 
