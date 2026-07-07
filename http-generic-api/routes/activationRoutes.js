@@ -295,8 +295,12 @@ export async function buildActivationPlatformAccess(req, deps = {}) {
     principal: {
       type: principalType,
       is_admin: isAdmin,
-      user_id: req.auth?.user_id || null,
-      tenant_id: req.auth?.tenant_id || null
+      user_id: subject.user_id || null,
+      tenant_id: subject.tenant_id || null,
+      workspace_id: subject.workspace_id || null,
+      workspace_key: subject.workspace_key || null,
+      brand_key: subject.brand_key || null,
+      context_source: subject.context_source || null,
     },
     access_scope: isAdmin ? "platform_admin_all" : "user_scoped",
     access: {
