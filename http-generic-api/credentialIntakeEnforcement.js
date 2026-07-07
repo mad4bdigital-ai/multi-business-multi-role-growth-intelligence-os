@@ -375,5 +375,6 @@ export const __test__ = {
   inferAuthType,
   inferCredentialField,
   requirementKey,
+  sanitizeCredentialIntakeMetadata,
   shouldCreateCredentialIntake,
 };
