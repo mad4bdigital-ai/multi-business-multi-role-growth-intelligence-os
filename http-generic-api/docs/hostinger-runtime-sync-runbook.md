@@ -1,5 +1,11 @@
 # Hostinger Runtime Sync Guard
 
+## Temporary executor hard-disable
+
+If parity is already verified and the temporary deploy authority binding is revoked, but `remote_runtime_hostinger_ssh_executor_enabled` still reads back active, apply `1041_sprint69_hard_disable_temporary_hostinger_executor_gate.sql`. The migration writes `enabled=false`, `deploy_allowed=false`, `restart_allowed=false`, and `status='disabled'` for the executor gate.
+
+This is not a deployment mechanism and must not be used as proof of runtime parity. It performs no SSH execution, provider call, credential payload read, raw-secret access, external send, or external write.
+
 ## Temporary gate status normalization
 
 If cleanup readback shows enum-backed `status` fields as blank or non-canonical, apply `1040_sprint69_normalize_temporary_hostinger_gate_statuses.sql` after parity verification and the cleanup migration. The migration sets the SSH executor runtime config status to `disabled` and the temporary deploy resource authority binding status to `revoked`.
