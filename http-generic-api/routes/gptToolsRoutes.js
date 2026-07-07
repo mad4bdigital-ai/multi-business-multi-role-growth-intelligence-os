@@ -2351,6 +2351,14 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       };
     }
   }
+  if (callerType === "admin" && toolKey === "governed_migration_schema_readback") {
+    try {
+      const result = await runGovernedMigrationSchemaReadback(args || {}, { pool: getPool() });
+      return { status: result.ok ? 200 : 409, body: result };
+    } catch (err) {
+      return { status: err?.status || 500, body: { ok: false, error: { code: err?.code || "governed_migration_schema_readback_failed", message: err?.message || "Governed migration schema readback failed.", details: err?.details }, secrets_included: false } };
+    }
+  }
   if (callerType === "admin" && toolKey === "governed_migration_execute") {
     try {
       const result = await runGovernedMigrationExecution(args || {}, {
