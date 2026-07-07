@@ -172,7 +172,17 @@ export async function bootstrapGovernedMigrationApplyPolicy(input = {}, deps = {
   const resolveEnvelope = deps.resolveEnvelope || resolveCapabilityExecutionEnvelope;
   const markReferenced = deps.markReferenced || markCapabilityEnvelopeReferenced;
   const envelope = await resolveBootstrapEnvelope({ pool, input, auth, resolveEnvelope });
-  const existing = verifyPolicy(await queryPolicy(pool));
+  const existingRow = await queryPolicy(pool);
+  let existing = null;
+  let policyUpgradeRequired = false;
+  if (existingRow) {
+    try {
+      existing = verifyPolicy(existingRow);
+    } catch (error) {
+      if (error?.code !== "governed_migration_apply_policy_conflict") throw error;
+      policyUpgradeRequired = true;
+    }
+  }
   if (existing) {
     await markReferenced({
       pool,
@@ -182,6 +192,7 @@ export async function bootstrapGovernedMigrationApplyPolicy(input = {}, deps = {
     return {
       ok: true,
       policy_created: false,
+      policy_upgraded: false,
       idempotent: true,
       policy: existing,
       capability_envelope_id: envelope.envelope_id,
