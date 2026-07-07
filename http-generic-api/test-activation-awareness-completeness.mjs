@@ -410,7 +410,34 @@ function testRepositoryContracts() {
     "tenant_activation_awareness_read_api",
     "tenant_activation_dynamic_tab_detail_read_api",
     "activation_awareness_coverage",
-  ]) assert.match(migration, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  ]) assert.match(migration, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\  for (const required of [
+    "CREATE TABLE IF NOT EXISTS activation_runs",
+    "CREATE TABLE IF NOT EXISTS activation_snapshot_ledger",
+    "CREATE TABLE IF NOT EXISTS activation_response_profile_registry",
+    "CREATE TABLE IF NOT EXISTS activation_delivery_policy_registry",
+    "activation_dynamic_tab_detail_read_api",
+    "tenant_activation_awareness_read_api",
+    "tenant_activation_dynamic_tab_detail_read_api",
+    "activation_awareness_coverage",
+  ]) assert.match(migration, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));")));
+
+  for (const required of [
+    "idx_cs_gpt_context_active_started",
+    "idx_ar_context_reuse_session",
+    "idx_ss_context_created",
+    "idx_gst_context_scope_created",
+    "workspace_key",
+    "brand_key",
+  ]) assert.match(contextIndexMigration, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\  for (const required of [
+    "CREATE TABLE IF NOT EXISTS activation_runs",
+    "CREATE TABLE IF NOT EXISTS activation_snapshot_ledger",
+    "CREATE TABLE IF NOT EXISTS activation_response_profile_registry",
+    "CREATE TABLE IF NOT EXISTS activation_delivery_policy_registry",
+    "activation_dynamic_tab_detail_read_api",
+    "tenant_activation_awareness_read_api",
+    "tenant_activation_dynamic_tab_detail_read_api",
+    "activation_awareness_coverage",
+  ]) assert.match(migration, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));")));
 
   for (const path of [
     "/activation/hard-run:",
