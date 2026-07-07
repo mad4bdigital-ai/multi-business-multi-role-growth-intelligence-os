@@ -606,7 +606,23 @@ export function buildSessionRoutes(deps) {
         SELECT q.queue_id, q.session_id, q.tenant_id, q.workflow_key,
                cs.originator, cs.user_id, cs.brand_key, cs.workspace_key,
                cs.git_repo_url, cs.git_branch, cs.turn_count,
-               cs.started_at AS session_started_at
+               cs.started_at AS session_started_at,
+               (
+                 SELECT JSON_ARRAYAGG(JSON_OBJECT(
+                   'workspace_key', turn_context.workspace_key,
+                   'brand_key', turn_context.brand_key,
+                   'turn_count', turn_context.turn_count
+                 ))
+                   FROM (
+                     SELECT gst.workspace_key, gst.brand_key, COUNT(*) AS turn_count
+                       FROM \`gpt_session_turns\` gst
+                      WHERE gst.session_id = cs.session_id
+                        AND (gst.workspace_key IS NOT NULL OR gst.brand_key IS NOT NULL)
+                      GROUP BY gst.workspace_key, gst.brand_key
+                      ORDER BY MAX(gst.created_at) DESC
+                      LIMIT 50
+                   ) turn_context
+               ) AS turn_contexts_json
         FROM \`session_assimilation_queue\` q
         JOIN \`customer_sessions\` cs ON cs.session_id = q.session_id
         WHERE q.status = 'pending'`;
