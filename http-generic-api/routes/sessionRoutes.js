@@ -359,8 +359,24 @@ export function buildSessionRoutes(deps) {
   // ── GET /sessions — list sessions for a tenant ────────────────────────────
   router.get("/sessions", async (req, res) => {
     try {
-      const { tenant_id, user_id, originator, session_status, brand_key, workspace_key, limit = 50 } = req.query;
+      const {
+        tenant_id,
+        user_id,
+        originator,
+        session_status,
+        brand_key,
+        workspace_key,
+        context_scope = "session",
+        limit = 50,
+      } = req.query;
       if (!tenant_id) return res.status(400).json({ error: "tenant_id required" });
+      const normalizedContextScope = String(context_scope || "session").trim().toLowerCase();
+      if (!["session", "turn", "any"].includes(normalizedContextScope)) {
+        return res.status(400).json({
+          error: "context_scope must be one of: session, turn, any",
+          code: "invalid_context_scope",
+        });
+      }
 
       let sql = `
         SELECT cs.*,
@@ -382,16 +398,44 @@ export function buildSessionRoutes(deps) {
         LEFT JOIN \`workspace_registry\` wr ON wr.workspace_key = cs.workspace_key AND wr.tenant_id = cs.tenant_id
         WHERE cs.tenant_id = ?`;
       const params = [tenant_id];
+      const addContextFilter = (columnName, value) => {
+        if (!value) return;
+        if (normalizedContextScope === "turn") {
+          sql += ` AND EXISTS (
+            SELECT 1 FROM \`gpt_session_turns\` gst
+             WHERE gst.session_id = cs.session_id
+               AND gst.${columnName} = ?
+             LIMIT 1
+          )`;
+          params.push(value);
+          return;
+        }
+        if (normalizedContextScope === "any") {
+          sql += ` AND (
+            cs.${columnName} = ?
+            OR EXISTS (
+              SELECT 1 FROM \`gpt_session_turns\` gst
+               WHERE gst.session_id = cs.session_id
+                 AND gst.${columnName} = ?
+               LIMIT 1
+            )
+          )`;
+          params.push(value, value);
+          return;
+        }
+        sql += ` AND cs.${columnName} = ?`;
+        params.push(value);
+      };
       if (user_id)        { sql += " AND cs.user_id = ?";        params.push(user_id); }
       if (originator)     { sql += " AND cs.originator = ?";     params.push(originator); }
       if (session_status) { sql += " AND cs.session_status = ?"; params.push(session_status); }
-      if (brand_key)      { sql += " AND cs.brand_key = ?";      params.push(brand_key); }
-      if (workspace_key)  { sql += " AND cs.workspace_key = ?";  params.push(workspace_key); }
+      addContextFilter("brand_key", brand_key);
+      addContextFilter("workspace_key", workspace_key);
       sql += " ORDER BY cs.started_at DESC LIMIT ?";
       params.push(Number(limit));
 
       const [rows] = await getPool().query(sql, params);
-      res.json({ sessions: rows, total: rows.length });
+      res.json({ sessions: rows, total: rows.length, context_scope: normalizedContextScope });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
