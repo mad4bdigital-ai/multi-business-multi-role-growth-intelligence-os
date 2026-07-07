@@ -1323,25 +1323,31 @@ export function shouldOpenActivationSession(query = {}) {
 async function readOnlyGptSessionContext(pool, subject) {
   const userId = subject.user_id || null;
   const tenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+  const workspaceKey = subject.workspace_key || null;
+  const brandKey = subject.brand_key || null;
   const [[activeRow]] = await pool.query(
     `SELECT COUNT(*) AS active_count
        FROM \`customer_sessions\`
       WHERE originator = 'gpt_action'
         AND tenant_id = ?
         AND (? IS NULL OR user_id = ?)
+        AND (? IS NULL OR workspace_key = ?)
+        AND (? IS NULL OR brand_key = ?)
         AND session_status IN ('pending', 'active')`,
-    [tenantId, userId, userId]
+    [tenantId, userId, userId, workspaceKey, workspaceKey, brandKey, brandKey]
   );
   const [latestRows] = await pool.query(
-    `SELECT session_id, archive_status
+    `SELECT session_id, archive_status, workspace_key, brand_key
        FROM \`customer_sessions\`
       WHERE originator = 'gpt_action'
         AND tenant_id = ?
         AND (? IS NULL OR user_id = ?)
+        AND (? IS NULL OR workspace_key = ?)
+        AND (? IS NULL OR brand_key = ?)
         AND session_status IN ('pending', 'active')
       ORDER BY started_at DESC
       LIMIT 1`,
-    [tenantId, userId, userId]
+    [tenantId, userId, userId, workspaceKey, workspaceKey, brandKey, brandKey]
   );
   const latest = latestRows[0] || null;
   const activeCount = asCount(activeRow?.active_count);
@@ -1356,6 +1362,12 @@ async function readOnlyGptSessionContext(pool, subject) {
       active_sessions_before_open: activeCount,
       active_sessions_after_open: activeCount,
       status_written: null,
+      context_read: {
+        tenant_id: tenantId,
+        user_id: userId,
+        workspace_key: latest?.workspace_key || workspaceKey,
+        brand_key: latest?.brand_key || brandKey,
+      },
       note: "Session Context read-only mode can inspect context without minting a fresh session id; use it before ChatGPT conversation ref capture diagnostics.",
     },
   };
