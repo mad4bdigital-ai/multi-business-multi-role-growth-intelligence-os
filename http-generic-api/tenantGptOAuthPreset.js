@@ -20,7 +20,7 @@ export const TENANT_GPT_CALLBACK_URLS_TO_ALLOW = [
 export function buildTenantGptOAuthPreset({
   baseUrl = "https://auth.mad4b.com",
   schemaUrl = "https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml",
-  activationSchemaUrl = "https://auth.mad4b.com/openapi.tenant-gpt.activation.yaml",
+  activationSchemaUrl = "https://activation.mad4b.com/tenant-gpt/activation-openapi",
   callbackUrlsToAllow = TENANT_GPT_CALLBACK_URLS_TO_ALLOW,
 } = {}) {
   return {
