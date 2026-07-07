@@ -295,7 +295,7 @@ export async function createCredentialIntakeRequirement(input = {}, effective = 
   const sessionId = randomUUID();
   const expiresAt = new Date(Date.now() + ttl * 60_000).toISOString().slice(0, 19).replace("T", " ");
   const metadata = {
-    ...(input.metadata && typeof input.metadata === "object" ? input.metadata : {}),
+    ...(input.metadata && typeof input.metadata === "object" ? sanitizeCredentialIntakeMetadata(input.metadata) : {}),
     intake_enforcement: true,
     credential_intake_handoff: true,
     intake_scope: intakeScope,
