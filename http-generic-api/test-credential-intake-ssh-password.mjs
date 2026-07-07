@@ -33,7 +33,12 @@ const result = await createCredentialIntakeRequirement(
     credentialField: "ssh_password",
     credentialLabel: "SSH password",
     intakeScope: "platform",
-    metadata: { target_id: "target-hostinger" },
+    metadata: {
+      target_id: "target-hostinger",
+      raw_secret: "must-not-persist",
+      nested: { api_key: "must-not-persist", note: "safe-note" },
+      private_key_preview: "-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----",
+    },
   },
   {
     status: "blocked_missing_secret",
