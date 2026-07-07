@@ -289,6 +289,25 @@ function parseOAuthRedirectUri(redirectUri) {
   }
 }
 
+function isChatGptAipOAuthCallback(url) {
+  return /^\/aip\/g-[a-z0-9]+\/oauth\/callback$/i.test(url?.pathname || "");
+}
+
+function canonicalizeTenantGptRedirectUri(redirectUri) {
+  const url = parseOAuthRedirectUri(redirectUri);
+  if (!url) return "";
+  if (url.protocol === "https:" && url.hostname.toLowerCase() === CHATGPT_LEGACY_CALLBACK_HOST && isChatGptAipOAuthCallback(url)) {
+    url.hostname = CHATGPT_CANONICAL_CALLBACK_HOST;
+  }
+  return url.toString();
+}
+
+function equivalentTenantGptRedirectUri(left, right) {
+  const canonicalLeft = canonicalizeTenantGptRedirectUri(left);
+  const canonicalRight = canonicalizeTenantGptRedirectUri(right);
+  return Boolean(canonicalLeft && canonicalRight && canonicalLeft === canonicalRight);
+}
+
 function callbackPatternToRegExp(pattern) {
   const escaped = String(pattern || "")
     .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
