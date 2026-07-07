@@ -1087,18 +1087,43 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
     };
     summaries = await safeQuery(
       `SELECT ss.summary_id, ss.session_id, ss.tenant_id, ss.user_id, ss.workspace_key,
-              cs.brand_key,
+              COALESCE(
+                (SELECT gst.brand_key
+                   FROM \`gpt_session_turns\` gst
+                  WHERE gst.session_id = ss.session_id
+                    AND gst.brand_key IS NOT NULL
+                  ORDER BY gst.created_at DESC
+                  LIMIT 1),
+                cs.brand_key
+              ) AS brand_key,
               ss.summary_text, ss.tasks_completed, ss.blockers, ss.feature_requests, ss.integration_needs,
               ss.complexity, ss.turn_count, ss.created_at
          FROM \`session_summaries\` ss
          LEFT JOIN \`customer_sessions\` cs ON cs.session_id = ss.session_id
         WHERE ss.tenant_id = ?
           AND (? IS NULL OR ss.user_id = ?)
-          AND (? IS NULL OR ss.workspace_key = ?)
-          AND (? IS NULL OR cs.brand_key = ?)
+          AND (
+            ? IS NULL
+            OR ss.workspace_key = ?
+            OR EXISTS (
+              SELECT 1 FROM \`gpt_session_turns\` gst
+               WHERE gst.session_id = ss.session_id
+                 AND gst.workspace_key = ?
+               LIMIT 1
+            )
+          )
+          AND (
+            ? IS NULL
+            OR EXISTS (
+              SELECT 1 FROM \`gpt_session_turns\` gst
+               WHERE gst.session_id = ss.session_id
+                 AND gst.brand_key = ?
+               LIMIT 1
+            )
+          )
         ORDER BY ss.created_at DESC
         LIMIT ${limit}`,
-      [tenantId, userId, userId, workspaceKey, workspaceKey, brandKey, brandKey]
+      [tenantId, userId, userId, workspaceKey, workspaceKey, workspaceKey, brandKey, brandKey]
     );
     summaries.source = "session_summaries_sql_fallback";
     summaries.fallback_used = true;
