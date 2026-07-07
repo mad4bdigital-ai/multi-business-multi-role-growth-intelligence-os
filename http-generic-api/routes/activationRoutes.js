@@ -990,6 +990,7 @@ function compactSummary(row = {}) {
     tenant_id: row.tenant_id,
     user_id: row.user_id,
     workspace_key: row.workspace_key,
+    brand_key: row.brand_key || null,
     summary_preview: truncateText(row.summary_text, 1200),
     tags: {
       tasks_completed: truncateText(row.tasks_completed, 500),
