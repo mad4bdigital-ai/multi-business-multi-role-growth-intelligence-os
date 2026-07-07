@@ -41,6 +41,15 @@ function requestId(req) {
     .slice(0, 128) || null;
 }
 
+async function readActivationSchemaFile(schemaFile) {
+  try {
+    return await readFile(resolve(SCHEMA_ARTIFACT_DIR, schemaFile), "utf8");
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+    return readFile(resolve(SCHEMA_ROOT_DIR, schemaFile), "utf8");
+  }
+}
+
 function errorResponse(code, message, req) {
   return {
     ok: false,
