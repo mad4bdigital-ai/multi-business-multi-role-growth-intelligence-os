@@ -454,6 +454,10 @@ function testRepositoryContracts() {
     "activation_awareness_coverage",
   ]) assert.match(migration, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));")));
 
+  assert.ok(openapi.includes("/sessions:"), "OpenAPI must include /sessions");
+  assert.match(openapi, /context_scope:/);
+  assert.match(openapi, /enum: \[session, turn, any\]/);
+
   for (const path of [
     "/activation/hard-run:",
     "/activation/hard-run/legacy-full:",
