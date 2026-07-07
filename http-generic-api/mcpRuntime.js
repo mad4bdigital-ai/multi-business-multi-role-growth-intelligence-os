@@ -159,6 +159,8 @@ const TOOL_DEFINITIONS = [
       type: "object",
       properties: {
         tenant_id: { type: "string" },
+        workspace_key: { type: "string", description: "Optional workspace context filter" },
+        brand_key: { type: "string", description: "Optional brand/target context filter" },
         analyzed:  { type: "boolean", description: "Filter by whether summary has been included in a proposal sweep" },
         limit:     { type: "integer", default: 20 },
       },
