@@ -4427,6 +4427,73 @@ paths:
         '403': { description: Resource access forbidden }
         '404': { description: Resource not found }
         '409': { description: Operation conflicts with lifecycle or policy }
+  /sessions:
+    get:
+      operationId: listSessions
+      summary: List customer sessions
+      description: >
+        Lists customer session containers. By default brand_key and workspace_key filter
+        session default context on customer_sessions. Use context_scope=turn to match
+        turns in gpt_session_turns, or context_scope=any to match either session defaults
+        or turn-level context. This preserves one conversation spanning multiple brands
+        or workspaces while keeping the legacy session default filter unchanged.
+      tags: [resource-api]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: user_id
+          in: query
+          schema: { type: string }
+        - name: originator
+          in: query
+          schema: { type: string }
+        - name: session_status
+          in: query
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          schema: { type: string }
+        - name: workspace_key
+          in: query
+          schema: { type: string }
+        - name: context_scope
+          in: query
+          schema:
+            type: string
+            enum: [session, turn, any]
+            default: session
+          description: >
+            Selects whether brand_key/workspace_key filters apply to the session default
+            context, turn-level context in gpt_session_turns, or either source.
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        '200':
+          description: Sessions listed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sessions, total, context_scope]
+                properties:
+                  sessions:
+                    type: array
+                    items: { type: object, additionalProperties: true }
+                  total: { type: integer }
+                  context_scope:
+                    type: string
+                    enum: [session, turn, any]
+        '400': { description: Invalid query parameters }
+        '401': { description: Authentication required }
+        '403': { description: Authorization forbidden }
+        '500': { description: Unexpected server error }
+
   /gpt/sessions:
     get:
       operationId: getGptSessions
