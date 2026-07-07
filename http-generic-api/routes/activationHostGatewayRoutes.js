@@ -12,7 +12,9 @@ const SCHEMA_ARTIFACT_DIR = resolve(SCHEMA_ROOT_DIR, "openapi");
 
 const ACTIVATION_SCHEMA_FILES_BY_PATH = new Map([
   ["/openapi.tenant-gpt.activation.yaml", "openapi.tenant-gpt.activation.yaml"],
+  ["/tenant-gpt/activation-openapi", "openapi.tenant-gpt.activation.yaml"],
   ["/openapi.custom-gpt.activation-admin.yaml", "openapi.custom-gpt.activation-admin.yaml"],
+  ["/admin-gpt/activation-openapi", "openapi.custom-gpt.activation-admin.yaml"],
 ]);
 
 const ALLOWED_EXACT_PATHS = new Set([
