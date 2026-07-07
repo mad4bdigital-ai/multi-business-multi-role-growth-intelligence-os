@@ -1022,6 +1022,8 @@ function compactTurn(row = {}, rawMaxChars = 1200) {
 async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
   const tenantId = subject.tenant_id || PLATFORM_TENANT_ID;
   const userId = subject.user_id || null;
+  const workspaceKey = subject.workspace_key || null;
+  const brandKey = subject.brand_key || null;
   const limit = capLimit(options.limit, 10, 25);
   const includeTurns = options.include_turns === true;
   const turnsLimit = capLimit(options.turns_limit, includeTurns ? 20 : 0, 100);
