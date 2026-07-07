@@ -1085,15 +1085,19 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
       secrets_included: false,
     };
     summaries = await safeQuery(
-      `SELECT summary_id, session_id, tenant_id, user_id, workspace_key, summary_text,
-              tasks_completed, blockers, feature_requests, integration_needs,
-              complexity, turn_count, created_at
-         FROM \`session_summaries\`
-        WHERE tenant_id = ?
-          AND (? IS NULL OR user_id = ?)
-        ORDER BY created_at DESC
+      `SELECT ss.summary_id, ss.session_id, ss.tenant_id, ss.user_id, ss.workspace_key,
+              cs.brand_key,
+              ss.summary_text, ss.tasks_completed, ss.blockers, ss.feature_requests, ss.integration_needs,
+              ss.complexity, ss.turn_count, ss.created_at
+         FROM \`session_summaries\` ss
+         LEFT JOIN \`customer_sessions\` cs ON cs.session_id = ss.session_id
+        WHERE ss.tenant_id = ?
+          AND (? IS NULL OR ss.user_id = ?)
+          AND (? IS NULL OR ss.workspace_key = ?)
+          AND (? IS NULL OR cs.brand_key = ?)
+        ORDER BY ss.created_at DESC
         LIMIT ${limit}`,
-      [tenantId, userId, userId]
+      [tenantId, userId, userId, workspaceKey, workspaceKey, brandKey, brandKey]
     );
     summaries.source = "session_summaries_sql_fallback";
     summaries.fallback_used = true;
