@@ -18,13 +18,26 @@ export function normalizeActivationSessionPolicy(value) {
   return "reuse_or_create";
 }
 
-export function deriveActivationIdempotencyKey({ explicitKey = null, tenantId = null, userId = null, conversationRef = null } = {}) {
+export function deriveActivationIdempotencyKey({
+  explicitKey = null,
+  tenantId = null,
+  userId = null,
+  workspaceKey = null,
+  brandKey = null,
+  conversationRef = null,
+} = {}) {
   const explicit = normalizeText(explicitKey, 180);
   if (explicit) return explicit;
   const conversation = normalizeText(conversationRef, 500);
   if (!conversation) return null;
   return createHash("sha256")
-    .update([tenantId || "platform", userId || "anonymous", conversation].join("|"))
+    .update([
+      tenantId || "platform",
+      userId || "anonymous",
+      workspaceKey || "workspace:unspecified",
+      brandKey || "brand:unspecified",
+      conversation,
+    ].join("|"))
     .digest("hex");
 }
 
