@@ -182,7 +182,8 @@ async function countQuery(surface, sql, params = [], queryFn = safeQuery) {
 
 export async function buildActivationPlatformAccess(req, deps = {}) {
   const queryFn = deps.query || safeQuery;
-  const isAdmin = req.auth?.is_admin === true;
+  const subject = deps.subject || resolveSessionContextSubject(req);
+  const isAdmin = subject.is_admin === true;
   const principalType = req.auth?.mode || (isAdmin ? "backend_api_key" : "unknown");
 
   const [
