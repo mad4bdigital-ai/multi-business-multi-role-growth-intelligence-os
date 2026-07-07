@@ -77,8 +77,8 @@
 
 ## Verification and closeout
 
-- [ ] T220 Add deterministic unit, integration, property, security, and parity tests.
-- [ ] T221 Register tests in the explicit test manifest.
+- [x] T220 Add deterministic unit, integration, property, security, and parity tests.
+- [x] T221 Register tests in the explicit test manifest.
 - [ ] T222 Update OpenAPI splits, canonicals, knowledge guide, and resource coverage manifests.
 - [ ] T223 Run CI, architecture drift, contract, resource coverage, and completion gates.
 - [ ] T224 Apply authorized additive migrations with checksum and schema readback.
