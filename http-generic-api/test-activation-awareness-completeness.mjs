@@ -338,6 +338,7 @@ function testRepositoryContracts() {
   const gptToolsRoutes = read("./routes/gptToolsRoutes.js");
   const sessionSummaryService = read("./sessionSummaryService.js");
   const lifecycleService = read("./activationSessionLifecycleService.js");
+  const mcpRuntime = read("./mcpRuntime.js");
   const dynamicTabs = read("./activationDynamicTabsEvidence.js");
   const awarenessService = read("./activationAwarenessService.js");
   const migration = read("./migrations/310_sprint69_activation_awareness_completeness_control_plane.sql");
