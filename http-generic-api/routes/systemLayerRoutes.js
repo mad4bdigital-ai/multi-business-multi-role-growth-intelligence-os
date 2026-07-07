@@ -71,6 +71,11 @@ import {
   tenantEffectiveCapabilityReadinessSmoke,
   tenantCapabilityShadowCompare,
 } from "../tenantEffectiveCapabilityResolver.js";
+import {
+  TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS,
+  tenantCapabilityEnforcementPreview,
+  tenantCapabilityEnforcementReadinessSmoke,
+} from "../tenantCapabilityEnforcementKernel.js";
 import { GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS } from "../growthAuditEvidence.js";
 import * as GrowthAuditEvidenceRuntime from "../growthAuditEvidence.js";
 import { BRAND_WORKSPACE_CONTEXT_SYSTEM_TOOLS } from "../brandWorkspaceContextResolver.js";
