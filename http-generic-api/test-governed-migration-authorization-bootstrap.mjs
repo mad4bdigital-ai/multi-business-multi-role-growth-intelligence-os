@@ -34,7 +34,7 @@ function createFakePool() {
   const ledger = new Map();
   const applyPolicies = new Map();
   const certifications = new Map();
-  const applyPolicyKey = "platform_orchestration:governed_migration_execute:governed_migration_execute";
+  const applyPolicyKey = "platform_orchestration:governed_migration_execute:auth_host";
   const certificationKey = "governed_migration_execute";
   return {
     authorizations,
