@@ -767,6 +767,24 @@ function githubData(result) {
   return body?.data?.data || body?.data || body;
 }
 
+function githubRepositoryData(result) {
+  const body = githubData(result);
+  return body?.repository || body?.data?.repository || body?.data?.data?.repository || null;
+}
+
+function githubRefSha(result) {
+  const body = githubData(result);
+  return compact(
+    body?.object?.sha
+    || body?.data?.object?.sha
+    || body?.data?.data?.object?.sha
+    || body?.sha
+    || body?.data?.sha
+    || "",
+    64,
+  );
+}
+
 async function executeDocsAgentStabilization(input, dispatch) {
   if (!input.pull_number) return { ok: false, status: "awaiting_input", missing_required_fields: ["pull_number"], secrets_included: false };
   const args = {
