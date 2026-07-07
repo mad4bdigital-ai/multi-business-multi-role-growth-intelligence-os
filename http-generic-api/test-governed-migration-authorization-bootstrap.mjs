@@ -274,7 +274,7 @@ async function main() {
   assert.equal(metadata.external_send, false);
   assert.equal(metadata.secrets_included, false);
 
-  const storedPolicy = pool.applyPolicies.get("platform_orchestration:governed_migration_execute:governed_migration_execute");
+  const storedPolicy = pool.applyPolicies.get("platform_orchestration:governed_migration_execute:auth_host");
   storedPolicy.requires_readback = 0;
   storedPolicy.policy_json = JSON.stringify({ provider_call_allowed: true, secrets_included: false });
   const storedCertification = pool.certifications.get("governed_migration_execute");
