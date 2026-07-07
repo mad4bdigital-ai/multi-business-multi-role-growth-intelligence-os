@@ -398,41 +398,53 @@ export function buildSessionRoutes(deps) {
         LEFT JOIN \`workspace_registry\` wr ON wr.workspace_key = cs.workspace_key AND wr.tenant_id = cs.tenant_id
         WHERE cs.tenant_id = ?`;
       const params = [tenant_id];
-      const addContextFilter = (columnName, value) => {
-        if (!value) return;
+      const addContextFilters = () => {
+        const requestedBrandKey = String(brand_key || "").trim();
+        const requestedWorkspaceKey = String(workspace_key || "").trim();
+        if (!requestedBrandKey && !requestedWorkspaceKey) return;
+
+        const sessionClauses = [];
+        const sessionParams = [];
+        const turnClauses = [];
+        const turnParams = [];
+        if (requestedBrandKey) {
+          sessionClauses.push("cs.brand_key = ?");
+          sessionParams.push(requestedBrandKey);
+          turnClauses.push("gst.brand_key = ?");
+          turnParams.push(requestedBrandKey);
+        }
+        if (requestedWorkspaceKey) {
+          sessionClauses.push("cs.workspace_key = ?");
+          sessionParams.push(requestedWorkspaceKey);
+          turnClauses.push("gst.workspace_key = ?");
+          turnParams.push(requestedWorkspaceKey);
+        }
+        const turnExists = `EXISTS (
+          SELECT 1 FROM \`gpt_session_turns\` gst
+           WHERE gst.session_id = cs.session_id
+             AND ${turnClauses.join(" AND ")}
+           LIMIT 1
+        )`;
         if (normalizedContextScope === "turn") {
-          sql += ` AND EXISTS (
-            SELECT 1 FROM \`gpt_session_turns\` gst
-             WHERE gst.session_id = cs.session_id
-               AND gst.${columnName} = ?
-             LIMIT 1
-          )`;
-          params.push(value);
+          sql += ` AND ${turnExists}`;
+          params.push(...turnParams);
           return;
         }
         if (normalizedContextScope === "any") {
-          sql += ` AND (
-            cs.${columnName} = ?
-            OR EXISTS (
-              SELECT 1 FROM \`gpt_session_turns\` gst
-               WHERE gst.session_id = cs.session_id
-                 AND gst.${columnName} = ?
-               LIMIT 1
-            )
-          )`;
-          params.push(value, value);
+          sql += ` AND ((${sessionClauses.join(" AND ")}) OR ${turnExists})`;
+          params.push(...sessionParams, ...turnParams);
           return;
         }
-        sql += ` AND cs.${columnName} = ?`;
-        params.push(value);
+        sql += ` AND ${sessionClauses.join(" AND ")}`;
+        params.push(...sessionParams);
       };
       if (user_id)        { sql += " AND cs.user_id = ?";        params.push(user_id); }
       if (originator)     { sql += " AND cs.originator = ?";     params.push(originator); }
       if (session_status) { sql += " AND cs.session_status = ?"; params.push(session_status); }
-      addContextFilter("brand_key", brand_key);
-      addContextFilter("workspace_key", workspace_key);
+      addContextFilters();
       sql += " ORDER BY cs.started_at DESC LIMIT ?";
-      params.push(Number(limit));
+      const safeLimit = Math.max(1, Math.min(Number.parseInt(limit, 10) || 50, 200));
+      params.push(safeLimit);
 
       const [rows] = await getPool().query(sql, params);
       res.json({ sessions: rows, total: rows.length, context_scope: normalizedContextScope });
