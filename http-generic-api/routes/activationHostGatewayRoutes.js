@@ -77,6 +77,40 @@ export function buildActivationHostGatewayRoutes({
 } = {}) {
   const router = Router();
 
+  async function serveActivationSchema(req, res, schemaFile) {
+    if (!enabled) return false;
+    const host = requestHost(req);
+    if (host !== activationHost) return false;
+
+    delete req.headers.cookie;
+
+    try {
+      const schema = await readActivationSchemaFile(schemaFile);
+      res
+        .status(200)
+        .type("application/yaml")
+        .set("Cache-Control", "public, max-age=300")
+        .send(schema);
+    } catch {
+      res.status(404).json(errorResponse(
+        "schema_file_missing",
+        "The advertised Activation OpenAPI schema file is not available.",
+        req,
+      ));
+    }
+    return true;
+  }
+
+  router.get("/openapi.tenant-gpt.activation.yaml", async (req, res, next) => {
+    if (await serveActivationSchema(req, res, "openapi.tenant-gpt.activation.yaml")) return;
+    return next();
+  });
+
+  router.get("/openapi.custom-gpt.activation-admin.yaml", async (req, res, next) => {
+    if (await serveActivationSchema(req, res, "openapi.custom-gpt.activation-admin.yaml")) return;
+    return next();
+  });
+
   router.use((req, res, next) => {
     if (!enabled) return next();
 
