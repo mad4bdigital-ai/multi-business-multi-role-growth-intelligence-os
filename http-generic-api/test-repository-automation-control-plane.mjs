@@ -235,7 +235,7 @@ const hygiene = await scanRepositoryAutomationHygiene({
         },
       };
     }
-    if (args.endpoint_key === "github_get_reference") {
+    if (dispatchArgs.endpoint_key === "github_get_reference") {
       return {
         status: 200,
         body: {
@@ -258,7 +258,7 @@ const hygiene = await scanRepositoryAutomationHygiene({
         },
       };
     }
-    throw new Error(`unexpected runtime endpoint ${args.endpoint_key}`);
+    throw new Error(`unexpected runtime endpoint ${dispatchArgs.endpoint_key}`);
   },
 });
 assert.equal(hygiene.finding_count, 0);
