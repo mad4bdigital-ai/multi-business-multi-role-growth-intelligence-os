@@ -210,8 +210,9 @@ const hygiene = await scanRepositoryAutomationHygiene({
     if (toolKey === "repo_inspect") {
       return { status: 200, body: { ok: true, result: { head_sha: nestedRuntimeSha, status: "## HEAD (no branch)" } } };
     }
-    assert.equal(toolKey, "runtime_endpoint_call");
-    if (args.endpoint_key === "github_graphql") {
+    assert.equal(toolKey, "github_rest_endpoint_dispatch");
+    const dispatchArgs = args.tool_args || args;
+    if (dispatchArgs.endpoint_key === "github_graphql") {
       return {
         status: 200,
         body: {
@@ -234,7 +235,7 @@ const hygiene = await scanRepositoryAutomationHygiene({
         },
       };
     }
-    if (args.endpoint_key === "github_get_reference") {
+    if (dispatchArgs.endpoint_key === "github_get_reference") {
       return {
         status: 200,
         body: {
@@ -257,7 +258,7 @@ const hygiene = await scanRepositoryAutomationHygiene({
         },
       };
     }
-    throw new Error(`unexpected runtime endpoint ${args.endpoint_key}`);
+    throw new Error(`unexpected runtime endpoint ${dispatchArgs.endpoint_key}`);
   },
 });
 assert.equal(hygiene.finding_count, 0);
