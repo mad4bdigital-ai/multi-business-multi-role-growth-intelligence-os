@@ -8,6 +8,11 @@ const migration = readFileSync(
 
 assert.match(
   migration,
+  /^UPDATE platform_pending_tasks$/m,
+  "migration must contain an executable UPDATE statement, not a commented-out one"
+);
+assert.match(
+  migration,
   /task_key\s*=\s*'open_pr_platform_governance_codification_v3'/,
   "migration must target the exact malformed legacy task key"
 );
