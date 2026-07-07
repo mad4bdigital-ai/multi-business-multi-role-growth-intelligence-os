@@ -1,5 +1,11 @@
 # Hostinger Runtime Sync Guard
 
+## Temporary gate status normalization
+
+If cleanup readback shows enum-backed `status` fields as blank or non-canonical, apply `1040_sprint69_normalize_temporary_hostinger_gate_statuses.sql` after parity verification and the cleanup migration. The migration sets the SSH executor runtime config status to `disabled` and the temporary deploy resource authority binding status to `revoked`.
+
+This is not a deployment mechanism and does not prove runtime parity. It performs no SSH execution, provider call, credential payload read, raw-secret access, external send, or external write; it only makes the audit state explicit and enum-valid.
+
 ## Temporary deploy-gate cleanup
 
 After production parity is verified, use `1039_sprint69_disable_temporary_hostinger_deploy_gates.sql` to close the temporary recovery surfaces created by migrations 1037 and 1038. The cleanup disables `remote_runtime_hostinger_ssh_executor_enabled`, marks the runtime config inactive, and inactivates the temporary Hostinger deploy resource-authority binding for `hostinger://auth.mad4b.com/production`.
