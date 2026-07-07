@@ -779,6 +779,24 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "governed_migration_schema_readback",
+    displayName: "Governed Migration Schema Readback",
+    description: "Read-only, checksum-bound schema and ledger readback for one governed migration. This tool does not accept freeform SQL, does not read row data, does not call providers, and does not execute migrations.",
+    method: "VIRTUAL",
+    path: "internal://governed-migration-schema-readback",
+    tags: ["admin", "migration", "read_only", "schema_readback", "ledger_readback", "no_freeform_sql", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["migration", "expected_checksum_sha256", "expected_statement_count"],
+      properties: {
+        migration: { type: "string", pattern: "^[A-Za-z0-9._-]+\\.sql$" },
+        expected_checksum_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        expected_statement_count: { type: "integer", minimum: 1, maximum: 5000 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "governed_migration_execute",
     displayName: "Governed Migration Execute",
     description: "Dry-run or apply one checksum-bound authorized migration through the governed runner. Apply requires exact typed confirmation, a ready platform_orchestration capability envelope, ledger persistence, and same-cycle schema readback.",
