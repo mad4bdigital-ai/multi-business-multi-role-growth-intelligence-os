@@ -369,6 +369,8 @@ function testRepositoryContracts() {
   assert.match(sessionRoutes, /invalid_context_scope/);
   assert.match(sessionRoutes, /gpt_session_turns/);
   assert.match(sessionRoutes, /gst\.session_id = cs\.session_id/);
+  assert.match(sessionRoutes, /turnClauses\.join\(" AND "\)/);
+  assert.match(sessionRoutes, /Math\.max\(1, Math\.min\(Number\.parseInt\(limit, 10\) \|\| 50, 200\)\)/);
   assert.match(sessionRoutes, /context_scope: normalizedContextScope/);
   assert.match(gptToolsRoutes, /shouldChunkDispatchedToolResponse/);
   assert.match(gptToolsRoutes, /response_chunk_read/);
