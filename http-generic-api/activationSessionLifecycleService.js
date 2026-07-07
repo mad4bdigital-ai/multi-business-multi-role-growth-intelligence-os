@@ -53,17 +53,21 @@ async function querySafe(pool, sql, params = []) {
 async function findActiveSession(pool, subject = {}) {
   const tenantId = subject.tenant_id || "00000000-0000-0000-0000-000000000000";
   const userId = subject.user_id || null;
+  const workspaceKey = subject.workspace_key || null;
+  const brandKey = subject.brand_key || null;
   const result = await querySafe(
     pool,
-    `SELECT session_id, tenant_id, user_id, session_status, started_at, ended_at
+    `SELECT session_id, tenant_id, user_id, workspace_key, brand_key, session_status, started_at, ended_at
        FROM customer_sessions
       WHERE originator = 'gpt_action'
         AND tenant_id = ?
         AND (? IS NULL OR user_id = ?)
+        AND (? IS NULL OR workspace_key = ?)
+        AND (? IS NULL OR brand_key = ?)
         AND session_status IN ('pending','active')
       ORDER BY started_at DESC
       LIMIT 1`,
-    [tenantId, userId, userId]
+    [tenantId, userId, userId, workspaceKey, workspaceKey, brandKey, brandKey]
   );
   return result.ok ? result.rows[0] || null : null;
 }
