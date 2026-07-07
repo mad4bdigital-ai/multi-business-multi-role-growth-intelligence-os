@@ -293,7 +293,7 @@ function testIdempotencyAndInputNormalization() {
   });
   assert.equal(first, second);
   assert.equal(first.length, 64);
-  assert.notEqual(
+  assert.equal(
     first,
     deriveActivationIdempotencyKey({
       tenantId: "tenant-1",
@@ -303,7 +303,7 @@ function testIdempotencyAndInputNormalization() {
       conversationRef: "conversation-1",
     })
   );
-  assert.notEqual(
+  assert.equal(
     deriveActivationIdempotencyKey({
       tenantId: "tenant-1",
       userId: "user-1",
