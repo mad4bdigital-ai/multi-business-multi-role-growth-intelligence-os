@@ -1,5 +1,23 @@
 # Hostinger Node.js Auto Deploy
 
+## Temporary executor hard-disable
+
+Migration `1041_sprint69_hard_disable_temporary_hostinger_executor_gate.sql` is the final hard-disable for the temporary Hostinger SSH executor gate. Use it when cleanup readback still shows the executor gate active after parity verification and resource-authority revocation. It explicitly writes enum-supported `status='disabled'` and false deploy/restart/provider/credential flags.
+
+This migration performs no deploy, restart, provider call, credential payload read, raw-secret access, external send, or external write. It only closes the temporary recovery gate after production parity has already been verified.
+
+## Temporary gate status normalization
+
+Migration `1040_sprint69_normalize_temporary_hostinger_gate_statuses.sql` is the final cleanup normalization for the temporary Hostinger recovery gates. Use it after `1039_sprint69_disable_temporary_hostinger_deploy_gates.sql` if enum-backed status columns read back as empty or non-canonical values. It normalizes the executor gate to `disabled` and the deploy authority binding to `revoked`.
+
+This normalization performs no deploy, restart, provider call, credential payload read, raw-secret access, external send, or external write. It is an audit/readback correction only.
+
+## Temporary deploy-gate cleanup
+
+Migration `1039_sprint69_disable_temporary_hostinger_deploy_gates.sql` is the cleanup companion for the temporary Hostinger executor and deploy-authority recovery work. Apply it only after production parity readback proves the deployed commit matches the expected `main` SHA. It sets `remote_runtime_hostinger_ssh_executor_enabled.enabled=false`, marks the runtime config inactive, and inactivates the temporary `hostinger://auth.mad4b.com/production` deploy authority binding.
+
+The cleanup migration does not deploy, restart, call providers, read credential payloads, expose secrets, or perform external sends/writes. It is the preferred closure path after parity verification so temporary break-glass gates are not left active beyond their recovery window.
+
 ## Temporary deploy resource authority binding
 
 Migration `1038_sprint69_hostinger_deploy_resource_authority_binding.sql` grants a two-hour dynamic resource authority binding for `remote_runtime_target` at `hostinger://auth.mad4b.com/production` with allowed mode `deploy`. It exists only so `admin_control` and deploy-envelope preflight can prove target-specific authority before executing the governed deploy-release tool.

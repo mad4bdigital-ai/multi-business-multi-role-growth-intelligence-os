@@ -6,7 +6,7 @@ async function read(path) {
 }
 
 const [migration, dashboardSurface, attentionSurface, runbook] = await Promise.all([
-  read("./migrations/1039_sprint69_capability_enablement_operational_dashboard.sql"),
+  read("./migrations/1040_sprint69_capability_enablement_operational_dashboard.sql"),
   read("./activation-surfaces/capability_enablement_operational_dashboard.json"),
   read("./activation-surfaces/capability_enablement_operational_attention.json"),
   read("../docs/capability-enablement-operational-runbook.md"),
