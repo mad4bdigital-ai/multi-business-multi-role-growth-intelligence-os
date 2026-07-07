@@ -365,6 +365,11 @@ function testRepositoryContracts() {
   assert.match(activationRoutes, /chunk_ttl_minutes/);
   assert.match(tenantOverlayRoutes, /tenant_activation_session_context/);
   assert.match(tenantOverlayRoutes, /chunk_ttl_minutes/);
+  assert.match(sessionRoutes, /context_scope = "session"/);
+  assert.match(sessionRoutes, /invalid_context_scope/);
+  assert.match(sessionRoutes, /gpt_session_turns/);
+  assert.match(sessionRoutes, /gst\.session_id = cs\.session_id/);
+  assert.match(sessionRoutes, /context_scope: normalizedContextScope/);
   assert.match(gptToolsRoutes, /shouldChunkDispatchedToolResponse/);
   assert.match(gptToolsRoutes, /response_chunk_read/);
   assert.match(gptToolsRoutes, /resolveGptSessionContext/);
