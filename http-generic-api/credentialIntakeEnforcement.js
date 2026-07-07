@@ -49,6 +49,19 @@ function normalizeFieldName(name) {
     .slice(0, 64);
 }
 
+export function sanitizeCredentialIntakeMetadata(value, depth = 0) {
+  if (depth > 6) return "[redacted-depth-limit]";
+  if (Array.isArray(value)) return value.map((item) => sanitizeCredentialIntakeMetadata(item, depth + 1));
+  if (!value || typeof value !== "object") {
+    if (typeof value === "string") return value.replace(PRIVATE_KEY_VALUE_PATTERN, "[redacted-private-key]");
+    return value;
+  }
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => {
+    if (SENSITIVE_METADATA_KEY_PATTERN.test(String(key || ""))) return [key, "[redacted]"];
+    return [key, sanitizeCredentialIntakeMetadata(item, depth + 1)];
+  }));
+}
+
 function roleText(input = {}, effective = {}) {
   return str(input.credential_role || input.credentialRole || input.role || effective.credential_role).toLowerCase();
 }
