@@ -454,7 +454,7 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
         settled = true;
         killProcessTree(child, "SIGTERM");
         setTimeout(() => killProcessTree(child, "SIGKILL"), SSH_PROCESS_KILL_GRACE_MS).unref?.();
-        cleanup().finally(() => resolve({ ok: false, exit_code: 124, timed_out: true, auth_mode: authMode, stdout: sanitizeSshOutput(stdout, redactionSecrets), stderr: sanitizeSshOutput(stderr, redactionSecrets) }));
+        cleanup().finally(() => resolve({ ok: false, exit_code: 124, timed_out: true, auth_mode: authMode, stdout: sanitizeSshOutput(stdout), stderr: sanitizeSshOutput(stderr) }));
       }, Number(timeoutMs || DEFAULT_TIMEOUT_MS) + SSH_PROCESS_KILL_GRACE_MS + 1000);
       child.stdout.on("data", (chunk) => { stdout += chunk.toString("utf8"); });
       child.stderr.on("data", (chunk) => { stderr += chunk.toString("utf8"); });
