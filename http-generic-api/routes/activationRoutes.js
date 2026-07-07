@@ -721,11 +721,20 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
 export function resolveSessionContextSubject(req) {
   const requestedUserId = queryStringValue(req.query.user_id);
   const requestedTenantId = queryStringValue(req.query.tenant_id);
+  const requestedWorkspaceId = queryContextValue(req.query, ["workspace_id"]);
+  const requestedWorkspaceKey = queryContextValue(req.query, ["workspace_key", "workspace_ref"]);
+  const requestedBrandKey = queryContextValue(req.query, ["brand_key", "target_key", "brand_ref", "evolution_brand_key"]);
   const authUserId = queryStringValue(req.auth?.user_id);
   const authTenantId = queryStringValue(req.auth?.tenant_id);
+  const authWorkspaceId = queryStringValue(req.auth?.workspace_id);
+  const authWorkspaceKey = queryStringValue(req.auth?.workspace_key);
+  const authBrandKey = queryStringValue(req.auth?.brand_key || req.auth?.target_key);
   const isAdmin = req.auth?.is_admin === true;
-  const userId = requestedUserId || authUserId;
-  const tenantId = requestedTenantId || authTenantId;
+  const userId = requestedUserId || authUserId || (isAdmin ? "platform_admin_service" : null);
+  const tenantId = requestedTenantId || authTenantId || (isAdmin ? PLATFORM_TENANT_ID : null);
+  const workspaceId = requestedWorkspaceId || authWorkspaceId || null;
+  const workspaceKey = requestedWorkspaceKey || authWorkspaceKey || (isAdmin ? "platform_repo_governance_zero" : null);
+  const brandKey = requestedBrandKey || authBrandKey || (isAdmin ? PLATFORM_EVOLUTION_BRAND_KEY : null);
 
   if (!isAdmin && requestedUserId && requestedUserId !== authUserId) {
     const err = new Error("User JWT cannot inspect another user's activation session context.");
@@ -737,6 +746,12 @@ export function resolveSessionContextSubject(req) {
   return {
     user_id: userId || null,
     tenant_id: tenantId || null,
+    workspace_id: workspaceId || null,
+    workspace_key: workspaceKey || null,
+    brand_key: brandKey || null,
+    context_source: isAdmin && (!requestedUserId || !requestedTenantId || !requestedWorkspaceKey || !requestedBrandKey)
+      ? "admin_platform_default_context"
+      : "request_or_auth_context",
     is_admin: isAdmin
   };
 }
