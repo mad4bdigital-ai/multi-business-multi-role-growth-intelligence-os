@@ -102,11 +102,14 @@ await assert.rejects(
 );
 
 const authorizationSource = readFileSync("governedMigrationAuthorizationBootstrap.js", "utf8");
-assert.match(authorizationSource, /operation_intent:\s*"governed_migration_execute"/);
-assert.match(authorizationSource, /runtime_surface:\s*"auth_host"/);
-assert.match(authorizationSource, /governed_runner_only:\s*true/);
-assert.doesNotMatch(authorizationSource, /operation_intent:\s*"governed_migration_apply"/);
-assert.doesNotMatch(authorizationSource, /runtime_surface:\s*"governed_migration_execute"/);
+const applyPolicySource = readFileSync("governedMigrationApplyPolicyBootstrap.js", "utf8");
+assert.match(authorizationSource, /GOVERNED_MIGRATION_EXECUTE_APPLY_POLICY as MIGRATION_EXECUTOR_APPLY_POLICY/);
+assert.doesNotMatch(authorizationSource, /const MIGRATION_EXECUTOR_APPLY_POLICY = Object\.freeze/);
+assert.match(applyPolicySource, /operation_intent:\s*"governed_migration_execute"/);
+assert.match(applyPolicySource, /runtime_surface:\s*"auth_host"/);
+assert.match(applyPolicySource, /governed_runner_only:\s*true/);
+assert.doesNotMatch(applyPolicySource, /operation_intent:\s*"governed_migration_apply"/);
+assert.doesNotMatch(applyPolicySource, /runtime_surface:\s*"governed_migration_execute"/);
 
 const routesSource = readFileSync("routes/gptToolsRoutes.js", "utf8");
 assert.match(routesSource, /name: "governed_migration_schema_readback"/);
