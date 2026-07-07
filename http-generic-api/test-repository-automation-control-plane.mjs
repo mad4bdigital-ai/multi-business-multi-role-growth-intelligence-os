@@ -235,7 +235,17 @@ const hygiene = await scanRepositoryAutomationHygiene({
       };
     }
     if (args.endpoint_key === "github_get_reference") {
-      return { status: 200, body: { ok: true, result: { body: { ok: true, data: { object: { sha: nestedRuntimeSha } } } } } };
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          status: 200,
+          data: {
+            ref: "refs/heads/main",
+            object: { sha: nestedRuntimeSha, type: "commit" },
+          },
+        },
+      };
     }
     throw new Error(`unexpected runtime endpoint ${args.endpoint_key}`);
   },
