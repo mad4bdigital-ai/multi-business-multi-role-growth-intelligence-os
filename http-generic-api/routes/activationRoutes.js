@@ -1059,6 +1059,7 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
         tenant_id: item.tenant_id,
         user_id: item.user_id,
         workspace_key: item.workspace_key,
+        brand_key: item.brand_key || null,
         summary_text: item.summary_text,
         tasks_completed: JSON.stringify(item.tasks_completed || []),
         blockers: JSON.stringify(item.blockers || []),
