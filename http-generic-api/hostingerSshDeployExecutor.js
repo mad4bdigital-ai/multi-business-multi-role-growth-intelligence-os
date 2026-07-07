@@ -420,6 +420,7 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
     const keyFile = tempDir ? join(tempDir, "id_ed25519") : null;
     let settled = false;
     let child = null;
+    const redactionSecrets = [password, privateKey].filter((value) => String(value || "").length >= 4);
     const cleanup = async () => {
       if (!tempDir) return;
       try { await rm(tempDir, { recursive: true, force: true }); } catch { /* noop */ }
