@@ -700,7 +700,7 @@ export function buildAuthRoutes(deps) {
       if (codePayload.purpose !== "custom_gpt_oauth_code" || !codePayload.user_id) {
         return res.status(400).json({ error: "invalid_grant", error_description: "Invalid OAuth code." });
       }
-      if (redirectUri && redirectUri !== codePayload.redirect_uri) {
+      if (redirectUri && !equivalentTenantGptRedirectUri(redirectUri, codePayload.redirect_uri)) {
         return res.status(400).json({ error: "invalid_grant", error_description: "redirect_uri does not match the issued code." });
       }
       if (_isOAuthCodeUsed(codePayload.jti)) {
