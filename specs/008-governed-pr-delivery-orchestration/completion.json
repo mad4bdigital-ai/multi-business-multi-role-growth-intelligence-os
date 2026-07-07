@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "feature_key": "008-governed-pr-delivery-orchestration",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "current_pr_marker": "current",
+  "implementation_prs": [
+    {
+      "pr": "current",
+      "scope": "spec_kit_draft",
+      "status": "draft"
+    }
+  ],
+  "final_closeout_pr": null,
+  "post_merge_obligations": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true,
+    "reason": "The full feature will introduce orchestration ledgers, tool contracts, delivery state, and post-merge closeout evidence. This initial PR is spec-only."
+  },
+  "ci": {
+    "required_checks": [
+      "Syntax Check",
+      "Architecture Drift Detection",
+      "Execution Resolver Gate",
+      "Unit & Integration Tests"
+    ],
+    "latest_result": null
+  },
+  "release_readiness": {
+    "required_for_completion": true,
+    "latest_run_id": null,
+    "latest_status": null
+  },
+  "migration_ledger": {
+    "required_for_completion": true,
+    "entries": []
+  },
+  "production_parity": {
+    "required_for_completion": true,
+    "latest_run_id": null,
+    "latest_status": null
+  },
+  "post_merge_audit": {
+    "required_for_completion": true,
+    "evidence_refs": [],
+    "backlog_refs": []
+  },
+  "checklist_summary": {
+    "unresolved_allowed_while_in_progress": true,
+    "completion_requires_no_unresolved_items": true
+  },
+  "secrets_included": false
+}
