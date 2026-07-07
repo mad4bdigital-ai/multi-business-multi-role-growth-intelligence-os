@@ -5,6 +5,8 @@ const TOKEN_BYTES = 32;
 const DEFAULT_TTL_MINUTES = 30;
 const MAX_TTL_MINUTES = 24 * 60;
 const PLATFORM_ADMIN_USER_ID = "00000000-0000-4000-a000-000000000020";
+const SENSITIVE_METADATA_KEY_PATTERN = /(?:password|passwd|pwd|secret|token|private_key|api_key|bearer|authorization|credential_value|value_ciphertext)/i;
+const PRIVATE_KEY_VALUE_PATTERN = /-----BEGIN [A-Z ]+PRIVATE KEY-----[\s\S]*?-----END [A-Z ]+PRIVATE KEY-----/g;
 
 const ALLOWED_AUTH_TYPES = new Set([
   "api_key",
