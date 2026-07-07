@@ -287,12 +287,40 @@ async function dispatchTool(name, args, deps) {
       const { tenant_id, workspace_key, brand_key, analyzed, limit = 20 } = args;
       const where = ["1=1"], params = [];
       if (tenant_id) { where.push("ss.tenant_id = ?"); params.push(tenant_id); }
-      if (workspace_key) { where.push("ss.workspace_key = ?"); params.push(workspace_key); }
-      if (brand_key) { where.push("cs.brand_key = ?"); params.push(brand_key); }
+      if (workspace_key) {
+        where.push(`(
+          ss.workspace_key = ?
+          OR EXISTS (
+            SELECT 1 FROM \`gpt_session_turns\` gst
+             WHERE gst.session_id = ss.session_id
+               AND gst.workspace_key = ?
+             LIMIT 1
+          )
+        )`);
+        params.push(workspace_key, workspace_key);
+      }
+      if (brand_key) {
+        where.push(`EXISTS (
+          SELECT 1 FROM \`gpt_session_turns\` gst
+           WHERE gst.session_id = ss.session_id
+             AND gst.brand_key = ?
+           LIMIT 1
+        )`);
+        params.push(brand_key);
+      }
       if (analyzed !== undefined) { where.push("ss.analyzed = ?"); params.push(analyzed ? 1 : 0); }
       const [rows] = await getPool().query(
-        `SELECT ss.summary_id, ss.session_id, ss.tenant_id, ss.workspace_key, cs.brand_key, ss.summary_text,
-                ss.tasks_completed, ss.blockers, ss.feature_requests, ss.integration_needs,
+        `SELECT ss.summary_id, ss.session_id, ss.tenant_id, ss.workspace_key,
+                COALESCE(
+                  (SELECT gst.brand_key
+                     FROM \`gpt_session_turns\` gst
+                    WHERE gst.session_id = ss.session_id
+                      AND gst.brand_key IS NOT NULL
+                    ORDER BY gst.created_at DESC
+                    LIMIT 1),
+                  cs.brand_key
+                ) AS brand_key,
+                ss.summary_text, ss.tasks_completed, ss.blockers, ss.feature_requests, ss.integration_needs,
                 ss.complexity, ss.turn_count, ss.analyzed, ss.created_at
          FROM \`session_summaries\` ss
          LEFT JOIN \`customer_sessions\` cs ON cs.session_id = ss.session_id
