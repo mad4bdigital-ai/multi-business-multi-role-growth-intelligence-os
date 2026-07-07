@@ -26,7 +26,9 @@ function clone(value) {
 
 function outputPath(file) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-  return path.join(OUTPUT_DIR, file);
+  const target = path.join(OUTPUT_DIR, file);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  return target;
 }
 
 function collectOperations(doc) {
