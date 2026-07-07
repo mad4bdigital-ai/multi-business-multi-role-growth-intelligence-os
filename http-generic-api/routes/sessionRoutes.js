@@ -671,6 +671,8 @@ export function buildSessionRoutes(deps) {
                 originator:    item.originator,
                 brand_key:     item.brand_key,
                 workspace_key: item.workspace_key,
+                turn_contexts: turnContexts,
+                context_granularity: turnContexts.length ? "turn_level" : "session_default",
                 git_repo_url:  item.git_repo_url,
                 git_branch:    item.git_branch,
                 turn_count:    item.turn_count,
