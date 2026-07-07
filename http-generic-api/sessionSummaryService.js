@@ -741,18 +741,28 @@ export async function loadSessionSummaryGraphMemory({
     params.push(tenant_id);
   }
   if (user_id) {
-    clauses.push("user_id = ?");
+    clauses.push("ss.user_id = ?");
     params.push(user_id);
+  }
+  if (workspace_key) {
+    clauses.push("ss.workspace_key = ?");
+    params.push(workspace_key);
+  }
+  if (brand_key) {
+    clauses.push("cs.brand_key = ?");
+    params.push(brand_key);
   }
   const safeLimit = Math.max(1, Math.min(Number(limit) || 10, 50));
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const [rows] = await pool.query(
-    `SELECT summary_id, session_id, tenant_id, user_id, workspace_key,
-            summary_text, tasks_completed, blockers, feature_requests,
-            integration_needs, complexity, turn_count, created_at
-       FROM \`session_summaries\`
+    `SELECT ss.summary_id, ss.session_id, ss.tenant_id, ss.user_id, ss.workspace_key,
+            cs.brand_key,
+            ss.summary_text, ss.tasks_completed, ss.blockers, ss.feature_requests,
+            ss.integration_needs, ss.complexity, ss.turn_count, ss.created_at
+       FROM \`session_summaries\` ss
+       LEFT JOIN \`customer_sessions\` cs ON cs.session_id = ss.session_id
        ${where}
-      ORDER BY created_at DESC
+      ORDER BY ss.created_at DESC
       LIMIT ?`,
     [...params, safeLimit]
   ).catch(() => [[]]);
