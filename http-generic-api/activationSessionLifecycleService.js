@@ -34,8 +34,6 @@ export function deriveActivationIdempotencyKey({
     .update([
       tenantId || "platform",
       userId || "anonymous",
-      workspaceKey || "workspace:unspecified",
-      brandKey || "brand:unspecified",
       conversation,
     ].join("|"))
     .digest("hex");
