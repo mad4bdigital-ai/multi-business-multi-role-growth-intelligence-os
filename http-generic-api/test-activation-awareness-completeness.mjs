@@ -336,9 +336,12 @@ function testRepositoryContracts() {
   const awarenessRoutes = read("./routes/activationAwarenessRoutes.js");
   const tenantOverlayRoutes = read("./routes/tenantActivationOverlayRoutes.js");
   const gptToolsRoutes = read("./routes/gptToolsRoutes.js");
+  const sessionSummaryService = read("./sessionSummaryService.js");
+  const lifecycleService = read("./activationSessionLifecycleService.js");
   const dynamicTabs = read("./activationDynamicTabsEvidence.js");
   const awarenessService = read("./activationAwarenessService.js");
   const migration = read("./migrations/310_sprint69_activation_awareness_completeness_control_plane.sql");
+  const contextIndexMigration = read("./migrations/1042_sprint69_activation_session_context_indexes.sql");
   const openapi = read("./openapi.yaml");
 
   assert.match(index, /buildActivationHardRunRoutes/);
