@@ -30,7 +30,9 @@ function assert(label, condition, detail = "") {
     console.log(`  [PASS] ${label}`);
     passed++;
   } else {
-    console.error(`  [FAIL] ${label}${detail ? ` - ${detail}` : ""}`);
+    const message = `${label}${detail ? ` - ${detail}` : ""}`;
+    console.error(`  [FAIL] ${message}`);
+    console.error(`::error title=Connect route assertion failed::${message.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A")}`);
     failed++;
   }
 }
