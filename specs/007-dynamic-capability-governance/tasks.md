@@ -94,3 +94,7 @@
 - [ ] T302 Record every merged implementation PR and SHA in `completion.json`.
 - [ ] T303 Resolve every task and checklist item before marking the feature complete.
 - [ ] T304 Run `node http-generic-api/scripts/spec-kit-completion-gate.mjs --changed` in every changed-scope PR.
+
+### Operational alert pilot audit note
+
+T182-T184 are marked implementation-complete based on live `main` evidence in `operationalAlertService.js`, `test-operational-alerting-control-plane.mjs`, `20260704_operational_alert_lifecycle_fingerprints.sql`, and `governed-migration-runner.mjs`. This does not mark the feature complete: migration apply/readback, production runtime parity, post-merge audit, and full completion bookkeeping remain tracked by T224-T228 and T302-T304.
