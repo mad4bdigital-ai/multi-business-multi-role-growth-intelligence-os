@@ -335,6 +335,7 @@ function testRepositoryContracts() {
   const activationRoutes = read("./routes/activationRoutes.js");
   const awarenessRoutes = read("./routes/activationAwarenessRoutes.js");
   const tenantOverlayRoutes = read("./routes/tenantActivationOverlayRoutes.js");
+  const sessionRoutes = read("./routes/sessionRoutes.js");
   const gptToolsRoutes = read("./routes/gptToolsRoutes.js");
   const sessionSummaryService = read("./sessionSummaryService.js");
   const lifecycleService = read("./activationSessionLifecycleService.js");
