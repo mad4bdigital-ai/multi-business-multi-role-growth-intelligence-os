@@ -371,8 +371,10 @@ function testRepositoryContracts() {
   assert.match(gptToolsRoutes, /x-brand-key/);
   assert.match(gptToolsRoutes, /workspace_key = \?/);
   assert.match(gptToolsRoutes, /brand_key = \?/);
-  assert.match(sessionSummaryService, /workspace_key = \?/);
-  assert.match(sessionSummaryService, /cs\.brand_key = \?/);
+  assert.match(sessionSummaryService, /gpt_session_turns/);
+  assert.match(sessionSummaryService, /gst\.workspace_key = \?/);
+  assert.match(sessionSummaryService, /gst\.brand_key = \?/);
+  assert.match(sessionSummaryService, /COALESCE\(/);
   assert.match(sessionSummaryService, /LEFT JOIN `customer_sessions` cs ON cs\.session_id = ss\.session_id/);
   assert.doesNotMatch(lifecycleService, /workspaceKey \|\| "workspace:unspecified"/);
   assert.doesNotMatch(lifecycleService, /brandKey \|\| "brand:unspecified"/);
