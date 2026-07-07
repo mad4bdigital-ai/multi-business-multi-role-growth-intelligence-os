@@ -116,10 +116,25 @@ function buildEnforcementObligations(resolution = {}, policy = {}) {
   ])].sort();
 }
 
+const TYPED_DECISION_INPUT_SCHEMA = Object.freeze({
+  type: "object",
+  properties: {
+    subject: { type: "object", additionalProperties: true },
+    action: { type: "object", additionalProperties: true },
+    resource: { type: "object", additionalProperties: true },
+    context: { type: "object", additionalProperties: true },
+  },
+  additionalProperties: false,
+});
+
 export const TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS = Object.freeze([
   {
     name: "tenant_capability_enforcement_preview",
-    description: "Shadow-only shared enforcement kernel preview. It resolves the semantic capability, derives a boundary policy dynamically from resolver metadata, and returns an allow/deny shadow decision without provider calls, mutations, or enforcement cutover.",
+    description: [
+      "Shadow-only shared enforcement kernel preview.",
+      "It resolves the semantic capability, derives a boundary policy dynamically from resolver metadata,",
+      "and returns an allow/deny shadow decision without provider calls, mutations, or enforcement cutover."
+    ].join(" "),
     inputSchema: {
       type: "object",
       required: ["capability_key"],
@@ -129,16 +144,7 @@ export const TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS = Object.freeze([
           type: "string",
           description: "Optional boundary hint. If omitted, the kernel derives the boundary from the canonical capability and resolver metadata.",
         },
-        decision_input: {
-          type: "object",
-          properties: {
-            subject: { type: "object", additionalProperties: true },
-            action: { type: "object", additionalProperties: true },
-            resource: { type: "object", additionalProperties: true },
-            context: { type: "object", additionalProperties: true },
-          },
-          additionalProperties: false,
-        },
+        decision_input: TYPED_DECISION_INPUT_SCHEMA,
         workspace_id: { type: "string" },
         workspace_key: { type: "string" },
         resource_ref: { type: "string" },
@@ -152,7 +158,10 @@ export const TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS = Object.freeze([
   },
   {
     name: "tenant_capability_enforcement_readiness_smoke",
-    description: "Admin-only read-only readiness smoke for the dynamic, shadow-only adaptive authorization enforcement kernel. Verifies resolver readiness and descriptor invariants without provider calls or mutations.",
+    description: [
+      "Admin-only read-only readiness smoke for the dynamic, shadow-only adaptive authorization enforcement kernel.",
+      "It verifies resolver readiness and descriptor invariants without provider calls or mutations."
+    ].join(" "),
     requires_admin: true,
     inputSchema: {
       type: "object",
@@ -215,10 +224,7 @@ export async function tenantCapabilityEnforcementPreview(args = {}, context = {}
   };
 }
 
-export async function tenantCapabilityEnforcementReadinessSmoke(
-  _args = {},
-  context = {}
-) {
+export async function tenantCapabilityEnforcementReadinessSmoke(_args = {}, context = {}) {
   const resolverSmoke = await tenantEffectiveCapabilityReadinessSmoke({}, context);
   const descriptorNames = TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS.map((tool) => tool.name);
   const previewDescriptor = TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS.find((tool) => tool.name === "tenant_capability_enforcement_preview");
