@@ -440,6 +440,7 @@ function testRepositoryContracts() {
     "idx_ar_context_reuse_session",
     "idx_ss_context_created",
     "idx_gst_context_scope_created",
+    "idx_gst_session_context_lookup",
     "workspace_key",
     "brand_key",
   ]) assert.match(contextIndexMigration, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\  for (const required of [
