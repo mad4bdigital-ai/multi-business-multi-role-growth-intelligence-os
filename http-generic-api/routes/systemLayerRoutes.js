@@ -468,6 +468,16 @@ const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
     readiness_args: {},
   },
   {
+    source_key: "tenant_capability_enforcement_kernel_v1",
+    tools: TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS,
+    handlers: {
+      tenantCapabilityEnforcementPreview,
+      tenantCapabilityEnforcementReadinessSmoke,
+    },
+    readiness_tool: "tenant_capability_enforcement_readiness_smoke",
+    readiness_args: {},
+  },
+  {
     source_key: "growth_audit_evidence_v1",
     tools: GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS,
     handlers: GrowthAuditEvidenceRuntime,
