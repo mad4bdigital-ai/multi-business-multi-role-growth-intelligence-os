@@ -694,7 +694,36 @@ export async function requireLocalManagerDevice(req) {
     err.code = "device_session_not_found";
     throw err;
   }
-  return { ...device, session: sanitizeSession(row) };
+  const issuedAtSeconds = Number(payload.iat || 0) || null;
+  const expiresAtSeconds = Number(payload.exp || 0) || null;
+  const authAgeSeconds = issuedAtSeconds ? Math.max(0, Math.floor(Date.now() / 1000) - issuedAtSeconds) : null;
+  const authContext = {
+    source: "saved_device_token",
+    token_scope: "local_manager.device",
+    saved_device_token: true,
+    interactive_user_session_present: false,
+    requires_reauth_for_privileged_installers: true,
+    privileged_authorization_max_age_seconds: PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS,
+    privileged_authorization_fresh: authAgeSeconds !== null && authAgeSeconds <= PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS,
+    auth_age_seconds: authAgeSeconds,
+    token_issued_at: issuedAtSeconds ? new Date(issuedAtSeconds * 1000).toISOString() : null,
+    token_expires_at: expiresAtSeconds ? new Date(expiresAtSeconds * 1000).toISOString() : null,
+  };
+  return { ...device, session: sanitizeSession(row), auth_context: authContext };
+}
+
+export async function requireFreshLocalManagerDeviceForPrivilegedInstaller(req) {
+  const device = await requireLocalManagerDevice(req);
+  if (device.auth_context?.privileged_authorization_fresh === true) return device;
+  const err = new Error("Fresh Local Manager sign-in is required before creating a privileged connector installer.");
+  err.status = 403;
+  err.code = "fresh_local_manager_authorization_required";
+  err.details = {
+    auth_context: device.auth_context,
+    reauth_action: "forget_device_and_link_again",
+    max_age_seconds: PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS,
+  };
+  throw err;
 }
 
 export async function getDeviceSession(req, res) {
