@@ -13,6 +13,15 @@ const localManagerProject = readFileSync('../apps/local-manager-windows/Mad4B.Lo
 const localManagerAutopilot = readFileSync('../apps/local-manager-windows/LocalManagerAutopilot.cs', 'utf8');
 const windowsAppRegistration = readFileSync('../apps/local-manager-windows/WindowsAppRegistration.cs', 'utf8');
 
+const advertisedVersionMatch = localManager.match(/LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "([0-9]+\.[0-9]+\.[0-9]+)"/);
+assert(advertisedVersionMatch, 'Local Manager update route must declare LOCAL_MANAGER_WINDOWS_LATEST_VERSION');
+const advertisedWindowsVersion = advertisedVersionMatch[1];
+assert(localManagerProject.includes(`<Version>${advertisedWindowsVersion}</Version>`), 'Windows project Version must match update route version');
+assert(localManagerProject.includes(`<AssemblyVersion>${advertisedWindowsVersion}.0</AssemblyVersion>`), 'Windows project AssemblyVersion must match update route version');
+assert(localManagerProject.includes(`<FileVersion>${advertisedWindowsVersion}.0</FileVersion>`), 'Windows project FileVersion must match update route version');
+assert(localManager.includes(`Mad4B-Local-Manager-Setup-${advertisedWindowsVersion}.exe`), 'Local Manager EXE asset URL must include the advertised update route version');
+assert(localManager.includes(`Mad4B-Local-Manager-Setup-${advertisedWindowsVersion}.exe.sha256.json`), 'Local Manager SHA256 URL must include the advertised update route version');
+
 assert(connectorAgent.includes('const AGENT_VERSION = "2026.05.28.1"'), 'connector agent version must move for DB-driven shell policy release');
 assert(connectorAgent.includes('"browser4-adapter.mjs"'), 'Browser4 adapter must be shipped by connector-agent manifest');
 assert(connectorAgent.includes('LOCAL_TOOL_RELEASES'), 'connector-agent manifest must define local tool releases');
