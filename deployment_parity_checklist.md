@@ -1,5 +1,11 @@
 # Deployment Parity Checklist
 
+## Temporary Hostinger deploy-gate cleanup
+
+Migration `1039_sprint69_disable_temporary_hostinger_deploy_gates.sql` disables the temporary Hostinger SSH executor gate and inactivates the temporary `remote_runtime_target` deploy authority binding after production parity verification run `1b619912-fc20-46f8-a000-37d80e115a8b` confirmed expected and deployed commit `308146d11050ebb473b4f85f1ff54feab7e41aac`. It performs no deploy, restart, provider call, credential payload read, raw-secret access, external send, or external write; it only closes temporary recovery gates after successful readback.
+
+Checksum: `6bea59de59ab79295b4cc500f635602755a3a66478d3d4e26124d06d0d304b12`.
+
 ## Temporary Hostinger deploy resource authority binding
 
 Migration `1038_sprint69_hostinger_deploy_resource_authority_binding.sql` repairs the deploy-release preflight root cause by adding a two-hour `platform_resource_authority_bindings` row for the production Hostinger runtime target and mode `deploy`. This migration does not deploy, restart, call providers, read credential payloads, expose secrets, or perform external writes. Actual parity recovery still requires a fresh deploy dry-run with `dispatch_ready=true`, an approved deploy capability envelope, bounded SSH execution, `/health` and `/version` readback, and expiry or disablement of the temporary authority after verification.

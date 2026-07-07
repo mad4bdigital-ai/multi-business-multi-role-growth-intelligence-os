@@ -1,5 +1,11 @@
 # Hostinger Node.js Auto Deploy
 
+## Temporary deploy-gate cleanup
+
+Migration `1039_sprint69_disable_temporary_hostinger_deploy_gates.sql` is the cleanup companion for the temporary Hostinger executor and deploy-authority recovery work. Apply it only after production parity readback proves the deployed commit matches the expected `main` SHA. It sets `remote_runtime_hostinger_ssh_executor_enabled.enabled=false`, marks the runtime config inactive, and inactivates the temporary `hostinger://auth.mad4b.com/production` deploy authority binding.
+
+The cleanup migration does not deploy, restart, call providers, read credential payloads, expose secrets, or perform external sends/writes. It is the preferred closure path after parity verification so temporary break-glass gates are not left active beyond their recovery window.
+
 ## Temporary deploy resource authority binding
 
 Migration `1038_sprint69_hostinger_deploy_resource_authority_binding.sql` grants a two-hour dynamic resource authority binding for `remote_runtime_target` at `hostinger://auth.mad4b.com/production` with allowed mode `deploy`. It exists only so `admin_control` and deploy-envelope preflight can prove target-specific authority before executing the governed deploy-release tool.
