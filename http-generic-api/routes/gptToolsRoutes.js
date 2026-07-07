@@ -328,9 +328,14 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       truncatedResult,
     ].join("\n");
 
+    const turnSession = {
+      ...session,
+      workspace_key: workspaceKey || session.workspace_key || null,
+      brand_key: brandKey || session.brand_key || null,
+    };
     const writeback = await recordGptSessionTurn({
       pool,
-      session,
+      session: turnSession,
       role: "tool",
       content,
       action_key: toolKey,
