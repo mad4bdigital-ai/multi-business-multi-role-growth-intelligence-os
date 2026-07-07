@@ -60,9 +60,9 @@
 
 - [ ] T180 Implement manifest/projection/certification drift reconciliation.
 - [ ] T181 Persist capability debt with ownership, severity, and closure lifecycle.
-- [ ] T182 Generate operational alerts from typed assurance gaps and runtime failures.
-- [ ] T183 Require matching operation/resource fingerprints for later-success resolution.
-- [ ] T184 Migrate operational alert sync/lifecycle tools as the first internal-write pilot.
+- [x] T182 Generate operational alerts from typed assurance gaps and runtime failures.
+- [x] T183 Require matching operation/resource fingerprints for later-success resolution.
+- [x] T184 Migrate operational alert sync/lifecycle tools as the first internal-write pilot.
 
 ## Capability cohorts
 
@@ -77,8 +77,8 @@
 
 ## Verification and closeout
 
-- [ ] T220 Add deterministic unit, integration, property, security, and parity tests.
-- [ ] T221 Register tests in the explicit test manifest.
+- [x] T220 Add deterministic unit, integration, property, security, and parity tests.
+- [x] T221 Register tests in the explicit test manifest.
 - [ ] T222 Update OpenAPI splits, canonicals, knowledge guide, and resource coverage manifests.
 - [ ] T223 Run CI, architecture drift, contract, resource coverage, and completion gates.
 - [ ] T224 Apply authorized additive migrations with checksum and schema readback.
@@ -94,3 +94,7 @@
 - [ ] T302 Record every merged implementation PR and SHA in `completion.json`.
 - [ ] T303 Resolve every task and checklist item before marking the feature complete.
 - [ ] T304 Run `node http-generic-api/scripts/spec-kit-completion-gate.mjs --changed` in every changed-scope PR.
+
+### Operational alert pilot audit note
+
+T182-T184 are marked implementation-complete based on live `main` evidence in `operationalAlertService.js`, `test-operational-alerting-control-plane.mjs`, `20260704_operational_alert_lifecycle_fingerprints.sql`, and `governed-migration-runner.mjs`. This does not mark the feature complete: migration apply/readback, production runtime parity, post-merge audit, and full completion bookkeeping remain tracked by T224-T228 and T302-T304.
