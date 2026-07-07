@@ -1,5 +1,23 @@
 # Hostinger Runtime Sync Guard
 
+## Temporary gate status normalization
+
+If cleanup readback shows enum-backed `status` fields as blank or non-canonical, apply `1040_sprint69_normalize_temporary_hostinger_gate_statuses.sql` after parity verification and the cleanup migration. The migration sets the SSH executor runtime config status to `disabled` and the temporary deploy resource authority binding status to `revoked`.
+
+This is not a deployment mechanism and does not prove runtime parity. It performs no SSH execution, provider call, credential payload read, raw-secret access, external send, or external write; it only makes the audit state explicit and enum-valid.
+
+## Temporary deploy-gate cleanup
+
+After production parity is verified, use `1039_sprint69_disable_temporary_hostinger_deploy_gates.sql` to close the temporary recovery surfaces created by migrations 1037 and 1038. The cleanup disables `remote_runtime_hostinger_ssh_executor_enabled`, marks the runtime config inactive, and inactivates the temporary Hostinger deploy resource-authority binding for `hostinger://auth.mad4b.com/production`.
+
+This cleanup is not a deploy signal. It performs no provider call, no credential payload read, no raw-secret access, no external send/write, and no SSH execution. Verify `/health`, `/version`, and commit parity first, then run the governed migration authorization, dry-run, apply, and same-cycle DB readback.
+
+## Temporary deploy resource authority recovery
+
+Use `1038_sprint69_hostinger_deploy_resource_authority_binding.sql` when deploy dry-run is ready but deploy-envelope creation or `admin_control` shell preflight is blocked by `dynamic_resource_authority_denied` for the production Hostinger target. It inserts one two-hour binding for `resource_type=remote_runtime_target`, `resource_uri=hostinger://auth.mad4b.com/production`, and `allowed_modes_json=['deploy']`.
+
+The binding is not proof of deployment. After applying it, rerun deploy dry-run, create and approve the deploy envelope for the exact expected `main` SHA, execute the bounded deploy-release tool, verify `/health` and `/version`, then allow the binding to expire or disable it through governed config. Never use this binding to bypass dry-run, typed approval, bounded output, or runtime parity readback.
+
 > Surface-contract auto-remediation boundary: `.github/workflows/surface-contract-auto-remediation.yml` is not a runtime-sync or deployment mechanism. Its successful PR/CI result proves only repository documentation and checksum-bound evidence consistency. Generated evidence may include only numbered Spec Kit `specs/NNN-*/manifest.json` files; runtime source, migration SQL, provider state, and credentials remain outside the mutation boundary. The workflow parses changed paths with `git status --porcelain=v1 -z`, preserving spaces before applying the documentation-only allowlist. If repository Auto Merge cannot be requested, the workflow emits a warning and leaves the remediation PR open for governed review; it does not attempt a direct merge and the completed generation/validation work is not classified as failed. It must not be used as proof that `auth.mad4b.com` loaded a commit; CI, Hostinger deployment, `/health`, `/version`, and deployed-commit parity checks remain mandatory.
 
 ## Purpose

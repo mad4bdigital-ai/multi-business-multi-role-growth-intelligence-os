@@ -6,6 +6,7 @@ import {
   classifySpecLifecycle,
   collectChunkedToolResponse,
   runRepositoryAutomation,
+  scanRepositoryAutomationHygiene,
 } from "./repositoryAutomationControlPlane.js";
 
 const expectedCapabilities = [
@@ -187,6 +188,71 @@ assert.equal(chunked.body.ok, true);
 assert.equal(chunked.chunk_collection.chunk_count, 2);
 assert.equal(chunked.chunk_collection.continuation_complete, true);
 assert.equal(chunked.chunk_collection.response_sha256.length, 64);
+
+const nestedRuntimeSha = "c".repeat(40);
+const hygienePool = {
+  async query(sql) {
+    if (sql.includes("FROM capability_resolution_envelope_ledger")) return [[]];
+    if (sql.includes("FROM governed_migration_authorization_registry")) return [[]];
+    if (sql.includes("FROM repository_automation_runs")) return [[]];
+    if (sql.includes("FROM execution_policies")) return [[]];
+    throw new Error(`unexpected hygiene query ${sql}`);
+  },
+};
+const hygiene = await scanRepositoryAutomationHygiene({
+  include_github: true,
+  owner: "mad4bdigital-ai",
+  repo: "multi-business-multi-role-growth-intelligence-os",
+  default_branch: "main",
+}, {
+  pool: hygienePool,
+  dispatch: async (toolKey, args) => {
+    if (toolKey === "repo_inspect") {
+      return { status: 200, body: { ok: true, result: { head_sha: nestedRuntimeSha, status: "## HEAD (no branch)" } } };
+    }
+    assert.equal(toolKey, "runtime_endpoint_call");
+    if (args.endpoint_key === "github_graphql") {
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          result: {
+            body: {
+              ok: true,
+              data: {
+                data: {
+                  repository: {
+                    defaultBranchRef: { name: "main", target: { oid: nestedRuntimeSha, committedDate: "2026-07-07T00:00:00Z" } },
+                    refs: { nodes: [] },
+                    openPullRequests: { nodes: [] },
+                    recentPullRequests: { nodes: [] },
+                  },
+                },
+              },
+            },
+          },
+        },
+      };
+    }
+    if (args.endpoint_key === "github_get_reference") {
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          status: 200,
+          data: {
+            ref: "refs/heads/main",
+            object: { sha: nestedRuntimeSha, type: "commit" },
+          },
+        },
+      };
+    }
+    throw new Error(`unexpected runtime endpoint ${args.endpoint_key}`);
+  },
+});
+assert.equal(hygiene.finding_count, 0);
+assert.equal(hygiene.sources.github_inventory, true);
+assert.equal(hygiene.sources.deployment_parity, true);
 
 const routes = readFileSync(new URL("./routes/repositoryAutomationRoutes.js", import.meta.url), "utf8");
 const indexRoutes = readFileSync(new URL("./routes/index.js", import.meta.url), "utf8");

@@ -1,5 +1,23 @@
 # Hostinger Node.js Auto Deploy
 
+## Temporary gate status normalization
+
+Migration `1040_sprint69_normalize_temporary_hostinger_gate_statuses.sql` is the final cleanup normalization for the temporary Hostinger recovery gates. Use it after `1039_sprint69_disable_temporary_hostinger_deploy_gates.sql` if enum-backed status columns read back as empty or non-canonical values. It normalizes the executor gate to `disabled` and the deploy authority binding to `revoked`.
+
+This normalization performs no deploy, restart, provider call, credential payload read, raw-secret access, external send, or external write. It is an audit/readback correction only.
+
+## Temporary deploy-gate cleanup
+
+Migration `1039_sprint69_disable_temporary_hostinger_deploy_gates.sql` is the cleanup companion for the temporary Hostinger executor and deploy-authority recovery work. Apply it only after production parity readback proves the deployed commit matches the expected `main` SHA. It sets `remote_runtime_hostinger_ssh_executor_enabled.enabled=false`, marks the runtime config inactive, and inactivates the temporary `hostinger://auth.mad4b.com/production` deploy authority binding.
+
+The cleanup migration does not deploy, restart, call providers, read credential payloads, expose secrets, or perform external sends/writes. It is the preferred closure path after parity verification so temporary break-glass gates are not left active beyond their recovery window.
+
+## Temporary deploy resource authority binding
+
+Migration `1038_sprint69_hostinger_deploy_resource_authority_binding.sql` grants a two-hour dynamic resource authority binding for `remote_runtime_target` at `hostinger://auth.mad4b.com/production` with allowed mode `deploy`. It exists only so `admin_control` and deploy-envelope preflight can prove target-specific authority before executing the governed deploy-release tool.
+
+The binding does not deploy, restart, call providers, read credential payloads, expose secrets, or bypass the deploy capability envelope. Deploy execution remains blocked until dry-run returns `dispatch_ready=true`, a fresh deploy envelope is approved for the exact expected `main` SHA, bounded SSH execution is accepted, and `/health` plus `/version` readback prove parity. The binding must expire or be disabled after parity verification.
+
 > Repository-only governance note: `.github/workflows/surface-contract-auto-remediation.yml` does not deploy, restart, or synchronize any Hostinger app. It only opens reviewable documentation/generated-evidence PRs within an explicit path allowlist. Changed paths are parsed with NUL delimiters so filenames containing spaces are evaluated exactly and cannot bypass or falsely fail the allowlist. When repository Auto Merge is disabled or unavailable, the workflow emits a warning and leaves the PR open; it must not fail the completed remediation or fall back to a direct merge. A merged remediation PR does not satisfy deployment verification; production still requires CI, Hostinger Git deployment, `/health`, `/version`, and commit-parity readback.
 
 ## Purpose
