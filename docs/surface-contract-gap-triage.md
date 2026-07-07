@@ -4,18 +4,22 @@
 
 ## Summary
 
-- Triaged items: 5
-- Gate candidates: 3
-- New-gap gate: pass
-- Blocking new items: 0
+- Triaged items: 9
+- Gate candidates: 7
+- New-gap gate: fail
+- Blocking new items: 4
 
 ## Class counts
 
-- new_surface_immediate_review: 3
+- new_surface_immediate_review: 7
 - safety_marker_review: 2
 
 ## Immediate review candidates
 
 - `1030_sprint69_default_blocker_recovery_governance_seed.sql` — critical_review, score 1079; next: add targeted patch-index, parity, and governance documentation
 - `1031_sprint69_github_actions_diagnostics_endpoints_seed.sql` — critical_review, score 1071; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `1040_sprint69_capability_enablement_operational_dashboard.sql` — high_review, score 552; next: add targeted patch-index, parity, and governance documentation
 - `20260706_session_archive_stale_closure_autosweep.sql` — high_review, score 511; next: add targeted patch-index, parity, and governance documentation
+- `1039_sprint69_disable_temporary_hostinger_deploy_gates.sql` — high_review, score 462; next: add targeted patch-index, parity, and governance documentation
+- `1038_sprint69_hostinger_deploy_resource_authority_binding.sql` — high_review, score 459; next: add targeted patch-index, parity, and governance documentation
+- `1041_sprint69_hard_disable_temporary_hostinger_executor_gate.sql` — high_review, score 426; next: add targeted patch-index, parity, and governance documentation
