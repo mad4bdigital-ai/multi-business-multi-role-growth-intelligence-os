@@ -4,9 +4,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPool } from "./db.js";
 import {
-  GOVERNED_MIGRATION_EXECUTE_APPLY_POLICY as MIGRATION_EXECUTOR_APPLY_POLICY,
-} from "./governedMigrationApplyPolicyBootstrap.js";
-import {
   assessMigrationSqlPreflight,
   extractMigrationReadinessRequirementsFromSql,
   splitSqlStatements,
