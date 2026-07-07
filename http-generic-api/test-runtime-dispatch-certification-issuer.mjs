@@ -32,6 +32,7 @@ function buildArgs(overrides = {}) {
 
 function buildPool({ targetRows = [{ source: "admin_platform_endpoint_tools" }] } = {}) {
   const queries = [];
+  let lastInserted = null;
   return {
     queries,
     async query(sql, params = []) {
@@ -40,28 +41,30 @@ function buildPool({ targetRows = [{ source: "admin_platform_endpoint_tools" }] 
         return [targetRows];
       }
       if (String(sql).startsWith("INSERT INTO runtime_dispatch_certification_registry")) {
+        lastInserted = {
+          certification_key: params[0],
+          surface_key: params[1],
+          surface_family: params[2],
+          tool_or_action_key: params[3],
+          risk_class: params[4],
+          certification_status: params[5],
+          smoke_strategy: params[6],
+          dispatch_allowed: params[7],
+          apply_allowed: params[8],
+          requires_resource_authority: params[9],
+          requires_dry_run: params[10],
+          requires_audit_evidence: params[11],
+          requires_readback: params[12],
+          last_evidence_ref: params[13],
+          notes: params[14],
+        };
         return [{ affectedRows: 1 }];
       }
       if (String(sql).includes("FROM runtime_dispatch_certification_registry")) {
-        const args = buildArgs();
         return [[{
-          certification_key: args.certification_key,
-          surface_key: args.surface_key,
-          surface_family: args.surface_family,
-          tool_or_action_key: args.tool_or_action_key,
-          risk_class: args.risk_class,
-          certification_status: args.certification_status,
-          smoke_strategy: args.smoke_strategy,
-          dispatch_allowed: 1,
-          apply_allowed: 0,
-          requires_resource_authority: 1,
-          requires_dry_run: 1,
-          requires_audit_evidence: 1,
-          requires_readback: 1,
-          last_evidence_ref: args.last_evidence_ref,
+          ...lastInserted,
           last_certified_at: new Date("2026-07-07T00:00:00Z"),
           expires_at: new Date("2026-07-08T00:00:00Z"),
-          notes: args.notes,
         }]];
       }
       throw new Error(`Unexpected SQL in test pool: ${sql}`);
