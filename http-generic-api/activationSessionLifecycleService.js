@@ -80,14 +80,12 @@ async function findReusableRun(pool, { tenantId, userId, workspaceKey, brandKey,
        JOIN customer_sessions s ON s.session_id = r.session_id
       WHERE r.tenant_id = ?
         AND (? IS NULL OR r.user_id = ?)
-        AND (? IS NULL OR s.workspace_key = ?)
-        AND (? IS NULL OR s.brand_key = ?)
         AND r.idempotency_key = ?
         AND r.created_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL ? HOUR)
         AND s.session_status IN ('pending','active')
       ORDER BY r.created_at DESC
       LIMIT 1`,
-    [tenantId, userId, userId, workspaceKey, workspaceKey, brandKey, brandKey, idempotencyKey, reuseWindowHours]
+    [tenantId, userId, userId, idempotencyKey, reuseWindowHours]
   );
   if (!result.ok) return { ok: false, row: null, error: result.error };
   return { ok: true, row: result.rows[0] || null };
