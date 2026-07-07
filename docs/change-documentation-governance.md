@@ -1,5 +1,7 @@
 # Repo and SQL Change Documentation Governance
 
+> `1041_sprint69_hard_disable_temporary_hostinger_executor_gate.sql` documents the final hard-disable for the temporary Hostinger SSH executor gate after parity verification. It performs no deploy, no provider call, no credential payload read, no raw secret, no external send/write, and only closes the temporary runtime config gate with enum-supported disabled status and false execution flags.
+
 > `1040_sprint69_normalize_temporary_hostinger_gate_statuses.sql` documents final status normalization for temporary Hostinger deployment recovery gates. It performs no deploy, no provider call, no credential payload read, no raw secret, no external send/write, and only normalizes enum-backed audit states to `disabled` and `revoked` after parity cleanup.
 
 > `1039_sprint69_disable_temporary_hostinger_deploy_gates.sql` documents closure of temporary Hostinger deployment recovery gates after production parity readback. It performs no deploy, no provider call, no credential payload read, no raw secret, no external send/write, and exists only to mark temporary executor/resource-authority recovery surfaces inactive.

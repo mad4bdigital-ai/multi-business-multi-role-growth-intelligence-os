@@ -239,10 +239,20 @@ const hygiene = await scanRepositoryAutomationHygiene({
         status: 200,
         body: {
           ok: true,
-          status: 200,
-          data: {
-            ref: "refs/heads/main",
-            object: { sha: nestedRuntimeSha, type: "commit" },
+          result: {
+            ok: true,
+            name: "runtime_endpoint_call",
+            result: {
+              status: 200,
+              body: {
+                ok: true,
+                status: 200,
+                data: {
+                  ref: "refs/heads/main",
+                  object: { sha: nestedRuntimeSha, type: "commit" },
+                },
+              },
+            },
           },
         },
       };
