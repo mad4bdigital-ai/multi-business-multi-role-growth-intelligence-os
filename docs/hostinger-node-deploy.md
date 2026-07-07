@@ -1,5 +1,11 @@
 # Hostinger Node.js Auto Deploy
 
+## Temporary gate status normalization
+
+Migration `1040_sprint69_normalize_temporary_hostinger_gate_statuses.sql` is the final cleanup normalization for the temporary Hostinger recovery gates. Use it after `1039_sprint69_disable_temporary_hostinger_deploy_gates.sql` if enum-backed status columns read back as empty or non-canonical values. It normalizes the executor gate to `disabled` and the deploy authority binding to `revoked`.
+
+This normalization performs no deploy, restart, provider call, credential payload read, raw-secret access, external send, or external write. It is an audit/readback correction only.
+
 ## Temporary deploy-gate cleanup
 
 Migration `1039_sprint69_disable_temporary_hostinger_deploy_gates.sql` is the cleanup companion for the temporary Hostinger executor and deploy-authority recovery work. Apply it only after production parity readback proves the deployed commit matches the expected `main` SHA. It sets `remote_runtime_hostinger_ssh_executor_enabled.enabled=false`, marks the runtime config inactive, and inactivates the temporary `hostinger://auth.mad4b.com/production` deploy authority binding.
