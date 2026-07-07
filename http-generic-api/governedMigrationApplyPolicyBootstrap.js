@@ -172,7 +172,17 @@ export async function bootstrapGovernedMigrationApplyPolicy(input = {}, deps = {
   const resolveEnvelope = deps.resolveEnvelope || resolveCapabilityExecutionEnvelope;
   const markReferenced = deps.markReferenced || markCapabilityEnvelopeReferenced;
   const envelope = await resolveBootstrapEnvelope({ pool, input, auth, resolveEnvelope });
-  const existing = verifyPolicy(await queryPolicy(pool));
+  const existingRow = await queryPolicy(pool);
+  let existing = null;
+  let policyUpgradeRequired = false;
+  if (existingRow) {
+    try {
+      existing = verifyPolicy(existingRow);
+    } catch (error) {
+      if (error?.code !== "governed_migration_apply_policy_conflict") throw error;
+      policyUpgradeRequired = true;
+    }
+  }
   if (existing) {
     await markReferenced({
       pool,
@@ -182,6 +192,7 @@ export async function bootstrapGovernedMigrationApplyPolicy(input = {}, deps = {
     return {
       ok: true,
       policy_created: false,
+      policy_upgraded: false,
       idempotent: true,
       policy: existing,
       capability_envelope_id: envelope.envelope_id,
@@ -204,7 +215,27 @@ export async function bootstrapGovernedMigrationApplyPolicy(input = {}, deps = {
          requires_ready_for_dispatch, requires_dispatch_allowed, requires_zero_blocking_gaps,
          requires_audit_evidence, requires_readback, requires_typed_confirmation,
          requires_same_cycle_dry_run, allowed_source_tiers_json, policy_json, notes)
-       VALUES (?, ?, ?, ?, ?, 'active', 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, 'active', 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         app_key = VALUES(app_key),
+         capability_key = VALUES(capability_key),
+         operation_intent = VALUES(operation_intent),
+         runtime_surface = VALUES(runtime_surface),
+         status = 'active',
+         allow_external_write = 0,
+         allow_credential_binding = 0,
+         allow_no_credential_binding = 1,
+         requires_ready_for_dispatch = 1,
+         requires_dispatch_allowed = 1,
+         requires_zero_blocking_gaps = 1,
+         requires_audit_evidence = 1,
+         requires_readback = 1,
+         requires_typed_confirmation = 1,
+         requires_same_cycle_dry_run = 1,
+         allowed_source_tiers_json = VALUES(allowed_source_tiers_json),
+         policy_json = VALUES(policy_json),
+         notes = VALUES(notes),
+         updated_at = CURRENT_TIMESTAMP`,
       [
         expected.policy_key,
         expected.app_key,
@@ -252,7 +283,8 @@ export async function bootstrapGovernedMigrationApplyPolicy(input = {}, deps = {
   });
   return {
     ok: true,
-    policy_created: true,
+    policy_created: !policyUpgradeRequired,
+    policy_upgraded: policyUpgradeRequired,
     idempotent: false,
     policy: readback,
     capability_envelope_id: envelope.envelope_id,

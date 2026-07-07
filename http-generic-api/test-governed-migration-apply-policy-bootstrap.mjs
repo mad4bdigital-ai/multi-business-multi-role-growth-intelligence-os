@@ -102,8 +102,65 @@ const idempotent = await bootstrapGovernedMigrationApplyPolicy(input, {
   markReferenced,
 });
 assert.equal(idempotent.policy_created, false);
+assert.equal(idempotent.policy_upgraded, false);
 assert.equal(idempotent.idempotent, true);
 assert.equal(insertCount, 1);
+
+policyRow = {
+  policy_key: "governed_migration_execute_apply_v1",
+  app_key: "platform_orchestration",
+  capability_key: "governed_migration_execute",
+  operation_intent: "governed_migration_apply",
+  runtime_surface: "governed_migration_execute",
+  status: "active",
+  allow_external_write: 0,
+  allow_credential_binding: 0,
+  allow_no_credential_binding: 1,
+  requires_ready_for_dispatch: 1,
+  requires_dispatch_allowed: 1,
+  requires_zero_blocking_gaps: 1,
+  requires_audit_evidence: 1,
+  requires_readback: 1,
+  requires_typed_confirmation: 1,
+  requires_same_cycle_dry_run: 1,
+  allowed_source_tiers_json: JSON.stringify(["platform_managed_fallback"]),
+  policy_json: JSON.stringify({
+    external_write_allowed: false,
+    provider_call_allowed: false,
+    credential_payload_read_allowed: false,
+    migration_authorization_registry_required: true,
+    checksum_bound: true,
+    statement_count_bound: true,
+    zero_risk_preflight_required: true,
+    exact_typed_confirmation_required: true,
+    governed_ledger_required: true,
+    same_cycle_schema_readback_required: true,
+    secrets_included: false,
+  }),
+  notes: "Legacy policy contract before auth_host migration runner alignment.",
+  created_at: "2026-06-30T00:00:00.000Z",
+  updated_at: "2026-06-30T00:00:00.000Z",
+};
+insertCount = 0;
+referencedEnvelope = null;
+const upgraded = await bootstrapGovernedMigrationApplyPolicy(input, {
+  pool: fakePool,
+  auth: { tenant_id: "00000000-0000-0000-0000-000000000000", user_id: "admin-user" },
+  resolveEnvelope,
+  markReferenced,
+});
+assert.equal(upgraded.ok, true);
+assert.equal(upgraded.policy_created, false);
+assert.equal(upgraded.policy_upgraded, true);
+assert.equal(upgraded.idempotent, false);
+assert.equal(insertCount, 1);
+assert.equal(upgraded.policy.operation_intent, "governed_migration_execute");
+assert.equal(upgraded.policy.runtime_surface, "auth_host");
+assert.equal(upgraded.policy.policy_json.provider_call_forbidden, true);
+assert.deepEqual(referencedEnvelope, {
+  envelopeId: "env-policy-bootstrap-1",
+  executionRef: "capability_apply_policy:governed_migration_execute_apply_v1",
+});
 
 await assert.rejects(
   () => bootstrapGovernedMigrationApplyPolicy({ ...input, runtime_surface: "custom" }, {
