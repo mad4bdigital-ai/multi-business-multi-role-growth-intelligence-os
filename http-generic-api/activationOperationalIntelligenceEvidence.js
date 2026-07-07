@@ -609,6 +609,7 @@ export async function buildActivationOperationalIntelligenceEvidence({ sessionCo
     },
     attention_queue: attentionQueue,
     tab_badges: buildTabBadges(rows),
+    capability_enablement: capabilityEnablement,
     section_actions: rows.actions.rows.map(stripSensitive),
     freshness: {
       policies: rows.freshnessPolicies.rows.map(stripSensitive),
