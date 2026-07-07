@@ -118,13 +118,8 @@ function buildEnforcementObligations(resolution = {}, policy = {}) {
 
 const TYPED_DECISION_INPUT_SCHEMA = Object.freeze({
   type: "object",
-  properties: {
-    subject: { type: "object", additionalProperties: true },
-    action: { type: "object", additionalProperties: true },
-    resource: { type: "object", additionalProperties: true },
-    context: { type: "object", additionalProperties: true },
-  },
-  additionalProperties: false,
+  description: "Optional typed subject-action-resource-context input.",
+  additionalProperties: true,
 });
 
 export const TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS = Object.freeze([
