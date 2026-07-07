@@ -72,24 +72,26 @@ async function findActiveSession(pool, subject = {}) {
   return result.ok ? result.rows[0] || null : null;
 }
 
-async function findReusableRun(pool, { tenantId, userId, idempotencyKey, reuseWindowHours }) {
+async function findReusableRun(pool, { tenantId, userId, workspaceKey, brandKey, idempotencyKey, reuseWindowHours }) {
   if (!idempotencyKey) return { ok: true, row: null };
   const result = await querySafe(
     pool,
     `SELECT r.run_id, r.session_id, r.idempotency_key, r.response_profile,
             r.run_status, r.validation_state, r.evidence_state, r.delivery_state,
             r.consumer_ack_state, r.retry_count, r.snapshot_id, r.created_at, r.updated_at,
-            s.session_status, s.started_at
+            s.session_status, s.started_at, s.workspace_key, s.brand_key
        FROM activation_runs r
        JOIN customer_sessions s ON s.session_id = r.session_id
       WHERE r.tenant_id = ?
         AND (? IS NULL OR r.user_id = ?)
+        AND (? IS NULL OR s.workspace_key = ?)
+        AND (? IS NULL OR s.brand_key = ?)
         AND r.idempotency_key = ?
         AND r.created_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL ? HOUR)
         AND s.session_status IN ('pending','active')
       ORDER BY r.created_at DESC
       LIMIT 1`,
-    [tenantId, userId, userId, idempotencyKey, reuseWindowHours]
+    [tenantId, userId, userId, workspaceKey, workspaceKey, brandKey, brandKey, idempotencyKey, reuseWindowHours]
   );
   if (!result.ok) return { ok: false, row: null, error: result.error };
   return { ok: true, row: result.rows[0] || null };
