@@ -767,6 +767,24 @@ function githubData(result) {
   return body?.data?.data || body?.data || body;
 }
 
+function githubRepositoryData(result) {
+  const body = githubData(result);
+  return body?.repository || body?.data?.repository || body?.data?.data?.repository || null;
+}
+
+function githubRefSha(result) {
+  const body = githubData(result);
+  return compact(
+    body?.object?.sha
+    || body?.data?.object?.sha
+    || body?.data?.data?.object?.sha
+    || body?.sha
+    || body?.data?.sha
+    || "",
+    64,
+  );
+}
+
 async function executeDocsAgentStabilization(input, dispatch) {
   if (!input.pull_number) return { ok: false, status: "awaiting_input", missing_required_fields: ["pull_number"], secrets_included: false };
   const args = {
@@ -808,9 +826,8 @@ async function executeDeploymentParity(input, dispatch) {
     timeout_seconds: 60,
   }));
   const localBody = toolBody(local)?.result || toolBody(local);
-  const remoteBody = githubData(remote)?.data || githubData(remote);
   const productionSha = compact(localBody?.head_sha || "", 64);
-  const mainSha = compact(remoteBody?.object?.sha || remoteBody?.sha || "", 64);
+  const mainSha = githubRefSha(remote);
   const clean = /^## HEAD \(no branch\)\s*$/m.test(String(localBody?.status || "").trim()) || /working tree clean/i.test(String(localBody?.status || ""));
   const parity = local.ok && remote.ok && productionSha && mainSha && productionSha === mainSha && clean;
   return {
@@ -901,7 +918,7 @@ async function executeRepositoryInventory(input, dispatch) {
     credential_scope: "platform",
     timeout_seconds: 60,
   }));
-  const repoData = githubData(result)?.repository || githubData(result)?.data?.repository || null;
+  const repoData = githubRepositoryData(result);
   if (!result.ok || !repoData) return { ok: false, status: "inventory_failed", provider: safeSummary(result.body), secrets_included: false };
   const refs = repoData.refs?.nodes || [];
   const refNames = new Set(refs.map((ref) => ref.name));
