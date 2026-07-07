@@ -7,10 +7,14 @@ on:
       - main
     paths:
       - 'apps/local-manager-windows/**'
+      - 'http-generic-api/routes/localManagerBetaRoutes.js'
+      - 'http-generic-api/test-local-manager-tool-release-owner.mjs'
       - '.github/workflows/local-manager-windows.yml'
   pull_request:
     paths:
       - 'apps/local-manager-windows/**'
+      - 'http-generic-api/routes/localManagerBetaRoutes.js'
+      - 'http-generic-api/test-local-manager-tool-release-owner.mjs'
       - '.github/workflows/local-manager-windows.yml'
 
 permissions:
@@ -58,6 +62,22 @@ jobs:
           Copy-Item -LiteralPath $source -Destination $versionedTarget -Force
           Get-FileHash -Algorithm SHA256 -LiteralPath $target | ConvertTo-Json | Out-File -Encoding utf8 'dist/Mad4B-Local-Manager-Setup.exe.sha256.json'
           Get-FileHash -Algorithm SHA256 -LiteralPath $versionedTarget | ConvertTo-Json | Out-File -Encoding utf8 "dist/Mad4B-Local-Manager-Setup-$version.exe.sha256.json"
+
+      - name: Validate update metadata matches EXE version
+        shell: pwsh
+        run: |
+          $projectPath = 'apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj'
+          $routePath = 'http-generic-api/routes/localManagerBetaRoutes.js'
+          [xml]$project = Get-Content -LiteralPath $projectPath
+          $version = ($project.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
+          if ([string]::IsNullOrWhiteSpace($version)) { throw "Expected <Version> in $projectPath" }
+          $route = Get-Content -Raw -LiteralPath $routePath
+          if ($route -notmatch "LOCAL_MANAGER_WINDOWS_LATEST_VERSION = `"$([regex]::Escape($version))`"") { throw "Update route does not advertise Local Manager Windows version $version" }
+          if ($route -notmatch "Mad4B-Local-Manager-Setup-$([regex]::Escape($version))\.exe") { throw "Update route EXE URL does not point at the versioned $version asset" }
+          if ($route -notmatch "Mad4B-Local-Manager-Setup-$([regex]::Escape($version))\.exe\.sha256\.json") { throw "Update route SHA256 URL does not point at the versioned $version checksum asset" }
+          foreach ($path in @("dist/Mad4B-Local-Manager-Setup.exe", "dist/Mad4B-Local-Manager-Setup.exe.sha256.json", "dist/Mad4B-Local-Manager-Setup-$version.exe", "dist/Mad4B-Local-Manager-Setup-$version.exe.sha256.json")) {
+            if (!(Test-Path -LiteralPath $path)) { throw "Expected Local Manager release artifact missing: $path" }
+          }
 
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v6

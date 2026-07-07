@@ -55,6 +55,16 @@ components:
         fingerprint_sha256:
           type: string
           pattern: ^[a-f0-9]{64}$
+        operation_fingerprint_sha256:
+          type:
+            - string
+            - "null"
+          pattern: ^[a-f0-9]{64}$
+        resource_fingerprint_sha256:
+          type:
+            - string
+            - "null"
+          pattern: ^[a-f0-9]{64}$
         source_type:
           type: string
         source_ref:
@@ -1059,7 +1069,7 @@ paths:
 x-gpt-action-auth-preset:
   authentication_type: OAuth
   schema_url: https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml
-  activation_schema_url: https://auth.mad4b.com/openapi.tenant-gpt.activation.yaml
+  activation_schema_url: https://activation.mad4b.com/tenant-gpt/activation-openapi
   client_id: mad4b-tenant-gpt
   client_secret: <resolved-from-governed-platform-secret>
   client_secret_ref: platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET
