@@ -287,8 +287,8 @@ async function main() {
   assert.equal(second.idempotent, true);
   assert.equal(second.migration_sql_executed, false);
   assert.equal(second.migration_executor_apply_policy.requires_readback, 1);
-  assert.equal(second.migration_executor_apply_policy.policy_json.provider_call_allowed, false);
-  assert.equal(second.migration_executor_apply_policy.policy_json.same_cycle_schema_readback_required, true);
+  assert.equal(second.migration_executor_apply_policy.policy_json.provider_call_forbidden, true);
+  assert.equal(second.migration_executor_apply_policy.policy_json.same_cycle_ledger_readback_required, true);
   assert.equal(second.migration_executor_dispatch_certification.dispatch_allowed, 1);
   assert.equal(second.migration_executor_dispatch_certification.apply_allowed, 0);
   assert.equal(second.migration_executor_dispatch_certification.requires_readback, 1);
