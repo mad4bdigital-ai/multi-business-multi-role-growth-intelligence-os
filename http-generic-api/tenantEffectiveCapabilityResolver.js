@@ -327,6 +327,247 @@ function buildMismatchTaxonomy({ status, ready }) {
   };
 }
 
+function safeObject(value = null) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function firstText(...values) {
+  for (const value of values) {
+    const text = safeText(value, 500);
+    if (text) return text;
+  }
+  return "";
+}
+
+function resolveTypedDecisionArgs(args = {}) {
+  const decisionInput = safeObject(args.decision_input);
+  const subject = safeObject(decisionInput.subject);
+  const action = safeObject(decisionInput.action);
+  const resource = safeObject(decisionInput.resource);
+  const context = safeObject(decisionInput.context);
+  const directCapability = safeText(args.capability_key, 191);
+  const typedCapability = safeText(action.capability_key || action.key, 191);
+  if (directCapability && typedCapability && directCapability !== typedCapability) {
+    return {
+      error: {
+        code: "DECISION_INPUT_ACTION_MISMATCH",
+        message: "capability_key and decision_input.action.capability_key must match.",
+        details: { capability_key: directCapability, decision_input_capability_key: typedCapability },
+      },
+    };
+  }
+  const directWorkspaceId = safeText(args.workspace_id, 64);
+  const typedWorkspaceId = safeText(resource.workspace_id || context.workspace_id, 64);
+  if (directWorkspaceId && typedWorkspaceId && directWorkspaceId !== typedWorkspaceId) {
+    return {
+      error: {
+        code: "DECISION_INPUT_RESOURCE_MISMATCH",
+        message: "workspace_id and decision_input resource/context workspace_id must match.",
+        details: { workspace_id: directWorkspaceId, decision_input_workspace_id: typedWorkspaceId },
+      },
+    };
+  }
+  const directResourceRef = safeText(args.resource_ref, 255);
+  const typedResourceRef = firstText(resource.ref, resource.resource_ref, resource.id, context.resource_ref).slice(0, 255);
+  const directConnectionId = safeText(args.connection_id, 64);
+  const typedConnectionId = safeText(context.connection_id, 64);
+  if (directConnectionId && typedConnectionId && directConnectionId !== typedConnectionId) {
+    return {
+      error: {
+        code: "DECISION_INPUT_CONTEXT_MISMATCH",
+        message: "connection_id and decision_input.context.connection_id must match.",
+        details: { connection_id: directConnectionId, decision_input_connection_id: typedConnectionId },
+      },
+    };
+  }
+  return {
+    supplied: Object.keys(decisionInput).length > 0,
+    capabilityKey: directCapability || typedCapability,
+    workspaceId: directWorkspaceId || typedWorkspaceId,
+    workspaceKey: safeText(args.workspace_key || context.workspace_key, 191),
+    resourceRef: directResourceRef || typedResourceRef,
+    connectionId: directConnectionId || typedConnectionId,
+    subject,
+    action,
+    resource,
+    context,
+  };
+}
+
+function buildTypedDecisionInput({ scope, workspace, capability, resolvedArgs }) {
+  return {
+    input_version: "tenant_capability_decision_input_v1",
+    supplied_by_caller: resolvedArgs.supplied,
+    subject: {
+      tenant_id: scope.tenantId,
+      user_id: scope.userId,
+      source: scope.admin ? "admin_diagnostic_or_authenticated_authority" : "authenticated_authority",
+      caller_subject_ignored_for_tenant_principal: !scope.admin && Object.keys(resolvedArgs.subject).length > 0,
+    },
+    action: {
+      capability_key: capability.capability_key,
+      resource_type: capability.resource_type,
+      operation_key: capability.operation_key,
+      requested_action_key: safeText(resolvedArgs.action.action_key, 191) || null,
+    },
+    resource: {
+      workspace_id: workspace.workspace_id,
+      workspace_key: workspace.workspace_key || null,
+      ref: resolvedArgs.resourceRef || workspace.workspace_id,
+      requested_ref: resolvedArgs.resourceRef || null,
+    },
+    context: {
+      connection_id: resolvedArgs.connectionId || null,
+      preview_only: true,
+      provider_apply_allowed: false,
+      runtime_surface: "tenant_effective_capability_resolver_v1",
+    },
+    secrets_included: false,
+  };
+}
+
+function buildRevisionVector({
+  workspace,
+  membership,
+  capability,
+  binding,
+  selectedConnection,
+  actionGrant,
+  authority,
+  endpointResult,
+  exportResult,
+  certification,
+}) {
+  return {
+    vector_version: "tenant_capability_revision_vector_v1",
+    workspace: {
+      workspace_id: workspace.workspace_id,
+      bootstrap_status: workspace.bootstrap_status,
+      created_at: workspace.created_at || null,
+    },
+    membership: {
+      user_id: membership.user_id,
+      role: membership.role,
+      status: membership.status,
+      granted_at: membership.granted_at || null,
+    },
+    capability: {
+      capability_key: capability.capability_key,
+      schema_version: capability.schema_version || null,
+      status: capability.status,
+    },
+    provider_binding: {
+      binding_id: binding.binding_id,
+      rollout_mode: binding.rollout_mode,
+      status: binding.status,
+      priority: binding.priority,
+    },
+    connection: selectedConnection ? {
+      connection_id: selectedConnection.connection_id,
+      status: selectedConnection.connection_status,
+      validation_status: selectedConnection.validation_status,
+      last_validated_at: selectedConnection.last_validated_at || null,
+    } : null,
+    action_grant: actionGrant ? {
+      grant_id: actionGrant.grant_id,
+      grant_mode: actionGrant.grant_mode,
+      status: actionGrant.status,
+      expires_at: actionGrant.expires_at || null,
+    } : null,
+    resource_grant: authority?.grant ? {
+      grant_id: authority.grant.grant_id,
+      resource_type: authority.grant.resource_type,
+      resource_ref: authority.grant.resource_ref,
+      permission: authority.grant.permission,
+      expires_at: authority.grant.expires_at || null,
+    } : null,
+    endpoint: endpointResult?.endpoint ? {
+      endpoint_id: endpointResult.endpoint.endpoint_id || null,
+      endpoint_key: endpointResult.canonical_endpoint_key,
+      updated_at: endpointResult.endpoint.updated_at || null,
+    } : null,
+    export: exportResult?.export ? {
+      export_key: exportResult.export.export_key,
+      status: exportResult.export.status,
+      updated_at: exportResult.export.updated_at || null,
+    } : null,
+    certification: certification ? {
+      certification_key: certification.certification_key,
+      certification_status: certification.certification_status,
+      last_certified_at: certification.last_certified_at || null,
+      expires_at: certification.expires_at || null,
+    } : null,
+    secrets_included: false,
+  };
+}
+
+function buildPolicyComposition({ capability, binding, actionGrant, authority, certification }) {
+  return {
+    composition_version: "tenant_capability_policy_composition_v1",
+    capability_policy_key: capability.default_policy_key || null,
+    binding_policy_key: binding.policy_key || null,
+    rollout_mode: binding.rollout_mode,
+    approval_required: Boolean(capability.requires_approval),
+    audit_evidence_required: Boolean(capability.requires_audit_evidence),
+    readback_required: Boolean(capability.requires_readback),
+    connection_required: Boolean(capability.requires_connection),
+    workspace_authority_required: Boolean(capability.requires_workspace_authority),
+    action_grant_present: Boolean(actionGrant),
+    resource_authority_present: Boolean(authority?.allowed),
+    runtime_certification_present: Boolean(certification),
+    provider_apply_allowed: binding.rollout_mode !== "shadow" && Boolean(certification?.apply_allowed),
+    secrets_included: false,
+  };
+}
+
+function buildObligations({ status, capability, binding, policyComposition }) {
+  const obligations = [];
+  if (policyComposition.approval_required) obligations.push("approval_required");
+  if (policyComposition.audit_evidence_required) obligations.push("audit_evidence_required");
+  if (policyComposition.readback_required) obligations.push("readback_required");
+  if (binding.rollout_mode === "shadow") obligations.push("shadow_compare_only");
+  if (binding.rollout_mode === "shadow") obligations.push("provider_apply_forbidden");
+  if (capability.requires_connection) obligations.push("validated_workspace_connection_required");
+  if (capability.requires_workspace_authority) obligations.push("resource_authority_required");
+  if (!status.endsWith("ready") && status !== "ready") obligations.push(`resolve_blocker:${status}`);
+  return {
+    obligation_version: "tenant_capability_obligations_v1",
+    obligations,
+    satisfied_for_preview: ["shadow_ready", "canary_ready", "ready"].includes(status),
+    provider_apply_allowed: false,
+    secrets_included: false,
+  };
+}
+
+function buildMismatchTaxonomy({ status, ready }) {
+  const blockingStatuses = new Set([
+    "workspace_not_registered",
+    "workspace_not_ready",
+    "workspace_membership_required",
+    "capability_not_registered",
+    "capability_binding_missing",
+    "connection_not_found",
+    "ambiguous_connection",
+    "connection_not_validated",
+    "capability_not_granted",
+    "resource_authority_missing",
+    "canonical_endpoint_unavailable",
+    "ambiguous_canonical_endpoint",
+    "runtime_certification_missing",
+    "capability_export_missing",
+  ]);
+  return {
+    taxonomy_version: "tenant_capability_mismatch_taxonomy_v1",
+    status,
+    family: ready ? "ready" : blockingStatuses.has(status) ? "blocked_dependency" : "unknown",
+    ambiguity: ["ambiguous_connection", "ambiguous_canonical_endpoint"].includes(status),
+    authority_gap: ["workspace_membership_required", "capability_not_granted", "resource_authority_missing"].includes(status),
+    runtime_gap: ["canonical_endpoint_unavailable", "runtime_certification_missing", "capability_export_missing"].includes(status),
+    retry_without_state_change_safe: ["connection_not_found", "canonical_endpoint_unavailable"].includes(status),
+    secrets_included: false,
+  };
+}
+
 async function loadSemanticCapabilitySchemaReadiness(pool) {
   const names = SEMANTIC_CAPABILITY_SCHEMA_OBJECTS.map((item) => item.name);
   const placeholders = names.map(() => "?").join(", ");
