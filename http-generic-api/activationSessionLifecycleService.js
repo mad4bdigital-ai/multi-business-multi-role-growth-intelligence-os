@@ -138,12 +138,16 @@ export async function resolveActivationSessionLifecycle({
 
   const tenantId = subject.tenant_id || "00000000-0000-0000-0000-000000000000";
   const userId = subject.user_id || null;
+  const workspaceKey = subject.workspace_key || null;
+  const brandKey = subject.brand_key || null;
   const sessionPolicy = normalizeActivationSessionPolicy(options.session_policy || (options.read_only ? "read_only" : "reuse_or_create"));
   const responseProfile = normalizeText(options.response_profile, 40) || "evidence";
   const idempotencyKey = deriveActivationIdempotencyKey({
     explicitKey: options.idempotency_key,
     tenantId,
     userId,
+    workspaceKey,
+    brandKey,
     conversationRef: options.conversation_ref,
   });
   const reuseWindowHours = Math.min(Math.max(Number(options.reuse_window_hours || DEFAULT_REUSE_WINDOW_HOURS), 1), 168);
