@@ -484,8 +484,8 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
           exit_code: exitCode,
           timed_out: exitCode === 124,
           auth_mode: authMode,
-          stdout: sanitizeSshOutput(stdout),
-          stderr: sanitizeSshOutput(stderr),
+          stdout: sanitizeSshOutput(stdout, redactionSecrets),
+          stderr: sanitizeSshOutput(stderr, redactionSecrets),
         }));
       });
       child.on("error", (err) => {
