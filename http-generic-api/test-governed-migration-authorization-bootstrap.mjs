@@ -251,8 +251,8 @@ async function main() {
   assert.equal(created.migration_executor_apply_policy.runtime_surface, "auth_host");
   assert.equal(created.migration_executor_apply_policy.allow_external_write, 0);
   assert.equal(created.migration_executor_apply_policy.requires_same_cycle_dry_run, 1);
-  assert.equal(created.migration_executor_apply_policy.policy_json.checksum_bound, true);
-  assert.equal(created.migration_executor_apply_policy.policy_json.governed_ledger_required, true);
+  assert.equal(created.migration_executor_apply_policy.policy_json.checksum_bound_authorization_required, true);
+  assert.equal(created.migration_executor_apply_policy.policy_json.same_cycle_ledger_readback_required, true);
   assert.equal(created.migration_executor_apply_policy.secrets_included, false);
   assert.equal(created.migration_executor_dispatch_certification.certification_key, "governed_migration_execute");
   assert.equal(created.migration_executor_dispatch_certification.dispatch_allowed, 1);
