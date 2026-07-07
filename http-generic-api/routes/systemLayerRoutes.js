@@ -71,6 +71,11 @@ import {
   tenantEffectiveCapabilityReadinessSmoke,
   tenantCapabilityShadowCompare,
 } from "../tenantEffectiveCapabilityResolver.js";
+import {
+  TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS,
+  tenantCapabilityEnforcementPreview,
+  tenantCapabilityEnforcementReadinessSmoke,
+} from "../tenantCapabilityEnforcementKernel.js";
 import { GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS } from "../growthAuditEvidence.js";
 import * as GrowthAuditEvidenceRuntime from "../growthAuditEvidence.js";
 import { BRAND_WORKSPACE_CONTEXT_SYSTEM_TOOLS } from "../brandWorkspaceContextResolver.js";
@@ -459,6 +464,16 @@ const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
       tenantCapabilityShadowCompare,
     },
     readiness_tool: "tenant_effective_capability_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "tenant_capability_enforcement_kernel_v1",
+    tools: TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS,
+    handlers: {
+      tenantCapabilityEnforcementPreview,
+      tenantCapabilityEnforcementReadinessSmoke,
+    },
+    readiness_tool: "tenant_capability_enforcement_readiness_smoke",
     readiness_args: {},
   },
   {
