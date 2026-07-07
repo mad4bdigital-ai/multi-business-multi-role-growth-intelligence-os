@@ -476,7 +476,7 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        cleanup().finally(() => resolve({ ok: false, exit_code: 127, timed_out: false, auth_mode: authMode, stdout: "", stderr: sanitizeSshOutput(err.message, redactionSecrets) }));
+        cleanup().finally(() => resolve({ ok: false, exit_code: 127, timed_out: false, auth_mode: authMode, stdout: "", stderr: sanitizeSshOutput(err.message) }));
       });
     } catch (err) {
       if (!settled) {
