@@ -4,16 +4,21 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const ACTIVATION_HOST_GATEWAY_HOST = "activation.mad4b.com";
+const AUTH_HOST = "auth.mad4b.com";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SCHEMA_ROOT_DIR = resolve(__dirname, "..");
 const SCHEMA_ARTIFACT_DIR = resolve(SCHEMA_ROOT_DIR, "openapi");
 
+const ACTIVATION_SCHEMA_FILES_BY_PATH = new Map([
+  ["/openapi.tenant-gpt.activation.yaml", "openapi.tenant-gpt.activation.yaml"],
+  ["/openapi.custom-gpt.activation-admin.yaml", "openapi.custom-gpt.activation-admin.yaml"],
+]);
+
 const ALLOWED_EXACT_PATHS = new Set([
   "/",
   "/health",
-  "/openapi.tenant-gpt.activation.yaml",
-  "/openapi.custom-gpt.activation-admin.yaml",
+  ...ACTIVATION_SCHEMA_FILES_BY_PATH.keys(),
 ]);
 
 const ALLOWED_PREFIXES = [
@@ -22,7 +27,14 @@ const ALLOWED_PREFIXES = [
 ];
 
 function requestHost(req) {
-  return String(req.headers?.["x-forwarded-host"] || req.headers?.host || "")
+  return String(
+    req.headers?.["x-forwarded-host"]
+    || req.headers?.["x-original-host"]
+    || req.headers?.["x-host"]
+    || req.headers?.[":authority"]
+    || req.headers?.host
+    || "",
+  )
     .split(",")[0]
     .trim()
     .toLowerCase()
@@ -30,8 +42,8 @@ function requestHost(req) {
 }
 
 function requestPath(req) {
-  const path = String(req.path || "/").trim() || "/";
-  return path.startsWith("/") ? path : `/${path}`;
+  const rawPath = String(req.path || req.url || "/").split("?")[0].trim() || "/";
+  return rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
 }
 
 function requestId(req) {
@@ -62,6 +74,10 @@ function errorResponse(code, message, req) {
   };
 }
 
+function isActivationSchemaHost(host, activationHost) {
+  return host === activationHost || host === AUTH_HOST;
+}
+
 function isActivationHostAllowedPath(pathname) {
   return ALLOWED_EXACT_PATHS.has(pathname)
     || ALLOWED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
@@ -78,10 +94,6 @@ export function buildActivationHostGatewayRoutes({
   const router = Router();
 
   async function serveActivationSchema(req, res, schemaFile) {
-    if (!enabled) return false;
-    const host = requestHost(req);
-    if (host !== activationHost) return false;
-
     delete req.headers.cookie;
 
     try {
@@ -98,17 +110,20 @@ export function buildActivationHostGatewayRoutes({
         req,
       ));
     }
-    return true;
   }
 
-  router.get("/openapi.tenant-gpt.activation.yaml", async (req, res, next) => {
-    if (await serveActivationSchema(req, res, "openapi.tenant-gpt.activation.yaml")) return;
-    return next();
-  });
+  router.use(async (req, res, next) => {
+    if (!enabled || !["GET", "HEAD"].includes(req.method)) return next();
 
-  router.get("/openapi.custom-gpt.activation-admin.yaml", async (req, res, next) => {
-    if (await serveActivationSchema(req, res, "openapi.custom-gpt.activation-admin.yaml")) return;
-    return next();
+    const pathname = requestPath(req);
+    const schemaFile = ACTIVATION_SCHEMA_FILES_BY_PATH.get(pathname);
+    if (!schemaFile) return next();
+
+    const host = requestHost(req);
+    if (!isActivationSchemaHost(host, activationHost)) return next();
+
+    await serveActivationSchema(req, res, schemaFile);
+    return undefined;
   });
 
   router.use((req, res, next) => {
@@ -155,7 +170,8 @@ export function activationHostGatewayAllowedPaths() {
     host: ACTIVATION_HOST_GATEWAY_HOST,
     exact_paths: [...ALLOWED_EXACT_PATHS],
     path_prefixes: [...ALLOWED_PREFIXES],
-    oauth_host: "auth.mad4b.com",
+    schema_hosts: [ACTIVATION_HOST_GATEWAY_HOST, AUTH_HOST],
+    oauth_host: AUTH_HOST,
     secrets_included: false,
   };
 }
