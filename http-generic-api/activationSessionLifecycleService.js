@@ -206,6 +206,12 @@ export async function resolveActivationSessionLifecycle({
           read_only: false,
           reused_existing_session: true,
           retry_count: Number(reusable.row.retry_count || 0) + 1,
+          context_read: {
+            tenant_id: tenantId,
+            user_id: userId,
+            workspace_key: reusable.row.workspace_key || workspaceKey,
+            brand_key: reusable.row.brand_key || brandKey,
+          },
         },
       };
     }
