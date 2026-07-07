@@ -133,18 +133,9 @@ function verifyMigrationExecutorApplyPolicy(row) {
     Number(row.requires_readback || 0) === 1 &&
     Number(row.requires_typed_confirmation || 0) === 1 &&
     Number(row.requires_same_cycle_dry_run || 0) === 1 &&
-    Array.isArray(sourceTiers) && sourceTiers.length === 1 && sourceTiers[0] === "platform_managed_fallback" &&
-    policy?.external_write_allowed === false &&
-    policy?.provider_call_allowed === false &&
-    policy?.credential_payload_read_allowed === false &&
-    policy?.migration_authorization_registry_required === true &&
-    policy?.checksum_bound === true &&
-    policy?.statement_count_bound === true &&
-    policy?.zero_risk_preflight_required === true &&
-    policy?.exact_typed_confirmation_required === true &&
-    policy?.governed_ledger_required === true &&
-    policy?.same_cycle_schema_readback_required === true &&
-    policy?.secrets_included === false;
+    Array.isArray(sourceTiers) &&
+    JSON.stringify(sourceTiers) === JSON.stringify(MIGRATION_EXECUTOR_APPLY_POLICY.allowed_source_tiers) &&
+    JSON.stringify(policy) === JSON.stringify(MIGRATION_EXECUTOR_APPLY_POLICY.policy);
   if (!exact) {
     throw bootstrapError(409, "governed_migration_executor_apply_policy_mismatch", "Migration executor apply policy does not match the fail-closed bootstrap contract.", {
       policy_key: row.policy_key || null,
