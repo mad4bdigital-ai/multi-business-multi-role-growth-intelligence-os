@@ -73,6 +73,14 @@ function queryStringValue(value) {
   return String(value || "").trim();
 }
 
+function queryContextValue(query = {}, keys = []) {
+  for (const key of keys) {
+    const value = queryStringValue(query?.[key]);
+    if (value) return value;
+  }
+  return null;
+}
+
 function asCount(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
