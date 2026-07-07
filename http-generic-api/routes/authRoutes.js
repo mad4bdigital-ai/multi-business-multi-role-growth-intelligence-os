@@ -320,14 +320,19 @@ async function isAllowedTenantGptRedirectUri(redirectUri, queryFn) {
   if (!url) return false;
 
   const normalized = url.toString();
+  const canonical = canonicalizeTenantGptRedirectUri(normalized);
   const resolved = await resolveTenantGptOAuthClientConfig({ query: queryFn });
   const callbacks = Array.isArray(resolved.config?.callback_urls_to_allow)
     ? resolved.config.callback_urls_to_allow
     : [];
 
+  function matches(callback, candidate) {
+    if (callback === candidate) return true;
+    return callback.includes("{g-GPT-ID}") && callbackPatternToRegExp(callback).test(candidate);
+  }
+
   return callbacks.some((callback) => {
-    if (callback === normalized) return true;
-    return callback.includes("{g-GPT-ID}") && callbackPatternToRegExp(callback).test(normalized);
+    return matches(callback, normalized) || matches(callback, canonical);
   });
 }
 
