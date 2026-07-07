@@ -170,6 +170,66 @@ export function buildRootDiscoveryRoutes() {
     }
   });
 
+  router.get("/tenant-gpt/activation-openapi", async (req, res) => {
+    const host = requestHost(req);
+    if (host !== "activation.mad4b.com" && host !== "auth.mad4b.com") {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: "schema_not_found",
+          message: "No public Tenant Activation OpenAPI schema is available for this host."
+        }
+      });
+    }
+
+    try {
+      const schema = await readPublicSchemaFile("openapi.tenant-gpt.activation.yaml");
+      return res
+        .status(200)
+        .type("application/yaml")
+        .set("Cache-Control", "public, max-age=300")
+        .send(schema);
+    } catch {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: "schema_file_missing",
+          message: "The advertised Tenant Activation OpenAPI schema file is not available."
+        }
+      });
+    }
+  });
+
+  router.get("/admin-gpt/activation-openapi", async (req, res) => {
+    const host = requestHost(req);
+    if (host !== "activation.mad4b.com" && host !== "auth.mad4b.com") {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: "schema_not_found",
+          message: "No public Admin Activation OpenAPI schema is available for this host."
+        }
+      });
+    }
+
+    try {
+      const schema = await readPublicSchemaFile("openapi.custom-gpt.activation-admin.yaml");
+      return res
+        .status(200)
+        .type("application/yaml")
+        .set("Cache-Control", "public, max-age=300")
+        .send(schema);
+    } catch {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: "schema_file_missing",
+          message: "The advertised Admin Activation OpenAPI schema file is not available."
+        }
+      });
+    }
+  });
+
   router.get("/tenant-gpt/oauth-preset", async (req, res) => {
     const host = requestHost(req);
     if (host !== "auth.mad4b.com") {
