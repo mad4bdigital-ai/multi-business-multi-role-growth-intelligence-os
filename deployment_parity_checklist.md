@@ -1,5 +1,11 @@
 # Deployment Parity Checklist
 
+## Temporary Hostinger deploy-gate status normalization
+
+Migration `1040_sprint69_normalize_temporary_hostinger_gate_statuses.sql` normalizes status enum values left by the cleanup migration after production parity readback. It sets `platform_runtime_config.status='disabled'` for the SSH executor gate and `platform_resource_authority_bindings.status='revoked'` for the temporary Hostinger deploy binding. It performs no deploy, restart, provider call, credential payload read, raw-secret access, external send, or external write.
+
+The migration is checksum-bound in the governed migration runner and must be followed by same-cycle DB readback showing the runtime config disabled and the binding revoked.
+
 ## Temporary Hostinger deploy-gate cleanup
 
 Migration `1039_sprint69_disable_temporary_hostinger_deploy_gates.sql` disables the temporary Hostinger SSH executor gate and inactivates the temporary `remote_runtime_target` deploy authority binding after production parity verification run `1b619912-fc20-46f8-a000-37d80e115a8b` confirmed expected and deployed commit `308146d11050ebb473b4f85f1ff54feab7e41aac`. It performs no deploy, restart, provider call, credential payload read, raw-secret access, external send, or external write; it only closes temporary recovery gates after successful readback.
