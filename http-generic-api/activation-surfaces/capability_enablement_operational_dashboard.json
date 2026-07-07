@@ -1,0 +1,19 @@
+{
+  "surface_key": "capability_enablement_operational_dashboard",
+  "display_name": "Capability Enablement Operational Dashboard",
+  "description": "No-secret operational rollup for Capability Enablement Broker readiness, approvals, blocked states, and safety counters.",
+  "source_table": "v_capability_enablement_operational_dashboard",
+  "covered_source_tables": ["capability_enablement_requests"],
+  "result_key_column": "capability_key",
+  "result_label_column": "capability_key",
+  "tenant_column": "tenant_id",
+  "status_column": "decision",
+  "active_status_values": ["ready_for_dispatch", "ready_for_preview", "needs_approval", "needs_resource_binding", "needs_credential", "needs_certification", "needs_execution_enablement", "blocked_policy_denied", "blocked_secret_boundary", "degraded_contract"],
+  "result_columns": ["tenant_id", "workspace_id", "capability_key", "operation_intent", "runtime_surface", "decision", "next_allowed_mode", "request_count", "ready_for_dispatch_count", "needs_approval_count", "blocked_count", "expired_envelope_count", "provider_call_rows", "external_mutation_rows", "secret_rows", "latest_created_at"],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 50,
+  "sort_order": 336,
+  "status": "active",
+  "notes": "Excludes raw JSON classification/projection, hashes, resources, provider payloads, credential payloads, approval material, and secrets."
+}
