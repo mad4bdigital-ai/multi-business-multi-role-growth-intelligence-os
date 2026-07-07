@@ -60,9 +60,9 @@
 
 - [ ] T180 Implement manifest/projection/certification drift reconciliation.
 - [ ] T181 Persist capability debt with ownership, severity, and closure lifecycle.
-- [ ] T182 Generate operational alerts from typed assurance gaps and runtime failures.
-- [ ] T183 Require matching operation/resource fingerprints for later-success resolution.
-- [ ] T184 Migrate operational alert sync/lifecycle tools as the first internal-write pilot.
+- [x] T182 Generate operational alerts from typed assurance gaps and runtime failures.
+- [x] T183 Require matching operation/resource fingerprints for later-success resolution.
+- [x] T184 Migrate operational alert sync/lifecycle tools as the first internal-write pilot.
 
 ## Capability cohorts
 
