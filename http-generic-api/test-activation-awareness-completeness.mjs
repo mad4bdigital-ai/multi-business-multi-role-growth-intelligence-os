@@ -384,8 +384,9 @@ function testRepositoryContracts() {
   assert.match(activationRoutes, /brand_key: brandKey/);
   assert.match(mcpRuntime, /workspace_key: \{ type: "string"/);
   assert.match(mcpRuntime, /brand_key: \{ type: "string"/);
-  assert.match(mcpRuntime, /ss\.workspace_key = \?/);
-  assert.match(mcpRuntime, /cs\.brand_key = \?/);
+  assert.match(mcpRuntime, /gpt_session_turns/);
+  assert.match(mcpRuntime, /gst\.workspace_key = \?/);
+  assert.match(mcpRuntime, /gst\.brand_key = \?/);
 
   assert.match(dynamicTabs, /loadSectionRowsBatch/);
   assert.match(dynamicTabs, /batch_query_count/);
