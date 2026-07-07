@@ -119,8 +119,23 @@ function shellQuote(value) {
   return `'${String(value).replace(/'/g, `'"'"'`)}'`;
 }
 
-function sanitizeSshOutput(text = "") {
+function escapeRegExp(value = "") {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\function sanitizeSshOutput(text = "") {
   return String(text || "")
+    .replace(/-----BEGIN [A-Z ]+PRIVATE KEY-----[\s\S]*?-----END [A-Z ]+PRIVATE KEY-----/g, "[redacted-private-key]")
+    .replace(/(password|passphrase|token|secret|private_key)=\S+/gi, "$1=[redacted]")
+    .slice(0, 12000);
+}
+");
+}
+
+function sanitizeSshOutput(text = "", secretValues = []) {
+  let output = String(text || "");
+  for (const secret of secretValues || []) {
+    const value = String(secret || "");
+    if (value.length >= 4) output = output.replace(new RegExp(escapeRegExp(value), "g"), "[redacted-secret-value]");
+  }
+  return output
     .replace(/-----BEGIN [A-Z ]+PRIVATE KEY-----[\s\S]*?-----END [A-Z ]+PRIVATE KEY-----/g, "[redacted-private-key]")
     .replace(/(password|passphrase|token|secret|private_key)=\S+/gi, "$1=[redacted]")
     .slice(0, 12000);
