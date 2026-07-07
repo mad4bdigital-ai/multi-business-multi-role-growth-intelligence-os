@@ -781,6 +781,7 @@ export async function loadSessionSummaryGraphMemory({
       tenant_id: row.tenant_id || null,
       user_id: row.user_id || null,
       workspace_key: row.workspace_key || null,
+      brand_key: row.brand_key || null,
       summary_text: boundedText(redactSensitiveText(row.summary_text || ""), 1600),
       tasks_completed: summaryListFromStoredValue(row.tasks_completed),
       blockers: summaryListFromStoredValue(row.blockers),
