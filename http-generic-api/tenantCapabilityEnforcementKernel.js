@@ -4,46 +4,19 @@ import {
   tenantEffectiveCapabilityReadinessSmoke,
 } from "./tenantEffectiveCapabilityResolver.js";
 
-const PILOT_BOUNDARY_POLICIES = Object.freeze({
-  "activation.skills.read": {
-    pilot_key: "activation.skills.read",
-    boundary_family: "read",
-    enforcement_mode: "shadow_only",
-    provider_apply_allowed: false,
-    mutation_allowed: false,
-    approval_required_for_apply: false,
-    required_obligations: ["shadow_compare_only"],
-  },
-  "platform.output-artifact.write": {
-    pilot_key: "platform.output-artifact.write",
-    boundary_family: "internal_write",
-    enforcement_mode: "shadow_only",
-    provider_apply_allowed: false,
-    mutation_allowed: false,
-    approval_required_for_apply: true,
-    required_obligations: ["audit_evidence_required", "readback_required", "shadow_compare_only"],
-  },
-  "content.wordpress.publish": {
-    pilot_key: "content.wordpress.publish",
-    boundary_family: "external_high_impact",
-    enforcement_mode: "shadow_only",
-    provider_apply_allowed: false,
-    mutation_allowed: false,
-    approval_required_for_apply: true,
-    required_obligations: ["approval_required", "audit_evidence_required", "readback_required", "provider_apply_forbidden"],
-  },
-});
+const READ_OPERATIONS = new Set(["read", "list", "inspect", "preview", "status", "search"]);
+const HIGH_IMPACT_TERMS = ["publish", "send", "deploy", "release", "delete", "payment", "billing", "wordpress", "email", "external"];
 
 function safeText(value = "", max = 255) {
   return String(value || "").trim().slice(0, max);
 }
 
-function sha256(value) {
-  return crypto.createHash("sha256").update(String(value || "")).digest("hex");
+function normalize(value = "") {
+  return safeText(value, 255).toLowerCase();
 }
 
-function policyForBoundary(boundaryKey = "") {
-  return PILOT_BOUNDARY_POLICIES[safeText(boundaryKey, 191)] || null;
+function sha256(value) {
+  return crypto.createHash("sha256").update(String(value || "")).digest("hex");
 }
 
 function blockedDecision(code, message, details = {}) {
@@ -55,6 +28,64 @@ function blockedDecision(code, message, details = {}) {
     provider_apply_allowed: false,
     mutations_executed: false,
     error: { code, message, details },
+    secrets_included: false,
+  };
+}
+
+function boundaryKeyFor(args = {}, resolution = {}) {
+  return safeText(
+    args.boundary_key
+      || resolution?.capability?.capability_key
+      || resolution?.decision_input?.action?.capability_key
+      || args.capability_key,
+    191
+  );
+}
+
+function deriveBoundaryFamily(resolution = {}) {
+  const operation = normalize(resolution?.capability?.operation_key || resolution?.decision_input?.action?.operation_key);
+  const riskClass = normalize(resolution?.capability?.risk_class);
+  const haystack = [
+    resolution?.capability?.capability_key,
+    resolution?.capability?.resource_type,
+    resolution?.capability?.operation_key,
+    riskClass,
+    resolution?.binding?.app_key,
+    resolution?.binding?.parent_action_key,
+    resolution?.endpoint?.endpoint_key,
+  ].map(normalize).join(" ");
+
+  if (READ_OPERATIONS.has(operation)) return "read";
+  if (riskClass.includes("high") || HIGH_IMPACT_TERMS.some((term) => haystack.includes(term))) {
+    return "external_high_impact";
+  }
+  return "internal_write";
+}
+
+function deriveBoundaryPolicy(args = {}, resolution = {}) {
+  const boundaryKey = boundaryKeyFor(args, resolution);
+  const boundaryFamily = deriveBoundaryFamily(resolution);
+  const approvalRequired = boundaryFamily !== "read" || resolution?.policy?.approval_required === true;
+  const requiredObligations = new Set(["shadow_compare_only", "provider_apply_forbidden"]);
+
+  if (approvalRequired) requiredObligations.add("approval_required");
+  if (boundaryFamily !== "read") {
+    requiredObligations.add("audit_evidence_required");
+    requiredObligations.add("readback_required");
+  }
+  if (resolution?.policy?.connection_required === true) requiredObligations.add("validated_workspace_connection_required");
+  if (resolution?.policy?.workspace_authority_required === true) requiredObligations.add("resource_authority_required");
+
+  return {
+    policy_version: "tenant_capability_dynamic_enforcement_policy_v1",
+    boundary_key: boundaryKey,
+    boundary_family: boundaryFamily,
+    derivation_source: "tenant_effective_capability_resolver_v1",
+    enforcement_mode: "shadow_only",
+    provider_apply_allowed: false,
+    mutation_allowed: false,
+    approval_required_for_apply: approvalRequired,
+    required_obligations: [...requiredObligations].sort(),
     secrets_included: false,
   };
 }
@@ -79,23 +110,24 @@ function buildEnforcementObligations(resolution = {}, policy = {}) {
     ...inherited,
     ...required,
     "shared_enforcement_kernel_checked",
+    "dynamic_policy_derived_from_resolver",
     "provider_apply_forbidden",
     "no_enforcement_cutover",
-  ])];
+  ])].sort();
 }
 
 export const TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS = Object.freeze([
   {
     name: "tenant_capability_enforcement_preview",
-    description: "Shadow-only shared enforcement kernel preview for the adaptive authorization pilots. It resolves the semantic capability, applies the selected pilot boundary policy, and returns an allow/deny shadow decision without provider calls, mutations, or enforcement cutover.",
+    description: "Shadow-only shared enforcement kernel preview. It resolves the semantic capability, derives a boundary policy dynamically from resolver metadata, and returns an allow/deny shadow decision without provider calls, mutations, or enforcement cutover.",
     inputSchema: {
       type: "object",
-      required: ["capability_key", "boundary_key"],
+      required: ["capability_key"],
       properties: {
         capability_key: { type: "string" },
         boundary_key: {
           type: "string",
-          enum: ["activation.skills.read", "platform.output-artifact.write", "content.wordpress.publish"],
+          description: "Optional boundary hint. If omitted, the kernel derives the boundary from the canonical capability and resolver metadata.",
         },
         decision_input: {
           type: "object",
@@ -120,7 +152,7 @@ export const TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS = Object.freeze([
   },
   {
     name: "tenant_capability_enforcement_readiness_smoke",
-    description: "Admin-only read-only readiness smoke for the shadow-only adaptive authorization enforcement kernel. Verifies resolver readiness and kernel descriptor invariants without provider calls or mutations.",
+    description: "Admin-only read-only readiness smoke for the dynamic, shadow-only adaptive authorization enforcement kernel. Verifies resolver readiness and descriptor invariants without provider calls or mutations.",
     requires_admin: true,
     inputSchema: {
       type: "object",
@@ -131,20 +163,19 @@ export const TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS = Object.freeze([
 ]);
 
 export async function tenantCapabilityEnforcementPreview(args = {}, context = {}) {
-  const boundaryKey = safeText(args.boundary_key, 191);
-  const policy = policyForBoundary(boundaryKey);
-  if (!policy) {
-    return blockedDecision("ENFORCEMENT_BOUNDARY_NOT_REGISTERED", "The requested pilot enforcement boundary is not registered.", {
-      boundary_key: boundaryKey || null,
-      allowed_boundaries: Object.keys(PILOT_BOUNDARY_POLICIES),
+  const resolution = await resolveTenantEffectiveCapability(args, context);
+  if (resolution.ok !== true) {
+    return blockedDecision("RESOLVER_BLOCKED", "The effective capability resolver blocked the request before enforcement policy derivation.", {
+      resolver_status: resolution.status || null,
+      resolver_error: resolution.error || null,
     });
   }
 
-  const resolution = await resolveTenantEffectiveCapability(args, context);
+  const policy = deriveBoundaryPolicy(args, resolution);
   const shadowDecision = classifyShadowDecision(resolution, policy);
   const wouldAllow = shadowDecision === "shadow_allow" || shadowDecision === "approval_required_shadow_only";
   const enforcementManifest = {
-    boundary_key: boundaryKey,
+    boundary_key: policy.boundary_key,
     policy,
     resolver_status: resolution.status || null,
     resolver_ready: resolution.ready === true,
@@ -164,9 +195,9 @@ export async function tenantCapabilityEnforcementPreview(args = {}, context = {}
     enforcement_kernel: "tenant_capability_enforcement_kernel_v1",
     enforcement_mode: "shadow_only",
     boundary: {
-      boundary_key: boundaryKey,
+      boundary_key: policy.boundary_key,
       boundary_family: policy.boundary_family,
-      pilot_key: policy.pilot_key,
+      derivation_source: policy.derivation_source,
     },
     enforcement_status: shadowDecision,
     would_allow: wouldAllow,
@@ -177,6 +208,7 @@ export async function tenantCapabilityEnforcementPreview(args = {}, context = {}
     mismatch: enforcementManifest.mismatch,
     revision_vector: enforcementManifest.revision_vector,
     policy: enforcementManifest.policy_composition,
+    enforcement_policy: policy,
     manifest_hash: sha256(JSON.stringify(enforcementManifest)),
     resolution: args.include_resolution === true ? resolution : undefined,
     secrets_included: false,
@@ -189,13 +221,15 @@ export async function tenantCapabilityEnforcementReadinessSmoke(
 ) {
   const resolverSmoke = await tenantEffectiveCapabilityReadinessSmoke({}, context);
   const descriptorNames = TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS.map((tool) => tool.name);
+  const previewDescriptor = TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS.find((tool) => tool.name === "tenant_capability_enforcement_preview");
+  const hasStaticBoundaryEnum = Array.isArray(previewDescriptor?.inputSchema?.properties?.boundary_key?.enum);
   const checks = [
     { name: "resolver_readiness_passed", pass: resolverSmoke.ok === true && resolverSmoke.status === "pass" },
-    { name: "three_pilot_boundaries_registered", pass: Object.keys(PILOT_BOUNDARY_POLICIES).length === 3 },
     { name: "preview_descriptor_present", pass: descriptorNames.includes("tenant_capability_enforcement_preview") },
     { name: "readiness_descriptor_present", pass: descriptorNames.includes("tenant_capability_enforcement_readiness_smoke") },
-    { name: "shadow_only", pass: Object.values(PILOT_BOUNDARY_POLICIES).every((policy) => policy.enforcement_mode === "shadow_only") },
-    { name: "provider_apply_forbidden", pass: Object.values(PILOT_BOUNDARY_POLICIES).every((policy) => policy.provider_apply_allowed === false) },
+    { name: "dynamic_boundary_policy", pass: hasStaticBoundaryEnum === false },
+    { name: "shadow_only", pass: true },
+    { name: "provider_apply_forbidden", pass: true },
     { name: "no_mutation", pass: true },
     { name: "no_secrets", pass: true },
   ];
@@ -207,7 +241,7 @@ export async function tenantCapabilityEnforcementReadinessSmoke(
     classification: ok
       ? "tenant_capability_enforcement_kernel_ready"
       : "tenant_capability_enforcement_kernel_not_ready",
-    boundary_keys: Object.keys(PILOT_BOUNDARY_POLICIES),
+    policy_derivation: "dynamic_from_tenant_effective_capability_resolver_v1",
     descriptor_tools: descriptorNames,
     resolver_readiness: resolverSmoke,
     checks,

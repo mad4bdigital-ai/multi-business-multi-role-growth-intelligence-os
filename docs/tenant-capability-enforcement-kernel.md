@@ -4,19 +4,19 @@
 
 This document records the T020 shared enforcement kernel for adaptive authorization. The kernel is intentionally shadow-only in this PR. It produces a deterministic enforcement decision from the semantic capability resolver output but does not call providers, execute adapters, write external state, or cut over runtime enforcement.
 
-## Boundaries
+## Dynamic boundary derivation
 
-The initial pilot boundaries are:
+The kernel no longer keeps a fixed pilot-boundary policy map or a fixed boundary enum. It accepts a canonical `capability_key` and an optional `boundary_key` hint, then derives the enforcement boundary family from the effective capability resolver output:
 
-- `activation.skills.read`
-- `platform.output-artifact.write`
-- `content.wordpress.publish`
+- read-like operations become `read`;
+- high-impact or external operations become `external_high_impact`;
+- other non-read operations become `internal_write`.
 
-Each boundary maps to a shadow-only policy. The external high-impact WordPress publish pilot remains `provider_apply_forbidden` until separate approval, envelope, adapter, readback, parity and canary work is completed.
+This keeps the kernel compatible with the initial pilots while allowing new canonical capabilities to use the same enforcement path without changing descriptor enums or static lists.
 
 ## Outputs
 
-The kernel returns `enforcement_status`, `would_allow`, `revision_vector`, `policy`, `obligations`, `mismatch`, and `manifest_hash` while forcing `provider_apply_allowed: false`, `mutations_executed: false`, `enforcement_cutover: false`, and `secrets_included: false`.
+The kernel returns `enforcement_status`, `would_allow`, `revision_vector`, `policy`, `enforcement_policy`, `obligations`, `mismatch`, and `manifest_hash` while forcing `provider_apply_allowed: false`, `mutations_executed: false`, `enforcement_cutover: false`, and `secrets_included: false`.
 
 ## Status classification
 

@@ -26,20 +26,14 @@ T010 through T015 are complete. The resolver exposes typed decision input, revis
 
 The T020 implementation adds `tenantCapabilityEnforcementKernel.js` and the descriptor source `tenant_capability_enforcement_kernel_v1`.
 
-The kernel is shadow-only and covers all three pilot boundaries:
-
-- `activation.skills.read`
-- `platform.output-artifact.write`
-- `content.wordpress.publish`
-
-It returns `enforcement_status`, `would_allow`, `revision_vector`, `policy`, `obligations`, `mismatch`, and `manifest_hash` while forcing `provider_apply_allowed: false`, `mutations_executed: false`, `enforcement_cutover: false`, and `secrets_included: false`.
+The kernel is shadow-only and uses dynamic resolver-derived policy instead of a fixed pilot-boundary list. It accepts a canonical `capability_key`, optionally accepts `boundary_key` as a hint, derives the boundary family from resolver metadata, and returns `enforcement_status`, `would_allow`, `revision_vector`, `policy`, `enforcement_policy`, `obligations`, `mismatch`, and `manifest_hash` while forcing `provider_apply_allowed: false`, `mutations_executed: false`, `enforcement_cutover: false`, and `secrets_included: false`.
 
 ## Task loop classification
 
 | Task | Classification | Evidence | Notes |
 |---|---|---|---|
 | T010-T015 Decision plane | complete | resolver and shadow ledger evidence | no provider mutation |
-| T020 Shared enforcement kernel | complete | `tenant_capability_enforcement_preview` and readiness smoke expose shadow-only enforcement decisions for all three pilot boundaries | no provider mutation and no cutover |
+| T020 Shared enforcement kernel | complete | `tenant_capability_enforcement_preview` and readiness smoke expose dynamic, shadow-only enforcement decisions for canonical capabilities | no provider mutation and no cutover |
 | T021 Revision-bound envelopes | open | envelope ledger exists but feature-specific execution-envelope binding remains incomplete | future additive work |
 | T022 Scoped approvals and append-only decisions | open | approval holds and evidence ledgers exist, but feature-specific scoped approval flow remains incomplete | future work |
 | T023 Stale-envelope invalidation and concurrency | open | no complete implementation evidence | future work |
