@@ -293,6 +293,32 @@ function testIdempotencyAndInputNormalization() {
   });
   assert.equal(first, second);
   assert.equal(first.length, 64);
+  assert.notEqual(
+    first,
+    deriveActivationIdempotencyKey({
+      tenantId: "tenant-1",
+      userId: "user-1",
+      workspaceKey: "workspace-2",
+      brandKey: "brand-1",
+      conversationRef: "conversation-1",
+    })
+  );
+  assert.notEqual(
+    deriveActivationIdempotencyKey({
+      tenantId: "tenant-1",
+      userId: "user-1",
+      workspaceKey: "workspace-1",
+      brandKey: "brand-1",
+      conversationRef: "conversation-1",
+    }),
+    deriveActivationIdempotencyKey({
+      tenantId: "tenant-1",
+      userId: "user-1",
+      workspaceKey: "workspace-1",
+      brandKey: "brand-2",
+      conversationRef: "conversation-1",
+    })
+  );
   assert.equal(deriveActivationIdempotencyKey({ explicitKey: "explicit-key" }), "explicit-key");
 
   assert.equal(_testingActivationAwarenessRoutes.profileValue("diagnostic"), "diagnostic");
