@@ -917,12 +917,14 @@ async function executeMigrationLedgerReadback(input, pool) {
 
 async function executeRepositoryInventory(input, dispatch) {
   const query = `query RepositoryAutomationInventory($owner:String!,$repo:String!){repository(owner:$owner,name:$repo){defaultBranchRef{name target{... on Commit{oid committedDate}}}refs(refPrefix:"refs/heads/",first:100){nodes{name target{... on Commit{oid}}}}openPullRequests:pullRequests(states:OPEN,first:100,orderBy:{field:UPDATED_AT,direction:DESC}){nodes{number title isDraft headRefName headRefOid baseRefName updatedAt}}recentPullRequests:pullRequests(states:[MERGED,CLOSED],first:100,orderBy:{field:UPDATED_AT,direction:DESC}){nodes{number state mergedAt headRefName headRefOid mergeCommit{oid}}}}}`;
-  const result = normalizeDispatchResult(await dispatch("runtime_endpoint_call", {
-    parent_action_key: "github_api_mcp",
-    endpoint_key: "github_graphql",
-    body: { query, variables: { owner: input.owner, repo: input.repo } },
-    credential_scope: "platform",
-    timeout_seconds: 60,
+  const result = normalizeDispatchResult(await dispatch("github_rest_endpoint_dispatch", {
+    tool_args: {
+      parent_action_key: "github_api_mcp",
+      endpoint_key: "github_graphql",
+      body: { query, variables: { owner: input.owner, repo: input.repo } },
+      credential_scope: "platform",
+      timeout_seconds: 60,
+    },
   }));
   const repoData = githubRepositoryData(result);
   if (!result.ok || !repoData) return { ok: false, status: "inventory_failed", provider: safeSummary(result.body), secrets_included: false };
