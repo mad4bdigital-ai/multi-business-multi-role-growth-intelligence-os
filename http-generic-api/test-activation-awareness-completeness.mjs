@@ -374,10 +374,10 @@ function testRepositoryContracts() {
   assert.match(sessionSummaryService, /workspace_key = \?/);
   assert.match(sessionSummaryService, /cs\.brand_key = \?/);
   assert.match(sessionSummaryService, /LEFT JOIN `customer_sessions` cs ON cs\.session_id = ss\.session_id/);
-  assert.match(lifecycleService, /workspaceKey \|\| "workspace:unspecified"/);
-  assert.match(lifecycleService, /brandKey \|\| "brand:unspecified"/);
-  assert.match(lifecycleService, /s\.workspace_key = \?/);
-  assert.match(lifecycleService, /s\.brand_key = \?/);
+  assert.doesNotMatch(lifecycleService, /workspaceKey \|\| "workspace:unspecified"/);
+  assert.doesNotMatch(lifecycleService, /brandKey \|\| "brand:unspecified"/);
+  assert.doesNotMatch(lifecycleService, /AND \(\? IS NULL OR s\.workspace_key = \?\)/);
+  assert.doesNotMatch(lifecycleService, /AND \(\? IS NULL OR s\.brand_key = \?\)/);
   assert.match(activationRoutes, /workspace_key: workspaceKey/);
   assert.match(activationRoutes, /brand_key: brandKey/);
   assert.match(mcpRuntime, /workspace_key: \{ type: "string"/);
