@@ -1243,6 +1243,8 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
 async function autoOpenGptSession(pool, subject, options = {}) {
   const userId = subject.user_id || null;
   const tenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+  const workspaceKey = subject.workspace_key || null;
+  const brandKey = subject.brand_key || null;
   const closePreviousSessions = options.close_previous_sessions === true;
 
   const [[activeBeforeRow]] = await pool.query(
@@ -1251,8 +1253,10 @@ async function autoOpenGptSession(pool, subject, options = {}) {
       WHERE originator = 'gpt_action'
         AND tenant_id = ?
         AND (? IS NULL OR user_id = ?)
+        AND (? IS NULL OR workspace_key = ?)
+        AND (? IS NULL OR brand_key = ?)
         AND session_status IN ('pending', 'active')`,
-    [tenantId, userId, userId]
+    [tenantId, userId, userId, workspaceKey, workspaceKey, brandKey, brandKey]
   );
 
   let closeResult = { affectedRows: 0 };
@@ -1263,8 +1267,10 @@ async function autoOpenGptSession(pool, subject, options = {}) {
        WHERE originator = 'gpt_action'
          AND tenant_id = ?
          AND (? IS NULL OR user_id = ?)
+         AND (? IS NULL OR workspace_key = ?)
+         AND (? IS NULL OR brand_key = ?)
          AND session_status IN ('pending', 'active')`,
-      [tenantId, userId, userId]
+      [tenantId, userId, userId, workspaceKey, workspaceKey, brandKey, brandKey]
     );
   }
 
@@ -1273,9 +1279,9 @@ async function autoOpenGptSession(pool, subject, options = {}) {
   const archiveStatus = "deferred_until_first_turn";
   await pool.query(
     `INSERT INTO \`customer_sessions\`
-       (session_id, tenant_id, user_id, originator, session_status, started_at, archive_status)
-     VALUES (?, ?, ?, 'gpt_action', 'active', ?, ?)`,
-    [sessionId, tenantId, userId, startedAt, archiveStatus]
+       (session_id, tenant_id, user_id, workspace_key, brand_key, originator, session_status, started_at, archive_status)
+     VALUES (?, ?, ?, ?, ?, 'gpt_action', 'active', ?, ?)`,
+    [sessionId, tenantId, userId, workspaceKey, brandKey, startedAt, archiveStatus]
   );
 
   // Do not create Drive files during activation/session-context open. The archive
@@ -1296,6 +1302,12 @@ async function autoOpenGptSession(pool, subject, options = {}) {
       active_sessions_after_open: closePreviousSessions ? 1 : activeBefore + 1,
       status_written: "active",
       archive_allocation: "lazy_on_first_turn",
+      context_written: {
+        tenant_id: tenantId,
+        user_id: userId,
+        workspace_key: workspaceKey,
+        brand_key: brandKey,
+      },
     },
   };
 }
