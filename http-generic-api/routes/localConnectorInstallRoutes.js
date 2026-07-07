@@ -1183,6 +1183,8 @@ export function buildLocalConnectorInstallRoutes(deps) {
         download_url,
         app_managed: appManaged,
         run_as_admin_required: true,
+        auth_context: device.auth_context,
+        reauth_required_for_stale_device_tokens: true,
         secrets_included: false,
       });
     } catch (err) {
