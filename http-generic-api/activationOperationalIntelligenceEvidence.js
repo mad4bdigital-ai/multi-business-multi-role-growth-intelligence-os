@@ -293,6 +293,66 @@ async function loadScopedRows(subject) {
   return { systems, tasks, agents, skillGrants, freshness, signals, packs, packComponents, actions, actionRules, freshnessPolicies, signalSubscriptions, preferences, relationships, relationshipTypes };
 }
 
+function firstReasonCode(row = {}) {
+  const parsed = parseJsonValue(row.reason_codes_json, []);
+  if (Array.isArray(parsed) && parsed.length) return String(parsed[0]).slice(0, 128);
+  return String(row.decision || "unknown").slice(0, 128);
+}
+
+function capabilityEnablementSeverity(row = {}) {
+  if (row.decision === "blocked_secret_boundary") return "critical";
+  if (String(row.decision || "").startsWith("blocked")) return "high";
+  if (["needs_approval", "needs_resource_binding", "needs_credential", "needs_certification", "needs_execution_enablement"].includes(row.decision)) return "medium";
+  if (row.decision === "degraded_contract") return "high";
+  return "info";
+}
+
+function buildCapabilityEnablementDashboard(rows) {
+  const requests = rows.capabilityEnablementRequests.rows.map((row) => ({
+    ...stripSensitive(row),
+    reason_codes: parseJsonValue(row.reason_codes_json, []),
+    reason_codes_json: undefined,
+    provider_calls_made: safeNumber(row.provider_calls_made),
+    external_mutations_executed: safeNumber(row.external_mutations_executed),
+    internal_persistence_executed: safeNumber(row.internal_persistence_executed),
+    secrets_included: safeNumber(row.secrets_included) === 1,
+  }));
+  const rollup = rows.capabilityEnablementRollup.rows.map(stripSensitive);
+  const decisionCounts = requests.reduce((acc, row) => {
+    acc[row.decision] = (acc[row.decision] || 0) + 1;
+    return acc;
+  }, {});
+  const reasonCounts = requests.reduce((acc, row) => {
+    for (const code of row.reason_codes || []) acc[code] = (acc[code] || 0) + 1;
+    return acc;
+  }, {});
+  const topReasonCodes = Object.entries(reasonCounts)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 20)
+    .map(([reason_code, count]) => ({ reason_code, count }));
+  return {
+    summary: {
+      request_count: requests.length,
+      ready_for_dispatch_count: safeNumber(decisionCounts.ready_for_dispatch),
+      needs_approval_count: safeNumber(decisionCounts.needs_approval),
+      blocked_count: requests.filter((row) => String(row.decision || "").startsWith("blocked")).length,
+      degraded_count: safeNumber(decisionCounts.degraded_contract),
+      expired_envelope_count: requests.filter((row) => (row.reason_codes || []).includes("ENVELOPE_EXPIRED")).length,
+      provider_call_rows: requests.filter((row) => row.provider_calls_made !== 0).length,
+      external_mutation_rows: requests.filter((row) => row.external_mutations_executed !== 0).length,
+      secret_rows: requests.filter((row) => row.secrets_included === true).length,
+    },
+    top_reason_codes: topReasonCodes,
+    latest_requests: requests.slice(0, 25),
+    rollup,
+    safety: {
+      provider_calls_made: requests.some((row) => row.provider_calls_made !== 0),
+      external_mutations_executed: requests.some((row) => row.external_mutations_executed !== 0),
+      secrets_included: requests.some((row) => row.secrets_included === true),
+    },
+  };
+}
+
 function buildAttentionQueue(rows, containers) {
   const containerByTenant = new Map(containers.map((container) => [container.tenant_id, container.container_key]).filter(([tenant]) => tenant));
   const items = [];
