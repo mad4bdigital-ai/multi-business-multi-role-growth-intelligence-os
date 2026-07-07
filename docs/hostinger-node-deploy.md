@@ -1,5 +1,11 @@
 # Hostinger Node.js Auto Deploy
 
+## Temporary deploy resource authority binding
+
+Migration `1038_sprint69_hostinger_deploy_resource_authority_binding.sql` grants a two-hour dynamic resource authority binding for `remote_runtime_target` at `hostinger://auth.mad4b.com/production` with allowed mode `deploy`. It exists only so `admin_control` and deploy-envelope preflight can prove target-specific authority before executing the governed deploy-release tool.
+
+The binding does not deploy, restart, call providers, read credential payloads, expose secrets, or bypass the deploy capability envelope. Deploy execution remains blocked until dry-run returns `dispatch_ready=true`, a fresh deploy envelope is approved for the exact expected `main` SHA, bounded SSH execution is accepted, and `/health` plus `/version` readback prove parity. The binding must expire or be disabled after parity verification.
+
 > Repository-only governance note: `.github/workflows/surface-contract-auto-remediation.yml` does not deploy, restart, or synchronize any Hostinger app. It only opens reviewable documentation/generated-evidence PRs within an explicit path allowlist. Changed paths are parsed with NUL delimiters so filenames containing spaces are evaluated exactly and cannot bypass or falsely fail the allowlist. When repository Auto Merge is disabled or unavailable, the workflow emits a warning and leaves the PR open; it must not fail the completed remediation or fall back to a direct merge. A merged remediation PR does not satisfy deployment verification; production still requires CI, Hostinger Git deployment, `/health`, `/version`, and commit-parity readback.
 
 ## Purpose
