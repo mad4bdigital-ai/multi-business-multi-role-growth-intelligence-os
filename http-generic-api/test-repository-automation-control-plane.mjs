@@ -6,6 +6,7 @@ import {
   classifySpecLifecycle,
   collectChunkedToolResponse,
   runRepositoryAutomation,
+  scanRepositoryAutomationHygiene,
 } from "./repositoryAutomationControlPlane.js";
 
 const expectedCapabilities = [
