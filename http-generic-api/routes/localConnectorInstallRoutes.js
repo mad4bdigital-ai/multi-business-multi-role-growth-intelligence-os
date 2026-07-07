@@ -3,7 +3,10 @@ import { getPool } from "../db.js";
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { decryptCredentials } from "../tokenEncryption.js";
 import { normalizeConnectionMode } from "../activationModePolicy.js";
-import { requireLocalManagerDevice } from "../services/localManagerDeviceLinkService.js";
+import {
+  requireFreshLocalManagerDeviceForPrivilegedInstaller,
+  requireLocalManagerDevice,
+} from "../services/localManagerDeviceLinkService.js";
 import {
   connectorLocalApiKeySelectFragment,
   hasConnectorLocalApiKeyColumn,
