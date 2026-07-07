@@ -4,7 +4,7 @@
   "title": "Adaptive Authorization and Execution Governance",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-07T00:45:00Z",
+  "last_updated_at": "2026-07-07T09:20:00Z",
   "requirements": {
     "migration": true,
     "production_verification": true,
@@ -23,6 +23,13 @@
         "pull_request": 1936,
         "merge_sha": "809e81f9dc3c9198a2a4c2d45b4cd4177ef7b158",
         "status": "merged"
+      },
+      {
+        "sequence": 2,
+        "role": "decision_plane_capability_resolver_and_shadow_metadata",
+        "pull_request": 2290,
+        "merge_sha": null,
+        "status": "open_ci_passed_pending_merge"
       }
     ],
     "documentation_pr": {
@@ -44,18 +51,19 @@
     },
     "remaining_task_loop": {
       "started_at": "2026-07-07T00:45:00Z",
-      "status": "active",
+      "status": "decision_plane_complete_pending_pr_merge",
       "evidence_path": "specs/006-adaptive-authorization-execution-governance/remaining-task-loop-2026-07-07.md",
-      "latest_observed_main_sha": "15f3b69e2279d4d260995c4f466bc07a35e52584",
+      "latest_ci_head_sha": "e381dc0c24ed2aea1c84302b099efbfe38da0894",
       "live_smoke_tool": "tenant_effective_capability_readiness_smoke",
       "live_smoke_status": "pass",
       "provider_mutation": false,
-      "migration_execution": "not_started"
+      "migration_execution": "not_started",
+      "enforcement_change": false
     },
     "next_pr": {
-      "sequence": 2,
-      "scope": "continue_adaptive_authorization_decision_plane_after_semantic_capability_resolver",
-      "status": "remaining_task_loop_active"
+      "sequence": 3,
+      "scope": "enforcement_envelopes_approval_and_adapter_work_after_pr2290_merge",
+      "status": "blocked_until_pr2290_merged_and_readback_complete"
     },
     "closeout_pr": {
       "number": null,
@@ -82,18 +90,20 @@
       "sheets_role": "async_mirror_and_recovery",
       "duplicate_authority_creation_allowed": false,
       "new_table_candidates": ["reconciliation_checkpoints"],
-      "additive_extension_candidates": [
-        "decision_runs",
-        "capability_resolution_envelope_ledger",
-        "platform_evidence_events",
-        "execution_log"
-      ],
+      "additive_extension_candidates": ["decision_runs", "capability_resolution_envelope_ledger", "platform_evidence_events", "execution_log"],
       "migration_execution_authorized": false
     },
     "decision_plane": {
-      "status": "partially_implemented",
-      "completed_tasks": ["T010", "T015"],
-      "remaining_tasks": ["T011", "T012", "T013", "T014"],
+      "status": "complete_pending_pr2290_merge",
+      "completed_tasks": ["T010", "T011", "T012", "T013", "T014", "T015"],
+      "remaining_tasks": [],
+      "ci_gate": {
+        "pull_request": 2290,
+        "head_sha": "e381dc0c24ed2aea1c84302b099efbfe38da0894",
+        "status": "pass",
+        "required_check_count": 4,
+        "successful_check_count": 4
+      },
       "live_smoke": {
         "tool": "tenant_effective_capability_readiness_smoke",
         "status": "pass",
@@ -112,19 +122,19 @@
       "status": "in_progress",
       "completed_pr_sequences": [1],
       "completed_preconditions": ["T005", "T006"],
-      "completed_tasks": ["T010", "T015"],
-      "next_task_scope": "T011 typed subject-action-resource-context decision input and T012 relationship revision resolution",
+      "completed_tasks": ["T010", "T011", "T012", "T013", "T014", "T015"],
+      "next_task_scope": "T020 shared enforcement kernel after PR2290 merge",
       "provider_mutation_allowed": false,
       "enforcement_change_allowed": false,
       "new_authority_tables_allowed": false
     },
     "post_merge_cleanup": {
-      "status": "complete",
+      "status": "complete_for_prior_prs",
       "force_used": false
     },
     "production_rollout": {
       "status": "pending",
-      "reason": "T011 through T014, T020 through T053, migrations, shadow parity, canary enforcement, production verification, rollback rehearsal and post-merge audit remain incomplete."
+      "reason": "T020 through T053, migrations, shadow parity, canary enforcement, production verification, rollback rehearsal and post-merge audit remain incomplete."
     }
   },
   "sensitive_values_included": false

@@ -2,23 +2,11 @@
 
 **Feature:** `006-adaptive-authorization-execution-governance`  
 **Loop date:** 2026-07-07  
-**Latest observed main SHA:** `15f3b69e2279d4d260995c4f466bc07a35e52584`  
 **Loop type:** governed repository status and task-evidence reconciliation  
 **Runtime authority:** SQL primary  
 **Provider mutation:** none  
-**Migration execution:** none
-
-## Loop inputs
-
-- `completion.json` on `main`
-- `tasks.md` on `main`
-- `requirements.md` on `main`
-- PR #1976 GitHub readback
-- deleted branch readback for `gpt/docs/20260629-adaptive-auth-pre-pr2-readiness`
-- live SQL data-source census
-- live `tenant_effective_capability_readiness_smoke`
-- source inspection of `http-generic-api/tenantEffectiveCapabilityResolver.js`
-- source inspection of `http-generic-api/test-semantic-capability-effective-resolution.mjs`
+**Migration execution:** none  
+**Enforcement change:** none
 
 ## Confirmed delivery readback
 
@@ -43,47 +31,64 @@
 - mutations executed: false;
 - secrets included: false.
 
-This proves the semantic capability and alias resolver foundation is live and shadow-safe.
+## Decision-plane closure evidence
+
+PR #2290 implements and records the decision-plane loop on the same branch `gpt/docs/20260707-adaptive-auth-task-loop-status`.
+
+CI passed 4/4 after the syntax repair and same-branch synchronization:
+
+- Syntax Check: success
+- Architecture Drift Detection: success
+- Execution Resolver Gate: success
+- Unit & Integration Tests: success
+
+The resolver now exposes:
+
+- `decision_input` for typed subject-action-resource-context input;
+- `revision_vector` for workspace, membership, capability, binding, connection, action grant, resource grant, endpoint, export and certification evidence;
+- `policy` for grant/contextual policy composition;
+- `obligations` for approval, evidence, readback, shadow and provider-apply constraints;
+- `mismatch` for ambiguity, authority gaps, runtime gaps and retry safety classification.
+
+The shadow comparison ledger stores these no-secret fields in `decision_json` and keeps provider apply disabled.
 
 ## Task loop classification
 
 | Task | Classification | Evidence | Notes |
 |---|---|---|---|
-| T010 Implement canonical capability and alias resolution | complete | resolver reads `platform_semantic_capabilities`, `platform_capability_provider_bindings`, `platform_endpoint_aliases`, endpoint canonical identity, and exposes descriptor tools; live readiness smoke passed | no provider call and no secret return |
-| T011 Implement typed subject-action-resource-context decision input | open | preview input remains capability/workspace/resource oriented | needs explicit typed decision contract and tests |
-| T012 Implement relationship revision resolution | open | grants and memberships are read, but no complete revision vector is bound into the decision | needs revision source and stale-revision handling |
-| T013 Implement grant and contextual policy composition | open | action grants and resource grants are composed, but full contextual policy and approval policy composition is not complete | needs execution policy integration |
-| T014 Implement obligation and mismatch taxonomy | open | resolver status taxonomy and `difference_class` exist, but complete obligation model is not implemented | needs obligation output and mismatch catalog |
-| T015 Persist bounded shadow decisions and parity evidence | complete | `tenant_capability_shadow_compare` writes `tenant_capability_shadow_decisions` with legacy/effective decision, difference class, decision JSON, manifest hash and no-secret marker | live smoke remains read-only; persistence implementation is code-and-test evidenced |
-| T020 Shared enforcement kernel | open | no enforcement cutover evidence | must remain gated |
-| T021 Revision-bound envelopes | open | envelope ledger exists but feature-specific revision binding is not complete | future additive work |
-| T022 Scoped approvals and append-only decisions | open | `approval_holds` and evidence ledgers exist, but feature-specific scoped approval flow remains incomplete | future work |
+| T010 Implement canonical capability and alias resolution | complete | resolver reads `platform_semantic_capabilities`, provider bindings, endpoint aliases and canonical endpoint identity; live readiness smoke passed | no provider call and no secret return |
+| T011 Implement typed subject-action-resource-context decision input | complete | resolver accepts optional `decision_input`, validates conflicts with legacy args, and replaces tenant/user subject with authenticated authority | no caller subject authority grant |
+| T012 Implement relationship revision resolution | complete | `revision_vector` binds workspace, membership, grants, capability, binding, endpoint, export and certification evidence | no new authority table |
+| T013 Implement grant and contextual policy composition | complete | `policy` composes capability policy, binding policy, connection, action grant, resource authority and certification state | no enforcement cutover |
+| T014 Implement obligation and mismatch taxonomy | complete | `obligations` and `mismatch` are exposed in resolver and shadow evidence | ambiguity remains fail-closed |
+| T015 Persist bounded shadow decisions and parity evidence | complete | `tenant_capability_shadow_compare` writes no-secret decision JSON, manifest hash and difference class | no provider mutation |
+| T020 Shared enforcement kernel | open | no enforcement cutover evidence | next implementation boundary |
+| T021 Revision-bound envelopes | open | envelope ledger exists but feature-specific execution-envelope binding remains incomplete | future additive work |
+| T022 Scoped approvals and append-only decisions | open | approval holds and evidence ledgers exist, but feature-specific scoped approval flow remains incomplete | future work |
 | T023 Stale-envelope invalidation and concurrency | open | no complete implementation evidence | future work |
 | T030 Adapter bindings, certification and drift reconcilers | open | provider bindings and certification registries exist, but full adapter/readback/reconciliation contract is incomplete | future work |
-| T040-T043 Pilots and migration | open | shadow-safe resolver exists; no full three-pilot parity run or migration execution | future work |
-| T050-T053 Verification and rollout | open | unit/static tests and smoke exist for resolver; closeout verification remains incomplete | future work |
-| T061-T062 Closeout | open | closeout cannot run while implementation tasks remain open | future work |
+| T040-T043 Pilots and migration | open | decision-plane resolver is shadow-safe; no full three-pilot parity run or migration execution | future work |
+| T050-T053 Verification and rollout | open | CI and live smoke pass for decision plane; closeout verification remains incomplete | future work |
+| T061-T062 Closeout | open | closeout cannot run while enforcement, migration, pilot and rollout tasks remain open | future work |
 
-## Immediate next loop order
+## Immediate next loop order after PR #2290
 
-1. T011 — introduce typed subject-action-resource-context input while preserving tenant identity from authenticated authority.
-2. T012 — bind relationship, grant, capability, endpoint, policy and certification revisions into the decision manifest.
-3. T013 — compose grant and contextual policy with explicit approval requirements.
-4. T014 — add obligations and mismatch taxonomy to the decision output.
-5. Re-run resolver tests and live readiness smoke after each task.
-6. Only then proceed to T020 enforcement kernel design.
+1. Merge PR #2290 only after fresh base, CI 4/4 and ancestry readback.
+2. Delete branch `gpt/docs/20260707-adaptive-auth-task-loop-status` only after zero-unique-commit/readback guards pass.
+3. Start T020 in a separate PR: shared enforcement kernel design and shadow-only boundary wiring.
+4. Keep T021-T023 and T030 gated behind separate reviewed implementation steps.
 
-## Safety boundaries for the next loop
+## Safety boundaries retained
 
 - No provider mutation.
 - No enforcement cutover.
 - No migration execution without a separate checksum-bound migration PR.
-- No new authority table unless the SQL authority map requires it and review approves it.
-- No alias may grant authority.
-- Ambiguity must continue to fail closed.
-- Tenant and user identity must continue to come from authenticated authority for tenant principals.
-- Secrets must never be returned or selected by the resolver.
+- No new authority table.
+- Aliases do not grant authority.
+- Ambiguity remains fail-closed.
+- Tenant and user identity come from authenticated authority for tenant principals.
+- Secrets are never returned or selected by the resolver.
 
 ## Loop result
 
-The remaining-task loop is active. T010 and T015 are closed with evidence. T011, T012, T013 and T014 are the next decision-plane blockers. All enforcement, adapter, pilot, migration, verification and rollout tasks remain open.
+The decision-plane loop T010 through T015 is complete on PR #2290, pending final merge and branch cleanup. Enforcement, adapter, pilot, migration, verification and rollout tasks remain open.

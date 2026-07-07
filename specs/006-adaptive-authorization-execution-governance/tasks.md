@@ -12,10 +12,10 @@
 ## Decision plane
 
 - [x] T010 Implement canonical capability and alias resolution.
-- [ ] T011 Implement typed subject-action-resource-context decision input.
-- [ ] T012 Implement relationship revision resolution.
-- [ ] T013 Implement grant and contextual policy composition.
-- [ ] T014 Implement obligation and mismatch taxonomy.
+- [x] T011 Implement typed subject-action-resource-context decision input.
+- [x] T012 Implement relationship revision resolution.
+- [x] T013 Implement grant and contextual policy composition.
+- [x] T014 Implement obligation and mismatch taxonomy.
 - [x] T015 Persist bounded shadow decisions and parity evidence.
 
 ## Enforcement, adapters, and evidence
@@ -53,7 +53,7 @@
 - [x] D006 Merge the documented PR1 handoff as PR #1967.
 - [x] D007 Complete the governed terminology review and SQL authority map.
 - [x] D008 Start the remaining-task loop after explicit instruction and record live PR2-adjacent resolver evidence.
-- [ ] D009 Close the remaining decision-plane tasks T011 through T014 with implementation, tests, and readback.
+- [x] D009 Close the remaining decision-plane tasks T011 through T014 with implementation, tests, CI, and live readiness smoke.
 - [ ] D010 Close enforcement, adapter, pilot, migration, verification, rollout, and closeout tasks.
 
 See `terminology-review-2026-06-29.md`, `sql-authority-map-2026-06-29.md`, `handoff-report-2026-06-29.md`, and `remaining-task-loop-2026-07-07.md`.
