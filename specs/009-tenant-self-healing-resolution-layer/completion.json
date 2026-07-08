@@ -1,0 +1,17 @@
+{
+  "spec_key": "009-tenant-self-healing-resolution-layer",
+  "completion_status": "not_started",
+  "father_spec_status": "proposed",
+  "runtime_changes_in_father_pr": false,
+  "provider_calls_in_father_pr": false,
+  "secret_values_included": false,
+  "created_at": "2026-07-08",
+  "closeout_required_evidence": [
+    "father_pr_merged",
+    "child_prs_created_or_tracked",
+    "tenant_scope_tests_added_in_child_prs",
+    "no_secret_regression_tests_added_in_child_prs",
+    "same_cycle_readback_contracts_defined_before_any_recovered_classification"
+  ],
+  "notes": "This completion marker is intentionally not complete. Runtime implementation belongs to child PRs."
+}

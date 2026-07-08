@@ -1,0 +1,43 @@
+{
+  "spec_key": "009-tenant-self-healing-resolution-layer",
+  "title": "Tenant Self-Healing Resolution Layer",
+  "status": "father_spec_proposed",
+  "created_at": "2026-07-08",
+  "delivery_mode": "father_spec_plus_child_prs",
+  "source_authority": "activation_operational_attention_sql_primary_and_platform_capability_registry",
+  "initial_runtime_effect": "none",
+  "provider_mutation_allowed_in_father_pr": false,
+  "repo_mutation_scope": "spec_docs_only",
+  "transport": "auth_host_governed_github",
+  "sensitive_values_included": false,
+  "parent_branch": "gpt/spec-009-tenant-self-healing-resolution-layer",
+  "tracked_root_families": [
+    "wordpress_site_health",
+    "tenant_skill_approval",
+    "task_source_quality",
+    "provider_setup_ads",
+    "connector_runtime_readiness"
+  ],
+  "planned_child_prs": [
+    "gpt/tenant-resolution-registry-schema",
+    "gpt/tenant-attention-projection-api",
+    "gpt/tenant-resolution-case-api",
+    "gpt/tenant-approval-center",
+    "gpt/task-source-repair-playbook",
+    "gpt/wordpress-site-doctor-playbook",
+    "gpt/google-ads-setup-playbook",
+    "gpt/connector-health-repair-playbook",
+    "gpt/tenant-resolution-apply-gates",
+    "gpt/tenant-resolution-readback-closeout"
+  ],
+  "non_negotiable_invariants": [
+    "no_direct_main_mutation",
+    "no_provider_call_from_father_spec",
+    "no_secret_return",
+    "tenant_scope_enforced",
+    "capability_envelope_required_for_state_changing_paths",
+    "approval_hold_required_when_policy_requires",
+    "same_cycle_readback_required_before_recovered_classification",
+    "child_prs_must_be_small_and_reviewable"
+  ]
+}
