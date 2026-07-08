@@ -6,19 +6,19 @@
 **Migration execution:** none  
 **Enforcement cutover:** none
 
-## Completed through T021
+## Completed through T022
 
-T010 through T015 are complete. PR #2290 merged the decision-plane resolver and shadow metadata. PR #2322 merged the dynamic shared enforcement kernel for T020.
+T010 through T015 are complete. PR #2290 merged the decision-plane resolver and shadow metadata. PR #2322 merged the dynamic shared enforcement kernel for T020. PR #2346 merged revision-bound execution envelopes for T021.
 
-T021 adds the platform execution envelope kernel. It is revision-bound, expiring, and replay-resistant, and remains non-executing.
+T022 adds the platform scoped approval kernel. It creates scoped approval requests and append-only decision logs while remaining non-executing and non-persistent.
 
-## T021 execution envelope evidence
+## T022 scoped approval evidence
 
-The kernel is implemented in `http-generic-api/platformExecutionEnvelopeKernel.js` with tests in `http-generic-api/test-platform-execution-envelope-kernel.mjs`.
+The kernel is implemented in `http-generic-api/platformScopedApprovalKernel.js` with tests in `http-generic-api/test-platform-scoped-approval-kernel.mjs`.
 
-It binds each envelope to capability envelope id, boundary key, enforcement status, revision vector hash, dynamic policy hash, obligations hash, mismatch taxonomy hash, nonce hash, idempotency key hash, replay key, and issued/expiry timestamps.
+It binds approval requests to execution envelope id, execution envelope manifest hash, request scope hash, requested permissions, issued/expiry timestamps, and no-provider-apply boundaries.
 
-Validation fails closed when the envelope is expired, the replay key was already seen or consumed, the revision vector changed, the policy changed, obligations changed, mismatch taxonomy changed, the envelope is already terminal, or secrets are present.
+Decision records are hash-chained with sequence numbers, previous decision hash, request manifest hash, approver identity, and decision note hash. Validation fails closed if a previous decision is tampered with or if a terminal decision is already present.
 
 ## Task loop classification
 
@@ -27,12 +27,12 @@ Validation fails closed when the envelope is expired, the replay key was already
 | T010-T015 Decision plane | complete | resolver and shadow ledger evidence | no provider mutation |
 | T020 Shared enforcement kernel | complete | dynamic resolver-derived enforcement policy | no provider mutation and no cutover |
 | T021 Revision-bound envelopes | complete | platform execution envelope kernel and tests | no persistence or adapter execution yet |
-| T022 Scoped approvals and append-only decisions | open | approval flow remains separate | future work |
+| T022 Scoped approvals | complete | scoped approval request and append-only decision kernel | no persistence or approval routes yet |
 | T023 Stale-envelope invalidation and concurrency | open | persistence/idempotency integration remains separate | future work |
 | T030 Adapter bindings, certification and drift reconcilers | open | no provider adapter execution | future work |
 | T040-T043 Pilots and migration | open | no full three-pilot parity run or migration execution | future work |
 | T050-T053 Verification and rollout | open | closeout verification remains incomplete | future work |
-| T061-T062 Closeout | open | closeout cannot run while approvals, adapters, pilots, rollout and audit remain open | future work |
+| T061-T062 Closeout | open | closeout cannot run while stale/idempotency controls, adapters, pilots, rollout and audit remain open | future work |
 
 ## Safety boundaries retained
 
