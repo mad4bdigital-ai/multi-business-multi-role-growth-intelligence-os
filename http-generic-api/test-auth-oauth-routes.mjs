@@ -141,6 +141,8 @@ try {
     assert("authorize preselects signup panel", result.text.includes('const INITIAL_PANEL = "register"'));
     assert("authorize includes privacy policy link", result.text.includes('href="/privacy-policy"'));
     assert("authorize includes configured Google client", result.text.includes(process.env.GOOGLE_CLIENT_ID));
+    assert("authorize renders canonical ChatGPT callback", result.text.includes(canonicalRedirectUri));
+    assert("authorize does not render legacy callback in client script", !result.text.includes('const REDIRECT_URI = "https://chat.openai.com'));
     assert("authorize leaves GIS button locale automatic", !/locale\s*:\s*["'][^"']+["']/.test(result.text));
     assert("authorize does not force a GSI hl parameter", !result.text.includes("gsi/client?hl="));
   }
