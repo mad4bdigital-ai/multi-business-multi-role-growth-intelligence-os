@@ -19,7 +19,7 @@ UPDATE platform_pending_tasks
          CONCAT(
            'Source-data-quality repair: this legacy pending task referenced merge commit ',
            'f5bc4d9dd509ae1467ff7a80657ae0acc9674f98, which merged PR #677 and completed the open-PR work item. ',
-           'The malformed empty task_id/title caused v_activation_pending_tasks source_data_quality noise.'
+           'The malformed empty task_id/title caused activation pending-task source-data-quality noise.'
          )
        ),
        brief = COALESCE(
