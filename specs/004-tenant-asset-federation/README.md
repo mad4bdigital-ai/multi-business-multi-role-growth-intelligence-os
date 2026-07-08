@@ -28,6 +28,22 @@ observe → explain → propose → simulate → approve → canary → measure 
 
 No silent self-modification is allowed. High-risk policy, authority, credential, deployment, and provider-write changes remain approval-gated.
 
+## Dev Orchestrator and Consumption Governance overlay
+
+PR #1898 also includes a design-only Dev Orchestrator overlay. Read `dev-orchestrator-integration-index.md` as the navigation hub for this cross-plane bundle.
+
+The overlay does not replace the shared asset fabric. It extends the Spec Kit with consumption-governance requirements for dynamic intelligence work:
+
+- who benefits;
+- who pays;
+- who approves;
+- what data was used;
+- where the output is written;
+- what fallback is allowed;
+- what readback closes the run.
+
+The bundle covers the Custom GPT UI surface, backend Dev Orchestrator, OpenRouter runtime lane, OpenRouter Management API boundary, optional `openai-agents-js` thin runtime, sub-agent read-only delegation, mode selection, model fallback, risk register, test matrix, rollout gates, and runtime implementation previews. It remains design-only: no migrations, runtime activation, provider dispatch, credential reads, SDK install, sub-agent execution, or production mutation are authorized by this PR.
+
 ## Package map
 
 ### Dev Orchestrator and Consumption Governance overlay
