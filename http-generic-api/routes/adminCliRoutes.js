@@ -378,7 +378,34 @@ export async function executeSafe(cmd, args, options = {}) {
   });
 }
 
-async function executeDbControl(body = {}) {
+export function serializeDbControlQueryResult(result, fields = null) {
+  if (Array.isArray(result)) {
+    return {
+      statement_result_type: "rows",
+      rows: result,
+      fields: Array.isArray(fields)
+        ? fields.map((f) => ({ name: f.name, column_type: f.columnType }))
+        : undefined,
+      secrets_included: false,
+    };
+  }
+
+  const header = result && typeof result === "object" ? result : {};
+  return {
+    statement_result_type: "mutation",
+    result: {
+      affectedRows: Number(header.affectedRows || 0),
+      changedRows: Number(header.changedRows || 0),
+      insertId: Number(header.insertId || 0),
+      warningStatus: Number(header.warningStatus || 0),
+      serverStatus: header.serverStatus === undefined ? undefined : Number(header.serverStatus || 0),
+      info: typeof header.info === "string" ? header.info : undefined,
+    },
+    secrets_included: false,
+  };
+}
+
+export async function executeDbControl(body = {}) {
   const action = String(body.action || "run").trim().toLowerCase();
   if (action !== "run") {
     const err = new Error("Unsupported db action. Use run.");
@@ -407,11 +434,8 @@ async function executeDbControl(body = {}) {
   if (statements.length === 1) {
     const [result, fields] = await getPool().query(statements[0], params);
     return {
-      rows: Array.isArray(result) ? result : undefined,
-      result: Array.isArray(result) ? undefined : result,
-      fields: Array.isArray(fields)
-        ? fields.map((f) => ({ name: f.name, column_type: f.columnType }))
-        : undefined,
+      statement_count: 1,
+      ...serializeDbControlQueryResult(result, fields),
     };
   }
 
@@ -421,9 +445,11 @@ async function executeDbControl(body = {}) {
     const [result] = await getPool().query(stmt);
     results.push({
       statement: stmt.slice(0, 120),
-      affectedRows: result?.affectedRows,
-      insertId: result?.insertId,
-      warningStatus: result?.warningStatus,
+      affectedRows: Number(result?.affectedRows || 0),
+      changedRows: Number(result?.changedRows || 0),
+      insertId: Number(result?.insertId || 0),
+      warningStatus: Number(result?.warningStatus || 0),
+      secrets_included: false,
     });
   }
   return { statements_executed: results.length, results };
