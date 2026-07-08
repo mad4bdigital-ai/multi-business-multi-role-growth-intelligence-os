@@ -797,6 +797,7 @@ export function buildAuthRoutes(deps) {
       tokenLogContext = {
         grant_type: grantType || null,
         code_present: Boolean(code),
+        code_timing: safeOAuthCodeTimingEvidence(code, startedAtMs),
         redirect_uri: safeOAuthRedirectEvidence(redirectUri),
         client: safeOAuthClientEvidence(credentials),
       };
