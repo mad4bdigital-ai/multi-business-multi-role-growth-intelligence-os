@@ -61,6 +61,16 @@ assert(installRoutes.includes('normalizePermissionGrants'), 'installer route mus
 assert(installRoutes.includes('/[\\n\\r<>|?*&^%!]/.test(raw)'), 'dynamic Windows paths must reject CMD metacharacters before installer rendering');
 assert(installRoutes.includes('CONNECTOR_APP_ALLOWLIST'), 'installer route must support dynamic app allowlist grants');
 assert(installRoutes.includes('CONNECTOR_FILE_PATHS'), 'installer route must support dynamic file path grants');
+assert(routeLifecyclePolicy.includes('ADMIN_BREAK_GLASS: "admin_break_glass"'), 'local connector route lifecycle policy must model admin break-glass separately');
+assert(routeLifecyclePolicy.includes('TENANT_AUTH_HOST: "tenant_auth_host"'), 'local connector route lifecycle policy must model tenant auth-host routing separately');
+assert(routeLifecyclePolicy.includes('host: "connector.mad4b.com"'), 'admin break-glass lifecycle must retain connector.mad4b.com host identity');
+assert(routeLifecyclePolicy.includes('host: "auth.mad4b.com"'), 'tenant lifecycle must retain auth-host identity');
+assert(routeLifecyclePolicy.includes('selection_barrier: "tenant_id+user_id+canonical_device_id"'), 'tenant auth-host device selection must use tenant/user/canonical device barrier');
+assert(routeLifecyclePolicy.includes('DEVICE_FORMATTED') && routeLifecyclePolicy.includes('WINDOWS_REINSTALLED') && routeLifecyclePolicy.includes('DEVICE_REPLACED'), 'route lifecycle must cover disaster recovery cases for format, Windows reinstall, and device replacement');
+assert(routeLifecyclePolicy.includes('MULTIPLE_DEVICES_TARGET_SELECTION'), 'route lifecycle must cover multiple-device target selection');
+assert(routeLifecyclePolicy.includes('do_not_escalate_tenant_route_to_admin_route_repair_tunnel_or_dns'), 'route lifecycle must not silently escalate tenant path to break-glass path');
+assert(installRoutes.includes('buildLocalConnectorRouteLifecycle'), 'installer response must include route lifecycle metadata');
+assert(installRoutes.includes('target_selection: localConnectorTargetSelectionPolicy'), 'installer response must include explicit target selection metadata');
 assert(installRoutes.includes('shell_aliases'), 'installer route must support dynamic helper shell alias grants');
 assert(installRoutes.includes('normalizePermissionGrants({ ...(req.body?.permission_grants || {}), capabilities: req.body?.capabilities || [] })'), 'device-scoped installer link must normalize requested permission grants');
 assert(installRoutes.includes('permission_grants: permissionGrants'), 'installer download token must propagate permission grants without secrets');
