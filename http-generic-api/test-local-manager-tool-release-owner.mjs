@@ -72,6 +72,14 @@ assert(proxyRoutes.includes('connector_capability_status: "disabled"'), 'connect
 assert(localManagerWindowsInstallerSurface.includes('app_managed = true'), 'Windows app must request app-managed installer bootstraps');
 assert(localManagerWindowsInstallerSurface.includes('suppress_pause = true'), 'Windows app must request no-pause installer bootstraps');
 assert(installRoutes.includes('app_managed: appManaged'), 'installer route must sign app-managed mode into download tokens');
+assert(installRoutes.includes('requireFreshLocalManagerDeviceForPrivilegedInstaller(req)'), 'privileged installer links must require fresh Local Manager authorization');
+assert(installRoutes.includes('auth_context: device.auth_context'), 'privileged installer link responses must disclose saved device-token auth context');
+assert(installRoutes.includes('reauth_required_for_stale_device_tokens: true'), 'privileged installer link responses must flag stale saved device-token reauth requirements');
+assert(localManagerDeviceLinkService.includes('PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = 15 * 60'), 'Local Manager privileged installer freshness window must be explicit');
+assert(localManagerDeviceLinkService.includes('source: "saved_device_token"'), 'Local Manager device session must disclose saved device-token identity source');
+assert(localManagerDeviceLinkService.includes('interactive_user_session_present: false'), 'Local Manager device session must distinguish saved token auth from an interactive user session');
+assert(localManagerDeviceLinkService.includes('fresh_local_manager_authorization_required'), 'Local Manager privileged installer guard must return a stable fresh-auth error code');
+assert(localManagerDeviceLinkService.includes('reauth_action: "forget_device_and_link_again"'), 'Local Manager privileged installer guard must return an actionable re-auth hint');
 assert(installRoutes.includes('appManaged: payload.app_managed === true'), 'download route must pass app-managed mode into bootstrap BAT generation');
 assert(installRoutes.includes('const doneSuffix = appManaged ? "exit /b 0" : "pause"'), 'app-managed bootstrap BAT must exit instead of pausing');
 assert(installRoutes.includes('const failSuffix = appManaged ? "exit /b 1" : "pause & exit /b 1"'), 'app-managed bootstrap BAT failures must exit instead of pausing');

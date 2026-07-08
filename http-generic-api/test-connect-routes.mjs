@@ -925,12 +925,20 @@ const doc = (() => {
       source.includes('router.post("/local-connector/install"') &&
       source.includes("provisionLocalConnectorInstall(req, req.body || {})") &&
       source.includes("shared provisioning helper"));
-    assert("local connector supports device-scoped Local Manager repair installer links",
+    assert("local connector requires fresh Local Manager authorization for privileged repair installer links",
       source.includes('router.post("/local-connector/install/device-download-link"') &&
-      source.includes("requireLocalManagerDevice(req)") &&
+      source.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller(req)") &&
       source.includes("canonical_device_id") &&
       source.includes("run_as_admin_required: true") &&
+      source.includes("auth_context: device.auth_context") &&
+      source.includes("reauth_required_for_stale_device_tokens: true") &&
       source.includes("secrets_included: false"));
+    assert("Local Manager privileged installer guard returns structured fresh-auth error context",
+      deviceLinkSource.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller") &&
+      deviceLinkSource.includes("fresh_local_manager_authorization_required") &&
+      deviceLinkSource.includes("saved_device_token") &&
+      deviceLinkSource.includes("privileged_authorization_fresh") &&
+      deviceLinkSource.includes("reauth_action"));
     assert("Local Manager device controls advertise connector repair installer action",
       deviceLinkSource.includes('connector_repair_installer: "/local-connector/install/device-download-link"') &&
       deviceLinkSource.includes('allowedSections = new Set(["overview", "routes", "backups", "repairs", "n8n", "settings"])') &&
