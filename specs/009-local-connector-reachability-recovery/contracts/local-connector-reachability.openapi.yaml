@@ -1,0 +1,550 @@
+openapi: 3.1.0
+info:
+  title: Local Connector Reachability Recovery API
+  version: 0.1.0-draft
+  description: Draft contract for target device selection, route lifecycle readback, recovery preview, heartbeat, probes, and recovery actions.
+servers:
+  - url: https://auth.mad4b.com
+    description: Tenant and admin auth-host API
+security:
+  - bearerAuth: []
+tags:
+  - name: Local Connector Devices
+  - name: Local Connector Reachability
+  - name: Local Connector Recovery
+  - name: Local Connector Heartbeat
+  - name: Admin Local Connector Diagnostics
+paths:
+  /local-connector/devices:
+    get:
+      operationId: listLocalConnectorDevices
+      tags: [Local Connector Devices]
+      summary: List tenant/user local connector devices
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, stale, replaced, revoked]
+      responses:
+        '200':
+          description: Device list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceListResponse'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+  /local-connector/devices/{deviceId}/reachability:
+    get:
+      operationId: getLocalConnectorReachability
+      tags: [Local Connector Reachability]
+      summary: Read route lifecycle and reachability for a selected device
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+        - name: activeProbe
+          in: query
+          description: Whether to run bounded live probes. Defaults to false.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Reachability readback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReachabilityResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+  /local-connector/devices/{deviceId}/recovery-plan:
+    post:
+      operationId: previewLocalConnectorRecoveryPlan
+      tags: [Local Connector Recovery]
+      summary: Preview recovery plan without generating installer secrets
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecoveryPlanRequest'
+      responses:
+        '200':
+          description: Recovery plan preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecoveryPlanResponse'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+  /local-connector/devices/{deviceId}/recovery-actions:
+    post:
+      operationId: createLocalConnectorRecoveryAction
+      tags: [Local Connector Recovery]
+      summary: Create a gated recovery action such as relink, repair, reinstall, or replacement
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+        - name: Idempotency-Key
+          in: header
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 200
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecoveryActionRequest'
+      responses:
+        '201':
+          description: Recovery action created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecoveryActionResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+  /local-connector/devices/{deviceId}/heartbeat:
+    post:
+      operationId: ingestLocalConnectorHeartbeat
+      tags: [Local Connector Heartbeat]
+      summary: Ingest signed heartbeat for a local connector device
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HeartbeatRequest'
+      responses:
+        '202':
+          description: Heartbeat accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeartbeatResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+  /admin/local-connector/routes/{routeId}/probe:
+    post:
+      operationId: runAdminLocalConnectorRouteProbe
+      tags: [Admin Local Connector Diagnostics]
+      summary: Run an admin-scoped bounded probe for a route
+      security:
+        - bearerAuth: [admin]
+      parameters:
+        - $ref: '#/components/parameters/RouteId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminProbeRequest'
+      responses:
+        '202':
+          description: Probe accepted or completed according to mode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminProbeResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    DeviceId:
+      name: deviceId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    RouteId:
+      name: routeId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+        maxLength: 500
+  responses:
+    ErrorResponse:
+      description: Structured error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              examples: [target_device_ambiguous, fresh_authorization_required, route_generation_mismatch]
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+            requestId:
+              type: string
+    DeviceListResponse:
+      type: object
+      required: [items, page, secrets_included]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LocalConnectorDevice'
+        page:
+          type: object
+          required: [hasMore]
+          properties:
+            nextCursor:
+              type: string
+              nullable: true
+            hasMore:
+              type: boolean
+        secrets_included:
+          type: boolean
+          const: false
+    LocalConnectorDevice:
+      type: object
+      required: [device_id, tenant_id, user_id, status]
+      properties:
+        device_id:
+          type: string
+        tenant_id:
+          type: string
+        user_id:
+          type: string
+        display_name:
+          type: string
+          nullable: true
+        current_hostname:
+          type: string
+          nullable: true
+        aliases:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeviceAlias'
+        status:
+          type: string
+          enum: [active, stale, replaced, revoked]
+        last_seen_at:
+          type: string
+          format: date-time
+          nullable: true
+    DeviceAlias:
+      type: object
+      required: [alias_type, display_value, status]
+      properties:
+        alias_type:
+          type: string
+          enum: [hostname, legacy_config_id, user_label, pairing_code, windows_machine_guid_hash]
+        display_value:
+          type: string
+        status:
+          type: string
+          enum: [active, historical, revoked]
+    ReachabilityResponse:
+      type: object
+      required: [ok, target_selection, route_lifecycle, health_summary, recovery_recommendation, secrets_included]
+      properties:
+        ok:
+          type: boolean
+        target_selection:
+          $ref: '#/components/schemas/TargetSelection'
+        route_lifecycle:
+          $ref: '#/components/schemas/RouteLifecycle'
+        health_summary:
+          $ref: '#/components/schemas/HealthSummary'
+        recovery_recommendation:
+          $ref: '#/components/schemas/RecoveryRecommendation'
+        secrets_included:
+          type: boolean
+          const: false
+    TargetSelection:
+      type: object
+      required: [target_key, canonical_device_id, selection_barrier]
+      properties:
+        target_key:
+          type: string
+        canonical_device_id:
+          type: string
+        requested_device_id:
+          type: string
+          nullable: true
+        selection_barrier:
+          type: string
+          enum: [tenant_id+user_id+canonical_device_id]
+        ambiguous:
+          type: boolean
+          default: false
+    RouteLifecycle:
+      type: object
+      required: [profile_source, channels]
+      properties:
+        profile_source:
+          type: string
+        applied_profiles:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteChannelState'
+    RouteChannelState:
+      type: object
+      required: [route_channel, status]
+      properties:
+        route_id:
+          type: string
+          nullable: true
+        route_channel:
+          type: string
+          enum: [tenant_auth_host, admin_break_glass, cloudflare_tunnel, local_service]
+        status:
+          type: string
+          enum: [provisioned, paired, registered, healthy, degraded, stale, unreachable, reprovision_required, revoked]
+        endpoint_host:
+          type: string
+          nullable: true
+        last_health_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_error_code:
+          type: string
+          nullable: true
+    HealthSummary:
+      type: object
+      properties:
+        config_status:
+          type: string
+        registration_status:
+          type: string
+        heartbeat_status:
+          type: string
+        auth_host_status:
+          type: string
+        break_glass_status:
+          type: string
+        tunnel_status:
+          type: string
+        local_service_status:
+          type: string
+        classification:
+          type: string
+    RecoveryRecommendation:
+      type: object
+      required: [recommended_action, reason_code]
+      properties:
+        recommended_action:
+          type: string
+          enum: [none, choose_device, repair_connection, relink_device, reinstall_connector, replace_device, admin_diagnostics, wait_for_verification]
+        reason_code:
+          type: string
+        requires_fresh_authorization:
+          type: boolean
+        requires_admin:
+          type: boolean
+    RecoveryPlanRequest:
+      type: object
+      required: [recovery_reason]
+      properties:
+        recovery_reason:
+          type: string
+          enum: [repair_connection, windows_reinstalled, device_formatted, device_replaced, route_unreachable, tunnel_unreachable, host_unreachable]
+        route_channel:
+          type: string
+          enum: [tenant_auth_host, admin_break_glass]
+          nullable: true
+        dry_run:
+          type: boolean
+          default: true
+    RecoveryPlanResponse:
+      type: object
+      required: [ok, plan, secrets_included]
+      properties:
+        ok:
+          type: boolean
+        plan:
+          $ref: '#/components/schemas/RecoveryPlan'
+        secrets_included:
+          type: boolean
+          const: false
+    RecoveryPlan:
+      type: object
+      required: [recovery_plan_id, status, recommended_action]
+      properties:
+        recovery_plan_id:
+          type: string
+        status:
+          type: string
+          enum: [preview, approved, dispatched, verified, failed, cancelled]
+        recommended_action:
+          type: string
+        required_readback:
+          type: array
+          items:
+            type: string
+        blockers:
+          type: array
+          items:
+            type: string
+    RecoveryActionRequest:
+      type: object
+      required: [recovery_plan_id, action]
+      properties:
+        recovery_plan_id:
+          type: string
+        action:
+          type: string
+          enum: [repair_connection, relink_device, reinstall_connector, replace_device, revoke_route]
+        fresh_authorization_token:
+          type: string
+          nullable: true
+          description: Short-lived proof, never echoed.
+    RecoveryActionResponse:
+      type: object
+      required: [ok, recovery_action_id, status, secrets_included]
+      properties:
+        ok:
+          type: boolean
+        recovery_action_id:
+          type: string
+        status:
+          type: string
+          enum: [accepted, pending_verification, blocked, failed]
+        next_poll_after_seconds:
+          type: integer
+          nullable: true
+        secrets_included:
+          type: boolean
+          const: false
+    HeartbeatRequest:
+      type: object
+      required: [device_generation, runtime_version, process_status, capabilities_hash, signed_at]
+      properties:
+        device_generation:
+          type: integer
+          minimum: 1
+        route_id:
+          type: string
+          nullable: true
+        runtime_version:
+          type: string
+        local_manager_version:
+          type: string
+          nullable: true
+        process_status:
+          type: string
+          enum: [running, stopped, unknown]
+        local_port_status:
+          type: string
+          enum: [bound, unavailable, unknown]
+        tunnel_status:
+          type: string
+          enum: [connected, disconnected, unknown]
+        capabilities_hash:
+          type: string
+        signed_at:
+          type: string
+          format: date-time
+    HeartbeatResponse:
+      type: object
+      required: [accepted, route_state, secrets_included]
+      properties:
+        accepted:
+          type: boolean
+        route_state:
+          type: string
+        server_received_at:
+          type: string
+          format: date-time
+        secrets_included:
+          type: boolean
+          const: false
+    AdminProbeRequest:
+      type: object
+      required: [probe_type, mode]
+      properties:
+        probe_type:
+          type: string
+          enum: [auth_host_proxy, break_glass_host, cloudflare_tunnel, runtime_health, local_service]
+        mode:
+          type: string
+          enum: [dry_run, live_probe]
+        timeout_ms:
+          type: integer
+          minimum: 1000
+          maximum: 120000
+          default: 10000
+    AdminProbeResponse:
+      type: object
+      required: [accepted, probe_result, secrets_included]
+      properties:
+        accepted:
+          type: boolean
+        probe_result:
+          type: object
+          properties:
+            probe_id:
+              type: string
+            status:
+              type: string
+              enum: [success, failure, timeout, blocked, skipped]
+            error_code:
+              type: string
+              nullable: true
+            latency_ms:
+              type: integer
+              nullable: true
+        secrets_included:
+          type: boolean
+          const: false
