@@ -382,6 +382,15 @@ function testRepositoryContracts() {
   assert.match(gptToolsRoutes, /x-brand-key/);
   assert.match(gptToolsRoutes, /workspace_key = \?/);
   assert.match(gptToolsRoutes, /brand_key = \?/);
+  assert.match(gptSessionRoutes, /workspace_key = String\(turn\.workspace_key/);
+  assert.match(gptSessionRoutes, /brand_key = String\(turn\.brand_key/);
+  assert.match(gptSessionRoutes, /workspace_key,\n\s*brand_key,/);
+  assert.match(gptSessionRoutes, /workspace_key: turn\.workspace_key/);
+  assert.match(gptSessionRoutes, /brand_key: turn\.brand_key/);
+  assert.match(sessionArchiveService, /turnWorkspaceKey = String\(workspace_key \|\| session\.workspace_key/);
+  assert.match(sessionArchiveService, /turnBrandKey = String\(brand_key \|\| session\.brand_key/);
+  assert.match(sessionArchiveService, /turnWorkspaceKey/);
+  assert.match(sessionArchiveService, /turnBrandKey/);
   assert.match(sessionSummaryService, /gpt_session_turns/);
   assert.match(sessionSummaryService, /gst\.workspace_key = \?/);
   assert.match(sessionSummaryService, /gst\.brand_key = \?/);
