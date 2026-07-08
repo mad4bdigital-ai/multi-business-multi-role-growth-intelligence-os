@@ -32,6 +32,7 @@ export const testCommands = [
   "node test-capability-resolution-envelope-ledger.mjs",
   "node test-capability-envelope-approval-tool.mjs",
   "node test-capability-envelope-apply-authorization-tool.mjs",
+  "node test-capability-envelope-lifecycle-tool.mjs",
   "node test-platform-resource-authority-grant-tool.mjs",
   "node test-budget-quota-authority-registry.mjs",
   "node test-google-ads-budget-change-preflight.mjs",

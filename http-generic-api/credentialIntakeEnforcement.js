@@ -5,6 +5,8 @@ const TOKEN_BYTES = 32;
 const DEFAULT_TTL_MINUTES = 30;
 const MAX_TTL_MINUTES = 24 * 60;
 const PLATFORM_ADMIN_USER_ID = "00000000-0000-4000-a000-000000000020";
+const SENSITIVE_METADATA_KEY_PATTERN = /(?:password|passwd|pwd|secret|token|private_key|api_key|bearer|authorization|credential_value|value_ciphertext)/i;
+const PRIVATE_KEY_VALUE_PATTERN = /-----BEGIN [A-Z ]+PRIVATE KEY-----[\s\S]*?-----END [A-Z ]+PRIVATE KEY-----/g;
 
 const ALLOWED_AUTH_TYPES = new Set([
   "api_key",
@@ -45,6 +47,19 @@ function normalizeFieldName(name) {
     .replace(/_+/g, "_")
     .replace(/^_|_$/g, "")
     .slice(0, 64);
+}
+
+export function sanitizeCredentialIntakeMetadata(value, depth = 0) {
+  if (depth > 6) return "[redacted-depth-limit]";
+  if (Array.isArray(value)) return value.map((item) => sanitizeCredentialIntakeMetadata(item, depth + 1));
+  if (!value || typeof value !== "object") {
+    if (typeof value === "string") return value.replace(PRIVATE_KEY_VALUE_PATTERN, "[redacted-private-key]");
+    return value;
+  }
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => {
+    if (SENSITIVE_METADATA_KEY_PATTERN.test(String(key || ""))) return [key, "[redacted]"];
+    return [key, sanitizeCredentialIntakeMetadata(item, depth + 1)];
+  }));
 }
 
 function roleText(input = {}, effective = {}) {
@@ -280,7 +295,7 @@ export async function createCredentialIntakeRequirement(input = {}, effective = 
   const sessionId = randomUUID();
   const expiresAt = new Date(Date.now() + ttl * 60_000).toISOString().slice(0, 19).replace("T", " ");
   const metadata = {
-    ...(input.metadata && typeof input.metadata === "object" ? input.metadata : {}),
+    ...(input.metadata && typeof input.metadata === "object" ? sanitizeCredentialIntakeMetadata(input.metadata) : {}),
     intake_enforcement: true,
     credential_intake_handoff: true,
     intake_scope: intakeScope,
@@ -360,5 +375,6 @@ export const __test__ = {
   inferAuthType,
   inferCredentialField,
   requirementKey,
+  sanitizeCredentialIntakeMetadata,
   shouldCreateCredentialIntake,
 };
