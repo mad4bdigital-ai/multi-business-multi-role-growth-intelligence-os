@@ -539,6 +539,8 @@ export function buildGptSessionRoutes(deps) {
         content,
         action_key,
         turnIndex,
+        workspace_key,
+        brand_key,
       });
 
       return res.status(200).json({
