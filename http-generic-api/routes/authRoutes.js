@@ -741,10 +741,34 @@ export function buildAuthRoutes(deps) {
   });
 
   router.post("/oauth/token", express.urlencoded({ extended: false }), async (req, res) => {
+    const startedAtMs = Date.now();
+    const requestId = randomUUID();
+    const tokenQuery = (sql, params) => resolvePool().query(sql, params);
+    let tokenLogContext = {};
+    const logTokenExchange = (status, failureReason, httpStatus, extra = {}) => {
+      void recordOAuthTokenDiagnostic(tokenQuery, {
+        started_at_ms: startedAtMs,
+        duration_ms: Date.now() - startedAtMs,
+        request_id: requestId,
+        status,
+        failure_reason: failureReason,
+        http_status: httpStatus,
+        ...tokenLogContext,
+        ...extra,
+      });
+    };
+
     try {
       const grantType = req.body?.grant_type;
       const code = req.body?.code;
       const redirectUri = req.body?.redirect_uri;
+      const credentials = oauthClientCredentials(req);
+      tokenLogContext = {
+        grant_type: grantType || null,
+        code_present: Boolean(code),
+        redirect_uri: safeOAuthRedirectEvidence(redirectUri),
+        client: safeOAuthClientEvidence(credentials),
+      };
 
       if (grantType !== "authorization_code") {
         return res.status(400).json({ error: "unsupported_grant_type", error_description: "Only authorization_code is supported." });
