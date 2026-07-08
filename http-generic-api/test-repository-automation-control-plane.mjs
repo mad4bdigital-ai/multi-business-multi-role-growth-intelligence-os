@@ -286,6 +286,7 @@ const hygiene = await scanRepositoryAutomationHygiene({
   },
 });
 assert.equal(hygiene.finding_count, 0);
+assert.equal(sawInventoryChunkRead, true);
 assert.equal(hygiene.sources.github_inventory, true);
 assert.equal(hygiene.sources.deployment_parity, true);
 
