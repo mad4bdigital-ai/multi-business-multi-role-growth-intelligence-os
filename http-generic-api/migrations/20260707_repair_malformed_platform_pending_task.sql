@@ -1,5 +1,5 @@
 -- Repair one malformed legacy platform_pending_tasks row that surfaced as
--- v_activation_pending_tasks source_data_quality noise.
+-- activation pending-task source-data-quality noise.
 --
 -- Evidence:
 -- - task_key: open_pr_platform_governance_codification_v3
