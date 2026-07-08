@@ -338,6 +338,7 @@ function testRepositoryContracts() {
   const sessionRoutes = read("./routes/sessionRoutes.js");
   const gptToolsRoutes = read("./routes/gptToolsRoutes.js");
   const sessionSummaryService = read("./sessionSummaryService.js");
+  const sessionArchiveService = read("./sessionArchiveService.js");
   const lifecycleService = read("./activationSessionLifecycleService.js");
   const mcpRuntime = read("./mcpRuntime.js");
   const dynamicTabs = read("./activationDynamicTabsEvidence.js");
