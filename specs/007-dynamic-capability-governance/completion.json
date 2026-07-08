@@ -110,6 +110,32 @@
           "freeform_sql_accepted": false,
           "secrets_included": false
         }
+      },
+      {
+        "role": "production_runtime_parity_readback",
+        "status": "verified",
+        "verified_at": "2026-07-08T16:53:45.305Z",
+        "main_commit_sha": "59d5c1e0991028dcd8ddc58e5a1294ec926662db",
+        "expected_commit_sha": "59d5c1e0991028dcd8ddc58e5a1294ec926662db",
+        "deployed_commit_sha": "59d5c1e0991028dcd8ddc58e5a1294ec926662db",
+        "production_parity": "verified",
+        "latest_run_id": "1c29d820-62f0-4277-a585-4b63c18ef203",
+        "release_readiness_run_id": "cb908bfc-b0df-41e1-9179-2118dbdc6254",
+        "release_readiness_overall": "pass",
+        "release_readiness_response_mode": "summary",
+        "bounded_projection": true,
+        "runtime_health_status": "pass",
+        "activation_summary_status": "pass",
+        "migration_status": "pass",
+        "blocking_gap_count": 0,
+        "safety": {
+          "deploy_executed": false,
+          "restart_executed": false,
+          "ssh_execution_executed": false,
+          "migration_apply_executed": false,
+          "provider_call_executed": false,
+          "secrets_included": false
+        }
       }
     ],
     "closeout_pr": {
