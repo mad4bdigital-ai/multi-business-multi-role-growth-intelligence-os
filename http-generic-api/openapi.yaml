@@ -19737,6 +19737,15 @@ paths:
                 role: { type: string, enum: [user, assistant, tool] }
                 content: { type: string }
                 action_key: { type: string }
+                workspace_key:
+                  type: string
+                  description: Optional turn-level workspace context. When omitted, the session default workspace is used.
+                brand_key:
+                  type: string
+                  description: Optional turn-level brand context. When omitted, the session default brand is used.
+                target_key:
+                  type: string
+                  description: Alias for brand_key for callers that resolve a target before the turn is recorded.
       responses:
         "200":
           description: Turn write result with Drive anchor and archive status
