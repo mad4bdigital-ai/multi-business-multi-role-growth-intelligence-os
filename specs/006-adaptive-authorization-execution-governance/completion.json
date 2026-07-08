@@ -4,7 +4,7 @@
   "title": "Adaptive Authorization and Execution Governance",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-07T09:20:00Z",
+  "last_updated_at": "2026-07-08T00:30:00Z",
   "requirements": {
     "migration": true,
     "production_verification": true,
@@ -28,113 +28,65 @@
         "sequence": 2,
         "role": "decision_plane_capability_resolver_and_shadow_metadata",
         "pull_request": 2290,
+        "merge_sha": "332875c0143c622c287f4629f725381ccda5fe84",
+        "status": "merged_and_branch_deleted"
+      },
+      {
+        "sequence": 3,
+        "role": "dynamic_shared_enforcement_kernel",
+        "pull_request": 2322,
+        "merge_sha": "a5ae2aefdafbc2e786c7dd90f9469d85d9784b17",
+        "status": "merged_and_branch_deleted"
+      },
+      {
+        "sequence": 4,
+        "role": "revision_bound_execution_envelopes",
+        "pull_request": null,
         "merge_sha": null,
-        "status": "open_ci_passed_pending_merge"
+        "status": "in_progress"
       }
     ],
-    "documentation_pr": {
-      "number": 1967,
-      "merge_sha": "4297a6702bfab3ae250b98d69b3d839f930effc9",
-      "role": "completion_evidence_and_handoff",
-      "status": "merged_and_branch_deleted"
-    },
-    "pre_pr2_readiness": {
-      "pull_request": 1976,
-      "merge_sha": "14454ecf075951cb9c56a40e577527c972c1e291",
-      "branch": "gpt/docs/20260629-adaptive-auth-pre-pr2-readiness",
-      "status": "merged_and_branch_deleted",
-      "terminology_review": "complete",
-      "sql_authority_mapping": "complete",
-      "migration_execution": "not_started",
-      "runtime_change": false,
-      "provider_mutation": false
-    },
     "remaining_task_loop": {
       "started_at": "2026-07-07T00:45:00Z",
-      "status": "decision_plane_complete_pending_pr_merge",
+      "status": "t021_open_pr_in_progress",
       "evidence_path": "specs/006-adaptive-authorization-execution-governance/remaining-task-loop-2026-07-07.md",
-      "latest_ci_head_sha": "e381dc0c24ed2aea1c84302b099efbfe38da0894",
-      "live_smoke_tool": "tenant_effective_capability_readiness_smoke",
-      "live_smoke_status": "pass",
       "provider_mutation": false,
       "migration_execution": "not_started",
       "enforcement_change": false
     },
     "next_pr": {
-      "sequence": 3,
-      "scope": "enforcement_envelopes_approval_and_adapter_work_after_pr2290_merge",
-      "status": "blocked_until_pr2290_merged_and_readback_complete"
-    },
-    "closeout_pr": {
-      "number": null,
-      "status": "pending"
+      "sequence": 5,
+      "scope": "scoped_approval_requests_and_append_only_decisions_after_t021_merge",
+      "status": "blocked_until_t021_merged_and_readback_complete"
     }
   },
   "evidence": {
-    "specification": {
-      "status": "deep_design_complete_and_merged",
-      "auth_host_only": true,
-      "local_device_operations": false,
-      "provider_mutations": false
-    },
-    "terminology_review": {
-      "status": "completed_governed_administrative_review",
-      "path": "specs/006-adaptive-authorization-execution-governance/terminology-review-2026-06-29.md",
-      "owner_surfaces": ["security", "runtime", "tenant", "platform"],
-      "future_code_owner_review_required": true
-    },
-    "sql_authority_mapping": {
-      "status": "complete",
-      "path": "specs/006-adaptive-authorization-execution-governance/sql-authority-map-2026-06-29.md",
-      "runtime_authority": "mysql_primary",
-      "sheets_role": "async_mirror_and_recovery",
-      "duplicate_authority_creation_allowed": false,
-      "new_table_candidates": ["reconciliation_checkpoints"],
-      "additive_extension_candidates": ["decision_runs", "capability_resolution_envelope_ledger", "platform_evidence_events", "execution_log"],
-      "migration_execution_authorized": false
-    },
     "decision_plane": {
-      "status": "complete_pending_pr2290_merge",
+      "status": "merged",
       "completed_tasks": ["T010", "T011", "T012", "T013", "T014", "T015"],
-      "remaining_tasks": [],
-      "ci_gate": {
-        "pull_request": 2290,
-        "head_sha": "e381dc0c24ed2aea1c84302b099efbfe38da0894",
-        "status": "pass",
-        "required_check_count": 4,
-        "successful_check_count": 4
-      },
-      "live_smoke": {
-        "tool": "tenant_effective_capability_readiness_smoke",
-        "status": "pass",
-        "schema_objects_present": 8,
-        "active_capabilities": 8,
-        "active_bindings": 4,
-        "shadow_bindings": 4,
-        "endpoint_aliases": 2,
-        "descriptor_tools": 3,
-        "provider_calls_made": 0,
-        "mutations_executed": false,
-        "secrets_included": false
-      }
+      "pull_request": 2290,
+      "merge_sha": "332875c0143c622c287f4629f725381ccda5fe84"
+    },
+    "execution_governance": {
+      "status": "in_progress",
+      "completed_tasks": ["T020", "T021"],
+      "latest_task": "T021",
+      "provider_mutation_allowed": false,
+      "enforcement_cutover_allowed": false,
+      "migration_execution_authorized": false,
+      "new_authority_tables_allowed": false
     },
     "implementation": {
       "status": "in_progress",
-      "completed_pr_sequences": [1],
-      "completed_preconditions": ["T005", "T006"],
-      "completed_tasks": ["T010", "T011", "T012", "T013", "T014", "T015"],
-      "next_task_scope": "T020 shared enforcement kernel after PR2290 merge",
+      "completed_tasks": ["T010", "T011", "T012", "T013", "T014", "T015", "T020", "T021"],
+      "next_task_scope": "T022 scoped approval requests and append-only decisions",
       "provider_mutation_allowed": false,
       "enforcement_change_allowed": false,
       "new_authority_tables_allowed": false
     },
-    "post_merge_cleanup": {
-      "status": "complete_for_prior_prs",
-      "force_used": false
-    },
     "production_rollout": {
       "status": "pending",
-      "reason": "T020 through T053, migrations, shadow parity, canary enforcement, production verification, rollback rehearsal and post-merge audit remain incomplete."
+      "reason": "T022 through T053, pilots, migrations, production verification, rollback rehearsal and post-merge audit remain incomplete."
     }
   },
   "sensitive_values_included": false
