@@ -26,6 +26,7 @@ import { bootstrapGovernedMigrationAuthorization } from "../governedMigrationAut
 import { bootstrapGovernedMigrationApplyPolicy } from "../governedMigrationApplyPolicyBootstrap.js";
 import { authorizeCapabilityResolutionEnvelopeApply } from "../scripts/capability-resolution-envelope-apply-authorize.mjs";
 import { runGovernedMigrationExecution } from "../governedMigrationExecutionTool.js";
+import { runGovernedMigrationSchemaReadback } from "../governedMigrationSchemaReadbackTool.js";
 import {
   buildSqlCacheOperationalDiagnostics,
   runSqlCacheControlledLoadTest,
