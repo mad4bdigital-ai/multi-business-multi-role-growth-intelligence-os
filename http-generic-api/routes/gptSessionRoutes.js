@@ -276,7 +276,9 @@ function validateTurnInput(turn = {}) {
   if (!VALID_TURN_ROLES.has(role)) {
     return { ok: false, error: { code: "invalid_role", message: "role must be user, assistant, or tool." } };
   }
-  return { ok: true, turn: { role, content, action_key: turn.action_key || null } };
+  const workspace_key = String(turn.workspace_key || turn.workspaceKey || "").trim() || null;
+  const brand_key = String(turn.brand_key || turn.brandKey || turn.target_key || turn.targetKey || "").trim() || null;
+  return { ok: true, turn: { role, content, action_key: turn.action_key || null, workspace_key, brand_key } };
 }
 
 async function resolveWritableSession(pool, req) {
