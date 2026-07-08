@@ -155,6 +155,31 @@ export function resolveGptSessionPin(req, args = {}) {
   return value ? String(value).trim() : null;
 }
 
+export function resolveGptSessionContext(req, args = {}) {
+  const body = args && typeof args === "object" ? args : {};
+  const workspaceCandidates = [
+    body.workspace_key,
+    body.workspaceKey,
+    body._workspace_key,
+    req?.headers?.["x-workspace-key"],
+  ];
+  const brandCandidates = [
+    body.brand_key,
+    body.brandKey,
+    body.target_key,
+    body.targetKey,
+    body._brand_key,
+    req?.headers?.["x-brand-key"],
+    req?.headers?.["x-target-key"],
+  ];
+  const workspace = workspaceCandidates.find((candidate) => String(candidate || "").trim());
+  const brand = brandCandidates.find((candidate) => String(candidate || "").trim());
+  return {
+    workspace_key: workspace ? String(workspace).trim() : null,
+    brand_key: brand ? String(brand).trim() : null,
+  };
+}
+
 async function countConversationTurns(pool, sessionId) {
   const [[row]] = await pool.query(
     `SELECT
