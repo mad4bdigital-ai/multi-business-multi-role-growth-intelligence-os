@@ -263,6 +263,25 @@ async function loadScopedRows(subject) {
       tenantParams
     ),
     safeRows(
+      `SELECT request_id, tenant_id, user_id, caller_type, capability_key, operation_intent,
+              app_key, runtime_surface, workspace_id, decision, next_allowed_mode,
+              reason_codes_json, provider_calls_made, external_mutations_executed,
+              internal_persistence_executed, secrets_included, created_at, expires_at
+         FROM capability_enablement_requests
+        WHERE ${userTenantWhere}
+          AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        ORDER BY created_at DESC LIMIT 300`,
+      userTenantParams
+    ),
+    safeRows(
+      `SELECT tenant_id, capability_key, operation_intent, decision, request_count,
+              no_provider_call_count, no_external_mutation_count, no_secret_count, latest_created_at
+         FROM v_capability_enablement_decision_rollup
+        WHERE ${tenantWhere}
+        ORDER BY latest_created_at DESC LIMIT 200`,
+      tenantParams
+    ),
+    safeRows(
       `SELECT relationship_type, display_name, description, default_direction, status
          FROM activation_container_relationship_type_registry
         WHERE status = 'active'
