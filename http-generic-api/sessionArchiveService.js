@@ -880,6 +880,8 @@ export async function recordGptSessionTurn({
     drive_doc_id: archive.drive_doc_id || null,
     drive_doc_part: archive.drive_doc_id ? positiveInt(archive.drive_doc_part_index, 1) : null,
     drive_anchor: archive.drive_doc_id ? driveAnchor : null,
+    context_stack: turnContextStack,
+    business_context: businessContext,
   };
 
   await pool.query(
