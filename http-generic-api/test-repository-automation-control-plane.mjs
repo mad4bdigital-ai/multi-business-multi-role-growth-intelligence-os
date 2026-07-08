@@ -5,6 +5,7 @@ import {
   buildRepositoryAutomationPlan,
   classifySpecLifecycle,
   collectChunkedToolResponse,
+  executeCiAutoRecovery,
   runRepositoryAutomation,
   scanRepositoryAutomationHygiene,
 } from "./repositoryAutomationControlPlane.js";
