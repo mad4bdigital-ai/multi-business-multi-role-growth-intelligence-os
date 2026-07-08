@@ -148,56 +148,114 @@ function normalizeSupersedingCommits(values = [], maxCommits = 20) {
   return commits.map((sha) => sha.toLowerCase());
 }
 
-const NON_PORT_EVIDENCE_TYPES = new Set(["migration_superseded_equivalence", "intentional_non_port"]);
+const COVERAGE_RESOLUTION_TYPES = new Set(["migration_superseded_by_applied_migration", "intentional_non_port"]);
 
-function normalizeIntentionalNonPortEvidence(values = []) {
-  if (values === null || values === undefined || values === "") return [];
-  if (!Array.isArray(values) || values.length > 20) {
-    const err = new Error("intentional_non_port_evidence must be an array with at most 20 items.");
+function migrationFileName(file = "") {
+  return String(file || "").split("/").pop();
+}
+
+function normalizeCoverageResolutions(values = [], legacyValues = []) {
+  const selected = values !== undefined && values !== null && values !== "" ? values : legacyValues;
+  if (selected === null || selected === undefined || selected === "") return [];
+  if (!Array.isArray(selected) || selected.length > 20) {
+    const err = new Error("coverage_resolutions must be an array with at most 20 items.");
     err.status = 400;
-    err.code = "github_superseded_branch_non_port_evidence_invalid";
+    err.code = "github_superseded_branch_coverage_resolutions_invalid";
     throw err;
   }
-  return values.map((item, index) => {
+  return selected.map((item, index) => {
     const file = String(item?.file || item?.path || "").trim();
-    const evidenceType = String(item?.evidence_type || "").trim();
+    const rawType = String(item?.resolution_type || item?.evidence_type || "").trim();
+    const resolutionType = rawType === "migration_superseded_equivalence" ? "migration_superseded_by_applied_migration" : rawType;
     const supersededByFile = String(item?.superseded_by_file || item?.replacement_file || "").trim();
     const supersededByCommit = String(item?.superseded_by_commit || item?.replacement_commit || "").trim().toLowerCase();
+    const expectedMigrationChecksumSha256 = String(item?.expected_migration_checksum_sha256 || "").trim().toLowerCase();
+    const expectedStatementCount = Number(item?.expected_statement_count);
     const reason = String(item?.reason || "").trim();
     const failures = [];
     if (!file) failures.push("file_required");
-    if (!NON_PORT_EVIDENCE_TYPES.has(evidenceType)) failures.push("unsupported_evidence_type");
+    if (!COVERAGE_RESOLUTION_TYPES.has(resolutionType)) failures.push("unsupported_resolution_type");
     if (!reason || reason.length < 20) failures.push("reason_too_short");
     if (!SHA_PATTERN.test(supersededByCommit)) failures.push("superseded_by_commit_required");
-    if (evidenceType === "migration_superseded_equivalence") {
+    if (resolutionType === "migration_superseded_by_applied_migration") {
       if (!file.endsWith(".sql") || !file.includes("/migrations/")) failures.push("migration_file_required");
       if (!supersededByFile.endsWith(".sql") || !supersededByFile.includes("/migrations/")) failures.push("migration_replacement_file_required");
+      if (!/^[0-9a-f]{64}$/i.test(expectedMigrationChecksumSha256)) failures.push("expected_migration_checksum_sha256_required");
+      if (!Number.isInteger(expectedStatementCount) || expectedStatementCount < 1) failures.push("expected_statement_count_required");
     } else if (!supersededByFile) {
       failures.push("superseded_by_file_required");
     }
     if (failures.length) {
-      const err = new Error(`intentional_non_port_evidence[${index}] is invalid.`);
+      const err = new Error(`coverage_resolutions[${index}] is invalid.`);
       err.status = 400;
-      err.code = "github_superseded_branch_non_port_evidence_invalid";
+      err.code = "github_superseded_branch_coverage_resolutions_invalid";
       err.details = { index, failures, secrets_included: false };
       throw err;
     }
-    return { file, evidence_type: evidenceType, superseded_by_file: supersededByFile, superseded_by_commit: supersededByCommit, reason };
+    return {
+      file,
+      resolution_type: resolutionType,
+      superseded_by_file: supersededByFile,
+      superseded_by_commit: supersededByCommit,
+      expected_migration_checksum_sha256: expectedMigrationChecksumSha256 || null,
+      expected_statement_count: Number.isInteger(expectedStatementCount) ? expectedStatementCount : null,
+      reason,
+    };
   });
 }
 
-function evaluateIntentionalNonPortEvidence({ branchFiles = [], replacementEvidence = [], evidenceRows = [] } = {}) {
+async function loadMigrationLedgerEvidence(row, deps = {}) {
+  if (row.resolution_type !== "migration_superseded_by_applied_migration") return null;
+  const migrationFile = migrationFileName(row.superseded_by_file);
+  const source = deps.migrationLedger || deps.migration_ledger;
+  let ledgerRow = null;
+  if (Array.isArray(source)) {
+    ledgerRow = source.find((entry) => entry?.migration_file === migrationFile) || null;
+  } else if (source && typeof source === "object") {
+    ledgerRow = source[migrationFile] || null;
+  } else {
+    const pool = deps.pool || getPool();
+    const [rows] = await pool.query(
+      `SELECT migration_file, mode, migration_checksum_sha256, statement_count, applied_at
+         FROM governed_migration_ledger
+        WHERE migration_file = ?
+        ORDER BY applied_at DESC LIMIT 1`,
+      [migrationFile]
+    );
+    ledgerRow = rows?.[0] || null;
+  }
+  return ledgerRow ? {
+    migration_file: String(ledgerRow.migration_file || ""),
+    mode: String(ledgerRow.mode || ""),
+    migration_checksum_sha256: String(ledgerRow.migration_checksum_sha256 || "").toLowerCase(),
+    statement_count: Number(ledgerRow.statement_count || 0),
+    applied_at: ledgerRow.applied_at || null,
+    ledger_readback_found: true,
+  } : {
+    migration_file: migrationFile,
+    ledger_readback_found: false,
+  };
+}
+
+async function evaluateCoverageResolutions({ branchFiles = [], replacementEvidence = [], resolutionRows = [], deps = {} } = {}) {
   const replacementBySha = new Map(replacementEvidence.map((item) => [String(item.sha || "").toLowerCase(), item]));
   const accepted = [];
   const rejected = [];
-  for (const row of evidenceRows) {
+  for (const row of resolutionRows) {
     const replacement = replacementBySha.get(row.superseded_by_commit);
+    const migration_ledger_evidence = await loadMigrationLedgerEvidence(row, deps);
     const failures = [];
     if (!branchFiles.includes(row.file)) failures.push("file_not_changed_on_branch");
     if (!replacement) failures.push("replacement_commit_not_listed");
     if (replacement && (replacement.resolved_sha !== row.superseded_by_commit || replacement.on_default_branch !== true)) failures.push("replacement_commit_not_verified_on_default_branch");
     if (replacement && !replacement.files.includes(row.superseded_by_file)) failures.push("replacement_file_not_in_replacement_commit");
-    const evidence = { ...row, accepted: failures.length === 0, failures };
+    if (row.resolution_type === "migration_superseded_by_applied_migration") {
+      if (!migration_ledger_evidence?.ledger_readback_found) failures.push("migration_ledger_readback_missing");
+      if (migration_ledger_evidence?.mode !== "apply") failures.push("migration_not_applied");
+      if (migration_ledger_evidence?.migration_checksum_sha256 !== row.expected_migration_checksum_sha256) failures.push("migration_checksum_mismatch");
+      if (Number(migration_ledger_evidence?.statement_count || 0) !== row.expected_statement_count) failures.push("migration_statement_count_mismatch");
+    }
+    const evidence = { ...row, migration_ledger_evidence, accepted: failures.length === 0, failures };
     if (failures.length) rejected.push(evidence); else accepted.push(evidence);
   }
   return { accepted, rejected, files: uniqueStrings(accepted.map((item) => item.file)).sort() };
