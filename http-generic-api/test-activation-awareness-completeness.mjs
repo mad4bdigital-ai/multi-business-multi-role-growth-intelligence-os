@@ -229,6 +229,13 @@ function testIdempotencyAndInputNormalization() {
   assert.equal(_testingActivationAwarenessRoutes.queryText([" tab "], 20), "tab");
   assert.equal(_testingActivationAwareness.defaultDeliveryMode({ aggregation_mode: "summary" }), "summary");
   assert.equal(_testingActivationAwareness.defaultDedupeScope({}), "global");
+  assert.equal(ACTIVATION_CONTEXT_LIFECYCLE_CONTRACT.session_container_scope, "conversation");
+  assert.equal(ACTIVATION_CONTEXT_LIFECYCLE_CONTRACT.turn_context_scope, "operation_resolution");
+  assert.ok(ACTIVATION_CONTEXT_LIFECYCLE_CONTRACT.inherited_brand_context.includes("business_type_key"));
+  assert.ok(ACTIVATION_CONTEXT_LIFECYCLE_CONTRACT.inherited_brand_context.includes("business_activity_type_key"));
+  assert.ok(ACTIVATION_CONTEXT_LIFECYCLE_CONTRACT.inherited_brand_context.includes("knowledge_profile_key"));
+  assert.equal(ACTIVATION_CONTEXT_LIFECYCLE_CONTRACT.admin_surface_required, true);
+  assert.equal(ACTIVATION_CONTEXT_LIFECYCLE_CONTRACT.tenant_surface_required, true);
 }
 
 function testRepositoryContracts() {
