@@ -1,0 +1,54 @@
+{
+  "spec_key": "009-local-connector-reachability-recovery",
+  "title": "Local Connector Runtime/Tunnel/Host Reachability Recovery",
+  "status": "draft_specification_pending_pr_review",
+  "created_at": "2026-07-08",
+  "delivery_mode": "multi_pr_parallel_lanes",
+  "specification_delivery": "single_draft_specification_pr",
+  "canonical_dependencies": [
+    "local_connector_route_lifecycle_profiles_from_pr_2357",
+    "capability_security_hardening",
+    "adaptive_authorization_execution_governance",
+    "resource_api_coverage",
+    "dynamic_capability_governance"
+  ],
+  "architecture": {
+    "identity": "tenant_user_canonical_device_id_with_aliases_as_metadata",
+    "route_channels": ["tenant_auth_host", "admin_break_glass", "cloudflare_tunnel", "local_service"],
+    "health_model": "config_registration_heartbeat_probe_local_service_separation",
+    "recovery": "preview_then_fresh_authorized_action_then_same_cycle_readback",
+    "parallel_execution": "contracts_persistence_ui_diagnostics_runtime_probes_recovery_break_glass_closeout_lanes"
+  },
+  "non_negotiable_invariants": [
+    "config_presence_is_not_health",
+    "tenant_path_never_silently_uses_break_glass",
+    "aliases_do_not_grant_authority",
+    "ambiguous_target_blocks_state_changing_actions",
+    "privileged_installer_requires_fresh_authorization",
+    "recovered_requires_same_cycle_readback",
+    "provider_acknowledgement_is_not_recovery",
+    "diagnostics_never_include_plaintext_secrets",
+    "profile_overlays_cannot_weaken_global_security_floors",
+    "break_glass_mutations_require_typed_approval_expected_ids_and_readback"
+  ],
+  "draft_contracts": [
+    "contracts/local-connector-reachability.openapi.yaml"
+  ],
+  "parallel_lanes": [
+    "A_contracts",
+    "B_persistence",
+    "C_read_only_diagnostics",
+    "D_local_manager_ui",
+    "E_runtime_registration_heartbeat",
+    "F_probe_orchestration",
+    "G_recovery_planner_auto_install",
+    "H_break_glass_hardening",
+    "I_production_verification_closeout"
+  ],
+  "initial_runtime_effect": "none",
+  "provider_mutation_allowed_in_specification_pr": false,
+  "cloudflare_mutation_allowed_in_specification_pr": false,
+  "local_device_mutation_allowed_in_specification_pr": false,
+  "migration_apply_allowed_in_specification_pr": false,
+  "secrets_included": false
+}

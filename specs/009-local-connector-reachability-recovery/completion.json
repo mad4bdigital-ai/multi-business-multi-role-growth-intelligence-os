@@ -1,0 +1,70 @@
+{
+  "spec_key": "009-local-connector-reachability-recovery",
+  "status": "draft_specification_in_progress",
+  "delivery_mode": "multi_pr_parallel_lanes",
+  "specification_pr": {
+    "branch": "gpt/local-connector-reachability-spec-kit-20260708",
+    "pull_request": null,
+    "draft": true,
+    "runtime_effect": "none",
+    "migration_effect": "none",
+    "provider_mutation": false,
+    "local_device_mutation": false,
+    "secrets_included": false
+  },
+  "completed_specification_files": [
+    "README.md",
+    "SPEC_KIT_OVERVIEW_AR.md",
+    "spec.md",
+    "plan.md",
+    "architecture.md",
+    "connection-maps.md",
+    "usage-model.md",
+    "decision-tables.md",
+    "data-model.md",
+    "migration-and-compatibility.md",
+    "operational-model.md",
+    "testing-strategy.md",
+    "threat-model.md",
+    "risk-register.md",
+    "rollout-pr-sequence.md",
+    "contracts/local-connector-reachability.openapi.yaml",
+    "checklists/requirements.md",
+    "checklists/security.md",
+    "checklists/release-readiness.md",
+    "tasks.md",
+    "manifest.json",
+    "completion.json"
+  ],
+  "implementation_prs": [],
+  "parallel_lanes": {
+    "A_contracts": { "status": "pending", "blocked_by": ["draft_pr_review"] },
+    "B_persistence": { "status": "pending", "blocked_by": ["data_model_review"] },
+    "C_read_only_diagnostics": { "status": "pending", "blocked_by": ["A_contracts", "B_persistence"] },
+    "D_local_manager_ui": { "status": "pending", "blocked_by": ["contract_mock_review"] },
+    "E_runtime_registration_heartbeat": { "status": "pending", "blocked_by": ["B_persistence_or_fixtures"] },
+    "F_probe_orchestration": { "status": "pending", "blocked_by": ["A_contracts", "B_persistence_or_fixtures"] },
+    "G_recovery_planner_auto_install": { "status": "pending", "blocked_by": ["C_read_only_diagnostics", "E_runtime_registration_heartbeat", "F_probe_orchestration"] },
+    "H_break_glass_hardening": { "status": "pending", "blocked_by": ["admin_contract_review"] },
+    "I_production_verification_closeout": { "status": "pending", "blocked_by": ["all_runtime_lanes"] }
+  },
+  "blocking_risks_before_runtime": [
+    "false_recovery_after_provider_acknowledgement",
+    "tenant_route_silently_escalates_to_break_glass",
+    "wrong_device_action_in_multi_device_accounts",
+    "stale_saved_device_token_triggers_privileged_installer",
+    "token_replay_after_reinstall_or_route_generation_change",
+    "heartbeat_spoofing",
+    "diagnostics_secret_leakage",
+    "profile_override_weakens_security",
+    "break_glass_repair_mutates_wrong_infrastructure"
+  ],
+  "next_required_steps": [
+    "open_draft_pr",
+    "run_ci_readback",
+    "review_contracts_and_parallel_lanes",
+    "assign_lane_owners",
+    "approve_first_implementation_lanes"
+  ],
+  "last_updated_at": "2026-07-08"
+}
