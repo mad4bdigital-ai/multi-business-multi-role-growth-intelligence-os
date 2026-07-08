@@ -1070,6 +1070,17 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     );
   }
 
+  const routeLifecycle = await buildLocalConnectorRouteLifecycleFromDb({
+    config_id: finalConfigId,
+    user_id: resolvedUserId,
+    tenant_id: resolvedTenantId,
+    device_id,
+    device_runtime_url: runtimeUrl,
+    public_gateway_url: LOCAL_GATEWAY_URL,
+    admin_recovery_url: ADMIN_RECOVERY_URL,
+    tunnel_url: tunnelUrl,
+  });
+
   return {
     ok: true,
     config_id: finalConfigId,
