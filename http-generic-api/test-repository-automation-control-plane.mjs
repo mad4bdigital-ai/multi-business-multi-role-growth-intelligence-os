@@ -251,21 +251,11 @@ const hygiene = await scanRepositoryAutomationHygiene({
         status: 200,
         body: {
           ok: true,
-          result: {
-            body: {
-              ok: true,
-              data: {
-                data: {
-                  repository: {
-                    defaultBranchRef: { name: "main", target: { oid: nestedRuntimeSha, committedDate: "2026-07-07T00:00:00Z" } },
-                    refs: { nodes: [] },
-                    openPullRequests: { nodes: [] },
-                    recentPullRequests: { nodes: [] },
-                  },
-                },
-              },
-            },
-          },
+          response_chunked: true,
+          chunk_id: "github-inventory-chunk",
+          chunk: chunkedInventoryBody.slice(0, 50),
+          continuation_required: true,
+          page: { next_cursor: 50, max_chars: 50, has_more: true },
         },
       };
     }
