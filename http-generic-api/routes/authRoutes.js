@@ -440,6 +440,7 @@ async function recordOAuthTokenDiagnostic(queryFn, event = {}) {
       redirect_uri: event.redirect_uri || null,
       code_redirect_uri: event.code_redirect_uri || null,
       client: event.client || null,
+      access_token: event.access_token || null,
       client_validation_source: event.client_validation_source || null,
       code_jti_present: event.code_jti_present === true,
       user_id_present: event.user_id_present === true,
@@ -865,7 +866,14 @@ export function buildAuthRoutes(deps) {
         { clientId: clientValidation.client_id }
       );
 
-      logTokenExchange("success", null, 200);
+      res.setHeader("Cache-Control", "no-store");
+      res.setHeader("Pragma", "no-cache");
+      logTokenExchange("success", null, 200, {
+        access_token: {
+          token_type: "Bearer",
+          length: accessToken.length,
+        },
+      });
       return res.status(200).json({
         access_token: accessToken,
         token_type: "Bearer",
