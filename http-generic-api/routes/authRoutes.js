@@ -833,6 +833,7 @@ export function buildAuthRoutes(deps) {
         { clientId: clientValidation.client_id }
       );
 
+      logTokenExchange("success", null, 200);
       return res.status(200).json({
         access_token: accessToken,
         token_type: "Bearer",
