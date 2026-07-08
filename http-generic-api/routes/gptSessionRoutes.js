@@ -527,7 +527,7 @@ export function buildGptSessionRoutes(deps) {
       if (!validation.ok) {
         return res.status(400).json({ ok: false, error: validation.error });
       }
-      const { role, content, action_key = null } = validation.turn;
+      const { role, content, action_key = null, workspace_key = null, brand_key = null } = validation.turn;
 
       const session = await resolveWritableSession(pool, req);
       const turnIndex = await nextTurnIndex(pool, session.session_id);
