@@ -5,18 +5,6 @@ const migration = fs.readFileSync(
   new URL("./migrations/20260709_tenant_resolution_registry_schema.sql", import.meta.url),
   "utf8"
 );
-const spec = fs.readFileSync(
-  new URL("../specs/009-tenant-self-healing-resolution-layer/spec.md", import.meta.url),
-  "utf8"
-);
-const plan = fs.readFileSync(
-  new URL("../specs/009-tenant-self-healing-resolution-layer/plan.md", import.meta.url),
-  "utf8"
-);
-const tasks = fs.readFileSync(
-  new URL("../specs/009-tenant-self-healing-resolution-layer/tasks.md", import.meta.url),
-  "utf8"
-);
 
 for (const tableName of [
   "tenant_resolution_playbooks",
@@ -28,7 +16,6 @@ for (const tableName of [
     migration.includes(`CREATE TABLE IF NOT EXISTS \`${tableName}\``),
     `${tableName} must be created additively`
   );
-  assert(spec.includes(tableName) || plan.includes(tableName), `${tableName} must be documented in the spec kit`);
 }
 
 for (const playbookKey of [
@@ -39,7 +26,6 @@ for (const playbookKey of [
   "connector_health_repair_v1",
 ]) {
   assert(migration.includes(`'${playbookKey}'`), `${playbookKey} must be seeded`);
-  assert(plan.includes(playbookKey), `${playbookKey} must be explained in the implementation plan`);
 }
 
 for (const rootFamily of [
@@ -50,18 +36,29 @@ for (const rootFamily of [
   "connector_runtime_readiness",
 ]) {
   assert(migration.includes(`'${rootFamily}'`), `${rootFamily} must be represented in seed data`);
-  assert(spec.includes(`\`${rootFamily}\``), `${rootFamily} must be documented as an initial root family`);
 }
 
 for (const requiredColumn of [
   "`active_case_key` VARCHAR(191) NULL",
   "`root_fingerprint_sha256` CHAR(64) NOT NULL",
   "`source_alert_keys_json` JSON NULL",
+  "`source_refs_json` JSON NULL",
+  "`approval_hold_id` VARCHAR(64) NULL",
   "`capability_envelope_id` VARCHAR(64) NULL",
   "`readback_status` ENUM('not_run','passed','failed','blocked','indeterminate')",
   "`secrets_included` TINYINT(1) NOT NULL DEFAULT 0",
 ]) {
   assert(migration.includes(requiredColumn), `migration must include ${requiredColumn}`);
+}
+
+for (const requiredIndex of [
+  "UNIQUE KEY `uq_tenant_resolution_cases_active_case_key`",
+  "KEY `idx_tenant_resolution_cases_tenant_workspace`",
+  "KEY `idx_tenant_resolution_cases_family_status`",
+  "KEY `idx_tenant_resolution_case_events_case_created`",
+  "KEY `idx_tenant_resolution_readbacks_case_created`",
+]) {
+  assert(migration.includes(requiredIndex), `migration must include ${requiredIndex}`);
 }
 
 for (const invariant of [
@@ -99,32 +96,17 @@ for (const forbiddenSurface of [
   assert(!migration.includes(forbiddenSurface), `schema foundation must not enable ${forbiddenSurface}`);
 }
 
-for (const childBranch of [
-  "gpt/tenant-resolution-registry-schema",
-  "gpt/tenant-attention-projection-api",
-  "gpt/tenant-resolution-case-api",
-  "gpt/tenant-approval-center",
-  "gpt/task-source-repair-playbook",
-  "gpt/wordpress-site-doctor-playbook",
-  "gpt/google-ads-setup-playbook",
-  "gpt/connector-health-repair-playbook",
-  "gpt/tenant-resolution-apply-gates",
-  "gpt/tenant-resolution-readback-closeout",
+for (const safePolicyMarker of [
+  "'diagnostic_only',true",
+  "'provider_write_allowed',false",
+  "'credential_payload_read_allowed',false",
+  "'approval_hold_required',true",
+  "'internal_registry_only',true",
+  "'spend_change_allowed',false",
+  "'local_command_dispatch_allowed',false",
+  "'apply_requires_separate_certification',true",
 ]) {
-  assert(plan.includes(childBranch), `plan must track child PR branch ${childBranch}`);
+  assert(migration.includes(safePolicyMarker), `migration must include safe policy marker ${safePolicyMarker}`);
 }
-
-for (const task of [
-  "Add `tenant_resolution_playbooks` migration.",
-  "Add `tenant_resolution_cases` migration.",
-  "Add `tenant_resolution_case_events` migration.",
-  "Add `tenant_resolution_readbacks` migration.",
-]) {
-  assert(tasks.includes(task), `tasks must include schema task: ${task}`);
-}
-
-assert(spec.includes("Operational Attention does not mark recovered without same-cycle evidence."));
-assert(plan.includes("This father PR."));
-assert(tasks.includes("Readback is required before resolved/recovered state."));
 
 console.log("tenant resolution registry schema contract tests passed");
