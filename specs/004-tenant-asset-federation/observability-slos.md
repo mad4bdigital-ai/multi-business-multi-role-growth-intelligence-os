@@ -1,5 +1,9 @@
 # Observability, SLOs, and Operational Intelligence
 
+## Dev Orchestrator observability overlay
+
+Future Dev Orchestrator runtime work must expose consumption-domain, benefit-owner, budget-owner, approval-owner, mode, model, sub-agent, fallback, write-policy, and readback state for every run. Required signals include OpenRouter 402/429 pressure, paid-fallback approval gaps, denied sub-agent tool attempts, SDK trace/session redaction failures, mixed-lane privacy blocks, readback failures, stale evidence pointers, partial/unknown effects, recovery-case age, and authority-mode approval latency. This PR records design expectations only; no runtime telemetry pipeline is enabled here.
+
 ## 1. Observability goals
 
 The platform must answer, without reading secrets:
