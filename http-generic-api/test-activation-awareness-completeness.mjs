@@ -304,6 +304,12 @@ function testRepositoryContracts() {
 
   assert.match(sessionArchiveService, /turnWorkspaceKey = String\(workspace_key \|\| session\.workspace_key/);
   assert.match(sessionArchiveService, /turnBrandKey = String\(brand_key \|\| session\.brand_key/);
+  assert.match(sessionArchiveService, /resolveInheritedBusinessContext/);
+  assert.match(sessionArchiveService, /brand_paths/);
+  assert.match(sessionArchiveService, /business_activity_types/);
+  assert.match(sessionArchiveService, /business_type_profiles/);
+  assert.match(sessionArchiveService, /context_stack: turnContextStack/);
+  assert.match(sessionArchiveService, /business_context: businessContext/);
   assert.match(sessionSummaryService, /gpt_session_turns/);
   assert.match(sessionSummaryService, /gst\.workspace_key = \?/);
   assert.match(sessionSummaryService, /gst\.brand_key = \?/);
