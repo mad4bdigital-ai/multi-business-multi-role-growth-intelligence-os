@@ -171,8 +171,8 @@
       "runtime_behavior_changed": false
     },
     "implementation": {
-      "status": "partial_implementation_observed_pending_production_verification_and_post_merge_audit",
-      "next_pr_scope": "production_runtime_parity_and_post_merge_audit",
+      "status": "partial_implementation_observed_pending_post_merge_audit_and_closeout",
+      "next_pr_scope": "post_merge_audit_and_closeout",
       "provider_mutation_allowed": false,
       "enforcement_change_allowed": false,
       "automatic_tenant_export_allowed": false,
