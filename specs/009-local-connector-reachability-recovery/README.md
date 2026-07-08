@@ -34,6 +34,7 @@ This design builds on the DB-backed route lifecycle profile work introduced in P
 - `connection-maps.md` — Mermaid connection diagrams, trust boundaries, and failure maps.
 - `usage-model.md` — optimal usage journeys, UI states, and anti-patterns.
 - `data-model.md` — proposed tables, records, and retention rules.
+- `decision-tables.md` — deterministic classification, target selection, and recovery decisions.
 - `migration-and-compatibility.md` — additive migration and compatibility strategy.
 - `operational-model.md` — diagnostics, SLOs, alerts, runbooks, and rollback.
 - `risk-register.md` — deeper risk inventory, blockers, mitigations, and review questions.
