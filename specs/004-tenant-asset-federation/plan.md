@@ -325,6 +325,10 @@ Each sequence begins in diagnostics/shadow and can be independently disabled. Co
 - backfills are idempotent, bounded, and read back;
 - destructive cleanup occurs only after certified cutover and retention review.
 
+## Dev Orchestrator rollout dependency
+
+The Dev Orchestrator overlay is not a runtime phase in this PR. It is a design-only cross-plane extension documented in `dev-orchestrator-integration-index.md` and related `dev-orchestrator-*` files. Any future runtime work must start with preview/accounting only, then OpenRouter observe/propose, then delegate read-only, then Management API readiness preview, then approval-gated act, and finally authority mode. Each phase must preserve the consumption-governance invariant: benefit owner, budget owner, approval owner, data scope, output policy, fallback policy, and readback closure.
+
 ## Release gates
 
 - OpenAPI 3.1 and Resource API coverage pass;
