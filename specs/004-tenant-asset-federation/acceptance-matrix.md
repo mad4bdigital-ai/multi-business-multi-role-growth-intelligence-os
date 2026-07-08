@@ -1,5 +1,9 @@
 # Acceptance Matrix
 
+## Dev Orchestrator acceptance overlay
+
+The Dev Orchestrator design bundle extends this matrix through `dev-orchestrator-spec-kit-coverage-matrix.md`, `dev-orchestrator-runtime-registry-api-test-runbook-preview.md`, and `dev-orchestrator-gap-closure-risk-register.md`. Runtime acceptance must include domain/budget separation, mixed-lane privacy, OpenRouter 402/429 fallback, paid-fallback approval, sub-agent denied-tool behavior, SDK trace/session safety, readback failure, partial-effect recovery, and authority-mode human approval. These scenarios remain design-only in PR #1898 and must be implemented in later runtime PRs with same-cycle readback.
+
 | Scenario | Expected result |
 |---|---|
 | Tenant member views a shared agent or workflow | Canonical asset is visible without creating a tenant copy |
