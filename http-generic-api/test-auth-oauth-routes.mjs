@@ -231,6 +231,8 @@ try {
   assert("invalid client token exchange writes diagnostic", Boolean(invalidClientDiagnostic), JSON.stringify(oauthTokenDiagnostics));
   assert("invalid client diagnostic uses OAuth action key", invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange", JSON.stringify(invalidClientDiagnostic));
   assert("invalid client diagnostic marks secret presence only", invalidClientDiagnostic?.runtime_evidence_json?.client?.client_secret_present === true, JSON.stringify(invalidClientDiagnostic));
+  assert("invalid client diagnostic captures code timing", invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.ttl_seconds === 300, JSON.stringify(invalidClientDiagnostic));
+  assert("invalid client diagnostic captures code age", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.age_seconds), JSON.stringify(invalidClientDiagnostic));
   assert("invalid client diagnostic excludes raw secret", !JSON.stringify(invalidClientDiagnostic || {}).includes("wrong-secret"), JSON.stringify(invalidClientDiagnostic));
 
   const exchange = await postForm(baseUrl, "/auth/oauth/token", {
