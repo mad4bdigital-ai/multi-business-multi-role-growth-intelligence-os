@@ -257,9 +257,12 @@ async function findActiveSessionForCaller(pool, req, args = {}, options = {}) {
         AND tenant_id = ?
         AND (user_id <=> ?)
         AND session_status NOT IN ('completed', 'closed')
-      ORDER BY started_at DESC
+      ORDER BY
+        CASE WHEN (? IS NOT NULL AND workspace_key = ?) THEN 0 ELSE 1 END,
+        CASE WHEN (? IS NOT NULL AND brand_key = ?) THEN 0 ELSE 1 END,
+        started_at DESC
       LIMIT 5`,
-    [tenantId, userId]
+    [tenantId, userId, workspaceKey, workspaceKey, brandKey, brandKey]
   );
   for (const row of rows || []) {
     const counts = await countConversationTurns(pool, row.session_id);
