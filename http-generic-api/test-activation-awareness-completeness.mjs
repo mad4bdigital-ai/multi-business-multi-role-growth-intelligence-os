@@ -474,6 +474,13 @@ function testRepositoryContracts() {
   assert.ok(openapi.includes("/sessions:"), "OpenAPI must include /sessions");
   assert.match(openapi, /context_scope:/);
   assert.match(openapi, /enum: \[session, turn, any\]/);
+  assert.ok(openapi.includes("/gpt/sessions/{id}/turn:"), "OpenAPI must include single GPT turn writer");
+  assert.ok(openapi.includes("/gpt/sessions/{id}/turns:"), "OpenAPI must include GPT turns collection");
+  assert.match(openapi, /operationId: writeGptSessionTurn/);
+  assert.match(openapi, /operationId: writeGptSessionTurns/);
+  assert.match(openapi, /workspace_key:\n\s+type: string\n\s+description: Optional turn-level workspace context/);
+  assert.match(openapi, /brand_key:\n\s+type: string\n\s+description: Optional turn-level brand context/);
+  assert.match(openapi, /target_key:\n\s+type: string\n\s+description: Alias for brand_key/);
 
   for (const path of [
     "/activation/hard-run:",
