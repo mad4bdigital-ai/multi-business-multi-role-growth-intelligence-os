@@ -88,6 +88,16 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "246_sprint68_gpt_session_archive_backfill_tool.sql",
   "249_sprint68_gpt_archive_backfill_conversation_ref_monitoring.sql",
   "250_sprint68_gpt_conversation_capture_contract_monitoring.sql",
+  "1023_sprint69_sql_cache_runtime_policy.sql",
+  "1028_sprint69_gpt_session_archive_actionable_ref_metrics.sql",
+  "1029_sprint69_minimal_dynamic_brand_resolution.sql",
+  "1030_sprint69_generic_platform_resource_context.sql",
+  "20260629_sql_cache_admin_tool_export.sql",
+  "1031_sprint69_operational_alert_mutation_readback_policy.sql",
+  "20260704_operational_alert_lifecycle_fingerprints.sql",
+  "1032_sprint69_pr1950_superseded_branch_cleanup_override.sql",
+  "1033_sprint69_pr1950_cleanup_override_removal.sql",
+  "1034_sprint69_repository_automation_control_plane.sql",
   "251_sprint68_dynamic_memory_scope_types.sql",
   "252_sprint68_memory_scope_links_foundation.sql",
   "253_sprint68_session_insight_candidates_foundation.sql",
@@ -258,12 +268,15 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "1011_sprint69_governed_repository_engine_v6.sql",
   "319_sprint69_dynamic_container_authority_foundation.sql",
   "320_sprint69_dynamic_container_authority_runtime_contracts.sql",
+  "20260630_dynamic_capability_governance_persistence.sql",
+  "20260701_dynamic_capability_certification_readback.sql",
+  "20260702_dynamic_capability_readback_source_link_fix.sql",
 ]);
 
 const RUNNER_VERSION = "governed-migration-runner-v2";
 
 function parseArgs(argv = process.argv.slice(2)) {
-  const parsed = { mode: "dry_run", migration: "", confirm: "", recordOnly: false };
+  const parsed = { mode: "dry_run", migration: "", confirm: "", recordOnly: false, capabilityEnvelopeId: "" };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = String(argv[i] || "");
     if (arg === "--dry-run") parsed.mode = "dry_run";
@@ -273,6 +286,8 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg.startsWith("--migration=")) parsed.migration = arg.slice("--migration=".length);
     else if (arg === "--confirm") parsed.confirm = String(argv[++i] || "");
     else if (arg.startsWith("--confirm=")) parsed.confirm = arg.slice("--confirm=".length);
+    else if (arg === "--capability-envelope-id") parsed.capabilityEnvelopeId = String(argv[++i] || "");
+    else if (arg.startsWith("--capability-envelope-id=")) parsed.capabilityEnvelopeId = arg.slice("--capability-envelope-id=".length);
     else throw new Error(`Unsupported argument: ${arg}`);
   }
   return parsed;
@@ -317,6 +332,25 @@ async function applyStatements(statements = []) {
 
 function sha256(value = "") {
   return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function normalizeCapabilityEnvelopeId(value = "") {
+  const id = String(value || "").trim();
+  return UUID_PATTERN.test(id) ? id : "";
+}
+
+async function governedMigrationLedgerSupportsCapabilityEnvelopeColumn() {
+  try {
+    const [rows] = await getPool().query(
+      "SELECT COUNT(*) AS count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'governed_migration_ledger' AND column_name = 'capability_envelope_id'"
+    );
+    return Number(rows?.[0]?.count || 0) > 0;
+  } catch (error) {
+    if (/doesn't exist|ER_NO_SUCH_TABLE/i.test(String(error?.message || ""))) return false;
+    throw error;
+  }
 }
 
 async function findLedgerEntry(migration, checksum, mode = "record_only") {
@@ -377,14 +411,19 @@ async function recordMigrationLedger({
   ledgerMode = "apply",
   appliedBy = process.env.GOVERNED_MIGRATION_APPLIED_BY || "governed_migration_runner",
   extraMetadata = {},
+  capabilityEnvelopeId = "",
 }) {
   const run_id = randomUUID();
+  const normalizedCapabilityEnvelopeId = normalizeCapabilityEnvelopeId(capabilityEnvelopeId);
   const metadata = {
     node_version: process.version,
     platform: process.platform,
     runner_pid: process.pid,
     ...extraMetadata,
   };
+  if (normalizedCapabilityEnvelopeId) {
+    metadata.capability_envelope_id = normalizedCapabilityEnvelopeId;
+  }
   await getPool().query(
     `INSERT INTO governed_migration_ledger
       (run_id, migration_file, migration_checksum_sha256, applied_by, runner_version, mode,
@@ -408,13 +447,23 @@ async function recordMigrationLedger({
       JSON.stringify(metadata),
     ]
   );
-  return { run_id, runner_version: RUNNER_VERSION, recorded: true };
+  if (normalizedCapabilityEnvelopeId && await governedMigrationLedgerSupportsCapabilityEnvelopeColumn()) {
+    await getPool().query(
+      "UPDATE governed_migration_ledger SET capability_envelope_id = ? WHERE run_id = ?",
+      [normalizedCapabilityEnvelopeId, run_id]
+    );
+  }
+  return { run_id, runner_version: RUNNER_VERSION, recorded: true, capability_envelope_id: normalizedCapabilityEnvelopeId || null };
 }
 
 async function main() {
   const args = parseArgs();
   const migration = path.basename(args.migration || "");
   if (!migration) throw new Error("--migration is required.");
+  const capabilityEnvelopeId = normalizeCapabilityEnvelopeId(args.capabilityEnvelopeId);
+  if (args.capabilityEnvelopeId && !capabilityEnvelopeId) {
+    throw new Error("--capability-envelope-id must be a UUID when provided.");
+  }
   const authorization = await getMigrationAuthorization(migration, { mode: args.mode });
   if (!authorization.authorized) {
     throw new Error(`Migration is not authorized for governed runner: ${migration} (${authorization.reason})`);
@@ -483,6 +532,7 @@ async function main() {
       requirements: artifactNames(requirements),
       before_schema_objects,
       required_confirmation: confirmationFor(migration, { recordOnly: args.recordOnly }),
+      capability_envelope_id: capabilityEnvelopeId || null,
       secrets_included: false,
     }, null, 2));
     return;
@@ -524,6 +574,7 @@ async function main() {
       ledgerMode: "record_only",
       appliedBy: "governed_migration_runner_backfill",
       extraMetadata: { record_only_backfill: true, sql_applied_by_this_run: false },
+      capabilityEnvelopeId,
     });
     console.log(JSON.stringify({
       ok: true,
@@ -553,6 +604,7 @@ async function main() {
     results,
     before_schema_objects,
     after_schema_objects,
+    capabilityEnvelopeId,
   });
 
   console.log(JSON.stringify({

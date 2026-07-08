@@ -1,0 +1,1089 @@
+openapi: 3.1.0
+info:
+  title: Growth Intelligence Platform - Tenant Activation Actions
+  version: 3.0.0-platform
+  summary: Tenant-scoped Activation session, awareness, attention, and dynamic-tab reads.
+  description: Tenant Activation transport. Tenant and user identity are derived from OAuth JWT and revalidated by auth.mad4b.com.
+servers:
+  - url: https://activation.mad4b.com
+    description: tenant_activation surface
+tags:
+  - name: activation
+    description: Once-per-session activation probes, session history, and scope context.
+components:
+  securitySchemes:
+    userBearerAuth:
+      type: oauth2
+      description: Tenant GPT OAuth. ChatGPT signs in through the Growth Intelligence Platform popup, then /auth/oauth/token mints a fresh Mad4B tenant access JWT with issuer, audience, subject, scope, user_id, and tenant_id claims. Google Sign-In is only an upstream identity proof inside the popup; do not call OAuth.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.mad4b.com/auth/oauth/authorize
+          tokenUrl: https://auth.mad4b.com/auth/oauth/token
+          scopes:
+            https://auth.mad4b.com/scopes/tenant.links: Access tenant-scoped Growth Intelligence links for the signed-in user.
+            https://auth.mad4b.com/scopes/tenant.status: Read tenant connection status for the signed-in user.
+            https://auth.mad4b.com/scopes/tenant.activation: Activate managed or dedicated tenant connection mode for the signed-in user.
+            https://auth.mad4b.com/scopes/tenant.install: Provision tenant local connector install bundles for the signed-in user.
+            https://auth.mad4b.com/scopes/tenant.system-tools: Use tenant-scoped governed system tools for the signed-in user.
+  schemas:
+    OperationalAlert:
+      type: object
+      additionalProperties: true
+      required:
+        - alert_key
+        - fingerprint_sha256
+        - source_type
+        - category
+        - severity
+        - title
+        - reason_code
+        - lifecycle_status
+        - verification_state
+        - occurrence_count
+        - first_seen_at
+        - last_seen_at
+        - manual_known_issue
+        - persisted
+        - secrets_included
+      properties:
+        alert_id:
+          type:
+            - string
+            - "null"
+        alert_key:
+          type: string
+        fingerprint_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        operation_fingerprint_sha256:
+          type:
+            - string
+            - "null"
+          pattern: ^[a-f0-9]{64}$
+        resource_fingerprint_sha256:
+          type:
+            - string
+            - "null"
+          pattern: ^[a-f0-9]{64}$
+        source_type:
+          type: string
+        source_ref:
+          type:
+            - string
+            - "null"
+        source_record_id:
+          type:
+            - string
+            - "null"
+        tenant_id:
+          type:
+            - string
+            - "null"
+        user_id:
+          type:
+            - string
+            - "null"
+        workspace_id:
+          type:
+            - string
+            - "null"
+        container_key:
+          type:
+            - string
+            - "null"
+        category:
+          type: string
+        severity:
+          type: string
+          enum:
+            - info
+            - low
+            - medium
+            - high
+            - critical
+        title:
+          type: string
+        summary:
+          type:
+            - string
+            - "null"
+        reason_code:
+          type: string
+        lifecycle_status:
+          type: string
+          enum:
+            - open
+            - acknowledged
+            - investigating
+            - resolved
+            - ignored
+        verification_state:
+          type: string
+          enum:
+            - unverified
+            - observed
+            - verified
+            - not_reproduced
+        evidence_type:
+          type:
+            - string
+            - "null"
+        evidence_ref:
+          type:
+            - string
+            - "null"
+        evidence:
+          type: object
+          additionalProperties: true
+          properties: {}
+        execution_log_id:
+          type:
+            - integer
+            - "null"
+        trace_id:
+          type:
+            - string
+            - "null"
+        occurrence_count:
+          type: integer
+          minimum: 1
+        first_seen_at:
+          type: string
+          format: date-time
+        last_seen_at:
+          type: string
+          format: date-time
+        recommended_action_key:
+          type:
+            - string
+            - "null"
+        requires_confirmation:
+          type: boolean
+        manual_known_issue:
+          type: boolean
+        persisted:
+          type: boolean
+        secrets_included:
+          type: boolean
+          enum:
+            - false
+    OperationalAlertReadResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - attempted
+        - ok
+        - activation_layer
+        - source_authority
+        - subject
+        - summary
+        - final_result
+        - page
+        - completeness
+        - source_health
+        - policy
+        - secrets_included
+      properties:
+        attempted:
+          type: boolean
+          enum:
+            - true
+        ok:
+          type: boolean
+        activation_layer:
+          type: string
+          enum:
+            - operational_alerting_control_plane
+        source_authority:
+          type: string
+          enum:
+            - sql_runtime_evidence_sources_plus_operational_alert_lifecycle
+        subject:
+          type: object
+          additionalProperties: true
+          properties: {}
+        summary:
+          type: object
+          additionalProperties: true
+          required:
+            - total_count
+            - open_count
+            - known_issue_count
+            - current_detected_count
+            - by_severity
+            - by_source
+            - by_lifecycle
+            - by_verification
+            - returned_count
+            - degraded_source_count
+            - truncated_source_count
+          properties:
+            total_count:
+              type: integer
+              minimum: 0
+            open_count:
+              type: integer
+              minimum: 0
+            known_issue_count:
+              type: integer
+              minimum: 0
+            current_detected_count:
+              type: integer
+              minimum: 0
+            returned_count:
+              type: integer
+              minimum: 0
+            degraded_source_count:
+              type: integer
+              minimum: 0
+            truncated_source_count:
+              type: integer
+              minimum: 0
+            by_severity:
+              type: object
+              additionalProperties:
+                type: integer
+                minimum: 0
+              properties: {}
+            by_source:
+              type: object
+              additionalProperties:
+                type: integer
+                minimum: 0
+              properties: {}
+            by_lifecycle:
+              type: object
+              additionalProperties:
+                type: integer
+                minimum: 0
+              properties: {}
+            by_verification:
+              type: object
+              additionalProperties:
+                type: integer
+                minimum: 0
+              properties: {}
+        final_result:
+          type: array
+          items:
+            $ref: "#/components/schemas/OperationalAlert"
+        page:
+          type: object
+          additionalProperties: false
+          required:
+            - cursor
+            - limit
+            - returned_count
+            - total_count
+            - has_more
+          properties:
+            cursor:
+              type: integer
+              minimum: 0
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 1000
+            returned_count:
+              type: integer
+              minimum: 0
+            total_count:
+              type: integer
+              minimum: 0
+            has_more:
+              type: boolean
+            next_cursor:
+              type:
+                - integer
+                - "null"
+              minimum: 0
+        completeness:
+          type: object
+          additionalProperties: false
+          required:
+            - all_known_issues_visible
+            - expected_known_issue_count
+            - visible_known_issue_count
+            - missing_known_issue_keys
+            - all_matching_problems_returned_in_page
+            - details_omitted_silently
+            - degraded_sources
+            - all_sources_untruncated
+            - truncated_sources
+            - final_result_complete
+          properties:
+            all_known_issues_visible:
+              type: boolean
+            expected_known_issue_count:
+              type: integer
+              minimum: 0
+            visible_known_issue_count:
+              type: integer
+              minimum: 0
+            missing_known_issue_keys:
+              type: array
+              items:
+                type: string
+            all_matching_problems_returned_in_page:
+              type: boolean
+            details_omitted_silently:
+              type: boolean
+              enum:
+                - false
+            degraded_sources:
+              type: array
+              items:
+                $ref: "#/components/schemas/OperationalAlertSourceHealth"
+            all_sources_untruncated:
+              type: boolean
+            truncated_sources:
+              type: array
+              items:
+                $ref: "#/components/schemas/OperationalAlertSourceHealth"
+            final_result_complete:
+              type: boolean
+        source_health:
+          type: array
+          items:
+            $ref: "#/components/schemas/OperationalAlertSourceHealth"
+        policy:
+          type: object
+          additionalProperties: true
+          properties: {}
+        secrets_included:
+          type: boolean
+          enum:
+            - false
+    OperationalAlertSourceHealth:
+      type: object
+      additionalProperties: false
+      required:
+        - source
+        - ok
+        - row_count
+        - row_cap
+        - truncated
+      properties:
+        source:
+          type: string
+        ok:
+          type: boolean
+        row_count:
+          type: integer
+          minimum: 0
+        row_cap:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+        truncated:
+          type: boolean
+        error:
+          oneOf:
+            - type: object
+              additionalProperties: true
+              properties: {}
+            - type: "null"
+    ActivationAwarenessResponse:
+      type: object
+      additionalProperties: true
+      required:
+        - ok
+        - activation_layer
+        - response_profile
+        - snapshot
+        - dynamic_tabs
+        - operational_summary
+        - dashboard
+        - completeness
+        - awareness_index
+        - auth_context
+        - secrets_included
+      properties:
+        ok:
+          type: boolean
+        activation_layer:
+          type: string
+          enum:
+            - activation_awareness_readback
+        response_profile:
+          type: string
+          enum:
+            - evidence
+            - summary
+            - dashboard
+            - diagnostic
+            - full
+        snapshot:
+          type: object
+          additionalProperties: true
+          properties: {}
+        dynamic_tabs:
+          type: object
+          additionalProperties: true
+          properties: {}
+        operational_summary:
+          type: object
+          additionalProperties: true
+          properties: {}
+        dashboard:
+          type: object
+          additionalProperties: true
+          properties: {}
+        completeness:
+          type: object
+          additionalProperties: true
+          required:
+            - known_surfaces
+            - visible_surfaces
+            - summarized_surfaces
+            - fully_hydrated_surfaces
+            - deferred_surfaces
+            - blocked_surfaces
+            - stale_surfaces
+            - coverage_status
+            - details_omitted_silently
+          properties:
+            known_surfaces:
+              type: integer
+            visible_surfaces:
+              type: integer
+            summarized_surfaces:
+              type: integer
+            fully_hydrated_surfaces:
+              type: integer
+            deferred_surfaces:
+              type: integer
+            blocked_surfaces:
+              type: integer
+            stale_surfaces:
+              type: integer
+            degraded_surfaces:
+              type: integer
+            coverage_status:
+              type: string
+            details_omitted_silently:
+              type: boolean
+              enum:
+                - false
+            deferred_details_have_refs:
+              type: boolean
+        awareness_index:
+          type: object
+          additionalProperties: false
+          properties:
+            score:
+              type: integer
+              minimum: 0
+              maximum: 100
+            coverage:
+              type: integer
+              minimum: 0
+              maximum: 100
+            freshness:
+              type: integer
+              minimum: 0
+              maximum: 100
+            authorization_visibility:
+              type: integer
+              minimum: 0
+              maximum: 100
+            attention_detection:
+              type: integer
+              minimum: 0
+              maximum: 100
+            detail_availability:
+              type: integer
+              minimum: 0
+              maximum: 100
+        auth_context:
+          type: object
+          additionalProperties: true
+          properties: {}
+        secrets_included:
+          type: boolean
+          enum:
+            - false
+    ActivationDynamicTabDetailResponse:
+      type: object
+      additionalProperties: true
+      required:
+        - ok
+        - activation_layer
+        - snapshot
+        - subject
+        - container
+        - tab
+        - sections
+        - page
+        - policy
+        - secrets_included
+      properties:
+        ok:
+          type: boolean
+        activation_layer:
+          type: string
+          enum:
+            - activation_dynamic_tab_detail
+        snapshot:
+          type: object
+          additionalProperties: true
+          properties: {}
+        subject:
+          type: object
+          additionalProperties: true
+          properties: {}
+        container:
+          type: object
+          additionalProperties: true
+          properties: {}
+        tab:
+          type: object
+          additionalProperties: true
+          properties: {}
+        sections:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              section_key:
+                type: string
+              row_count:
+                type: integer
+              rows:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+                  properties: {}
+              page:
+                type: object
+                additionalProperties: false
+                properties:
+                  cursor:
+                    type: integer
+                  limit:
+                    type: integer
+                  has_more:
+                    type: boolean
+                  next_cursor:
+                    type: integer
+                    nullable: true
+        page:
+          type: object
+          additionalProperties: false
+          properties:
+            cursor:
+              type: integer
+            limit:
+              type: integer
+            returned_rows:
+              type: integer
+            has_more:
+              type: boolean
+            next_cursor:
+              type: integer
+              nullable: true
+        policy:
+          type: object
+          additionalProperties: true
+          properties: {}
+        secrets_included:
+          type: boolean
+          enum:
+            - false
+    ErrorObject:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        status:
+          type: integer
+        details:
+          oneOf:
+            - type: object
+              additionalProperties: true
+              properties: {}
+            - type: "null"
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - error
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - false
+        error:
+          $ref: "#/components/schemas/ErrorObject"
+        execution_guardrail:
+          type: boolean
+  responses:
+    BadRequest:
+      description: Invalid request body or missing required field
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Invalid or missing backend API key
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+security:
+  - userBearerAuth:
+      - https://auth.mad4b.com/scopes/tenant.links
+      - https://auth.mad4b.com/scopes/tenant.status
+      - https://auth.mad4b.com/scopes/tenant.activation
+      - https://auth.mad4b.com/scopes/tenant.install
+      - https://auth.mad4b.com/scopes/tenant.system-tools
+paths:
+  /tenant/activation/session-context:
+    get:
+      tags:
+        - activation
+      operationId: activateSession
+      x-openai-isConsequential: false
+      summary: Open or reuse the signed tenant user's Activation session context
+      description: Tenant-only Activation session surface. Tenant and user identity come from the signed OAuth JWT; tenant_id, user_id, raw dumps, and unknown query parameters are not accepted.
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: response_profile
+          in: query
+          schema:
+            type: string
+            enum:
+              - evidence
+              - summary
+              - dashboard
+              - diagnostic
+              - full
+            default: evidence
+        - name: container_key
+          in: query
+          schema:
+            type: string
+        - name: tab
+          in: query
+          schema:
+            type: string
+        - name: tab_key
+          in: query
+          schema:
+            type: string
+        - name: date_range
+          in: query
+          schema:
+            type: string
+        - name: max_response_chars
+          in: query
+          schema:
+            type: integer
+            minimum: 5000
+            maximum: 150000
+            default: 40000
+        - name: chunk_ttl_minutes
+          in: query
+          description: Requested lifetime for the durable response chunk cache.
+          schema:
+            type: integer
+            minimum: 5
+            maximum: 120
+            default: 20
+        - name: session_policy
+          in: query
+          schema:
+            type: string
+            enum:
+              - reuse_or_create
+              - create_new
+              - reuse_only
+              - read_only
+            default: reuse_or_create
+        - name: idempotency_key
+          in: query
+          schema:
+            type: string
+            maxLength: 180
+        - name: conversation_ref
+          in: query
+          schema:
+            type: string
+            maxLength: 500
+        - name: close_previous_sessions
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: reuse_window_hours
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 168
+            default: 24
+      responses:
+        "200":
+          description: Tenant-scoped Activation session context
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required:
+                  - ok
+                  - activation_layer
+                  - response_profile
+                  - secrets_included
+                properties:
+                  ok:
+                    type: boolean
+                  activation_layer:
+                    type: string
+                    enum:
+                      - session_context
+                  response_profile:
+                    type: string
+                  subject:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      user_id:
+                        type: string
+                      tenant_id:
+                        type: string
+                      is_admin:
+                        type: boolean
+                        enum:
+                          - false
+                  pagination:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  session_history:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties: {}
+                  related_scopes:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  product_guidance:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  dashboard_entry:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      path:
+                        type: string
+                        enum:
+                          - /tenant/dashboard
+                      active_container_key:
+                        type:
+                          - string
+                          - "null"
+                      active_tab_key:
+                        type: string
+                  secrets_included:
+                    type: boolean
+                    enum:
+                      - false
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+  /tenant/activation/operational-attention:
+    get:
+      tags:
+        - activation
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      operationId: readTenantActivationOperationalAttention
+      x-custom-gpt-exclude: true
+      x-openai-isConsequential: false
+      summary: Read tenant-scoped operational alerts
+      description: Resolves tenant scope from signed JWT membership and returns current tenant-visible problems. Platform Known Issues are excluded.
+      parameters:
+        - in: query
+          name: cursor
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 500
+        - in: query
+          name: lookback_hours
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2160
+            default: 168
+        - in: query
+          name: include_resolved
+          schema:
+            type: boolean
+            default: false
+        - in: query
+          name: severity
+          schema:
+            type: string
+            enum:
+              - info
+              - low
+              - medium
+              - high
+              - critical
+        - in: query
+          name: source_type
+          schema:
+            type: string
+            maxLength: 128
+        - in: query
+          name: lifecycle_status
+          schema:
+            type: string
+            enum:
+              - open
+              - acknowledged
+              - investigating
+              - resolved
+              - ignored
+        - in: query
+          name: q
+          schema:
+            type: string
+            maxLength: 300
+      responses:
+        "200":
+          description: Tenant-scoped operational alert result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationalAlertReadResponse"
+        "400":
+          description: Invalid filter or pagination input.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Active tenant membership required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Tenant operational alert read failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /tenant/activation/awareness:
+    get:
+      tags:
+        - activation
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      operationId: readTenantActivationAwareness
+      x-openai-isConsequential: false
+      summary: Read signed-in tenant activation awareness
+      description: Tenant scope is resolved from the signed user JWT and active membership. Client-supplied tenant identity is not trusted.
+      parameters:
+        - in: query
+          name: profile
+          schema:
+            type: string
+            enum:
+              - evidence
+              - summary
+              - dashboard
+            default: evidence
+        - in: query
+          name: attention_limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+        - in: query
+          name: max_response_chars
+          description: Maximum serialized characters returned inline before a governed chunk continuation envelope is returned.
+          schema:
+            type: integer
+            minimum: 5000
+            maximum: 150000
+            default: 45000
+        - in: query
+          name: chunk_ttl_minutes
+          description: Requested lifetime for the durable response chunk cache.
+          schema:
+            type: integer
+            minimum: 5
+            maximum: 120
+            default: 20
+      responses:
+        "200":
+          description: Tenant-scoped activation awareness.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivationAwarenessResponse"
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Active tenant membership required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /tenant/activation/dynamic-tabs/detail:
+    get:
+      tags:
+        - activation
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      operationId: readTenantActivationDynamicTabDetail
+      x-openai-isConsequential: false
+      summary: Read one tenant-authorized Dynamic Tab detail page
+      parameters:
+        - in: query
+          name: container_key
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: tab_key
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: section_key
+          schema:
+            type: string
+        - in: query
+          name: cursor
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - in: query
+          name: snapshot_id
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Tenant-scoped cursor-paginated Dynamic Tab detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivationDynamicTabDetailResponse"
+        "400":
+          description: Missing or invalid detail scope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Caller lacks active tenant membership or requested object scope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Container, tab, or section not found within caller scope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+x-gpt-action-auth-preset:
+  authentication_type: OAuth
+  schema_url: https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml
+  activation_schema_url: https://activation.mad4b.com/tenant-gpt/activation-openapi
+  client_id: mad4b-tenant-gpt
+  client_secret: <resolved-from-governed-platform-secret>
+  client_secret_ref: platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET
+  client_secret_config_key: tenant_gpt.oauth.client
+  authorization_url: https://auth.mad4b.com/auth/oauth/authorize
+  token_url: https://auth.mad4b.com/auth/oauth/token
+  token_exchange_method: Default (POST request)
+  callback_urls_to_allow:
+    - https://chat.openai.com/aip/g-d36db295032b9022dd77233041763f513e8ba5fa/oauth/callback
+    - https://chat.openai.com/aip/{g-GPT-ID}/oauth/callback
+    - https://chatgpt.com/aip/{g-GPT-ID}/oauth/callback
+  scope_links:
+    - https://auth.mad4b.com/scopes/tenant.links
+    - https://auth.mad4b.com/scopes/tenant.status
+    - https://auth.mad4b.com/scopes/tenant.activation
+    - https://auth.mad4b.com/scopes/tenant.install
+    - https://auth.mad4b.com/scopes/tenant.system-tools

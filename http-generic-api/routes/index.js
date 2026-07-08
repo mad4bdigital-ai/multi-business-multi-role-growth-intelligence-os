@@ -1,6 +1,7 @@
 import { buildHealthRoutes } from "./healthRoutes.js";
 import { buildStatusRoutes } from "./statusRoutes.js";
 import { buildActivationRoutes } from "./activationRoutes.js";
+import { buildActivationHostGatewayRoutes } from "./activationHostGatewayRoutes.js";
 import { buildActivationHardRunRoutes } from "./activationHardRunRoutes.js";
 import { buildTenantGrowthDashboardRoutes } from "./tenantGrowthDashboardRoutes.js";
 import { buildTenantActivationOverlayRoutes } from "./tenantActivationOverlayRoutes.js";
@@ -73,6 +74,7 @@ import { buildTenantDocsRoutes } from "./tenantDocsRoutes.js";
 import { buildTenantLifecycleRoutes } from "./tenantLifecycleRoutes.js";
 import { buildWorkspaceResourceRoutes } from "./workspaceResourceRoutes.js";
 import { buildResourceApiRoutes } from "./resourceApiRoutes.js";
+import { buildResourceAuthorityGrantRoutes } from "./resourceAuthorityGrantRoutes.js";
 import { buildAdminWorkspaceAuthorityRoutes } from "./adminWorkspaceAuthorityRoutes.js";
 import { buildTenantEvolutionRoutes } from "./tenantEvolutionRoutes.js";
 import { buildTenantInfrastructureRoutes } from "./tenantInfrastructureRoutes.js";
@@ -113,6 +115,9 @@ import { buildAgentGovernanceRoutes } from "./agentGovernanceRoutes.js";
 import { buildDynamicContainerAuthorityRoutes } from "./dynamicContainerAuthorityRoutes.js";
 import { buildDynamicContainerTeamRoutes } from "./dynamicContainerTeamRoutes.js";
 import { buildOpenApiRegistrySyncRoutes } from "./openApiRegistrySyncRoutes.js";
+import { buildSqlCachePolicyRoutes } from "./sqlCachePolicyRoutes.js";
+import { buildRegistryDataManagementRoutes } from "./registryDataManagementRoutes.js";
+import { buildRepositoryAutomationRoutes } from "./repositoryAutomationRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
@@ -137,6 +142,7 @@ function registerOptionalSqlEndpointRegistryRoutes(app, deps) {
 }
 
 export function registerRoutes(app, deps) {
+  app.use(buildActivationHostGatewayRoutes());
   app.use(buildDeploymentInfoRoutes());
   app.use(buildBackupArtifactRoutes(deps));
   app.use(buildDevDbRestoreRoutes({ ...deps, requireAdminPrincipal }));
@@ -184,8 +190,11 @@ export function registerRoutes(app, deps) {
   app.use(buildDynamicContainerTeamRoutes());
   app.use(buildDynamicContainerAuthorityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildOpenApiRegistrySyncRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildSqlCachePolicyRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildRepositoryAutomationRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildWorkspaceResourceRoutes());
   app.use(buildResourceApiRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildResourceAuthorityGrantRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSupportTicketRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAdminWorkspaceAuthorityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildTenantEvolutionRoutes());

@@ -1,0 +1,27 @@
+{
+  "surface_key": "authority_scope_registry",
+  "display_name": "Authority Scopes",
+  "description": "Platform and tenant authority-scope identities available for activation diagnostics.",
+  "source_table": "authority_scope_registry",
+  "result_key_column": "scope_key",
+  "result_label_column": "scope_key",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": ["active"],
+  "result_columns": [
+    "scope_id",
+    "tenant_id",
+    "scope_key",
+    "scope_type",
+    "status",
+    "version",
+    "updated_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 25,
+  "sort_order": 11,
+  "status": "active",
+  "notes": "Repo-managed read-only activation surface. metadata_json and created_by are intentionally excluded. Tenant callers are constrained by tenant_column; platform scope is admin-only because tenant_id is null."
+}

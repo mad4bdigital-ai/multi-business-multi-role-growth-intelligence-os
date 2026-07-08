@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "feature_key": "007-dynamic-capability-governance",
+  "title": "Dynamic Capability Governance and Universal Tool Projection",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "specification_pr": {
+      "number": 1972,
+      "branch": "gpt/007-dynamic-capability-governance-20260629",
+      "role": "specification",
+      "status": "current_pr"
+    },
+    "implementation_prs": [
+      {
+        "number": 2135,
+        "branch": "gpt/repo-patch-same-branch-continuation-20260704",
+        "role": "repository_tooling_prerequisite",
+        "status": "merged",
+        "merge_sha": "5e31768fa525e3255294e75352091e3325ceac98",
+        "summary": "Allow same-branch repo patch continuation with expected_branch_sha, default-branch drift overlap checks, readback fields, and regression assertions. This unblocked stable multi-PR delivery but is not the operational alert runtime implementation."
+      }
+    ],
+    "implementation_evidence": [
+      {
+        "role": "operational_alert_internal_write_pilot_code_evidence",
+        "status": "observed_on_main",
+        "observed_main_sha": "8d066549e2d928270e11f193badd4a82fbfdbac1",
+        "provenance_status": "source_pr_not_resolved_in_this_audit",
+        "files": [
+          "http-generic-api/operationalAlertService.js",
+          "http-generic-api/test-operational-alerting-control-plane.mjs",
+          "http-generic-api/migrations/20260704_operational_alert_lifecycle_fingerprints.sql",
+          "http-generic-api/scripts/governed-migration-runner.mjs"
+        ],
+        "evidence": {
+          "operation_resource_fingerprint_helpers": true,
+          "later_success_requires_matching_operation_resource_identity": true,
+          "lifecycle_writer_code_present": true,
+          "lifecycle_event_ledger_migration_source_present": true,
+          "migration_runner_registration_present": true,
+          "test_manifest_registration_present": true,
+          "openapi_fingerprint_contract_reconciled_by_audit_pr": true,
+          "migration_apply_verified": false,
+          "production_runtime_parity_verified": false
+        }
+      }
+    ],
+    "closeout_pr": {
+      "number": null,
+      "branch": null,
+      "role": "completion",
+      "status": "pending"
+    }
+  },
+  "evidence": {
+    "specification": {
+      "status": "deep_design_complete",
+      "documents": {
+        "top_level_specification": true,
+        "implementation_plan": true,
+        "architecture": true,
+        "logical_data_model": true,
+        "source_consolidation_map": true,
+        "formal_decision_model": true,
+        "draft_openapi_3_1_contract": true,
+        "migration_and_compatibility": true,
+        "rollout_pr_sequence": true,
+        "testing_strategy": true,
+        "threat_model": true,
+        "operational_model": true,
+        "requirements_checklist": true,
+        "security_checklist": true,
+        "release_readiness_checklist": true
+      },
+      "auth_host_only": true,
+      "local_device_operations": false,
+      "provider_mutations": false,
+      "runtime_behavior_changed": false
+    },
+    "implementation": {
+      "status": "partial_implementation_observed_pending_migration_apply_and_production_verification",
+      "next_pr_scope": "migration_authorization_apply_readback_and_production_parity",
+      "provider_mutation_allowed": false,
+      "enforcement_change_allowed": false,
+      "automatic_tenant_export_allowed": false,
+      "operational_alert_internal_write_pilot": {
+        "code_status": "observed_on_main",
+        "migration_source_status": "present_and_runner_registered",
+        "runtime_contract_status": "fingerprint_fields_reconciled_in_openapi_by_audit_pr",
+        "migration_apply_status": "not_verified",
+        "production_verification_status": "pending",
+        "post_merge_audit_status": "pending"
+      }
+    },
+    "pull_request": {
+      "status": "audit_pr_pending_number"
+    },
+    "ci": {
+      "status": "pending_audit_pr"
+    },
+    "release_readiness": {
+      "status": "pending_migration_apply_and_production_verification"
+    },
+    "migration": {
+      "status": "source_present_runner_registered_apply_not_verified",
+      "migration_file": "20260704_operational_alert_lifecycle_fingerprints.sql"
+    },
+    "production_verification": {
+      "status": "pending_migration_apply_and_runtime_parity_readback"
+    },
+    "post_merge_audit": {
+      "status": "pending"
+    }
+  },
+  "sensitive_values_included": false
+}

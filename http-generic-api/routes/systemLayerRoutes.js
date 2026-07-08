@@ -71,6 +71,21 @@ import {
   tenantEffectiveCapabilityReadinessSmoke,
   tenantCapabilityShadowCompare,
 } from "../tenantEffectiveCapabilityResolver.js";
+import {
+  TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS,
+  tenantCapabilityEnforcementPreview,
+  tenantCapabilityEnforcementReadinessSmoke,
+} from "../tenantCapabilityEnforcementKernel.js";
+import { GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS } from "../growthAuditEvidence.js";
+import * as GrowthAuditEvidenceRuntime from "../growthAuditEvidence.js";
+import { BRAND_WORKSPACE_CONTEXT_SYSTEM_TOOLS } from "../brandWorkspaceContextResolver.js";
+import * as BrandWorkspaceContextRuntime from "../brandWorkspaceContextResolver.js";
+import { PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS } from "../platformResourceContextResolver.js";
+import * as PlatformResourceContextRuntime from "../platformResourceContextResolver.js";
+import {
+  CAPABILITY_ENABLEMENT_SYSTEM_TOOLS,
+} from "../capabilityEnablementBroker.js";
+import * as CapabilityEnablementBrokerRuntime from "../capabilityEnablementBroker.js";
 import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
 
 const SYSTEM_LAYER_TOOLS = [
@@ -187,6 +202,9 @@ const SYSTEM_LAYER_TOOLS = [
   ...TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
   ...TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
   ...TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
+  ...GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS,
+  ...BRAND_WORKSPACE_CONTEXT_SYSTEM_TOOLS,
+  ...PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS,
   {
     name: "system_layer_descriptor_readiness",
     description: "Admin-only read-only diagnostic for descriptor-backed system-layer tool sources. Verifies every descriptor has a runtime handler and no secrets are included.",
@@ -399,6 +417,7 @@ const SYSTEM_LAYER_TOOLS = [
       required: [],
     },
   },
+  ...CAPABILITY_ENABLEMENT_SYSTEM_TOOLS,
 ];
 
 const VALID_STATUSES = new Set(["active", "pending", "error", "archived"]);
@@ -445,6 +464,44 @@ const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
       tenantCapabilityShadowCompare,
     },
     readiness_tool: "tenant_effective_capability_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "tenant_capability_enforcement_kernel_v1",
+    tools: TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS,
+    handlers: {
+      tenantCapabilityEnforcementPreview,
+      tenantCapabilityEnforcementReadinessSmoke,
+    },
+    readiness_tool: "tenant_capability_enforcement_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "growth_audit_evidence_v1",
+    tools: GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS,
+    handlers: GrowthAuditEvidenceRuntime,
+    readiness_tool: "growth_audit_evidence_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "brand_workspace_context_v1",
+    tools: BRAND_WORKSPACE_CONTEXT_SYSTEM_TOOLS,
+    handlers: BrandWorkspaceContextRuntime,
+    readiness_tool: "brand_workspace_context_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "platform_resource_context_v1",
+    tools: PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS,
+    handlers: PlatformResourceContextRuntime,
+    readiness_tool: "platform_resource_context_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "capability_enablement_broker_v1",
+    tools: CAPABILITY_ENABLEMENT_SYSTEM_TOOLS,
+    handlers: CapabilityEnablementBrokerRuntime,
+    readiness_tool: "capability_enablement_readiness_smoke",
     readiness_args: {},
   },
 ];
@@ -851,7 +908,7 @@ async function chunkSystemLayerResponse(body, source = {}) {
   const responseOptions = source?.response_options && typeof source.response_options === "object" ? source.response_options : {};
   return await maybeChunkToolResponseBody(body, {
     response_options: {
-      max_chars: Number(responseOptions.max_chars || source?.max_chars || 30000),
+      max_chars: Number(responseOptions.max_chars || source?.max_chars || 45000),
       cursor: Number(responseOptions.cursor || source?.cursor || 0),
       chunk_ttl_ms: Number(responseOptions.chunk_ttl_ms || source?.chunk_ttl_ms || 0) || undefined,
       chunk_ttl_minutes: Number(responseOptions.chunk_ttl_minutes || source?.chunk_ttl_minutes || 0) || undefined,

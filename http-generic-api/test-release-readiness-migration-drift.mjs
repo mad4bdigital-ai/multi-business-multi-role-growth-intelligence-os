@@ -211,6 +211,32 @@ assert.equal(passPreflight.status, "pass", "idempotent create table and insert i
 assert.equal(passPreflight.counts.create_table_idempotent, 1, "must count idempotent CREATE TABLE");
 assert.equal(passPreflight.counts.insert_idempotent, 1, "must count idempotent INSERT");
 
+const mariaDbJsonCastPreflight = assessMigrationSqlPreflight(
+  "mariadb-json-cast.sql",
+  "UPDATE admin_platform_endpoint_tools SET input_schema = JSON_SET(CAST(input_schema AS JSON), '$.properties.authority_context', JSON_OBJECT('type','object')) WHERE tool_key = 'admin_control';"
+);
+assert.equal(mariaDbJsonCastPreflight.status, "fail", "MariaDB-incompatible CAST(... AS JSON) must fail before execution");
+assert(
+  mariaDbJsonCastPreflight.risks.some((risk) => risk.code === "mariadb_cast_as_json_not_supported"),
+  "must flag MariaDB-incompatible JSON casts"
+);
+
+const unknownRegistryColumnPreflight = assessMigrationSqlPreflight(
+  "unknown-registry-column.sql",
+  "INSERT INTO tenant_platform_endpoint_tools (tool_key, display_name, description, http_method, http_path) VALUES ('bad_tool', 'Bad', 'Bad.', 'GET', '/bad') ON DUPLICATE KEY UPDATE missing_column = VALUES(display_name);"
+);
+assert.equal(unknownRegistryColumnPreflight.status, "fail", "unknown ON DUPLICATE registry columns must fail before partial apply");
+assert(
+  unknownRegistryColumnPreflight.risks.some((risk) => risk.code === "on_duplicate_update_unknown_column" && risk.table === "tenant_platform_endpoint_tools" && risk.column === "missing_column"),
+  "must flag unknown tenant registry duplicate-update columns"
+);
+
+const knownRegistryColumnPreflight = assessMigrationSqlPreflight(
+  "known-registry-column.sql",
+  "INSERT INTO tenant_platform_endpoint_tools (tool_key, display_name, description, http_method, http_path) VALUES ('good_tool', 'Good', 'Good.', 'GET', '/good') ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP, display_name = VALUES(display_name);"
+);
+assert.equal(knownRegistryColumnPreflight.status, "pass", "known tenant registry duplicate-update columns should pass");
+
 const guardedInsertSelectPreflight = assessMigrationSqlPreflight(
   "guarded-insert-select.sql",
   "INSERT INTO policy_logic_bindings (source_policy_id) SELECT ep.id FROM execution_policies ep WHERE ep.active = 'TRUE' AND NOT EXISTS (SELECT 1 FROM policy_logic_bindings b WHERE b.source_policy_id = ep.id);"

@@ -19,6 +19,7 @@ info:
     (3) Release operations Ã¢â‚¬â€ /release/readiness, /release/readiness-history,
         /release/entity-classification
     Platform endpoints accept admin/service authentication via BACKEND_API_KEY, or user authentication via a signed login JWT.
+    Activation GPT Action traffic uses the distinct https://activation.mad4b.com server URL. On Hostinger Cloud deployments, that host is enforced by the in-app Activation Host Gateway while Cloudflare remains DNS/proxy configuration only. OAuth endpoints stay on https://auth.mad4b.com and are rejected on the activation host. The production promotion path is merge to main followed by Hostinger Cloud auto-deploy; SSH deploy/restart and Cloudflare Worker rollout are not the normal path for this surface.
 
 servers:
   - url: https://auth.mad4b.com
@@ -127,6 +128,108 @@ components:
         Bearer token minted by /auth/login, /auth/register, or approved device-link polling.
 
   schemas:
+
+    SecurityDecisionTraceEventPublic:
+      type: object
+      additionalProperties: false
+      required: [type, gate_key, required, state, evaluated]
+      properties:
+        type: { type: string, enum: [gate_evaluated] }
+        gate_key: { type: string }
+        required: { type: boolean }
+        state: { type: string, enum: [pass, deny, not_applicable, not_evaluated] }
+        evaluated: { type: boolean }
+
+    SecurityDecisionTraceEventAdmin:
+      allOf:
+        - $ref: "#/components/schemas/SecurityDecisionTraceEventPublic"
+        - type: object
+          additionalProperties: false
+          properties:
+            reason: { type: string, nullable: true }
+            code: { type: string, nullable: true }
+            detail_keys:
+              type: array
+              items: { type: string }
+
+    SecurityDecisionTracePublic:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - outcome
+        - allowed
+        - dispatch_ready
+        - will_execute
+        - execution_mode
+        - approval_required
+        - denied_gate_count
+        - unevaluated_required_gate_count
+        - gate_events
+        - secrets_included
+      properties:
+        schema_version: { type: string, enum: [security_decision_trace.v1] }
+        trace_id: { type: string, nullable: true }
+        outcome: { type: string, enum: [allow, deny] }
+        allowed: { type: boolean }
+        dispatch_ready: { type: boolean }
+        will_execute: { type: boolean }
+        execution_mode: { type: string, enum: [preview, dispatch] }
+        approval_required: { type: boolean }
+        denied_gate_count: { type: integer, minimum: 0 }
+        unevaluated_required_gate_count: { type: integer, minimum: 0 }
+        gate_events:
+          type: array
+          items: { $ref: "#/components/schemas/SecurityDecisionTraceEventPublic" }
+        secrets_included: { type: boolean, enum: [false] }
+
+    SecurityDecisionTraceAdmin:
+      allOf:
+        - $ref: "#/components/schemas/SecurityDecisionTracePublic"
+        - type: object
+          additionalProperties: false
+          properties:
+            denied_gates:
+              type: array
+              items: { type: string }
+            unevaluated_required_gates:
+              type: array
+              items: { type: string }
+            gate_events:
+              type: array
+              items: { $ref: "#/components/schemas/SecurityDecisionTraceEventAdmin" }
+            invariant_results:
+              type: object
+              additionalProperties: { type: boolean }
+
+    SecurityDecisionMetrics:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - allowed
+        - dispatch_ready
+        - will_execute
+        - denied_gate_count
+        - unevaluated_required_gate_count
+        - invariant_violation_count
+        - violated_invariants
+        - alert_level
+        - secrets_included
+      properties:
+        schema_version: { type: string, enum: [security_decision_metrics.v1] }
+        decision_outcome: { type: string, nullable: true, enum: [allow, deny] }
+        allowed: { type: boolean }
+        dispatch_ready: { type: boolean }
+        will_execute: { type: boolean }
+        denied_gate_count: { type: integer, minimum: 0 }
+        unevaluated_required_gate_count: { type: integer, minimum: 0 }
+        invariant_violation_count: { type: integer, minimum: 0 }
+        violated_invariants:
+          type: array
+          items: { type: string }
+        alert_level: { type: string, enum: [none, warning, critical] }
+        secrets_included: { type: boolean, enum: [false] }
 
     ActivationHardRunSummaryResponse:
       type: object
@@ -719,7 +822,8 @@ components:
         section_key: { type: string }
         cursor: { type: integer, minimum: 0, default: 0 }
         detail_limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
-        max_response_chars: { type: integer, minimum: 5000, maximum: 500000 }
+        max_response_chars: { type: integer, minimum: 5000, maximum: 500000, default: 40000 }
+        chunk_ttl_minutes: { type: integer, minimum: 5, maximum: 120, default: 20 }
         authorized_access_limit: { type: integer, minimum: 1, maximum: 100 }
         authorized_surface_limit: { type: integer, minimum: 1, maximum: 50 }
         provider_arguments:
@@ -817,6 +921,8 @@ components:
         alert_id: { type: [string, 'null'] }
         alert_key: { type: string }
         fingerprint_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        operation_fingerprint_sha256: { type: [string, 'null'], pattern: '^[a-f0-9]{64}$' }
+        resource_fingerprint_sha256: { type: [string, 'null'], pattern: '^[a-f0-9]{64}$' }
         source_type: { type: string }
         source_ref: { type: [string, 'null'] }
         source_record_id: { type: [string, 'null'] }
@@ -3502,7 +3608,7 @@ x-tenant-gpt-auth:
   action_auth_preset:
     authentication_type: OAuth
     schema_url: https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml
-    activation_schema_url: https://auth.mad4b.com/openapi.tenant-gpt.activation.yaml
+    activation_schema_url: https://activation.mad4b.com/tenant-gpt/activation-openapi
     client_id: mad4b-tenant-gpt
     client_secret: <resolved-from-governed-platform-secret>
     client_secret_ref: platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET
@@ -4517,6 +4623,8 @@ paths:
         '404': { description: Resource not found }
         '409': { description: Operation conflicts with lifecycle or policy }
   # END RESOURCE API COVERAGE
+  /admin/cache/sql-policy:
+    $ref: './openapi/sql-cache-policy.yaml#/sqlCachePolicy'
   /admin/openapi-registry-sync/status:
     $ref: './openapi/openapi-registry-sync.yaml#/openApiRegistrySyncStatus'
   /admin/openapi-registry-sync:
@@ -4970,7 +5078,7 @@ paths:
         - backendBearerAuth: []
       operationId: tenantSshCliAllowlistedExecute
       summary: Execute tenant SSH allowlisted CLI command after approval
-      description: Executes a fixed allowlisted SSH command for a tenant-owned SSH connection after a matching approval request is approved. Rejects freeform commands, caps output, uses a bounded timeout, and never returns credentials.
+      description: Executes a fixed allowlisted SSH command for a tenant-owned SSH connection after a matching approval request is approved. Requires a typed command_key, rejects freeform commands and shell metacharacter argv drift, caps output, uses a bounded timeout, and never returns credentials.
       parameters:
         - name: connection_id
           in: path
@@ -4980,22 +5088,23 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
-            schema:
-              type: object
-              required: [approval_request_id, command_key]
-              additionalProperties: false
-              properties:
-                approval_request_id:
-                  type: string
-                command_key:
-                  type: string
-                  enum: [pwd, whoami, uname_s, uptime]
-                timeout_ms:
-                  type: integer
-                  minimum: 1000
-                  maximum: 10000
-                  default: 5000
+            application/json:
+              schema:
+                type: object
+                required: [approval_request_id, command_key]
+                additionalProperties: false
+                properties:
+                  approval_request_id:
+                    type: string
+                  command_key:
+                    type: string
+                    description: Typed allowlisted command selector. Freeform command text and caller-provided argv are not accepted.
+                    enum: [pwd, whoami, uname_s, uptime]
+                  timeout_ms:
+                    type: integer
+                    minimum: 1000
+                    maximum: 10000
+                    default: 5000
       responses:
         "200":
           description: SSH CLI allowlisted command executed.
@@ -6384,6 +6493,91 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /activation/runs/{runId}/archive:
+    get:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: getActivationRunArchive
+      x-openai-isConsequential: false
+      summary: Resolve an activation run to its session archive
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+      responses:
+        '200':
+          description: Activation run archive metadata within admin scope.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, found, run_id, archive, authorization, secrets_included]
+                properties:
+                  ok: { type: boolean, const: true }
+                  found: { type: boolean, const: true }
+                  run_id: { type: string }
+                  archive: { type: object, additionalProperties: true }
+                  authorization: { type: object, additionalProperties: true }
+                  secrets_included: { type: boolean, const: false }
+        '401':
+          description: Backend authentication required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Activation run not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /tenant/activation/runs/{runId}/archive:
+    get:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+      operationId: getTenantActivationRunArchive
+      x-openai-isConsequential: false
+      summary: Resolve an activation run to the signed tenant user's archive
+      description: Tenant scope is resolved from the signed user JWT and active membership.
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+      responses:
+        '200':
+          description: Activation run archive metadata owned by the signed tenant user.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, found, run_id, archive, authorization, secrets_included]
+                properties:
+                  ok: { type: boolean, const: true }
+                  found: { type: boolean, const: true }
+                  run_id: { type: string }
+                  archive: { type: object, additionalProperties: true }
+                  authorization: { type: object, additionalProperties: true }
+                  secrets_included: { type: boolean, const: false }
+        '401':
+          description: User JWT required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Active tenant membership and ownership are required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Activation run not found within caller scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
   /activation/awareness:
     get:
       tags: [activation]
@@ -6401,6 +6595,14 @@ paths:
         - in: query
           name: attention_limit
           schema: { type: integer, minimum: 1, maximum: 20, default: 10 }
+        - in: query
+          name: max_response_chars
+          description: Maximum serialized characters returned inline before a governed chunk continuation envelope is returned.
+          schema: { type: integer, minimum: 5000, maximum: 150000, default: 45000 }
+        - in: query
+          name: chunk_ttl_minutes
+          description: Requested lifetime for the durable response chunk cache.
+          schema: { type: integer, minimum: 5, maximum: 120, default: 20 }
       responses:
         '200':
           description: Activation awareness readback.
@@ -6529,7 +6731,9 @@ paths:
               properties:
                 lifecycle_status: { type: string, enum: [open, acknowledged, investigating, resolved, ignored] }
                 actor: { type: string, maxLength: 191 }
+                actor_type: { type: string, maxLength: 64, default: platform_admin }
                 note: { type: string, maxLength: 2000 }
+                idempotency_key: { type: string, maxLength: 191 }
       responses:
         '200':
           description: Updated lifecycle readback.
@@ -6633,6 +6837,364 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
+  /me/dashboard:
+    get:
+      tags: [growth-dashboard]
+      security:
+        - userJwtAuth: []
+      operationId: getMyDashboard
+      x-openai-isConsequential: false
+      summary: Read the signed-in user dashboard
+      description: >
+        Returns the signed-in user's customer-safe dashboard projection. The
+        response is backed by Activation Dynamic Tabs, growth dashboard tab
+        profiles, cursor-loaded details, and tenant/user scope from the signed
+        JWT. Missing data is reported as unavailable or partial, never as zero.
+      parameters:
+        - name: container_key
+          in: query
+          schema: { type: string }
+        - name: tab
+          in: query
+          schema: { type: string, pattern: "^tenant_[a-z0-9_]+$" }
+        - name: tab_key
+          in: query
+          schema: { type: string, pattern: "^tenant_[a-z0-9_]+$" }
+        - name: date_range
+          in: query
+          schema: { type: string }
+        - name: filters
+          in: query
+          schema: { type: string }
+          description: JSON object encoded as a query string.
+      responses:
+        '200':
+          description: User dashboard projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrowthDashboardResponse'
+        '401':
+          description: A signed tenant user JWT is required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /me/workspaces/{tenant_id}/dashboard:
+    get:
+      tags: [growth-dashboard]
+      security:
+        - userJwtAuth: []
+      operationId: getMyWorkspaceDashboard
+      x-openai-isConsequential: false
+      summary: Read the signed-in user dashboard for a tenant workspace scope
+      description: >
+        Returns the dashboard projection for the signed-in tenant scope. The
+        path tenant_id must match the tenant_id in the signed JWT; mismatches
+        fail closed with tenant_dashboard_scope_mismatch.
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: container_key
+          in: query
+          schema: { type: string }
+        - name: tab
+          in: query
+          schema: { type: string, pattern: "^tenant_[a-z0-9_]+$" }
+        - name: tab_key
+          in: query
+          schema: { type: string, pattern: "^tenant_[a-z0-9_]+$" }
+        - name: date_range
+          in: query
+          schema: { type: string }
+        - name: filters
+          in: query
+          schema: { type: string }
+          description: JSON object encoded as a query string.
+      responses:
+        '200':
+          description: Workspace-scoped user dashboard projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrowthDashboardResponse'
+        '401':
+          description: A signed tenant user JWT is required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: The requested tenant scope does not match the signed JWT.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /me/workspaces/{tenant_id}/dashboard/tabs/{tabKey}:
+    get:
+      tags: [growth-dashboard]
+      security:
+        - userJwtAuth: []
+      operationId: getMyWorkspaceDashboardTab
+      x-openai-isConsequential: false
+      summary: Read one signed-in user dashboard tab
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: tabKey
+          in: path
+          required: true
+          schema: { type: string, pattern: "^tenant_[a-z0-9_]+$" }
+        - name: container_key
+          in: query
+          schema: { type: string }
+        - name: date_range
+          in: query
+          schema: { type: string }
+        - name: filters
+          in: query
+          schema: { type: string }
+          description: JSON object encoded as a query string.
+      responses:
+        '200':
+          description: Workspace-scoped dashboard tab projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrowthDashboardResponse'
+        '401':
+          description: A signed tenant user JWT is required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: The requested tenant scope does not match the signed JWT.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /me/workspaces/{tenant_id}/dashboard/preferences:
+    get:
+      tags: [growth-dashboard]
+      security:
+        - userJwtAuth: []
+      operationId: getMyWorkspaceDashboardPreferences
+      x-openai-isConsequential: false
+      summary: Read signed-in user dashboard preferences
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Dashboard preferences.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  preferences:
+                    $ref: '#/components/schemas/GrowthDashboardPreferences'
+                  secrets_included: { type: boolean, enum: [false] }
+        '401':
+          description: A signed tenant user JWT is required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: The requested tenant scope does not match the signed JWT.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+    put:
+      tags: [growth-dashboard]
+      security:
+        - userJwtAuth: []
+      operationId: putMyWorkspaceDashboardPreferences
+      x-openai-isConsequential: true
+      summary: Update signed-in user dashboard preferences
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrowthDashboardPreferences'
+      responses:
+        '200':
+          description: Updated dashboard preferences.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  preferences:
+                    $ref: '#/components/schemas/GrowthDashboardPreferences'
+                  secrets_included: { type: boolean, enum: [false] }
+        '401':
+          description: A signed tenant user JWT is required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: The requested tenant scope does not match the signed JWT.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /me/workspaces/{tenant_id}/dashboard/digest:
+    get:
+      tags: [growth-dashboard]
+      security:
+        - userJwtAuth: []
+      operationId: getMyWorkspaceDashboardDigest
+      x-openai-isConsequential: false
+      summary: Read a compact signed-in user dashboard digest
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: container_key
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Dashboard digest.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: A signed tenant user JWT is required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: The requested tenant scope does not match the signed JWT.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /me/workspaces/{tenant_id}/dashboard/actions/{actionRefKey}/preview:
+    get:
+      tags: [growth-dashboard]
+      security:
+        - userJwtAuth: []
+      operationId: getMyWorkspaceDashboardActionPreview
+      x-openai-isConsequential: false
+      summary: Preview a signed-in user dashboard action
+      description: Preview only. Does not call providers, execute external actions, or write to external systems.
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: actionRefKey
+          in: path
+          required: true
+          schema: { type: string }
+        - name: container_key
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Dashboard action preview.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: A signed tenant user JWT is required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: The requested tenant scope does not match the signed JWT.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /me/workspaces/{tenant_id}/dashboard/recommendations/{recommendationId}/feedback:
+    post:
+      tags: [growth-dashboard]
+      security:
+        - userJwtAuth: []
+      operationId: postMyWorkspaceDashboardRecommendationFeedback
+      x-openai-isConsequential: true
+      summary: Record signed-in user dashboard recommendation feedback
+      description: Internal recommendation event write only; no provider call or external send.
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: recommendationId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [event_type]
+              properties:
+                event_type:
+                  type: string
+                  enum: [shown, opened, accepted, dismissed, executed, failed, result_observed]
+                reason_code: { type: string }
+                workspace_id: { type: string }
+                recommendation_key: { type: string }
+                tab_key: { type: string }
+                card_id: { type: string }
+                result_metric_key: { type: string }
+                result_value:
+                  type: object
+                  additionalProperties: true
+                context:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '201':
+          description: Feedback event recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid event type.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: A signed tenant user JWT is required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: The requested tenant scope does not match the signed JWT.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
   /tenant/dashboard:
     get:
       tags: [growth-dashboard]
@@ -6998,6 +7560,14 @@ paths:
         - in: query
           name: attention_limit
           schema: { type: integer, minimum: 1, maximum: 20, default: 10 }
+        - in: query
+          name: max_response_chars
+          description: Maximum serialized characters returned inline before a governed chunk continuation envelope is returned.
+          schema: { type: integer, minimum: 5000, maximum: 150000, default: 45000 }
+        - in: query
+          name: chunk_ttl_minutes
+          description: Requested lifetime for the durable response chunk cache.
+          schema: { type: integer, minimum: 5, maximum: 120, default: 20 }
       responses:
         '200':
           description: Tenant-scoped activation awareness.
@@ -7167,6 +7737,14 @@ paths:
           in: query
           schema: { type: integer, default: 4000, maximum: 20000 }
           description: Maximum characters per raw dump field when include_raw=true.
+        - name: max_response_chars
+          in: query
+          schema: { type: integer, minimum: 5000, maximum: 150000, default: 45000 }
+          description: Maximum serialized characters returned inline before a governed chunk continuation envelope is returned.
+        - name: chunk_ttl_minutes
+          in: query
+          schema: { type: integer, minimum: 5, maximum: 120, default: 20 }
+          description: Requested lifetime for the durable response chunk cache.
       responses:
         "200":
           description: Session history and related platform scopes
@@ -7250,6 +7828,7 @@ paths:
         - { name: tab_key, in: query, schema: { type: string } }
         - { name: date_range, in: query, schema: { type: string } }
         - { name: max_response_chars, in: query, schema: { type: integer, minimum: 5000, maximum: 150000, default: 40000 } }
+        - { name: chunk_ttl_minutes, in: query, description: Requested lifetime for the durable response chunk cache., schema: { type: integer, minimum: 5, maximum: 120, default: 20 } }
         - { name: session_policy, in: query, schema: { type: string, enum: [reuse_or_create, create_new, reuse_only, read_only], default: reuse_or_create } }
         - { name: idempotency_key, in: query, schema: { type: string, maxLength: 180 } }
         - { name: conversation_ref, in: query, schema: { type: string, maxLength: 500 } }
@@ -15149,6 +15728,237 @@ paths:
                       will_publish: { type: boolean, enum: [false] }
                   secrets_included: { type: boolean, enum: [false] }
 
+  /admin/repository-automation/plan:
+    post:
+      x-openai-isConsequential: false
+      tags: [admin, repository-automation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: planRepositoryAutomation
+      summary: Plan a governed repository automation workflow
+      description: >
+        Builds a deterministic read-only plan for PR delivery, migration release,
+        post-merge closeout, branch cleanup, Spec lifecycle, hygiene, or a full
+        workstream. The plan identifies missing tool-specific approvals and inputs
+        without executing mutations or provider writes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties:
+                automation_key:
+                  type: string
+                  enum: [pr_delivery, migration_release, post_merge_closeout, branch_cleanup, spec_lifecycle, hygiene_scan, full_workstream]
+                  default: full_workstream
+                owner: { type: string, maxLength: 191 }
+                repo: { type: string, maxLength: 191 }
+                default_branch: { type: string, default: main, maxLength: 191 }
+                pull_number: { type: integer, minimum: 1 }
+                branch: { type: string, maxLength: 255 }
+                migration: { type: string, maxLength: 255 }
+                expected_checksum_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+                expected_statement_count: { type: integer, minimum: 1 }
+                changed_files:
+                  type: array
+                  maxItems: 500
+                  items: { type: string, maxLength: 500 }
+                spec_intent: { type: string, maxLength: 64 }
+                historical: { type: boolean }
+                step_args:
+                  type: object
+                  additionalProperties: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Repository automation plan
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '400':
+          description: Invalid workflow input
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '500':
+          description: Unexpected planning failure
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /admin/repository-automation/run:
+    post:
+      x-openai-isConsequential: true
+      tags: [admin, repository-automation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: runRepositoryAutomation
+      summary: Run or resume a governed repository automation workflow
+      description: >
+        Executes a deterministic compound workflow through existing governed tools.
+        Dry-run is the default. Apply requires a ready platform_orchestration
+        capability envelope and preserves every nested tool approval, typed
+        confirmation, SHA or checksum pin, ledger, and readback requirement.
+        Missing nested authority returns a resumable awaiting_input checkpoint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [automation_key]
+              additionalProperties: true
+              properties:
+                automation_key:
+                  type: string
+                  enum: [pr_delivery, migration_release, post_merge_closeout, branch_cleanup, spec_lifecycle, hygiene_scan, full_workstream]
+                mode: { type: string, enum: [dry_run, apply], default: dry_run }
+                capability_envelope_id: { type: string, maxLength: 64 }
+                idempotency_key: { type: string, maxLength: 191 }
+                owner: { type: string, maxLength: 191 }
+                repo: { type: string, maxLength: 191 }
+                default_branch: { type: string, default: main, maxLength: 191 }
+                pull_number: { type: integer, minimum: 1 }
+                branch: { type: string, maxLength: 255 }
+                migration: { type: string, maxLength: 255 }
+                expected_checksum_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+                expected_statement_count: { type: integer, minimum: 1 }
+                confirm: { type: string, maxLength: 256 }
+                superseding_commits:
+                  type: array
+                  maxItems: 20
+                  items: { type: string, pattern: '^[a-f0-9]{40}$' }
+                changed_files:
+                  type: array
+                  maxItems: 500
+                  items: { type: string, maxLength: 500 }
+                spec_intent: { type: string, maxLength: 64 }
+                historical: { type: boolean }
+                step_args:
+                  type: object
+                  additionalProperties: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Repository automation run completed
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '202':
+          description: Repository automation awaiting_input checkpoint
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '400':
+          description: Invalid workflow input
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '409':
+          description: Repository automation could not complete in the current state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500':
+          description: Unexpected repository automation failure
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /admin/repository-automation/status:
+    post:
+      x-openai-isConsequential: false
+      tags: [admin, repository-automation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: readRepositoryAutomationStatus
+      summary: Read a repository automation run
+      description: Returns the run, ordered step timeline, idempotency receipts, and bounded readback evidence.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [run_id]
+              properties:
+                run_id: { type: string, maxLength: 64 }
+      responses:
+        '200':
+          description: Repository automation run status
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '400':
+          description: Missing or invalid run identifier
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404':
+          description: Run not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500':
+          description: Unexpected status read failure
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+  /admin/repository-automation/hygiene-scan:
+    post:
+      x-openai-isConsequential: false
+      tags: [admin, repository-automation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: scanRepositoryAutomationHygiene
+      summary: Scan repository automation hygiene
+      description: >
+        Performs a read-only scan for expired envelopes and temporary overrides,
+        authorized but unapplied migrations, stale automation runs, merged branches,
+        stale draft pull requests, and production versus main SHA drift.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                owner: { type: string, maxLength: 191 }
+                repo: { type: string, maxLength: 191 }
+                default_branch: { type: string, default: main, maxLength: 191 }
+                include_github: { type: boolean, default: true }
+                stale_hours: { type: integer, minimum: 1, maximum: 720, default: 24 }
+                stale_draft_days: { type: integer, minimum: 1, maximum: 365, default: 7 }
+      responses:
+        '200':
+          description: Read-only hygiene findings and source health
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '400':
+          description: Invalid scan input
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '500':
+          description: Unexpected hygiene scan failure
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
   /platform/orchestration/ads-provider/snapshot-propose:
     post:
       x-openai-isConsequential: false
@@ -15385,6 +16195,13 @@ paths:
               type: object
               additionalProperties: false
               required: [plugin_key]
+              oneOf:
+                - required: [action_key]
+                  not:
+                    required: [tool_key]
+                - required: [tool_key]
+                  not:
+                    required: [action_key]
               properties:
                 plugin_key: { type: string }
                 action_key: { type: string }
@@ -15416,11 +16233,35 @@ paths:
                   ok: { type: boolean }
                   allowed: { type: boolean }
                   reason: { type: string }
+                  security_decision:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      metrics: { $ref: "#/components/schemas/SecurityDecisionMetrics" }
+                  security_decision_trace_public:
+                    $ref: "#/components/schemas/SecurityDecisionTracePublic"
+                  security_decision_trace_admin:
+                    $ref: "#/components/schemas/SecurityDecisionTraceAdmin"
                   credential_resolution:
                     type: object
                     additionalProperties: true
                     properties:
                       denial_code: { type: string }
+                  selector:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      type: { type: string, enum: [action_key, tool_key] }
+                      value: { type: string }
+                  compatibility_telemetry:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      legacy_selector_alias_used: { type: boolean }
+                      legacy_fields:
+                        type: array
+                        items: { type: string }
+                      contract_version: { type: string, enum: [one-selector-v1] }
                   target_authorization:
                     type: object
                     additionalProperties: true
@@ -18707,6 +19548,13 @@ paths:
               type: object
               additionalProperties: false
               required: [plugin_key]
+              oneOf:
+                - required: [action_key]
+                  not:
+                    required: [tool_key]
+                - required: [tool_key]
+                  not:
+                    required: [action_key]
               properties:
                 plugin_key: { type: string }
                 action_key: { type: string }
@@ -18737,6 +19585,28 @@ paths:
                   ok: { type: boolean }
                   allowed: { type: boolean }
                   reason: { type: string }
+                  security_decision:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      metrics: { $ref: "#/components/schemas/SecurityDecisionMetrics" }
+                  security_decision_trace_public:
+                    $ref: "#/components/schemas/SecurityDecisionTracePublic"
+                  selector:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      type: { type: string, enum: [action_key, tool_key] }
+                      value: { type: string }
+                  compatibility_telemetry:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      legacy_selector_alias_used: { type: boolean }
+                      legacy_fields:
+                        type: array
+                        items: { type: string }
+                      contract_version: { type: string, enum: [one-selector-v1] }
                   target_authorization:
                     type: object
                     additionalProperties: true

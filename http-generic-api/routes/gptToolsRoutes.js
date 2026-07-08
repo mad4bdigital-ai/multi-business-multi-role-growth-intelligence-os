@@ -23,7 +23,14 @@ import {
 } from "../governedToolResponseChunkStore.js";
 import { runGovernedResponseChunkDurableRecoverySmoke } from "../governedResponseChunkDurableRecoverySmoke.js";
 import { bootstrapGovernedMigrationAuthorization } from "../governedMigrationAuthorizationBootstrap.js";
+import { bootstrapGovernedMigrationApplyPolicy } from "../governedMigrationApplyPolicyBootstrap.js";
+import { authorizeCapabilityResolutionEnvelopeApply } from "../scripts/capability-resolution-envelope-apply-authorize.mjs";
 import { runGovernedMigrationExecution } from "../governedMigrationExecutionTool.js";
+import { runGovernedMigrationSchemaReadback } from "../governedMigrationSchemaReadbackTool.js";
+import {
+  buildSqlCacheOperationalDiagnostics,
+  runSqlCacheControlledLoadTest,
+} from "../sqlCacheOperationalDiagnostics.js";
 import { buildActivationGatewayRolloutPlan, runActivationGatewayDarkDeploy } from "../activationGatewayRolloutTool.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import {
@@ -39,6 +46,14 @@ import { runRepositoryCloseSupersededPositiveSmokeV6 } from "../repositoryCloseS
 import { applyUnifiedDiffToText } from "../unifiedDiff.js";
 export { applyUnifiedDiffToText };
 import { buildPlatformCapabilityContractReport, buildPlatformCapabilityLiveReport } from "../platformCapabilityReports.js";
+import { buildDynamicCapabilityGovernancePreview } from "../dynamicCapabilityGovernanceCompiler.js";
+import { buildDynamicCapabilityProjectionPreview } from "../dynamicCapabilityProjectionPreview.js";
+import { buildDynamicCapabilityEnforcementShadow } from "../dynamicCapabilityEnforcementShadow.js";
+import { buildDynamicCapabilityCertificationReadbackPreview } from "../dynamicCapabilityCertificationReadback.js";
+import {
+  CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
+  persistDynamicCapabilityGovernanceCompilation,
+} from "../dynamicCapabilityGovernancePersistence.js";
 import { runGrowthIntelligencePilotAdmin } from "../growthIntelligenceAdminTool.js";
 import {
   approveRepositoryAdvisoryCommentApprovalHoldAdmin,
@@ -47,6 +62,7 @@ import {
   decideGrowthIntelligenceInsightAdmin,
   refreshGrowthIntelligenceReadinessAdmin,
 } from "../growthIntelligenceAdminDecisions.js";
+import { issueRuntimeDispatchCertification } from "../runtimeDispatchCertificationIssuer.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -62,10 +78,23 @@ const DEFAULT_TOOL_LIST_LIMIT = 50;
 const MAX_TOOL_LIST_LIMIT = 200;
 const DEFAULT_TOOL_RESPONSE_MAX_CHARS = 45000;
 const MAX_TOOL_RESPONSE_MAX_CHARS = 150000;
+const DEFAULT_TOOL_RESPONSE_CLIENT_BUDGET_CHARS = 57000;
+const DEFAULT_TOOL_RESPONSE_ENVELOPE_OVERHEAD_CHARS = 12000;
+const MIN_TOOL_RESPONSE_MAX_CHARS = 5000;
 const DEFAULT_TOOL_RESPONSE_CHUNK_TTL_MS = 15 * 60 * 1000;
 const MAX_TOOL_RESPONSE_CHUNK_TTL_MS = 2 * 60 * 60 * 1000;
 const MIN_TOOL_RESPONSE_CHUNK_TTL_MS = 5 * 60 * 1000;
 const TOOL_RESPONSE_CHUNK_CACHE = new Map();
+
+const SESSION_ARCHIVE_PRE_FINAL_CAPTURE_GATE = Object.freeze({
+  status: "required",
+  reason_code: "pre_final_capture_required",
+  write_tool: "gpt_session_turns_write_batch",
+  required_roles: Object.freeze(["user", "assistant"]),
+  readback_required: true,
+  archive_policy: "write the user prompt and assistant reply before final response or before archiving tool turns",
+  secrets_included: false,
+});
 
 export const CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT = Object.freeze({
   policy: "chunk_read_before_alternative_surface",
@@ -143,10 +172,30 @@ async function countConversationTurns(pool, sessionId) {
   };
 }
 
-async function findActiveSessionForCaller(pool, req, args = {}) {
+function buildPreFinalCaptureGate(session = null, reasonCode = "pre_final_capture_required") {
+  return {
+    ...SESSION_ARCHIVE_PRE_FINAL_CAPTURE_GATE,
+    reason_code: reasonCode,
+    session_id: session?.session_id || null,
+    archive_binding: session?.archive_binding || null,
+    turn_counts: session?.turn_counts || null,
+  };
+}
+
+function attachSessionArchiveCaptureGate(resultForClient, archiveResult) {
+  if (!archiveResult?.capture_gate) return resultForClient;
+  if (!resultForClient?.body || typeof resultForClient.body !== "object" || Array.isArray(resultForClient.body)) {
+    return resultForClient;
+  }
+  resultForClient.body.session_archive_capture_gate = archiveResult.capture_gate;
+  return resultForClient;
+}
+
+async function findActiveSessionForCaller(pool, req, args = {}, options = {}) {
   const tenantId = String(req?.auth?.tenant_id || PLATFORM_TENANT_ID);
   const userId = req?.auth?.user_id || null;
   const pinnedSessionId = resolveGptSessionPin(req, args);
+  const allowUncapturedConversation = options.allowUncapturedConversation === true;
   const baseSelect = `SELECT session_id, tenant_id, user_id, originator, session_status, started_at,
             drive_folder_id, drive_doc_id, drive_doc_url, drive_doc_part_index, drive_doc_part_count,
             drive_jsonl_id, drive_jsonl_url
@@ -163,7 +212,17 @@ async function findActiveSessionForCaller(pool, req, args = {}) {
       LIMIT 1`,
       [pinnedSessionId, tenantId, userId]
     );
-    return rows[0] ? { ...rows[0], archive_binding: "explicit_session_pin" } : null;
+    if (!rows[0]) return null;
+    const counts = await countConversationTurns(pool, rows[0].session_id);
+    if (counts.conversation_turns > 0 || allowUncapturedConversation) {
+      return { ...rows[0], archive_binding: "explicit_session_pin", turn_counts: counts };
+    }
+    return {
+      ...rows[0],
+      archive_binding: "explicit_session_pin_pre_final_capture_required",
+      turn_counts: counts,
+      pre_final_capture_required: true,
+    };
   }
 
   const [rows] = await pool.query(
@@ -184,7 +243,12 @@ async function findActiveSessionForCaller(pool, req, args = {}) {
   }
   if (rows?.[0]) {
     const counts = await countConversationTurns(pool, rows[0].session_id);
-    return { ...rows[0], archive_binding: "latest_active_session_fallback", turn_counts: counts };
+    return {
+      ...rows[0],
+      archive_binding: "latest_active_session_pre_final_capture_required",
+      turn_counts: counts,
+      pre_final_capture_required: true,
+    };
   }
   return null;
 }
@@ -192,10 +256,26 @@ async function findActiveSessionForCaller(pool, req, args = {}) {
 async function recordToolDispatchTurn(req, toolKey, args, result) {
   try {
     const pool = getPool();
-    const session = await findActiveSessionForCaller(pool, req, args);
+    const allowUncapturedConversation = toolKey === "gpt_session_turns_write_batch";
+    const session = await findActiveSessionForCaller(pool, req, args, { allowUncapturedConversation });
     if (!session) {
       console.warn(`[gpt-tools] skipped auto-record turn for ${toolKey}: no explicit GPT session pin and no active session with user/assistant turns`);
-      return null;
+      return {
+        ok: false,
+        skipped: true,
+        reason_code: "no_active_gpt_action_session",
+        capture_gate: buildPreFinalCaptureGate(null, "no_active_gpt_action_session"),
+      };
+    }
+    if (session.pre_final_capture_required) {
+      console.warn(`[gpt-tools] skipped auto-record turn for ${toolKey}: pre-final user/assistant capture is required before tool turns are archived`);
+      return {
+        ok: false,
+        skipped: true,
+        reason_code: "pre_final_capture_required",
+        session_id: session.session_id,
+        capture_gate: buildPreFinalCaptureGate(session, "pre_final_capture_required"),
+      };
     }
 
     const [[{ max_idx }]] = await pool.query(
@@ -220,7 +300,7 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       truncatedResult,
     ].join("\n");
 
-    return await recordGptSessionTurn({
+    const writeback = await recordGptSessionTurn({
       pool,
       session,
       role: "tool",
@@ -228,9 +308,16 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       action_key: toolKey,
       turnIndex,
     });
+    return { ok: true, ...writeback };
   } catch (err) {
     console.warn(`[gpt-tools] auto-record turn failed for ${toolKey}: ${err.message}`);
-    return null;
+    return {
+      ok: false,
+      skipped: true,
+      reason_code: "tool_turn_archive_readback_failed",
+      error: { code: err.code || "tool_turn_archive_failed", message: err.message },
+      capture_gate: buildPreFinalCaptureGate(null, "tool_turn_archive_readback_failed"),
+    };
   }
 }
 
@@ -370,6 +457,146 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "platform_capability_governance_compile_preview",
+    displayName: "Platform Capability Governance Compile Preview",
+    description: "Compile deterministic read-only governance manifests and typed gaps from the current MySQL capability readiness vector. Shadow diagnostics only: no registry writes, provider calls, callable exports, tenant authority changes, or execution.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-governance-compile-preview",
+    tags: ["capability", "governance", "compiler", "shadow", "read_only", "no_execution", "no_provider_call", "no_mutation", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        capability_key: { type: "string", maxLength: 191 },
+        source_table: { type: "string", maxLength: 191 },
+        after_key: { type: "string", maxLength: 191 },
+        limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+        gap_limit: { type: "integer", minimum: 1, maximum: 500, default: 200 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "platform_capability_enforcement_shadow_preview",
+    displayName: "Preview Shared Capability Enforcement Shadow",
+    description: "Evaluate one current persisted capability manifest through the shared enforcement decision model, bind the result to manifest revision and request hash, compare adaptive and legacy decisions, and return bounded gate/parity evidence. Shadow only: legacy runtime remains authoritative; no provider call, mutation, envelope consumption, idempotency reservation, Tenant authority change, or secret read.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-enforcement-shadow-preview",
+    tags: ["capability", "governance", "enforcement", "shadow", "parity", "read_only", "no_execution", "legacy_authority_preserved", "no_provider_call", "no_mutation", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["capability_key"],
+      properties: {
+        capability_key: { type: "string", minLength: 1, maxLength: 191 },
+        requested_mode: { type: "string", enum: ["preview", "apply"], default: "preview" },
+        principal_scope: { type: "string", enum: ["admin", "tenant", "internal"], default: "admin" },
+        tenant_ref: { type: "string", maxLength: 191 },
+        workspace_ref: { type: "string", maxLength: 191 },
+        resource_ref: { type: "string", maxLength: 255 },
+        runtime_surface: { type: "string", maxLength: 191 },
+        capability_envelope_id: { type: "string", maxLength: 64 },
+        context_revision: { type: "string", maxLength: 191 },
+        input_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        expected_request_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        expected_manifest_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        expected_source_revision_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        legacy_decision: { type: "string", enum: ["allow", "deny", "error", "not_evaluated"], default: "not_evaluated" },
+        legacy_reason_codes: { type: "array", maxItems: 20, items: { type: "string", maxLength: 128 } },
+        legacy_explanation_ref: { type: "string", maxLength: 512 },
+        legacy_exception_approved: { type: "boolean", default: false },
+        evidence: {
+          type: "object",
+          properties: {
+            tenant_membership: { type: "boolean" },
+            workspace_ready: { type: "boolean" },
+            resource_authority: { type: "boolean" },
+            capability_grant: { type: "boolean" },
+            connection_present: { type: "boolean" },
+            connection_validated: { type: "boolean" },
+            credential_scope_match: { type: "boolean" },
+            approval_present: { type: "boolean" },
+            typed_confirmation_match: { type: "boolean" },
+            idempotency_key_present: { type: "boolean" },
+            quota_authority: { type: "boolean" },
+            audit_ready: { type: "boolean" },
+            readback_contract: { type: "boolean" },
+            rollback_ready: { type: "boolean" },
+            compensation_ready: { type: "boolean" },
+          },
+          additionalProperties: false,
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "platform_capability_certification_readback_preview",
+    displayName: "Preview Capability Certification and Readback Readiness",
+    description: "Resolve the deterministic adapter candidate, reconcile generic and specialized certification authorities, select a versioned readback contract, and report acknowledgement and verification separately. Shadow only: no dispatch, provider call, mutation, credential payload read, Tenant authority change, or runtime authority cutover.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-certification-readback-preview",
+    tags: ["capability", "governance", "adapter", "certification", "readback", "shadow", "read_only", "no_execution", "legacy_authority_preserved", "no_provider_call", "no_mutation", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["capability_key"],
+      properties: {
+        capability_key: { type: "string", minLength: 1, maxLength: 191 },
+        operation_mode: { type: "string", enum: ["preview", "apply"], default: "preview" },
+        adapter_key: { type: "string", maxLength: 191 },
+        resource_type: { type: "string", maxLength: 128 },
+        provider_key: { type: "string", maxLength: 128 },
+        runtime_surface: { type: "string", maxLength: 191 },
+        contract_key: { type: "string", maxLength: 191 },
+        environment: { type: "string", maxLength: 64, default: "production" },
+        evidence_limit: { type: "integer", minimum: 1, maximum: 100, default: 25 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "platform_capability_projection_preview",
+    displayName: "Preview Platform Capability Projections",
+    description: "Build deterministic Admin and Tenant projection candidates from current persisted governance manifests, compare them with existing tool catalogs and export registries, summarize bounded schemas, and emit typed reconciliation gaps. Preview only: no callable export creation, no registry mutation, no provider call, and no Tenant authority change.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-projection-preview",
+    tags: ["capability", "governance", "projection", "reconciliation", "admin", "tenant_safe_preview", "read_only", "dry_run", "no_mutation", "no_callable_export", "no_provider_call", "no_tenant_authority_change", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        capability_key: { type: "string", maxLength: 191 },
+        after_key: { type: "string", maxLength: 191 },
+        target_scope: { type: "string", enum: ["all", "admin", "tenant"], default: "all" },
+        include_aligned: { type: "boolean", default: true },
+        limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+        gap_limit: { type: "integer", minimum: 1, maximum: 500, default: 200 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "platform_capability_governance_compile_persist",
+    displayName: "Persist Platform Capability Governance Compilation",
+    description: "Persist one bounded shadow compilation batch into immutable internal SQL manifests, source links, and typed gap snapshots with idempotency and same-cycle readback. This does not call providers, create callable exports, change Tenant authority, or enable runtime execution.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-governance-compile-persist",
+    tags: ["capability", "governance", "compiler", "persistence", "internal_registry", "state_changing", "mutation", "typed_confirmation", "capability_envelope", "same_cycle_readback", "idempotency", "no_provider_call", "no_external_write", "no_tenant_authority_change", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["idempotency_key", "expected_source_revision_hash", "confirm", "capability_envelope_id"],
+      properties: {
+        idempotency_key: { type: "string", minLength: 8, maxLength: 191 },
+        expected_source_revision_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        confirm: { type: "string", const: CAPABILITY_GOVERNANCE_PERSIST_CONFIRM },
+        capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+        capability_key: { type: "string", maxLength: 191 },
+        source_table: { type: "string", maxLength: 191 },
+        after_key: { type: "string", maxLength: 191 },
+        limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+        gap_limit: { type: "integer", minimum: 1, maximum: 500, default: 200 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "activation_gateway_rollout_plan",
     displayName: "Activation Gateway Rollout Plan",
     description: "Admin-only read-only rollout plan for the Activation Gateway Cloudflare Worker. Validates generated policy hash, signed deployment attestation, workspace and exact Worker resource binding, workers.dev readiness, previous deployment rollback target, and feature-gate state. Never uploads code, writes secrets, enables a subdomain, changes DNS, or binds a custom domain.",
@@ -451,6 +678,43 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "governed_migration_apply_policy_bootstrap",
+    displayName: "Governed Migration Apply Policy Bootstrap",
+    description: "Create or verify the one fixed dynamic apply-authorization policy required by governed_migration_execute. The contract is non-configurable, no-provider, no-external-write, checksum-runner-only, and requires typed confirmation plus same-cycle readback.",
+    method: "VIRTUAL",
+    path: "internal://governed-migration-apply-policy-bootstrap",
+    tags: ["admin", "migration", "capability_resolution", "policy_bootstrap", "state_changing", "typed_confirmation", "capability_envelope", "readback", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["confirm", "decision_note", "capability_envelope_id"],
+      properties: {
+        confirm: { type: "string", const: "BOOTSTRAP_GOVERNED_MIGRATION_EXECUTE_APPLY_POLICY" },
+        decision_note: { type: "string", minLength: 20, maxLength: 1000 },
+        capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "capability_resolution_envelope_apply_authorize",
+    displayName: "Apply-Authorize Capability Resolution Envelope",
+    description: "Apply-authorize one ready capability resolution envelope through the dynamic capability apply policy. Creates internal approval evidence only; no provider call, external write, credential payload read, or secret return.",
+    method: "VIRTUAL",
+    path: "internal://capability-resolution-envelope-apply-authorize",
+    tags: ["admin", "capability_resolution", "apply_authorization", "state_changing", "approval_required", "readback", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["envelope_id", "decision_note"],
+      properties: {
+        envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+        authorized_by: { type: "string", minLength: 1, maxLength: 64 },
+        decision_note: { type: "string", minLength: 20, maxLength: 512 },
+        ttl_minutes: { type: "integer", minimum: 5, maximum: 240, default: 60 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "governed_migration_authorization_bootstrap",
     displayName: "Governed Migration Authorization Bootstrap",
     description: "Authorize one checksum-bound additive migration for the governed runner without executing migration SQL. Requires exact checksum, statement count, merged PR evidence, typed confirmation, a ready capability envelope, zero-risk preflight, and same-cycle authorization readback.",
@@ -463,12 +727,71 @@ const VIRTUAL_ADMIN_TOOLS = [
       properties: {
         migration: { type: "string", pattern: "^[A-Za-z0-9._-]+\\.sql$" },
         expected_checksum_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        previous_checksum_sha256: {
+          type: "string",
+          pattern: "^[0-9a-f]{64}$",
+          description: "Required only when rotating an existing unapplied authorization to a reviewed replacement checksum.",
+        },
         expected_statement_count: { type: "integer", minimum: 1, maximum: 5000 },
         pull_request: { type: "integer", minimum: 1 },
         merge_sha: { type: "string", pattern: "^[0-9a-f]{40}$" },
         confirm: { type: "string" },
         capability_envelope_id: { type: "string" },
         decision_note: { type: "string", minLength: 20, maxLength: 1000 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "sql_cache_runtime_diagnostics_get",
+    displayName: "SQL Cache Runtime Diagnostics Get",
+    description: "Read process-lifetime SQL cache counters, derived hit/miss/error metrics, policy freshness, circuit/cooldown state, and threshold-based operational alerts. No cache or policy mutation is performed.",
+    method: "VIRTUAL",
+    path: "internal://sql-cache-runtime-diagnostics-get",
+    tags: ["admin", "cache", "sql_cache", "read_only", "diagnostics", "monitoring", "no_external_write", "no_provider_call", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        minimum_read_samples: { type: "integer", minimum: 1, maximum: 1000000, default: 20 },
+        low_hit_ratio: { type: "number", minimum: 0, maximum: 1, default: 0.4 },
+        high_error_rate: { type: "number", minimum: 0, maximum: 1, default: 0.05 },
+        oversize_cooldown_warning_count: { type: "integer", minimum: 1, maximum: 1000000, default: 1 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "sql_cache_controlled_load_test",
+    displayName: "SQL Cache Controlled Load Test",
+    description: "Run a bounded isolated in-memory comparison of uncached versus cached reads, verify single-flight behavior, and confirm the endpoints security denylist fallback. Production Redis and MySQL are never touched.",
+    method: "VIRTUAL",
+    path: "internal://sql-cache-controlled-load-test",
+    tags: ["admin", "cache", "sql_cache", "read_only", "diagnostics", "isolated_in_memory", "no_external_write", "no_provider_call", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        iterations: { type: "integer", minimum: 10, maximum: 2000, default: 100 },
+        concurrency: { type: "integer", minimum: 1, maximum: 200, default: 20 },
+        loader_delay_ms: { type: "integer", minimum: 0, maximum: 100, default: 5 },
+        payload_bytes: { type: "integer", minimum: 16, maximum: 262144, default: 1024 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "governed_migration_schema_readback",
+    displayName: "Governed Migration Schema Readback",
+    description: "Read-only, checksum-bound schema and ledger readback for one governed migration. This tool does not accept freeform SQL, does not read row data, does not call providers, and does not execute migrations.",
+    method: "VIRTUAL",
+    path: "internal://governed-migration-schema-readback",
+    tags: ["admin", "migration", "read_only", "schema_readback", "ledger_readback", "no_freeform_sql", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["migration", "expected_checksum_sha256", "expected_statement_count"],
+      properties: {
+        migration: { type: "string", pattern: "^[A-Za-z0-9._-]+\\.sql$" },
+        expected_checksum_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        expected_statement_count: { type: "integer", minimum: 1, maximum: 5000 },
       },
       additionalProperties: false,
     },
@@ -508,6 +831,39 @@ const VIRTUAL_ADMIN_TOOLS = [
         tag: { type: "string" },
         cursor: { type: "integer", minimum: 0, default: 0 },
         limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "runtime_dispatch_certification_issue",
+    displayName: "Issue Runtime Dispatch Certification",
+    description: "Issue one bounded runtime dispatch certification into runtime_dispatch_certification_registry. Requires a capability envelope, typed confirmation derived from certification_key, bounded evidence, expiry, same-cycle readback, no provider call, no external write, no secrets, and never grants apply_allowed=true.",
+    method: "VIRTUAL",
+    path: "internal://runtime-dispatch-certification-issue",
+    tags: ["admin", "runtime_dispatch", "certification", "state_changing", "typed_confirmation", "capability_envelope", "same_cycle_readback", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["certification_key", "surface_key", "surface_family", "tool_or_action_key", "risk_class", "last_evidence_ref", "confirm", "capability_envelope_id"],
+      properties: {
+        certification_key: { type: "string", pattern: "^[A-Za-z0-9_.:-]{3,191}$" },
+        surface_key: { type: "string", pattern: "^[A-Za-z0-9_.:-]{3,191}$" },
+        surface_family: { type: "string", pattern: "^[A-Za-z0-9_.:-]{3,128}$" },
+        tool_or_action_key: { type: "string", pattern: "^[A-Za-z0-9_.:-]{3,191}$" },
+        risk_class: { type: "string", pattern: "^[A-Za-z0-9_.:-]{1,64}$" },
+        certification_status: { type: "string", maxLength: 128, default: "ci_certified" },
+        smoke_strategy: { type: "string", maxLength: 191, default: "bounded_evidence_readback" },
+        dispatch_allowed: { type: "boolean", default: true },
+        apply_allowed: { type: "boolean", const: false, default: false },
+        requires_resource_authority: { type: "boolean", default: true },
+        requires_dry_run: { type: "boolean", default: true },
+        requires_audit_evidence: { type: "boolean", default: true },
+        requires_readback: { type: "boolean", default: true },
+        last_evidence_ref: { type: "string", minLength: 20, maxLength: 1000 },
+        expires_in_days: { type: "integer", minimum: 1, maximum: 90, default: 30 },
+        notes: { type: "string", maxLength: 1000 },
+        confirm: { type: "string" },
+        capability_envelope_id: { type: "string" },
       },
       additionalProperties: false,
     },
@@ -612,7 +968,7 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "repo_patch_batch_apply",
     displayName: "Repository Batch Patch Apply",
-    description: "Create one atomic multi-file Git commit against an expected base SHA using Git trees. Supports write_file, delete_file, and apply_unified_diff; every diff is validated against the pinned base before any Git write, then the work branch is updated once with readback.",
+    description: "Create one atomic multi-file Git commit using Git trees. Supports write_file, delete_file, and apply_unified_diff. By default the work branch must be pinned to expected_base_sha; same-branch continuation may use expected_branch_sha with default-branch overlap checks and readback.",
     method: "VIRTUAL",
     path: "internal://repo-patch-batch-apply",
     tags: ["repo", "mutation", "batch", "atomic", "capability_envelope", "readback"],
@@ -622,6 +978,8 @@ const VIRTUAL_ADMIN_TOOLS = [
       properties: {
         branch: { type: "string" },
         expected_base_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        expected_branch_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$", description: "Optional current work-branch head SHA for same-branch continuation when the branch already has prior commits." },
+        allow_same_branch_continuation: { type: "boolean", default: false, description: "Allow writing on the same non-protected work branch when expected_branch_sha matches and moved default-branch files do not overlap the requested patch paths." },
         commit_message: { type: "string", minLength: 5, maxLength: 200 },
         capability_envelope_id: { type: "string" },
         changes: {
@@ -1384,13 +1742,31 @@ function parseJson(value) {
 function normalizeResponseOptions(value = {}) {
   const options = value && typeof value === "object" ? value : {};
   return {
-    maxChars: clampNumber(options.max_chars ?? options.max_response_chars, DEFAULT_TOOL_RESPONSE_MAX_CHARS, 5000, MAX_TOOL_RESPONSE_MAX_CHARS),
+    maxChars: resolveAdaptiveToolResponseMaxChars(options),
     cursor: clampNumber(options.cursor ?? options.response_cursor, 0, 0, Number.MAX_SAFE_INTEGER),
     chunkTtlMs: Number(options.chunk_ttl_ms ?? options.response_chunk_ttl_ms ?? 0) || null,
     chunkTtlMinutes: Number(options.chunk_ttl_minutes ?? options.response_chunk_ttl_minutes ?? 0) || null,
   };
 }
 
+
+export function resolveAdaptiveToolResponseMaxChars(value = {}) {
+  const options = value && typeof value === "object" ? value : {};
+  const clientBudget = clampNumber(
+    options.client_response_budget_chars ?? options.response_budget_chars ?? options.max_response_envelope_chars,
+    DEFAULT_TOOL_RESPONSE_CLIENT_BUDGET_CHARS,
+    MIN_TOOL_RESPONSE_MAX_CHARS * 2,
+    MAX_TOOL_RESPONSE_MAX_CHARS,
+  );
+  const envelopeOverhead = clampNumber(
+    options.response_envelope_overhead_chars ?? options.envelope_overhead_chars,
+    DEFAULT_TOOL_RESPONSE_ENVELOPE_OVERHEAD_CHARS,
+    2000,
+    Math.max(2000, clientBudget - MIN_TOOL_RESPONSE_MAX_CHARS),
+  );
+  const adaptiveMax = Math.max(MIN_TOOL_RESPONSE_MAX_CHARS, Math.min(MAX_TOOL_RESPONSE_MAX_CHARS, clientBudget - envelopeOverhead));
+  return clampNumber(options.max_chars ?? options.max_response_chars, Math.min(DEFAULT_TOOL_RESPONSE_MAX_CHARS, adaptiveMax), MIN_TOOL_RESPONSE_MAX_CHARS, adaptiveMax);
+}
 export function resolveToolResponseChunkTtlMs(options = {}, serializedLength = 0) {
   const normalized = normalizeResponseOptions(options?.response_options || options?._response || options || {});
   const requestedMs = normalized.chunkTtlMs || (normalized.chunkTtlMinutes ? normalized.chunkTtlMinutes * 60 * 1000 : 0);
@@ -1481,8 +1857,30 @@ async function storeToolResponseForChunks(body, optionsSource = {}, deps = {}) {
   return { chunkId, serialized, ttlMs, expiresAt: new Date(durable.expires_at).getTime() };
 }
 
+export function isGovernedToolResponseChunkEnvelope(body = {}) {
+  return Boolean(
+    body
+    && typeof body === "object"
+    && body.response_chunked === true
+    && typeof body.chunk_id === "string"
+    && body.chunk_id.length > 0
+    && typeof body.chunk === "string"
+    && body.page
+    && typeof body.page === "object"
+    && body.continuation
+    && typeof body.continuation === "object"
+  );
+}
+
+export function shouldChunkDispatchedToolResponse(toolKey = "", body = null) {
+  return String(toolKey || "").trim() !== "response_chunk_read" && !isGovernedToolResponseChunkEnvelope(body);
+}
+
 export async function maybeChunkToolResponseBody(body, optionsSource = {}, deps = {}) {
-  const options = normalizeResponseOptions(optionsSource?.response_options || optionsSource?._response || {});
+  if (isGovernedToolResponseChunkEnvelope(body)) return body;
+  const options = normalizeResponseOptions(
+    optionsSource?.response_options || optionsSource?._response || optionsSource || {}
+  );
   const serialized = JSON.stringify(body ?? {});
   if (serialized.length <= options.maxChars) return body;
   const { chunkId } = await storeToolResponseForChunks(body, optionsSource, deps);
@@ -1695,21 +2093,29 @@ async function dispatchTool(callerType, toolKey, args, req) {
       args,
       method: descriptor.method,
       tags: descriptor.tags,
+      principal: {
+        is_admin: callerType === "admin",
+        tenant_id: req?.auth?.tenant_id || req?.user?.tenant_id || null,
+        user_id: req?.auth?.user_id || req?.user?.user_id || null,
+      },
     }));
   }
   const result = await dispatchToolImpl(callerType, toolKey, args, req);
   const responseOptions = args && typeof args === "object" ? args : {};
   const resultForClient = {
     ...result,
-    body: await maybeChunkToolResponseBody(result?.body, {
-      ...responseOptions,
-      source_tool_key: toolKey,
-    }),
+    body: shouldChunkDispatchedToolResponse(toolKey)
+      ? await maybeChunkToolResponseBody(result?.body, {
+          ...responseOptions,
+          source_tool_key: toolKey,
+        })
+      : result?.body,
   };
-  // Best-effort: archive the dispatch as a tool turn so admin GPT sessions get a
-  // complete transcript without depending on the GPT calling writeSessionTurn.
-  // Errors are logged and swallowed so the tool result still flows through.
-  await recordToolDispatchTurn(req, toolKey, args, resultForClient);
+  // Best-effort: archive the dispatch as a tool turn only after the exchange has
+  // user/assistant capture. Missing capture is surfaced as a pre-final gate so
+  // the GPT can call gpt_session_turns_write_batch before the final response.
+  const archiveResult = await recordToolDispatchTurn(req, toolKey, args, resultForClient);
+  attachSessionArchiveCaptureGate(resultForClient, archiveResult);
   return resultForClient;
 }
 
@@ -1742,6 +2148,27 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     return { status: 200, body: { ok: true, name: toolKey, result: await buildPlatformCapabilityLiveReport(args) } };
   }
 
+  if (callerType === "admin" && toolKey === "platform_capability_governance_compile_preview") {
+    return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityGovernancePreview(args) } };
+  }
+  if (callerType === "admin" && toolKey === "platform_capability_projection_preview") {
+    return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityProjectionPreview(args) } };
+  }
+  if (callerType === "admin" && toolKey === "platform_capability_enforcement_shadow_preview") {
+    return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityEnforcementShadow(args) } };
+  }
+  if (callerType === "admin" && toolKey === "platform_capability_certification_readback_preview") {
+    return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityCertificationReadbackPreview(args) } };
+  }
+  if (callerType === "admin" && toolKey === "platform_capability_governance_compile_persist") {
+    const result = await persistDynamicCapabilityGovernanceCompilation({
+      ...(args || {}),
+      requested_by: req?.auth?.user_id || req?.auth?.email || "platform_admin",
+    }, {
+      auth: req?.auth || {},
+    });
+    return { status: 200, body: { ok: true, name: toolKey, result } };
+  }
   if (callerType === "admin" && toolKey === "activation_gateway_rollout_plan") {
     try {
       const result = await buildActivationGatewayRolloutPlan(args || {}, {
@@ -1817,6 +2244,53 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     };
   }
 
+  if (callerType === "admin" && toolKey === "governed_migration_apply_policy_bootstrap") {
+    try {
+      const result = await bootstrapGovernedMigrationApplyPolicy(args || {}, {
+        pool: getPool(),
+        auth: req?.auth || {},
+      });
+      return {
+        status: result.policy_created ? 201 : 200,
+        body: { ok: true, name: toolKey, result },
+      };
+    } catch (err) {
+      return {
+        status: Number(err?.status || 400),
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "governed_migration_apply_policy_bootstrap_failed",
+            message: err?.message || "Governed migration apply policy bootstrap failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
+  if (callerType === "admin" && toolKey === "capability_resolution_envelope_apply_authorize") {
+    try {
+      const result = await authorizeCapabilityResolutionEnvelopeApply({
+        envelopeId: String(args?.envelope_id || "").trim(),
+        authorizedBy: String(args?.authorized_by || req?.auth?.user_id || "platform_admin").trim(),
+        decisionNote: String(args?.decision_note || "").trim(),
+        ttlMinutes: Number(args?.ttl_minutes || 60),
+      });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: Number(err?.status || 400),
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "capability_envelope_apply_authorization_failed",
+            message: err?.message || "Capability envelope apply authorization failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
   if (callerType === "admin" && toolKey === "governed_migration_authorization_bootstrap") {
     try {
       const result = await bootstrapGovernedMigrationAuthorization(args || {}, {
@@ -1839,6 +2313,50 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
           },
         },
       };
+    }
+  }
+  if (callerType === "admin" && toolKey === "sql_cache_runtime_diagnostics_get") {
+    try {
+      const result = buildSqlCacheOperationalDiagnostics(undefined, args || {});
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: Number(err?.status || 500),
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "sql_cache_runtime_diagnostics_failed",
+            message: err?.message || "SQL cache runtime diagnostics failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
+  if (callerType === "admin" && toolKey === "sql_cache_controlled_load_test") {
+    try {
+      const result = await runSqlCacheControlledLoadTest(args || {});
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: Number(err?.status || 500),
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "sql_cache_controlled_load_test_failed",
+            message: err?.message || "SQL cache controlled load test failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
+  if (callerType === "admin" && toolKey === "governed_migration_schema_readback") {
+    try {
+      const result = await runGovernedMigrationSchemaReadback(args || {}, { pool: getPool() });
+      return { status: result.ok ? 200 : 409, body: result };
+    } catch (err) {
+      return { status: err?.status || 500, body: { ok: false, error: { code: err?.code || "governed_migration_schema_readback_failed", message: err?.message || "Governed migration schema readback failed.", details: err?.details }, secrets_included: false } };
     }
   }
   if (callerType === "admin" && toolKey === "governed_migration_execute") {
@@ -1883,6 +2401,50 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       };
     }
   }
+  if (callerType === "admin" && toolKey === "runtime_dispatch_certification_issue") {
+    try {
+      const resolved = await resolveCapabilityExecutionEnvelope({
+        pool: getPool(),
+        source: args || {},
+        acceptedAppKeys: ["platform_orchestration", "platform_registry", "github"],
+        acceptedIntents: ["runtime.dispatch.certification.issue", "runtime_dispatch_certification_issue", "runtime_certification_issue"],
+        acceptedCapabilityKeys: ["runtime_dispatch_certification_issue"],
+        expectedTenantId: req?.auth?.tenant_id || PLATFORM_TENANT_ID,
+        expectedUserId: req?.auth?.user_id || "",
+        requireReadyForDispatch: true,
+        requireDispatchAllowed: true,
+        requireNoApprovalRequired: false,
+        requireNoBlockingGaps: true,
+        requireNoSecrets: true,
+      });
+      if (!resolved.ok) {
+        throw capabilityEnvelopeError(resolved, "Runtime dispatch certification issue requires a valid capability resolution envelope.");
+      }
+      const result = await issueRuntimeDispatchCertification(args || {}, {
+        pool: getPool(),
+        allowedToolKeys: VIRTUAL_ADMIN_TOOLS.map((tool) => tool.name),
+      });
+      await markCapabilityEnvelopeReferenced({
+        pool: getPool(),
+        envelopeId: resolved.envelope_id,
+        executionRef: `runtime_dispatch_certification_issue:${result.certification_key}`,
+      });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "runtime_dispatch_certification_issue_failed",
+            message: err?.message || "Runtime dispatch certification issue failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
+
   if (callerType === "admin" && toolKey === "github_pr_ci_gate") {
     try {
       const result = await getGithubPullRequestCiGate(args || {});

@@ -71,16 +71,30 @@ internal sealed class SignedInstallerCoordinator
         var target = Path.GetFullPath(Path.Combine(
             _updatesRoot,
             $"{prefix}-{safeDeviceId}-{Guid.NewGuid():N}.bat"));
+        var tempTarget = target + ".download";
         AssertOwnedInstallerPath(target);
+        AssertOwnedInstallerPath(tempTarget, allowDownloadExtension: true);
+        DeleteIfExists(tempTarget);
 
         using var client = CreateGovernedHttpClient();
         using var response = await client.GetAsync(downloadUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         response.EnsureSuccessStatusCode();
-        await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
-        await using var destination = File.Create(target);
-        await source.CopyToAsync(destination, cancellationToken);
+        await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken))
+        await using (var destination = new FileStream(
+            tempTarget,
+            FileMode.CreateNew,
+            FileAccess.Write,
+            FileShare.None,
+            bufferSize: 81920,
+            options: FileOptions.Asynchronous | FileOptions.SequentialScan))
+        {
+            await source.CopyToAsync(destination, cancellationToken);
+            await destination.FlushAsync(cancellationToken);
+        }
+        File.Move(tempTarget, target, overwrite: false);
 
         var fileInfo = new FileInfo(target);
+        fileInfo.Refresh();
         if (!fileInfo.Exists || fileInfo.Length < MinimumInstallerBytes)
         {
             throw new InvalidOperationException("Downloaded installer file is missing or too small.");
@@ -190,20 +204,48 @@ internal sealed class SignedInstallerCoordinator
 
     private static async Task<string> ComputeSha256Async(string path, CancellationToken cancellationToken)
     {
-        await using var stream = File.OpenRead(path);
-        var hash = await SHA256.HashDataAsync(stream, cancellationToken);
-        return Convert.ToHexString(hash);
+        IOException? lastIoException = null;
+        for (var attempt = 1; attempt <= 5; attempt++)
+        {
+            try
+            {
+                await using var stream = new FileStream(
+                    path,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read,
+                    bufferSize: 81920,
+                    options: FileOptions.Asynchronous | FileOptions.SequentialScan);
+                var hash = await SHA256.HashDataAsync(stream, cancellationToken);
+                return Convert.ToHexString(hash);
+            }
+            catch (IOException ex) when (attempt < 5)
+            {
+                lastIoException = ex;
+                await Task.Delay(TimeSpan.FromMilliseconds(200 * attempt), cancellationToken);
+            }
+        }
+
+        throw lastIoException ?? new IOException("Installer file could not be read for SHA256 validation.");
     }
 
-    private void AssertOwnedInstallerPath(string path)
+    private void AssertOwnedInstallerPath(string path, bool allowDownloadExtension = false)
     {
         var relative = Path.GetRelativePath(_updatesRoot, path);
+        var extension = Path.GetExtension(path);
+        var extensionAllowed = string.Equals(extension, ".bat", StringComparison.OrdinalIgnoreCase)
+            || (allowDownloadExtension && string.Equals(extension, ".download", StringComparison.OrdinalIgnoreCase));
         if (relative.StartsWith("..", StringComparison.Ordinal)
             || Path.IsPathRooted(relative)
-            || !string.Equals(Path.GetExtension(path), ".bat", StringComparison.OrdinalIgnoreCase))
+            || !extensionAllowed)
         {
             throw new InvalidOperationException("Installer path is outside the governed Local Manager updates folder.");
         }
+    }
+
+    private static void DeleteIfExists(string path)
+    {
+        if (File.Exists(path)) File.Delete(path);
     }
 
     private static string SafeFileSegment(string value)

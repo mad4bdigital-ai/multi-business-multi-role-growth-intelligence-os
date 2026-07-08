@@ -30,7 +30,9 @@ function assert(label, condition, detail = "") {
     console.log(`  [PASS] ${label}`);
     passed++;
   } else {
-    console.error(`  [FAIL] ${label}${detail ? ` - ${detail}` : ""}`);
+    const message = `${label}${detail ? ` - ${detail}` : ""}`;
+    console.error(`  [FAIL] ${message}`);
+    console.error(`::error title=Connect route assertion failed::${message.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A")}`);
     failed++;
   }
 }
@@ -124,8 +126,8 @@ try {
   {
     // MCP-style tenant schema plus direct tenant Platform Plugin self-serve actions.
     // Connect/system operations are still accessed via callTool (discovered through listTools).
-    const doc = YAML.parse(readFileSync("openapi.tenant-gpt.auth.yaml", "utf8"));
-    const activationDoc = YAML.parse(readFileSync("openapi.tenant-gpt.activation.yaml", "utf8"));
+    const doc = YAML.parse(readFileSync("openapi/openapi.tenant-gpt.auth.yaml", "utf8"));
+    const activationDoc = YAML.parse(readFileSync("openapi/openapi.tenant-gpt.activation.yaml", "utf8"));
     const exposedPaths = Object.keys(doc.paths || {});
     const securityScheme = doc.components?.securitySchemes?.userBearerAuth;
     const callToolSchema = doc.paths?.["/system/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
@@ -690,7 +692,7 @@ section("connect api auth scope");
   section("local connector GPT action schema");
 
   {
-    const doc = YAML.parse(readFileSync("openapi.gpt-action.local-connector.yaml", "utf8"));
+    const doc = YAML.parse(readFileSync("openapi/openapi.gpt-action.local-connector.yaml", "utf8"));
     const exposedPaths = Object.keys(doc.paths || {});
     const allOperations = exposedPaths.flatMap((pathKey) => {
       const pathItem = doc.paths[pathKey] || {};
@@ -923,12 +925,20 @@ const doc = (() => {
       source.includes('router.post("/local-connector/install"') &&
       source.includes("provisionLocalConnectorInstall(req, req.body || {})") &&
       source.includes("shared provisioning helper"));
-    assert("local connector supports device-scoped Local Manager repair installer links",
+    assert("local connector requires fresh Local Manager authorization for privileged repair installer links",
       source.includes('router.post("/local-connector/install/device-download-link"') &&
-      source.includes("requireLocalManagerDevice(req)") &&
+      source.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller(req)") &&
       source.includes("canonical_device_id") &&
       source.includes("run_as_admin_required: true") &&
+      source.includes("auth_context: device.auth_context") &&
+      source.includes("reauth_required_for_stale_device_tokens: true") &&
       source.includes("secrets_included: false"));
+    assert("Local Manager privileged installer guard returns structured fresh-auth error context",
+      deviceLinkSource.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller") &&
+      deviceLinkSource.includes("fresh_local_manager_authorization_required") &&
+      deviceLinkSource.includes("saved_device_token") &&
+      deviceLinkSource.includes("privileged_authorization_fresh") &&
+      deviceLinkSource.includes("reauth_action"));
     assert("Local Manager device controls advertise connector repair installer action",
       deviceLinkSource.includes('connector_repair_installer: "/local-connector/install/device-download-link"') &&
       deviceLinkSource.includes('allowedSections = new Set(["overview", "routes", "backups", "repairs", "n8n", "settings"])') &&
@@ -1019,7 +1029,7 @@ const doc = (() => {
       releaseMigrationSource.includes("Mad4B-Local-Manager-Setup.exe"));
     const deviceLinkSource = readFileSync("services/localManagerDeviceLinkService.js", "utf8");
     assert("local manager Windows default download redirects to public EXE release asset",
-      betaSource.includes("Mad4B-Local-Manager-Setup-0.2.12.exe") &&
+      betaSource.includes("Mad4B-Local-Manager-Setup-0.2.17.exe") &&
       betaSource.includes("releases/download/local-manager-windows-latest") &&
       !betaSource.includes("Mad4B-Local-Manager-Windows-Bootstrap.ps1") &&
       !betaSource.includes("connector_secret") &&

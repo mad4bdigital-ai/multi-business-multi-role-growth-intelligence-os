@@ -9,6 +9,7 @@
     "start": "node server.js",
     "test": "node scripts/run-test-manifest.mjs",
     "test:list": "node scripts/run-test-manifest.mjs --list",
+    "release:phase-rollup-check": "node scripts/phase-branch-rollup-check.mjs",
     "schemas:generate": "node scripts/generate-custom-gpt-schemas.mjs --write",
     "schemas:check": "node scripts/generate-custom-gpt-schemas.mjs --check",
     "schemas:builder-guard": "node scripts/openapi-builder-schema-guard.mjs",

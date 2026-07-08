@@ -2,7 +2,10 @@ import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
 import { loadPlatformPluginCatalog } from "../platformPluginCatalog.js";
-import { resolvePlatformPluginExecution } from "../platformPluginResolver.js";
+import {
+  resolvePlatformPluginExecution,
+  validateCapabilitySelectorContract,
+} from "../platformPluginResolver.js";
 import { installPlatformPluginForTenant } from "../platformPluginInstall.js";
 import { createCredentialIntakeSessionRecord } from "./credentialIntakeRoutes.js";
 import { buildTenantCredentialIntakeAuthoritySnapshot } from "../credentialIntakeBindingPolicy.js";
@@ -13,6 +16,26 @@ const TENANT_CONNECTION_MANAGER_ROLES = new Set(["owner", "admin"]);
 const TENANT_INTAKE_ALLOWED_FIELDS = new Set([
   "plugin_key", "pluginKey", "purpose", "display_label", "displayLabel",
   "redirect_uri", "redirectUri", "expires_in_minutes", "expiresInMinutes",
+]);
+const TENANT_RESOLVE_ALLOWED_FIELDS = new Set([
+  "plugin_key",
+  "pluginKey",
+  "action_key",
+  "actionKey",
+  "tool_key",
+  "toolKey",
+  "workspace_id",
+  "workspaceId",
+  "agent_id",
+  "agentId",
+  "requested_credential_scope",
+  "requestedCredentialScope",
+  "target_resource_type",
+  "targetResourceType",
+  "target_resource_uri",
+  "targetResourceUri",
+  "target_mode",
+  "targetMode",
 ]);
 
 function verifyUserJwt(authHeader) {
@@ -110,6 +133,60 @@ function errorResponse(res, err, fallbackCode) {
     error: { code: err.code || fallbackCode, message: err.message, details: err.details || null },
     secrets_included: false,
   });
+}
+
+function tenantResolveContractError(code, message, details = null) {
+  const err = new Error(message);
+  err.code = code;
+  err.status = 400;
+  if (details) err.details = details;
+  return err;
+}
+
+function tenantValueFromAliases(input, canonicalField, legacyField) {
+  const hasCanonical = Object.prototype.hasOwnProperty.call(input, canonicalField);
+  const hasLegacy = Object.prototype.hasOwnProperty.call(input, legacyField);
+  const canonicalText = String(hasCanonical ? input[canonicalField] ?? "" : "").trim();
+  const legacyText = String(hasLegacy ? input[legacyField] ?? "" : "").trim();
+  if (hasCanonical && hasLegacy && canonicalText && legacyText && canonicalText !== legacyText) {
+    throw tenantResolveContractError(
+      "AMBIGUOUS_CAPABILITY_SELECTOR",
+      `Conflicting aliases were provided for ${canonicalField}.`,
+      { field: canonicalField, aliases: [canonicalField, legacyField] }
+    );
+  }
+  return {
+    value: canonicalText || legacyText || null,
+    legacyUsed: !canonicalText && Boolean(legacyText),
+  };
+}
+
+function parseTenantPlatformPluginResolveContract(input = {}) {
+  const unknownFields = Object.keys(input).filter((field) => !TENANT_RESOLVE_ALLOWED_FIELDS.has(field));
+  if (unknownFields.length > 0) {
+    throw tenantResolveContractError(
+      "UNKNOWN_SECURITY_CONTRACT_FIELD",
+      "Unknown fields are not allowed for the tenant platform plugin resolve security contract.",
+      { fields: unknownFields.sort() }
+    );
+  }
+  const pluginKey = tenantValueFromAliases(input, "plugin_key", "pluginKey");
+  const action = tenantValueFromAliases(input, "action_key", "actionKey");
+  const tool = tenantValueFromAliases(input, "tool_key", "toolKey");
+  const selector = validateCapabilitySelectorContract({ actionKey: action.value, toolKey: tool.value });
+  const legacyFields = [];
+  if (pluginKey.legacyUsed) legacyFields.push("pluginKey");
+  if (action.legacyUsed) legacyFields.push("actionKey");
+  if (tool.legacyUsed) legacyFields.push("toolKey");
+  return {
+    pluginKey: pluginKey.value,
+    selector,
+    compatibilityTelemetry: {
+      legacy_selector_alias_used: action.legacyUsed || tool.legacyUsed,
+      legacy_fields: legacyFields,
+      contract_version: "one-selector-v1",
+    },
+  };
 }
 
 export function buildTenantPlatformPluginRoutes() {
@@ -298,10 +375,11 @@ export function buildTenantPlatformPluginRoutes() {
   router.post("/tenant/platform/plugins/resolve", requireTenantUserJwt, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
+      const contract = parseTenantPlatformPluginResolveContract(input);
       const result = await resolvePlatformPluginExecution({
-        pluginKey: input.plugin_key || input.pluginKey,
-        actionKey: input.action_key || input.actionKey || null,
-        toolKey: input.tool_key || input.toolKey || null,
+        pluginKey: contract.pluginKey,
+        actionKey: contract.selector.actionKey,
+        toolKey: contract.selector.toolKey,
         tenantId: req.auth.tenant_id,
         workspaceId: input.workspace_id || input.workspaceId || null,
         userId: req.auth.user_id,
@@ -314,8 +392,10 @@ export function buildTenantPlatformPluginRoutes() {
         requestId: req.headers["x-request-id"] || null,
         correlationId: req.headers["x-correlation-id"] || req.headers["x-request-id"] || null,
       });
+      const { security_decision_trace_admin: _adminTrace, ...tenantSafeResult } = result;
       return res.status(200).json({
-        ...result,
+        ...tenantSafeResult,
+        compatibility_telemetry: contract.compatibilityTelemetry,
         auth_context: {
           tenant_id: req.auth.tenant_id,
           user_id: req.auth.user_id,
@@ -335,4 +415,5 @@ export const _testingTenantPlatformPluginRoutes = {
   verifyUserJwt,
   boundedInt,
   bool,
+  parseTenantPlatformPluginResolveContract,
 };
