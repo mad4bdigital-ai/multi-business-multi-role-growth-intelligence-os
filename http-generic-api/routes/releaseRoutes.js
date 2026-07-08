@@ -20,29 +20,62 @@ export function buildReleaseRoutes(deps) {
   const resolveCapabilityFamilyAuthorizationFn = deps.resolveToolCapabilityFamilyAuthorization || resolveToolCapabilityFamilyAuthorization;
   const markCapabilityEnvelopeReferencedFn = deps.markCapabilityEnvelopeReferenced || markCapabilityEnvelopeReferenced;
 
+  function compactReadinessProjection(report, mode = "summary") {
+    const checks = Object.entries(report || {})
+      .filter(([, value]) => value && typeof value === "object" && typeof value.status === "string")
+      .map(([key, value]) => ({
+        key,
+        status: value.status,
+        detail: value.detail || null,
+      }));
+    return {
+      ok: report.overall !== "fail",
+      overall: report.overall,
+      run_id: report.run_id,
+      checked_at: report.checked_at,
+      summary: report.summary,
+      response_mode: mode,
+      full_response_available_with: "?full=true",
+      bounded_projection: true,
+      check_count: checks.length,
+      degraded_surfaces: checks.filter((check) => check.status !== "pass"),
+      key_statuses: {
+        db_connectivity: report.db_connectivity?.status || null,
+        governed_migration_ledger: report.governed_migration_ledger?.status || null,
+        migration_drift: report.migration_drift?.status || null,
+        runtime_production_parity_gate: report.runtime_production_parity_gate?.status || null,
+        platform_tool_dispatch_binding_integrity: report.platform_tool_dispatch_binding_integrity?.status || null,
+      },
+      secrets_included: false,
+    };
+  }
+
   async function handleReadiness(req, res) {
     try {
-      const persist  = req.query.persist === "true" || req.query.persist === "1";
-      const summary  = req.query.summary === "true" || req.query.summary === "1";
+      const persist = req.query.persist === "true" || req.query.persist === "1";
+      const explicitSummary = req.query.summary === "true" || req.query.summary === "1";
+      const explicitFull = req.query.full === "true" || req.query.full === "1" || req.query.detail === "full";
 
       const report = await runReleaseReadiness({ persist });
       const httpStatus = 200;
 
-      if (summary) {
+      if (explicitFull && !explicitSummary) {
         return res.status(httpStatus).json({
           ok: report.overall !== "fail",
-          overall: report.overall,
-          run_id: report.run_id,
-          checked_at: report.checked_at,
-          summary: report.summary,
+          ...report,
+          response_mode: "full",
+          secrets_included: false,
         });
       }
 
-      return res.status(httpStatus).json({ ok: report.overall !== "fail", ...report });
+      return res.status(httpStatus).json(compactReadinessProjection(report));
     } catch (err) {
       return res.status(500).json({
         ok: false,
-        error: { code: "release_readiness_failed", message: err.message }
+        status: "degraded_transport",
+        response_mode: "summary_default",
+        error: { code: "release_readiness_failed", message: err.message },
+        secrets_included: false,
       });
     }
   }
