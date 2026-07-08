@@ -83,7 +83,7 @@
 - [ ] T223 Run CI, architecture drift, contract, resource coverage, and completion gates.
 - [x] T224 Apply authorized additive migrations with checksum and schema readback.
 - [ ] T225 Verify dev/staging shadow and canary evidence.
-- [ ] T226 Verify production commit/runtime parity and cohort status.
+- [x] T226 Verify production commit/runtime parity and cohort status.
 - [ ] T227 Complete post-merge audit and record tracked residual debt.
 - [ ] T228 Complete the final closeout PR and deprecation plan.
 
