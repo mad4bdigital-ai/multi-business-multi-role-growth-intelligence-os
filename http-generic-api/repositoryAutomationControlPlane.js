@@ -858,7 +858,7 @@ async function executeDeploymentParity(input, dispatch) {
 async function executeCiAutoRecovery(input, dispatch, suppliedArgs) {
   if (!input.pull_number) return { ok: false, status: "awaiting_input", missing_required_fields: ["pull_number"], secrets_included: false };
   const gateArgs = { owner: input.owner, repo: input.repo, pull_number: input.pull_number, required_checks: input.required_checks || REQUIRED_CHECKS };
-  const before = normalizeDispatchResult(await dispatch("github_pr_ci_gate", gateArgs));
+  const before = await dispatchAndCollect(dispatch, "github_pr_ci_gate", gateArgs);
   const gate = toolBody(before)?.result || toolBody(before);
   if (before.ok && gate?.gate_status === "pass") return { ok: true, status: "already_passing", gate, secrets_included: false };
   const missing = gate?.missing_checks || [];
