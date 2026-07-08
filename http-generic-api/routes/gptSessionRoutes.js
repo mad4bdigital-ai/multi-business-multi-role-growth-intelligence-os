@@ -555,6 +555,10 @@ export function buildGptSessionRoutes(deps) {
         turnIndex,
         workspace_key,
         brand_key,
+        business_type_key,
+        business_activity_type_key,
+        activity_key,
+        knowledge_profile_key,
       });
 
       return res.status(200).json({
