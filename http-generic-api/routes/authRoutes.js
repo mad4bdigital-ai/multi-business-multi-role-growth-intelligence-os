@@ -370,6 +370,76 @@ function oauthClientCredentials(req) {
   };
 }
 
+function safeOAuthRedirectEvidence(redirectUri) {
+  const url = parseOAuthRedirectUri(redirectUri);
+  if (!url) return { present: Boolean(redirectUri), valid: false };
+  const canonical = parseOAuthRedirectUri(canonicalizeTenantGptRedirectUri(url.toString()));
+  return {
+    present: true,
+    valid: true,
+    host: url.hostname,
+    path: url.pathname,
+    canonical_host: canonical?.hostname || null,
+    canonical_path: canonical?.pathname || null,
+  };
+}
+
+function safeOAuthClientEvidence(credentials = {}) {
+  const clientId = String(credentials.client_id || "");
+  return {
+    client_id_present: Boolean(clientId),
+    client_id_sha256_prefix: clientId ? sha256(clientId).slice(0, 12) : null,
+    client_secret_present: Boolean(String(credentials.client_secret || "")),
+  };
+}
+
+async function recordOAuthTokenDiagnostic(queryFn, event = {}) {
+  try {
+    const now = new Date();
+    const startedAt = event.started_at_ms ? new Date(event.started_at_ms) : now;
+    const durationMs = Number.isFinite(event.duration_ms) ? Math.max(0, Math.round(event.duration_ms)) : null;
+    const evidence = {
+      event: "tenant_gpt_oauth_token_exchange",
+      status: event.status || "unknown",
+      failure_reason: event.failure_reason || null,
+      http_status: event.http_status || null,
+      duration_ms: durationMs,
+      grant_type: event.grant_type || null,
+      code_present: Boolean(event.code_present),
+      redirect_uri: event.redirect_uri || null,
+      code_redirect_uri: event.code_redirect_uri || null,
+      client: event.client || null,
+      client_validation_source: event.client_validation_source || null,
+      code_jti_present: event.code_jti_present === true,
+      user_id_present: event.user_id_present === true,
+      tenant_id_present: event.tenant_id_present === true,
+      request_id: event.request_id || null,
+    };
+    await queryFn(
+      `INSERT INTO \`execution_log\`
+        (run_date, start_time, end_time, duration_seconds, entry_type, execution_class, source_layer,
+         execution_status, failure_reason, output_summary, action_key, endpoint_key, parent_action_key,
+         runtime_evidence_json, created_at)
+       VALUES (?, ?, ?, ?, 'diagnostic', 'oauth', 'auth_routes', ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+      [
+        startedAt.toISOString().slice(0, 10),
+        startedAt.toISOString(),
+        now.toISOString(),
+        durationMs === null ? null : String((durationMs / 1000).toFixed(3)),
+        event.status || "unknown",
+        event.failure_reason || null,
+        JSON.stringify({ ok: event.status === "success", failure_reason: event.failure_reason || null, http_status: event.http_status || null, duration_ms: durationMs }),
+        "tenant_gpt_oauth_token_exchange",
+        "auth_oauth_token",
+        "tenant_gpt_oauth",
+        JSON.stringify(evidence),
+      ]
+    );
+  } catch (err) {
+    console.warn("tenant_gpt_oauth_token_diagnostic_log_failed", { message: err?.message });
+  }
+}
+
 function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationContext }) {
   const signInOptions = Array.isArray(activationContext?.sign_in_options)
     ? activationContext.sign_in_options
@@ -671,37 +741,74 @@ export function buildAuthRoutes(deps) {
   });
 
   router.post("/oauth/token", express.urlencoded({ extended: false }), async (req, res) => {
+    const startedAtMs = Date.now();
+    const requestId = randomUUID();
+    const tokenQuery = (sql, params) => resolvePool().query(sql, params);
+    let tokenLogContext = {};
+    const logTokenExchange = (status, failureReason, httpStatus, extra = {}) => {
+      void recordOAuthTokenDiagnostic(tokenQuery, {
+        started_at_ms: startedAtMs,
+        duration_ms: Date.now() - startedAtMs,
+        request_id: requestId,
+        status,
+        failure_reason: failureReason,
+        http_status: httpStatus,
+        ...tokenLogContext,
+        ...extra,
+      });
+    };
+
     try {
       const grantType = req.body?.grant_type;
       const code = req.body?.code;
       const redirectUri = req.body?.redirect_uri;
+      const credentials = oauthClientCredentials(req);
+      tokenLogContext = {
+        grant_type: grantType || null,
+        code_present: Boolean(code),
+        redirect_uri: safeOAuthRedirectEvidence(redirectUri),
+        client: safeOAuthClientEvidence(credentials),
+      };
 
       if (grantType !== "authorization_code") {
+        logTokenExchange("failed", "unsupported_grant_type", 400);
         return res.status(400).json({ error: "unsupported_grant_type", error_description: "Only authorization_code is supported." });
       }
       if (!code) {
+        logTokenExchange("failed", "missing_code", 400);
         return res.status(400).json({ error: "invalid_request", error_description: "code is required." });
       }
 
       const clientValidation = await validateTenantGptOAuthClientCredentials(
-        oauthClientCredentials(req),
-        { query: (sql, params) => resolvePool().query(sql, params) }
+        credentials,
+        { query: tokenQuery }
       );
       if (!clientValidation.ok) {
+        logTokenExchange("failed", clientValidation.error || "invalid_client", clientValidation.status || 401, {
+          client_validation_source: clientValidation.source || null,
+        });
         return res.status(clientValidation.status || 401).json({
           error: clientValidation.error || "invalid_client",
           error_description: clientValidation.message || "Invalid OAuth client credentials.",
         });
       }
+      tokenLogContext.client_validation_source = clientValidation.source || null;
 
       const codePayload = jwt.verify(code, JWT_SECRET);
+      tokenLogContext.code_redirect_uri = safeOAuthRedirectEvidence(codePayload.redirect_uri);
+      tokenLogContext.code_jti_present = Boolean(codePayload.jti);
+      tokenLogContext.user_id_present = Boolean(codePayload.user_id);
+      tokenLogContext.tenant_id_present = Boolean(codePayload.tenant_id);
       if (codePayload.purpose !== "custom_gpt_oauth_code" || !codePayload.user_id) {
+        logTokenExchange("failed", "invalid_oauth_code_payload", 400);
         return res.status(400).json({ error: "invalid_grant", error_description: "Invalid OAuth code." });
       }
       if (redirectUri && !equivalentTenantGptRedirectUri(redirectUri, codePayload.redirect_uri)) {
+        logTokenExchange("failed", "redirect_uri_mismatch", 400);
         return res.status(400).json({ error: "invalid_grant", error_description: "redirect_uri does not match the issued code." });
       }
       if (_isOAuthCodeUsed(codePayload.jti)) {
+        logTokenExchange("failed", "oauth_code_reuse", 400);
         return res.status(400).json({ error: "invalid_grant", error_description: "OAuth code has already been used." });
       }
       _markOAuthCodeUsed(codePayload.jti, codePayload.exp);
@@ -713,6 +820,7 @@ export function buildAuthRoutes(deps) {
       );
       const tokenUser = userRows[0];
       if (!tokenUser || tokenUser.status !== "active") {
+        logTokenExchange("failed", "user_inactive_or_missing", 400);
         return res.status(400).json({ error: "invalid_grant", error_description: "User account is no longer active." });
       }
       const [memRows] = await pool.query(
@@ -725,6 +833,7 @@ export function buildAuthRoutes(deps) {
         { clientId: clientValidation.client_id }
       );
 
+      logTokenExchange("success", null, 200);
       return res.status(200).json({
         access_token: accessToken,
         token_type: "Bearer",
@@ -732,7 +841,10 @@ export function buildAuthRoutes(deps) {
         scope: TENANT_GPT_SCOPE,
         activation_context: codePayload.activation_context || {},
       });
-    } catch {
+    } catch (err) {
+      logTokenExchange("failed", err?.name === "TokenExpiredError" ? "oauth_code_expired" : "oauth_code_invalid_or_exception", 400, {
+        exception_name: err?.name || null,
+      });
       return res.status(400).json({ error: "invalid_grant", error_description: "OAuth code is invalid or expired." });
     }
   });
