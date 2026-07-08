@@ -555,6 +555,8 @@ export function buildGptSessionRoutes(deps) {
       });
     } catch (err) {
       if (err.status === 403) return res.status(403).json({ ok: false, error: { code: "forbidden", message: err.message } });
+      if (err.status === 404) return res.status(404).json({ ok: false, error: { code: err.code || "session_not_found", message: err.message } });
+      if (err.status === 409) return res.status(409).json({ ok: false, error: { code: err.code || "session_closed", message: err.message } });
       return res.status(500).json({ ok: false, error: { code: "turn_write_failed", message: err.message } });
     }
   });
