@@ -30,6 +30,20 @@ No silent self-modification is allowed. High-risk policy, authority, credential,
 
 ## Package map
 
+### Dev Orchestrator and Consumption Governance overlay
+
+The Dev Orchestrator work is a design-only cross-plane overlay for PR #1898. It does not authorize runtime execution, provider calls, migrations, credential access, or production mutation. Read the bundle through `dev-orchestrator-integration-index.md`, which links the overlay to the original Spec Kit planes and documents the current gap/risk closure status.
+
+Bundle entry points:
+
+- `dev-orchestrator-integration-index.md` — manual navigation hub and original-file crosswalk.
+- `dev-orchestrator-consumption-governance-overlay.md` — top-level consumption governance overlay.
+- `dev-orchestrator-operating-scope-maps.md` — user, tenant/workspace, brand, platform, shared infrastructure, and mixed-lane operating maps.
+- `dev-orchestrator-implementation-contracts.md` — future run envelope, mode, OpenRouter, sub-agent, privacy, UI, and observability contracts.
+- `dev-orchestrator-runtime-registry-api-test-runbook-preview.md` — future registry/API/test/runbook previews.
+- `dev-orchestrator-spec-kit-coverage-matrix.md` — full Spec Kit crosswalk.
+- `dev-orchestrator-gap-closure-risk-register.md` — remaining gap closure, risk register, red-team cases, and rollout stop criteria.
+
 - `spec.md` — product and platform requirements.
 - `current-state.md` — evidence from current code and database.
 - `relationship-diagrams.md` — current and target relationships.
