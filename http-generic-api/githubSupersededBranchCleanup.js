@@ -367,7 +367,11 @@ export async function buildSupersededBranchCleanupEvidence(args = {}, deps = {})
     branch_evidence: {
       base_ref_sha: fingerprintInput.base_ref_sha, branch_ref_sha: fingerprintInput.branch_ref_sha,
       compare_status: fingerprintInput.compare_status, ahead_by: fingerprintInput.ahead_by, behind_by: fingerprintInput.behind_by,
-      changed_files: branchFiles, covered_files: coveredFiles, generated_files: generatedFiles, uncovered_files: uncoveredFiles,
+      changed_files: branchFiles, covered_files: coveredFiles, generated_files: generatedFiles,
+      intentional_non_port_files: intentionalNonPortFiles,
+      intentional_non_port_evidence: nonPortEvidence.accepted,
+      rejected_intentional_non_port_evidence: nonPortEvidence.rejected,
+      uncovered_files: uncoveredFiles,
       content_equivalence_evidence: orphanContentEvidence, content_mismatches: orphanContentMismatches,
     },
     blockers, evidence_fingerprint: evidenceFingerprint, required_confirmation: requiredConfirmation,
