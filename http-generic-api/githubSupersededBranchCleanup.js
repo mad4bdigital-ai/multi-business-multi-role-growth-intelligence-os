@@ -438,7 +438,7 @@ export async function buildSupersededBranchCleanupEvidence(args = {}, deps = {})
       uncovered_files: uncoveredFiles,
       content_equivalence_evidence: orphanContentEvidence, content_mismatches: orphanContentMismatches,
     },
-    blockers, evidence_fingerprint: evidenceFingerprint, required_confirmation: requiredConfirmation,
+    blockers, advisories, evidence_fingerprint: evidenceFingerprint, required_confirmation: requiredConfirmation,
     applies_ref_delete: false, secrets_included: false,
   };
 }
