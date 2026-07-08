@@ -434,11 +434,8 @@ export async function executeDbControl(body = {}) {
   if (statements.length === 1) {
     const [result, fields] = await getPool().query(statements[0], params);
     return {
-      rows: Array.isArray(result) ? result : undefined,
-      result: Array.isArray(result) ? undefined : result,
-      fields: Array.isArray(fields)
-        ? fields.map((f) => ({ name: f.name, column_type: f.columnType }))
-        : undefined,
+      statement_count: 1,
+      ...serializeDbControlQueryResult(result, fields),
     };
   }
 
