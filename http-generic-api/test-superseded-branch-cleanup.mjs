@@ -257,20 +257,33 @@ const supersededMigrationFetch = async (url, options = {}) => {
 const supersededMigrationArgs = {
   ...args,
   superseding_commits: [appliedDashboardCommit, testCommit],
-  intentional_non_port_evidence: [{
+  coverage_resolutions: [{
     file: legacyDashboardMigrationFile,
-    evidence_type: "migration_superseded_equivalence",
+    resolution_type: "migration_superseded_by_applied_migration",
     superseded_by_file: appliedDashboardMigrationFile,
     superseded_by_commit: appliedDashboardCommit,
+    expected_migration_checksum_sha256: appliedDashboardMigrationChecksum,
+    expected_statement_count: 3,
     reason: "Migration 1039 was intentionally not ported because migration 1040 superseded and applied the same operational dashboard intent.",
   }],
 };
-const supersededMigrationCovered = await buildSupersededBranchCleanupEvidence(supersededMigrationArgs, { ...deps, fetchImpl: supersededMigrationFetch });
+const migrationLedger = {
+  [appliedDashboardMigrationName]: {
+    migration_file: appliedDashboardMigrationName,
+    mode: "apply",
+    migration_checksum_sha256: appliedDashboardMigrationChecksum,
+    statement_count: 3,
+    applied_at: "2026-07-07T20:58:00.000Z",
+  },
+};
+const supersededMigrationCovered = await buildSupersededBranchCleanupEvidence(supersededMigrationArgs, { ...deps, fetchImpl: supersededMigrationFetch, migrationLedger });
 assert.equal(supersededMigrationCovered.ready, true);
+assert.deepEqual(supersededMigrationCovered.blockers, []);
 assert.deepEqual(supersededMigrationCovered.branch_evidence.uncovered_files, []);
-assert.deepEqual(supersededMigrationCovered.branch_evidence.intentional_non_port_files, [legacyDashboardMigrationFile]);
-assert.equal(supersededMigrationCovered.branch_evidence.intentional_non_port_evidence[0].superseded_by_file, appliedDashboardMigrationFile);
-assert.deepEqual(supersededMigrationCovered.branch_evidence.rejected_intentional_non_port_evidence, []);
+assert.deepEqual(supersededMigrationCovered.branch_evidence.coverage_resolved_files, [legacyDashboardMigrationFile]);
+assert.equal(supersededMigrationCovered.branch_evidence.coverage_resolutions[0].superseded_by_file, appliedDashboardMigrationFile);
+assert.equal(supersededMigrationCovered.branch_evidence.coverage_resolutions[0].migration_ledger_evidence.ledger_readback_found, true);
+assert.deepEqual(supersededMigrationCovered.branch_evidence.rejected_coverage_resolutions, []);
 
 const rejectedSupersededMigration = await buildSupersededBranchCleanupEvidence({
   ...supersededMigrationArgs,
