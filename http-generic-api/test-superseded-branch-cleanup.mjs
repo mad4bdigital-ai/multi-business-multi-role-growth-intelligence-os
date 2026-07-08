@@ -238,6 +238,50 @@ assert(incompleteCoverage.blockers.includes("changed_file_coverage_incomplete"))
 assert.deepEqual(incompleteCoverage.branch_evidence.uncovered_files, [testFile]);
 assert.equal(deleteCalls, 0);
 
+const supersededMigrationFetch = async (url, options = {}) => {
+  const apiPath = `${new URL(url).pathname}${new URL(url).search}`;
+  if (apiPath.includes(`/compare/main...${encodeURIComponent(branch)}`)) {
+    return response(200, {
+      status: "diverged",
+      ahead_by: 3,
+      behind_by: 70,
+      files: [{ filename: legacyDashboardMigrationFile }, { filename: testFile }, { filename: generatedFile }],
+    });
+  }
+  if (apiPath.includes(`/commits/${appliedDashboardCommit}`)) return response(200, { sha: appliedDashboardCommit, files: [{ filename: appliedDashboardMigrationFile }] });
+  if (apiPath.includes(`/compare/${appliedDashboardCommit}...main`)) return response(200, { status: "ahead", ahead_by: 1, behind_by: 0 });
+  return fetchImpl(url, options);
+};
+const supersededMigrationArgs = {
+  ...args,
+  superseding_commits: [appliedDashboardCommit, testCommit],
+  intentional_non_port_evidence: [{
+    file: legacyDashboardMigrationFile,
+    evidence_type: "migration_superseded_equivalence",
+    superseded_by_file: appliedDashboardMigrationFile,
+    superseded_by_commit: appliedDashboardCommit,
+    reason: "Migration 1039 was intentionally not ported because migration 1040 superseded and applied the same operational dashboard intent.",
+  }],
+};
+const supersededMigrationCovered = await buildSupersededBranchCleanupEvidence(supersededMigrationArgs, { ...deps, fetchImpl: supersededMigrationFetch });
+assert.equal(supersededMigrationCovered.ready, true);
+assert.deepEqual(supersededMigrationCovered.branch_evidence.uncovered_files, []);
+assert.deepEqual(supersededMigrationCovered.branch_evidence.intentional_non_port_files, [legacyDashboardMigrationFile]);
+assert.equal(supersededMigrationCovered.branch_evidence.intentional_non_port_evidence[0].superseded_by_file, appliedDashboardMigrationFile);
+assert.deepEqual(supersededMigrationCovered.branch_evidence.rejected_intentional_non_port_evidence, []);
+
+const rejectedSupersededMigration = await buildSupersededBranchCleanupEvidence({
+  ...supersededMigrationArgs,
+  intentional_non_port_evidence: [{
+    ...supersededMigrationArgs.intentional_non_port_evidence[0],
+    superseded_by_file: "http-generic-api/migrations/9999_missing.sql",
+  }],
+}, { ...deps, fetchImpl: supersededMigrationFetch });
+assert.equal(rejectedSupersededMigration.ready, false);
+assert(rejectedSupersededMigration.blockers.includes("changed_file_coverage_incomplete"));
+assert.deepEqual(rejectedSupersededMigration.branch_evidence.uncovered_files, [legacyDashboardMigrationFile]);
+assert.equal(rejectedSupersededMigration.branch_evidence.rejected_intentional_non_port_evidence[0].failures[0], "replacement_file_not_in_replacement_commit");
+
 const orphanMigrationBlob = "3".repeat(40);
 const orphanTestBlob = "4".repeat(40);
 function makeOrphanFetch({ withPr = false, mismatchFile = "" } = {}) {
