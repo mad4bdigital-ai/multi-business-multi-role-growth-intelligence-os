@@ -290,7 +290,7 @@ async function loadScopedRows(subject) {
     ),
   ]);
 
-  return { systems, tasks, agents, skillGrants, freshness, signals, packs, packComponents, actions, actionRules, freshnessPolicies, signalSubscriptions, preferences, relationships, relationshipTypes };
+  return { systems, tasks, agents, skillGrants, freshness, signals, packs, packComponents, actions, actionRules, freshnessPolicies, signalSubscriptions, preferences, relationships, capabilityEnablementRequests, capabilityEnablementRollup, relationshipTypes };
 }
 
 function buildAttentionQueue(rows, containers) {
