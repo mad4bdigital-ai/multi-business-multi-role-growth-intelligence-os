@@ -1,5 +1,7 @@
 # Threat Model
 
+This threat model summarizes adversarial and abuse scenarios. See `risk-register.md` for the broader operational, migration, UX, and rollout risk inventory.
+
 ## Assets
 
 - Tenant device identity and route registry.
