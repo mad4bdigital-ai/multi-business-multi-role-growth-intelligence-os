@@ -795,13 +795,20 @@ export function buildAuthRoutes(deps) {
       tokenLogContext.client_validation_source = clientValidation.source || null;
 
       const codePayload = jwt.verify(code, JWT_SECRET);
+      tokenLogContext.code_redirect_uri = safeOAuthRedirectEvidence(codePayload.redirect_uri);
+      tokenLogContext.code_jti_present = Boolean(codePayload.jti);
+      tokenLogContext.user_id_present = Boolean(codePayload.user_id);
+      tokenLogContext.tenant_id_present = Boolean(codePayload.tenant_id);
       if (codePayload.purpose !== "custom_gpt_oauth_code" || !codePayload.user_id) {
+        logTokenExchange("failed", "invalid_oauth_code_payload", 400);
         return res.status(400).json({ error: "invalid_grant", error_description: "Invalid OAuth code." });
       }
       if (redirectUri && !equivalentTenantGptRedirectUri(redirectUri, codePayload.redirect_uri)) {
+        logTokenExchange("failed", "redirect_uri_mismatch", 400);
         return res.status(400).json({ error: "invalid_grant", error_description: "redirect_uri does not match the issued code." });
       }
       if (_isOAuthCodeUsed(codePayload.jti)) {
+        logTokenExchange("failed", "oauth_code_reuse", 400);
         return res.status(400).json({ error: "invalid_grant", error_description: "OAuth code has already been used." });
       }
       _markOAuthCodeUsed(codePayload.jti, codePayload.exp);
