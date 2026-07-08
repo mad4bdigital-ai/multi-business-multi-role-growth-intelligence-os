@@ -445,9 +445,11 @@ export async function executeDbControl(body = {}) {
     const [result] = await getPool().query(stmt);
     results.push({
       statement: stmt.slice(0, 120),
-      affectedRows: result?.affectedRows,
-      insertId: result?.insertId,
-      warningStatus: result?.warningStatus,
+      affectedRows: Number(result?.affectedRows || 0),
+      changedRows: Number(result?.changedRows || 0),
+      insertId: Number(result?.insertId || 0),
+      warningStatus: Number(result?.warningStatus || 0),
+      secrets_included: false,
     });
   }
   return { statements_executed: results.length, results };
