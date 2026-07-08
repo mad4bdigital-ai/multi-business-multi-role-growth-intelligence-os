@@ -1197,6 +1197,23 @@ const VIRTUAL_ADMIN_TOOLS = [
         owner: { type: "string", description: "Optional GitHub owner override; defaults to activation bootstrap." },
         repo: { type: "string", description: "Optional GitHub repo override; defaults to activation bootstrap." },
         superseding_commits: { type: "array", minItems: 1, maxItems: 20, items: { type: "string", pattern: "^[0-9a-fA-F]{40}$" } },
+        intentional_non_port_evidence: {
+          type: "array",
+          maxItems: 20,
+          description: "Explicit reviewed evidence for branch files intentionally not ported, such as an obsolete migration superseded by a newer applied migration file.",
+          items: {
+            type: "object",
+            required: ["file", "evidence_type", "superseded_by_file", "superseded_by_commit", "reason"],
+            properties: {
+              file: { type: "string" },
+              evidence_type: { type: "string", enum: ["migration_superseded_equivalence", "intentional_non_port"] },
+              superseded_by_file: { type: "string" },
+              superseded_by_commit: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+              reason: { type: "string", minLength: 20, maxLength: 1000 },
+            },
+            additionalProperties: false,
+          },
+        },
         allow_orphan_branch: { type: "boolean", default: false, description: "Explicit orphan mode. Requires zero matching PRs and exact non-generated file blob equivalence with the current default branch." },
         mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
         expected_base_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
