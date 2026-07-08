@@ -572,6 +572,8 @@ export async function recordGptSessionTurn({
   content,
   action_key = null,
   turnIndex,
+  workspace_key = null,
+  brand_key = null,
   injectedDeps = {},
 }) {
   const deps = { ...defaultDeps(), ...injectedDeps };
@@ -598,6 +600,9 @@ export async function recordGptSessionTurn({
   } catch {
     // Keep caller-provided session if fresh readback is unavailable.
   }
+
+  const turnWorkspaceKey = String(workspace_key || session.workspace_key || "").trim() || null;
+  const turnBrandKey = String(brand_key || session.brand_key || "").trim() || null;
 
   const timestamp = deps.now().toISOString();
   const turnId = randomUUID();
@@ -768,11 +773,11 @@ export async function recordGptSessionTurn({
     [
       session.session_id,
       session.tenant_id || PLATFORM_TENANT_ID,
-      session.workspace_key || null,
+      turnWorkspaceKey,
       session.user_id || null,
       session.user_id || null,
       session.user_id ? "user" : "system",
-      session.brand_key || null,
+      turnBrandKey,
       turnId,
       JSON.stringify({
         source: "session_archive_service",
@@ -812,11 +817,11 @@ export async function recordGptSessionTurn({
       session.session_id,
       turnId,
       session.tenant_id || PLATFORM_TENANT_ID,
-      session.workspace_key || null,
+      turnWorkspaceKey,
       session.user_id || null,
       session.user_id || null,
       session.user_id ? "user" : "system",
-      session.brand_key || null,
+      turnBrandKey,
       eventId,
       action_key || null,
       role,

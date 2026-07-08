@@ -293,6 +293,32 @@ function testIdempotencyAndInputNormalization() {
   });
   assert.equal(first, second);
   assert.equal(first.length, 64);
+  assert.equal(
+    first,
+    deriveActivationIdempotencyKey({
+      tenantId: "tenant-1",
+      userId: "user-1",
+      workspaceKey: "workspace-2",
+      brandKey: "brand-1",
+      conversationRef: "conversation-1",
+    })
+  );
+  assert.equal(
+    deriveActivationIdempotencyKey({
+      tenantId: "tenant-1",
+      userId: "user-1",
+      workspaceKey: "workspace-1",
+      brandKey: "brand-1",
+      conversationRef: "conversation-1",
+    }),
+    deriveActivationIdempotencyKey({
+      tenantId: "tenant-1",
+      userId: "user-1",
+      workspaceKey: "workspace-1",
+      brandKey: "brand-2",
+      conversationRef: "conversation-1",
+    })
+  );
   assert.equal(deriveActivationIdempotencyKey({ explicitKey: "explicit-key" }), "explicit-key");
 
   assert.equal(_testingActivationAwarenessRoutes.profileValue("diagnostic"), "diagnostic");
@@ -309,10 +335,17 @@ function testRepositoryContracts() {
   const activationRoutes = read("./routes/activationRoutes.js");
   const awarenessRoutes = read("./routes/activationAwarenessRoutes.js");
   const tenantOverlayRoutes = read("./routes/tenantActivationOverlayRoutes.js");
+  const sessionRoutes = read("./routes/sessionRoutes.js");
+  const gptSessionRoutes = read("./routes/gptSessionRoutes.js");
   const gptToolsRoutes = read("./routes/gptToolsRoutes.js");
+  const sessionSummaryService = read("./sessionSummaryService.js");
+  const sessionArchiveService = read("./sessionArchiveService.js");
+  const lifecycleService = read("./activationSessionLifecycleService.js");
+  const mcpRuntime = read("./mcpRuntime.js");
   const dynamicTabs = read("./activationDynamicTabsEvidence.js");
   const awarenessService = read("./activationAwarenessService.js");
   const migration = read("./migrations/310_sprint69_activation_awareness_completeness_control_plane.sql");
+  const contextIndexMigration = read("./migrations/1042_sprint69_activation_session_context_indexes.sql");
   const openapi = read("./openapi.yaml");
 
   assert.match(index, /buildActivationHardRunRoutes/);
@@ -334,8 +367,49 @@ function testRepositoryContracts() {
   assert.match(activationRoutes, /chunk_ttl_minutes/);
   assert.match(tenantOverlayRoutes, /tenant_activation_session_context/);
   assert.match(tenantOverlayRoutes, /chunk_ttl_minutes/);
+  assert.match(sessionRoutes, /context_scope = "session"/);
+  assert.match(sessionRoutes, /invalid_context_scope/);
+  assert.match(sessionRoutes, /gpt_session_turns/);
+  assert.match(sessionRoutes, /gst\.session_id = cs\.session_id/);
+  assert.match(sessionRoutes, /turnClauses\.join\(" AND "\)/);
+  assert.match(sessionRoutes, /Math\.max\(1, Math\.min\(Number\.parseInt\(limit, 10\) \|\| 50, 200\)\)/);
+  assert.match(sessionRoutes, /context_scope: normalizedContextScope/);
+  assert.match(sessionRoutes, /turn_contexts: turnContexts/);
+  assert.match(sessionRoutes, /context_granularity: turnContexts\.length \? "turn_level" : "session_default"/);
   assert.match(gptToolsRoutes, /shouldChunkDispatchedToolResponse/);
   assert.match(gptToolsRoutes, /response_chunk_read/);
+  assert.match(gptToolsRoutes, /resolveGptSessionContext/);
+  assert.match(gptToolsRoutes, /x-workspace-key/);
+  assert.match(gptToolsRoutes, /x-brand-key/);
+  assert.match(gptToolsRoutes, /workspace_key = \?/);
+  assert.match(gptToolsRoutes, /brand_key = \?/);
+  assert.match(gptSessionRoutes, /workspace_key = String\(turn\.workspace_key/);
+  assert.match(gptSessionRoutes, /brand_key = String\(turn\.brand_key/);
+  assert.match(gptSessionRoutes, /workspace_key,\n\s*brand_key,/);
+  assert.match(gptSessionRoutes, /workspace_key: turn\.workspace_key/);
+  assert.match(gptSessionRoutes, /brand_key: turn\.brand_key/);
+  assert.match(gptSessionRoutes, /session_not_found/);
+  assert.match(gptSessionRoutes, /session_closed/);
+  assert.match(sessionArchiveService, /turnWorkspaceKey = String\(workspace_key \|\| session\.workspace_key/);
+  assert.match(sessionArchiveService, /turnBrandKey = String\(brand_key \|\| session\.brand_key/);
+  assert.match(sessionArchiveService, /turnWorkspaceKey/);
+  assert.match(sessionArchiveService, /turnBrandKey/);
+  assert.match(sessionSummaryService, /gpt_session_turns/);
+  assert.match(sessionSummaryService, /gst\.workspace_key = \?/);
+  assert.match(sessionSummaryService, /gst\.brand_key = \?/);
+  assert.match(sessionSummaryService, /COALESCE\(/);
+  assert.match(sessionSummaryService, /LEFT JOIN `customer_sessions` cs ON cs\.session_id = ss\.session_id/);
+  assert.doesNotMatch(lifecycleService, /workspaceKey \|\| "workspace:unspecified"/);
+  assert.doesNotMatch(lifecycleService, /brandKey \|\| "brand:unspecified"/);
+  assert.doesNotMatch(lifecycleService, /AND \(\? IS NULL OR s\.workspace_key = \?\)/);
+  assert.doesNotMatch(lifecycleService, /AND \(\? IS NULL OR s\.brand_key = \?\)/);
+  assert.match(activationRoutes, /workspace_key: workspaceKey/);
+  assert.match(activationRoutes, /brand_key: brandKey/);
+  assert.match(mcpRuntime, /workspace_key: \{ type: "string"/);
+  assert.match(mcpRuntime, /brand_key: \{ type: "string"/);
+  assert.match(mcpRuntime, /gpt_session_turns/);
+  assert.match(mcpRuntime, /gst\.workspace_key = \?/);
+  assert.match(mcpRuntime, /gst\.brand_key = \?/);
 
   assert.match(dynamicTabs, /loadSectionRowsBatch/);
   assert.match(dynamicTabs, /batch_query_count/);
@@ -367,7 +441,46 @@ function testRepositoryContracts() {
     "tenant_activation_awareness_read_api",
     "tenant_activation_dynamic_tab_detail_read_api",
     "activation_awareness_coverage",
-  ]) assert.match(migration, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  ]) assert.match(migration, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\  for (const required of [
+    "CREATE TABLE IF NOT EXISTS activation_runs",
+    "CREATE TABLE IF NOT EXISTS activation_snapshot_ledger",
+    "CREATE TABLE IF NOT EXISTS activation_response_profile_registry",
+    "CREATE TABLE IF NOT EXISTS activation_delivery_policy_registry",
+    "activation_dynamic_tab_detail_read_api",
+    "tenant_activation_awareness_read_api",
+    "tenant_activation_dynamic_tab_detail_read_api",
+    "activation_awareness_coverage",
+  ]) assert.match(migration, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));")));
+
+  for (const required of [
+    "idx_cs_gpt_context_active_started",
+    "idx_ar_context_reuse_session",
+    "idx_ss_context_created",
+    "idx_gst_context_scope_created",
+    "idx_gst_session_context_lookup",
+    "workspace_key",
+    "brand_key",
+  ]) assert.match(contextIndexMigration, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\  for (const required of [
+    "CREATE TABLE IF NOT EXISTS activation_runs",
+    "CREATE TABLE IF NOT EXISTS activation_snapshot_ledger",
+    "CREATE TABLE IF NOT EXISTS activation_response_profile_registry",
+    "CREATE TABLE IF NOT EXISTS activation_delivery_policy_registry",
+    "activation_dynamic_tab_detail_read_api",
+    "tenant_activation_awareness_read_api",
+    "tenant_activation_dynamic_tab_detail_read_api",
+    "activation_awareness_coverage",
+  ]) assert.match(migration, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));")));
+
+  assert.ok(openapi.includes("/sessions:"), "OpenAPI must include /sessions");
+  assert.match(openapi, /context_scope:/);
+  assert.match(openapi, /enum: \[session, turn, any\]/);
+  assert.ok(openapi.includes("/gpt/sessions/{id}/turn:"), "OpenAPI must include single GPT turn writer");
+  assert.ok(openapi.includes("/gpt/sessions/{id}/turns:"), "OpenAPI must include GPT turns collection");
+  assert.match(openapi, /operationId: writeGptSessionTurn/);
+  assert.match(openapi, /operationId: writeGptSessionTurns/);
+  assert.match(openapi, /workspace_key:\n\s+type: string\n\s+description: Optional turn-level workspace context/);
+  assert.match(openapi, /brand_key:\n\s+type: string\n\s+description: Optional turn-level brand context/);
+  assert.match(openapi, /target_key:\n\s+type: string\n\s+description: Alias for brand_key/);
 
   for (const path of [
     "/activation/hard-run:",
