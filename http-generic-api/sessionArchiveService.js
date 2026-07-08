@@ -668,6 +668,10 @@ export async function recordGptSessionTurn({
   turnIndex,
   workspace_key = null,
   brand_key = null,
+  business_type_key = null,
+  business_activity_type_key = null,
+  activity_key = null,
+  knowledge_profile_key = null,
   injectedDeps = {},
 }) {
   const deps = { ...defaultDeps(), ...injectedDeps };
