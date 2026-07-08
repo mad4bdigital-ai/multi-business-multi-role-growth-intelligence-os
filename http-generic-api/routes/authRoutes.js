@@ -820,6 +820,7 @@ export function buildAuthRoutes(deps) {
       );
       const tokenUser = userRows[0];
       if (!tokenUser || tokenUser.status !== "active") {
+        logTokenExchange("failed", "user_inactive_or_missing", 400);
         return res.status(400).json({ error: "invalid_grant", error_description: "User account is no longer active." });
       }
       const [memRows] = await pool.query(
