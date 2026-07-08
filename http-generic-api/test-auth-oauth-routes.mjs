@@ -245,7 +245,8 @@ try {
   assert("token endpoint exchanges authorization code", exchange.status === 200, `${exchange.status}`);
   assert("token endpoint returns bearer token", exchange.body.token_type === "Bearer", JSON.stringify(exchange.body));
   assert("token endpoint mints a fresh access JWT", exchange.body.access_token !== userToken && typeof exchange.body.access_token === "string", JSON.stringify(exchange.body));
-  assert("token endpoint returns standard OAuth response only", !Object.prototype.hasOwnProperty.call(exchange.body, "scope") && !Object.prototype.hasOwnProperty.call(exchange.body, "activation_context"), JSON.stringify(exchange.body));
+  assert("token endpoint returns standard OAuth scope", exchange.body.scope === TENANT_SCOPE, JSON.stringify(exchange.body));
+  assert("token endpoint excludes non-standard activation context", !Object.prototype.hasOwnProperty.call(exchange.body, "activation_context"), JSON.stringify(exchange.body));
   await new Promise((resolve) => setTimeout(resolve, 0));
   const successDiagnostic = oauthTokenDiagnostics.find((row) => row.execution_status === "success");
   assert("success token exchange writes diagnostic", Boolean(successDiagnostic), JSON.stringify(oauthTokenDiagnostics));
