@@ -780,15 +780,19 @@ export function buildAuthRoutes(deps) {
       }
 
       const clientValidation = await validateTenantGptOAuthClientCredentials(
-        oauthClientCredentials(req),
-        { query: (sql, params) => resolvePool().query(sql, params) }
+        credentials,
+        { query: tokenQuery }
       );
       if (!clientValidation.ok) {
+        logTokenExchange("failed", clientValidation.error || "invalid_client", clientValidation.status || 401, {
+          client_validation_source: clientValidation.source || null,
+        });
         return res.status(clientValidation.status || 401).json({
           error: clientValidation.error || "invalid_client",
           error_description: clientValidation.message || "Invalid OAuth client credentials.",
         });
       }
+      tokenLogContext.client_validation_source = clientValidation.source || null;
 
       const codePayload = jwt.verify(code, JWT_SECRET);
       if (codePayload.purpose !== "custom_gpt_oauth_code" || !codePayload.user_id) {
