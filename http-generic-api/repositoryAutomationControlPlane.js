@@ -664,6 +664,13 @@ export async function collectChunkedToolResponse(initial, { dispatch, maxChunks 
   };
 }
 
+async function dispatchAndCollect(dispatch, toolKey, args, options = {}) {
+  return collectChunkedToolResponse(await dispatch(toolKey, args), {
+    dispatch,
+    maxChunks: options.maxChunks || 25,
+  });
+}
+
 function readbackIndicatesCompletion(step, body = {}) {
   const value = toolBody(body) || {};
   if (step.step_key === "pr_finalize") return value?.data?.merged === true || value?.merged === true || String(value?.state || "").toLowerCase() === "merged";
