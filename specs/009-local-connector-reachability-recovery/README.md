@@ -34,6 +34,7 @@ This design builds on the DB-backed route lifecycle profile work introduced in P
 - `data-model.md` — proposed tables, records, and retention rules.
 - `migration-and-compatibility.md` — additive migration and compatibility strategy.
 - `operational-model.md` — diagnostics, SLOs, alerts, runbooks, and rollback.
+- `risk-register.md` — deeper risk inventory, blockers, mitigations, and review questions.
 - `testing-strategy.md` — unit, integration, simulation, and recovery tests.
 - `threat-model.md` — abuse cases and mitigations.
 - `rollout-pr-sequence.md` — safe multi-PR implementation sequence.
