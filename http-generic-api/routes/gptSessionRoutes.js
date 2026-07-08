@@ -632,6 +632,10 @@ export function buildGptSessionRoutes(deps) {
           turnIndex,
           workspace_key: turn.workspace_key,
           brand_key: turn.brand_key,
+          business_type_key: turn.business_type_key,
+          business_activity_type_key: turn.business_activity_type_key,
+          activity_key: turn.activity_key,
+          knowledge_profile_key: turn.knowledge_profile_key,
         });
         written.push({
           role: turn.role,
