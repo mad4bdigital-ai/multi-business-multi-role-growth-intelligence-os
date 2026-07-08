@@ -193,7 +193,7 @@
       "status": "release_readiness_summary_transport_and_production_parity_ci_passed"
     },
     "release_readiness": {
-      "status": "pending_production_verification_and_post_merge_audit"
+      "status": "pass_pending_post_merge_audit"
     },
     "migration": {
       "status": "apply_and_schema_readback_verified",
