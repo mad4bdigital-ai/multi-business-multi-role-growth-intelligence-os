@@ -378,7 +378,34 @@ export async function executeSafe(cmd, args, options = {}) {
   });
 }
 
-async function executeDbControl(body = {}) {
+export function serializeDbControlQueryResult(result, fields = null) {
+  if (Array.isArray(result)) {
+    return {
+      statement_result_type: "rows",
+      rows: result,
+      fields: Array.isArray(fields)
+        ? fields.map((f) => ({ name: f.name, column_type: f.columnType }))
+        : undefined,
+      secrets_included: false,
+    };
+  }
+
+  const header = result && typeof result === "object" ? result : {};
+  return {
+    statement_result_type: "mutation",
+    result: {
+      affectedRows: Number(header.affectedRows || 0),
+      changedRows: Number(header.changedRows || 0),
+      insertId: Number(header.insertId || 0),
+      warningStatus: Number(header.warningStatus || 0),
+      serverStatus: header.serverStatus === undefined ? undefined : Number(header.serverStatus || 0),
+      info: typeof header.info === "string" ? header.info : undefined,
+    },
+    secrets_included: false,
+  };
+}
+
+export async function executeDbControl(body = {}) {
   const action = String(body.action || "run").trim().toLowerCase();
   if (action !== "run") {
     const err = new Error("Unsupported db action. Use run.");
