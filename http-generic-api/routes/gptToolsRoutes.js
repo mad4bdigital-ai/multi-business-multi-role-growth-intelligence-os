@@ -329,6 +329,7 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       truncatedResult,
     ].join("\n");
 
+    const { workspace_key: workspaceKey, brand_key: brandKey } = resolveGptSessionContext(req, args);
     const writeback = await recordGptSessionTurn({
       pool,
       session,
@@ -336,6 +337,8 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       content,
       action_key: toolKey,
       turnIndex,
+      workspace_key: workspaceKey,
+      brand_key: brandKey,
     });
     return { ok: true, ...writeback };
   } catch (err) {
