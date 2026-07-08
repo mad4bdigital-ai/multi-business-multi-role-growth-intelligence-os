@@ -122,6 +122,7 @@ const { server, baseUrl } = await startServer(app);
 
 try {
   const redirectUri = "https://chat.openai.com/aip/g-d36db295032b9022dd77233041763f513e8ba5fa/oauth/callback";
+  const canonicalRedirectUri = "https://chatgpt.com/aip/g-d36db295032b9022dd77233041763f513e8ba5fa/oauth/callback";
   const state = "state-123";
   const encodedRedirect = encodeURIComponent(redirectUri);
 
