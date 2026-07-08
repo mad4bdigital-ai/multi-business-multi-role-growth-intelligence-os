@@ -389,6 +389,7 @@ export const testCommands = [
   "node test-tenant-growth-dashboard.mjs",
   "node test-activation-awareness-completeness.mjs",
   "node test-operational-alerting-control-plane.mjs",
+  "node test-platform-pending-task-source-data-quality-repair.mjs",
   "node test-session-archive-service.mjs",
   "node test-gpt-session-archive-monitoring.mjs",
   "node test-gpt-session-conversation-ref.mjs",
