@@ -395,6 +395,7 @@ export async function buildSupersededBranchCleanupEvidence(args = {}, deps = {})
   if (openPulls.length) blockers.push("open_pull_request_exists");
   if (replacementEvidence.some((item) => item.resolved_sha !== item.sha)) blockers.push("superseding_commit_resolution_mismatch");
   if (replacementEvidence.some((item) => !item.on_default_branch)) blockers.push("superseding_commit_not_on_default_branch");
+  if (coverageResolutionEvidence.rejected.length) blockers.push("coverage_resolution_rejected");
   if (uncoveredFiles.length) blockers.push("changed_file_coverage_incomplete");
   if (allowOrphanBranch && orphanContentMismatches.length) blockers.push("orphan_branch_content_not_equivalent_to_default");
   if (!branchFiles.length || Number(baseToBranch?.ahead_by || 0) < 1) blockers.push("branch_has_no_unmerged_changes");
