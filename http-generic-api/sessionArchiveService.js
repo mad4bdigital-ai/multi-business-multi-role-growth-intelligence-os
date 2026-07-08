@@ -969,6 +969,8 @@ export async function recordGptSessionTurn({
     drive_anchor: archive.drive_doc_id ? driveAnchor : null,
     archive_status: archiveStatus,
     archive_error: archiveError ? archiveError.message : null,
+    context_stack: turnContextStack,
+    business_context: businessContext,
   };
 }
 
