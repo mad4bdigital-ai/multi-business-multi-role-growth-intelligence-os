@@ -199,7 +199,7 @@ try {
   assert("code response includes code", typeof codeResult.body.code === "string" && codeResult.body.code.length > 40);
   assert("code response redirects with state", String(codeResult.body.redirect_to || "").includes(`state=${state}`), codeResult.body.redirect_to);
   assert("code response redirects with code", String(codeResult.body.redirect_to || "").includes("code="), codeResult.body.redirect_to);
-  assert("code response redirects to canonical ChatGPT callback", String(codeResult.body.redirect_to || "").startsWith(canonicalRedirectUri), codeResult.body.redirect_to);
+  assert("code response redirects to requested ChatGPT callback", String(codeResult.body.redirect_to || "").startsWith(redirectUri), codeResult.body.redirect_to);
   assert("code response preserves activation mode", codeResult.body.activation_context?.activation_mode === "dedicated", JSON.stringify(codeResult.body.activation_context));
   assert("code response preserves sign-in options", Array.isArray(codeResult.body.activation_context?.sign_in_options) && codeResult.body.activation_context.sign_in_options.includes("email"), JSON.stringify(codeResult.body.activation_context));
 
