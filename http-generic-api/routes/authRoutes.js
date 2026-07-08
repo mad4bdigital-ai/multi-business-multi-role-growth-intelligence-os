@@ -370,6 +370,76 @@ function oauthClientCredentials(req) {
   };
 }
 
+function safeOAuthRedirectEvidence(redirectUri) {
+  const url = parseOAuthRedirectUri(redirectUri);
+  if (!url) return { present: Boolean(redirectUri), valid: false };
+  const canonical = parseOAuthRedirectUri(canonicalizeTenantGptRedirectUri(url.toString()));
+  return {
+    present: true,
+    valid: true,
+    host: url.hostname,
+    path: url.pathname,
+    canonical_host: canonical?.hostname || null,
+    canonical_path: canonical?.pathname || null,
+  };
+}
+
+function safeOAuthClientEvidence(credentials = {}) {
+  const clientId = String(credentials.client_id || "");
+  return {
+    client_id_present: Boolean(clientId),
+    client_id_sha256_prefix: clientId ? sha256(clientId).slice(0, 12) : null,
+    client_secret_present: Boolean(String(credentials.client_secret || "")),
+  };
+}
+
+async function recordOAuthTokenDiagnostic(queryFn, event = {}) {
+  try {
+    const now = new Date();
+    const startedAt = event.started_at_ms ? new Date(event.started_at_ms) : now;
+    const durationMs = Number.isFinite(event.duration_ms) ? Math.max(0, Math.round(event.duration_ms)) : null;
+    const evidence = {
+      event: "tenant_gpt_oauth_token_exchange",
+      status: event.status || "unknown",
+      failure_reason: event.failure_reason || null,
+      http_status: event.http_status || null,
+      duration_ms: durationMs,
+      grant_type: event.grant_type || null,
+      code_present: Boolean(event.code_present),
+      redirect_uri: event.redirect_uri || null,
+      code_redirect_uri: event.code_redirect_uri || null,
+      client: event.client || null,
+      client_validation_source: event.client_validation_source || null,
+      code_jti_present: event.code_jti_present === true,
+      user_id_present: event.user_id_present === true,
+      tenant_id_present: event.tenant_id_present === true,
+      request_id: event.request_id || null,
+    };
+    await queryFn(
+      `INSERT INTO \`execution_log\`
+        (run_date, start_time, end_time, duration_seconds, entry_type, execution_class, source_layer,
+         execution_status, failure_reason, output_summary, action_key, endpoint_key, parent_action_key,
+         runtime_evidence_json, created_at)
+       VALUES (?, ?, ?, ?, 'diagnostic', 'oauth', 'auth_routes', ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+      [
+        startedAt.toISOString().slice(0, 10),
+        startedAt.toISOString(),
+        now.toISOString(),
+        durationMs === null ? null : String((durationMs / 1000).toFixed(3)),
+        event.status || "unknown",
+        event.failure_reason || null,
+        JSON.stringify({ ok: event.status === "success", failure_reason: event.failure_reason || null, http_status: event.http_status || null, duration_ms: durationMs }),
+        "tenant_gpt_oauth_token_exchange",
+        "auth_oauth_token",
+        "tenant_gpt_oauth",
+        JSON.stringify(evidence),
+      ]
+    );
+  } catch (err) {
+    console.warn("tenant_gpt_oauth_token_diagnostic_log_failed", { message: err?.message });
+  }
+}
+
 function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationContext }) {
   const signInOptions = Array.isArray(activationContext?.sign_in_options)
     ? activationContext.sign_in_options
