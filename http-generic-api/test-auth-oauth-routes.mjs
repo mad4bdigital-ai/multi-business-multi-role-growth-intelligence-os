@@ -122,6 +122,7 @@ const { server, baseUrl } = await startServer(app);
 
 try {
   const redirectUri = "https://chat.openai.com/aip/g-d36db295032b9022dd77233041763f513e8ba5fa/oauth/callback";
+  const canonicalRedirectUri = "https://chatgpt.com/aip/g-d36db295032b9022dd77233041763f513e8ba5fa/oauth/callback";
   const state = "state-123";
   const encodedRedirect = encodeURIComponent(redirectUri);
 
@@ -140,6 +141,8 @@ try {
     assert("authorize preselects signup panel", result.text.includes('const INITIAL_PANEL = "register"'));
     assert("authorize includes privacy policy link", result.text.includes('href="/privacy-policy"'));
     assert("authorize includes configured Google client", result.text.includes(process.env.GOOGLE_CLIENT_ID));
+    assert("authorize preserves requested ChatGPT callback", result.text.includes(redirectUri));
+    assert("authorize does not rewrite callback before ChatGPT state validation", !result.text.includes('const REDIRECT_URI = "https://chatgpt.com'));
     assert("authorize leaves GIS button locale automatic", !/locale\s*:\s*["'][^"']+["']/.test(result.text));
     assert("authorize does not force a GSI hl parameter", !result.text.includes("gsi/client?hl="));
   }
@@ -196,6 +199,7 @@ try {
   assert("code response includes code", typeof codeResult.body.code === "string" && codeResult.body.code.length > 40);
   assert("code response redirects with state", String(codeResult.body.redirect_to || "").includes(`state=${state}`), codeResult.body.redirect_to);
   assert("code response redirects with code", String(codeResult.body.redirect_to || "").includes("code="), codeResult.body.redirect_to);
+  assert("code response redirects to requested ChatGPT callback", String(codeResult.body.redirect_to || "").startsWith(redirectUri), codeResult.body.redirect_to);
   assert("code response preserves activation mode", codeResult.body.activation_context?.activation_mode === "dedicated", JSON.stringify(codeResult.body.activation_context));
   assert("code response preserves sign-in options", Array.isArray(codeResult.body.activation_context?.sign_in_options) && codeResult.body.activation_context.sign_in_options.includes("email"), JSON.stringify(codeResult.body.activation_context));
 

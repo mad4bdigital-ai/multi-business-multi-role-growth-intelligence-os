@@ -28,6 +28,8 @@ const PLATFORM_JWT_CLIENT_MAX_TTL_SECONDS = 60 * 60;
 const VALID_SIGN_IN_OPTIONS = new Set(["google", "email", "register"]);
 const PLATFORM_JWT_ISSUER = process.env.PLATFORM_JWT_ISSUER || "https://auth.mad4b.com";
 const TENANT_GPT_JWT_AUDIENCE = process.env.TENANT_GPT_JWT_AUDIENCE || "mad4b-tenant-gpt";
+const CHATGPT_CANONICAL_CALLBACK_HOST = "chatgpt.com";
+const CHATGPT_LEGACY_CALLBACK_HOST = "chat.openai.com";
 const PASSWORD_RESET_TTL_SECONDS = 30 * 60;
 const PASSWORD_RESET_BASE_URL = (process.env.PUBLIC_BASE_URL || PLATFORM_JWT_ISSUER || "https://auth.mad4b.com").replace(/\/$/, "");
 
@@ -287,6 +289,25 @@ function parseOAuthRedirectUri(redirectUri) {
   }
 }
 
+function isChatGptAipOAuthCallback(url) {
+  return /^\/aip\/g-[a-z0-9]+\/oauth\/callback$/i.test(url?.pathname || "");
+}
+
+function canonicalizeTenantGptRedirectUri(redirectUri) {
+  const url = parseOAuthRedirectUri(redirectUri);
+  if (!url) return "";
+  if (url.protocol === "https:" && url.hostname.toLowerCase() === CHATGPT_LEGACY_CALLBACK_HOST && isChatGptAipOAuthCallback(url)) {
+    url.hostname = CHATGPT_CANONICAL_CALLBACK_HOST;
+  }
+  return url.toString();
+}
+
+function equivalentTenantGptRedirectUri(left, right) {
+  const canonicalLeft = canonicalizeTenantGptRedirectUri(left);
+  const canonicalRight = canonicalizeTenantGptRedirectUri(right);
+  return Boolean(canonicalLeft && canonicalRight && canonicalLeft === canonicalRight);
+}
+
 function callbackPatternToRegExp(pattern) {
   const escaped = String(pattern || "")
     .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
@@ -299,14 +320,19 @@ async function isAllowedTenantGptRedirectUri(redirectUri, queryFn) {
   if (!url) return false;
 
   const normalized = url.toString();
+  const canonical = canonicalizeTenantGptRedirectUri(normalized);
   const resolved = await resolveTenantGptOAuthClientConfig({ query: queryFn });
   const callbacks = Array.isArray(resolved.config?.callback_urls_to_allow)
     ? resolved.config.callback_urls_to_allow
     : [];
 
+  function matches(callback, candidate) {
+    if (callback === candidate) return true;
+    return callback.includes("{g-GPT-ID}") && callbackPatternToRegExp(callback).test(candidate);
+  }
+
   return callbacks.some((callback) => {
-    if (callback === normalized) return true;
-    return callback.includes("{g-GPT-ID}") && callbackPatternToRegExp(callback).test(normalized);
+    return matches(callback, normalized) || matches(callback, canonical);
   });
 }
 
@@ -672,7 +698,7 @@ export function buildAuthRoutes(deps) {
       if (codePayload.purpose !== "custom_gpt_oauth_code" || !codePayload.user_id) {
         return res.status(400).json({ error: "invalid_grant", error_description: "Invalid OAuth code." });
       }
-      if (redirectUri && redirectUri !== codePayload.redirect_uri) {
+      if (redirectUri && !equivalentTenantGptRedirectUri(redirectUri, codePayload.redirect_uri)) {
         return res.status(400).json({ error: "invalid_grant", error_description: "redirect_uri does not match the issued code." });
       }
       if (_isOAuthCodeUsed(codePayload.jti)) {

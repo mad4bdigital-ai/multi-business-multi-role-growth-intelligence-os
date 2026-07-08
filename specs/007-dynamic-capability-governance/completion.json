@@ -24,6 +24,22 @@
         "status": "merged",
         "merge_sha": "5e31768fa525e3255294e75352091e3325ceac98",
         "summary": "Allow same-branch repo patch continuation with expected_branch_sha, default-branch drift overlap checks, readback fields, and regression assertions. This unblocked stable multi-PR delivery but is not the operational alert runtime implementation."
+      },
+      {
+        "number": 2300,
+        "branch": "gpt/007-operational-alerts-governance-audit-20260707",
+        "role": "operational_alert_pilot_evidence_reconciliation",
+        "status": "merged",
+        "merge_sha": "21a22f8988516cc97e6bdd94601a1a2a7c0c43d9",
+        "summary": "Reconciled operational alert pilot code evidence, task bookkeeping, OpenAPI fingerprint fields, and regression assertions. This did not apply migrations or verify production parity."
+      },
+      {
+        "number": 2343,
+        "branch": "gpt/governed-migration-schema-readback-clean-20260708",
+        "role": "governed_migration_schema_readback_tooling",
+        "status": "merged",
+        "merge_sha": "aa476872ef84b46ccbf935b729dbf22495826e85",
+        "summary": "Added the admin-only governed_migration_schema_readback tool, regression test, route registration, and test manifest entry to replace ad hoc admin_control + INFORMATION_SCHEMA migration readback."
       }
     ],
     "implementation_evidence": [
@@ -46,8 +62,45 @@
           "migration_runner_registration_present": true,
           "test_manifest_registration_present": true,
           "openapi_fingerprint_contract_reconciled_by_audit_pr": true,
-          "migration_apply_verified": false,
+          "migration_apply_verified": true,
+          "migration_schema_readback_verified": true,
           "production_runtime_parity_verified": false
+        }
+      },
+      {
+        "role": "operational_alert_lifecycle_migration_apply_readback",
+        "status": "verified",
+        "verified_at": "2026-07-08T01:34:00Z",
+        "tool": "governed_migration_schema_readback",
+        "tooling_pr": {
+          "number": 2343,
+          "merge_sha": "aa476872ef84b46ccbf935b729dbf22495826e85"
+        },
+        "migration_file": "20260704_operational_alert_lifecycle_fingerprints.sql",
+        "migration_checksum_sha256": "c84ff288afd3b351c48c3da22c9b2bc4298ad42ed29792e0db7da902ae254488",
+        "statement_count": 3,
+        "ledger": {
+          "found": true,
+          "run_id": "5b602672-bdab-4aa1-9e46-4cc3f6a21350",
+          "mode": "apply",
+          "applied_at": "2026-07-07T10:07:29.367Z",
+          "preflight_status": "pass",
+          "preflight_risk_count": 0,
+          "capability_envelope_id": "74eb2b4b-9c0f-4f18-8b19-74497cacbeb4"
+        },
+        "readback_status": "pass",
+        "missing": {
+          "tables": [],
+          "columns": [],
+          "indexes": [],
+          "rule_conditions": []
+        },
+        "safety": {
+          "provider_call_executed": false,
+          "external_write_executed": false,
+          "row_data_read": false,
+          "freeform_sql_accepted": false,
+          "secrets_included": false
         }
       }
     ],
@@ -84,8 +137,8 @@
       "runtime_behavior_changed": false
     },
     "implementation": {
-      "status": "partial_implementation_observed_pending_migration_apply_and_production_verification",
-      "next_pr_scope": "migration_authorization_apply_readback_and_production_parity",
+      "status": "partial_implementation_observed_pending_production_verification_and_post_merge_audit",
+      "next_pr_scope": "production_runtime_parity_and_post_merge_audit",
       "provider_mutation_allowed": false,
       "enforcement_change_allowed": false,
       "automatic_tenant_export_allowed": false,
@@ -93,26 +146,32 @@
         "code_status": "observed_on_main",
         "migration_source_status": "present_and_runner_registered",
         "runtime_contract_status": "fingerprint_fields_reconciled_in_openapi_by_audit_pr",
-        "migration_apply_status": "not_verified",
+        "migration_apply_status": "verified",
+        "migration_schema_readback_status": "pass",
         "production_verification_status": "pending",
         "post_merge_audit_status": "pending"
       }
     },
     "pull_request": {
-      "status": "audit_pr_pending_number"
+      "status": "implementation_prs_recorded_through_2343"
     },
     "ci": {
-      "status": "pending_audit_pr"
+      "status": "pending_this_evidence_pr"
     },
     "release_readiness": {
-      "status": "pending_migration_apply_and_production_verification"
+      "status": "pending_production_verification_and_post_merge_audit"
     },
     "migration": {
-      "status": "source_present_runner_registered_apply_not_verified",
-      "migration_file": "20260704_operational_alert_lifecycle_fingerprints.sql"
+      "status": "apply_and_schema_readback_verified",
+      "migration_file": "20260704_operational_alert_lifecycle_fingerprints.sql",
+      "checksum_sha256": "c84ff288afd3b351c48c3da22c9b2bc4298ad42ed29792e0db7da902ae254488",
+      "statement_count": 3,
+      "ledger_run_id": "5b602672-bdab-4aa1-9e46-4cc3f6a21350",
+      "schema_readback_tool": "governed_migration_schema_readback",
+      "schema_readback_pr": 2343
     },
     "production_verification": {
-      "status": "pending_migration_apply_and_runtime_parity_readback"
+      "status": "pending_runtime_parity_readback"
     },
     "post_merge_audit": {
       "status": "pending"
