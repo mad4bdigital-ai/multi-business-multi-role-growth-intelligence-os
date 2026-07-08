@@ -891,7 +891,7 @@ async function executeCiAutoRecovery(input, dispatch, suppliedArgs) {
   }, suppliedArgs.dispatch_args);
   const dispatched = await dispatchAndCollect(dispatch, "runtime_endpoint_call", dispatchArgs);
   if (!dispatched.ok) return { ok: false, status: "dispatch_failed", dispatch: safeSummary(dispatched.body), secrets_included: false };
-  const after = normalizeDispatchResult(await dispatch("github_pr_ci_gate", gateArgs));
+  const after = await dispatchAndCollect(dispatch, "github_pr_ci_gate", gateArgs);
   return {
     ok: after.ok && toolBody(after)?.result?.gate_status === "pass",
     status: toolBody(after)?.result?.gate_status === "pass" ? "recovered" : "dispatched_pending_readback",
