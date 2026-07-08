@@ -1,0 +1,41 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import { buildPlatformExecutionEnvelope } from "./platformExecutionEnvelopeKernel.js";
+import { appendApprovalDecision, buildScopedApprovalRequest } from "./platformScopedApprovalKernel.js";
+import { buildExecutionConcurrencyRecord } from "./platformExecutionConcurrencyKernel.js";
+import { buildAdapterBinding, buildReadbackContract, certifyAdapterBinding, classifyAdapterDrift, selectDeterministicAdapterBinding, validateReadbackEvidence } from "./platformAdapterContractKernel.js";
+
+const source = fs.readFileSync(new URL("./platformAdapterContractKernel.js", import.meta.url), "utf8");
+const tasks = fs.readFileSync(new URL("../specs/006-adaptive-authorization-execution-governance/tasks.md", import.meta.url), "utf8");
+const docs = fs.readFileSync(new URL("../docs/platform-adapter-contract-kernel.md", import.meta.url), "utf8");
+for (const phrase of ["platform_adapter_binding_contract_v1", "platform_adapter_certification_v1", "platform_adapter_readback_contract_v1", "adapter_drift_detected", "adapter_binding_selected", "provider_apply_allowed: false", "enforcement_cutover: false"]) assert(source.includes(phrase), `adapter contract kernel must include ${phrase}`);
+for (const secretToken of ["access_token", "refresh_token", "private_key", "client_secret", "encrypted_credentials"]) assert(!source.includes(secretToken), `adapter contract kernel must not reference ${secretToken}`);
+assert(tasks.includes("- [x] T030 Implement adapter bindings, certification, deterministic selection, readback contracts, execution evidence, and drift reconcilers."));
+assert(docs.includes("deterministic selection"));
+assert(docs.includes("readback"));
+
+const enforcement = { ok: true, enforcement_status: "shadow_allow", boundary: { boundary_key: "content.wordpress.publish" }, revision_vector: { capability: "v1" }, enforcement_policy: { policy_version: "v1" }, obligations: ["approval_required"], mismatch: { family: "ready" }, provider_apply_allowed: false, mutations_executed: false, enforcement_cutover: false };
+const executionEnvelope = buildPlatformExecutionEnvelope({ enforcement, capability_envelope_id: "cap-env-1", idempotency_key: "idem-env", nonce: "nonce-env", issued_at: "2026-07-08T00:00:00.000Z", ttl_seconds: 600 });
+const approvalRequest = buildScopedApprovalRequest({ execution_envelope: executionEnvelope, requested_scope: { tenant_id: "tenant-1", workspace_id: "workspace-1", requested_permissions: ["publish"] }, requested_by: "platform_admin", issued_at: "2026-07-08T00:01:00.000Z", ttl_seconds: 600 });
+const approved = appendApprovalDecision({ approval_request: approvalRequest, decision_log: [], decision: "approved", decided_by: "reviewer", decision_note: "Scope approved.", decided_at: "2026-07-08T00:02:00.000Z" });
+const control = buildExecutionConcurrencyRecord({ execution_envelope: executionEnvelope, approval_request: approvalRequest, decision_log: approved.decision_log, idempotency_key: "idem-exec", concurrency_seed: "seed-1" });
+
+const binding = buildAdapterBinding({ adapter_key: "wordpress.contract-only", provider_key: "wordpress", capability_key: "content.wordpress.publish", boundary_key: "content.wordpress.publish", resource_type: "cms_post", operations: ["publish.preview", "readback"], certification_requirements: ["execution_concurrency_ready", "readback_required"], readback_contract: { required_fields: ["status", "slug"] }, drift_policy: { mode: "detect_only" }, priority: 10 });
+assert.equal(binding.ok, true);
+assert.equal(binding.provider_apply_allowed, false);
+const cert = certifyAdapterBinding({ binding, execution_control: control, execution_envelope: executionEnvelope, approval_request: approvalRequest, decision_log: approved.decision_log, current_enforcement: enforcement, now: "2026-07-08T00:05:00.000Z" });
+assert.equal(cert.ok, true);
+assert.equal(cert.certification_status, "certified_contract_only");
+const secondBinding = buildAdapterBinding({ adapter_key: "wordpress.backup-contract", provider_key: "wordpress", capability_key: "content.wordpress.publish", boundary_key: "content.wordpress.publish", resource_type: "cms_post", operations: ["readback"], certification_requirements: ["readback_required"], priority: 50 });
+const selected = selectDeterministicAdapterBinding([secondBinding, binding], { capability_key: "content.wordpress.publish", boundary_key: "content.wordpress.publish", resource_type: "cms_post" });
+assert.equal(selected.ok, true);
+assert.equal(selected.selected_adapter_key, "wordpress.contract-only");
+const readbackContract = buildReadbackContract({ binding, resource_ref: "cms_post:123", expected_state: { status: "draft", slug: "hello" }, readback_fields: ["status", "slug"] });
+assert.equal(readbackContract.ok, true);
+const evidence = { contract_hash: readbackContract.contract_hash, observed_state: { status: "draft", slug: "hello" }, provider_apply_allowed: false, mutation_executed: false, enforcement_cutover: false, secrets_included: false };
+assert.equal(validateReadbackEvidence({ contract: readbackContract, evidence }).ok, true);
+assert.equal(classifyAdapterDrift({ contract: readbackContract, evidence }).status, "adapter_drift_none");
+const driftEvidence = { ...evidence, observed_state: { status: "published", slug: "hello" } };
+assert.equal(validateReadbackEvidence({ contract: readbackContract, evidence: driftEvidence }).status, "readback_evidence_mismatch");
+assert.equal(classifyAdapterDrift({ contract: readbackContract, evidence: driftEvidence }).status, "adapter_drift_detected");
+console.log("platform adapter contract kernel tests passed");
