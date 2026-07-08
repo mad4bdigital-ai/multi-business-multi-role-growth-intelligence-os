@@ -16,6 +16,7 @@ assert.equal(request.ok, true);
 assert.equal(request.provider_apply_allowed, false);
 assert.equal(request.mutation_allowed, false);
 assert.equal(request.enforcement_cutover, false);
+assert.equal(request.single_use, true);
 assert.equal(request.request_scope.requested_permissions.join(","), "publish,readback");
 assert.equal(validateScopedApprovalRequest(request, { now: "2026-07-08T00:05:00.000Z" }).ok, true);
 assert.equal(validateScopedApprovalRequest(request, { now: "2026-07-08T00:20:00.000Z" }).status, "approval_request_expired");
