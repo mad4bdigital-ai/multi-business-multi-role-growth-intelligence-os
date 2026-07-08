@@ -1,5 +1,9 @@
 # DFR-006 — Deterministic Durable Workflow and Effect Commit Protocol
 
+## Dev Orchestrator durable-effect overlay
+
+The Dev Orchestrator design must treat observe/propose/delegate/act/authority modes as workflow states, not direct model privileges. Any future act or authority runtime must route through durable Workflow, Activity, Effect, approval, idempotency, reconciliation, compensation, and readback contracts. Model fallback is forbidden after visible output, tool calls, provider dispatch, external send, or any committed Effect unless the checkpoint proves remaining work only. Partial or unknown effects must enter governed recovery rather than silent retry.
+
 ## Status
 
 **Approved design. Implementation is not authorized.**
