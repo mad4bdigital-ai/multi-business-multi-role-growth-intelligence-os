@@ -51,6 +51,100 @@ export function previewText(value = "", limit = PREVIEW_CHARS) {
   return `${text.slice(0, limit)}...[truncated]`;
 }
 
+function contextKey(value) {
+  const text = String(value || "").trim();
+  return text || null;
+}
+
+async function resolveInheritedBusinessContext({
+  pool,
+  brand_key = null,
+  business_type_key = null,
+  business_activity_type_key = null,
+  activity_key = null,
+  knowledge_profile_key = null,
+} = {}) {
+  const explicitBusinessTypeKey = contextKey(business_type_key);
+  const explicitBusinessActivityTypeKey = contextKey(business_activity_type_key);
+  const explicitActivityKey = contextKey(activity_key);
+  const explicitKnowledgeProfileKey = contextKey(knowledge_profile_key);
+  const brandKey = contextKey(brand_key);
+  let brandPath = null;
+  let activity = null;
+  let businessTypeProfile = null;
+
+  if (brandKey) {
+    const [rows] = await pool.query(
+      `SELECT brand_key, business_type_key, knowledge_profile_key
+         FROM \`brand_paths\`
+        WHERE brand_key = ?
+          AND (active IS NULL OR active IN ('1', 'true', 'yes', 'active'))
+        ORDER BY updated_at DESC, id DESC
+        LIMIT 1`,
+      [brandKey]
+    ).catch(() => [[]]);
+    brandPath = rows?.[0] || null;
+  }
+
+  if (explicitBusinessActivityTypeKey || explicitActivityKey) {
+    const clauses = [];
+    const params = [];
+    if (explicitBusinessActivityTypeKey) { clauses.push("business_activity_type_key = ?"); params.push(explicitBusinessActivityTypeKey); }
+    if (explicitActivityKey) { clauses.push("activity_key = ?"); params.push(explicitActivityKey); }
+    const [rows] = await pool.query(
+      `SELECT business_activity_type_key, activity_key, business_type_key, default_knowledge_profile_key, brand_core_required
+         FROM \`business_activity_types\`
+        WHERE (${clauses.join(" OR ")})
+          AND (active IS NULL OR active IN ('1', 'true', 'yes', 'active'))
+        ORDER BY updated_at DESC, id DESC
+        LIMIT 1`,
+      params
+    ).catch(() => [[]]);
+    activity = rows?.[0] || null;
+  }
+
+  const resolvedBusinessTypeKey = explicitBusinessTypeKey
+    || contextKey(activity?.business_type_key)
+    || contextKey(brandPath?.business_type_key);
+  const resolvedKnowledgeProfileKey = explicitKnowledgeProfileKey
+    || contextKey(activity?.default_knowledge_profile_key)
+    || contextKey(brandPath?.knowledge_profile_key);
+
+  if (resolvedBusinessTypeKey) {
+    const [rows] = await pool.query(
+      `SELECT business_type_key, knowledge_profile_key, authoritative_read_home,
+              business_type_specific_read_home, shared_knowledge_read_home
+         FROM \`business_type_profiles\`
+        WHERE business_type_key = ?
+          AND (active IS NULL OR active IN ('1', 'true', 'yes', 'active'))
+        ORDER BY updated_at DESC, id DESC
+        LIMIT 1`,
+      [resolvedBusinessTypeKey]
+    ).catch(() => [[]]);
+    businessTypeProfile = rows?.[0] || null;
+  }
+
+  const finalKnowledgeProfileKey = resolvedKnowledgeProfileKey
+    || contextKey(businessTypeProfile?.knowledge_profile_key);
+  return {
+    business_type_key: resolvedBusinessTypeKey || null,
+    business_activity_type_key: explicitBusinessActivityTypeKey || contextKey(activity?.business_activity_type_key),
+    activity_key: explicitActivityKey || contextKey(activity?.activity_key),
+    knowledge_profile_key: finalKnowledgeProfileKey || null,
+    inherited_from_brand: Boolean(brandPath?.business_type_key || brandPath?.knowledge_profile_key),
+    brand_core_required: contextKey(activity?.brand_core_required) || null,
+    knowledge_architecture: {
+      authoritative_read_home: contextKey(businessTypeProfile?.authoritative_read_home),
+      business_type_specific_read_home: contextKey(businessTypeProfile?.business_type_specific_read_home),
+      shared_knowledge_read_home: contextKey(businessTypeProfile?.shared_knowledge_read_home),
+      source_tables: ["brand_paths", "business_activity_types", "business_type_profiles"],
+      secrets_included: false,
+    },
+    lifecycle_contract: "brand_business_context_is_required_for_operation_resolution_like_brand_core",
+    secrets_included: false,
+  };
+}
+
 function slug(value, fallback) {
   return String(value || fallback)
     .trim()
