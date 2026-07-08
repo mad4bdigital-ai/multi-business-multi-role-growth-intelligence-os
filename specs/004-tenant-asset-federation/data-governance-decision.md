@@ -1,5 +1,9 @@
 # DFR-003 — Layered Purpose-Bound Data Governance
 
+## Dev Orchestrator data-governance overlay
+
+The Dev Orchestrator design must preserve tenant/workspace/brand/platform/shared-infrastructure/mixed-lane separation. Mixed-lane outputs may create platform signals only through governed redaction, purpose limitation, provenance pointers, retention/retraction policy, and no raw tenant copy into platform memory. This PR authorizes design only; later runtime work must add same-cycle privacy/readback evidence before any model call, summary promotion, or cross-domain learning.
+
 ## Status
 
 **Approved design. Implementation is not authorized.**
