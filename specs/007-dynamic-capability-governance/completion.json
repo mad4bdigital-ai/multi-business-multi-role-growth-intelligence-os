@@ -182,7 +182,7 @@
         "runtime_contract_status": "fingerprint_fields_reconciled_in_openapi_by_audit_pr",
         "migration_apply_status": "verified",
         "migration_schema_readback_status": "pass",
-        "production_verification_status": "pending",
+        "production_verification_status": "verified",
         "post_merge_audit_status": "pending"
       }
     },
