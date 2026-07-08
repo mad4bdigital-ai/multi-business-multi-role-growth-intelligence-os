@@ -190,7 +190,7 @@
       "status": "implementation_prs_recorded_through_2370"
     },
     "ci": {
-      "status": "pending_this_evidence_pr"
+      "status": "release_readiness_summary_transport_and_production_parity_ci_passed"
     },
     "release_readiness": {
       "status": "pending_production_verification_and_post_merge_audit"
