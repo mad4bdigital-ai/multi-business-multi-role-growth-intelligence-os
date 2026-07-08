@@ -9,6 +9,7 @@ import {
   parseArgs,
   parseGithubPrAddLabelArgs,
   requireAdminPrincipal,
+  serializeDbControlQueryResult,
 } from "./routes/adminCliRoutes.js";
 import { inspectRepoReadOnly } from "./routes/gptToolsRoutes.js";
 
