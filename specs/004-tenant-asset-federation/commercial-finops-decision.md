@@ -1,5 +1,9 @@
 # DFR-004 — Dynamic Commercial and FinOps Transaction
 
+## Dev Orchestrator FinOps overlay
+
+The Dev Orchestrator design must keep user, tenant, platform, shared-infrastructure, and mixed-lane consumption separate. OpenRouter free-first routing is allowed only as a future runtime policy with a usage ledger, 402/429 fallback handling, explicit paid-fallback approval, and no silent cross-budget funding. Tenant budget cannot fund platform-wide improvement unless a sponsored policy is explicit and ledgered. Platform budget cannot silently fund tenant premium work.
+
 ## Status
 
 **Approved design. Implementation is not authorized.**
