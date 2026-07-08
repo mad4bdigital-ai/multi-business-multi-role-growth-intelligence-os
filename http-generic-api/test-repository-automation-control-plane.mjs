@@ -199,6 +199,25 @@ const hygienePool = {
     throw new Error(`unexpected hygiene query ${sql}`);
   },
 };
+const chunkedInventoryBody = JSON.stringify({
+  ok: true,
+  result: {
+    body: {
+      ok: true,
+      data: {
+        data: {
+          repository: {
+            defaultBranchRef: { name: "main", target: { oid: nestedRuntimeSha, committedDate: "2026-07-07T00:00:00Z" } },
+            refs: { nodes: [] },
+            openPullRequests: { nodes: [] },
+            recentPullRequests: { nodes: [] },
+          },
+        },
+      },
+    },
+  },
+});
+let sawInventoryChunkRead = false;
 const hygiene = await scanRepositoryAutomationHygiene({
   include_github: true,
   owner: "mad4bdigital-ai",
