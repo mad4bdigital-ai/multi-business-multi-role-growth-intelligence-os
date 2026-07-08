@@ -855,7 +855,7 @@ async function executeDeploymentParity(input, dispatch) {
   };
 }
 
-async function executeCiAutoRecovery(input, dispatch, suppliedArgs) {
+export async function executeCiAutoRecovery(input, dispatch, suppliedArgs = {}) {
   if (!input.pull_number) return { ok: false, status: "awaiting_input", missing_required_fields: ["pull_number"], secrets_included: false };
   const gateArgs = { owner: input.owner, repo: input.repo, pull_number: input.pull_number, required_checks: input.required_checks || REQUIRED_CHECKS };
   const before = await dispatchAndCollect(dispatch, "github_pr_ci_gate", gateArgs);
@@ -873,23 +873,26 @@ async function executeCiAutoRecovery(input, dispatch, suppliedArgs) {
       gate,
       missing_required_fields: ["step_args.ci_auto_recovery.dispatch_args.mutation_approval"],
       required_dispatch: {
-        parent_action_key: "github_actions_status",
-        endpoint_key: "createWorkflowDispatch",
-        path_params: { owner: input.owner, repo: input.repo, workflow_id: suppliedArgs?.workflow_id || "ci.yml" },
-        body: { ref: input.branch, inputs: {} },
+        tool_key: "github_rest_endpoint_dispatch",
+        tool_args: {
+          parent_action_key: "github_api_mcp",
+          endpoint_key: "github_create_workflow_dispatch",
+          path_params: { owner: input.owner, repo: input.repo, workflow_id: suppliedArgs?.workflow_id || "ci.yml" },
+          body: { ref: input.branch, inputs: {} },
+        },
       },
       secrets_included: false,
     };
   }
   const dispatchArgs = mergeArgs({
-    parent_action_key: "github_actions_status",
-    endpoint_key: "createWorkflowDispatch",
+    parent_action_key: "github_api_mcp",
+    endpoint_key: "github_create_workflow_dispatch",
     path_params: { owner: input.owner, repo: input.repo, workflow_id: suppliedArgs?.workflow_id || "ci.yml" },
     body: { ref: input.branch, inputs: {} },
     credential_scope: "platform",
     timeout_seconds: 120,
   }, suppliedArgs.dispatch_args);
-  const dispatched = await dispatchAndCollect(dispatch, "runtime_endpoint_call", dispatchArgs);
+  const dispatched = await dispatchAndCollect(dispatch, "github_rest_endpoint_dispatch", { tool_args: dispatchArgs });
   if (!dispatched.ok) return { ok: false, status: "dispatch_failed", dispatch: safeSummary(dispatched.body), secrets_included: false };
   const after = await dispatchAndCollect(dispatch, "github_pr_ci_gate", gateArgs);
   return {
