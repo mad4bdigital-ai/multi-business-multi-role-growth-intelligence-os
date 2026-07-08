@@ -31,6 +31,8 @@ This design builds on the DB-backed route lifecycle profile work introduced in P
 - `spec.md` — user stories, requirements, non-goals, and success criteria.
 - `plan.md` — implementation strategy and phased PR plan.
 - `architecture.md` — service boundaries, route channels, state machine, and data flow.
+- `connection-maps.md` — Mermaid connection diagrams, trust boundaries, and failure maps.
+- `usage-model.md` — optimal usage journeys, UI states, and anti-patterns.
 - `data-model.md` — proposed tables, records, and retention rules.
 - `migration-and-compatibility.md` — additive migration and compatibility strategy.
 - `operational-model.md` — diagnostics, SLOs, alerts, runbooks, and rollback.
