@@ -805,8 +805,8 @@ async function executeDocsAgentStabilization(input, dispatch) {
     credential_scope: "platform",
     timeout_seconds: 60,
   };
-  const first = normalizeDispatchResult(await dispatch("runtime_endpoint_call", args));
-  const second = normalizeDispatchResult(await dispatch("runtime_endpoint_call", args));
+  const first = await dispatchAndCollect(dispatch, "runtime_endpoint_call", args);
+  const second = await dispatchAndCollect(dispatch, "runtime_endpoint_call", args);
   const a = githubData(first)?.data || githubData(first);
   const b = githubData(second)?.data || githubData(second);
   const headA = compact(a?.head?.sha || a?.headRefOid || "", 64);
