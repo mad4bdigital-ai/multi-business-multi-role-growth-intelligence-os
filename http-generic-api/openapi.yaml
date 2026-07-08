@@ -19778,6 +19778,18 @@ paths:
                 target_key:
                   type: string
                   description: Alias for brand_key for callers that resolve a target before the turn is recorded.
+                business_type_key:
+                  type: string
+                  description: Optional business type context. When omitted, it may be inherited from brand_paths for the resolved brand.
+                business_activity_type_key:
+                  type: string
+                  description: Optional business activity type context for operation resolution and knowledge architecture selection.
+                activity_key:
+                  type: string
+                  description: Optional activity alias used by context resolvers when business_activity_type_key is not supplied.
+                knowledge_profile_key:
+                  type: string
+                  description: Optional knowledge profile override. When omitted, it may be inherited from activity or business type profiles.
       responses:
         "200":
           description: Turn write result with Drive anchor and archive status
