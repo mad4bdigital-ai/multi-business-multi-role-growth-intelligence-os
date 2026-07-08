@@ -601,6 +601,9 @@ export async function recordGptSessionTurn({
     // Keep caller-provided session if fresh readback is unavailable.
   }
 
+  const turnWorkspaceKey = String(workspace_key || session.workspace_key || "").trim() || null;
+  const turnBrandKey = String(brand_key || session.brand_key || "").trim() || null;
+
   const timestamp = deps.now().toISOString();
   const turnId = randomUUID();
   const eventId = randomUUID();
