@@ -388,6 +388,8 @@ function testRepositoryContracts() {
   assert.match(gptSessionRoutes, /workspace_key,\n\s*brand_key,/);
   assert.match(gptSessionRoutes, /workspace_key: turn\.workspace_key/);
   assert.match(gptSessionRoutes, /brand_key: turn\.brand_key/);
+  assert.match(gptSessionRoutes, /session_not_found/);
+  assert.match(gptSessionRoutes, /session_closed/);
   assert.match(sessionArchiveService, /turnWorkspaceKey = String\(workspace_key \|\| session\.workspace_key/);
   assert.match(sessionArchiveService, /turnBrandKey = String\(brand_key \|\| session\.brand_key/);
   assert.match(sessionArchiveService, /turnWorkspaceKey/);
