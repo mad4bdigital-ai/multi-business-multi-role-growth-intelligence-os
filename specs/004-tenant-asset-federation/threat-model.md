@@ -1,5 +1,9 @@
 # Threat Model
 
+## Dev Orchestrator threat overlay
+
+The Dev Orchestrator design bundle adds a design-only threat overlay documented in `dev-orchestrator-gap-closure-risk-register.md` and `dev-orchestrator-spec-kit-coverage-matrix.md`. The additional threats include prompt-to-tool escalation, hidden paid fallback, tenant data leakage into platform memory, OpenRouter Management API misuse, runtime-key/management-key confusion, SDK tracing or session leakage, sandbox/shell/file-tool escalation, sub-agent recursion, self-delegation bypass, fallback after committed effects, partial/unknown effect recovery, stale evidence pointers, and approval cards that hide cost/risk/data scope. These threats are not runtime-enabled by PR #1898; later implementation PRs must add negative tests and same-cycle readback before any runtime activation.
+
 ## 1. Scope
 
 This threat model covers:
