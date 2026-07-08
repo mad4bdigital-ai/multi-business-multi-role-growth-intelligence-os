@@ -828,8 +828,8 @@ async function executeDocsAgentStabilization(input, dispatch) {
 }
 
 async function executeDeploymentParity(input, dispatch) {
-  const local = normalizeDispatchResult(await dispatch("repo_inspect", { action: "git_status", max_chars: 12000 }));
-  const remote = normalizeDispatchResult(await dispatch("github_rest_endpoint_dispatch", {
+  const local = await dispatchAndCollect(dispatch, "repo_inspect", { action: "git_status", max_chars: 12000 });
+  const remote = await dispatchAndCollect(dispatch, "github_rest_endpoint_dispatch", {
     tool_args: {
       parent_action_key: "github_api_mcp",
       endpoint_key: "github_get_reference",
@@ -837,7 +837,7 @@ async function executeDeploymentParity(input, dispatch) {
       credential_scope: "platform",
       timeout_seconds: 60,
     },
-  }));
+  });
   const localBody = toolBody(local)?.result || toolBody(local);
   const productionSha = compact(localBody?.head_sha || "", 64);
   const mainSha = githubRefSha(remote);
