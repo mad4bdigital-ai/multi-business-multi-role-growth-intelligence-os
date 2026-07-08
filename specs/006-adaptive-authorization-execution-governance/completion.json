@@ -4,73 +4,28 @@
   "title": "Adaptive Authorization and Execution Governance",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-08T00:30:00Z",
-  "requirements": {
-    "migration": true,
-    "production_verification": true,
-    "post_merge_audit": true
-  },
+  "last_updated_at": "2026-07-08T12:30:00Z",
   "delivery": {
-    "specification_branch": {
-      "pull_request": 1936,
-      "merge_sha": "809e81f9dc3c9198a2a4c2d45b4cd4177ef7b158",
-      "status": "merged_and_cleaned"
-    },
     "implementation_prs": [
-      {
-        "sequence": 1,
-        "role": "state_semantics_and_operational_projections",
-        "pull_request": 1936,
-        "merge_sha": "809e81f9dc3c9198a2a4c2d45b4cd4177ef7b158",
-        "status": "merged"
-      },
-      {
-        "sequence": 2,
-        "role": "decision_plane_capability_resolver_and_shadow_metadata",
-        "pull_request": 2290,
-        "merge_sha": "332875c0143c622c287f4629f725381ccda5fe84",
-        "status": "merged_and_branch_deleted"
-      },
-      {
-        "sequence": 3,
-        "role": "dynamic_shared_enforcement_kernel",
-        "pull_request": 2322,
-        "merge_sha": "a5ae2aefdafbc2e786c7dd90f9469d85d9784b17",
-        "status": "merged_and_branch_deleted"
-      },
-      {
-        "sequence": 4,
-        "role": "revision_bound_execution_envelopes",
-        "pull_request": null,
-        "merge_sha": null,
-        "status": "in_progress"
-      }
+      { "sequence": 1, "role": "state_semantics_and_operational_projections", "pull_request": 1936, "merge_sha": "809e81f9dc3c9198a2a4c2d45b4cd4177ef7b158", "status": "merged" },
+      { "sequence": 2, "role": "decision_plane_capability_resolver_and_shadow_metadata", "pull_request": 2290, "merge_sha": "332875c0143c622c287f4629f725381ccda5fe84", "status": "merged_and_branch_deleted" },
+      { "sequence": 3, "role": "dynamic_shared_enforcement_kernel", "pull_request": 2322, "merge_sha": "a5ae2aefdafbc2e786c7dd90f9469d85d9784b17", "status": "merged_and_branch_deleted" },
+      { "sequence": 4, "role": "revision_bound_execution_envelopes", "pull_request": 2346, "merge_sha": "dfd1fb9378997cad7fdfb97ff0ad702922ae0809", "status": "merged_and_branch_deleted" },
+      { "sequence": 5, "role": "scoped_approval_requests_and_append_only_decisions", "pull_request": null, "merge_sha": null, "status": "in_progress" }
     ],
     "remaining_task_loop": {
-      "started_at": "2026-07-07T00:45:00Z",
-      "status": "t021_open_pr_in_progress",
-      "evidence_path": "specs/006-adaptive-authorization-execution-governance/remaining-task-loop-2026-07-07.md",
+      "status": "t022_open_pr_in_progress",
       "provider_mutation": false,
       "migration_execution": "not_started",
       "enforcement_change": false
     },
-    "next_pr": {
-      "sequence": 5,
-      "scope": "scoped_approval_requests_and_append_only_decisions_after_t021_merge",
-      "status": "blocked_until_t021_merged_and_readback_complete"
-    }
+    "next_pr": { "sequence": 6, "scope": "stale_envelope_invalidation_idempotency_and_concurrency_after_t022_merge", "status": "blocked_until_t022_merged_and_readback_complete" }
   },
   "evidence": {
-    "decision_plane": {
-      "status": "merged",
-      "completed_tasks": ["T010", "T011", "T012", "T013", "T014", "T015"],
-      "pull_request": 2290,
-      "merge_sha": "332875c0143c622c287f4629f725381ccda5fe84"
-    },
     "execution_governance": {
       "status": "in_progress",
-      "completed_tasks": ["T020", "T021"],
-      "latest_task": "T021",
+      "completed_tasks": ["T020", "T021", "T022"],
+      "latest_task": "T022",
       "provider_mutation_allowed": false,
       "enforcement_cutover_allowed": false,
       "migration_execution_authorized": false,
@@ -78,16 +33,13 @@
     },
     "implementation": {
       "status": "in_progress",
-      "completed_tasks": ["T010", "T011", "T012", "T013", "T014", "T015", "T020", "T021"],
-      "next_task_scope": "T022 scoped approval requests and append-only decisions",
+      "completed_tasks": ["T010", "T011", "T012", "T013", "T014", "T015", "T020", "T021", "T022"],
+      "next_task_scope": "T023 stale-envelope invalidation, idempotency and concurrency controls",
       "provider_mutation_allowed": false,
       "enforcement_change_allowed": false,
       "new_authority_tables_allowed": false
     },
-    "production_rollout": {
-      "status": "pending",
-      "reason": "T022 through T053, pilots, migrations, production verification, rollback rehearsal and post-merge audit remain incomplete."
-    }
+    "production_rollout": { "status": "pending", "reason": "T023 through T053, pilots, migrations, production verification, rollback rehearsal and post-merge audit remain incomplete." }
   },
   "sensitive_values_included": false
 }
