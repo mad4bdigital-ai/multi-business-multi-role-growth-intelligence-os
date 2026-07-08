@@ -393,6 +393,36 @@ function safeOAuthClientEvidence(credentials = {}) {
   };
 }
 
+function safeOAuthCodeTimingEvidence(code, nowMs = Date.now()) {
+  const raw = String(code || "");
+  if (!raw) return { present: false, decoded: false };
+  const decoded = jwt.decode(raw);
+  if (!decoded || typeof decoded !== "object") return { present: true, decoded: false };
+
+  const iatSeconds = Number(decoded.iat);
+  const expSeconds = Number(decoded.exp);
+  const iatMs = Number.isFinite(iatSeconds) ? iatSeconds * 1000 : null;
+  const expMs = Number.isFinite(expSeconds) ? expSeconds * 1000 : null;
+  const ageSeconds = iatMs === null ? null : Math.round((nowMs - iatMs) / 1000);
+  const expiresInSeconds = expMs === null ? null : Math.round((expMs - nowMs) / 1000);
+
+  return {
+    present: true,
+    decoded: true,
+    iat_present: iatMs !== null,
+    exp_present: expMs !== null,
+    ttl_seconds: iatMs !== null && expMs !== null ? Math.round((expMs - iatMs) / 1000) : null,
+    age_seconds: ageSeconds,
+    expires_in_seconds: expiresInSeconds,
+    expired_by_seconds: expiresInSeconds === null ? null : Math.max(0, -expiresInSeconds),
+    jti_present: Boolean(decoded.jti),
+    purpose_present: Boolean(decoded.purpose),
+    user_id_present: Boolean(decoded.user_id),
+    tenant_id_present: Boolean(decoded.tenant_id),
+    redirect_uri: safeOAuthRedirectEvidence(decoded.redirect_uri),
+  };
+}
+
 async function recordOAuthTokenDiagnostic(queryFn, event = {}) {
   try {
     const now = new Date();
@@ -406,6 +436,7 @@ async function recordOAuthTokenDiagnostic(queryFn, event = {}) {
       duration_ms: durationMs,
       grant_type: event.grant_type || null,
       code_present: Boolean(event.code_present),
+      code_timing: event.code_timing || null,
       redirect_uri: event.redirect_uri || null,
       code_redirect_uri: event.code_redirect_uri || null,
       client: event.client || null,
@@ -766,6 +797,7 @@ export function buildAuthRoutes(deps) {
       tokenLogContext = {
         grant_type: grantType || null,
         code_present: Boolean(code),
+        code_timing: safeOAuthCodeTimingEvidence(code, startedAtMs),
         redirect_uri: safeOAuthRedirectEvidence(redirectUri),
         client: safeOAuthClientEvidence(credentials),
       };
