@@ -353,13 +353,14 @@ export async function buildSupersededBranchCleanupEvidence(args = {}, deps = {})
   const generatedPrefixes = uniqueStrings(policy.superseded_branch_delete_generated_path_prefixes || []);
   const generatedFiles = branchFiles.filter((file) => generatedPrefixes.some((prefix) => file.startsWith(prefix)));
   const coveredFiles = branchFiles.filter((file) => replacementFiles.includes(file));
-  const nonPortEvidence = evaluateIntentionalNonPortEvidence({
+  const coverageResolutionEvidence = await evaluateCoverageResolutions({
     branchFiles,
     replacementEvidence,
-    evidenceRows: intentionalNonPortInput,
+    resolutionRows: coverageResolutionInput,
+    deps,
   });
-  const intentionalNonPortFiles = nonPortEvidence.files;
-  const uncoveredFiles = branchFiles.filter((file) => !coveredFiles.includes(file) && !generatedFiles.includes(file) && !intentionalNonPortFiles.includes(file));
+  const coverageResolvedFiles = coverageResolutionEvidence.files;
+  const uncoveredFiles = branchFiles.filter((file) => !coveredFiles.includes(file) && !generatedFiles.includes(file) && !coverageResolvedFiles.includes(file));
   const orphanContentEvidence = allowOrphanBranch
     ? await Promise.all(branchFiles.filter((file) => !generatedFiles.includes(file)).map(async (file) => {
         const contentPath = `/contents/${encodeRef(file)}`;
