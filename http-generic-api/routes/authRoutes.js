@@ -841,7 +841,10 @@ export function buildAuthRoutes(deps) {
         scope: TENANT_GPT_SCOPE,
         activation_context: codePayload.activation_context || {},
       });
-    } catch {
+    } catch (err) {
+      logTokenExchange("failed", err?.name === "TokenExpiredError" ? "oauth_code_expired" : "oauth_code_invalid_or_exception", 400, {
+        exception_name: err?.name || null,
+      });
       return res.status(400).json({ error: "invalid_grant", error_description: "OAuth code is invalid or expired." });
     }
   });
