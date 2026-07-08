@@ -614,7 +614,6 @@ export function buildAuthRoutes(deps) {
     const redirectUri = String(req.query.redirect_uri || "");
     const state = String(req.query.state || "");
     const activationContext = parseActivationContext(req.query);
-    const canonicalRedirectUri = canonicalizeTenantGptRedirectUri(redirectUri);
 
     const query = (sql, params) => resolvePool().query(sql, params);
     if (!(await isAllowedTenantGptRedirectUri(redirectUri, query))) {
