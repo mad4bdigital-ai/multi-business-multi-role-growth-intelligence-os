@@ -87,8 +87,22 @@ async function getText(baseUrl, path, { headers = {} } = {}) {
   };
 }
 
+const oauthTokenDiagnostics = [];
+
 const oauthClientPool = {
   async query(sql, params) {
+    if (sql.includes("INSERT INTO `execution_log`")) {
+      oauthTokenDiagnostics.push({
+        execution_status: params[4],
+        failure_reason: params[5],
+        output_summary: JSON.parse(params[6]),
+        action_key: params[7],
+        endpoint_key: params[8],
+        parent_action_key: params[9],
+        runtime_evidence_json: JSON.parse(params[10]),
+      });
+      return [{ affectedRows: 1 }];
+    }
     if (sql.includes("FROM `platform_runtime_config`")) {
       return [[{
         config_json: JSON.stringify({
