@@ -65,6 +65,11 @@ assert(routeLifecyclePolicy.includes('ADMIN_BREAK_GLASS: "admin_break_glass"'), 
 assert(routeLifecyclePolicy.includes('TENANT_AUTH_HOST: "tenant_auth_host"'), 'local connector route lifecycle policy must model tenant auth-host routing separately');
 assert(routeLifecyclePolicy.includes('host: "connector.mad4b.com"'), 'admin break-glass lifecycle must retain connector.mad4b.com host identity');
 assert(routeLifecyclePolicy.includes('host: "auth.mad4b.com"'), 'tenant lifecycle must retain auth-host identity');
+assert(routeLifecyclePolicy.includes('local_connector_route_lifecycle_profiles'), 'route lifecycle must be backed by a DB profile table');
+assert(routeLifecyclePolicy.includes('scope_type') && routeLifecyclePolicy.includes("'global','tenant','user','device'"), 'route lifecycle DB profiles must support global, tenant, user, and device scopes');
+assert(routeLifecyclePolicy.includes('loadLocalConnectorRouteLifecycleProfile'), 'route lifecycle must load profile overlays from DB');
+assert(routeLifecyclePolicy.includes('buildLocalConnectorRouteLifecycleFromDb'), 'install and auto-install surfaces must use the DB-backed lifecycle resolver');
+assert(routeLifecyclePolicy.includes('applied_profiles'), 'route lifecycle readback must expose applied profile provenance without secrets');
 assert(routeLifecyclePolicy.includes('selection_barrier: "tenant_id+user_id+canonical_device_id"'), 'tenant auth-host device selection must use tenant/user/canonical device barrier');
 assert(routeLifecyclePolicy.includes('DEVICE_FORMATTED') && routeLifecyclePolicy.includes('WINDOWS_REINSTALLED') && routeLifecyclePolicy.includes('DEVICE_REPLACED'), 'route lifecycle must cover disaster recovery cases for format, Windows reinstall, and device replacement');
 assert(routeLifecyclePolicy.includes('MULTIPLE_DEVICES_TARGET_SELECTION'), 'route lifecycle must cover multiple-device target selection');
