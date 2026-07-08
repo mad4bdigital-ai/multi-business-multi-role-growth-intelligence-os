@@ -74,8 +74,9 @@ assert(routeLifecyclePolicy.includes('selection_barrier: "tenant_id+user_id+cano
 assert(routeLifecyclePolicy.includes('DEVICE_FORMATTED') && routeLifecyclePolicy.includes('WINDOWS_REINSTALLED') && routeLifecyclePolicy.includes('DEVICE_REPLACED'), 'route lifecycle must cover disaster recovery cases for format, Windows reinstall, and device replacement');
 assert(routeLifecyclePolicy.includes('MULTIPLE_DEVICES_TARGET_SELECTION'), 'route lifecycle must cover multiple-device target selection');
 assert(routeLifecyclePolicy.includes('do_not_escalate_tenant_route_to_admin_route_repair_tunnel_or_dns'), 'route lifecycle must not silently escalate tenant path to break-glass path');
-assert(installRoutes.includes('buildLocalConnectorRouteLifecycle'), 'installer response must include route lifecycle metadata');
-assert(installRoutes.includes('target_selection: localConnectorTargetSelectionPolicy'), 'installer response must include explicit target selection metadata');
+assert(installRoutes.includes('buildLocalConnectorRouteLifecycleFromDb'), 'installer response must include DB-backed route lifecycle metadata');
+assert(installRoutes.includes('route_lifecycle: routeLifecycle'), 'installer response must expose resolved route lifecycle metadata');
+assert(installRoutes.includes('target_selection: routeLifecycle.target'), 'installer response must expose explicit target selection metadata from the resolved profile');
 assert(installRoutes.includes('shell_aliases'), 'installer route must support dynamic helper shell alias grants');
 assert(installRoutes.includes('normalizePermissionGrants({ ...(req.body?.permission_grants || {}), capabilities: req.body?.capabilities || [] })'), 'device-scoped installer link must normalize requested permission grants');
 assert(installRoutes.includes('permission_grants: permissionGrants'), 'installer download token must propagate permission grants without secrets');
