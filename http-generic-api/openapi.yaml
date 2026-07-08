@@ -4510,6 +4510,68 @@ paths:
         '403': { description: Resource access forbidden }
         '404': { description: Resource not found }
         '409': { description: Operation conflicts with lifecycle or policy }
+    post:
+      operationId: writeGptSessionTurns
+      x-tenant-gpt-operationId: writeSessionTurns
+      x-openai-isConsequential: false
+      summary: Append multiple turns to a customer_sessions archive
+      description: >
+        Appends multiple conversation turns to an active customer_sessions row. Each turn may carry optional
+        workspace_key, brand_key, or target_key context so one conversation can span multiple brands or workspaces
+        without rebinding the session container.
+      tags: [session-archive]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [turns]
+              properties:
+                turns:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [role, content]
+                    properties:
+                      role: { type: string, enum: [user, assistant, tool] }
+                      content: { type: string }
+                      action_key: { type: string }
+                      workspace_key:
+                        type: string
+                        description: Optional turn-level workspace context. When omitted, the session default workspace is used.
+                      brand_key:
+                        type: string
+                        description: Optional turn-level brand context. When omitted, the session default brand is used.
+                      target_key:
+                        type: string
+                        description: Alias for brand_key for callers that resolve a target before the turn is recorded.
+      responses:
+        '200':
+          description: Batch turn write result with archive status.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400': { description: Missing turns or invalid turn payload }
+        '401': { description: Authentication required }
+        '403': { description: Session belongs to a different user }
+        '404': { description: Session not found }
+        '409': { description: Cannot add turns to a closed session }
+        '500': { description: Turn write failure }
   /gpt/sessions/{id}/summary:
     get:
       operationId: getGptSessionsIdSummary
