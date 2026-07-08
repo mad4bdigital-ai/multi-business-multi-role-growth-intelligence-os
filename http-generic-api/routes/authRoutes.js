@@ -866,7 +866,14 @@ export function buildAuthRoutes(deps) {
         { clientId: clientValidation.client_id }
       );
 
-      logTokenExchange("success", null, 200);
+      res.setHeader("Cache-Control", "no-store");
+      res.setHeader("Pragma", "no-cache");
+      logTokenExchange("success", null, 200, {
+        access_token: {
+          token_type: "Bearer",
+          length: accessToken.length,
+        },
+      });
       return res.status(200).json({
         access_token: accessToken,
         token_type: "Bearer",
