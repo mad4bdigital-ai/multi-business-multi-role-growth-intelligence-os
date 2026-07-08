@@ -2,6 +2,26 @@ import { randomUUID, createHash } from "node:crypto";
 
 const DEFAULT_REUSE_WINDOW_HOURS = 24;
 
+export const ACTIVATION_CONTEXT_LIFECYCLE_CONTRACT = Object.freeze({
+  session_container_scope: "conversation",
+  turn_context_scope: "operation_resolution",
+  inherited_brand_context: Object.freeze([
+    "business_type_key",
+    "business_activity_type_key",
+    "activity_key",
+    "knowledge_profile_key",
+  ]),
+  inheritance_sources: Object.freeze([
+    "brand_paths",
+    "business_activity_types",
+    "business_type_profiles",
+  ]),
+  invariant: "brand-derived business/activity/knowledge context is required for operation resolution like Brand Core, but must not rebind the whole customer_sessions container",
+  admin_surface_required: true,
+  tenant_surface_required: true,
+  secrets_included: false,
+});
+
 function compactError(err, fallback = "activation_session_lifecycle_failed") {
   return { code: err?.code || fallback, message: err?.message || String(err || fallback) };
 }
