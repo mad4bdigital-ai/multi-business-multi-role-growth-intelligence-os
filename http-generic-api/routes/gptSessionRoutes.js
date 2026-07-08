@@ -278,7 +278,11 @@ function validateTurnInput(turn = {}) {
   }
   const workspace_key = String(turn.workspace_key || turn.workspaceKey || "").trim() || null;
   const brand_key = String(turn.brand_key || turn.brandKey || turn.target_key || turn.targetKey || "").trim() || null;
-  return { ok: true, turn: { role, content, action_key: turn.action_key || null, workspace_key, brand_key } };
+  const business_type_key = String(turn.business_type_key || turn.businessTypeKey || "").trim() || null;
+  const business_activity_type_key = String(turn.business_activity_type_key || turn.businessActivityTypeKey || turn.activity_type_key || turn.activityTypeKey || "").trim() || null;
+  const activity_key = String(turn.activity_key || turn.activityKey || "").trim() || null;
+  const knowledge_profile_key = String(turn.knowledge_profile_key || turn.knowledgeProfileKey || "").trim() || null;
+  return { ok: true, turn: { role, content, action_key: turn.action_key || null, workspace_key, brand_key, business_type_key, business_activity_type_key, activity_key, knowledge_profile_key } };
 }
 
 async function resolveWritableSession(pool, req) {
