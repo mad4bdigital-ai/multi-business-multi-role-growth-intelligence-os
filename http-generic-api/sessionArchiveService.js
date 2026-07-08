@@ -701,6 +701,27 @@ export async function recordGptSessionTurn({
 
   const turnWorkspaceKey = String(workspace_key || session.workspace_key || "").trim() || null;
   const turnBrandKey = String(brand_key || session.brand_key || "").trim() || null;
+  const businessContext = await resolveInheritedBusinessContext({
+    pool,
+    brand_key: turnBrandKey,
+    business_type_key,
+    business_activity_type_key,
+    activity_key,
+    knowledge_profile_key,
+  });
+  const turnContextStack = {
+    tenant_id: session.tenant_id || PLATFORM_TENANT_ID,
+    user_id: session.user_id || null,
+    workspace_key: turnWorkspaceKey,
+    brand_key: turnBrandKey,
+    business_type_key: businessContext.business_type_key,
+    business_activity_type_key: businessContext.business_activity_type_key,
+    activity_key: businessContext.activity_key,
+    knowledge_profile_key: businessContext.knowledge_profile_key,
+    inherited_from_brand: businessContext.inherited_from_brand,
+    lifecycle_contract: businessContext.lifecycle_contract,
+    secrets_included: false,
+  };
 
   const timestamp = deps.now().toISOString();
   const turnId = randomUUID();
