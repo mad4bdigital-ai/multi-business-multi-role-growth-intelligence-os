@@ -72,7 +72,7 @@
           "openapi_fingerprint_contract_reconciled_by_audit_pr": true,
           "migration_apply_verified": true,
           "migration_schema_readback_verified": true,
-          "production_runtime_parity_verified": false
+          "production_runtime_parity_verified": true
         }
       },
       {
