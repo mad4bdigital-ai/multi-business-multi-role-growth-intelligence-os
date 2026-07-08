@@ -4510,6 +4510,68 @@ paths:
         '403': { description: Resource access forbidden }
         '404': { description: Resource not found }
         '409': { description: Operation conflicts with lifecycle or policy }
+    post:
+      operationId: writeGptSessionTurns
+      x-tenant-gpt-operationId: writeSessionTurns
+      x-openai-isConsequential: false
+      summary: Append multiple turns to a customer_sessions archive
+      description: >
+        Appends multiple conversation turns to an active customer_sessions row. Each turn may carry optional
+        workspace_key, brand_key, or target_key context so one conversation can span multiple brands or workspaces
+        without rebinding the session container.
+      tags: [session-archive]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [turns]
+              properties:
+                turns:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [role, content]
+                    properties:
+                      role: { type: string, enum: [user, assistant, tool] }
+                      content: { type: string }
+                      action_key: { type: string }
+                      workspace_key:
+                        type: string
+                        description: Optional turn-level workspace context. When omitted, the session default workspace is used.
+                      brand_key:
+                        type: string
+                        description: Optional turn-level brand context. When omitted, the session default brand is used.
+                      target_key:
+                        type: string
+                        description: Alias for brand_key for callers that resolve a target before the turn is recorded.
+      responses:
+        '200':
+          description: Batch turn write result with archive status.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400': { description: Missing turns or invalid turn payload }
+        '401': { description: Authentication required }
+        '403': { description: Session belongs to a different user }
+        '404': { description: Session not found }
+        '409': { description: Cannot add turns to a closed session }
+        '500': { description: Turn write failure }
   /gpt/sessions/{id}/summary:
     get:
       operationId: getGptSessionsIdSummary
@@ -19647,6 +19709,43 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
       security:
         - backendBearerAuth: []
+  /sessions:
+    get:
+      operationId: listSessions
+      summary: List customer session archives
+      description: >
+        Lists customer_sessions archive containers. By default filters use session default context.
+        Set context_scope to turn to match sessions that contain turns for the supplied workspace_key
+        or brand_key, allowing one conversation to span multiple brands or workspaces.
+      tags: [session-archive]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: context_scope
+          in: query
+          schema:
+            type: string
+            enum: [session, turn, any]
+            default: session
+          description: Whether workspace_key and brand_key filters apply to session defaults, turn-level context, or either.
+        - name: workspace_key
+          in: query
+          schema: { type: string }
+          description: Optional workspace context filter.
+        - name: brand_key
+          in: query
+          schema: { type: string }
+          description: Optional brand context filter.
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        '200': { description: Session list result }
+        '400': { description: Invalid context_scope or query parameter }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '500': { description: Session list failure }
   /gpt/sessions/{id}/turn:
     post:
       tags: [session-archive]
@@ -19670,6 +19769,15 @@ paths:
                 role: { type: string, enum: [user, assistant, tool] }
                 content: { type: string }
                 action_key: { type: string }
+                workspace_key:
+                  type: string
+                  description: Optional turn-level workspace context. When omitted, the session default workspace is used.
+                brand_key:
+                  type: string
+                  description: Optional turn-level brand context. When omitted, the session default brand is used.
+                target_key:
+                  type: string
+                  description: Alias for brand_key for callers that resolve a target before the turn is recorded.
       responses:
         "200":
           description: Turn write result with Drive anchor and archive status

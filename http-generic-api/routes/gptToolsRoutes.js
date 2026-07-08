@@ -155,6 +155,31 @@ export function resolveGptSessionPin(req, args = {}) {
   return value ? String(value).trim() : null;
 }
 
+export function resolveGptSessionContext(req, args = {}) {
+  const body = args && typeof args === "object" ? args : {};
+  const workspaceCandidates = [
+    body.workspace_key,
+    body.workspaceKey,
+    body._workspace_key,
+    req?.headers?.["x-workspace-key"],
+  ];
+  const brandCandidates = [
+    body.brand_key,
+    body.brandKey,
+    body.target_key,
+    body.targetKey,
+    body._brand_key,
+    req?.headers?.["x-brand-key"],
+    req?.headers?.["x-target-key"],
+  ];
+  const workspace = workspaceCandidates.find((candidate) => String(candidate || "").trim());
+  const brand = brandCandidates.find((candidate) => String(candidate || "").trim());
+  return {
+    workspace_key: workspace ? String(workspace).trim() : null,
+    brand_key: brand ? String(brand).trim() : null,
+  };
+}
+
 async function countConversationTurns(pool, sessionId) {
   const [[row]] = await pool.query(
     `SELECT
@@ -195,8 +220,9 @@ async function findActiveSessionForCaller(pool, req, args = {}, options = {}) {
   const tenantId = String(req?.auth?.tenant_id || PLATFORM_TENANT_ID);
   const userId = req?.auth?.user_id || null;
   const pinnedSessionId = resolveGptSessionPin(req, args);
+  const { workspace_key: workspaceKey, brand_key: brandKey } = resolveGptSessionContext(req, args);
   const allowUncapturedConversation = options.allowUncapturedConversation === true;
-  const baseSelect = `SELECT session_id, tenant_id, user_id, originator, session_status, started_at,
+  const baseSelect = `SELECT session_id, tenant_id, user_id, workspace_key, brand_key, originator, session_status, started_at,
             drive_folder_id, drive_doc_id, drive_doc_url, drive_doc_part_index, drive_doc_part_count,
             drive_jsonl_id, drive_jsonl_url
        FROM \`customer_sessions\``;
@@ -231,9 +257,12 @@ async function findActiveSessionForCaller(pool, req, args = {}, options = {}) {
         AND tenant_id = ?
         AND (user_id <=> ?)
         AND session_status NOT IN ('completed', 'closed')
-      ORDER BY started_at DESC
+      ORDER BY
+        CASE WHEN (? IS NOT NULL AND workspace_key = ?) THEN 0 ELSE 1 END,
+        CASE WHEN (? IS NOT NULL AND brand_key = ?) THEN 0 ELSE 1 END,
+        started_at DESC
       LIMIT 5`,
-    [tenantId, userId]
+    [tenantId, userId, workspaceKey, workspaceKey, brandKey, brandKey]
   );
   for (const row of rows || []) {
     const counts = await countConversationTurns(pool, row.session_id);
@@ -300,6 +329,7 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       truncatedResult,
     ].join("\n");
 
+    const { workspace_key: workspaceKey, brand_key: brandKey } = resolveGptSessionContext(req, args);
     const writeback = await recordGptSessionTurn({
       pool,
       session,
@@ -307,6 +337,8 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       content,
       action_key: toolKey,
       turnIndex,
+      workspace_key: workspaceKey,
+      brand_key: brandKey,
     });
     return { ok: true, ...writeback };
   } catch (err) {

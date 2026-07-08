@@ -73,6 +73,14 @@ function queryStringValue(value) {
   return String(value || "").trim();
 }
 
+function queryContextValue(query = {}, keys = []) {
+  for (const key of keys) {
+    const value = queryStringValue(query?.[key]);
+    if (value) return value;
+  }
+  return null;
+}
+
 function asCount(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -174,7 +182,8 @@ async function countQuery(surface, sql, params = [], queryFn = safeQuery) {
 
 export async function buildActivationPlatformAccess(req, deps = {}) {
   const queryFn = deps.query || safeQuery;
-  const isAdmin = req.auth?.is_admin === true;
+  const subject = deps.subject || resolveSessionContextSubject(req);
+  const isAdmin = subject.is_admin === true;
   const principalType = req.auth?.mode || (isAdmin ? "backend_api_key" : "unknown");
 
   const [
@@ -286,8 +295,12 @@ export async function buildActivationPlatformAccess(req, deps = {}) {
     principal: {
       type: principalType,
       is_admin: isAdmin,
-      user_id: req.auth?.user_id || null,
-      tenant_id: req.auth?.tenant_id || null
+      user_id: subject.user_id || null,
+      tenant_id: subject.tenant_id || null,
+      workspace_id: subject.workspace_id || null,
+      workspace_key: subject.workspace_key || null,
+      brand_key: subject.brand_key || null,
+      context_source: subject.context_source || null,
     },
     access_scope: isAdmin ? "platform_admin_all" : "user_scoped",
     access: {
@@ -640,6 +653,10 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
       is_admin: isAdmin,
       user_id: userId,
       tenant_id: tenantId,
+      workspace_id: subject.workspace_id || null,
+      workspace_key: subject.workspace_key || null,
+      brand_key: subject.brand_key || null,
+      context_source: subject.context_source || null,
       auth_mode: req.auth?.mode || null,
     },
     scope_resolution: isAdmin ? "platform_admin_all_with_optional_subject_filter" : "tenant_user_authorized_only",
@@ -713,11 +730,20 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
 export function resolveSessionContextSubject(req) {
   const requestedUserId = queryStringValue(req.query.user_id);
   const requestedTenantId = queryStringValue(req.query.tenant_id);
+  const requestedWorkspaceId = queryContextValue(req.query, ["workspace_id"]);
+  const requestedWorkspaceKey = queryContextValue(req.query, ["workspace_key", "workspace_ref"]);
+  const requestedBrandKey = queryContextValue(req.query, ["brand_key", "target_key", "brand_ref", "evolution_brand_key"]);
   const authUserId = queryStringValue(req.auth?.user_id);
   const authTenantId = queryStringValue(req.auth?.tenant_id);
+  const authWorkspaceId = queryStringValue(req.auth?.workspace_id);
+  const authWorkspaceKey = queryStringValue(req.auth?.workspace_key);
+  const authBrandKey = queryStringValue(req.auth?.brand_key || req.auth?.target_key);
   const isAdmin = req.auth?.is_admin === true;
-  const userId = requestedUserId || authUserId;
-  const tenantId = requestedTenantId || authTenantId;
+  const userId = requestedUserId || authUserId || (isAdmin ? "platform_admin_service" : null);
+  const tenantId = requestedTenantId || authTenantId || (isAdmin ? PLATFORM_TENANT_ID : null);
+  const workspaceId = requestedWorkspaceId || authWorkspaceId || null;
+  const workspaceKey = requestedWorkspaceKey || authWorkspaceKey || (isAdmin ? "platform_repo_governance_zero" : null);
+  const brandKey = requestedBrandKey || authBrandKey || (isAdmin ? PLATFORM_EVOLUTION_BRAND_KEY : null);
 
   if (!isAdmin && requestedUserId && requestedUserId !== authUserId) {
     const err = new Error("User JWT cannot inspect another user's activation session context.");
@@ -729,6 +755,12 @@ export function resolveSessionContextSubject(req) {
   return {
     user_id: userId || null,
     tenant_id: tenantId || null,
+    workspace_id: workspaceId || null,
+    workspace_key: workspaceKey || null,
+    brand_key: brandKey || null,
+    context_source: isAdmin && (!requestedUserId || !requestedTenantId || !requestedWorkspaceKey || !requestedBrandKey)
+      ? "admin_platform_default_context"
+      : "request_or_auth_context",
     is_admin: isAdmin
   };
 }
@@ -958,6 +990,7 @@ function compactSummary(row = {}) {
     tenant_id: row.tenant_id,
     user_id: row.user_id,
     workspace_key: row.workspace_key,
+    brand_key: row.brand_key || null,
     summary_preview: truncateText(row.summary_text, 1200),
     tags: {
       tasks_completed: truncateText(row.tasks_completed, 500),
@@ -990,6 +1023,8 @@ function compactTurn(row = {}, rawMaxChars = 1200) {
 async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
   const tenantId = subject.tenant_id || PLATFORM_TENANT_ID;
   const userId = subject.user_id || null;
+  const workspaceKey = subject.workspace_key || null;
+  const brandKey = subject.brand_key || null;
   const limit = capLimit(options.limit, 10, 25);
   const includeTurns = options.include_turns === true;
   const turnsLimit = capLimit(options.turns_limit, includeTurns ? 20 : 0, 100);
@@ -1013,6 +1048,8 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
       pool,
       tenant_id: tenantId,
       user_id: userId,
+      workspace_key: workspaceKey,
+      brand_key: brandKey,
       limit,
     });
     summaries = {
@@ -1023,6 +1060,7 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
         tenant_id: item.tenant_id,
         user_id: item.user_id,
         workspace_key: item.workspace_key,
+        brand_key: item.brand_key || null,
         summary_text: item.summary_text,
         tasks_completed: JSON.stringify(item.tasks_completed || []),
         blockers: JSON.stringify(item.blockers || []),
@@ -1048,15 +1086,44 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
       secrets_included: false,
     };
     summaries = await safeQuery(
-      `SELECT summary_id, session_id, tenant_id, user_id, workspace_key, summary_text,
-              tasks_completed, blockers, feature_requests, integration_needs,
-              complexity, turn_count, created_at
-         FROM \`session_summaries\`
-        WHERE tenant_id = ?
-          AND (? IS NULL OR user_id = ?)
-        ORDER BY created_at DESC
+      `SELECT ss.summary_id, ss.session_id, ss.tenant_id, ss.user_id, ss.workspace_key,
+              COALESCE(
+                (SELECT gst.brand_key
+                   FROM \`gpt_session_turns\` gst
+                  WHERE gst.session_id = ss.session_id
+                    AND gst.brand_key IS NOT NULL
+                  ORDER BY gst.created_at DESC
+                  LIMIT 1),
+                cs.brand_key
+              ) AS brand_key,
+              ss.summary_text, ss.tasks_completed, ss.blockers, ss.feature_requests, ss.integration_needs,
+              ss.complexity, ss.turn_count, ss.created_at
+         FROM \`session_summaries\` ss
+         LEFT JOIN \`customer_sessions\` cs ON cs.session_id = ss.session_id
+        WHERE ss.tenant_id = ?
+          AND (? IS NULL OR ss.user_id = ?)
+          AND (
+            ? IS NULL
+            OR ss.workspace_key = ?
+            OR EXISTS (
+              SELECT 1 FROM \`gpt_session_turns\` gst
+               WHERE gst.session_id = ss.session_id
+                 AND gst.workspace_key = ?
+               LIMIT 1
+            )
+          )
+          AND (
+            ? IS NULL
+            OR EXISTS (
+              SELECT 1 FROM \`gpt_session_turns\` gst
+               WHERE gst.session_id = ss.session_id
+                 AND gst.brand_key = ?
+               LIMIT 1
+            )
+          )
+        ORDER BY ss.created_at DESC
         LIMIT ${limit}`,
-      [tenantId, userId, userId]
+      [tenantId, userId, userId, workspaceKey, workspaceKey, workspaceKey, brandKey, brandKey]
     );
     summaries.source = "session_summaries_sql_fallback";
     summaries.fallback_used = true;
@@ -1131,6 +1198,8 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
         node_id: "platform.global",
         tenant_id: tenantId,
         user_id: userId,
+        workspace_key: workspaceKey,
+        brand_key: brandKey,
         depth: 1,
         memory_limit: 5,
       },
@@ -1220,6 +1289,8 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
 async function autoOpenGptSession(pool, subject, options = {}) {
   const userId = subject.user_id || null;
   const tenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+  const workspaceKey = subject.workspace_key || null;
+  const brandKey = subject.brand_key || null;
   const closePreviousSessions = options.close_previous_sessions === true;
 
   const [[activeBeforeRow]] = await pool.query(
@@ -1250,9 +1321,9 @@ async function autoOpenGptSession(pool, subject, options = {}) {
   const archiveStatus = "deferred_until_first_turn";
   await pool.query(
     `INSERT INTO \`customer_sessions\`
-       (session_id, tenant_id, user_id, originator, session_status, started_at, archive_status)
-     VALUES (?, ?, ?, 'gpt_action', 'active', ?, ?)`,
-    [sessionId, tenantId, userId, startedAt, archiveStatus]
+       (session_id, tenant_id, user_id, workspace_key, brand_key, originator, session_status, started_at, archive_status)
+     VALUES (?, ?, ?, ?, ?, 'gpt_action', 'active', ?, ?)`,
+    [sessionId, tenantId, userId, workspaceKey, brandKey, startedAt, archiveStatus]
   );
 
   // Do not create Drive files during activation/session-context open. The archive
@@ -1273,6 +1344,12 @@ async function autoOpenGptSession(pool, subject, options = {}) {
       active_sessions_after_open: closePreviousSessions ? 1 : activeBefore + 1,
       status_written: "active",
       archive_allocation: "lazy_on_first_turn",
+      context_written: {
+        tenant_id: tenantId,
+        user_id: userId,
+        workspace_key: workspaceKey,
+        brand_key: brandKey,
+      },
     },
   };
 }
@@ -1288,6 +1365,8 @@ export function shouldOpenActivationSession(query = {}) {
 async function readOnlyGptSessionContext(pool, subject) {
   const userId = subject.user_id || null;
   const tenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+  const workspaceKey = subject.workspace_key || null;
+  const brandKey = subject.brand_key || null;
   const [[activeRow]] = await pool.query(
     `SELECT COUNT(*) AS active_count
        FROM \`customer_sessions\`
@@ -1298,7 +1377,7 @@ async function readOnlyGptSessionContext(pool, subject) {
     [tenantId, userId, userId]
   );
   const [latestRows] = await pool.query(
-    `SELECT session_id, archive_status
+    `SELECT session_id, archive_status, workspace_key, brand_key
        FROM \`customer_sessions\`
       WHERE originator = 'gpt_action'
         AND tenant_id = ?
@@ -1321,6 +1400,12 @@ async function readOnlyGptSessionContext(pool, subject) {
       active_sessions_before_open: activeCount,
       active_sessions_after_open: activeCount,
       status_written: null,
+      context_read: {
+        tenant_id: tenantId,
+        user_id: userId,
+        workspace_key: latest?.workspace_key || workspaceKey,
+        brand_key: latest?.brand_key || brandKey,
+      },
       note: "Session Context read-only mode can inspect context without minting a fresh session id; use it before ChatGPT conversation ref capture diagnostics.",
     },
   };
