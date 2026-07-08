@@ -19709,6 +19709,43 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
       security:
         - backendBearerAuth: []
+  /sessions:
+    get:
+      operationId: listSessions
+      summary: List customer session archives
+      description: >
+        Lists customer_sessions archive containers. By default filters use session default context.
+        Set context_scope to turn to match sessions that contain turns for the supplied workspace_key
+        or brand_key, allowing one conversation to span multiple brands or workspaces.
+      tags: [session-archive]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: context_scope
+          in: query
+          schema:
+            type: string
+            enum: [session, turn, any]
+            default: session
+          description: Whether workspace_key and brand_key filters apply to session defaults, turn-level context, or either.
+        - name: workspace_key
+          in: query
+          schema: { type: string }
+          description: Optional workspace context filter.
+        - name: brand_key
+          in: query
+          schema: { type: string }
+          description: Optional brand context filter.
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        '200': { description: Session list result }
+        '400': { description: Invalid context_scope or query parameter }
+        '401': { description: Authentication required }
+        '403': { description: Resource access forbidden }
+        '500': { description: Session list failure }
   /gpt/sessions/{id}/turn:
     post:
       tags: [session-archive]
