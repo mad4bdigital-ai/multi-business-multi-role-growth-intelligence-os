@@ -21,7 +21,7 @@
 ## Enforcement, adapters, and evidence
 
 - [x] T020 Implement the shared enforcement kernel for every pilot boundary.
-- [ ] T021 Implement revision-bound, expiring, replay-resistant envelopes.
+- [x] T021 Implement revision-bound, expiring, replay-resistant envelopes.
 - [ ] T022 Implement scoped approval requests and append-only decisions.
 - [ ] T023 Implement stale-envelope invalidation, idempotency, and concurrency controls.
 - [ ] T030 Implement adapter bindings, certification, deterministic selection, readback contracts, execution evidence, and drift reconcilers.
@@ -56,4 +56,4 @@
 - [x] D009 Close the remaining decision-plane tasks T011 through T014 with implementation, tests, CI, and live readiness smoke.
 - [ ] D010 Close enforcement, adapter, pilot, migration, verification, rollout, and closeout tasks.
 
-See `terminology-review-2026-06-29.md`, `sql-authority-map-2026-06-29.md`, `handoff-report-2026-06-29.md`, `remaining-task-loop-2026-07-07.md`, and `docs/tenant-capability-enforcement-kernel.md`.
+See `terminology-review-2026-06-29.md`, `sql-authority-map-2026-06-29.md`, `handoff-report-2026-06-29.md`, `remaining-task-loop-2026-07-07.md`, `docs/tenant-capability-enforcement-kernel.md`, and `docs/platform-execution-envelope-kernel.md`.
