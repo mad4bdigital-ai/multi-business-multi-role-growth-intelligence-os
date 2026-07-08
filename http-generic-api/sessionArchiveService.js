@@ -904,6 +904,8 @@ export async function recordGptSessionTurn({
         source: "session_archive_service",
         session_id: session.session_id,
         turn_id: turnId,
+        context_stack: turnContextStack,
+        business_context: businessContext,
         drive_doc_id: archive.drive_doc_id || null,
         drive_doc_part: archive.drive_doc_id ? positiveInt(archive.drive_doc_part_index, 1) : null,
         secrets_included: false,
