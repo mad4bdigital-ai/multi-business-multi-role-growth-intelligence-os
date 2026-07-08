@@ -885,14 +885,14 @@ export async function executeCiAutoRecovery(input, dispatch, suppliedArgs = {}) 
     };
   }
   const dispatchArgs = mergeArgs({
-    parent_action_key: "github_actions_status",
-    endpoint_key: "createWorkflowDispatch",
+    parent_action_key: "github_api_mcp",
+    endpoint_key: "github_create_workflow_dispatch",
     path_params: { owner: input.owner, repo: input.repo, workflow_id: suppliedArgs?.workflow_id || "ci.yml" },
     body: { ref: input.branch, inputs: {} },
     credential_scope: "platform",
     timeout_seconds: 120,
   }, suppliedArgs.dispatch_args);
-  const dispatched = await dispatchAndCollect(dispatch, "runtime_endpoint_call", dispatchArgs);
+  const dispatched = await dispatchAndCollect(dispatch, "github_rest_endpoint_dispatch", { tool_args: dispatchArgs });
   if (!dispatched.ok) return { ok: false, status: "dispatch_failed", dispatch: safeSummary(dispatched.body), secrets_included: false };
   const after = await dispatchAndCollect(dispatch, "github_pr_ci_gate", gateArgs);
   return {
