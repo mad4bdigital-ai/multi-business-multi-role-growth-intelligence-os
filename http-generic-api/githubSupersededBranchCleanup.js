@@ -381,8 +381,11 @@ export async function buildSupersededBranchCleanupEvidence(args = {}, deps = {})
     : [];
   const orphanContentMismatches = orphanContentEvidence.filter((item) => !item.content_equivalent).map((item) => item.file);
   const blockers = [];
+  const advisories = [];
+  const aheadExceedsLimit = Number(baseToBranch?.ahead_by || 0) > maxAhead;
   if (branchFiles.length > maxFiles) blockers.push("changed_file_limit_exceeded");
-  if (Number(baseToBranch?.ahead_by || 0) > maxAhead) blockers.push("ahead_commit_limit_exceeded");
+  if (aheadExceedsLimit && uncoveredFiles.length) blockers.push("ahead_commit_limit_exceeded");
+  if (aheadExceedsLimit && !uncoveredFiles.length) advisories.push("ahead_commit_limit_exceeded_resolved_by_file_coverage");
   if (allowOrphanBranch) {
     if (exactPulls.length) blockers.push("orphan_branch_requires_no_matching_pull_request");
   } else {
