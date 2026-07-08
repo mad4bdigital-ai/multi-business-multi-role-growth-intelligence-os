@@ -301,6 +301,16 @@ components:
         fingerprint_sha256:
           type: string
           pattern: ^[a-f0-9]{64}$
+        operation_fingerprint_sha256:
+          type:
+            - string
+            - "null"
+          pattern: ^[a-f0-9]{64}$
+        resource_fingerprint_sha256:
+          type:
+            - string
+            - "null"
+          pattern: ^[a-f0-9]{64}$
         source_type:
           type: string
         source_ref:
