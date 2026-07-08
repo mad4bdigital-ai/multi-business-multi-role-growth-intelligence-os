@@ -199,6 +199,25 @@ const hygienePool = {
     throw new Error(`unexpected hygiene query ${sql}`);
   },
 };
+const chunkedInventoryBody = JSON.stringify({
+  ok: true,
+  result: {
+    body: {
+      ok: true,
+      data: {
+        data: {
+          repository: {
+            defaultBranchRef: { name: "main", target: { oid: nestedRuntimeSha, committedDate: "2026-07-07T00:00:00Z" } },
+            refs: { nodes: [] },
+            openPullRequests: { nodes: [] },
+            recentPullRequests: { nodes: [] },
+          },
+        },
+      },
+    },
+  },
+});
+let sawInventoryChunkRead = false;
 const hygiene = await scanRepositoryAutomationHygiene({
   include_github: true,
   owner: "mad4bdigital-ai",
@@ -210,6 +229,21 @@ const hygiene = await scanRepositoryAutomationHygiene({
     if (toolKey === "repo_inspect") {
       return { status: 200, body: { ok: true, result: { head_sha: nestedRuntimeSha, status: "## HEAD (no branch)" } } };
     }
+    if (toolKey === "response_chunk_read") {
+      assert.equal(args.chunk_id, "github-inventory-chunk");
+      sawInventoryChunkRead = true;
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          response_chunked: true,
+          chunk_id: "github-inventory-chunk",
+          chunk: chunkedInventoryBody.slice(args.cursor),
+          continuation_required: false,
+          page: { next_cursor: null, has_more: false },
+        },
+      };
+    }
     assert.equal(toolKey, "github_rest_endpoint_dispatch");
     const dispatchArgs = args.tool_args || args;
     if (dispatchArgs.endpoint_key === "github_graphql") {
@@ -217,21 +251,11 @@ const hygiene = await scanRepositoryAutomationHygiene({
         status: 200,
         body: {
           ok: true,
-          result: {
-            body: {
-              ok: true,
-              data: {
-                data: {
-                  repository: {
-                    defaultBranchRef: { name: "main", target: { oid: nestedRuntimeSha, committedDate: "2026-07-07T00:00:00Z" } },
-                    refs: { nodes: [] },
-                    openPullRequests: { nodes: [] },
-                    recentPullRequests: { nodes: [] },
-                  },
-                },
-              },
-            },
-          },
+          response_chunked: true,
+          chunk_id: "github-inventory-chunk",
+          chunk: chunkedInventoryBody.slice(0, 50),
+          continuation_required: true,
+          page: { next_cursor: 50, max_chars: 50, has_more: true },
         },
       };
     }
@@ -262,6 +286,7 @@ const hygiene = await scanRepositoryAutomationHygiene({
   },
 });
 assert.equal(hygiene.finding_count, 0);
+assert.equal(sawInventoryChunkRead, true);
 assert.equal(hygiene.sources.github_inventory, true);
 assert.equal(hygiene.sources.deployment_parity, true);
 
