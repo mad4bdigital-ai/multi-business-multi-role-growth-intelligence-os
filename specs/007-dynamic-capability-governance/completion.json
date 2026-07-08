@@ -40,6 +40,14 @@
         "status": "merged",
         "merge_sha": "aa476872ef84b46ccbf935b729dbf22495826e85",
         "summary": "Added the admin-only governed_migration_schema_readback tool, regression test, route registration, and test manifest entry to replace ad hoc admin_control + INFORMATION_SCHEMA migration readback."
+      },
+      {
+        "number": 2370,
+        "branch": "gpt/release-readiness-summary-first-v2-20260708",
+        "role": "release_readiness_transport_hardening",
+        "status": "merged",
+        "merge_sha": "6d1a942503b6296c8d9282b54ee089cc5afdc161",
+        "summary": "Made release readiness summary-first by default so production parity evidence can be read through bounded JSON without transport timeouts."
       }
     ],
     "implementation_evidence": [
