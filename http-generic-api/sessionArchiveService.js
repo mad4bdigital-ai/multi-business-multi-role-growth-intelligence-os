@@ -572,6 +572,8 @@ export async function recordGptSessionTurn({
   content,
   action_key = null,
   turnIndex,
+  workspace_key = null,
+  brand_key = null,
   injectedDeps = {},
 }) {
   const deps = { ...defaultDeps(), ...injectedDeps };
