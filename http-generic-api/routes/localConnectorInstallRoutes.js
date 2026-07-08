@@ -7,10 +7,7 @@ import {
   requireFreshLocalManagerDeviceForPrivilegedInstaller,
   requireLocalManagerDevice,
 } from "../services/localManagerDeviceLinkService.js";
-import {
-  buildLocalConnectorRouteLifecycle,
-  localConnectorTargetSelectionPolicy,
-} from "../localConnectorRouteLifecyclePolicy.js";
+import { buildLocalConnectorRouteLifecycleFromDb } from "../localConnectorRouteLifecyclePolicy.js";
 import {
   connectorLocalApiKeySelectFragment,
   hasConnectorLocalApiKeyColumn,
