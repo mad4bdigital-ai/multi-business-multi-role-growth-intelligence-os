@@ -394,6 +394,20 @@ function buildAttentionQueue(rows, containers) {
       items.push(makeAttentionItem({ containerKey: signal.container_key || null, severity: signal.severity, source: "activation_signal_inbox", reasonCode: `${signal.signal_type}_${signal.signal_status}`, title: `${signal.signal_type} signal requires attention`, recommendedActionKey: "signal.review", evidence: signal }));
     }
   }
+  for (const request of rows.capabilityEnablementRequests.rows) {
+    if (["ready_for_dispatch", "ready_for_preview"].includes(request.decision)) continue;
+    const reasonCode = firstReasonCode(request);
+    items.push(makeAttentionItem({
+      containerKey: request.workspace_id ? `workspace:${request.workspace_id}` : null,
+      severity: capabilityEnablementSeverity(request),
+      source: "capability_enablement_requests",
+      reasonCode,
+      title: `${request.capability_key} ${request.operation_intent} is ${request.decision}`,
+      recommendedActionKey: request.decision === "needs_approval" ? "capability.approve_envelope" : "capability.resolve_gap",
+      requiresConfirmation: request.decision === "needs_approval",
+      evidence: request,
+    }));
+  }
   return uniqueBy(items, (item) => item.queue_key)
     .sort((a, b) => severityWeight(b.severity) - severityWeight(a.severity) || String(a.title).localeCompare(String(b.title)))
     .slice(0, 50);
