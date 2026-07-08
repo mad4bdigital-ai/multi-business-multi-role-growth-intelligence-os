@@ -1,5 +1,9 @@
 # DFR-005 — Contextual Model Governance
 
+## Dev Orchestrator model-governance overlay
+
+The Dev Orchestrator design adds a future OpenRouter runtime lane and a separate OpenRouter Management API readiness lane. Runtime model calls, key-management actions, catalog/limit inspection, and budget/key lifecycle controls must remain distinct. Free-first routing cannot bypass model allowlists, data-use policy, output/tool contract, readiness evidence, or commercial reservation. Paid fallback requires explicit budget-owner approval and readback. Optional `openai-agents-js` use must remain a thin orchestration layer governed by platform registry, policy, tracing, session, and tool boundaries.
+
 ## Status
 
 **Approved design. Implementation is not authorized.**
