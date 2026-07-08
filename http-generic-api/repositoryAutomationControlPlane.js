@@ -889,7 +889,7 @@ async function executeCiAutoRecovery(input, dispatch, suppliedArgs) {
     credential_scope: "platform",
     timeout_seconds: 120,
   }, suppliedArgs.dispatch_args);
-  const dispatched = normalizeDispatchResult(await dispatch("runtime_endpoint_call", dispatchArgs));
+  const dispatched = await dispatchAndCollect(dispatch, "runtime_endpoint_call", dispatchArgs);
   if (!dispatched.ok) return { ok: false, status: "dispatch_failed", dispatch: safeSummary(dispatched.body), secrets_included: false };
   const after = normalizeDispatchResult(await dispatch("github_pr_ci_gate", gateArgs));
   return {
