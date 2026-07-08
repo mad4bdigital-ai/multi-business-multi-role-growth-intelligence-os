@@ -183,8 +183,9 @@ const highAheadExpired = await buildSupersededBranchCleanupEvidence(args, {
   fetchImpl: highAheadFetch,
   now: fixedNow,
 });
-assert.equal(highAheadExpired.ready, false);
-assert(highAheadExpired.blockers.includes("ahead_commit_limit_exceeded"));
+assert.equal(highAheadExpired.ready, true);
+assert(!highAheadExpired.blockers.includes("ahead_commit_limit_exceeded"));
+assert(highAheadExpired.advisories.includes("ahead_commit_limit_exceeded_resolved_by_file_coverage"));
 assert(highAheadExpired.policy_evidence.branch_limit.validation_failures.includes("override_expired_or_invalid"));
 
 const mismatchedShaOverride = {
