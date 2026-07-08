@@ -229,6 +229,21 @@ const hygiene = await scanRepositoryAutomationHygiene({
     if (toolKey === "repo_inspect") {
       return { status: 200, body: { ok: true, result: { head_sha: nestedRuntimeSha, status: "## HEAD (no branch)" } } };
     }
+    if (toolKey === "response_chunk_read") {
+      assert.equal(args.chunk_id, "github-inventory-chunk");
+      sawInventoryChunkRead = true;
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          response_chunked: true,
+          chunk_id: "github-inventory-chunk",
+          chunk: chunkedInventoryBody.slice(args.cursor),
+          continuation_required: false,
+          page: { next_cursor: null, has_more: false },
+        },
+      };
+    }
     assert.equal(toolKey, "github_rest_endpoint_dispatch");
     const dispatchArgs = args.tool_args || args;
     if (dispatchArgs.endpoint_key === "github_graphql") {
