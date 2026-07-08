@@ -287,15 +287,16 @@ assert.deepEqual(supersededMigrationCovered.branch_evidence.rejected_coverage_re
 
 const rejectedSupersededMigration = await buildSupersededBranchCleanupEvidence({
   ...supersededMigrationArgs,
-  intentional_non_port_evidence: [{
-    ...supersededMigrationArgs.intentional_non_port_evidence[0],
+  coverage_resolutions: [{
+    ...supersededMigrationArgs.coverage_resolutions[0],
     superseded_by_file: "http-generic-api/migrations/9999_missing.sql",
   }],
-}, { ...deps, fetchImpl: supersededMigrationFetch });
+}, { ...deps, fetchImpl: supersededMigrationFetch, migrationLedger });
 assert.equal(rejectedSupersededMigration.ready, false);
+assert(rejectedSupersededMigration.blockers.includes("coverage_resolution_rejected"));
 assert(rejectedSupersededMigration.blockers.includes("changed_file_coverage_incomplete"));
 assert.deepEqual(rejectedSupersededMigration.branch_evidence.uncovered_files, [legacyDashboardMigrationFile]);
-assert.equal(rejectedSupersededMigration.branch_evidence.rejected_intentional_non_port_evidence[0].failures[0], "replacement_file_not_in_replacement_commit");
+assert.equal(rejectedSupersededMigration.branch_evidence.rejected_coverage_resolutions[0].failures[0], "replacement_file_not_in_replacement_commit");
 
 const orphanMigrationBlob = "3".repeat(40);
 const orphanTestBlob = "4".repeat(40);
