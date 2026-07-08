@@ -348,7 +348,10 @@ export async function buildSupersededBranchCleanupEvidence(args = {}, deps = {})
     labeled_closed_pr_numbers: labeledClosedPulls.map((pr) => Number(pr.number)).sort((a, b) => a - b),
     required_label: requiredLabel,
     superseding_commits: commits, branch_changed_files: branchFiles, replacement_files: replacementFiles,
-    generated_files: generatedFiles, uncovered_files: uncoveredFiles,
+    generated_files: generatedFiles, covered_files: coveredFiles, uncovered_files: uncoveredFiles,
+    intentional_non_port_files: intentionalNonPortFiles,
+    intentional_non_port_evidence: nonPortEvidence.accepted,
+    rejected_intentional_non_port_evidence: nonPortEvidence.rejected,
     orphan_content_mismatches: orphanContentMismatches, orphan_content_evidence: orphanContentEvidence,
     branch_limit_evidence: branchLimitEvidence,
   };
