@@ -21,6 +21,8 @@ const testFile = "http-generic-api/test-agent-governance-runtime.mjs";
 const generatedFile = "docs/auto-docs-agent/pr-1579.md";
 const legacyDashboardMigrationFile = "http-generic-api/migrations/1039_sprint69_capability_enablement_operational_dashboard.sql";
 const appliedDashboardMigrationFile = "http-generic-api/migrations/1040_sprint69_capability_enablement_operational_dashboard.sql";
+const appliedDashboardMigrationName = "1040_sprint69_capability_enablement_operational_dashboard.sql";
+const appliedDashboardMigrationChecksum = "2282274085d80d987d2117f22aa92cdb724209bf6a9c325d1ad16515f8897d77";
 const appliedDashboardCommit = "7".repeat(40);
 const policy = {
   allow_superseded_closed_pr_branch_delete: true,
