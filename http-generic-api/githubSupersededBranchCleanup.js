@@ -412,9 +412,10 @@ export async function buildSupersededBranchCleanupEvidence(args = {}, deps = {})
     required_label: requiredLabel,
     superseding_commits: commits, branch_changed_files: branchFiles, replacement_files: replacementFiles,
     generated_files: generatedFiles, covered_files: coveredFiles, uncovered_files: uncoveredFiles,
-    intentional_non_port_files: intentionalNonPortFiles,
-    intentional_non_port_evidence: nonPortEvidence.accepted,
-    rejected_intentional_non_port_evidence: nonPortEvidence.rejected,
+    coverage_resolved_files: coverageResolvedFiles,
+    coverage_resolutions: coverageResolutionEvidence.accepted,
+    rejected_coverage_resolutions: coverageResolutionEvidence.rejected,
+    advisories,
     orphan_content_mismatches: orphanContentMismatches, orphan_content_evidence: orphanContentEvidence,
     branch_limit_evidence: branchLimitEvidence,
   };
