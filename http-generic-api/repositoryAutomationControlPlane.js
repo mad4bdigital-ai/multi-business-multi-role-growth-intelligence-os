@@ -873,10 +873,13 @@ export async function executeCiAutoRecovery(input, dispatch, suppliedArgs = {}) 
       gate,
       missing_required_fields: ["step_args.ci_auto_recovery.dispatch_args.mutation_approval"],
       required_dispatch: {
-        parent_action_key: "github_actions_status",
-        endpoint_key: "createWorkflowDispatch",
-        path_params: { owner: input.owner, repo: input.repo, workflow_id: suppliedArgs?.workflow_id || "ci.yml" },
-        body: { ref: input.branch, inputs: {} },
+        tool_key: "github_rest_endpoint_dispatch",
+        tool_args: {
+          parent_action_key: "github_api_mcp",
+          endpoint_key: "github_create_workflow_dispatch",
+          path_params: { owner: input.owner, repo: input.repo, workflow_id: suppliedArgs?.workflow_id || "ci.yml" },
+          body: { ref: input.branch, inputs: {} },
+        },
       },
       secrets_included: false,
     };
