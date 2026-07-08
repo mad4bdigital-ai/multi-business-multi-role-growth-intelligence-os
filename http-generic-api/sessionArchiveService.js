@@ -773,11 +773,11 @@ export async function recordGptSessionTurn({
     [
       session.session_id,
       session.tenant_id || PLATFORM_TENANT_ID,
-      session.workspace_key || null,
+      turnWorkspaceKey,
       session.user_id || null,
       session.user_id || null,
       session.user_id ? "user" : "system",
-      session.brand_key || null,
+      turnBrandKey,
       turnId,
       JSON.stringify({
         source: "session_archive_service",
