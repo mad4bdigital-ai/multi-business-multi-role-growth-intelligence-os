@@ -259,6 +259,7 @@ export async function buildSupersededBranchCleanupEvidence(args = {}, deps = {})
   const maxFiles = Math.max(1, Math.min(Number(policy.superseded_branch_delete_max_changed_files || 100), 300));
   const requiredLabel = String(policy.superseded_branch_delete_required_label || "superseded").trim().toLowerCase();
   const commits = normalizeSupersedingCommits(args.superseding_commits, maxCommits);
+  const intentionalNonPortInput = normalizeIntentionalNonPortEvidence(args.intentional_non_port_evidence);
   const token = deps.token || await getGitHubAppInstallationToken({});
   const fetchImpl = deps.fetchImpl || fetch;
   const query = new URLSearchParams({ state: "all", base: target.default_branch, head: `${target.owner}:${target.branch}`, per_page: "20" });
