@@ -203,8 +203,9 @@ const highAheadShaMismatch = await buildSupersededBranchCleanupEvidence(args, {
   fetchImpl: highAheadFetch,
   now: fixedNow,
 });
-assert.equal(highAheadShaMismatch.ready, false);
-assert(highAheadShaMismatch.blockers.includes("ahead_commit_limit_exceeded"));
+assert.equal(highAheadShaMismatch.ready, true);
+assert(!highAheadShaMismatch.blockers.includes("ahead_commit_limit_exceeded"));
+assert(highAheadShaMismatch.advisories.includes("ahead_commit_limit_exceeded_resolved_by_file_coverage"));
 assert(highAheadShaMismatch.policy_evidence.branch_limit.validation_failures.includes("override_branch_sha_mismatch"));
 
 await assert.rejects(
