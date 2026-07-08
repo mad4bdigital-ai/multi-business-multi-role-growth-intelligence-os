@@ -226,6 +226,12 @@ try {
   });
   assert("token endpoint rejects wrong OAuth client secret", invalidClient.status === 401, `${invalidClient.status}`);
   assert("wrong OAuth client secret reports invalid_client", invalidClient.body.error === "invalid_client", JSON.stringify(invalidClient.body));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const invalidClientDiagnostic = oauthTokenDiagnostics.find((row) => row.failure_reason === "invalid_client");
+  assert("invalid client token exchange writes diagnostic", Boolean(invalidClientDiagnostic), JSON.stringify(oauthTokenDiagnostics));
+  assert("invalid client diagnostic uses OAuth action key", invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange", JSON.stringify(invalidClientDiagnostic));
+  assert("invalid client diagnostic marks secret presence only", invalidClientDiagnostic?.runtime_evidence_json?.client?.client_secret_present === true, JSON.stringify(invalidClientDiagnostic));
+  assert("invalid client diagnostic excludes raw secret", !JSON.stringify(invalidClientDiagnostic || {}).includes("wrong-secret"), JSON.stringify(invalidClientDiagnostic));
 
   const exchange = await postForm(baseUrl, "/auth/oauth/token", {
     grant_type: "authorization_code",
