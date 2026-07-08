@@ -838,8 +838,6 @@ export function buildAuthRoutes(deps) {
         access_token: accessToken,
         token_type: "Bearer",
         expires_in: USER_TOKEN_TTL_SECONDS,
-        scope: TENANT_GPT_SCOPE,
-        activation_context: codePayload.activation_context || {},
       });
     } catch (err) {
       logTokenExchange("failed", err?.name === "TokenExpiredError" ? "oauth_code_expired" : "oauth_code_invalid_or_exception", 400, {
