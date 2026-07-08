@@ -101,4 +101,8 @@ T182-T184 are marked implementation-complete based on live `main` evidence in `o
 
 ### Migration apply/readback evidence note
 
-T224 is marked complete based on governed readback evidence for `20260704_operational_alert_lifecycle_fingerprints.sql`: checksum `c84ff288afd3b351c48c3da22c9b2bc4298ad42ed29792e0db7da902ae254488`, statement count `3`, ledger run `5b602672-bdab-4aa1-9e46-4cc3f6a21350`, and `governed_migration_schema_readback` status `pass`. The readback tool reported no missing tables, columns, indexes, or rule conditions and no provider call, external write, row-data read, freeform SQL, or secrets. This does not verify production runtime parity or final closeout.
+T224 is marked complete based on governed readback evidence for `20260704_operational_alert_lifecycle_fingerprints.sql`: checksum `c84ff288afd3b351c48c3da22c9b2bc4298ad42ed29792e0db7da902ae254488`, statement count `3`, ledger run `5b602672-bdab-4aa1-9e46-4cc3f6a21350`, and `governed_migration_schema_readback` status `pass`. The readback tool reported no missing tables, columns, indexes, or rule conditions and no provider call, external write, row-data read, freeform SQL, or secrets.
+
+### Production parity evidence note
+
+T226 is marked complete based on production parity readback for commit `59d5c1e0991028dcd8ddc58e5a1294ec926662db`: expected and deployed commit SHAs matched, `production_parity` was `verified`, `runtime_health_status`, `migration_status`, and `activation_summary_status` were `pass`, and `blocking_gap_count` was `0`. The evidence used the summary-first `release_readiness` response added by PR #2370 and did not execute deploy, restart, SSH, migration apply, provider calls, or secrets. This does not complete dev/staging shadow or canary evidence, post-merge audit, or final closeout.
