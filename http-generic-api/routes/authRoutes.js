@@ -651,7 +651,7 @@ export function buildAuthRoutes(deps) {
           user_id: payload.user_id,
           email: payload.email,
           tenant_id: payload.tenant_id || null,
-          redirect_uri: canonicalRedirectUri || redirect_uri,
+          redirect_uri,
           activation_context,
         },
         JWT_SECRET,
