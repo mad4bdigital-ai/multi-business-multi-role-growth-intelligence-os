@@ -5,6 +5,7 @@ import {
   buildRepositoryAutomationPlan,
   classifySpecLifecycle,
   collectChunkedToolResponse,
+  executeCiAutoRecovery,
   runRepositoryAutomation,
   scanRepositoryAutomationHygiene,
 } from "./repositoryAutomationControlPlane.js";
@@ -90,6 +91,48 @@ const dryRun = await runRepositoryAutomation({
 assert.equal(dryRun.status, "dry_run_complete");
 assert.equal(dryRun.mutations_executed, false);
 assert.equal(dryRunDispatchCount, 0);
+
+let ciRecoveryDispatchCall = null;
+let ciGateReads = 0;
+const ciRecovery = await executeCiAutoRecovery({
+  owner: "mad4bdigital-ai",
+  repo: "multi-business-multi-role-growth-intelligence-os",
+  pull_number: 2044,
+  branch: "gpt/example",
+  required_checks: ["Syntax Check"],
+}, async (toolKey, args) => {
+  if (toolKey === "github_pr_ci_gate") {
+    ciGateReads += 1;
+    return { status: 200, body: { ok: true, result: { gate_status: "blocked", missing_checks: ["Syntax Check"], pending_checks: [], secrets_included: false } } };
+  }
+  if (toolKey === "github_rest_endpoint_dispatch") {
+    ciRecoveryDispatchCall = args;
+    return { status: 200, body: { ok: true, result: { status: 204, secrets_included: false } } };
+  }
+  throw new Error(`unexpected CI recovery tool ${toolKey}`);
+}, {
+  dispatch_args: {
+    mutation_approval: { approved_by: "test", reason: "Regression coverage for missing check dispatch", secrets_included: false },
+  },
+});
+assert.equal(ciRecovery.status, "dispatched_pending_readback");
+assert.equal(ciGateReads, 2);
+assert.equal(ciRecoveryDispatchCall.tool_args.parent_action_key, "github_api_mcp");
+assert.equal(ciRecoveryDispatchCall.tool_args.endpoint_key, "github_create_workflow_dispatch");
+assert.equal(ciRecoveryDispatchCall.tool_args.path_params.workflow_id, "ci.yml");
+assert.equal(ciRecoveryDispatchCall.tool_args.body.ref, "gpt/example");
+assert.equal(ciRecovery.secrets_included, false);
+
+const ciRecoveryWithoutApproval = await executeCiAutoRecovery({
+  owner: "mad4bdigital-ai",
+  repo: "multi-business-multi-role-growth-intelligence-os",
+  pull_number: 2044,
+  branch: "gpt/example",
+  required_checks: ["Syntax Check"],
+}, async () => ({ status: 200, body: { ok: true, result: { gate_status: "blocked", missing_checks: ["Syntax Check"], pending_checks: [], secrets_included: false } } }), {});
+assert.equal(ciRecoveryWithoutApproval.status, "awaiting_input");
+assert.equal(ciRecoveryWithoutApproval.required_dispatch.tool_key, "github_rest_endpoint_dispatch");
+assert.equal(ciRecoveryWithoutApproval.required_dispatch.tool_args.endpoint_key, "github_create_workflow_dispatch");
 
 await assert.rejects(
   () => runRepositoryAutomation({
