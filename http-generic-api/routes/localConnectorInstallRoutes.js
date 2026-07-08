@@ -7,6 +7,7 @@ import {
   requireFreshLocalManagerDeviceForPrivilegedInstaller,
   requireLocalManagerDevice,
 } from "../services/localManagerDeviceLinkService.js";
+import { buildLocalConnectorRouteLifecycleFromDb } from "../localConnectorRouteLifecyclePolicy.js";
 import {
   connectorLocalApiKeySelectFragment,
   hasConnectorLocalApiKeyColumn,
@@ -1069,6 +1070,17 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     );
   }
 
+  const routeLifecycle = await buildLocalConnectorRouteLifecycleFromDb({
+    config_id: finalConfigId,
+    user_id: resolvedUserId,
+    tenant_id: resolvedTenantId,
+    device_id,
+    device_runtime_url: runtimeUrl,
+    public_gateway_url: LOCAL_GATEWAY_URL,
+    admin_recovery_url: ADMIN_RECOVERY_URL,
+    tunnel_url: tunnelUrl,
+  });
+
   return {
     ok: true,
     config_id: finalConfigId,
@@ -1085,6 +1097,8 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     secrets_included: false,
     connector_secret_included: false,
     connector_local_api_key_included: false,
+    route_lifecycle: routeLifecycle,
+    target_selection: routeLifecycle.target,
     install: {
       download_link_available: true,
       download_link_endpoint: "/local-connector/install/download-link",
