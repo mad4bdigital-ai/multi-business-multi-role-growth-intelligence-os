@@ -771,9 +771,11 @@ export function buildAuthRoutes(deps) {
       };
 
       if (grantType !== "authorization_code") {
+        logTokenExchange("failed", "unsupported_grant_type", 400);
         return res.status(400).json({ error: "unsupported_grant_type", error_description: "Only authorization_code is supported." });
       }
       if (!code) {
+        logTokenExchange("failed", "missing_code", 400);
         return res.status(400).json({ error: "invalid_request", error_description: "code is required." });
       }
 
