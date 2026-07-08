@@ -220,8 +220,9 @@ async function findActiveSessionForCaller(pool, req, args = {}, options = {}) {
   const tenantId = String(req?.auth?.tenant_id || PLATFORM_TENANT_ID);
   const userId = req?.auth?.user_id || null;
   const pinnedSessionId = resolveGptSessionPin(req, args);
+  const { workspace_key: workspaceKey, brand_key: brandKey } = resolveGptSessionContext(req, args);
   const allowUncapturedConversation = options.allowUncapturedConversation === true;
-  const baseSelect = `SELECT session_id, tenant_id, user_id, originator, session_status, started_at,
+  const baseSelect = `SELECT session_id, tenant_id, user_id, workspace_key, brand_key, originator, session_status, started_at,
             drive_folder_id, drive_doc_id, drive_doc_url, drive_doc_part_index, drive_doc_part_count,
             drive_jsonl_id, drive_jsonl_url
        FROM \`customer_sessions\``;
