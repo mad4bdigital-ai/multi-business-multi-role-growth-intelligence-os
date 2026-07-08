@@ -614,7 +614,6 @@ export function buildAuthRoutes(deps) {
     const redirectUri = String(req.query.redirect_uri || "");
     const state = String(req.query.state || "");
     const activationContext = parseActivationContext(req.query);
-    const canonicalRedirectUri = canonicalizeTenantGptRedirectUri(redirectUri);
 
     const query = (sql, params) => resolvePool().query(sql, params);
     if (!(await isAllowedTenantGptRedirectUri(redirectUri, query))) {
@@ -625,7 +624,7 @@ export function buildAuthRoutes(deps) {
     return res
       .status(200)
       .type("html")
-      .send(buildOAuthAuthorizeHtml({ clientId: GOOGLE_CLIENT_ID, redirectUri: canonicalRedirectUri || redirectUri, state, activationContext }));
+      .send(buildOAuthAuthorizeHtml({ clientId: GOOGLE_CLIENT_ID, redirectUri, state, activationContext }));
   });
 
   router.post("/oauth/code", async (req, res) => {
@@ -638,7 +637,6 @@ export function buildAuthRoutes(deps) {
         return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "token and redirect_uri are required." } });
       }
       const query = (sql, params) => resolvePool().query(sql, params);
-      const canonicalRedirectUri = canonicalizeTenantGptRedirectUri(redirect_uri);
       if (!(await isAllowedTenantGptRedirectUri(redirect_uri, query))) {
         return res.status(400).json({ ok: false, error: { code: "invalid_redirect_uri", message: "redirect_uri is not allowed for the Tenant GPT client." } });
       }
@@ -653,7 +651,7 @@ export function buildAuthRoutes(deps) {
           user_id: payload.user_id,
           email: payload.email,
           tenant_id: payload.tenant_id || null,
-          redirect_uri: canonicalRedirectUri || redirect_uri,
+          redirect_uri,
           activation_context,
         },
         JWT_SECRET,
@@ -665,7 +663,7 @@ export function buildAuthRoutes(deps) {
         code,
         expires_in: OAUTH_CODE_TTL_SECONDS,
         activation_context,
-        redirect_to: appendOAuthParams(canonicalRedirectUri || redirect_uri, { code, state }),
+        redirect_to: appendOAuthParams(redirect_uri, { code, state }),
       });
     } catch {
       return res.status(401).json({ ok: false, error: { code: "invalid_token", message: "User token is invalid or expired." } });
