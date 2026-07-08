@@ -14,6 +14,7 @@ import {
 import {
   normalizeActivationSessionPolicy,
   deriveActivationIdempotencyKey,
+  ACTIVATION_CONTEXT_LIFECYCLE_CONTRACT,
 } from "./activationSessionLifecycleService.js";
 import { _testingActivationAwarenessRoutes } from "./routes/activationAwarenessRoutes.js";
 
