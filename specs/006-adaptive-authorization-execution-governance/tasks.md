@@ -11,19 +11,19 @@
 
 ## Decision plane
 
-- [ ] T010 Implement canonical capability and alias resolution.
-- [ ] T011 Implement typed subject-action-resource-context decision input.
-- [ ] T012 Implement relationship revision resolution.
-- [ ] T013 Implement grant and contextual policy composition.
-- [ ] T014 Implement obligation and mismatch taxonomy.
-- [ ] T015 Persist bounded shadow decisions and parity evidence.
+- [x] T010 Implement canonical capability and alias resolution.
+- [x] T011 Implement typed subject-action-resource-context decision input.
+- [x] T012 Implement relationship revision resolution.
+- [x] T013 Implement grant and contextual policy composition.
+- [x] T014 Implement obligation and mismatch taxonomy.
+- [x] T015 Persist bounded shadow decisions and parity evidence.
 
 ## Enforcement, adapters, and evidence
 
-- [ ] T020 Implement the shared enforcement kernel for every pilot boundary.
-- [ ] T021 Implement revision-bound, expiring, replay-resistant envelopes.
-- [ ] T022 Implement scoped approval requests and append-only decisions.
-- [ ] T023 Implement stale-envelope invalidation, idempotency, and concurrency controls.
+- [x] T020 Implement the shared enforcement kernel for every pilot boundary.
+- [x] T021 Implement revision-bound, expiring, replay-resistant envelopes.
+- [x] T022 Implement scoped approval requests and append-only decisions.
+- [x] T023 Implement stale-envelope invalidation, idempotency, and concurrency controls.
 - [ ] T030 Implement adapter bindings, certification, deterministic selection, readback contracts, execution evidence, and drift reconcilers.
 
 ## Pilot and migration
@@ -52,6 +52,8 @@
 - [x] D005 Repair and delete the historical orphan reconciliation branches without force.
 - [x] D006 Merge the documented PR1 handoff as PR #1967.
 - [x] D007 Complete the governed terminology review and SQL authority map.
-- [ ] D008 Start PR2 only after explicit instruction; PR2 is intentionally not started by this readiness package.
+- [x] D008 Start the remaining-task loop after explicit instruction and record live PR2-adjacent resolver evidence.
+- [x] D009 Close the remaining decision-plane tasks T011 through T014 with implementation, tests, CI, and live readiness smoke.
+- [ ] D010 Close enforcement, adapter, pilot, migration, verification, rollout, and closeout tasks.
 
-See `terminology-review-2026-06-29.md`, `sql-authority-map-2026-06-29.md`, and `handoff-report-2026-06-29.md`.
+See `terminology-review-2026-06-29.md`, `sql-authority-map-2026-06-29.md`, `handoff-report-2026-06-29.md`, `remaining-task-loop-2026-07-07.md`, `docs/tenant-capability-enforcement-kernel.md`, `docs/platform-execution-envelope-kernel.md`, `docs/platform-scoped-approval-kernel.md`, and `docs/platform-execution-concurrency-kernel.md`.

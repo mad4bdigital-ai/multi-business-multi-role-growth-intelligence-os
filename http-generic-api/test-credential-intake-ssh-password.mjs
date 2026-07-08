@@ -33,7 +33,12 @@ const result = await createCredentialIntakeRequirement(
     credentialField: "ssh_password",
     credentialLabel: "SSH password",
     intakeScope: "platform",
-    metadata: { target_id: "target-hostinger" },
+    metadata: {
+      target_id: "target-hostinger",
+      raw_secret: "must-not-persist",
+      nested: { api_key: "must-not-persist", note: "safe-note" },
+      private_key_preview: "-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----",
+    },
   },
   {
     status: "blocked_missing_secret",
@@ -58,6 +63,11 @@ assert.equal(schema.fields[0].secret, true);
 const metadata = JSON.parse(inserted[0].params[12]);
 assert.equal(metadata.intake_scope, "platform");
 assert.equal(metadata.credential_field, "ssh_password");
+assert.equal(metadata.target_id, "target-hostinger");
+assert.equal(metadata.raw_secret, "[redacted]");
+assert.equal(metadata.nested.api_key, "[redacted]");
+assert.equal(metadata.nested.note, "safe-note");
+assert.equal(metadata.private_key_preview, "[redacted]");
 assert.deepEqual(metadata.platform_secret_mappings, [{ credential_field: "ssh_password", secret_key: "ssh_password", secret_type: "ssh_password" }]);
 assert.equal(metadata.secrets_must_not_be_returned, true);
 

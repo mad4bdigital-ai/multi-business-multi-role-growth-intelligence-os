@@ -26,6 +26,7 @@ import { bootstrapGovernedMigrationAuthorization } from "../governedMigrationAut
 import { bootstrapGovernedMigrationApplyPolicy } from "../governedMigrationApplyPolicyBootstrap.js";
 import { authorizeCapabilityResolutionEnvelopeApply } from "../scripts/capability-resolution-envelope-apply-authorize.mjs";
 import { runGovernedMigrationExecution } from "../governedMigrationExecutionTool.js";
+import { runGovernedMigrationSchemaReadback } from "../governedMigrationSchemaReadbackTool.js";
 import {
   buildSqlCacheOperationalDiagnostics,
   runSqlCacheControlledLoadTest,
@@ -77,6 +78,9 @@ const DEFAULT_TOOL_LIST_LIMIT = 50;
 const MAX_TOOL_LIST_LIMIT = 200;
 const DEFAULT_TOOL_RESPONSE_MAX_CHARS = 45000;
 const MAX_TOOL_RESPONSE_MAX_CHARS = 150000;
+const DEFAULT_TOOL_RESPONSE_CLIENT_BUDGET_CHARS = 57000;
+const DEFAULT_TOOL_RESPONSE_ENVELOPE_OVERHEAD_CHARS = 12000;
+const MIN_TOOL_RESPONSE_MAX_CHARS = 5000;
 const DEFAULT_TOOL_RESPONSE_CHUNK_TTL_MS = 15 * 60 * 1000;
 const MAX_TOOL_RESPONSE_CHUNK_TTL_MS = 2 * 60 * 60 * 1000;
 const MIN_TOOL_RESPONSE_CHUNK_TTL_MS = 5 * 60 * 1000;
@@ -770,6 +774,24 @@ const VIRTUAL_ADMIN_TOOLS = [
         concurrency: { type: "integer", minimum: 1, maximum: 200, default: 20 },
         loader_delay_ms: { type: "integer", minimum: 0, maximum: 100, default: 5 },
         payload_bytes: { type: "integer", minimum: 16, maximum: 262144, default: 1024 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "governed_migration_schema_readback",
+    displayName: "Governed Migration Schema Readback",
+    description: "Read-only, checksum-bound schema and ledger readback for one governed migration. This tool does not accept freeform SQL, does not read row data, does not call providers, and does not execute migrations.",
+    method: "VIRTUAL",
+    path: "internal://governed-migration-schema-readback",
+    tags: ["admin", "migration", "read_only", "schema_readback", "ledger_readback", "no_freeform_sql", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["migration", "expected_checksum_sha256", "expected_statement_count"],
+      properties: {
+        migration: { type: "string", pattern: "^[A-Za-z0-9._-]+\\.sql$" },
+        expected_checksum_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        expected_statement_count: { type: "integer", minimum: 1, maximum: 5000 },
       },
       additionalProperties: false,
     },
@@ -1720,13 +1742,31 @@ function parseJson(value) {
 function normalizeResponseOptions(value = {}) {
   const options = value && typeof value === "object" ? value : {};
   return {
-    maxChars: clampNumber(options.max_chars ?? options.max_response_chars, DEFAULT_TOOL_RESPONSE_MAX_CHARS, 5000, MAX_TOOL_RESPONSE_MAX_CHARS),
+    maxChars: resolveAdaptiveToolResponseMaxChars(options),
     cursor: clampNumber(options.cursor ?? options.response_cursor, 0, 0, Number.MAX_SAFE_INTEGER),
     chunkTtlMs: Number(options.chunk_ttl_ms ?? options.response_chunk_ttl_ms ?? 0) || null,
     chunkTtlMinutes: Number(options.chunk_ttl_minutes ?? options.response_chunk_ttl_minutes ?? 0) || null,
   };
 }
 
+
+export function resolveAdaptiveToolResponseMaxChars(value = {}) {
+  const options = value && typeof value === "object" ? value : {};
+  const clientBudget = clampNumber(
+    options.client_response_budget_chars ?? options.response_budget_chars ?? options.max_response_envelope_chars,
+    DEFAULT_TOOL_RESPONSE_CLIENT_BUDGET_CHARS,
+    MIN_TOOL_RESPONSE_MAX_CHARS * 2,
+    MAX_TOOL_RESPONSE_MAX_CHARS,
+  );
+  const envelopeOverhead = clampNumber(
+    options.response_envelope_overhead_chars ?? options.envelope_overhead_chars,
+    DEFAULT_TOOL_RESPONSE_ENVELOPE_OVERHEAD_CHARS,
+    2000,
+    Math.max(2000, clientBudget - MIN_TOOL_RESPONSE_MAX_CHARS),
+  );
+  const adaptiveMax = Math.max(MIN_TOOL_RESPONSE_MAX_CHARS, Math.min(MAX_TOOL_RESPONSE_MAX_CHARS, clientBudget - envelopeOverhead));
+  return clampNumber(options.max_chars ?? options.max_response_chars, Math.min(DEFAULT_TOOL_RESPONSE_MAX_CHARS, adaptiveMax), MIN_TOOL_RESPONSE_MAX_CHARS, adaptiveMax);
+}
 export function resolveToolResponseChunkTtlMs(options = {}, serializedLength = 0) {
   const normalized = normalizeResponseOptions(options?.response_options || options?._response || options || {});
   const requestedMs = normalized.chunkTtlMs || (normalized.chunkTtlMinutes ? normalized.chunkTtlMinutes * 60 * 1000 : 0);
@@ -2309,6 +2349,14 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
           },
         },
       };
+    }
+  }
+  if (callerType === "admin" && toolKey === "governed_migration_schema_readback") {
+    try {
+      const result = await runGovernedMigrationSchemaReadback(args || {}, { pool: getPool() });
+      return { status: result.ok ? 200 : 409, body: result };
+    } catch (err) {
+      return { status: err?.status || 500, body: { ok: false, error: { code: err?.code || "governed_migration_schema_readback_failed", message: err?.message || "Governed migration schema readback failed.", details: err?.details }, secrets_included: false } };
     }
   }
   if (callerType === "admin" && toolKey === "governed_migration_execute") {

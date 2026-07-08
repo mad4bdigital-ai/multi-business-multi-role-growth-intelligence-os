@@ -1,5 +1,31 @@
 # Deployment Parity Checklist
 
+## Temporary Hostinger executor hard-disable
+
+Migration `1041_sprint69_hard_disable_temporary_hostinger_executor_gate.sql` hard-disables the temporary Hostinger SSH executor gate after readback showed the resource-authority binding was revoked but the runtime config still read back as active. It sets the runtime config status to `disabled` and all deploy/restart/provider/credential flags to false. It performs no deploy, restart, provider call, credential payload read, raw-secret access, external send, or external write.
+
+The migration must be applied through the governed migration runner with checksum and statement-count binding, then followed by same-cycle DB readback that confirms `enabled=false`, `deploy_allowed=false`, `restart_allowed=false`, and `status='disabled'`.
+
+## Temporary Hostinger deploy-gate status normalization
+
+Migration `1040_sprint69_normalize_temporary_hostinger_gate_statuses.sql` normalizes status enum values left by the cleanup migration after production parity readback. It sets `platform_runtime_config.status='disabled'` for the SSH executor gate and `platform_resource_authority_bindings.status='revoked'` for the temporary Hostinger deploy binding. It performs no deploy, restart, provider call, credential payload read, raw-secret access, external send, or external write.
+
+The migration is checksum-bound in the governed migration runner and must be followed by same-cycle DB readback showing the runtime config disabled and the binding revoked.
+
+## Temporary Hostinger deploy-gate cleanup
+
+Migration `1039_sprint69_disable_temporary_hostinger_deploy_gates.sql` disables the temporary Hostinger SSH executor gate and inactivates the temporary `remote_runtime_target` deploy authority binding after production parity verification run `1b619912-fc20-46f8-a000-37d80e115a8b` confirmed expected and deployed commit `308146d11050ebb473b4f85f1ff54feab7e41aac`. It performs no deploy, restart, provider call, credential payload read, raw-secret access, external send, or external write; it only closes temporary recovery gates after successful readback.
+
+Checksum: `6bea59de59ab79295b4cc500f635602755a3a66478d3d4e26124d06d0d304b12`.
+
+## Temporary Hostinger deploy resource authority binding
+
+Migration `1038_sprint69_hostinger_deploy_resource_authority_binding.sql` repairs the deploy-release preflight root cause by adding a two-hour `platform_resource_authority_bindings` row for the production Hostinger runtime target and mode `deploy`. This migration does not deploy, restart, call providers, read credential payloads, expose secrets, or perform external writes. Actual parity recovery still requires a fresh deploy dry-run with `dispatch_ready=true`, an approved deploy capability envelope, bounded SSH execution, `/health` and `/version` readback, and expiry or disablement of the temporary authority after verification.
+
+Checksum: `be45dacbadf79dc14e69c2898044df3a959bf96dc5e4badc9a2569debf746849`.
+
+> DONA Brand Core readiness repair parity for `1037_sprint69_dona_brand_core_readiness_data_repair.sql`: rollout is incomplete until the governed migration ledger records the exact checksum, dry-run/apply both report zero-risk preflight, rows 76-86 for `donatours_wp` read back with `active_status='TRUE'`, rows 76-85 read back with non-empty `doc_id`, row 86 reads back with non-empty `file_id`, and `growth_audit_evidence_prepare` for `donatours.com` no longer returns `brand_core_strategy_not_ready`. This data repair performs no schema change, provider call, browser action, credential payload read, raw-secret output, external send/write, deployment, or Google file-read rollout; `files.object.read` remains `shadow`.
+
 > GitHub Actions workflow-control parity for `1038_sprint69_github_actions_workflow_control_dispatch.sql`: rollout is incomplete until the governed migration ledger records the exact checksum, endpoint rows read back active and ready for `github_rerun_workflow_run`, `github_rerun_failed_jobs_for_workflow_run`, and `github_create_workflow_dispatch`, `github_rest_endpoint_dispatch` exposes all three endpoint keys, `platform_endpoint_tool_exports` and `platform_tool_dispatch_bindings` contain active admin-only bindings, and `missing_endpoint_registry_first_policy_v1` reads back active and blocking. Migration apply must not call GitHub, rerun or dispatch workflows, read credential payloads, expose raw secrets, send/write externally, deploy, or broaden raw fallback behavior. Runtime mutation remains a separate governed admin action with endpoint-authority method/path/schema and same-cycle workflow-run readback.
 
 > GitHub Actions workflow-runs read parity for `1026_sprint69_github_actions_runs_read_dispatch.sql`: rollout is incomplete until the governed migration ledger records the exact checksum, `github_rest_endpoint_dispatch` lists `github_list_workflow_runs_for_repo`, query schema includes `head_sha`, `page`, and `per_page`, endpoint export and dispatch binding are active, `platform_tool_binding_integrity_audit` reports `gap_count=0`, and a live read-only lookup against the PR head SHA returns bounded `workflow_runs` evidence through the governed dispatcher. This migration does not execute provider calls during apply, read credential payloads, expose raw secrets, send/write externally, deploy, or broaden raw fallback URL/method support.
@@ -75,6 +101,7 @@ For `1024_sprint69_openapi_endpoint_inventory_sync.sql`, release parity requires
 - `1036_sprint69_capability_enablement_virtual_admin_tool_bridge.sql` — SHA-256 `87cc0d29d74d91a260d89e520a824e879837c159b9794adbd56783936c36f293`; surfaces: tools=5; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
 - `1036_sprint69_governance_debt_cleanup.sql` — SHA-256 `9052c49ccd913f0cb60ba9775c4b35542f05d1ed355f0681a3d3b08c001f6181`; surfaces: tools=1, routes=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
 - `1036_sprint69_remote_runtime_deploy_dispatch_certification_renewal.sql` — SHA-256 `21ebeeb4aa3097b3ddee0c8535024c044abc383b4671209175c37f902475d89b`; surfaces: tools=3; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1037_sprint69_temporary_hostinger_ssh_executor_gate.sql` — SHA-256 `070833a7c07a2aaea36fc34d98702a5acf74b64fa5b21127a4fa51676d031ed1`; surfaces: runtime_config=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding.
 - `1037_sprint69_record_only_authorization_retirement.sql` — SHA-256 `4c980fea8b9f3f73ea7401fbea9cc21bde5be6cec6e85945e700123d273da53c`; surfaces: tools=3; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
 - `1038_sprint69_github_actions_workflow_control_dispatch.sql` — SHA-256 `163085b3b9f80b1dc6a3339d8e43dfb5455c34a4cec3a371365a754d45016ef2`; surfaces: tools=17, policies=1, routes=3; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding.
 - `20260615_tenant_growth_dashboard_product.sql` — SHA-256 `c4a2a2d19c1d0cb1270597df810b03bce6f30e5800df782b627b25b2a5edba59`; surfaces: tools=6, views=3; static preflight: pass/0; runtime reviews: verify_readback_view, verify_tool_registry_binding.

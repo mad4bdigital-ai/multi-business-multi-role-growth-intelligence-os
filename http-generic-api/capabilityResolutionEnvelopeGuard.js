@@ -206,3 +206,111 @@ export async function markCapabilityEnvelopeReferenced({ pool = null, envelopeId
   );
   return { ok: true, status: "capability_resolution_envelope_referenced", envelope_id: id, secrets_included: false };
 }
+
+export const CAPABILITY_ENVELOPE_LIFECYCLE_ACTIONS = Object.freeze(["consume", "cancel", "expire"]);
+
+function lifecycleExecutionRef(action, executionRef = "", reason = "") {
+  const direct = compact(executionRef, 191);
+  if (direct) return direct;
+  const note = compact(reason, 150);
+  return note ? `${action}:${note}`.slice(0, 191) : `capability_envelope_${action}`;
+}
+
+function lifecyclePublicRow(row = null) {
+  if (!row) return null;
+  return {
+    envelope_id: row.envelope_id,
+    envelope_status: row.envelope_status,
+    execution_status: row.execution_status || "not_executed",
+    dispatch_allowed: boolNumber(row.dispatch_allowed),
+    apply_allowed: boolNumber(row.apply_allowed),
+    expires_at: row.expires_at || null,
+    secrets_included: false,
+  };
+}
+
+export async function transitionCapabilityEnvelopeLifecycle({
+  pool = null,
+  envelopeId = "",
+  action = "",
+  executionRef = "",
+  reason = "",
+} = {}) {
+  const id = compact(envelopeId, 64);
+  if (!id) return capabilityEnvelopeFailure("capability_resolution_envelope_id_missing");
+
+  const normalizedAction = compact(action, 32).toLowerCase();
+  if (!CAPABILITY_ENVELOPE_LIFECYCLE_ACTIONS.includes(normalizedAction)) {
+    return capabilityEnvelopeFailure("capability_resolution_envelope_lifecycle_action_invalid", {
+      envelope_id: id,
+      action: normalizedAction || null,
+      allowed_actions: CAPABILITY_ENVELOPE_LIFECYCLE_ACTIONS,
+    });
+  }
+
+  const db = pool || getPool();
+  const before = await loadEnvelopeRow(db, id);
+  if (!before) return capabilityEnvelopeFailure("capability_resolution_envelope_not_found", { envelope_id: id });
+  if (boolNumber(before.secrets_included)) {
+    return capabilityEnvelopeFailure("capability_resolution_envelope_secret_boundary_failed", { envelope_id: id });
+  }
+
+  const ref = lifecycleExecutionRef(normalizedAction, executionRef, reason);
+  let sql;
+  let params;
+  if (normalizedAction === "consume") {
+    sql = `UPDATE capability_resolution_envelope_ledger
+        SET execution_status = 'executed',
+            execution_ref = COALESCE(NULLIF(?, ''), execution_ref),
+            dispatch_allowed = 0,
+            apply_allowed = 0,
+            updated_at = NOW()
+      WHERE envelope_id = ?
+        AND envelope_status = 'ready_for_dispatch'
+        AND execution_status IN ('not_executed','referenced')`;
+    params = [ref, id];
+  } else if (normalizedAction === "cancel") {
+    sql = `UPDATE capability_resolution_envelope_ledger
+        SET envelope_status = 'superseded',
+            execution_status = 'cancelled',
+            execution_ref = COALESCE(NULLIF(?, ''), execution_ref),
+            dispatch_allowed = 0,
+            apply_allowed = 0,
+            updated_at = NOW()
+      WHERE envelope_id = ?
+        AND envelope_status IN ('dry_run','ready_requires_approval','ready_for_dispatch')
+        AND execution_status IN ('not_executed','referenced')`;
+    params = [ref, id];
+  } else {
+    sql = `UPDATE capability_resolution_envelope_ledger
+        SET envelope_status = 'expired',
+            dispatch_allowed = 0,
+            apply_allowed = 0,
+            updated_at = NOW()
+      WHERE envelope_id = ?
+        AND envelope_status IN ('dry_run','ready_requires_approval','ready_for_dispatch')
+        AND execution_status IN ('not_executed','referenced')`;
+    params = [id];
+  }
+
+  const [result] = await db.query(sql, params);
+  if (Number(result?.affectedRows || 0) !== 1) {
+    const current = await loadEnvelopeRow(db, id);
+    return capabilityEnvelopeFailure("capability_resolution_envelope_lifecycle_transition_blocked", {
+      envelope_id: id,
+      action: normalizedAction,
+      current: lifecyclePublicRow(current),
+    });
+  }
+
+  const after = await loadEnvelopeRow(db, id);
+  return {
+    ok: true,
+    status: `capability_resolution_envelope_${normalizedAction}d`,
+    action: normalizedAction,
+    before: lifecyclePublicRow(before),
+    after: lifecyclePublicRow(after),
+    envelope_id: id,
+    secrets_included: false,
+  };
+}

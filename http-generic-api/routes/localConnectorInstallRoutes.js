@@ -3,7 +3,11 @@ import { getPool } from "../db.js";
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { decryptCredentials } from "../tokenEncryption.js";
 import { normalizeConnectionMode } from "../activationModePolicy.js";
-import { requireLocalManagerDevice } from "../services/localManagerDeviceLinkService.js";
+import {
+  requireFreshLocalManagerDeviceForPrivilegedInstaller,
+  requireLocalManagerDevice,
+} from "../services/localManagerDeviceLinkService.js";
+import { buildLocalConnectorRouteLifecycleFromDb } from "../localConnectorRouteLifecyclePolicy.js";
 import {
   connectorLocalApiKeySelectFragment,
   hasConnectorLocalApiKeyColumn,
@@ -1066,6 +1070,17 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     );
   }
 
+  const routeLifecycle = await buildLocalConnectorRouteLifecycleFromDb({
+    config_id: finalConfigId,
+    user_id: resolvedUserId,
+    tenant_id: resolvedTenantId,
+    device_id,
+    device_runtime_url: runtimeUrl,
+    public_gateway_url: LOCAL_GATEWAY_URL,
+    admin_recovery_url: ADMIN_RECOVERY_URL,
+    tunnel_url: tunnelUrl,
+  });
+
   return {
     ok: true,
     config_id: finalConfigId,
@@ -1082,6 +1097,8 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     secrets_included: false,
     connector_secret_included: false,
     connector_local_api_key_included: false,
+    route_lifecycle: routeLifecycle,
+    target_selection: routeLifecycle.target,
     install: {
       download_link_available: true,
       download_link_endpoint: "/local-connector/install/download-link",
@@ -1122,7 +1139,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
   // for its own linked device without requiring a platform/admin bearer token.
   router.post("/local-connector/install/device-download-link", async (req, res) => {
     try {
-      const device = await requireLocalManagerDevice(req);
+      const device = await requireFreshLocalManagerDeviceForPrivilegedInstaller(req);
       const format = String(req.body?.format || "bat").trim().toLowerCase();
       const ttl = Math.max(5, Math.min(60, Number(req.body?.ttl_minutes || 30)));
       const permissionGrants = normalizePermissionGrants({ ...(req.body?.permission_grants || {}), capabilities: req.body?.capabilities || [] });
@@ -1180,6 +1197,8 @@ export function buildLocalConnectorInstallRoutes(deps) {
         download_url,
         app_managed: appManaged,
         run_as_admin_required: true,
+        auth_context: device.auth_context,
+        reauth_required_for_stale_device_tokens: true,
         secrets_included: false,
       });
     } catch (err) {

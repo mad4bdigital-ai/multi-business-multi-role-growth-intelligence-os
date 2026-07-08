@@ -87,8 +87,22 @@ async function getText(baseUrl, path, { headers = {} } = {}) {
   };
 }
 
+const oauthTokenDiagnostics = [];
+
 const oauthClientPool = {
   async query(sql, params) {
+    if (sql.includes("INSERT INTO `execution_log`")) {
+      oauthTokenDiagnostics.push({
+        execution_status: params[4],
+        failure_reason: params[5],
+        output_summary: JSON.parse(params[6]),
+        action_key: params[7],
+        endpoint_key: params[8],
+        parent_action_key: params[9],
+        runtime_evidence_json: JSON.parse(params[10]),
+      });
+      return [{ affectedRows: 1 }];
+    }
     if (sql.includes("FROM `platform_runtime_config`")) {
       return [[{
         config_json: JSON.stringify({
@@ -122,6 +136,7 @@ const { server, baseUrl } = await startServer(app);
 
 try {
   const redirectUri = "https://chat.openai.com/aip/g-d36db295032b9022dd77233041763f513e8ba5fa/oauth/callback";
+  const canonicalRedirectUri = "https://chatgpt.com/aip/g-d36db295032b9022dd77233041763f513e8ba5fa/oauth/callback";
   const state = "state-123";
   const encodedRedirect = encodeURIComponent(redirectUri);
 
@@ -140,6 +155,8 @@ try {
     assert("authorize preselects signup panel", result.text.includes('const INITIAL_PANEL = "register"'));
     assert("authorize includes privacy policy link", result.text.includes('href="/privacy-policy"'));
     assert("authorize includes configured Google client", result.text.includes(process.env.GOOGLE_CLIENT_ID));
+    assert("authorize preserves requested ChatGPT callback", result.text.includes(redirectUri));
+    assert("authorize does not rewrite callback before ChatGPT state validation", !result.text.includes('const REDIRECT_URI = "https://chatgpt.com'));
     assert("authorize leaves GIS button locale automatic", !/locale\s*:\s*["'][^"']+["']/.test(result.text));
     assert("authorize does not force a GSI hl parameter", !result.text.includes("gsi/client?hl="));
   }
@@ -196,6 +213,7 @@ try {
   assert("code response includes code", typeof codeResult.body.code === "string" && codeResult.body.code.length > 40);
   assert("code response redirects with state", String(codeResult.body.redirect_to || "").includes(`state=${state}`), codeResult.body.redirect_to);
   assert("code response redirects with code", String(codeResult.body.redirect_to || "").includes("code="), codeResult.body.redirect_to);
+  assert("code response redirects to requested ChatGPT callback", String(codeResult.body.redirect_to || "").startsWith(redirectUri), codeResult.body.redirect_to);
   assert("code response preserves activation mode", codeResult.body.activation_context?.activation_mode === "dedicated", JSON.stringify(codeResult.body.activation_context));
   assert("code response preserves sign-in options", Array.isArray(codeResult.body.activation_context?.sign_in_options) && codeResult.body.activation_context.sign_in_options.includes("email"), JSON.stringify(codeResult.body.activation_context));
 
@@ -208,6 +226,14 @@ try {
   });
   assert("token endpoint rejects wrong OAuth client secret", invalidClient.status === 401, `${invalidClient.status}`);
   assert("wrong OAuth client secret reports invalid_client", invalidClient.body.error === "invalid_client", JSON.stringify(invalidClient.body));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const invalidClientDiagnostic = oauthTokenDiagnostics.find((row) => row.failure_reason === "invalid_client");
+  assert("invalid client token exchange writes diagnostic", Boolean(invalidClientDiagnostic), JSON.stringify(oauthTokenDiagnostics));
+  assert("invalid client diagnostic uses OAuth action key", invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange", JSON.stringify(invalidClientDiagnostic));
+  assert("invalid client diagnostic marks secret presence only", invalidClientDiagnostic?.runtime_evidence_json?.client?.client_secret_present === true, JSON.stringify(invalidClientDiagnostic));
+  assert("invalid client diagnostic captures code timing", invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.ttl_seconds === 300, JSON.stringify(invalidClientDiagnostic));
+  assert("invalid client diagnostic captures code age", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.age_seconds), JSON.stringify(invalidClientDiagnostic));
+  assert("invalid client diagnostic excludes raw secret", !JSON.stringify(invalidClientDiagnostic || {}).includes("wrong-secret"), JSON.stringify(invalidClientDiagnostic));
 
   const exchange = await postForm(baseUrl, "/auth/oauth/token", {
     grant_type: "authorization_code",
@@ -219,8 +245,13 @@ try {
   assert("token endpoint exchanges authorization code", exchange.status === 200, `${exchange.status}`);
   assert("token endpoint returns bearer token", exchange.body.token_type === "Bearer", JSON.stringify(exchange.body));
   assert("token endpoint mints a fresh access JWT", exchange.body.access_token !== userToken && typeof exchange.body.access_token === "string", JSON.stringify(exchange.body));
-  assert("token endpoint returns linked tenant scopes", exchange.body.scope === TENANT_SCOPE, JSON.stringify(exchange.body));
-  assert("token endpoint returns activation context", exchange.body.activation_context?.device_id === "tenant-pc", JSON.stringify(exchange.body));
+  assert("token endpoint returns standard OAuth response only", !Object.prototype.hasOwnProperty.call(exchange.body, "scope") && !Object.prototype.hasOwnProperty.call(exchange.body, "activation_context"), JSON.stringify(exchange.body));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const successDiagnostic = oauthTokenDiagnostics.find((row) => row.execution_status === "success");
+  assert("success token exchange writes diagnostic", Boolean(successDiagnostic), JSON.stringify(oauthTokenDiagnostics));
+  assert("success diagnostic captures token type", successDiagnostic?.runtime_evidence_json?.access_token?.token_type === "Bearer", JSON.stringify(successDiagnostic));
+  assert("success diagnostic captures token length only", successDiagnostic?.runtime_evidence_json?.access_token?.length === exchange.body.access_token.length, JSON.stringify(successDiagnostic));
+  assert("success diagnostic excludes raw access token", !JSON.stringify(successDiagnostic || {}).includes(exchange.body.access_token), JSON.stringify(successDiagnostic));
   const accessPayload = jwt.verify(exchange.body.access_token, process.env.JWT_SECRET);
   assert("access JWT has platform issuer", accessPayload.iss === "https://auth.mad4b.com", JSON.stringify(accessPayload));
   assert("access JWT has tenant GPT audience", accessPayload.aud === "mad4b-tenant-gpt", JSON.stringify(accessPayload));
