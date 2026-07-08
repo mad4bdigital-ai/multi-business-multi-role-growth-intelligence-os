@@ -82,4 +82,9 @@ assert.match(script, /transitionCapabilityEnvelopeLifecycle/);
 assert.doesNotMatch(script, /fetch\(|axios|spawn\(|exec\(/);
 assert.match(script, /secrets_included/);
 
+const adminCliRoutes = readFileSync(new URL("./routes/adminCliRoutes.js", import.meta.url), "utf8");
+assert.match(adminCliRoutes, /capability_resolution_envelope_lifecycle/);
+assert.match(adminCliRoutes, /scripts\/capability-resolution-envelope-lifecycle\.mjs/);
+assert.match(adminCliRoutes, /Transition capability resolution envelope lifecycle/);
+
 console.log("Capability envelope lifecycle tool tests passed");
