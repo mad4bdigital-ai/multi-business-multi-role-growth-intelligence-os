@@ -610,6 +610,8 @@ export function buildGptSessionRoutes(deps) {
           content: turn.content,
           action_key: turn.action_key,
           turnIndex,
+          workspace_key: turn.workspace_key,
+          brand_key: turn.brand_key,
         });
         written.push({
           role: turn.role,
