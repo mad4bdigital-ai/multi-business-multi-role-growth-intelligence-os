@@ -436,6 +436,7 @@ async function recordOAuthTokenDiagnostic(queryFn, event = {}) {
       duration_ms: durationMs,
       grant_type: event.grant_type || null,
       code_present: Boolean(event.code_present),
+      code_timing: event.code_timing || null,
       redirect_uri: event.redirect_uri || null,
       code_redirect_uri: event.code_redirect_uri || null,
       client: event.client || null,
