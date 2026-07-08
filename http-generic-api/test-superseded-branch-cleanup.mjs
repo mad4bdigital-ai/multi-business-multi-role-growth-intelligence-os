@@ -401,6 +401,8 @@ assert.match(routes, /requireGithubSupersededBranchCleanupEnvelope/);
 assert.match(routes, /acceptedIntents: \["github_superseded_branch_cleanup", "github_branch_delete", "branch_cleanup", "repo_mutation"\]/);
 assert.match(routes, /runGithubSupersededBranchCleanup/);
 assert.match(routes, /allow_orphan_branch/);
+assert.match(routes, /intentional_non_port_evidence/);
+assert.match(routes, /migration_superseded_equivalence/);
 assert.match(migration, /allow_superseded_closed_pr_branch_delete/);
 assert.match(migration, /superseded_branch_delete_requires_changed_file_coverage/);
 assert.match(migration, /superseded_branch_delete_requires_same_cycle_readback/);
