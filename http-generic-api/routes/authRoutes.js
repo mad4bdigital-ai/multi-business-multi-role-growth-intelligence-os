@@ -665,7 +665,7 @@ export function buildAuthRoutes(deps) {
         code,
         expires_in: OAUTH_CODE_TTL_SECONDS,
         activation_context,
-        redirect_to: appendOAuthParams(redirect_uri, { code, state }),
+        redirect_to: appendOAuthParams(canonicalRedirectUri || redirect_uri, { code, state }),
       });
     } catch {
       return res.status(401).json({ ok: false, error: { code: "invalid_token", message: "User token is invalid or expired." } });
