@@ -290,6 +290,9 @@ function testRepositoryContracts() {
   assert.match(gptToolsRoutes, /x-brand-key/);
   assert.match(gptToolsRoutes, /workspace_key = \?/);
   assert.match(gptToolsRoutes, /brand_key = \?/);
+  assert.match(gptToolsRoutes, /x-business-type-key/);
+  assert.match(gptToolsRoutes, /x-business-activity-type-key/);
+  assert.match(gptToolsRoutes, /x-knowledge-profile-key/);
 
   assert.match(gptSessionRoutes, /workspace_key = String\(turn\.workspace_key/);
   assert.match(gptSessionRoutes, /brand_key = String\(turn\.brand_key/);
