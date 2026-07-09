@@ -253,6 +253,7 @@ assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
     if (sql.includes("FROM `permission_grants`")) return { ok: true, rows: [] };
     if (sql.includes("FROM `actions`")) return { ok: true, rows: [] };
     if (sql.includes("FROM `admin_platform_endpoint_tools`")) return { ok: true, rows: [{ tool_key: "release_readiness", display_name: "Release Readiness", http_method: "POST", http_path: "/gpt/tools/call", tags: "admin,readiness" }] };
+    if (sql.includes("FROM `tenant_gpt_activation_contexts`")) return { ok: true, rows: [] };
     return { ok: true, rows: [] };
   };
   const access = await buildActivationAuthorizedAccess(
