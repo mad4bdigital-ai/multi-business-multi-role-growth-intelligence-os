@@ -88,6 +88,7 @@ async function getText(baseUrl, path, { headers = {} } = {}) {
 }
 
 const oauthTokenDiagnostics = [];
+const tenantGptActivationContexts = [];
 
 const oauthClientPool = {
   async query(sql, params) {
