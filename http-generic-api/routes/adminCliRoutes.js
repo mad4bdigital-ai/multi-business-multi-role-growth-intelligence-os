@@ -1364,6 +1364,40 @@ async function executeGitHubRestFallbackCore(args = []) {
     const filenames = (payload || []).map((file) => file.filename).filter(Boolean);
     return { stdout: `${filenames.join("\n")}${filenames.length ? "\n" : ""}`, stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
   }
+
+  if (resource === "pr" && command === "ready" && maybeId) {
+    const prNumber = parseGithubPrNumber(maybeId);
+    const pr = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}`, token });
+    if (pr?.draft !== true) {
+      return {
+        stdout: JSON.stringify({ number: Number(prNumber), isDraft: false, already_ready: true }, null, 2),
+        stderr: "gh CLI is not installed on host; used GitHub GraphQL fallback.\n",
+        exit_code: 0,
+        fallback: "github_graphql",
+      };
+    }
+    const payload = await githubGraphqlJson({
+      token,
+      body: {
+        query: "mutation($pullRequestId: ID!) { markPullRequestReadyForReview(input: { pullRequestId: $pullRequestId }) { pullRequest { number isDraft } } }",
+        variables: { pullRequestId: pr.node_id },
+      },
+    });
+    const readback = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}`, token });
+    if (readback?.draft === true) {
+      const err = new Error("GitHub PR ready fallback did not clear draft state on readback.");
+      err.status = 409;
+      err.code = "github_pr_ready_readback_failed";
+      err.details = { pr_number: Number(prNumber), secrets_included: false };
+      throw err;
+    }
+    return {
+      stdout: JSON.stringify({ number: Number(prNumber), isDraft: false, mutation: payload?.data?.markPullRequestReadyForReview || null }, null, 2),
+      stderr: "gh CLI is not installed on host; used GitHub GraphQL fallback.\n",
+      exit_code: 0,
+      fallback: "github_graphql",
+    };
+  }
   if (resource === "api" && command && String(command).includes("/branches")) {
     const payload = await githubRestJson({ owner, repo, apiPath: "/branches?per_page=100", token });
     return { stdout: JSON.stringify(payload, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
