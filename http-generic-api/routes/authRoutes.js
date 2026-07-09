@@ -755,6 +755,7 @@ export function buildAuthRoutes(deps) {
   router.post("/oauth/code", async (req, res) => {
     try {
       const { token, redirect_uri, state } = req.body || {};
+      const requested_scope = cleanTenantGptRequestedScope(req.body?.scope);
       const activation_context = req.body?.activation_context && typeof req.body.activation_context === "object"
         ? parseActivationContext(req.body.activation_context)
         : {};
