@@ -288,8 +288,10 @@ function testRepositoryContracts() {
   assert.match(gptToolsRoutes, /resolveGptSessionContext/);
   assert.match(gptToolsRoutes, /x-workspace-key/);
   assert.match(gptToolsRoutes, /x-brand-key/);
-  assert.match(gptToolsRoutes, /workspace_key = \?/);
-  assert.match(gptToolsRoutes, /brand_key = \?/);
+  assert.doesNotMatch(gptToolsRoutes, /workspace_key = \?/);
+  assert.doesNotMatch(gptToolsRoutes, /brand_key = \?/);
+  assert.match(gptToolsRoutes, /business_type_key: businessTypeKey/);
+  assert.match(gptToolsRoutes, /business_activity_type_key: businessActivityTypeKey/);
   assert.match(gptToolsRoutes, /x-business-type-key/);
   assert.match(gptToolsRoutes, /x-business-activity-type-key/);
   assert.match(gptToolsRoutes, /x-knowledge-profile-key/);
