@@ -4,23 +4,126 @@
   "title": "Adaptive Authorization and Execution Governance",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-08T16:10:00Z",
+  "last_updated_at": "2026-07-09T15:10:00Z",
   "delivery": {
     "implementation_prs": [
-      { "sequence": 1, "role": "state_semantics_and_operational_projections", "pull_request": 1936, "merge_sha": "809e81f9dc3c9198a2a4c2d45b4cd4177ef7b158", "status": "merged" },
-      { "sequence": 2, "role": "decision_plane_capability_resolver_and_shadow_metadata", "pull_request": 2290, "merge_sha": "332875c0143c622c287f4629f725381ccda5fe84", "status": "merged_and_branch_deleted" },
-      { "sequence": 3, "role": "dynamic_shared_enforcement_kernel", "pull_request": 2322, "merge_sha": "a5ae2aefdafbc2e786c7dd90f9469d85d9784b17", "status": "merged_and_branch_deleted" },
-      { "sequence": 4, "role": "revision_bound_execution_envelopes", "pull_request": 2346, "merge_sha": "dfd1fb9378997cad7fdfb97ff0ad702922ae0809", "status": "merged_and_branch_deleted" },
-      { "sequence": 5, "role": "scoped_approval_requests_and_append_only_decisions", "pull_request": 2365, "merge_sha": "06b48fa31d0784a64297f010b1ba2fec7e1f9917", "status": "merged_and_branch_deleted" },
-      { "sequence": 6, "role": "stale_envelope_idempotency_and_concurrency_controls", "pull_request": null, "merge_sha": null, "status": "in_progress" }
+      {
+        "sequence": 1,
+        "role": "state_semantics_and_operational_projections",
+        "pull_request": 1936,
+        "merge_sha": "809e81f9dc3c9198a2a4c2d45b4cd4177ef7b158",
+        "status": "merged"
+      },
+      {
+        "sequence": 2,
+        "role": "decision_plane_capability_resolver_and_shadow_metadata",
+        "pull_request": 2290,
+        "merge_sha": "332875c0143c622c287f4629f725381ccda5fe84",
+        "status": "merged_and_branch_deleted"
+      },
+      {
+        "sequence": 3,
+        "role": "dynamic_shared_enforcement_kernel",
+        "pull_request": 2322,
+        "merge_sha": "a5ae2aefdafbc2e786c7dd90f9469d85d9784b17",
+        "status": "merged_and_branch_deleted"
+      },
+      {
+        "sequence": 4,
+        "role": "revision_bound_execution_envelopes",
+        "pull_request": 2346,
+        "merge_sha": "dfd1fb9378997cad7fdfb97ff0ad702922ae0809",
+        "status": "merged_and_branch_deleted"
+      },
+      {
+        "sequence": 5,
+        "role": "scoped_approval_requests_and_append_only_decisions",
+        "pull_request": 2365,
+        "merge_sha": "06b48fa31d0784a64297f010b1ba2fec7e1f9917",
+        "status": "merged_and_branch_deleted"
+      },
+      {
+        "sequence": 6,
+        "role": "stale_envelope_idempotency_and_concurrency_controls",
+        "pull_request": 2380,
+        "merge_sha": "95a2c024047c719dc743dcd6fef90ed6a23b694b",
+        "status": "merged_and_branch_deleted"
+      },
+      {
+        "sequence": 7,
+        "role": "adapter_binding_certification_readback_and_drift_contracts",
+        "pull_request": 2389,
+        "merge_sha": "04bb276759f3c266745e363a0005f542d7a71902",
+        "status": "merged",
+        "branch_deleted_verified": false
+      }
     ],
-    "remaining_task_loop": { "status": "t023_open_pr_in_progress", "provider_mutation": false, "migration_execution": "not_started", "enforcement_change": false },
-    "next_pr": { "sequence": 7, "scope": "adapter_bindings_certification_readback_and_drift_reconcilers_after_t023_merge", "status": "blocked_until_t023_merged_and_readback_complete" }
+    "remaining_task_loop": {
+      "status": "t040_next_shadow_pilots",
+      "provider_mutation": false,
+      "migration_execution": "not_started",
+      "enforcement_change": false
+    },
+    "next_pr": {
+      "sequence": 8,
+      "scope": "T040 shadow pilots without provider mutation",
+      "status": "blocked_until_t030_post_merge_readback_and_ledger_fix_complete"
+    }
   },
   "evidence": {
-    "execution_governance": { "status": "in_progress", "completed_tasks": ["T020", "T021", "T022", "T023"], "latest_task": "T023", "provider_mutation_allowed": false, "enforcement_cutover_allowed": false, "migration_execution_authorized": false, "new_authority_tables_allowed": false },
-    "implementation": { "status": "in_progress", "completed_tasks": ["T010", "T011", "T012", "T013", "T014", "T015", "T020", "T021", "T022", "T023"], "next_task_scope": "T030 adapter bindings, certification, deterministic selection, readback and drift reconcilers", "provider_mutation_allowed": false, "enforcement_change_allowed": false, "new_authority_tables_allowed": false },
-    "production_rollout": { "status": "pending", "reason": "T030 through T053, pilots, migrations, production verification, rollback rehearsal and post-merge audit remain incomplete." }
+    "execution_governance": {
+      "status": "in_progress",
+      "completed_tasks": [
+        "T020",
+        "T021",
+        "T022",
+        "T023",
+        "T030"
+      ],
+      "latest_task": "T030",
+      "provider_mutation_allowed": false,
+      "enforcement_cutover_allowed": false,
+      "migration_execution_authorized": false,
+      "new_authority_tables_allowed": false
+    },
+    "implementation": {
+      "status": "in_progress",
+      "completed_tasks": [
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T014",
+        "T015",
+        "T020",
+        "T021",
+        "T022",
+        "T023",
+        "T030"
+      ],
+      "next_task_scope": "T040 run three pilots in shadow mode without provider mutation",
+      "remaining_tasks": [
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T050",
+        "T051",
+        "T052",
+        "T053",
+        "T061",
+        "T062",
+        "D010"
+      ],
+      "remaining_task_count": 11,
+      "provider_mutation_allowed": false,
+      "enforcement_change_allowed": false,
+      "new_authority_tables_allowed": false
+    },
+    "production_rollout": {
+      "status": "pending",
+      "reason": "T040 through T053, pilots, migrations, production verification, rollback rehearsal, and post-merge audit remain incomplete."
+    }
   },
   "sensitive_values_included": false
 }
