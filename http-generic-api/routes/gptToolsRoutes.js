@@ -65,6 +65,7 @@ import {
   refreshGrowthIntelligenceReadinessAdmin,
 } from "../growthIntelligenceAdminDecisions.js";
 import { issueRuntimeDispatchCertification } from "../runtimeDispatchCertificationIssuer.js";
+import { serializeDbControlQueryResult } from "./adminCliRoutes.js";
 
 const execFileAsync = promisify(execFile);
 
