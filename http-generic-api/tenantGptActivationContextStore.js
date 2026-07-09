@@ -48,7 +48,9 @@ function mysqlDate(value) {
 
 async function runQuery(query, sql, params = []) {
   const result = await query(sql, params);
-  return Array.isArray(result) ? result[0] : result;
+  if (Array.isArray(result)) return result[0];
+  if (result && typeof result === "object" && Array.isArray(result.rows)) return result.rows;
+  return result;
 }
 
 let activationContextTableReady = false;
