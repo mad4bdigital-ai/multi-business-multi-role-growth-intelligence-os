@@ -11,6 +11,7 @@ import {
   summarizeSessionIfNeeded,
   summarizeSessionTranscript,
   runSessionSummaryAutosweep,
+  verifySessionSummaryWrite,
   writeProvidedSessionSummary,
 } from "./sessionSummaryService.js";
 
@@ -224,6 +225,23 @@ function makePool() {
 {
   assert.equal(typeof summarizeSessionIfNeeded, "function");
   assert.equal(typeof writeProvidedSessionSummary, "function");
+}
+
+{
+  const pool = {
+    async query(sql) {
+      const compact = String(sql).replace(/\s+/g, " ").trim();
+      if (compact.startsWith("SELECT summary_id, session_id, tenant_id, turn_count, created_at FROM `session_summaries`")) {
+        return [[{ summary_id: "summary-missing-graph", session_id: "sess-missing-graph", tenant_id: "tenant-1", turn_count: 1, created_at: "2026-07-09T00:00:00.000Z" }]];
+      }
+      return [[]];
+    },
+  };
+  const verification = await verifySessionSummaryWrite({ pool, session: { session_id: "sess-missing-graph" }, summary_id: "summary-missing-graph" });
+  assert.equal(verification.ok, false);
+  assert.equal(verification.summary_row_present, true);
+  assert.equal(verification.graph_asset_present, false);
+  assert.equal(verification.reason, "summary_graph_asset_missing");
 }
 
 {
