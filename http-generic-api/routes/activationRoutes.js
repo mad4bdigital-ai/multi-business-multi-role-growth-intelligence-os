@@ -512,7 +512,7 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
   const tenantFilter = isAdmin ? "(? IS NULL OR tenant_id = ?)" : "tenant_id = ?";
   const tenantParams = isAdmin ? [tenantId, tenantId] : [tenantId];
 
-  const [memberships, roles, workspaces, systems, installations, grants, runtimeActions, adminTools, registeredSurfaces] = await Promise.all([
+  const [memberships, roles, workspaces, systems, installations, grants, runtimeActions, adminTools, registeredSurfaces, activationContext] = await Promise.all([
     userId
       ? queryFn(
           `SELECT tenant_id, role, status, granted_at, updated_at
