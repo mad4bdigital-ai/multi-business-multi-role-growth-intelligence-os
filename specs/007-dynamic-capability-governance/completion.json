@@ -179,8 +179,8 @@
       "runtime_behavior_changed": false
     },
     "implementation": {
-      "status": "partial_implementation_observed_pending_post_merge_audit_and_closeout",
-      "next_pr_scope": "post_merge_audit_and_closeout",
+      "status": "partial_implementation_observed_pending_dev_staging_shadow_canary_and_closeout",
+      "next_pr_scope": "dev_staging_shadow_canary_or_final_closeout",
       "provider_mutation_allowed": false,
       "enforcement_change_allowed": false,
       "automatic_tenant_export_allowed": false,
