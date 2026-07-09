@@ -290,11 +290,16 @@ const projectionSources={
   brandPaths:[{ brand_key:"brand-key-1",target_key:"brand-key-1",business_type_key:"business-type-1",status:"active",active:"active" }],
   activities:[{ business_activity_type_key:"activity-1",business_type_key:"business-type-1",label:"Activity One",supported_workflows:'["workflow-1"]',status:"active",active:"active" }],
   workflows:[{ workflow_key:"workflow-1",workflow_id:"workflow-1",workflow_name:"Workflow One",status:"active",active:"active" }],
-  memberships:[{ user_id:"user-1",tenant_id:TENANT,role:"admin",status:"active" }]
+  memberships:[{ user_id:"user-1",tenant_id:TENANT,role:"admin",status:"active" }],
+  workspaceAssets:[{
+    asset_id:"asset-1",tenant_id:TENANT,asset_type:"knowledge",asset_ref:"asset-ref-1",display_name:"Asset One",
+    brand_ref:null,site_ref:null,workflow_ref:null,visibility:"workspace",lifecycle_status:"active",metadata_json:"{}",created_by:"test"
+  }]
 };
 const projection=await buildLegacyContainerProjectionPlan({ sourceRows:projectionSources });
 assert.equal(projection.summary.highRiskIssueCount,0);
 assert.equal(projection.secretsIncluded,false);
+assert(projection.resourceBindings.some(row => row.source_table === "workspace_assets"));
 for (const type of ["platform","tenant","workspace","brand","activity","workflow"]) {
   assert(projection.containers.some(row => row.container_type_key === type),`projection must create ${type} container`);
 }

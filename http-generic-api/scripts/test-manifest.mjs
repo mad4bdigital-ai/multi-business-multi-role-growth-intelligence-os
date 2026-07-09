@@ -28,6 +28,7 @@ export const testCommands = [
   "node test-platform-execution-envelope-kernel.mjs",
   "node test-platform-scoped-approval-kernel.mjs",
   "node test-platform-execution-concurrency-kernel.mjs",
+  "node test-platform-adapter-contract-kernel.mjs",
   "node test-dynamic-capability-simulation-suite.mjs",
   "node test-tool-bus-collision-audit-and-preview.mjs",
   "node test-dr-certification-and-toolbus-gated.mjs",

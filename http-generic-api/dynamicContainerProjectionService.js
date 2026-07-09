@@ -301,7 +301,7 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
       metadata_json:JSON.stringify({ credential_payload_included:false })
     });
   }
-  for (const asset of source.workspaceAssets.filter(row => activeValue(asset.lifecycle_status))) {
+  for (const asset of source.workspaceAssets.filter(row => activeValue(row.lifecycle_status))) {
     const tenantContainer = tenantContainerByTenant.get(String(asset.tenant_id));
     const brandContainer = asset.brand_ref ? brandContainerByTenantAndTarget.get(`${asset.tenant_id}|${asset.brand_ref}`) : null;
     const container = brandContainer || tenantContainer;
