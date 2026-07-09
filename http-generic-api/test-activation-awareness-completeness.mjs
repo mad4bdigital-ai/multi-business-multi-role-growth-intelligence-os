@@ -361,10 +361,11 @@ function testRepositoryContracts() {
     "idx_ar_context_reuse_session",
     "idx_ss_context_created",
     "idx_gst_context_scope_created",
-    "idx_gst_session_context_lookup",
+    "idx_gst_session_context_created",
     "workspace_key",
     "brand_key",
   ], "activation context index migration");
+  assert.doesNotMatch(contextIndexMigration, /idx_gst_session_context_lookup/);
 
   assert.ok(openapi.includes("/sessions:"), "OpenAPI must include /sessions");
   assert.match(openapi, /context_scope:/);
