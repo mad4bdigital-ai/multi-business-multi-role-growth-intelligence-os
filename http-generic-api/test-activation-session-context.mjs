@@ -215,7 +215,7 @@ assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
   };
 
   const access = await buildActivationAuthorizedAccess(
-    { auth: { mode: "user_jwt", is_admin: false, user_id: "user-a", tenant_id: "tenant-a" }, query: {} },
+    { auth: { mode: "user_jwt", is_admin: false, user_id: "user-a", tenant_id: "tenant-a", claims: { jti: "access-1" } }, query: {} },
     { is_admin: false, user_id: "user-a", tenant_id: "tenant-a" },
     { query }
   );
