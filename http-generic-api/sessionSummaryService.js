@@ -1405,7 +1405,7 @@ async function attachSessionSummaryToGraph({ pool, session, summaryId, insight }
   };
 }
 
-export async function writeSessionSummary({ pool = getPool(), session, insight, run_id = null }) {
+export async function writeSessionSummary({ pool = getPool(), session, insight, run_id = null, operation_log = [] }) {
   const summarySurfaceAuthority = await assertSurfaceAuthority(
     SURFACE_KEYS.SESSION_SUMMARY_MEMORY,
     { requireExecution: true },
