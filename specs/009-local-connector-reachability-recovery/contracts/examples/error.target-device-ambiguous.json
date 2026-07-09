@@ -1,0 +1,12 @@
+{
+  "error": {
+    "code": "target_device_ambiguous",
+    "message": "Select one canonical device before running diagnostics or recovery.",
+    "details": {
+      "selection_barrier": "tenant_id+user_id+canonical_device_id",
+      "matched_count": 2,
+      "allowed_next_action": "choose_device"
+    },
+    "requestId": "req_example"
+  }
+}
