@@ -93,6 +93,8 @@ pass("missing commit_message is rejected with repo_patch_missing_message");
   assert.ok(lifecycleSource.includes("expected_branch_sha"), "repo patch batch must validate existing work branch head for continuation");
   assert.ok(lifecycleSource.includes("same_branch_continuation_used"), "repo patch batch readback must disclose continuation mode");
   assert.ok(lifecycleSource.includes("default_branch_drift"), "repo patch batch readback must disclose moved-main drift evidence");
+  assert.ok(lifecycleSource.includes("github_change_set_patch_noop"), "repo patch batch must reject unified diffs that produce no content change");
+  assert.ok(lifecycleSource.includes("patchedContent === current.content"), "repo patch batch must compare patched content with source content before committing");
   assert.ok(lifecycleSource.includes("github_change_set_empty_tree"), "repo patch batch must reject empty tree commits instead of reporting success with zero file edits");
   assert.ok(lifecycleSource.includes("newTreeSha === parentTreeSha"), "repo patch batch must compare the created tree with the parent tree before committing");
   assert.ok(lifecycleSource.includes("github_change_set_tree_readback_missing"), "repo patch batch must fail closed when GitHub does not return a valid tree SHA");
