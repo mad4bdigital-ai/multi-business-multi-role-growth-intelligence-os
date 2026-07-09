@@ -48,6 +48,14 @@
         "status": "merged",
         "merge_sha": "6d1a942503b6296c8d9282b54ee089cc5afdc161",
         "summary": "Made release readiness summary-first by default so production parity evidence can be read through bounded JSON without transport timeouts."
+      },
+      {
+        "number": 2393,
+        "branch": "gpt/007-record-production-parity-evidence-v3-20260708",
+        "role": "production_runtime_parity_evidence_record",
+        "status": "merged",
+        "merge_sha": "c3250d42bbf67dd59f54fafd5513de785487eec1",
+        "summary": "Recorded verified production runtime parity evidence, marked T226 complete, and kept dev/staging shadow, post-merge audit, residual debt, and final closeout pending."
       }
     ],
     "implementation_evidence": [
