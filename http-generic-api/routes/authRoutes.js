@@ -886,6 +886,11 @@ export function buildAuthRoutes(deps) {
           token_type: "Bearer",
           length: accessToken.length,
         },
+        activation_context: {
+          stored: activationContextRecord.stored === true,
+          source: activationContextRecord.source || null,
+          reason: activationContextRecord.reason || null,
+        },
       });
       return res.status(200).json({
         access_token: accessToken,
