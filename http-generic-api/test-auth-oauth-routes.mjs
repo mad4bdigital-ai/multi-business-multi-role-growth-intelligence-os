@@ -281,7 +281,9 @@ try {
   assert("access JWT has tenant subject", accessPayload.sub === "tenant:tenant-1:user:user-1", JSON.stringify(accessPayload));
   assert("stored activation context is linked to access JWT jti", tenantGptActivationContexts[0].access_jti === accessPayload.jti, JSON.stringify({ stored: tenantGptActivationContexts[0].access_jti, token: accessPayload.jti }));
   assert("access JWT carries linked tenant scopes", accessPayload.scope === TENANT_SCOPE, JSON.stringify(accessPayload));
-  assert("access JWT carries scope links array", TENANT_SCOPE_LINKS.every((scope) => accessPayload.scope_links?.includes(scope)), JSON.stringify(accessPayload));
+  assert("OAuth access JWT omits duplicated scope links", accessPayload.scope_links === undefined, JSON.stringify(accessPayload));
+  assert("OAuth access JWT omits duplicated client id", accessPayload.client_id === undefined, JSON.stringify(accessPayload));
+  assert("OAuth access JWT stays compact", exchange.body.access_token.length < 1000, String(exchange.body.access_token.length));
   assert("access JWT carries tenant GPT purpose", accessPayload.purpose === "tenant_gpt_access", JSON.stringify(accessPayload));
 
   const mismatch = await postForm(baseUrl, "/auth/oauth/token", {
