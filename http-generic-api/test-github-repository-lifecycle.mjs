@@ -407,7 +407,7 @@ function queuedFetch(entries, calls = []) {
       { status: 200, payload: { type: "file", sha: PATCH_BLOB_SHA, encoding: "base64", content: Buffer.from("export const alpha = true;\nexport const beta = false;\n").toString("base64") } },
       { status: 201, payload: { sha: BLOB_SHA } },
       { status: 201, payload: { sha: PATCH_BLOB_SHA } },
-      { status: 201, payload: { sha: TREE_SHA } },
+      { status: 201, payload: { sha: NEW_TREE_SHA } },
       { status: 201, payload: { sha: COMMIT_SHA } },
       { status: 201, payload: { ref: "refs/heads/gpt/atomic-change-set", object: { sha: COMMIT_SHA } } },
       { status: 200, payload: { object: { sha: COMMIT_SHA } } },
