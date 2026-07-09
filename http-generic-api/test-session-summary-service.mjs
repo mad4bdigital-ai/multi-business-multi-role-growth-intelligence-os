@@ -11,6 +11,7 @@ import {
   summarizeSessionIfNeeded,
   summarizeSessionTranscript,
   runSessionSummaryAutosweep,
+  verifySessionSummaryWrite,
   writeProvidedSessionSummary,
 } from "./sessionSummaryService.js";
 
