@@ -669,8 +669,20 @@ export async function verifySessionSummaryWrite({ pool = getPool(), session, sum
   const graphAssetNodePresent = nodeIds.has(assetNodeId);
   const graphEdgePresent = Boolean(edgeRows?.[0]);
   const graphTopologyPresent = graphConversationNodePresent && graphAssetNodePresent && graphEdgePresent;
+  const reason = !summaryRow
+    ? "summary_row_missing"
+    : !assetRow
+      ? "summary_graph_asset_missing"
+      : !graphConversationNodePresent
+        ? "summary_graph_conversation_node_missing"
+        : !graphAssetNodePresent
+          ? "summary_graph_asset_node_missing"
+          : !graphEdgePresent
+            ? "summary_graph_edge_missing"
+            : null;
   return {
     ok: Boolean(summaryRow) && graphTopologyPresent,
+    reason,
     summary_row_present: Boolean(summaryRow),
     graph_asset_present: Boolean(assetRow),
     graph_validation_status: assetRow?.validation_status || null,
@@ -1393,7 +1405,7 @@ async function attachSessionSummaryToGraph({ pool, session, summaryId, insight }
   };
 }
 
-export async function writeSessionSummary({ pool = getPool(), session, insight, run_id = null }) {
+export async function writeSessionSummary({ pool = getPool(), session, insight, run_id = null, operation_log = [] }) {
   const summarySurfaceAuthority = await assertSurfaceAuthority(
     SURFACE_KEYS.SESSION_SUMMARY_MEMORY,
     { requireExecution: true },
@@ -1426,13 +1438,28 @@ export async function writeSessionSummary({ pool = getPool(), session, insight, 
   );
 
   let graphAttachment = null;
+  let graphAttachmentError = null;
   try {
     graphAttachment = await attachSessionSummaryToGraph({ pool, session, summaryId, insight });
+    recordOperation(operation_log, {
+      stage: "attach_session_summary_graph",
+      status: "succeeded",
+      summary_id: summaryId,
+      graph_asset_id: graphAttachment?.asset_id || null,
+      graph_edge_id: graphAttachment?.edge_id || null,
+    });
   } catch (err) {
+    graphAttachmentError = sanitizeModelError(err);
+    recordOperation(operation_log, {
+      stage: "attach_session_summary_graph",
+      status: "failed",
+      summary_id: summaryId,
+      error: graphAttachmentError,
+    });
     console.warn("[sessionSummary] graph attachment failed", {
       session_id: session.session_id,
       summary_id: summaryId,
-      message: err?.message || String(err),
+      message: graphAttachmentError,
     });
   }
 
@@ -1504,7 +1531,7 @@ export async function summarizeAndStoreSession({
   const summaryId = await withOperationStep(
     operation_log,
     "write_session_summary",
-    async () => writeSessionSummary({ pool, session: resolvedSession, insight, run_id }),
+    async () => writeSessionSummary({ pool, session: resolvedSession, insight, run_id, operation_log }),
     { run_id, session_id: resolvedSession.session_id }
   );
   const verification = await withOperationStep(
