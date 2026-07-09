@@ -43,13 +43,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 ## Generated / Scoped OpenAPI Schemas
 
-- `http-generic-api/openapi.custom-gpt.activation-admin.yaml`
-- `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml`
-- `http-generic-api/openapi.gpt-action.dev-diagnostics.yaml`
-- `http-generic-api/openapi.gpt-action.dev-dispatcher.yaml`
-- `http-generic-api/openapi.gpt-action.local-connector.yaml`
-- `http-generic-api/openapi.tenant-gpt.activation.yaml`
-- `http-generic-api/openapi.tenant-gpt.auth.yaml`
+- none
 
 ## Route Coverage Allowlist
 
@@ -64,6 +58,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/custom-gpt-contract-guard.yml`
 - `.github/workflows/docs-agent.yml`
 - `.github/workflows/dr-certification-readiness.yml`
+- `.github/workflows/http-generic-api-fanout-relocation.yml`
 - `.github/workflows/local-manager-windows.yml`
 - `.github/workflows/openapi-auto-sync.yml`
 - `.github/workflows/platform-completion-cleanup-readback.yml`
@@ -94,6 +89,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-expand-schema-logic.mjs`
 - `http-generic-api/test-github-issue-label-response-schema-alignment.mjs`
 - `http-generic-api/test-github-tooling-schema-contracts.mjs`
+- `http-generic-api/test-governed-migration-schema-readback-tool.mjs`
 - `http-generic-api/test-governed-response-chunk-schema-reconciliation.mjs`
 - `http-generic-api/test-gpt-schema-db-coverage-guard.mjs`
 - `http-generic-api/test-gpt-schema-db-coverage-migration.mjs`
@@ -101,8 +97,10 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-openapi-builder-schema-guard.mjs`
 - `http-generic-api/test-openapi-endpoint-inventory-sync.mjs`
 - `http-generic-api/test-openapi-route-coverage.mjs`
+- `http-generic-api/test-openapi-schema-output-paths.mjs`
 - `http-generic-api/test-openapi-split-governance.mjs`
 - `http-generic-api/test-openapi-split-regeneration-parity.mjs`
+- `http-generic-api/test-platform-endpoint-export-schema-parity.mjs`
 - `http-generic-api/test-platform-evolution-openapi-docs.mjs`
 - `http-generic-api/test-platform-plugin-action-grants.mjs`
 - `http-generic-api/test-platform-plugin-action-templates.mjs`
@@ -127,6 +125,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-tenant-database-schema-read.mjs`
 - `http-generic-api/test-tenant-platform-plugin-openapi.mjs`
 - `http-generic-api/test-tenant-platform-plugin-routes.mjs`
+- `http-generic-api/test-tenant-resolution-registry-schema.mjs`
 
 ## Maintenance Contract
 

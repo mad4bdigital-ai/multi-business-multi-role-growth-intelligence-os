@@ -664,6 +664,13 @@ export async function collectChunkedToolResponse(initial, { dispatch, maxChunks 
   };
 }
 
+async function dispatchAndCollect(dispatch, toolKey, args, options = {}) {
+  return collectChunkedToolResponse(await dispatch(toolKey, args), {
+    dispatch,
+    maxChunks: options.maxChunks || 25,
+  });
+}
+
 function readbackIndicatesCompletion(step, body = {}) {
   const value = toolBody(body) || {};
   if (step.step_key === "pr_finalize") return value?.data?.merged === true || value?.merged === true || String(value?.state || "").toLowerCase() === "merged";
@@ -746,9 +753,47 @@ async function dispatchWithReceipt({ pool, runId, step, args, dispatch, readback
   return first;
 }
 
+function normalizeRuntimeEndpointResultBody(result) {
+  let body = toolBody(result) || {};
+  for (let depth = 0; depth < 6; depth += 1) {
+    if (body?.result?.result?.body && typeof body.result.result.body === "object") {
+      body = body.result.result.body;
+      continue;
+    }
+    if (body?.result?.body && typeof body.result.body === "object") {
+      body = body.result.body;
+      continue;
+    }
+    if (body?.body && typeof body.body === "object") {
+      body = body.body;
+      continue;
+    }
+    break;
+  }
+  return body || {};
+}
+
 function githubData(result) {
-  const body = toolBody(result) || {};
+  const body = normalizeRuntimeEndpointResultBody(result);
   return body?.data?.data || body?.data || body;
+}
+
+function githubRepositoryData(result) {
+  const body = githubData(result);
+  return body?.repository || body?.data?.repository || body?.data?.data?.repository || null;
+}
+
+function githubRefSha(result) {
+  const body = githubData(result);
+  return compact(
+    body?.object?.sha
+    || body?.data?.object?.sha
+    || body?.data?.data?.object?.sha
+    || body?.sha
+    || body?.data?.sha
+    || "",
+    64,
+  );
 }
 
 async function executeDocsAgentStabilization(input, dispatch) {
@@ -760,8 +805,8 @@ async function executeDocsAgentStabilization(input, dispatch) {
     credential_scope: "platform",
     timeout_seconds: 60,
   };
-  const first = normalizeDispatchResult(await dispatch("runtime_endpoint_call", args));
-  const second = normalizeDispatchResult(await dispatch("runtime_endpoint_call", args));
+  const first = await dispatchAndCollect(dispatch, "runtime_endpoint_call", args);
+  const second = await dispatchAndCollect(dispatch, "runtime_endpoint_call", args);
   const a = githubData(first)?.data || githubData(first);
   const b = githubData(second)?.data || githubData(second);
   const headA = compact(a?.head?.sha || a?.headRefOid || "", 64);
@@ -783,18 +828,19 @@ async function executeDocsAgentStabilization(input, dispatch) {
 }
 
 async function executeDeploymentParity(input, dispatch) {
-  const local = normalizeDispatchResult(await dispatch("repo_inspect", { action: "git_status", max_chars: 12000 }));
-  const remote = normalizeDispatchResult(await dispatch("runtime_endpoint_call", {
-    parent_action_key: "github_api_mcp",
-    endpoint_key: "github_get_reference",
-    path_params: { owner: input.owner, repo: input.repo, ref: `heads/${input.default_branch}` },
-    credential_scope: "platform",
-    timeout_seconds: 60,
-  }));
+  const local = await dispatchAndCollect(dispatch, "repo_inspect", { action: "git_status", max_chars: 12000 });
+  const remote = await dispatchAndCollect(dispatch, "github_rest_endpoint_dispatch", {
+    tool_args: {
+      parent_action_key: "github_api_mcp",
+      endpoint_key: "github_get_reference",
+      path_params: { owner: input.owner, repo: input.repo, ref: `heads/${input.default_branch}` },
+      credential_scope: "platform",
+      timeout_seconds: 60,
+    },
+  });
   const localBody = toolBody(local)?.result || toolBody(local);
-  const remoteBody = githubData(remote)?.data || githubData(remote);
   const productionSha = compact(localBody?.head_sha || "", 64);
-  const mainSha = compact(remoteBody?.object?.sha || remoteBody?.sha || "", 64);
+  const mainSha = githubRefSha(remote);
   const clean = /^## HEAD \(no branch\)\s*$/m.test(String(localBody?.status || "").trim()) || /working tree clean/i.test(String(localBody?.status || ""));
   const parity = local.ok && remote.ok && productionSha && mainSha && productionSha === mainSha && clean;
   return {
@@ -809,10 +855,10 @@ async function executeDeploymentParity(input, dispatch) {
   };
 }
 
-async function executeCiAutoRecovery(input, dispatch, suppliedArgs) {
+export async function executeCiAutoRecovery(input, dispatch, suppliedArgs = {}) {
   if (!input.pull_number) return { ok: false, status: "awaiting_input", missing_required_fields: ["pull_number"], secrets_included: false };
   const gateArgs = { owner: input.owner, repo: input.repo, pull_number: input.pull_number, required_checks: input.required_checks || REQUIRED_CHECKS };
-  const before = normalizeDispatchResult(await dispatch("github_pr_ci_gate", gateArgs));
+  const before = await dispatchAndCollect(dispatch, "github_pr_ci_gate", gateArgs);
   const gate = toolBody(before)?.result || toolBody(before);
   if (before.ok && gate?.gate_status === "pass") return { ok: true, status: "already_passing", gate, secrets_included: false };
   const missing = gate?.missing_checks || [];
@@ -827,25 +873,28 @@ async function executeCiAutoRecovery(input, dispatch, suppliedArgs) {
       gate,
       missing_required_fields: ["step_args.ci_auto_recovery.dispatch_args.mutation_approval"],
       required_dispatch: {
-        parent_action_key: "github_actions_status",
-        endpoint_key: "createWorkflowDispatch",
-        path_params: { owner: input.owner, repo: input.repo, workflow_id: suppliedArgs?.workflow_id || "ci.yml" },
-        body: { ref: input.branch, inputs: {} },
+        tool_key: "github_rest_endpoint_dispatch",
+        tool_args: {
+          parent_action_key: "github_api_mcp",
+          endpoint_key: "github_create_workflow_dispatch",
+          path_params: { owner: input.owner, repo: input.repo, workflow_id: suppliedArgs?.workflow_id || "ci.yml" },
+          body: { ref: input.branch, inputs: {} },
+        },
       },
       secrets_included: false,
     };
   }
   const dispatchArgs = mergeArgs({
-    parent_action_key: "github_actions_status",
-    endpoint_key: "createWorkflowDispatch",
+    parent_action_key: "github_api_mcp",
+    endpoint_key: "github_create_workflow_dispatch",
     path_params: { owner: input.owner, repo: input.repo, workflow_id: suppliedArgs?.workflow_id || "ci.yml" },
     body: { ref: input.branch, inputs: {} },
     credential_scope: "platform",
     timeout_seconds: 120,
   }, suppliedArgs.dispatch_args);
-  const dispatched = normalizeDispatchResult(await dispatch("runtime_endpoint_call", dispatchArgs));
+  const dispatched = await dispatchAndCollect(dispatch, "github_rest_endpoint_dispatch", { tool_args: dispatchArgs });
   if (!dispatched.ok) return { ok: false, status: "dispatch_failed", dispatch: safeSummary(dispatched.body), secrets_included: false };
-  const after = normalizeDispatchResult(await dispatch("github_pr_ci_gate", gateArgs));
+  const after = await dispatchAndCollect(dispatch, "github_pr_ci_gate", gateArgs);
   return {
     ok: after.ok && toolBody(after)?.result?.gate_status === "pass",
     status: toolBody(after)?.result?.gate_status === "pass" ? "recovered" : "dispatched_pending_readback",
@@ -878,14 +927,16 @@ async function executeMigrationLedgerReadback(input, pool) {
 
 async function executeRepositoryInventory(input, dispatch) {
   const query = `query RepositoryAutomationInventory($owner:String!,$repo:String!){repository(owner:$owner,name:$repo){defaultBranchRef{name target{... on Commit{oid committedDate}}}refs(refPrefix:"refs/heads/",first:100){nodes{name target{... on Commit{oid}}}}openPullRequests:pullRequests(states:OPEN,first:100,orderBy:{field:UPDATED_AT,direction:DESC}){nodes{number title isDraft headRefName headRefOid baseRefName updatedAt}}recentPullRequests:pullRequests(states:[MERGED,CLOSED],first:100,orderBy:{field:UPDATED_AT,direction:DESC}){nodes{number state mergedAt headRefName headRefOid mergeCommit{oid}}}}}`;
-  const result = normalizeDispatchResult(await dispatch("runtime_endpoint_call", {
-    parent_action_key: "github_api_mcp",
-    endpoint_key: "github_graphql",
-    body: { query, variables: { owner: input.owner, repo: input.repo } },
-    credential_scope: "platform",
-    timeout_seconds: 60,
-  }));
-  const repoData = githubData(result)?.repository || githubData(result)?.data?.repository || null;
+  const result = await dispatchAndCollect(dispatch, "github_rest_endpoint_dispatch", {
+    tool_args: {
+      parent_action_key: "github_api_mcp",
+      endpoint_key: "github_graphql",
+      body: { query, variables: { owner: input.owner, repo: input.repo } },
+      credential_scope: "platform",
+      timeout_seconds: 60,
+    },
+  });
+  const repoData = githubRepositoryData(result);
   if (!result.ok || !repoData) return { ok: false, status: "inventory_failed", provider: safeSummary(result.body), secrets_included: false };
   const refs = repoData.refs?.nodes || [];
   const refNames = new Set(refs.map((ref) => ref.name));

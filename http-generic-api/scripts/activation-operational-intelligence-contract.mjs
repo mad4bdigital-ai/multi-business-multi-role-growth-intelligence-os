@@ -64,6 +64,8 @@ assert.match(operationalIntelligence, /tab_badges/, "operational intelligence mu
 assert.match(operationalIntelligence, /section_actions/, "operational intelligence must expose section actions");
 assert.match(operationalIntelligence, /fallback_negotiation/, "operational intelligence must expose fallback negotiation");
 assert.match(operationalIntelligence, /container_graph/, "operational intelligence must expose container graph");
+assert.match(operationalIntelligence, /capability_enablement/, "operational intelligence must expose capability enablement dashboard data");
+assert.match(operationalIntelligence, /ENVELOPE_EXPIRED/, "operational intelligence must track expired envelope attention");
 assert.match(operationalIntelligence, /secret_values_never_returned/, "operational intelligence must declare secret-safe policy");
 
 for (const [name, content, requiredTables] of [

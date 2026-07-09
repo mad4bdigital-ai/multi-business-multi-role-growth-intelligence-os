@@ -35,7 +35,7 @@ function normalizeIssueArgs(args = {}) {
   const surfaceKey = compact(args.surface_key || args.surfaceKey, 191);
   const surfaceFamily = compact(args.surface_family || args.surfaceFamily, 128);
   const toolOrActionKey = compact(args.tool_or_action_key || args.toolOrActionKey, 191);
-  const riskClass = compact(args.risk_class || args.riskClass || "D", 64);
+  const riskClass = compact(args.risk_class || args.riskClass || "D", 8);
   const certificationStatus = compact(args.certification_status || args.certificationStatus || "ci_certified", 128);
   const smokeStrategy = compact(args.smoke_strategy || args.smokeStrategy || "bounded_evidence_readback", 191);
   const lastEvidenceRef = compact(args.last_evidence_ref || args.lastEvidenceRef, 1000);
@@ -91,16 +91,28 @@ function validateIssueInput(input) {
 async function assertToolOrActionExists(pool, toolOrActionKey, allowedToolKeys = []) {
   if (allowedToolKeys.includes(toolOrActionKey)) return { source: "virtual_admin_tool_catalog" };
   const [rows] = await pool.query(
-    `SELECT 'admin_platform_endpoint_tools' AS source FROM admin_platform_endpoint_tools WHERE tool_key = ? LIMIT 1
-     UNION ALL
-     SELECT 'tenant_platform_endpoint_tools' AS source FROM tenant_platform_endpoint_tools WHERE tool_key = ? LIMIT 1
-     UNION ALL
-     SELECT 'endpoints' AS source FROM endpoints WHERE endpoint_key = ? LIMIT 1`,
+    `SELECT source
+       FROM (
+         SELECT 'admin_platform_endpoint_tools' AS source, 1 AS source_rank
+           FROM admin_platform_endpoint_tools
+          WHERE tool_key = ? AND is_enabled = 1
+         UNION ALL
+         SELECT 'tenant_platform_endpoint_tools' AS source, 2 AS source_rank
+           FROM tenant_platform_endpoint_tools
+          WHERE tool_key = ? AND is_enabled = 1
+         UNION ALL
+         SELECT 'endpoints' AS source, 3 AS source_rank
+           FROM endpoints
+          WHERE endpoint_key = ?
+       ) AS governed_targets
+      ORDER BY source_rank ASC
+      LIMIT 1`,
     [toolOrActionKey, toolOrActionKey, toolOrActionKey]
   );
   if (!rows?.length) {
     throw issueError(404, "runtime_dispatch_certification_target_missing", "tool_or_action_key does not resolve to a governed tool or endpoint.", {
       tool_or_action_key: toolOrActionKey,
+      supported_target_sources: ["virtual_admin_tool_catalog", "admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "endpoints"],
     });
   }
   return { source: rows[0].source };

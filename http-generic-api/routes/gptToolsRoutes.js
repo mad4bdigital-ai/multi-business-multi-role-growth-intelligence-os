@@ -26,6 +26,7 @@ import { bootstrapGovernedMigrationAuthorization } from "../governedMigrationAut
 import { bootstrapGovernedMigrationApplyPolicy } from "../governedMigrationApplyPolicyBootstrap.js";
 import { authorizeCapabilityResolutionEnvelopeApply } from "../scripts/capability-resolution-envelope-apply-authorize.mjs";
 import { runGovernedMigrationExecution } from "../governedMigrationExecutionTool.js";
+import { runGovernedMigrationSchemaReadback } from "../governedMigrationSchemaReadbackTool.js";
 import {
   buildSqlCacheOperationalDiagnostics,
   runSqlCacheControlledLoadTest,
@@ -33,9 +34,11 @@ import {
 import { buildActivationGatewayRolloutPlan, runActivationGatewayDarkDeploy } from "../activationGatewayRolloutTool.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import {
+  CAPABILITY_ENVELOPE_LIFECYCLE_ACTIONS,
   capabilityEnvelopeError,
   markCapabilityEnvelopeReferenced,
   resolveCapabilityExecutionEnvelope,
+  transitionCapabilityEnvelopeLifecycle,
 } from "../capabilityResolutionEnvelopeGuard.js";
 import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBranchFastForwardToBase, runGithubBranchMergeCommitCreate } from "../adminBranchReconciliationAdapter.js";
 import { applyGithubExistingBlobChangeSet, applyGithubRepositoryChangeSet, deleteGithubBranchRef, finalizeGithubPullRequest, getGithubPullRequestCiGate } from "../githubRepositoryLifecycle.js";
@@ -62,6 +65,7 @@ import {
   refreshGrowthIntelligenceReadinessAdmin,
 } from "../growthIntelligenceAdminDecisions.js";
 import { issueRuntimeDispatchCertification } from "../runtimeDispatchCertificationIssuer.js";
+import { serializeDbControlQueryResult } from "./adminCliRoutes.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -77,10 +81,23 @@ const DEFAULT_TOOL_LIST_LIMIT = 50;
 const MAX_TOOL_LIST_LIMIT = 200;
 const DEFAULT_TOOL_RESPONSE_MAX_CHARS = 45000;
 const MAX_TOOL_RESPONSE_MAX_CHARS = 150000;
+const DEFAULT_TOOL_RESPONSE_CLIENT_BUDGET_CHARS = 57000;
+const DEFAULT_TOOL_RESPONSE_ENVELOPE_OVERHEAD_CHARS = 12000;
+const MIN_TOOL_RESPONSE_MAX_CHARS = 5000;
 const DEFAULT_TOOL_RESPONSE_CHUNK_TTL_MS = 15 * 60 * 1000;
 const MAX_TOOL_RESPONSE_CHUNK_TTL_MS = 2 * 60 * 60 * 1000;
 const MIN_TOOL_RESPONSE_CHUNK_TTL_MS = 5 * 60 * 1000;
 const TOOL_RESPONSE_CHUNK_CACHE = new Map();
+
+const SESSION_ARCHIVE_PRE_FINAL_CAPTURE_GATE = Object.freeze({
+  status: "required",
+  reason_code: "pre_final_capture_required",
+  write_tool: "gpt_session_turns_write_batch",
+  required_roles: Object.freeze(["user", "assistant"]),
+  readback_required: true,
+  archive_policy: "write the user prompt and assistant reply before final response or before archiving tool turns",
+  secrets_included: false,
+});
 
 export const CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT = Object.freeze({
   policy: "chunk_read_before_alternative_surface",
@@ -98,9 +115,25 @@ export const CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT = Object.freeze({
     "system_tools",
     "device_tools",
     "repo_inspect",
+    "repo_automation",
     "connector_dispatch",
     "any_governed_tool_response",
   ]),
+  dynamic_ttl: Object.freeze({
+    supported: true,
+    option_keys: Object.freeze([
+      "response_options.chunk_ttl_ms",
+      "response_options.chunk_ttl_minutes",
+      "chunk_ttl_ms",
+      "chunk_ttl_minutes",
+      "response_chunk_ttl_ms",
+      "response_chunk_ttl_minutes",
+    ]),
+    default_ttl_ms: DEFAULT_TOOL_RESPONSE_CHUNK_TTL_MS,
+    min_ttl_ms: MIN_TOOL_RESPONSE_CHUNK_TTL_MS,
+    max_ttl_ms: MAX_TOOL_RESPONSE_CHUNK_TTL_MS,
+    extension_policy: "extend_cache_on_each_successful_chunk_read",
+  }),
   fallback_allowed_only_after: "all_chunks_read_or_chunk_cache_expired_or_authorized_tool_unavailable",
   secrets_included: false,
 });
@@ -158,10 +191,30 @@ async function countConversationTurns(pool, sessionId) {
   };
 }
 
-async function findActiveSessionForCaller(pool, req, args = {}) {
+function buildPreFinalCaptureGate(session = null, reasonCode = "pre_final_capture_required") {
+  return {
+    ...SESSION_ARCHIVE_PRE_FINAL_CAPTURE_GATE,
+    reason_code: reasonCode,
+    session_id: session?.session_id || null,
+    archive_binding: session?.archive_binding || null,
+    turn_counts: session?.turn_counts || null,
+  };
+}
+
+function attachSessionArchiveCaptureGate(resultForClient, archiveResult) {
+  if (!archiveResult?.capture_gate) return resultForClient;
+  if (!resultForClient?.body || typeof resultForClient.body !== "object" || Array.isArray(resultForClient.body)) {
+    return resultForClient;
+  }
+  resultForClient.body.session_archive_capture_gate = archiveResult.capture_gate;
+  return resultForClient;
+}
+
+async function findActiveSessionForCaller(pool, req, args = {}, options = {}) {
   const tenantId = String(req?.auth?.tenant_id || PLATFORM_TENANT_ID);
   const userId = req?.auth?.user_id || null;
   const pinnedSessionId = resolveGptSessionPin(req, args);
+  const allowUncapturedConversation = options.allowUncapturedConversation === true;
   const baseSelect = `SELECT session_id, tenant_id, user_id, originator, session_status, started_at,
             drive_folder_id, drive_doc_id, drive_doc_url, drive_doc_part_index, drive_doc_part_count,
             drive_jsonl_id, drive_jsonl_url
@@ -178,7 +231,17 @@ async function findActiveSessionForCaller(pool, req, args = {}) {
       LIMIT 1`,
       [pinnedSessionId, tenantId, userId]
     );
-    return rows[0] ? { ...rows[0], archive_binding: "explicit_session_pin" } : null;
+    if (!rows[0]) return null;
+    const counts = await countConversationTurns(pool, rows[0].session_id);
+    if (counts.conversation_turns > 0 || allowUncapturedConversation) {
+      return { ...rows[0], archive_binding: "explicit_session_pin", turn_counts: counts };
+    }
+    return {
+      ...rows[0],
+      archive_binding: "explicit_session_pin_pre_final_capture_required",
+      turn_counts: counts,
+      pre_final_capture_required: true,
+    };
   }
 
   const [rows] = await pool.query(
@@ -199,7 +262,12 @@ async function findActiveSessionForCaller(pool, req, args = {}) {
   }
   if (rows?.[0]) {
     const counts = await countConversationTurns(pool, rows[0].session_id);
-    return { ...rows[0], archive_binding: "latest_active_session_fallback", turn_counts: counts };
+    return {
+      ...rows[0],
+      archive_binding: "latest_active_session_pre_final_capture_required",
+      turn_counts: counts,
+      pre_final_capture_required: true,
+    };
   }
   return null;
 }
@@ -207,10 +275,26 @@ async function findActiveSessionForCaller(pool, req, args = {}) {
 async function recordToolDispatchTurn(req, toolKey, args, result) {
   try {
     const pool = getPool();
-    const session = await findActiveSessionForCaller(pool, req, args);
+    const allowUncapturedConversation = toolKey === "gpt_session_turns_write_batch";
+    const session = await findActiveSessionForCaller(pool, req, args, { allowUncapturedConversation });
     if (!session) {
       console.warn(`[gpt-tools] skipped auto-record turn for ${toolKey}: no explicit GPT session pin and no active session with user/assistant turns`);
-      return null;
+      return {
+        ok: false,
+        skipped: true,
+        reason_code: "no_active_gpt_action_session",
+        capture_gate: buildPreFinalCaptureGate(null, "no_active_gpt_action_session"),
+      };
+    }
+    if (session.pre_final_capture_required) {
+      console.warn(`[gpt-tools] skipped auto-record turn for ${toolKey}: pre-final user/assistant capture is required before tool turns are archived`);
+      return {
+        ok: false,
+        skipped: true,
+        reason_code: "pre_final_capture_required",
+        session_id: session.session_id,
+        capture_gate: buildPreFinalCaptureGate(session, "pre_final_capture_required"),
+      };
     }
 
     const [[{ max_idx }]] = await pool.query(
@@ -235,7 +319,7 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       truncatedResult,
     ].join("\n");
 
-    return await recordGptSessionTurn({
+    const writeback = await recordGptSessionTurn({
       pool,
       session,
       role: "tool",
@@ -243,9 +327,16 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       action_key: toolKey,
       turnIndex,
     });
+    return { ok: true, ...writeback };
   } catch (err) {
     console.warn(`[gpt-tools] auto-record turn failed for ${toolKey}: ${err.message}`);
-    return null;
+    return {
+      ok: false,
+      skipped: true,
+      reason_code: "tool_turn_archive_readback_failed",
+      error: { code: err.code || "tool_turn_archive_failed", message: err.message },
+      capture_gate: buildPreFinalCaptureGate(null, "tool_turn_archive_readback_failed"),
+    };
   }
 }
 
@@ -337,10 +428,10 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "repo_inspect",
     displayName: "Repository Inspect",
-    description: "Read-only repository inspection. Actions: list, read, search, git_status, git_log, git_show, git_diff_name_status. Paths are repo-confined; secrets/build folders are blocked. Git helpers return metadata only and never expose .git internals.",
+    description: "Read-only repository inspection. Actions: list, read, search, git_status, git_log, git_show, git_diff_name_status. Paths are repo-confined; secrets/build folders are blocked. Git helpers return metadata only and never expose .git internals. Large responses must use the governed response chunk contract with dynamic TTL support.",
     method: "VIRTUAL",
     path: "internal://repo-inspect",
-    tags: ["repo", "read_only", "diagnostics"],
+    tags: ["repo", "read_only", "diagnostics", "chunk_contract", "dynamic_ttl"],
     inputSchema: {
       type: "object",
       required: ["action"],
@@ -357,6 +448,16 @@ const VIRTUAL_ADMIN_TOOLS = [
         recursive: { type: "boolean", default: false },
         max_entries: { type: "integer", minimum: 1, maximum: 500, default: 100 },
         max_chars: { type: "integer", minimum: 1000, maximum: 50000, default: 12000 },
+        response_options: {
+          type: "object",
+          description: "Optional governed response envelope controls. Use chunk_ttl_ms or chunk_ttl_minutes to extend durable response chunk availability.",
+          properties: {
+            max_chars: { type: "integer", minimum: 5000, maximum: 150000 },
+            chunk_ttl_ms: { type: "integer", minimum: 300000, maximum: 7200000 },
+            chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 120 },
+          },
+          additionalProperties: true,
+        },
       },
     },
   },
@@ -573,10 +674,10 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "response_chunk_read",
     displayName: "Read Tool Response Chunk",
-    description: "Read the next chunk of an oversized governed tool response. Reads the in-process cache first and recovers from durable MySQL storage after cache loss or process restart.",
+    description: "Read the next chunk of an oversized governed tool response. Reads the in-process cache first and recovers from durable MySQL storage after cache loss or process restart. Supports dynamic sliding TTL through chunk_ttl_ms or chunk_ttl_minutes.",
     method: "VIRTUAL",
     path: "internal://response-chunk-read",
-    tags: ["tooling", "pagination", "read_only"],
+    tags: ["tooling", "pagination", "read_only", "dynamic_ttl"],
     inputSchema: {
       type: "object",
       required: ["chunk_id"],
@@ -584,6 +685,16 @@ const VIRTUAL_ADMIN_TOOLS = [
         chunk_id: { type: "string" },
         cursor: { type: "integer", minimum: 0, default: 0 },
         max_chars: { type: "integer", minimum: 5000, maximum: 150000, default: 45000 },
+        chunk_ttl_ms: { type: "integer", minimum: 300000, maximum: 7200000 },
+        chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 120 },
+        response_options: {
+          type: "object",
+          properties: {
+            chunk_ttl_ms: { type: "integer", minimum: 300000, maximum: 7200000 },
+            chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 120 },
+          },
+          additionalProperties: true,
+        },
       },
     },
   },
@@ -643,6 +754,25 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "capability_resolution_envelope_lifecycle",
+    displayName: "Transition Capability Resolution Envelope Lifecycle",
+    description: "Transition one capability resolution envelope lifecycle state by using the governed lifecycle actions consume, cancel, or expire. Internal registry mutation only; no provider call, external write, credential payload read, or secret return.",
+    method: "VIRTUAL",
+    path: "internal://capability-resolution-envelope-lifecycle",
+    tags: ["admin", "capability_resolution", "lifecycle", "state_changing", "readback", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["envelope_id", "action"],
+      properties: {
+        envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+        action: { type: "string", enum: CAPABILITY_ENVELOPE_LIFECYCLE_ACTIONS },
+        execution_ref: { type: "string", maxLength: 191 },
+        reason: { type: "string", maxLength: 512 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "governed_migration_authorization_bootstrap",
     displayName: "Governed Migration Authorization Bootstrap",
     description: "Authorize one checksum-bound additive migration for the governed runner without executing migration SQL. Requires exact checksum, statement count, merged PR evidence, typed confirmation, a ready capability envelope, zero-risk preflight, and same-cycle authorization readback.",
@@ -669,6 +799,15 @@ const VIRTUAL_ADMIN_TOOLS = [
       },
       additionalProperties: false,
     },
+  },
+  {
+    name: "admin_control_db_mutation_serialization_smoke",
+    displayName: "Admin DB Mutation Serialization Smoke",
+    description: "Run one fixed no-op DB UPDATE through the same serializer used by admin_control DB single-statement mutations. No freeform SQL, row data, provider call, external write, or secret return.",
+    method: "VIRTUAL",
+    path: "internal://admin-control-db-mutation-serialization-smoke",
+    tags: ["admin", "db", "serialization", "smoke", "state_changing", "readback", "no_freeform_sql", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: { type: "object", additionalProperties: false },
   },
   {
     name: "sql_cache_runtime_diagnostics_get",
@@ -707,6 +846,24 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "governed_migration_schema_readback",
+    displayName: "Governed Migration Schema Readback",
+    description: "Read-only, checksum-bound schema and ledger readback for one governed migration. This tool does not accept freeform SQL, does not read row data, does not call providers, and does not execute migrations.",
+    method: "VIRTUAL",
+    path: "internal://governed-migration-schema-readback",
+    tags: ["admin", "migration", "read_only", "schema_readback", "ledger_readback", "no_freeform_sql", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["migration", "expected_checksum_sha256", "expected_statement_count"],
+      properties: {
+        migration: { type: "string", pattern: "^[A-Za-z0-9._-]+\\.sql$" },
+        expected_checksum_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        expected_statement_count: { type: "integer", minimum: 1, maximum: 5000 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "governed_migration_execute",
     displayName: "Governed Migration Execute",
     description: "Dry-run or apply one checksum-bound authorized migration through the governed runner. Apply requires exact typed confirmation, a ready platform_orchestration capability envelope, ledger persistence, and same-cycle schema readback.",
@@ -730,10 +887,10 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "admin_tool_catalog_search",
     displayName: "Search Admin Tool Catalog",
-    description: "Search and paginate the full governed admin tool catalog through callAdminTool when the direct list surface cannot pass cursor/query parameters.",
+    description: "Search and paginate the full governed admin tool catalog through callAdminTool when the direct list surface cannot pass cursor/query parameters. Large catalog responses must preserve governed chunk continuation and dynamic TTL controls.",
     method: "VIRTUAL",
     path: "internal://admin-tool-catalog-search",
-    tags: ["tooling", "catalog", "pagination", "read_only"],
+    tags: ["tooling", "catalog", "pagination", "read_only", "chunk_contract", "dynamic_ttl"],
     inputSchema: {
       type: "object",
       properties: {
@@ -741,6 +898,16 @@ const VIRTUAL_ADMIN_TOOLS = [
         tag: { type: "string" },
         cursor: { type: "integer", minimum: 0, default: 0 },
         limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+        response_options: {
+          type: "object",
+          description: "Optional governed response envelope controls. Use chunk_ttl_ms or chunk_ttl_minutes to extend durable response chunk availability.",
+          properties: {
+            max_chars: { type: "integer", minimum: 5000, maximum: 150000 },
+            chunk_ttl_ms: { type: "integer", minimum: 300000, maximum: 7200000 },
+            chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 120 },
+          },
+          additionalProperties: true,
+        },
       },
       additionalProperties: false,
     },
@@ -1107,6 +1274,25 @@ const VIRTUAL_ADMIN_TOOLS = [
         owner: { type: "string", description: "Optional GitHub owner override; defaults to activation bootstrap." },
         repo: { type: "string", description: "Optional GitHub repo override; defaults to activation bootstrap." },
         superseding_commits: { type: "array", minItems: 1, maxItems: 20, items: { type: "string", pattern: "^[0-9a-fA-F]{40}$" } },
+        coverage_resolutions: {
+          type: "array",
+          maxItems: 20,
+          description: "Explicit reviewed file coverage resolutions for changed files not covered by exact replacement path matching.",
+          items: {
+            type: "object",
+            required: ["file", "resolution_type", "superseded_by_file", "superseded_by_commit", "reason"],
+            properties: {
+              file: { type: "string" },
+              resolution_type: { type: "string", enum: ["migration_superseded_by_applied_migration", "intentional_non_port"] },
+              superseded_by_file: { type: "string" },
+              superseded_by_commit: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+              expected_migration_checksum_sha256: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+              expected_statement_count: { type: "integer", minimum: 1, maximum: 5000 },
+              reason: { type: "string", minLength: 20, maxLength: 1000 },
+            },
+            additionalProperties: false,
+          },
+        },
         allow_orphan_branch: { type: "boolean", default: false, description: "Explicit orphan mode. Requires zero matching PRs and exact non-generated file blob equivalence with the current default branch." },
         mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
         expected_base_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
@@ -1652,13 +1838,31 @@ function parseJson(value) {
 function normalizeResponseOptions(value = {}) {
   const options = value && typeof value === "object" ? value : {};
   return {
-    maxChars: clampNumber(options.max_chars ?? options.max_response_chars, DEFAULT_TOOL_RESPONSE_MAX_CHARS, 5000, MAX_TOOL_RESPONSE_MAX_CHARS),
+    maxChars: resolveAdaptiveToolResponseMaxChars(options),
     cursor: clampNumber(options.cursor ?? options.response_cursor, 0, 0, Number.MAX_SAFE_INTEGER),
     chunkTtlMs: Number(options.chunk_ttl_ms ?? options.response_chunk_ttl_ms ?? 0) || null,
     chunkTtlMinutes: Number(options.chunk_ttl_minutes ?? options.response_chunk_ttl_minutes ?? 0) || null,
   };
 }
 
+
+export function resolveAdaptiveToolResponseMaxChars(value = {}) {
+  const options = value && typeof value === "object" ? value : {};
+  const clientBudget = clampNumber(
+    options.client_response_budget_chars ?? options.response_budget_chars ?? options.max_response_envelope_chars,
+    DEFAULT_TOOL_RESPONSE_CLIENT_BUDGET_CHARS,
+    MIN_TOOL_RESPONSE_MAX_CHARS * 2,
+    MAX_TOOL_RESPONSE_MAX_CHARS,
+  );
+  const envelopeOverhead = clampNumber(
+    options.response_envelope_overhead_chars ?? options.envelope_overhead_chars,
+    DEFAULT_TOOL_RESPONSE_ENVELOPE_OVERHEAD_CHARS,
+    2000,
+    Math.max(2000, clientBudget - MIN_TOOL_RESPONSE_MAX_CHARS),
+  );
+  const adaptiveMax = Math.max(MIN_TOOL_RESPONSE_MAX_CHARS, Math.min(MAX_TOOL_RESPONSE_MAX_CHARS, clientBudget - envelopeOverhead));
+  return clampNumber(options.max_chars ?? options.max_response_chars, Math.min(DEFAULT_TOOL_RESPONSE_MAX_CHARS, adaptiveMax), MIN_TOOL_RESPONSE_MAX_CHARS, adaptiveMax);
+}
 export function resolveToolResponseChunkTtlMs(options = {}, serializedLength = 0) {
   const normalized = normalizeResponseOptions(options?.response_options || options?._response || options || {});
   const requestedMs = normalized.chunkTtlMs || (normalized.chunkTtlMinutes ? normalized.chunkTtlMinutes * 60 * 1000 : 0);
@@ -1749,11 +1953,27 @@ async function storeToolResponseForChunks(body, optionsSource = {}, deps = {}) {
   return { chunkId, serialized, ttlMs, expiresAt: new Date(durable.expires_at).getTime() };
 }
 
-export function shouldChunkDispatchedToolResponse(toolKey = "") {
-  return String(toolKey || "").trim() !== "response_chunk_read";
+export function isGovernedToolResponseChunkEnvelope(body = {}) {
+  return Boolean(
+    body
+    && typeof body === "object"
+    && body.response_chunked === true
+    && typeof body.chunk_id === "string"
+    && body.chunk_id.length > 0
+    && typeof body.chunk === "string"
+    && body.page
+    && typeof body.page === "object"
+    && body.continuation
+    && typeof body.continuation === "object"
+  );
+}
+
+export function shouldChunkDispatchedToolResponse(toolKey = "", body = null) {
+  return String(toolKey || "").trim() !== "response_chunk_read" && !isGovernedToolResponseChunkEnvelope(body);
 }
 
 export async function maybeChunkToolResponseBody(body, optionsSource = {}, deps = {}) {
+  if (isGovernedToolResponseChunkEnvelope(body)) return body;
   const options = normalizeResponseOptions(
     optionsSource?.response_options || optionsSource?._response || optionsSource || {}
   );
@@ -1987,10 +2207,11 @@ async function dispatchTool(callerType, toolKey, args, req) {
         })
       : result?.body,
   };
-  // Best-effort: archive the dispatch as a tool turn so admin GPT sessions get a
-  // complete transcript without depending on the GPT calling writeSessionTurn.
-  // Errors are logged and swallowed so the tool result still flows through.
-  await recordToolDispatchTurn(req, toolKey, args, resultForClient);
+  // Best-effort: archive the dispatch as a tool turn only after the exchange has
+  // user/assistant capture. Missing capture is surfaced as a pre-final gate so
+  // the GPT can call gpt_session_turns_write_batch before the final response.
+  const archiveResult = await recordToolDispatchTurn(req, toolKey, args, resultForClient);
+  attachSessionArchiveCaptureGate(resultForClient, archiveResult);
   return resultForClient;
 }
 
@@ -2143,7 +2364,48 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       };
     }
   }
-  if (callerType === "admin" && toolKey === "capability_resolution_envelope_apply_authorize") {
+  if (callerType === "admin" && toolKey === "admin_control_db_mutation_serialization_smoke") {
+      try {
+        const [result, fields] = await getPool().query("UPDATE execution_policies SET updated_at = updated_at WHERE 1 = 0");
+        const serialized = serializeDbControlQueryResult(result, fields);
+        return {
+          status: 200,
+          body: {
+            ok: true,
+            smoke_key: "admin_control_db_mutation_serialization_smoke",
+            sql_kind: "fixed_noop_update",
+            statement_count: 1,
+            ...serialized,
+            readback_assertions: {
+              mutation_serialized: serialized.statement_result_type === "mutation",
+              affected_rows_present: Number.isFinite(serialized.result?.affectedRows),
+              changed_rows_present: Number.isFinite(serialized.result?.changedRows),
+              secrets_included_false: serialized.secrets_included === false,
+            },
+            secrets_included: false,
+          },
+        };
+      } catch (err) {
+        return { status: err?.status || 500, body: { ok: false, error: { code: err?.code || "admin_control_db_mutation_serialization_smoke_failed", message: err?.message }, secrets_included: false } };
+      }
+    }
+
+    if (callerType === "admin" && toolKey === "capability_resolution_envelope_lifecycle") {
+      try {
+        const result = await transitionCapabilityEnvelopeLifecycle({
+          pool: getPool(),
+          envelopeId: String(args?.envelope_id || "").trim(),
+          action: String(args?.action || "").trim(),
+          executionRef: String(args?.execution_ref || "").trim(),
+          reason: String(args?.reason || "").trim(),
+        });
+        return { status: 200, body: result };
+      } catch (err) {
+        return { status: err?.status || 400, body: { ok: false, error: { code: err?.code || "capability_resolution_envelope_lifecycle_failed", message: err?.message }, secrets_included: false } };
+      }
+    }
+
+    if (callerType === "admin" && toolKey === "capability_resolution_envelope_apply_authorize") {
     try {
       const result = await authorizeCapabilityResolutionEnvelopeApply({
         envelopeId: String(args?.envelope_id || "").trim(),
@@ -2224,6 +2486,14 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
           },
         },
       };
+    }
+  }
+  if (callerType === "admin" && toolKey === "governed_migration_schema_readback") {
+    try {
+      const result = await runGovernedMigrationSchemaReadback(args || {}, { pool: getPool() });
+      return { status: result.ok ? 200 : 409, body: result };
+    } catch (err) {
+      return { status: err?.status || 500, body: { ok: false, error: { code: err?.code || "governed_migration_schema_readback_failed", message: err?.message || "Governed migration schema readback failed.", details: err?.details }, secrets_included: false } };
     }
   }
   if (callerType === "admin" && toolKey === "governed_migration_execute") {

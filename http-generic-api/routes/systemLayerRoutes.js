@@ -71,12 +71,21 @@ import {
   tenantEffectiveCapabilityReadinessSmoke,
   tenantCapabilityShadowCompare,
 } from "../tenantEffectiveCapabilityResolver.js";
+import {
+  TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS,
+  tenantCapabilityEnforcementPreview,
+  tenantCapabilityEnforcementReadinessSmoke,
+} from "../tenantCapabilityEnforcementKernel.js";
 import { GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS } from "../growthAuditEvidence.js";
 import * as GrowthAuditEvidenceRuntime from "../growthAuditEvidence.js";
 import { BRAND_WORKSPACE_CONTEXT_SYSTEM_TOOLS } from "../brandWorkspaceContextResolver.js";
 import * as BrandWorkspaceContextRuntime from "../brandWorkspaceContextResolver.js";
 import { PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS } from "../platformResourceContextResolver.js";
 import * as PlatformResourceContextRuntime from "../platformResourceContextResolver.js";
+import {
+  CAPABILITY_ENABLEMENT_SYSTEM_TOOLS,
+} from "../capabilityEnablementBroker.js";
+import * as CapabilityEnablementBrokerRuntime from "../capabilityEnablementBroker.js";
 import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
 
 const SYSTEM_LAYER_TOOLS = [
@@ -408,6 +417,7 @@ const SYSTEM_LAYER_TOOLS = [
       required: [],
     },
   },
+  ...CAPABILITY_ENABLEMENT_SYSTEM_TOOLS,
 ];
 
 const VALID_STATUSES = new Set(["active", "pending", "error", "archived"]);
@@ -457,6 +467,16 @@ const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
     readiness_args: {},
   },
   {
+    source_key: "tenant_capability_enforcement_kernel_v1",
+    tools: TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS,
+    handlers: {
+      tenantCapabilityEnforcementPreview,
+      tenantCapabilityEnforcementReadinessSmoke,
+    },
+    readiness_tool: "tenant_capability_enforcement_readiness_smoke",
+    readiness_args: {},
+  },
+  {
     source_key: "growth_audit_evidence_v1",
     tools: GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS,
     handlers: GrowthAuditEvidenceRuntime,
@@ -475,6 +495,13 @@ const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
     tools: PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS,
     handlers: PlatformResourceContextRuntime,
     readiness_tool: "platform_resource_context_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "capability_enablement_broker_v1",
+    tools: CAPABILITY_ENABLEMENT_SYSTEM_TOOLS,
+    handlers: CapabilityEnablementBrokerRuntime,
+    readiness_tool: "capability_enablement_readiness_smoke",
     readiness_args: {},
   },
 ];

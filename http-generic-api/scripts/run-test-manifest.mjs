@@ -110,6 +110,8 @@ function main() {
     console.log(`\n[${index + 1}/${selectedCommands.length}] ${command}`);
     const status = runCommand(command);
     if (status !== 0) {
+      const escaped = command.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+      console.error(`::error title=Test command failed::${escaped} exited with status ${status}`);
       process.exit(status);
     }
   }
