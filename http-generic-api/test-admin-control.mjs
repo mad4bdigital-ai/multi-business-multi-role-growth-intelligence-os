@@ -33,6 +33,7 @@ try {
   console.log("\n== admin control helpers");
 
   const adminCliSource = fs.readFileSync(new URL("./routes/adminCliRoutes.js", import.meta.url), "utf8");
+  const gptToolsSource = fs.readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
   assert("local connector JSON responses omit inline installer secrets",
     !adminCliSource.includes("script_content: batContent"),
     "JSON action responses must not expose generated .bat content with live credentials");
