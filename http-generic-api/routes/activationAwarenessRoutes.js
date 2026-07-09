@@ -422,4 +422,5 @@ export const _testingActivationAwarenessRoutes = {
   queryBoolean,
   profileValue,
   subjectContext,
+  tenantProblemCardsResponse,
 };
