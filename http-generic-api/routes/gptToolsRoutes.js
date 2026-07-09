@@ -765,6 +765,15 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "admin_control_db_mutation_serialization_smoke",
+    displayName: "Admin DB Mutation Serialization Smoke",
+    description: "Run one fixed no-op DB UPDATE through the same serializer used by admin_control DB single-statement mutations. No freeform SQL, row data, provider call, external write, or secret return.",
+    method: "VIRTUAL",
+    path: "internal://admin-control-db-mutation-serialization-smoke",
+    tags: ["admin", "db", "serialization", "smoke", "state_changing", "readback", "no_freeform_sql", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: { type: "object", additionalProperties: false },
+  },
+  {
     name: "sql_cache_runtime_diagnostics_get",
     displayName: "SQL Cache Runtime Diagnostics Get",
     description: "Read process-lifetime SQL cache counters, derived hit/miss/error metrics, policy freshness, circuit/cooldown state, and threshold-based operational alerts. No cache or policy mutation is performed.",
