@@ -598,7 +598,8 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
           []
         )
       : { ok: true, rows: [], skipped: true, reason: "admin_tools_require_admin_principal" },
-    loadActivationRegisteredSurfaces(req, subject, { query: queryFn })
+    loadActivationRegisteredSurfaces(req, subject, { query: queryFn }),
+    loadTenantGptActivationContext({ query: queryFn, access_jti: accessJti, user_id: userId, tenant_id: tenantId })
   ]);
 
   const permissionKeys = [...new Set(rowsOrEmpty(grants).map((row) => row.permission_key).filter(Boolean))].sort();
