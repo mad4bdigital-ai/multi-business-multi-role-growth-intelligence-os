@@ -15,6 +15,8 @@ import {
 
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 const PLATFORM_ADMIN_USER = "platform_admin";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DEPLOYMENT_MANIFEST_PATH = path.resolve(__dirname, "..", "deployment-manifest.json");
 
 export function buildReleaseRoutes(deps) {
   const { requireBackendApiKey } = deps;
