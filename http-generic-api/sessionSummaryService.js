@@ -1116,26 +1116,6 @@ export async function summarizeSessionTranscript({ session, transcript, callMode
   }
 }
 
-export function parseJsonlTranscript(content = "") {
-  return parseSessionJsonl(content);
-}
-
-export function buildTranscriptChunks(turns = [], options = {}) {
-  const events = Array.isArray(turns) ? turns : [];
-  const session = options.session || { session_id: "session-summary-compat", turn_count: events.length };
-  const maxCharsPerChunk = Math.max(500, Math.min(Number(options.maxCharsPerChunk || DEFAULT_CHUNK_CHAR_LIMIT), DEFAULT_CHUNK_CHAR_LIMIT));
-  const maxChunks = Math.max(1, Math.min(Number(options.maxChunks || 50), 50));
-  return chunkTranscriptEvents(session, events, maxCharsPerChunk).slice(0, maxChunks);
-}
-
-export async function summarizeTranscriptWithModel({ session, turns = [], callModel } = {}) {
-  return summarizeSessionTranscript({
-    session: session || { session_id: "session-summary-compat", turn_count: Array.isArray(turns) ? turns.length : 0 },
-    transcript: { source: "provided_turns", events: Array.isArray(turns) ? turns : [], turns: Array.isArray(turns) ? turns : [], fallback_used: false },
-    callModel,
-  });
-}
-
 export async function loadSessionById(pool, sessionId) {
   const [rows] = await pool.query(
     "SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1",
