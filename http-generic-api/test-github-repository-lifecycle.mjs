@@ -16,6 +16,7 @@ const BASE_SHA = "a".repeat(40);
 const HEAD_SHA = "b".repeat(40);
 const COMMIT_SHA = "c".repeat(40);
 const TREE_SHA = "d".repeat(40);
+const NEW_TREE_SHA = "2".repeat(40);
 const BLOB_SHA = "e".repeat(40);
 const PATCH_BLOB_SHA = "1".repeat(40);
 
