@@ -125,6 +125,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-tenant-database-schema-read.mjs`
 - `http-generic-api/test-tenant-platform-plugin-openapi.mjs`
 - `http-generic-api/test-tenant-platform-plugin-routes.mjs`
+- `http-generic-api/test-tenant-resolution-registry-schema.mjs`
 
 ## Maintenance Contract
 
