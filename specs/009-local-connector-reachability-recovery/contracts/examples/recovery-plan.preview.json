@@ -1,0 +1,17 @@
+{
+  "ok": true,
+  "plan": {
+    "recovery_plan_id": "lcrp_01JZ_PREVIEW",
+    "status": "preview",
+    "recommended_action": "relink_device",
+    "required_readback": [
+      "heartbeat_after_relink",
+      "tenant_auth_host_probe_success",
+      "route_generation_match"
+    ],
+    "blockers": [
+      "fresh_authorization_required"
+    ]
+  },
+  "secrets_included": false
+}
