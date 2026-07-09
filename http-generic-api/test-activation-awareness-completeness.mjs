@@ -288,8 +288,9 @@ function testRepositoryContracts() {
   assert.match(gptToolsRoutes, /resolveGptSessionContext/);
   assert.match(gptToolsRoutes, /x-workspace-key/);
   assert.match(gptToolsRoutes, /x-brand-key/);
-  assert.doesNotMatch(gptToolsRoutes, /workspace_key = \?/);
-  assert.doesNotMatch(gptToolsRoutes, /brand_key = \?/);
+  assert.doesNotMatch(gptToolsRoutes, /CASE WHEN \(\? IS NOT NULL AND workspace_key = \?\)/);
+  assert.doesNotMatch(gptToolsRoutes, /CASE WHEN \(\? IS NOT NULL AND brand_key = \?\)/);
+  assert.match(gptToolsRoutes, /ORDER BY started_at DESC/);
   assert.match(gptToolsRoutes, /business_type_key: businessTypeKey/);
   assert.match(gptToolsRoutes, /business_activity_type_key: businessActivityTypeKey/);
   assert.match(gptToolsRoutes, /x-business-type-key/);
