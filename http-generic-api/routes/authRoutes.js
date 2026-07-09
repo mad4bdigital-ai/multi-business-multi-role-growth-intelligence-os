@@ -737,6 +737,7 @@ export function buildAuthRoutes(deps) {
   router.get("/oauth/authorize", async (req, res) => {
     const redirectUri = String(req.query.redirect_uri || "");
     const state = String(req.query.state || "");
+    const requestedScope = cleanTenantGptRequestedScope(req.query.scope);
     const activationContext = parseActivationContext(req.query);
 
     const query = (sql, params) => resolvePool().query(sql, params);
