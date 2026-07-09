@@ -856,10 +856,10 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "admin_tool_catalog_search",
     displayName: "Search Admin Tool Catalog",
-    description: "Search and paginate the full governed admin tool catalog through callAdminTool when the direct list surface cannot pass cursor/query parameters.",
+    description: "Search and paginate the full governed admin tool catalog through callAdminTool when the direct list surface cannot pass cursor/query parameters. Large catalog responses must preserve governed chunk continuation and dynamic TTL controls.",
     method: "VIRTUAL",
     path: "internal://admin-tool-catalog-search",
-    tags: ["tooling", "catalog", "pagination", "read_only"],
+    tags: ["tooling", "catalog", "pagination", "read_only", "chunk_contract", "dynamic_ttl"],
     inputSchema: {
       type: "object",
       properties: {
@@ -867,6 +867,16 @@ const VIRTUAL_ADMIN_TOOLS = [
         tag: { type: "string" },
         cursor: { type: "integer", minimum: 0, default: 0 },
         limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+        response_options: {
+          type: "object",
+          description: "Optional governed response envelope controls. Use chunk_ttl_ms or chunk_ttl_minutes to extend durable response chunk availability.",
+          properties: {
+            max_chars: { type: "integer", minimum: 5000, maximum: 150000 },
+            chunk_ttl_ms: { type: "integer", minimum: 300000, maximum: 7200000 },
+            chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 120 },
+          },
+          additionalProperties: true,
+        },
       },
       additionalProperties: false,
     },
