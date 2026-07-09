@@ -317,7 +317,7 @@ function testRepositoryContracts() {
   assert.match(sessionSummaryService, /gst\.workspace_key = \?/);
   assert.match(sessionSummaryService, /gst\.brand_key = \?/);
   assert.match(sessionSummaryService, /COALESCE\(/);
-  assert.match(sessionSummaryService, /LEFT JOIN `customer_sessions` cs ON cs\.session_id = ss\.session_id/);
+  assert.equal(sessionSummaryService.includes("LEFT JOIN \\`customer_sessions\\` cs ON cs.session_id = ss.session_id"), true);
 
   assert.doesNotMatch(lifecycleService, /workspaceKey \|\| "workspace:unspecified"/);
   assert.doesNotMatch(lifecycleService, /brandKey \|\| "brand:unspecified"/);
