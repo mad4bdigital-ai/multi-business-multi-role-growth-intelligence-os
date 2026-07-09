@@ -359,8 +359,24 @@ export function buildSessionRoutes(deps) {
   // ── GET /sessions — list sessions for a tenant ────────────────────────────
   router.get("/sessions", async (req, res) => {
     try {
-      const { tenant_id, user_id, originator, session_status, brand_key, workspace_key, limit = 50 } = req.query;
+      const {
+        tenant_id,
+        user_id,
+        originator,
+        session_status,
+        brand_key,
+        workspace_key,
+        context_scope = "session",
+        limit = 50,
+      } = req.query;
       if (!tenant_id) return res.status(400).json({ error: "tenant_id required" });
+      const normalizedContextScope = String(context_scope || "session").trim().toLowerCase();
+      if (!["session", "turn", "any"].includes(normalizedContextScope)) {
+        return res.status(400).json({
+          error: "context_scope must be one of: session, turn, any",
+          code: "invalid_context_scope",
+        });
+      }
 
       let sql = `
         SELECT cs.*,
@@ -382,16 +398,56 @@ export function buildSessionRoutes(deps) {
         LEFT JOIN \`workspace_registry\` wr ON wr.workspace_key = cs.workspace_key AND wr.tenant_id = cs.tenant_id
         WHERE cs.tenant_id = ?`;
       const params = [tenant_id];
+      const addContextFilters = () => {
+        const requestedBrandKey = String(brand_key || "").trim();
+        const requestedWorkspaceKey = String(workspace_key || "").trim();
+        if (!requestedBrandKey && !requestedWorkspaceKey) return;
+
+        const sessionClauses = [];
+        const sessionParams = [];
+        const turnClauses = [];
+        const turnParams = [];
+        if (requestedBrandKey) {
+          sessionClauses.push("cs.brand_key = ?");
+          sessionParams.push(requestedBrandKey);
+          turnClauses.push("gst.brand_key = ?");
+          turnParams.push(requestedBrandKey);
+        }
+        if (requestedWorkspaceKey) {
+          sessionClauses.push("cs.workspace_key = ?");
+          sessionParams.push(requestedWorkspaceKey);
+          turnClauses.push("gst.workspace_key = ?");
+          turnParams.push(requestedWorkspaceKey);
+        }
+        const turnExists = `EXISTS (
+          SELECT 1 FROM \`gpt_session_turns\` gst
+           WHERE gst.session_id = cs.session_id
+             AND ${turnClauses.join(" AND ")}
+           LIMIT 1
+        )`;
+        if (normalizedContextScope === "turn") {
+          sql += ` AND ${turnExists}`;
+          params.push(...turnParams);
+          return;
+        }
+        if (normalizedContextScope === "any") {
+          sql += ` AND ((${sessionClauses.join(" AND ")}) OR ${turnExists})`;
+          params.push(...sessionParams, ...turnParams);
+          return;
+        }
+        sql += ` AND ${sessionClauses.join(" AND ")}`;
+        params.push(...sessionParams);
+      };
       if (user_id)        { sql += " AND cs.user_id = ?";        params.push(user_id); }
       if (originator)     { sql += " AND cs.originator = ?";     params.push(originator); }
       if (session_status) { sql += " AND cs.session_status = ?"; params.push(session_status); }
-      if (brand_key)      { sql += " AND cs.brand_key = ?";      params.push(brand_key); }
-      if (workspace_key)  { sql += " AND cs.workspace_key = ?";  params.push(workspace_key); }
+      addContextFilters();
       sql += " ORDER BY cs.started_at DESC LIMIT ?";
-      params.push(Number(limit));
+      const safeLimit = Math.max(1, Math.min(Number.parseInt(limit, 10) || 50, 200));
+      params.push(safeLimit);
 
       const [rows] = await getPool().query(sql, params);
-      res.json({ sessions: rows, total: rows.length });
+      res.json({ sessions: rows, total: rows.length, context_scope: normalizedContextScope });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -550,7 +606,23 @@ export function buildSessionRoutes(deps) {
         SELECT q.queue_id, q.session_id, q.tenant_id, q.workflow_key,
                cs.originator, cs.user_id, cs.brand_key, cs.workspace_key,
                cs.git_repo_url, cs.git_branch, cs.turn_count,
-               cs.started_at AS session_started_at
+               cs.started_at AS session_started_at,
+               (
+                 SELECT JSON_ARRAYAGG(JSON_OBJECT(
+                   'workspace_key', turn_context.workspace_key,
+                   'brand_key', turn_context.brand_key,
+                   'turn_count', turn_context.turn_count
+                 ))
+                   FROM (
+                     SELECT gst.workspace_key, gst.brand_key, COUNT(*) AS turn_count
+                       FROM \`gpt_session_turns\` gst
+                      WHERE gst.session_id = cs.session_id
+                        AND (gst.workspace_key IS NOT NULL OR gst.brand_key IS NOT NULL)
+                      GROUP BY gst.workspace_key, gst.brand_key
+                      ORDER BY MAX(gst.created_at) DESC
+                      LIMIT 50
+                   ) turn_context
+               ) AS turn_contexts_json
         FROM \`session_assimilation_queue\` q
         JOIN \`customer_sessions\` cs ON cs.session_id = q.session_id
         WHERE q.status = 'pending'`;
@@ -578,6 +650,8 @@ export function buildSessionRoutes(deps) {
         let plan_id, run_id, dispatchErr;
         try {
           plan_id = randomUUID();
+          let turnContexts = [];
+          try { turnContexts = JSON.parse(item.turn_contexts_json || "[]"); } catch { turnContexts = []; }
 
           // Build a plan whose steps carry the session context for the assimilation workflow
           await pool.query(
@@ -597,6 +671,8 @@ export function buildSessionRoutes(deps) {
                 originator:    item.originator,
                 brand_key:     item.brand_key,
                 workspace_key: item.workspace_key,
+                turn_contexts: turnContexts,
+                context_granularity: turnContexts.length ? "turn_level" : "session_default",
                 git_repo_url:  item.git_repo_url,
                 git_branch:    item.git_branch,
                 turn_count:    item.turn_count,

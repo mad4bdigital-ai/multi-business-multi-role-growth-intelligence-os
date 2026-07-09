@@ -710,6 +710,8 @@ export async function loadSessionSummaryGraphMemory({
   session_id = null,
   tenant_id = null,
   user_id = null,
+  workspace_key = null,
+  brand_key = null,
   limit = 10,
 } = {}) {
   const summarySurfaceAuthority = await assertSurfaceAuthority(
@@ -739,18 +741,49 @@ export async function loadSessionSummaryGraphMemory({
     params.push(tenant_id);
   }
   if (user_id) {
-    clauses.push("user_id = ?");
+    clauses.push("ss.user_id = ?");
     params.push(user_id);
+  }
+  if (workspace_key) {
+    clauses.push(`(
+      ss.workspace_key = ?
+      OR EXISTS (
+        SELECT 1 FROM \`gpt_session_turns\` gst
+         WHERE gst.session_id = ss.session_id
+           AND gst.workspace_key = ?
+         LIMIT 1
+      )
+    )`);
+    params.push(workspace_key, workspace_key);
+  }
+  if (brand_key) {
+    clauses.push(`EXISTS (
+      SELECT 1 FROM \`gpt_session_turns\` gst
+       WHERE gst.session_id = ss.session_id
+         AND gst.brand_key = ?
+       LIMIT 1
+    )`);
+    params.push(brand_key);
   }
   const safeLimit = Math.max(1, Math.min(Number(limit) || 10, 50));
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const [rows] = await pool.query(
-    `SELECT summary_id, session_id, tenant_id, user_id, workspace_key,
-            summary_text, tasks_completed, blockers, feature_requests,
-            integration_needs, complexity, turn_count, created_at
-       FROM \`session_summaries\`
+    `SELECT ss.summary_id, ss.session_id, ss.tenant_id, ss.user_id, ss.workspace_key,
+            COALESCE(
+              (SELECT gst.brand_key
+                 FROM \`gpt_session_turns\` gst
+                WHERE gst.session_id = ss.session_id
+                  AND gst.brand_key IS NOT NULL
+                ORDER BY gst.created_at DESC
+                LIMIT 1),
+              cs.brand_key
+            ) AS brand_key,
+            ss.summary_text, ss.tasks_completed, ss.blockers, ss.feature_requests,
+            ss.integration_needs, ss.complexity, ss.turn_count, ss.created_at
+       FROM \`session_summaries\` ss
+       LEFT JOIN \`customer_sessions\` cs ON cs.session_id = ss.session_id
        ${where}
-      ORDER BY created_at DESC
+      ORDER BY ss.created_at DESC
       LIMIT ?`,
     [...params, safeLimit]
   ).catch(() => [[]]);
@@ -769,6 +802,7 @@ export async function loadSessionSummaryGraphMemory({
       tenant_id: row.tenant_id || null,
       user_id: row.user_id || null,
       workspace_key: row.workspace_key || null,
+      brand_key: row.brand_key || null,
       summary_text: boundedText(redactSensitiveText(row.summary_text || ""), 1600),
       tasks_completed: summaryListFromStoredValue(row.tasks_completed),
       blockers: summaryListFromStoredValue(row.blockers),

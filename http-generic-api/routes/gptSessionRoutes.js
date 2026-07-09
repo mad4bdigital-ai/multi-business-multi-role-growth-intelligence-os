@@ -276,7 +276,13 @@ function validateTurnInput(turn = {}) {
   if (!VALID_TURN_ROLES.has(role)) {
     return { ok: false, error: { code: "invalid_role", message: "role must be user, assistant, or tool." } };
   }
-  return { ok: true, turn: { role, content, action_key: turn.action_key || null } };
+  const workspace_key = String(turn.workspace_key || turn.workspaceKey || "").trim() || null;
+  const brand_key = String(turn.brand_key || turn.brandKey || turn.target_key || turn.targetKey || "").trim() || null;
+  const business_type_key = String(turn.business_type_key || turn.businessTypeKey || "").trim() || null;
+  const business_activity_type_key = String(turn.business_activity_type_key || turn.businessActivityTypeKey || turn.activity_type_key || turn.activityTypeKey || "").trim() || null;
+  const activity_key = String(turn.activity_key || turn.activityKey || "").trim() || null;
+  const knowledge_profile_key = String(turn.knowledge_profile_key || turn.knowledgeProfileKey || "").trim() || null;
+  return { ok: true, turn: { role, content, action_key: turn.action_key || null, workspace_key, brand_key, business_type_key, business_activity_type_key, activity_key, knowledge_profile_key } };
 }
 
 async function resolveWritableSession(pool, req) {
@@ -525,7 +531,17 @@ export function buildGptSessionRoutes(deps) {
       if (!validation.ok) {
         return res.status(400).json({ ok: false, error: validation.error });
       }
-      const { role, content, action_key = null } = validation.turn;
+      const {
+        role,
+        content,
+        action_key = null,
+        workspace_key = null,
+        brand_key = null,
+        business_type_key = null,
+        business_activity_type_key = null,
+        activity_key = null,
+        knowledge_profile_key = null,
+      } = validation.turn;
 
       const session = await resolveWritableSession(pool, req);
       const turnIndex = await nextTurnIndex(pool, session.session_id);
@@ -537,6 +553,12 @@ export function buildGptSessionRoutes(deps) {
         content,
         action_key,
         turnIndex,
+        workspace_key,
+        brand_key,
+        business_type_key,
+        business_activity_type_key,
+        activity_key,
+        knowledge_profile_key,
       });
 
       return res.status(200).json({
@@ -551,6 +573,8 @@ export function buildGptSessionRoutes(deps) {
       });
     } catch (err) {
       if (err.status === 403) return res.status(403).json({ ok: false, error: { code: "forbidden", message: err.message } });
+      if (err.status === 404) return res.status(404).json({ ok: false, error: { code: err.code || "session_not_found", message: err.message } });
+      if (err.status === 409) return res.status(409).json({ ok: false, error: { code: err.code || "session_closed", message: err.message } });
       return res.status(500).json({ ok: false, error: { code: "turn_write_failed", message: err.message } });
     }
   });
@@ -606,6 +630,12 @@ export function buildGptSessionRoutes(deps) {
           content: turn.content,
           action_key: turn.action_key,
           turnIndex,
+          workspace_key: turn.workspace_key,
+          brand_key: turn.brand_key,
+          business_type_key: turn.business_type_key,
+          business_activity_type_key: turn.business_activity_type_key,
+          activity_key: turn.activity_key,
+          knowledge_profile_key: turn.knowledge_profile_key,
         });
         written.push({
           role: turn.role,
