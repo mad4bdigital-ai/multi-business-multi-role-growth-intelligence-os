@@ -575,6 +575,7 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
     const REDIRECT_URI = ${JSON.stringify(String(redirectUri || ""))};
     const STATE = ${JSON.stringify(String(state || ""))};
     const ACTIVATION_CONTEXT = ${JSON.stringify(activationContext || {})};
+    const OAUTH_SCOPE = ${JSON.stringify(String(requestedScope || ""))};
     const INITIAL_PANEL = ${JSON.stringify(initialPanel)};
     const errorBox = document.getElementById("error");
     function showError(message){ errorBox.textContent = message || "Sign-in failed."; }
