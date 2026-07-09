@@ -425,10 +425,10 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "repo_inspect",
     displayName: "Repository Inspect",
-    description: "Read-only repository inspection. Actions: list, read, search, git_status, git_log, git_show, git_diff_name_status. Paths are repo-confined; secrets/build folders are blocked. Git helpers return metadata only and never expose .git internals.",
+    description: "Read-only repository inspection. Actions: list, read, search, git_status, git_log, git_show, git_diff_name_status. Paths are repo-confined; secrets/build folders are blocked. Git helpers return metadata only and never expose .git internals. Large responses must use the governed response chunk contract with dynamic TTL support.",
     method: "VIRTUAL",
     path: "internal://repo-inspect",
-    tags: ["repo", "read_only", "diagnostics"],
+    tags: ["repo", "read_only", "diagnostics", "chunk_contract", "dynamic_ttl"],
     inputSchema: {
       type: "object",
       required: ["action"],
@@ -445,6 +445,16 @@ const VIRTUAL_ADMIN_TOOLS = [
         recursive: { type: "boolean", default: false },
         max_entries: { type: "integer", minimum: 1, maximum: 500, default: 100 },
         max_chars: { type: "integer", minimum: 1000, maximum: 50000, default: 12000 },
+        response_options: {
+          type: "object",
+          description: "Optional governed response envelope controls. Use chunk_ttl_ms or chunk_ttl_minutes to extend durable response chunk availability.",
+          properties: {
+            max_chars: { type: "integer", minimum: 5000, maximum: 150000 },
+            chunk_ttl_ms: { type: "integer", minimum: 300000, maximum: 7200000 },
+            chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 120 },
+          },
+          additionalProperties: true,
+        },
       },
     },
   },
