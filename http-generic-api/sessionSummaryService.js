@@ -1531,7 +1531,7 @@ export async function summarizeAndStoreSession({
   const summaryId = await withOperationStep(
     operation_log,
     "write_session_summary",
-    async () => writeSessionSummary({ pool, session: resolvedSession, insight, run_id }),
+    async () => writeSessionSummary({ pool, session: resolvedSession, insight, run_id, operation_log }),
     { run_id, session_id: resolvedSession.session_id }
   );
   const verification = await withOperationStep(
