@@ -104,6 +104,21 @@ const oauthClientPool = {
       });
       return [{ affectedRows: 1 }];
     }
+    if (sql.includes("CREATE TABLE IF NOT EXISTS `tenant_gpt_activation_contexts`")) {
+      return [{ affectedRows: 0 }];
+    }
+    if (sql.includes("INSERT INTO `tenant_gpt_activation_contexts`")) {
+      tenantGptActivationContexts.push({
+        access_jti: params[0],
+        oauth_code_jti: params[1],
+        user_id: params[2],
+        tenant_id: params[3],
+        client_id: params[4],
+        activation_context_json: params[5],
+        expires_at: params[6],
+      });
+      return [{ affectedRows: 1 }];
+    }
     if (sql.includes("FROM `platform_runtime_config`")) {
       return [[{
         config_json: JSON.stringify({
