@@ -778,7 +778,27 @@ export async function applyGithubRepositoryChangeSet(options = {}) {
     });
   }
   const newTree = await githubLifecycleRequest({ owner, repo, apiPath: "/git/trees", method: "POST", body: { base_tree: baseCommit.payload?.tree?.sha, tree }, token, fetchImpl: options.fetchImpl });
-  const newCommit = await githubLifecycleRequest({ owner, repo, apiPath: "/git/commits", method: "POST", body: { message: commitMessage, tree: newTree.payload?.sha, parents: [commitParentSha] }, token, fetchImpl: options.fetchImpl });
+  const newTreeSha = normalizeSha(newTree.payload?.sha);
+  const parentTreeSha = normalizeSha(baseCommit.payload?.tree?.sha);
+  if (!newTreeSha) {
+    throw lifecycleError(502, "github_change_set_tree_readback_missing", "GitHub created-tree response did not include a valid tree SHA.", {
+      branch,
+      parent_sha: commitParentSha,
+      change_count: changes.length,
+      secrets_included: false,
+    });
+  }
+  if (newTreeSha === parentTreeSha) {
+    throw lifecycleError(409, "github_change_set_empty_tree", "Change set produced no tree changes; refusing to create an empty commit.", {
+      branch,
+      parent_sha: commitParentSha,
+      parent_tree_sha: parentTreeSha,
+      change_count: changes.length,
+      changed_paths: normalizedChanges.map((change) => change.path),
+      secrets_included: false,
+    });
+  }
+  const newCommit = await githubLifecycleRequest({ owner, repo, apiPath: "/git/commits", method: "POST", body: { message: commitMessage, tree: newTreeSha, parents: [commitParentSha] }, token, fetchImpl: options.fetchImpl });
   const newCommitSha = normalizeSha(newCommit.payload?.sha);
   if (branchExists) {
     await githubLifecycleRequest({ owner, repo, apiPath: `/git/refs/heads/${encodeBranch(branch)}`, method: "PATCH", body: { sha: newCommitSha, force: false }, token, fetchImpl: options.fetchImpl });
