@@ -2318,7 +2318,33 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       };
     }
   }
-  if (callerType === "admin" && toolKey === "capability_resolution_envelope_lifecycle") {
+  if (callerType === "admin" && toolKey === "admin_control_db_mutation_serialization_smoke") {
+      try {
+        const [result, fields] = await getPool().query("UPDATE execution_policies SET updated_at = updated_at WHERE 1 = 0");
+        const serialized = serializeDbControlQueryResult(result, fields);
+        return {
+          status: 200,
+          body: {
+            ok: true,
+            smoke_key: "admin_control_db_mutation_serialization_smoke",
+            sql_kind: "fixed_noop_update",
+            statement_count: 1,
+            ...serialized,
+            readback_assertions: {
+              mutation_serialized: serialized.statement_result_type === "mutation",
+              affected_rows_present: Number.isFinite(serialized.result?.affectedRows),
+              changed_rows_present: Number.isFinite(serialized.result?.changedRows),
+              secrets_included_false: serialized.secrets_included === false,
+            },
+            secrets_included: false,
+          },
+        };
+      } catch (err) {
+        return { status: err?.status || 500, body: { ok: false, error: { code: err?.code || "admin_control_db_mutation_serialization_smoke_failed", message: err?.message }, secrets_included: false } };
+      }
+    }
+
+    if (callerType === "admin" && toolKey === "capability_resolution_envelope_lifecycle") {
       try {
         const result = await transitionCapabilityEnvelopeLifecycle({
           pool: getPool(),
