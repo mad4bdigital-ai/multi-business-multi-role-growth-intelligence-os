@@ -571,8 +571,8 @@ export function buildPersistedDiscoveryReport(report) {
     entry.migration_file,
     entry.documentation_complete === true ? 1 : 0,
     entry.coverage?.gap_severity === "none" ? "" : entry.coverage?.gap_severity || "",
-    entry.safety_attestation?.migration_sha256 || "",
-    entry.safety_attestation?.evidence_mode || "",
+    entry.safety_attestation?.migration_sha256?.slice(0, 12) || "",
+    entry.safety_attestation?.evidence_mode ? "attested" : "",
     entry.coverage?.safety_marker_count || 0,
     entry.coverage?.route_coverage?.missing_count || 0,
   ];
