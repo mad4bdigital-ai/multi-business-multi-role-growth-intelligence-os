@@ -268,7 +268,13 @@ try {
   assert("success token exchange writes diagnostic", Boolean(successDiagnostic), JSON.stringify(oauthTokenDiagnostics));
   assert("success diagnostic captures token type", successDiagnostic?.runtime_evidence_json?.access_token?.token_type === "Bearer", JSON.stringify(successDiagnostic));
   assert("success diagnostic captures token length only", successDiagnostic?.runtime_evidence_json?.access_token?.length === exchange.body.access_token.length, JSON.stringify(successDiagnostic));
+  assert("success diagnostic captures activation context storage only", successDiagnostic?.runtime_evidence_json?.activation_context?.stored === true, JSON.stringify(successDiagnostic));
   assert("success diagnostic excludes raw access token", !JSON.stringify(successDiagnostic || {}).includes(exchange.body.access_token), JSON.stringify(successDiagnostic));
+  assert("token exchange stores activation context server-side", tenantGptActivationContexts.length === 1, JSON.stringify(tenantGptActivationContexts));
+  const storedActivationContext = JSON.parse(tenantGptActivationContexts[0].activation_context_json);
+  assert("stored activation context preserves activation mode", storedActivationContext.activation_mode === "dedicated", JSON.stringify(storedActivationContext));
+  assert("stored activation context preserves workspace name", storedActivationContext.workspace_name === "Tenant Workspace", JSON.stringify(storedActivationContext));
+  assert("stored activation context marks secrets excluded", storedActivationContext.secrets_included === false, JSON.stringify(storedActivationContext));
   const accessPayload = jwt.verify(exchange.body.access_token, process.env.JWT_SECRET);
   assert("access JWT has platform issuer", accessPayload.iss === "https://auth.mad4b.com", JSON.stringify(accessPayload));
   assert("access JWT has tenant GPT audience", accessPayload.aud === "mad4b-tenant-gpt", JSON.stringify(accessPayload));
