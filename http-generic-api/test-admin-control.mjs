@@ -193,6 +193,13 @@ try {
     adminCliSource.includes("update_branch_requested") &&
     adminCliSource.includes("expected_head_sha"),
     "PR update-branch fallback should support conflict recovery attempts without gh CLI");
+  assert("github GraphQL fallback supports gh pr ready with readback",
+    adminCliSource.includes('resource === "pr" && command === "ready"') &&
+    adminCliSource.includes("markPullRequestReadyForReview") &&
+    adminCliSource.includes("github_pr_ready_readback_failed") &&
+    adminCliSource.includes("readback?.draft === true") &&
+    adminCliSource.includes('fallback: "github_graphql"'),
+    "PR ready fallback must be a narrow GraphQL mutation with same-cycle draft-state readback");
   assert("github REST fallback exposes governed PR label mutation",
     adminCliSource.includes('resource === "pr" && command === "edit"') &&
     adminCliSource.includes('/issues/${encodeURIComponent(parsed.pr_number)}/labels') &&
