@@ -1,0 +1,30 @@
+{
+  "items": [
+    {
+      "device_id": "lcdev_01JZ_CANONICAL",
+      "tenant_id": "00000000-0000-4000-a000-000000000001",
+      "user_id": "f242960c-2857-4b4d-a504-ee50f8a278b4",
+      "display_name": "Essam PC",
+      "current_hostname": "DESKTOP-DDR0NG6",
+      "aliases": [
+        {
+          "alias_type": "hostname",
+          "display_value": "DESKTOP-DDR0NG6",
+          "status": "active"
+        },
+        {
+          "alias_type": "legacy_config_id",
+          "display_value": "c2dd912e",
+          "status": "historical"
+        }
+      ],
+      "status": "active",
+      "last_seen_at": "2026-07-08T23:00:00Z"
+    }
+  ],
+  "page": {
+    "nextCursor": null,
+    "hasMore": false
+  },
+  "secrets_included": false
+}
