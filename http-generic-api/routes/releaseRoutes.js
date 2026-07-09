@@ -196,6 +196,11 @@ export function buildReleaseRoutes(deps) {
       const explicitSummary = req.query.summary === "true" || req.query.summary === "1";
       const explicitFull = req.query.full === "true" || req.query.full === "1" || req.query.detail === "full";
 
+      if (!persist && !explicitFull) {
+        const fastProjection = await buildFastReadinessProjection();
+        return res.status(fastProjection.ok ? 200 : 503).json(fastProjection);
+      }
+
       const report = await runReleaseReadiness({ persist });
       const httpStatus = 200;
 
