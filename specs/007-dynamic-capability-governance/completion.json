@@ -201,7 +201,14 @@
       "status": "release_readiness_summary_transport_and_production_parity_ci_passed"
     },
     "release_readiness": {
-      "status": "pass_pending_post_merge_audit"
+      "status": "warn_post_merge_audit_completed_with_tracked_residual_debt",
+      "run_id": "fc43581c-d302-44e8-aafd-f76f4b56f075",
+      "overall": "warn",
+      "pass": 69,
+      "warn": 1,
+      "fail": 0,
+      "tracked_warning": "migration_drift",
+      "actionable_migration_artifact_gap_count": 4
     },
     "migration": {
       "status": "apply_and_schema_readback_verified",
