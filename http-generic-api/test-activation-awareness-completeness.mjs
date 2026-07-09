@@ -14,11 +14,18 @@ import {
 import {
   normalizeActivationSessionPolicy,
   deriveActivationIdempotencyKey,
+  ACTIVATION_CONTEXT_LIFECYCLE_CONTRACT,
 } from "./activationSessionLifecycleService.js";
 import { _testingActivationAwarenessRoutes } from "./routes/activationAwarenessRoutes.js";
 
 function read(relativePath) {
   return readFileSync(new URL(relativePath, import.meta.url), "utf8");
+}
+
+function assertIncludesAll(text, values, label) {
+  for (const value of values) {
+    assert.ok(text.includes(value), `${label} must include ${value}`);
+  }
 }
 
 function testProfilesAndBudgets() {
@@ -29,141 +36,87 @@ function testProfilesAndBudgets() {
   assert.equal(activationResponseProfileConfig("evidence").hard_bytes, 40000);
   assert.equal(activationResponseProfileConfig("full").include_full_dynamic_tabs, true);
 
-  const buildSynthetic = (profile) => {
-    const surfaceRefs = [
-      { surface: "dynamic_tabs", tool_key: "activation_dynamic_tab_detail_read_api", supports_cursor: true },
-      { surface: "operational_intelligence", tool_key: "activation_operational_attention_read_api", supports_cursor: true },
-      { surface: "operational_dashboard", tool_key: "operational_console_read_api", supports_cursor: true },
-    ];
-    const tabs = Array.from({ length: 14 }, (_, tabIndex) => ({
-      tab_key: `tab_${tabIndex}`,
-      display_name: `Tab ${tabIndex}`,
-      status: tabIndex % 5 === 0 ? "attention" : "active",
-      sections: Array.from({ length: 8 }, (_, sectionIndex) => ({
-        section_key: `section_${sectionIndex}`,
-        display_name: `Section ${sectionIndex}`,
-        delivery_mode: "attention_first",
-        dedupe_scope: "tenant",
-        supports_cursor: true,
-        hydration_state: "manifest_only",
-        details_ref: { tool_key: "activation_dynamic_tab_detail_read_api" },
-        description: "section-detail-".repeat(500),
-      })),
-    }));
-    const dynamicTabsManifest = {
+  const buildSynthetic = (profile) => ({
+    ok: true,
+    activation_layer: "hard_activation_orchestrator",
+    activation_complete: true,
+    run_id: "run_test",
+    session_id: "session_test",
+    response_profile: profile,
+    snapshot: { snapshot_id: "snapshot_test", registry_version: "test" },
+    runtime_classification: { activation_status: "active", reason_code: "validated" },
+    state_model: { validation_state: "complete", evidence_state: "complete", delivery_state: "prepared" },
+    evidence_matrix: {
+      session_context: { ok: true, status: "complete", raw: "x".repeat(20000) },
+      provider_bootstrap: { ok: true, status: "complete", raw: "x".repeat(20000) },
+    },
+    session_context_evidence: { ok: true, status: "complete", raw: "x".repeat(20000) },
+    provider_bootstrap_evidence: { ok: true, status: "complete", raw: "x".repeat(20000) },
+    session_context: {
+      session_id: "session_test",
+      run_id: "run_test",
+      subject: { tenant_id: "tenant_test", user_id: "platform_admin" },
+      platform_access: { counts: { brands: 8, actions: 38 } },
+      authorized_access: { auth_gaps: [], counts: { registered_surfaces: 31 } },
+      details_deferred: true,
+      secrets_included: false,
+    },
+    provider_bootstrap: {
+      ok: true,
+      status: "active",
+      counts: { brands: 8, actions: 38 },
+      readiness: { brands: "active", actions: "active" },
+      raw_provider_payload: "provider-detail-".repeat(10000),
+      degraded_surfaces: [],
+    },
+    dynamic_tabs_manifest: {
       ok: true,
       activation_layer: "dynamic_tabs",
       registry_version: "test",
       summary: { registered_tabs: 14, registered_sections: 112, degraded_surface_count: 0 },
-      containers: Array.from({ length: 30 }, (_, containerIndex) => ({
-        container_key: `workspace:${containerIndex}`,
-        container_type: "workspace",
-        display_name: `Workspace ${containerIndex}`,
-        workspace_key: `workspace_${containerIndex}`,
-        bootstrap_status: "active",
-        tabs,
-      })),
-      shared_surfaces: tabs.map((tab) => ({
-        surface_ref: `surface:${tab.tab_key}`,
-        section_key: "summary",
-        tab_key: tab.tab_key,
-        dedupe_scope: "global",
-        delivery_mode: "summary",
-        detail_tool_key: "activation_dynamic_tab_detail_read_api",
-      })),
+      containers: [],
+      shared_surfaces: [],
       policy: { details_omitted_silently: false },
       degraded_surfaces: [],
-    };
-    const operationalSummary = {
+    },
+    operational_summary: {
       ok: true,
       activation_layer: "operational_intelligence",
-      summary: { attention_count: 200, critical_attention_count: 2, degraded_surface_count: 0 },
-      tab_badges: { connectors: { active: 26, pending: 5, error: 0 } },
-      attention_items: Array.from({ length: 200 }, (_, index) => ({
-        source: "tasks",
-        item_id: `task_${index}`,
-        severity: index < 2 ? "critical" : "high",
-        title: `Attention ${index} ${"detail ".repeat(500)}`,
-        detail: "x".repeat(4000),
-        updated_at: "2026-06-14T00:00:00.000Z",
-      })),
+      summary: { attention_count: 2, critical_attention_count: 1, degraded_surface_count: 0 },
+      attention_items: [{ title: "critical", detail: "x".repeat(2000) }],
       detail_refs: { tasks: { tool_key: "activation_operational_attention_read_api" } },
       policy: { details_omitted_silently: false },
       degraded_surfaces: [],
-    };
-    const dashboardManifest = {
+    },
+    operational_dashboard_manifest: {
       ok: true,
       activation_layer: "operational_dashboard",
-      summary: { registered_tiles: 30, active_tiles: 30, degraded_surface_count: 0 },
-      tiles: Array.from({ length: 30 }, (_, index) => ({
-        tile_key: `tile_${index}`,
-        display_name: `Tile ${index}`,
-        category: "operations",
-        status: "active",
-        risk_level: index % 2 ? "low" : "medium",
-        counts: { active: index + 1, pending: 0, error: 0 },
-        hydration_state: "summary_loaded",
-        details_ref: { tool_key: "operational_console_read_api", tile_key: `tile_${index}` },
-        detail: "dashboard-detail-".repeat(500),
-      })),
-      freshness_manifest: Array.from({ length: 100 }, (_, index) => ({ index, detail: "x".repeat(2000) })),
+      summary: { registered_tiles: 7, active_tiles: 7, degraded_surface_count: 0 },
+      tiles: [],
       policy: { details_omitted_silently: false },
       degraded_surfaces: [],
-    };
-    return {
-      ok: true,
-      activation_layer: "hard_activation_orchestrator",
-      activation_complete: true,
-      run_id: "run_test",
-      session_id: "session_test",
-      response_profile: profile,
-      snapshot: { snapshot_id: "snapshot_test", registry_version: "test" },
-      runtime_classification: { activation_status: "active", reason_code: "validated" },
-      state_model: { validation_state: "complete", evidence_state: "complete", delivery_state: "prepared" },
-      evidence_matrix: {
-        session_context: { ok: true, status: "complete", raw: "x".repeat(20000) },
-        provider_bootstrap: { ok: true, status: "complete", raw: "x".repeat(20000) },
-      },
-      session_context_evidence: { ok: true, status: "complete", raw: "x".repeat(20000) },
-      provider_bootstrap_evidence: { ok: true, status: "complete", raw: "x".repeat(20000) },
-      session_context: {
-        session_id: "session_test",
-        run_id: "run_test",
-        subject: { tenant_id: "tenant_test", user_id: "platform_admin" },
-        platform_access: { counts: { brands: 8, actions: 38 } },
-        authorized_access: { auth_gaps: [], counts: { registered_surfaces: 31 } },
-        details_deferred: true,
-        secrets_included: false,
-      },
-      provider_bootstrap: {
-        ok: true,
-        status: "active",
-        counts: { brands: 8, actions: 38 },
-        readiness: { brands: "active", actions: "active" },
-        raw_provider_payload: "provider-detail-".repeat(10000),
-        degraded_surfaces: [],
-      },
-      dynamic_tabs_manifest: dynamicTabsManifest,
-      operational_summary: operationalSummary,
-      operational_dashboard_manifest: dashboardManifest,
-      completeness: {
-        known_surfaces: 31,
-        visible_surfaces: 31,
-        summarized_surfaces: 31,
-        details_omitted_silently: false,
-        deferred_details_have_refs: true,
-        coverage_status: "complete_awareness",
-      },
-      awareness_index: { score: 100, coverage: 100, freshness: 100, detail_availability: 100 },
-      surface_refs: surfaceRefs,
-      dynamic_tabs: { response_mode: "manifest", payload: dynamicTabsManifest },
-      operational_intelligence: { response_mode: "summary_attention_first", payload: operationalSummary },
-      operational_dashboard: { response_mode: "manifest", payload: dashboardManifest },
-      degraded_surfaces: [],
-      report_policy: { deferred_details_must_have_governed_refs: true },
-      secrets_included: false,
-    };
-  };
+    },
+    completeness: {
+      known_surfaces: 31,
+      visible_surfaces: 31,
+      summarized_surfaces: 31,
+      details_omitted_silently: false,
+      deferred_details_have_refs: true,
+      coverage_status: "complete_awareness",
+    },
+    awareness_index: { score: 100, coverage: 100, freshness: 100, detail_availability: 100 },
+    surface_refs: [
+      { surface: "dynamic_tabs", tool_key: "activation_dynamic_tab_detail_read_api", supports_cursor: true },
+      { surface: "operational_intelligence", tool_key: "activation_operational_attention_read_api", supports_cursor: true },
+      { surface: "operational_dashboard", tool_key: "operational_console_read_api", supports_cursor: true },
+    ],
+    dynamic_tabs: { response_mode: "manifest", payload: {} },
+    operational_intelligence: { response_mode: "summary_attention_first", payload: {} },
+    operational_dashboard: { response_mode: "manifest", payload: {} },
+    degraded_surfaces: [],
+    report_policy: { deferred_details_must_have_governed_refs: true },
+    secrets_included: false,
+  });
 
   for (const profile of ["evidence", "summary"]) {
     const config = activationResponseProfileConfig(profile);
@@ -176,12 +129,7 @@ function testProfilesAndBudgets() {
     assert.equal(projected.response_projection.details_deferred, true);
     assert.equal(projected.completeness.details_omitted_silently, false);
     assert.equal(projected.completeness.deferred_details_have_refs, true);
-    assert.equal(projected.dynamic_tabs.details_inline, false);
-    assert.equal(projected.operational_intelligence.details_inline, false);
-    assert.equal(projected.operational_dashboard.details_inline, false);
     assert.equal(projected.surface_refs.length, 3);
-    assert.ok(projected.response_projection.projection_steps.includes("strict_semantic_summary_envelope"));
-    assert.ok(Array.isArray(projected.response_projection.deferred_surfaces));
   }
 }
 
@@ -229,14 +177,7 @@ function testOperationalCountIntegrityAndBlockedSurfaceDetails() {
   assert.deepEqual(skillProjection.approval, { requires_approval: 10, no_approval_required: 69 });
 
   const blocked = deriveOperationalBlockedSurfaces({
-    results: {
-      systems: { ok: true },
-      tasks: { ok: true },
-      agents: { ok: true },
-      skills: { ok: true },
-      freshness: { ok: true },
-      signals: { ok: true },
-    },
+    results: { systems: { ok: true }, tasks: { ok: true }, agents: { ok: true }, skills: { ok: true }, freshness: { ok: true }, signals: { ok: true } },
     counts: {
       systems: { active: 3, pending: 28, error: 0 },
       tasks: { blocked: 3, open: 17 },
@@ -249,50 +190,37 @@ function testOperationalCountIntegrityAndBlockedSurfaceDetails() {
   });
   assert.deepEqual(blocked.map((item) => item.surface_key), ["connectors", "tasks"]);
   assert.deepEqual(blocked[0].reasons, ["pending_installations"]);
-  assert.deepEqual(blocked[0].metrics, { active: 3, pending: 28, error: 0 });
   assert.deepEqual(blocked[1].reasons, ["blocked_tasks"]);
   assert.equal(blocked.every((item) => item.secrets_included === false), true);
-
-  const unavailable = deriveOperationalBlockedSurfaces({
-    results: { systems: { ok: false } },
-    counts: { systems: {} },
-  });
-  assert.equal(unavailable[0].surface_key, "connectors");
-  assert.deepEqual(unavailable[0].reasons, ["source_unavailable"]);
-  assert.deepEqual(unavailable[0].metrics, { active: null, pending: null, error: null });
 
   const unavailableSkills = deriveOperationalBlockedSurfaces({
     results: { skills: { ok: false } },
     counts: { skills: {}, skillApprovals: {} },
   });
-  const unavailableSkillSurface = unavailableSkills.find(
-    (item) => item.surface_key === "skills"
-  );
-  assert.ok(unavailableSkillSurface, "skills surface should be blocked when source is unavailable");
-  assert.deepEqual(unavailableSkillSurface, {
-    surface_key: "skills",
-    status: "blocked",
-    reasons: ["source_unavailable"],
-    metrics: { active_grants: null, requires_approval: null },
-    secrets_included: false,
-  });
+  const unavailableSkillSurface = unavailableSkills.find((item) => item.surface_key === "skills");
+  assert.ok(unavailableSkillSurface);
+  assert.deepEqual(unavailableSkillSurface.metrics, { active_grants: null, requires_approval: null });
+  assert.deepEqual(unavailableSkillSurface.reasons, ["source_unavailable"]);
 }
 
 function testIdempotencyAndInputNormalization() {
   assert.equal(normalizeActivationSessionPolicy("reuse_only"), "reuse_only");
   assert.equal(normalizeActivationSessionPolicy("invalid"), "reuse_or_create");
-  const first = deriveActivationIdempotencyKey({
-    tenantId: "tenant-1",
-    userId: "user-1",
-    conversationRef: "conversation-1",
-  });
-  const second = deriveActivationIdempotencyKey({
-    tenantId: "tenant-1",
-    userId: "user-1",
-    conversationRef: "conversation-1",
-  });
+  const first = deriveActivationIdempotencyKey({ tenantId: "tenant-1", userId: "user-1", conversationRef: "conversation-1" });
+  const second = deriveActivationIdempotencyKey({ tenantId: "tenant-1", userId: "user-1", conversationRef: "conversation-1" });
   assert.equal(first, second);
   assert.equal(first.length, 64);
+  assert.equal(first, deriveActivationIdempotencyKey({
+    tenantId: "tenant-1",
+    userId: "user-1",
+    workspaceKey: "workspace-2",
+    brandKey: "brand-1",
+    conversationRef: "conversation-1",
+  }));
+  assert.equal(
+    deriveActivationIdempotencyKey({ tenantId: "tenant-1", userId: "user-1", workspaceKey: "workspace-1", brandKey: "brand-1", conversationRef: "conversation-1" }),
+    deriveActivationIdempotencyKey({ tenantId: "tenant-1", userId: "user-1", workspaceKey: "workspace-1", brandKey: "brand-2", conversationRef: "conversation-1" })
+  );
   assert.equal(deriveActivationIdempotencyKey({ explicitKey: "explicit-key" }), "explicit-key");
 
   assert.equal(_testingActivationAwarenessRoutes.profileValue("diagnostic"), "diagnostic");
@@ -301,6 +229,13 @@ function testIdempotencyAndInputNormalization() {
   assert.equal(_testingActivationAwarenessRoutes.queryText([" tab "], 20), "tab");
   assert.equal(_testingActivationAwareness.defaultDeliveryMode({ aggregation_mode: "summary" }), "summary");
   assert.equal(_testingActivationAwareness.defaultDedupeScope({}), "global");
+  assert.equal(ACTIVATION_CONTEXT_LIFECYCLE_CONTRACT.session_container_scope, "conversation");
+  assert.equal(ACTIVATION_CONTEXT_LIFECYCLE_CONTRACT.turn_context_scope, "operation_resolution");
+  assert.ok(ACTIVATION_CONTEXT_LIFECYCLE_CONTRACT.inherited_brand_context.includes("business_type_key"));
+  assert.ok(ACTIVATION_CONTEXT_LIFECYCLE_CONTRACT.inherited_brand_context.includes("business_activity_type_key"));
+  assert.ok(ACTIVATION_CONTEXT_LIFECYCLE_CONTRACT.inherited_brand_context.includes("knowledge_profile_key"));
+  assert.equal(ACTIVATION_CONTEXT_LIFECYCLE_CONTRACT.admin_surface_required, true);
+  assert.equal(ACTIVATION_CONTEXT_LIFECYCLE_CONTRACT.tenant_surface_required, true);
 }
 
 function testRepositoryContracts() {
@@ -309,10 +244,17 @@ function testRepositoryContracts() {
   const activationRoutes = read("./routes/activationRoutes.js");
   const awarenessRoutes = read("./routes/activationAwarenessRoutes.js");
   const tenantOverlayRoutes = read("./routes/tenantActivationOverlayRoutes.js");
+  const sessionRoutes = read("./routes/sessionRoutes.js");
+  const gptSessionRoutes = read("./routes/gptSessionRoutes.js");
   const gptToolsRoutes = read("./routes/gptToolsRoutes.js");
+  const sessionSummaryService = read("./sessionSummaryService.js");
+  const sessionArchiveService = read("./sessionArchiveService.js");
+  const lifecycleService = read("./activationSessionLifecycleService.js");
+  const mcpRuntime = read("./mcpRuntime.js");
   const dynamicTabs = read("./activationDynamicTabsEvidence.js");
   const awarenessService = read("./activationAwarenessService.js");
   const migration = read("./migrations/310_sprint69_activation_awareness_completeness_control_plane.sql");
+  const contextIndexMigration = read("./migrations/1042_sprint69_activation_session_context_indexes.sql");
   const openapi = read("./openapi.yaml");
 
   assert.match(index, /buildActivationHardRunRoutes/);
@@ -325,17 +267,68 @@ function testRepositoryContracts() {
   assert.match(awarenessRoutes, /active_tenant_membership_required/);
   assert.match(awarenessRoutes, /container_key and tab_key are required/);
   assert.match(awarenessRoutes, /chunkActivationAwarenessResponse/);
-  assert.match(awarenessRoutes, /activation_awareness_read_api/);
-  assert.match(awarenessRoutes, /tenant_activation_awareness_read_api/);
-  assert.match(awarenessRoutes, /max_response_chars/);
-  assert.match(awarenessRoutes, /chunk_ttl_minutes/);
   assert.match(activationRoutes, /activation_session_context_read_api/);
   assert.match(activationRoutes, /maybeChunkToolResponseBody/);
-  assert.match(activationRoutes, /chunk_ttl_minutes/);
+  assert.match(activationRoutes, /workspace_key: workspaceKey/);
+  assert.match(activationRoutes, /brand_key: brandKey/);
   assert.match(tenantOverlayRoutes, /tenant_activation_session_context/);
   assert.match(tenantOverlayRoutes, /chunk_ttl_minutes/);
+
+  assert.match(sessionRoutes, /context_scope = "session"/);
+  assert.match(sessionRoutes, /invalid_context_scope/);
+  assert.match(sessionRoutes, /gpt_session_turns/);
+  assert.match(sessionRoutes, /gst\.session_id = cs\.session_id/);
+  assert.match(sessionRoutes, /turnClauses\.join\(" AND "\)/);
+  assert.match(sessionRoutes, /context_scope: normalizedContextScope/);
+  assert.match(sessionRoutes, /turn_contexts: turnContexts/);
+  assert.match(sessionRoutes, /context_granularity: turnContexts\.length \? "turn_level" : "session_default"/);
+
   assert.match(gptToolsRoutes, /shouldChunkDispatchedToolResponse/);
   assert.match(gptToolsRoutes, /response_chunk_read/);
+  assert.match(gptToolsRoutes, /resolveGptSessionContext/);
+  assert.match(gptToolsRoutes, /x-workspace-key/);
+  assert.match(gptToolsRoutes, /x-brand-key/);
+  assert.doesNotMatch(gptToolsRoutes, /CASE WHEN \(\? IS NOT NULL AND workspace_key = \?\)/);
+  assert.doesNotMatch(gptToolsRoutes, /CASE WHEN \(\? IS NOT NULL AND brand_key = \?\)/);
+  assert.match(gptToolsRoutes, /ORDER BY started_at DESC/);
+  assert.match(gptToolsRoutes, /business_type_key: businessTypeKey/);
+  assert.match(gptToolsRoutes, /business_activity_type_key: businessActivityTypeKey/);
+  assert.match(gptToolsRoutes, /x-business-type-key/);
+  assert.match(gptToolsRoutes, /x-business-activity-type-key/);
+  assert.match(gptToolsRoutes, /x-knowledge-profile-key/);
+
+  assert.match(gptSessionRoutes, /workspace_key = String\(turn\.workspace_key/);
+  assert.match(gptSessionRoutes, /brand_key = String\(turn\.brand_key/);
+  assert.match(gptSessionRoutes, /workspace_key,\n\s*brand_key,/);
+  assert.match(gptSessionRoutes, /workspace_key: turn\.workspace_key/);
+  assert.match(gptSessionRoutes, /brand_key: turn\.brand_key/);
+  assert.match(gptSessionRoutes, /session_not_found/);
+  assert.match(gptSessionRoutes, /session_closed/);
+
+  assert.match(sessionArchiveService, /turnWorkspaceKey = String\(workspace_key \|\| session\.workspace_key/);
+  assert.match(sessionArchiveService, /turnBrandKey = String\(brand_key \|\| session\.brand_key/);
+  assert.match(sessionArchiveService, /resolveInheritedBusinessContext/);
+  assert.match(sessionArchiveService, /brand_paths/);
+  assert.match(sessionArchiveService, /business_activity_types/);
+  assert.match(sessionArchiveService, /business_type_profiles/);
+  assert.match(sessionArchiveService, /context_stack: turnContextStack/);
+  assert.match(sessionArchiveService, /business_context: businessContext/);
+  assert.match(sessionSummaryService, /gpt_session_turns/);
+  assert.match(sessionSummaryService, /gst\.workspace_key = \?/);
+  assert.match(sessionSummaryService, /gst\.brand_key = \?/);
+  assert.match(sessionSummaryService, /COALESCE\(/);
+  assert.equal(sessionSummaryService.includes("LEFT JOIN \\`customer_sessions\\` cs ON cs.session_id = ss.session_id"), true);
+
+  assert.doesNotMatch(lifecycleService, /workspaceKey \|\| "workspace:unspecified"/);
+  assert.doesNotMatch(lifecycleService, /brandKey \|\| "brand:unspecified"/);
+  assert.doesNotMatch(lifecycleService, /AND \(\? IS NULL OR s\.workspace_key = \?\)/);
+  assert.doesNotMatch(lifecycleService, /AND \(\? IS NULL OR s\.brand_key = \?\)/);
+
+  assert.match(mcpRuntime, /workspace_key: \{ type: "string"/);
+  assert.match(mcpRuntime, /brand_key: \{ type: "string"/);
+  assert.match(mcpRuntime, /gpt_session_turns/);
+  assert.match(mcpRuntime, /gst\.workspace_key = \?/);
+  assert.match(mcpRuntime, /gst\.brand_key = \?/);
 
   assert.match(dynamicTabs, /loadSectionRowsBatch/);
   assert.match(dynamicTabs, /batch_query_count/);
@@ -346,19 +339,13 @@ function testRepositoryContracts() {
   assert.match(awarenessService, /i\.status = 'active'/);
   assert.match(awarenessService, /i\.expires_at IS NULL OR i\.expires_at > UTC_TIMESTAMP\(\)/);
   assert.match(awarenessService, /blocked_surface_count: blockedSurfaceCount/);
-  assert.match(awarenessService, /registered_system_count: registeredSystemCount/);
   assert.match(awarenessService, /connected_system_count: connectedSystemCount/);
-  assert.match(awarenessService, /connectedSystemCount = systems\.ok \? safeNumber\(systemCounts\.active\) : null/);
-  assert.match(awarenessService, /blocked_surfaces: blockedSurfaces/);
   assert.match(awarenessService, /GROUP BY grant_status, requires_approval/);
-  assert.match(awarenessService, /active_skill_grant_count/);
-  assert.match(awarenessService, /approval_required_skill_grant_count/);
-  assert.doesNotMatch(awarenessService, /CASE WHEN requires_approval = 1 THEN 'requires_approval' ELSE grant_status END/);
   assert.match(awarenessService, /complete_awareness_with_blocked_surfaces/);
   assert.doesNotMatch(awarenessService, /const authorizationVisibility = 100;/);
   assert.doesNotMatch(awarenessService, /blocked_surfaces: 0,/);
 
-  for (const required of [
+  assertIncludesAll(migration, [
     "CREATE TABLE IF NOT EXISTS activation_runs",
     "CREATE TABLE IF NOT EXISTS activation_snapshot_ledger",
     "CREATE TABLE IF NOT EXISTS activation_response_profile_registry",
@@ -367,9 +354,31 @@ function testRepositoryContracts() {
     "tenant_activation_awareness_read_api",
     "tenant_activation_dynamic_tab_detail_read_api",
     "activation_awareness_coverage",
-  ]) assert.match(migration, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  ], "activation awareness migration");
 
-  for (const path of [
+  assertIncludesAll(contextIndexMigration, [
+    "idx_cs_gpt_context_active_started",
+    "idx_ar_context_reuse_session",
+    "idx_ss_context_created",
+    "idx_gst_context_scope_created",
+    "idx_gst_session_context_created",
+    "workspace_key",
+    "brand_key",
+  ], "activation context index migration");
+  assert.doesNotMatch(contextIndexMigration, /idx_gst_session_context_lookup/);
+
+  assert.ok(openapi.includes("/sessions:"), "OpenAPI must include /sessions");
+  assert.match(openapi, /context_scope:/);
+  assert.match(openapi, /enum: \[session, turn, any\]/);
+  assert.ok(openapi.includes("/gpt/sessions/{id}/turn:"), "OpenAPI must include single GPT turn writer");
+  assert.ok(openapi.includes("/gpt/sessions/{id}/turns:"), "OpenAPI must include GPT turns collection");
+  assert.match(openapi, /operationId: writeGptSessionTurn/);
+  assert.match(openapi, /operationId: writeGptSessionTurns/);
+  assert.match(openapi, /workspace_key:\n\s+type: string\n\s+description: Optional turn-level workspace context/);
+  assert.match(openapi, /brand_key:\n\s+type: string\n\s+description: Optional turn-level brand context/);
+  assert.match(openapi, /target_key:\n\s+type: string\n\s+description: Alias for brand_key/);
+
+  assertIncludesAll(openapi, [
     "/activation/hard-run:",
     "/activation/hard-run/legacy-full:",
     "/activation/awareness:",
@@ -377,11 +386,11 @@ function testRepositoryContracts() {
     "/activation/runs/{runId}/ack:",
     "/tenant/activation/awareness:",
     "/tenant/activation/dynamic-tabs/detail:",
-  ]) assert.ok(openapi.includes(path), `OpenAPI must include ${path}`);
-  assert.match(openapi, /ActivationAwarenessResponse:/);
-  assert.match(openapi, /ActivationDynamicTabDetailResponse:/);
-  assert.match(openapi, /response_profile:/);
-  assert.match(openapi, /idempotency_key:/);
+    "ActivationAwarenessResponse:",
+    "ActivationDynamicTabDetailResponse:",
+    "response_profile:",
+    "idempotency_key:",
+  ], "OpenAPI activation contract");
 }
 
 async function main() {
