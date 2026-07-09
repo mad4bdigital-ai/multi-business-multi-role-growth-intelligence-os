@@ -159,7 +159,7 @@ try {
   section("authorize popup");
 
   {
-    const result = await getText(baseUrl, `/auth/oauth/authorize?redirect_uri=${encodedRedirect}&state=${state}&screen_hint=signup&activation_mode=managed&device_id=my-laptop&workspace_name=Acme%20Growth&sign_in_options=google,email,register`);
+    const result = await getText(baseUrl, `/auth/oauth/authorize?redirect_uri=${encodedRedirect}&state=${state}&scope=${encodeURIComponent(TENANT_SCOPE)}&screen_hint=signup&activation_mode=managed&device_id=my-laptop&workspace_name=Acme%20Growth&sign_in_options=google,email,register`);
     assert("authorize returns html", result.status === 200, `${result.status}`);
     assert("authorize is not cacheable", result.cacheControl.includes("no-store"), result.cacheControl);
     assert("authorize includes app name", result.text.includes("Growth Intelligence Platform"));
