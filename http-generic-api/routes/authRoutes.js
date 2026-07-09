@@ -135,6 +135,25 @@ function parseSignInOptions(value) {
   return unique.length ? unique : ["google", "email", "register"];
 }
 
+function cleanTenantGptRequestedScope(value) {
+  const requested = String(value || "")
+    .split(/\s+/)
+    .map((scope) => scope.trim())
+    .filter(Boolean);
+  const allowed = new Set(TENANT_GPT_SCOPE_LINKS);
+  const granted = [...new Set(requested.filter((scope) => allowed.has(scope)))];
+  return granted.length ? granted.join(" ") : "";
+}
+
+function safeOAuthScopeEvidence(value) {
+  const scopes = String(value || "").split(/\s+/).filter(Boolean);
+  return {
+    present: scopes.length > 0,
+    count: scopes.length,
+    sha256_prefix: scopes.length ? sha256(scopes.join(" ")).slice(0, 12) : null,
+  };
+}
+
 function parseActivationContext(query = {}) {
   const context = {
     purpose: "tenant_activation",
@@ -443,6 +462,7 @@ async function recordOAuthTokenDiagnostic(queryFn, event = {}) {
       client: event.client || null,
       access_token: event.access_token || null,
       activation_context: event.activation_context || null,
+      requested_scope: event.requested_scope || null,
       client_validation_source: event.client_validation_source || null,
       code_jti_present: event.code_jti_present === true,
       user_id_present: event.user_id_present === true,
@@ -474,7 +494,7 @@ async function recordOAuthTokenDiagnostic(queryFn, event = {}) {
   }
 }
 
-function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationContext }) {
+function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationContext, requestedScope = "" }) {
   const signInOptions = Array.isArray(activationContext?.sign_in_options)
     ? activationContext.sign_in_options
     : ["google", "email", "register"];
@@ -556,6 +576,7 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
     const REDIRECT_URI = ${JSON.stringify(String(redirectUri || ""))};
     const STATE = ${JSON.stringify(String(state || ""))};
     const ACTIVATION_CONTEXT = ${JSON.stringify(activationContext || {})};
+    const OAUTH_SCOPE = ${JSON.stringify(String(requestedScope || ""))};
     const INITIAL_PANEL = ${JSON.stringify(initialPanel)};
     const errorBox = document.getElementById("error");
     function showError(message){ errorBox.textContent = message || "Sign-in failed."; }
@@ -569,7 +590,7 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
       const codeRes = await fetch("/auth/oauth/code", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token, redirect_uri: REDIRECT_URI, state: STATE, activation_context: ACTIVATION_CONTEXT })
+        body: JSON.stringify({ token, redirect_uri: REDIRECT_URI, state: STATE, scope: OAUTH_SCOPE, activation_context: ACTIVATION_CONTEXT })
       });
       const codeData = await codeRes.json();
       if (!codeRes.ok || !codeData.redirect_to) throw new Error(codeData?.error?.message || "Could not complete OAuth sign-in.");
@@ -717,6 +738,7 @@ export function buildAuthRoutes(deps) {
   router.get("/oauth/authorize", async (req, res) => {
     const redirectUri = String(req.query.redirect_uri || "");
     const state = String(req.query.state || "");
+    const requestedScope = cleanTenantGptRequestedScope(req.query.scope);
     const activationContext = parseActivationContext(req.query);
 
     const query = (sql, params) => resolvePool().query(sql, params);
@@ -728,12 +750,13 @@ export function buildAuthRoutes(deps) {
     return res
       .status(200)
       .type("html")
-      .send(buildOAuthAuthorizeHtml({ clientId: GOOGLE_CLIENT_ID, redirectUri, state, activationContext }));
+      .send(buildOAuthAuthorizeHtml({ clientId: GOOGLE_CLIENT_ID, redirectUri, state, activationContext, requestedScope }));
   });
 
   router.post("/oauth/code", async (req, res) => {
     try {
       const { token, redirect_uri, state } = req.body || {};
+      const requested_scope = cleanTenantGptRequestedScope(req.body?.scope);
       const activation_context = req.body?.activation_context && typeof req.body.activation_context === "object"
         ? parseActivationContext(req.body.activation_context)
         : {};
@@ -756,6 +779,7 @@ export function buildAuthRoutes(deps) {
           email: payload.email,
           tenant_id: payload.tenant_id || null,
           redirect_uri,
+          scope: requested_scope || null,
           activation_context,
         },
         JWT_SECRET,
@@ -834,6 +858,7 @@ export function buildAuthRoutes(deps) {
       tokenLogContext.code_jti_present = Boolean(codePayload.jti);
       tokenLogContext.user_id_present = Boolean(codePayload.user_id);
       tokenLogContext.tenant_id_present = Boolean(codePayload.tenant_id);
+      tokenLogContext.requested_scope = safeOAuthScopeEvidence(codePayload.scope);
       if (codePayload.purpose !== "custom_gpt_oauth_code" || !codePayload.user_id) {
         logTokenExchange("failed", "invalid_oauth_code_payload", 400);
         return res.status(400).json({ error: "invalid_grant", error_description: "Invalid OAuth code." });
@@ -893,12 +918,13 @@ export function buildAuthRoutes(deps) {
           reason: activationContextRecord.reason || null,
         },
       });
-      return res.status(200).json({
+      const tokenResponse = {
         access_token: accessToken,
         token_type: "Bearer",
         expires_in: USER_TOKEN_TTL_SECONDS,
-        scope: TENANT_GPT_SCOPE,
-      });
+      };
+      if (codePayload.scope) tokenResponse.scope = codePayload.scope;
+      return res.status(200).json(tokenResponse);
     } catch (err) {
       logTokenExchange("failed", err?.name === "TokenExpiredError" ? "oauth_code_expired" : "oauth_code_invalid_or_exception", 400, {
         exception_name: err?.name || null,
