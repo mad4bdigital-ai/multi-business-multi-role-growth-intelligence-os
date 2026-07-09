@@ -223,7 +223,7 @@ export async function readTenantResolutionProblemCards({
   rootFamily = null,
   severity = null,
   q = null,
-  readAlerts = readOperationalAlerts,
+  readAlerts = defaultReadOperationalAlerts,
 } = {}) {
   const normalizedCursor = boundedInt(cursor, 0, 0, 1000000);
   const normalizedLimit = boundedInt(limit, DEFAULT_LIMIT, 1, MAX_LIMIT);
