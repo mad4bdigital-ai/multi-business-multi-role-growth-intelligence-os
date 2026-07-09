@@ -103,8 +103,22 @@ async function loadProjectionSources(executor = getPool()) {
     "SELECT grant_id,agent_id,skill_id,tenant_id,brand_key,granted_by,granted_at,expires_at,status FROM agent_skill_grants",
     "SELECT asset_id,tenant_id,asset_type,asset_ref,display_name,brand_ref,site_ref,workflow_ref,visibility,lifecycle_status,metadata_json,created_by FROM workspace_assets"
   ];
-  const results = await Promise.all(queries.map(sql => executor.query(sql).then(([rows]) => rows)));
-  return Object.fromEntries(names.map((name,index) => [name,results[index]]));
+  const source = {};
+  for (let index = 0; index < queries.length; index += 1) {
+    const sourceName = names[index];
+    try {
+      const [rows] = await executor.query(queries[index]);
+      source[sourceName] = Array.isArray(rows) ? rows : [];
+    } catch (cause) {
+      const error = new Error(`Container projection source load failed for ${sourceName}.`);
+      error.code = "container_projection_source_load_failed";
+      error.status = 503;
+      error.details = [{ stage:"load_projection_sources",source:sourceName }];
+      error.cause = cause;
+      throw error;
+    }
+  }
+  return source;
 }
 
 export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_container_projection", sourceRows = null } = {}) {
@@ -287,7 +301,7 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
       metadata_json:JSON.stringify({ credential_payload_included:false })
     });
   }
-  for (const asset of source.workspaceAssets.filter(row => activeValue(asset.lifecycle_status))) {
+  for (const asset of source.workspaceAssets.filter(row => activeValue(row.lifecycle_status))) {
     const tenantContainer = tenantContainerByTenant.get(String(asset.tenant_id));
     const brandContainer = asset.brand_ref ? brandContainerByTenantAndTarget.get(`${asset.tenant_id}|${asset.brand_ref}`) : null;
     const container = brandContainer || tenantContainer;
@@ -420,4 +434,4 @@ export async function applyLegacyContainerProjection(plan, { createdBy = "dynami
   }
 }
 
-export const _testingDynamicContainerProjectionService = { stableUuid,activeValue,roleTemplateFor,parseJson };
+export const _testingDynamicContainerProjectionService = { stableUuid,activeValue,roleTemplateFor,parseJson,loadProjectionSources };

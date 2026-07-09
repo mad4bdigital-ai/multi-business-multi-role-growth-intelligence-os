@@ -8,11 +8,11 @@
 - Triaged items: 2
 - Gate candidates: 2
 - New-gap gate: fail
-- Blocking new items: 2
-- Docs completion: 99.59%
-- SQL route OpenAPI coverage: 94.44%
+- Blocking new items: 1
+- Docs completion: 99.6%
+- SQL route OpenAPI coverage: 89.47%
 
 ## Top immediate items
 
-- `1026_sprint69_github_actions_runs_read_dispatch.sql` — critical_review, classify route-like strings, then add OpenAPI contract or false-positive exemption
-- `1025_sprint69_github_ref_dispatch_catalog_persistence.sql` — high_review, add targeted patch-index, parity, and governance documentation
+- `1031_sprint69_github_actions_diagnostics_endpoints_seed.sql` — critical_review, classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `20260709_tenant_resolution_registry_schema.sql` — critical_review, add targeted patch-index, parity, and governance documentation

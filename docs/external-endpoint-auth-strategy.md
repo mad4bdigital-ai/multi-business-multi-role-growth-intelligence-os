@@ -222,6 +222,14 @@ External endpoint execution separates contract validation from credential materi
 3. When `dry_run=true` or `preflight_only=true` (boolean or string), return without secret lookup, token mint, authenticated client construction, or provider dispatch. The contract reports `materialized=false`, `provider_call_made=false`, and `secret_read_performed=false`.
 4. Live execution may resolve and decrypt the selected credential only after all guards pass.
 
+### Dynamic Container projection preview
+
+`dynamic_container_projection_dry_run` and the underlying Dynamic Container projection preview are registry-source readers only. They load SQL authority sources, build a dry-run projection plan, and return held issues without provider dispatch, credential payload reads, external writes, enforcement, or promotion.
+
+Source-loading dependency failures return the shared structured error envelope with `503 Service Unavailable`, `error.code=container_projection_source_load_failed`, `details[].stage=load_projection_sources`, and the bounded source name. The response must not include SQL text, stack traces, credential identifiers, tokens, headers, or secret material.
+
+Projection apply remains a separate governed operation and must keep its own approval, dry-run checksum/readback, no-provider, no-credential, and no-secret gates.
+
 For Google integrations, every client acquisition must carry an explicit action key. Sheets operations use `google_sheets_api`; Drive operations and activation probes use `google_drive_api`. Token and client cache identity includes action, credential scope, user, tenant, connection, app key, and OAuth reference. Missing SQL scope contracts fail closed with `auth_scope_contract_missing`.
 
 ## Migration

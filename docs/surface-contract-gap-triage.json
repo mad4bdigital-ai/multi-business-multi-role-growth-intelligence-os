@@ -9,30 +9,35 @@
   },
   "gate_candidate_count": 2,
   "gate_candidate_files": [
-    "1026_sprint69_github_actions_runs_read_dispatch.sql",
-    "1025_sprint69_github_ref_dispatch_catalog_persistence.sql"
+    "1031_sprint69_github_actions_diagnostics_endpoints_seed.sql",
+    "20260709_tenant_resolution_registry_schema.sql"
   ],
   "items": [
     {
-      "migration_file": "1026_sprint69_github_actions_runs_read_dispatch.sql",
-      "score": 1016,
+      "migration_file": "1031_sprint69_github_actions_diagnostics_endpoints_seed.sql",
+      "score": 1071,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
       "gap_severity": "high",
       "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
         "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md"
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
       ],
       "missing_openapi_routes": [
-        "/repos/{owner}/{repo}/actions/runs"
+        "/repos/{owner}/{repo}/actions/runs/{run_id}/jobs",
+        "/repos/{owner}/{repo}/actions/runs/{run_id}/pending_deployments"
       ],
       "safety_marker_gaps": [
         "no_provider_call",
         "no_credential_payload_read",
         "no_raw_secrets",
         "no_external_send",
-        "no_external_write"
+        "no_external_write",
+        "secrets_included_false"
       ],
       "remediation_action_keys": [
         "document_surface_contract",
@@ -58,20 +63,21 @@
       }
     },
     {
-      "migration_file": "1025_sprint69_github_ref_dispatch_catalog_persistence.sql",
-      "score": 599,
-      "queue_class": "high_review",
+      "migration_file": "20260709_tenant_resolution_registry_schema.sql",
+      "score": 817,
+      "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
       "gap_severity": "medium",
       "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
         "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md"
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
       ],
       "missing_openapi_routes": [],
       "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
         "no_raw_secrets",
         "no_external_send",
         "no_external_write"

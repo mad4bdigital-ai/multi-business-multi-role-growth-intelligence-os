@@ -6,6 +6,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const DEVICE_LINK_TTL_SECONDS = 10 * 60;
 const POLL_INTERVAL_SECONDS = 3;
 const DEVICE_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
+const PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = 15 * 60;
 const PLATFORM_MANAGED_N8N_URL = "https://n8n.mad4b.com/";
 
 function nowMs() {
@@ -693,7 +694,36 @@ export async function requireLocalManagerDevice(req) {
     err.code = "device_session_not_found";
     throw err;
   }
-  return { ...device, session: sanitizeSession(row) };
+  const issuedAtSeconds = Number(payload.iat || 0) || null;
+  const expiresAtSeconds = Number(payload.exp || 0) || null;
+  const authAgeSeconds = issuedAtSeconds ? Math.max(0, Math.floor(Date.now() / 1000) - issuedAtSeconds) : null;
+  const authContext = {
+    source: "saved_device_token",
+    token_scope: "local_manager.device",
+    saved_device_token: true,
+    interactive_user_session_present: false,
+    requires_reauth_for_privileged_installers: true,
+    privileged_authorization_max_age_seconds: PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS,
+    privileged_authorization_fresh: authAgeSeconds !== null && authAgeSeconds <= PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS,
+    auth_age_seconds: authAgeSeconds,
+    token_issued_at: issuedAtSeconds ? new Date(issuedAtSeconds * 1000).toISOString() : null,
+    token_expires_at: expiresAtSeconds ? new Date(expiresAtSeconds * 1000).toISOString() : null,
+  };
+  return { ...device, session: sanitizeSession(row), auth_context: authContext };
+}
+
+export async function requireFreshLocalManagerDeviceForPrivilegedInstaller(req) {
+  const device = await requireLocalManagerDevice(req);
+  if (device.auth_context?.privileged_authorization_fresh === true) return device;
+  const err = new Error("Fresh Local Manager sign-in is required before creating a privileged connector installer.");
+  err.status = 403;
+  err.code = "fresh_local_manager_authorization_required";
+  err.details = {
+    auth_context: device.auth_context,
+    reauth_action: "forget_device_and_link_again",
+    max_age_seconds: PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS,
+  };
+  throw err;
 }
 
 export async function getDeviceSession(req, res) {
@@ -719,6 +749,201 @@ export async function getDeviceSession(req, res) {
   }
 }
 
+function localManagerControlTemplateSeeds() {
+  return [
+    { template_type: "capability", template_key: "powershell_admin", label: "Admin PowerShell recovery", env_flag: "CONNECTOR_POWERSHELL_ENABLED", risk_class: "high", sort_order: 10, surface_type: "helper_tool", execution_location: "local_device", integration_type: "capability", credential_scope: "device", metadata: { note: "Break-glass recovery only. Enables governed /ps proxy after local elevated reinstall." } },
+    { template_type: "capability", template_key: "windows_control", label: "Windows app/process control", env_flag: "CONNECTOR_WIN_ENABLED", risk_class: "high", sort_order: 20, surface_type: "desktop_control", execution_location: "local_device", integration_type: "capability", credential_scope: "device", metadata: { note: "Break-glass/desktop-control only. Enables governed /win proxy after local elevated reinstall." } },
+    { template_type: "capability", template_key: "hermes_agent_surface", label: "Hermes Agent Surface", env_flag: "CONNECTOR_HERMES_AGENT_SURFACE_ENABLED", risk_class: "interactive", sort_order: 30, surface_type: "agent_surface", execution_location: "local_device", integration_type: "capability", credential_scope: "tenant", metadata: { note: "Enables governed local Hermes agent surface controls when tenant policy grants it." } },
+    { template_type: "capability", template_key: "auto_browser", label: "Auto Browser", env_flag: "CONNECTOR_AUTO_BROWSER_ENABLED", risk_class: "interactive", sort_order: 40, surface_type: "automation_surface", execution_location: "platform_managed", integration_type: "capability", credential_scope: "tenant", metadata: { note: "Enables governed automated browser surface controls when tenant policy grants it." } },
+    { template_type: "app", template_key: "managed_n8n_client", label: "Managed n8n Client", process_name: "n8n", browser: false, capability_class: "workflow_runtime", risk_class: "managed", sort_order: 50, surface_type: "workflow_runtime", execution_location: "mad4b_service_side", integration_type: "managed_service_client", credential_scope: "tenant", metadata: { app_manager_scope: "managed_mad4b_service_side", current_hosting_target: "essam_local_device", future_hosting_target: "vps", managed_by: "mad4b", tenant_installs_local_service: false, note: "Mad4B-managed n8n client. Currently may run on Essam local device during bootstrap; target hosting is VPS/platform service side." } },
+    { template_type: "app", template_key: "tenant_dedicated_n8n", label: "Dedicated tenant n8n", process_name: "n8n", browser: false, capability_class: "workflow_runtime", risk_class: "interactive", sort_order: 60, surface_type: "workflow_runtime", execution_location: "tenant_local_device", integration_type: "tenant_local_service", credential_scope: "tenant", metadata: { app_manager_scope: "tenant_local_device_side", managed_by: "tenant", tenant_installs_local_service: true, writes_local_files: true, note: "Tenant-dedicated n8n installation that is installed and run on the tenant local device." } },
+    { template_type: "app", template_key: "edge", label: "Microsoft Edge", process_name: "msedge", browser: true, capability_class: "browser", risk_class: "interactive", sort_order: 100, surface_type: "browser_runtime", execution_location: "local_device", integration_type: "local_app", credential_scope: "none", metadata: { app_manager_scope: "tenant_local_device_side" } },
+    { template_type: "app", template_key: "chrome", label: "Google Chrome", process_name: "chrome", browser: true, capability_class: "browser", risk_class: "interactive", sort_order: 110, surface_type: "browser_runtime", execution_location: "local_device", integration_type: "local_app", credential_scope: "none" },
+    { template_type: "app", template_key: "firefox", label: "Mozilla Firefox", process_name: "firefox", browser: true, capability_class: "browser", risk_class: "interactive", sort_order: 112, surface_type: "browser_runtime", execution_location: "local_device", integration_type: "local_app", credential_scope: "none" },
+    { template_type: "app", template_key: "brave", label: "Brave Browser", process_name: "brave", browser: true, capability_class: "browser", risk_class: "interactive", sort_order: 114, surface_type: "browser_runtime", execution_location: "local_device", integration_type: "local_app", credential_scope: "none" },
+    { template_type: "app", template_key: "opera", label: "Opera", process_name: "opera", browser: true, capability_class: "browser", risk_class: "interactive", sort_order: 116, surface_type: "browser_runtime", execution_location: "local_device", integration_type: "local_app", credential_scope: "none" },
+    { template_type: "app", template_key: "chromium", label: "Chromium", process_name: "chromium", browser: true, capability_class: "browser", risk_class: "interactive", sort_order: 118, surface_type: "browser_runtime", execution_location: "local_device", integration_type: "local_app", credential_scope: "none" },
+    { template_type: "app", template_key: "browserbase", label: "Browserbase", process_name: "browserbase", browser: true, capability_class: "browser_provider", risk_class: "external", sort_order: 121, surface_type: "browser_runtime", execution_location: "external_cloud", integration_type: "external_provider", credential_scope: "tenant", metadata: { requires_credentials: true } },
+    { template_type: "app", template_key: "browserless", label: "Browserless", process_name: "browserless", browser: true, capability_class: "browser_provider", risk_class: "external", sort_order: 122, surface_type: "browser_runtime", execution_location: "external_cloud", integration_type: "external_provider", credential_scope: "tenant", metadata: { requires_credentials: true } },
+    { template_type: "app", template_key: "steel_browser", label: "Steel Browser", process_name: "steel", browser: true, capability_class: "browser_provider", risk_class: "external", sort_order: 123, surface_type: "browser_runtime", execution_location: "external_cloud", integration_type: "external_provider", credential_scope: "tenant", metadata: { requires_credentials: true } },
+    { template_type: "capability", template_key: "playwright_adapter", label: "Playwright Adapter", env_flag: "CONNECTOR_PLAYWRIGHT_ENABLED", risk_class: "interactive", sort_order: 124, surface_type: "browser_adapter", execution_location: "local_device", integration_type: "plugin_adapter", credential_scope: "device", metadata: { note: "Governed browser automation adapter; requires local runtime installation and tenant consent." } },
+    { template_type: "capability", template_key: "puppeteer_adapter", label: "Puppeteer Adapter", env_flag: "CONNECTOR_PUPPETEER_ENABLED", risk_class: "interactive", sort_order: 125, surface_type: "browser_adapter", execution_location: "local_device", integration_type: "plugin_adapter", credential_scope: "device", metadata: { note: "Governed browser automation adapter; requires local runtime installation and tenant consent." } },
+    { template_type: "capability", template_key: "selenium_adapter", label: "Selenium Adapter", env_flag: "CONNECTOR_SELENIUM_ENABLED", risk_class: "interactive", sort_order: 126, surface_type: "browser_adapter", execution_location: "local_device", integration_type: "plugin_adapter", credential_scope: "device", metadata: { note: "Governed browser automation adapter; requires local runtime installation and tenant consent." } },
+    { template_type: "app", template_key: "vscode", label: "Visual Studio Code", process_name: "Code", browser: false, capability_class: "developer_tool", risk_class: "interactive", sort_order: 130, surface_type: "desktop_app", execution_location: "local_device", integration_type: "local_app", credential_scope: "none" },
+    { template_type: "app", template_key: "cursor", label: "Cursor", process_name: "Cursor", browser: false, capability_class: "developer_tool", risk_class: "interactive", sort_order: 130 },
+    { template_type: "app", template_key: "open_claude", label: "Open Claude", process_name: "Claude", browser: false, capability_class: "agent_surface", risk_class: "interactive", sort_order: 140, metadata: { aliases: ["open_cloude"] } },
+    { template_type: "app", template_key: "open_claw", label: "Open Claw", process_name: "OpenClaw", browser: false, capability_class: "agent_surface", risk_class: "interactive", sort_order: 150, metadata: { aliases: ["open_claw", "open_claude_claw"] } },
+    { template_type: "app", template_key: "notepad", label: "Windows Notepad", process_name: "notepad", browser: false, capability_class: "desktop_app", risk_class: "low", sort_order: 900 },
+    { template_type: "app", template_key: "git_bash", label: "Git Bash", process_name: "git-bash", browser: false, capability_class: "developer_tool", risk_class: "interactive", sort_order: 910 },
+  ];
+}
+
+async function ensureLocalManagerControlTemplatesTable() {
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS \`local_manager_control_templates\` (
+      \`template_id\` VARCHAR(128) NOT NULL,
+      \`template_type\` ENUM('capability','app','helper') NOT NULL,
+      \`template_key\` VARCHAR(128) NOT NULL,
+      \`label\` VARCHAR(191) NOT NULL,
+      \`env_flag\` VARCHAR(128) NULL,
+      \`process_name\` VARCHAR(191) NULL,
+      \`browser\` TINYINT(1) NOT NULL DEFAULT 0,
+      \`capability_class\` VARCHAR(128) NULL,
+      \`risk_class\` VARCHAR(64) NOT NULL DEFAULT 'interactive',
+      \`metadata_json\` JSON NULL,
+      \`sort_order\` INT NOT NULL DEFAULT 1000,
+      \`status\` ENUM('active','disabled','deprecated') NOT NULL DEFAULT 'active',
+      \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`template_id\`),
+      UNIQUE KEY \`uq_local_manager_control_template\` (\`template_type\`, \`template_key\`),
+      KEY \`idx_local_manager_control_status\` (\`status\`, \`template_type\`, \`sort_order\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+}
+
+async function seedLocalManagerControlTemplates() {
+  const rows = localManagerControlTemplateSeeds();
+  for (const row of rows) {
+    await getPool().query(
+      `INSERT INTO \`local_manager_control_templates\`
+        (template_id, template_type, template_key, label, env_flag, process_name, browser, capability_class, risk_class, metadata_json, sort_order, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+       ON DUPLICATE KEY UPDATE
+         label = VALUES(label), env_flag = VALUES(env_flag), process_name = VALUES(process_name), browser = VALUES(browser),
+         capability_class = VALUES(capability_class), risk_class = VALUES(risk_class), metadata_json = VALUES(metadata_json),
+         sort_order = VALUES(sort_order), updated_at = NOW()`,
+      [
+        `local-manager-${row.template_type}-${row.template_key}`,
+        row.template_type,
+        row.template_key,
+        row.label,
+        row.env_flag || null,
+        row.process_name || null,
+        row.browser ? 1 : 0,
+        row.capability_class || null,
+        row.risk_class || "interactive",
+        jsonString({
+          ...(row.metadata || {}),
+          surface_type: row.surface_type || row.capability_class || row.template_type,
+          execution_location: row.execution_location || "local_device",
+          integration_type: row.integration_type || (row.template_type === "app" ? "local_app" : "capability"),
+          credential_scope: row.credential_scope || "device",
+          requires_credentials: Boolean(row.metadata?.requires_credentials || row.integration_type === "external_provider"),
+        }),
+        Number(row.sort_order || 1000),
+      ]
+    );
+  }
+}
+
+function normalizeControlTemplate(row) {
+  const metadata = parseJson(row.metadata_json) || {};
+  if (row.template_type === "capability") {
+    return {
+      key: row.template_key,
+      label: row.label,
+      env_flag: row.env_flag || null,
+      risk: row.risk_class || "interactive",
+      note: metadata.note || "Governed Local Manager capability loaded from registry.",
+      surface_type: metadata.surface_type || "capability",
+      execution_location: metadata.execution_location || "local_device",
+      integration_type: metadata.integration_type || "capability",
+      credential_scope: metadata.credential_scope || "device",
+      requires_credentials: Boolean(metadata.requires_credentials),
+      metadata,
+    };
+  }
+  return {
+    app_alias: row.template_key,
+    display_name: row.label,
+    process_name: row.process_name || row.template_key,
+    browser: Boolean(Number(row.browser || 0)),
+    capability_class: row.capability_class || "desktop_app",
+    risk_class: row.risk_class || "interactive",
+    surface_type: metadata.surface_type || row.capability_class || "desktop_app",
+    execution_location: metadata.execution_location || "local_device",
+    integration_type: metadata.integration_type || "local_app",
+    credential_scope: metadata.credential_scope || "none",
+    requires_credentials: Boolean(metadata.requires_credentials),
+    metadata,
+  };
+}
+
+async function loadLocalManagerControlTemplates() {
+  try {
+    await ensureLocalManagerControlTemplatesTable();
+    await seedLocalManagerControlTemplates();
+    const [rows] = await getPool().query(
+      `SELECT * FROM \`local_manager_control_templates\`
+        WHERE status = 'active' AND template_type IN ('capability','app')
+        ORDER BY template_type ASC, sort_order ASC, label ASC`
+    );
+    const supportedCapabilities = rows.filter((row) => row.template_type === "capability").map(normalizeControlTemplate);
+    const supportedApps = rows.filter((row) => row.template_type === "app").map(normalizeControlTemplate);
+    const supportedBrowsers = supportedApps.filter((item) => item.surface_type === "browser_runtime" && item.integration_type === "local_app");
+    const supportedBrowserProviders = supportedApps.filter((item) => item.surface_type === "browser_runtime" && item.integration_type === "external_provider");
+    const supportedBrowserAdapters = supportedCapabilities.filter((item) => item.surface_type === "browser_adapter" || item.integration_type === "plugin_adapter");
+    const supportedAgentSurfaces = supportedCapabilities.filter((item) => item.surface_type === "agent_surface" || item.surface_type === "automation_surface");
+    const allControlSurfaces = supportedCapabilities.concat(supportedApps);
+    const supportedManagedMad4bServices = allControlSurfaces.filter((item) => item.metadata?.app_manager_scope === "managed_mad4b_service_side" || item.execution_location === "mad4b_service_side" || item.integration_type === "managed_service_client");
+    const supportedTenantLocalServices = allControlSurfaces.filter((item) => item.metadata?.app_manager_scope === "tenant_local_device_side" || item.execution_location === "tenant_local_device" || item.integration_type === "tenant_local_service");
+    return {
+      source: "db",
+      registry_table: "local_manager_control_templates",
+      supported_capabilities: supportedCapabilities,
+      supported_apps: supportedApps,
+      supported_browsers: supportedBrowsers,
+      supported_browser_providers: supportedBrowserProviders,
+      supported_browser_adapters: supportedBrowserAdapters,
+      supported_agent_surfaces: supportedAgentSurfaces,
+      supported_managed_mad4b_services: supportedManagedMad4bServices,
+      supported_tenant_local_services: supportedTenantLocalServices,
+      last_loaded_at: new Date().toISOString(),
+      secrets_included: false,
+    };
+  } catch (err) {
+    const fallbackRows = localManagerControlTemplateSeeds();
+    const supportedCapabilities = fallbackRows.filter((row) => row.template_type === "capability").map((row) => {
+      const metadata = {
+        ...(row.metadata || {}),
+        surface_type: row.surface_type || row.capability_class || row.template_type,
+        execution_location: row.execution_location || "local_device",
+        integration_type: row.integration_type || "capability",
+        credential_scope: row.credential_scope || "device",
+        requires_credentials: Boolean(row.metadata?.requires_credentials || row.integration_type === "external_provider"),
+      };
+      return { key: row.template_key, label: row.label, env_flag: row.env_flag || null, risk: row.risk_class || "interactive", note: metadata.note || "Fallback Local Manager capability.", ...metadata, metadata };
+    });
+    const supportedApps = fallbackRows.filter((row) => row.template_type === "app").map((row) => {
+      const metadata = {
+        ...(row.metadata || {}),
+        surface_type: row.surface_type || row.capability_class || "desktop_app",
+        execution_location: row.execution_location || "local_device",
+        integration_type: row.integration_type || "local_app",
+        credential_scope: row.credential_scope || "none",
+        requires_credentials: Boolean(row.metadata?.requires_credentials || row.integration_type === "external_provider"),
+      };
+      return { app_alias: row.template_key, display_name: row.label, process_name: row.process_name || row.template_key, browser: Boolean(row.browser), capability_class: row.capability_class || "desktop_app", risk_class: row.risk_class || "interactive", ...metadata, metadata };
+    });
+    return {
+      source: "code_fallback",
+      registry_table: "local_manager_control_templates",
+      error: { code: err?.code || "control_template_registry_unavailable", message: err?.message || String(err) },
+      supported_capabilities: supportedCapabilities,
+      supported_apps: supportedApps,
+      supported_browsers: supportedApps.filter((item) => item.surface_type === "browser_runtime" && item.integration_type === "local_app"),
+      supported_browser_providers: supportedApps.filter((item) => item.surface_type === "browser_runtime" && item.integration_type === "external_provider"),
+      supported_browser_adapters: supportedCapabilities.filter((item) => item.surface_type === "browser_adapter" || item.integration_type === "plugin_adapter"),
+      supported_agent_surfaces: supportedCapabilities.filter((item) => item.surface_type === "agent_surface" || item.surface_type === "automation_surface"),
+      supported_managed_mad4b_services: supportedCapabilities.concat(supportedApps).filter((item) => item.metadata?.app_manager_scope === "managed_mad4b_service_side" || item.execution_location === "mad4b_service_side" || item.integration_type === "managed_service_client"),
+      supported_tenant_local_services: supportedCapabilities.concat(supportedApps).filter((item) => item.metadata?.app_manager_scope === "tenant_local_device_side" || item.execution_location === "tenant_local_device" || item.integration_type === "tenant_local_service"),
+      last_loaded_at: new Date().toISOString(),
+      secrets_included: false,
+    };
+  }
+}
+
 export async function getDeviceControls(req, res) {
   try {
     const device = await requireLocalManagerDevice(req);
@@ -728,6 +953,7 @@ export async function getDeviceControls(req, res) {
       return res.status(400).json({ ok: false, error: { code: "invalid_control_section", message: "Unsupported device control section." }, secrets_included: false });
     }
 
+    const controlTemplates = section === "settings" ? await loadLocalManagerControlTemplates() : null;
     const baseControls = {
       overview: {
         label: "Device overview",
@@ -802,16 +1028,64 @@ export async function getDeviceControls(req, res) {
               note: "Break-glass/desktop-control only. Enables governed /win proxy after local elevated reinstall.",
             },
           ],
+          supported_apps: [
+            { app_alias: "chrome", display_name: "Google Chrome", process_name: "chrome", browser: true, capability_class: "browser", risk_class: "interactive" },
+            { app_alias: "edge", display_name: "Microsoft Edge", process_name: "msedge", browser: true, capability_class: "browser", risk_class: "interactive" },
+            { app_alias: "vscode", display_name: "Visual Studio Code", process_name: "Code", browser: false, capability_class: "developer_tool", risk_class: "interactive" },
+            { app_alias: "cursor", display_name: "Cursor", process_name: "Cursor", browser: false, capability_class: "developer_tool", risk_class: "interactive" },
+            { app_alias: "notepad", display_name: "Windows Notepad", process_name: "notepad", browser: false, capability_class: "desktop_app", risk_class: "low" },
+            { app_alias: "git_bash", display_name: "Git Bash", process_name: "git-bash", browser: false, capability_class: "developer_tool", risk_class: "interactive" },
+          ],
           dynamic_grants: {
             apps_env: "CONNECTOR_APP_ALLOWLIST",
             file_paths_env: "CONNECTOR_FILE_PATHS",
             helper_aliases_env: "CONNECTOR_SHELL_ALLOWLIST",
             supported_grant_types: ["app", "allowed_path", "helper_alias"],
-            note: "The Windows app must collect explicit local user selections for app executable paths, allowed folders, and helper aliases before requesting a scoped installer.",
+            supported_apps: [
+              { app_alias: "edge", display_name: "Microsoft Edge", process_name: "msedge", browser: true, capability_class: "browser", risk_class: "interactive" },
+              { app_alias: "chrome", display_name: "Google Chrome", process_name: "chrome", browser: true, capability_class: "browser", risk_class: "interactive" },
+              { app_alias: "vscode", display_name: "Visual Studio Code", process_name: "Code", browser: false, capability_class: "desktop_app", risk_class: "interactive" },
+              { app_alias: "notepad", display_name: "Windows Notepad", process_name: "notepad", browser: false, capability_class: "desktop_app", risk_class: "low" },
+            ],
+            note: "The Windows app must show supported app templates and collect explicit local user selections for app executable paths, allowed folders, and helper aliases before requesting a scoped installer.",
           },
         },
       },
     };
+
+    if (section === "settings" && controlTemplates && baseControls.settings?.capability_consent) {
+      baseControls.settings.capability_consent.registry_source = controlTemplates.source;
+      baseControls.settings.capability_consent.registry_table = controlTemplates.registry_table;
+      baseControls.settings.capability_consent.registry_loaded_at = controlTemplates.last_loaded_at;
+      baseControls.settings.capability_consent.supported_capabilities = controlTemplates.supported_capabilities;
+      baseControls.settings.capability_consent.supported_apps = controlTemplates.supported_apps;
+      if (baseControls.settings.capability_consent.dynamic_grants) {
+        baseControls.settings.capability_consent.dynamic_grants.supported_apps = controlTemplates.supported_apps;
+      }
+    }
+
+    if (section === "settings" && controlTemplates && baseControls.settings?.capability_consent) {
+      baseControls.settings.capability_consent.registry_source = controlTemplates.source;
+      baseControls.settings.capability_consent.registry_table = controlTemplates.registry_table;
+      baseControls.settings.capability_consent.registry_loaded_at = controlTemplates.last_loaded_at;
+      baseControls.settings.capability_consent.supported_capabilities = controlTemplates.supported_capabilities;
+      baseControls.settings.capability_consent.supported_apps = controlTemplates.supported_apps;
+      baseControls.settings.capability_consent.supported_browsers = controlTemplates.supported_browsers;
+      baseControls.settings.capability_consent.supported_browser_providers = controlTemplates.supported_browser_providers;
+      baseControls.settings.capability_consent.supported_browser_adapters = controlTemplates.supported_browser_adapters;
+      baseControls.settings.capability_consent.supported_agent_surfaces = controlTemplates.supported_agent_surfaces;
+      baseControls.settings.capability_consent.supported_managed_mad4b_services = controlTemplates.supported_managed_mad4b_services;
+      baseControls.settings.capability_consent.supported_tenant_local_services = controlTemplates.supported_tenant_local_services;
+      if (baseControls.settings.capability_consent.dynamic_grants) {
+        baseControls.settings.capability_consent.dynamic_grants.supported_apps = controlTemplates.supported_apps;
+        baseControls.settings.capability_consent.dynamic_grants.supported_browsers = controlTemplates.supported_browsers;
+        baseControls.settings.capability_consent.dynamic_grants.supported_browser_providers = controlTemplates.supported_browser_providers;
+        baseControls.settings.capability_consent.dynamic_grants.supported_browser_adapters = controlTemplates.supported_browser_adapters;
+        baseControls.settings.capability_consent.dynamic_grants.supported_agent_surfaces = controlTemplates.supported_agent_surfaces;
+        baseControls.settings.capability_consent.dynamic_grants.supported_managed_mad4b_services = controlTemplates.supported_managed_mad4b_services;
+        baseControls.settings.capability_consent.dynamic_grants.supported_tenant_local_services = controlTemplates.supported_tenant_local_services;
+      }
+    }
 
     const n8nConnector = section === "n8n" ? await resolveOrCreateTenantN8nProfile(device) : null;
     return res.status(200).json({

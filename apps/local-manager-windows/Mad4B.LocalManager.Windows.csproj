@@ -8,10 +8,10 @@
     <AssemblyName>Mad4B-Local-Manager</AssemblyName>
     <RootNamespace>Mad4B.LocalManager.Windows</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.2.15</Version>
-    <AssemblyVersion>0.2.15.0</AssemblyVersion>
-    <FileVersion>0.2.15.0</FileVersion>
-    <InformationalVersion>0.2.15-installer-download-dispose-before-sha</InformationalVersion>
+    <Version>0.2.17</Version>
+    <AssemblyVersion>0.2.17.0</AssemblyVersion>
+    <FileVersion>0.2.17.0</FileVersion>
+    <InformationalVersion>0.2.17-dynamic-registry-state-app-scope</InformationalVersion>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>

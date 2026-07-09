@@ -7,7 +7,7 @@
 - Triaged items: 2
 - Gate candidates: 2
 - New-gap gate: fail
-- Blocking new items: 2
+- Blocking new items: 1
 
 ## Class counts
 
@@ -15,5 +15,5 @@
 
 ## Immediate review candidates
 
-- `1026_sprint69_github_actions_runs_read_dispatch.sql` — critical_review, score 1016; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
-- `1025_sprint69_github_ref_dispatch_catalog_persistence.sql` — high_review, score 599; next: add targeted patch-index, parity, and governance documentation
+- `1031_sprint69_github_actions_diagnostics_endpoints_seed.sql` — critical_review, score 1071; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `20260709_tenant_resolution_registry_schema.sql` — critical_review, score 817; next: add targeted patch-index, parity, and governance documentation
