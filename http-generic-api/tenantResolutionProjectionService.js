@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
-import { readOperationalAlerts } from "./operationalAlertService.js";
+
+async function defaultReadOperationalAlerts(args) {
+  const { readOperationalAlerts } = await import("./operationalAlertService.js");
+  return readOperationalAlerts(args);
+}
 
 const SEVERITY_WEIGHT = Object.freeze({ critical: 5, high: 4, medium: 3, low: 2, info: 1 });
 const DEFAULT_LIMIT = 25;
