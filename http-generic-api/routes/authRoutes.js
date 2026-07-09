@@ -173,7 +173,7 @@ function cleanTtlSeconds(value) {
   return Math.min(Math.max(Math.floor(parsed), 60), PLATFORM_JWT_CLIENT_MAX_TTL_SECONDS);
 }
 
-function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT_ID, jwtid = randomUUID() } = {}) {
+function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT_ID, jwtid = randomUUID(), compact = false } = {}) {
   const userId = String(payload?.user_id || "").trim();
   if (!userId) {
     const err = new Error("Cannot issue tenant GPT token without user_id.");
@@ -184,23 +184,23 @@ function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT
   const tenantId = payload?.tenant_id ? String(payload.tenant_id).trim() : null;
   const email = payload?.email ? String(payload.email).trim() : null;
   const subject = tenantId ? `tenant:${tenantId}:user:${userId}` : `user:${userId}`;
+  const claims = {
+    iss: PLATFORM_JWT_ISSUER,
+    aud: TENANT_GPT_JWT_AUDIENCE,
+    sub: subject,
+    user_id: userId,
+    tenant_id: tenantId,
+    scope: TENANT_GPT_SCOPE,
+    purpose: "tenant_gpt_access",
+  };
 
-  return jwt.sign(
-    {
-      iss: PLATFORM_JWT_ISSUER,
-      aud: TENANT_GPT_JWT_AUDIENCE,
-      sub: subject,
-      user_id: userId,
-      email,
-      tenant_id: tenantId,
-      scope: TENANT_GPT_SCOPE,
-      scope_links: TENANT_GPT_SCOPE_LINKS,
-      purpose: "tenant_gpt_access",
-      client_id: String(clientId || TENANT_GPT_OAUTH_CLIENT_ID).trim() || TENANT_GPT_OAUTH_CLIENT_ID,
-    },
-    JWT_SECRET,
-    { expiresIn: USER_TOKEN_TTL_SECONDS, jwtid }
-  );
+  if (!compact) {
+    claims.email = email;
+    claims.scope_links = TENANT_GPT_SCOPE_LINKS;
+    claims.client_id = String(clientId || TENANT_GPT_OAUTH_CLIENT_ID).trim() || TENANT_GPT_OAUTH_CLIENT_ID;
+  }
+
+  return jwt.sign(claims, JWT_SECRET, { expiresIn: USER_TOKEN_TTL_SECONDS, jwtid });
 }
 
 async function fetchActiveUserForJwtClient(pool, { user_id, email }) {
