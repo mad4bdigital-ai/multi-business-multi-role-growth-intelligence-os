@@ -862,10 +862,22 @@ export function buildAuthRoutes(deps) {
         [codePayload.user_id]
       );
       const tenantId = codePayload.tenant_id || memRows[0]?.tenant_id || null;
+      const accessJti = randomUUID();
+      const accessExpiresAt = new Date(Date.now() + USER_TOKEN_TTL_SECONDS * 1000);
       const accessToken = issueTenantGptAccessToken(
         { user_id: tokenUser.user_id, email: tokenUser.email, tenant_id: tenantId },
-        { clientId: clientValidation.client_id }
+        { clientId: clientValidation.client_id, jwtid: accessJti }
       );
+      const activationContextRecord = await recordTenantGptActivationContext({
+        query: tokenQuery,
+        access_jti: accessJti,
+        oauth_code_jti: codePayload.jti,
+        user_id: tokenUser.user_id,
+        tenant_id: tenantId,
+        client_id: clientValidation.client_id,
+        activation_context: codePayload.activation_context,
+        expires_at: accessExpiresAt,
+      });
 
       res.setHeader("Cache-Control", "no-store");
       res.setHeader("Pragma", "no-cache");
