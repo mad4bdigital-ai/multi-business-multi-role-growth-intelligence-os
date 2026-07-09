@@ -493,7 +493,7 @@ async function recordOAuthTokenDiagnostic(queryFn, event = {}) {
   }
 }
 
-function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationContext }) {
+function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationContext, requestedScope = "" }) {
   const signInOptions = Array.isArray(activationContext?.sign_in_options)
     ? activationContext.sign_in_options
     : ["google", "email", "register"];
