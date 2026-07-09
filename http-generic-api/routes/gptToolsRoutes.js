@@ -645,10 +645,10 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "response_chunk_read",
     displayName: "Read Tool Response Chunk",
-    description: "Read the next chunk of an oversized governed tool response. Reads the in-process cache first and recovers from durable MySQL storage after cache loss or process restart.",
+    description: "Read the next chunk of an oversized governed tool response. Reads the in-process cache first and recovers from durable MySQL storage after cache loss or process restart. Supports dynamic sliding TTL through chunk_ttl_ms or chunk_ttl_minutes.",
     method: "VIRTUAL",
     path: "internal://response-chunk-read",
-    tags: ["tooling", "pagination", "read_only"],
+    tags: ["tooling", "pagination", "read_only", "dynamic_ttl"],
     inputSchema: {
       type: "object",
       required: ["chunk_id"],
@@ -656,6 +656,16 @@ const VIRTUAL_ADMIN_TOOLS = [
         chunk_id: { type: "string" },
         cursor: { type: "integer", minimum: 0, default: 0 },
         max_chars: { type: "integer", minimum: 5000, maximum: 150000, default: 45000 },
+        chunk_ttl_ms: { type: "integer", minimum: 300000, maximum: 7200000 },
+        chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 120 },
+        response_options: {
+          type: "object",
+          properties: {
+            chunk_ttl_ms: { type: "integer", minimum: 300000, maximum: 7200000 },
+            chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 120 },
+          },
+          additionalProperties: true,
+        },
       },
     },
   },
