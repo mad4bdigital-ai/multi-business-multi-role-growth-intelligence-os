@@ -34,9 +34,11 @@ import {
 import { buildActivationGatewayRolloutPlan, runActivationGatewayDarkDeploy } from "../activationGatewayRolloutTool.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import {
+  CAPABILITY_ENVELOPE_LIFECYCLE_ACTIONS,
   capabilityEnvelopeError,
   markCapabilityEnvelopeReferenced,
   resolveCapabilityExecutionEnvelope,
+  transitionCapabilityEnvelopeLifecycle,
 } from "../capabilityResolutionEnvelopeGuard.js";
 import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBranchFastForwardToBase, runGithubBranchMergeCommitCreate } from "../adminBranchReconciliationAdapter.js";
 import { applyGithubExistingBlobChangeSet, applyGithubRepositoryChangeSet, deleteGithubBranchRef, finalizeGithubPullRequest, getGithubPullRequestCiGate } from "../githubRepositoryLifecycle.js";
@@ -710,6 +712,25 @@ const VIRTUAL_ADMIN_TOOLS = [
         authorized_by: { type: "string", minLength: 1, maxLength: 64 },
         decision_note: { type: "string", minLength: 20, maxLength: 512 },
         ttl_minutes: { type: "integer", minimum: 5, maximum: 240, default: 60 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "capability_resolution_envelope_lifecycle",
+    displayName: "Transition Capability Resolution Envelope Lifecycle",
+    description: "Transition one capability resolution envelope lifecycle state by using the governed lifecycle actions consume, cancel, or expire. Internal registry mutation only; no provider call, external write, credential payload read, or secret return.",
+    method: "VIRTUAL",
+    path: "internal://capability-resolution-envelope-lifecycle",
+    tags: ["admin", "capability_resolution", "lifecycle", "state_changing", "readback", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["envelope_id", "action"],
+      properties: {
+        envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+        action: { type: "string", enum: CAPABILITY_ENVELOPE_LIFECYCLE_ACTIONS },
+        execution_ref: { type: "string", maxLength: 191 },
+        reason: { type: "string", maxLength: 512 },
       },
       additionalProperties: false,
     },
@@ -2287,7 +2308,22 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       };
     }
   }
-  if (callerType === "admin" && toolKey === "capability_resolution_envelope_apply_authorize") {
+  if (callerType === "admin" && toolKey === "capability_resolution_envelope_lifecycle") {
+      try {
+        const result = await transitionCapabilityEnvelopeLifecycle({
+          pool: getPool(),
+          envelopeId: String(args?.envelope_id || "").trim(),
+          action: String(args?.action || "").trim(),
+          executionRef: String(args?.execution_ref || "").trim(),
+          reason: String(args?.reason || "").trim(),
+        });
+        return { status: 200, body: result };
+      } catch (err) {
+        return { status: err?.status || 400, body: { ok: false, error: { code: err?.code || "capability_resolution_envelope_lifecycle_failed", message: err?.message }, secrets_included: false } };
+      }
+    }
+
+    if (callerType === "admin" && toolKey === "capability_resolution_envelope_apply_authorize") {
     try {
       const result = await authorizeCapabilityResolutionEnvelopeApply({
         envelopeId: String(args?.envelope_id || "").trim(),
