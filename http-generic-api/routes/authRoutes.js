@@ -857,6 +857,7 @@ export function buildAuthRoutes(deps) {
       tokenLogContext.code_jti_present = Boolean(codePayload.jti);
       tokenLogContext.user_id_present = Boolean(codePayload.user_id);
       tokenLogContext.tenant_id_present = Boolean(codePayload.tenant_id);
+      tokenLogContext.requested_scope = safeOAuthScopeEvidence(codePayload.scope);
       if (codePayload.purpose !== "custom_gpt_oauth_code" || !codePayload.user_id) {
         logTokenExchange("failed", "invalid_oauth_code_payload", 400);
         return res.status(400).json({ error: "invalid_grant", error_description: "Invalid OAuth code." });
