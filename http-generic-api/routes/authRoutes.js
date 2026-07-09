@@ -199,7 +199,7 @@ function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT
       client_id: String(clientId || TENANT_GPT_OAUTH_CLIENT_ID).trim() || TENANT_GPT_OAUTH_CLIENT_ID,
     },
     JWT_SECRET,
-    { expiresIn: USER_TOKEN_TTL_SECONDS, jwtid: randomUUID() }
+    { expiresIn: USER_TOKEN_TTL_SECONDS, jwtid }
   );
 }
 
