@@ -75,6 +75,7 @@ async function ensureTenantGptActivationContextTable(query) {
       KEY \`idx_tenant_gpt_activation_context_expiry\` (\`expires_at\`, \`status\`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
   );
+  activationContextTableReady = true;
 }
 
 export function sanitizeTenantGptActivationContext(value = {}) {
