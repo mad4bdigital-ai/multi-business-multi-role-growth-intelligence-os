@@ -749,9 +749,19 @@ export async function applyGithubRepositoryChangeSet(options = {}) {
       token,
       fetchImpl: options.fetchImpl,
     });
+    const patchedContent = applyUnifiedDiffToText(current.content, source.diff);
+    if (patchedContent === current.content) {
+      throw lifecycleError(409, "github_change_set_patch_noop", "Unified diff produced no content change; refusing no-op patch item.", {
+        path: source.path,
+        parent_sha: commitParentSha,
+        base_blob_sha: current.blob_sha,
+        patch_sha256: createHash("sha256").update(String(source.diff)).digest("hex"),
+        secrets_included: false,
+      });
+    }
     preparedChanges.push({
       ...source,
-      content: applyUnifiedDiffToText(current.content, source.diff),
+      content: patchedContent,
       base_blob_sha: current.blob_sha,
     });
   }
