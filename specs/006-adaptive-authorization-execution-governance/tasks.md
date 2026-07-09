@@ -28,7 +28,7 @@
 
 ## Pilot and migration
 
-- [ ] T040 Run the three pilots in shadow mode without provider mutation.
+- [x] T040 Run the three pilots in shadow mode without provider mutation.
 - [ ] T041 Classify all legacy/adaptive mismatches.
 - [ ] T042 Approve parity thresholds before canary enforcement.
 - [ ] T043 Add compatibility wrappers and measured deprecation metadata.
@@ -56,4 +56,4 @@
 - [x] D009 Close the remaining decision-plane tasks T011 through T014 with implementation, tests, CI, and live readiness smoke.
 - [ ] D010 Close enforcement, adapter, pilot, migration, verification, rollout, and closeout tasks.
 
-See `terminology-review-2026-06-29.md`, `sql-authority-map-2026-06-29.md`, `handoff-report-2026-06-29.md`, `remaining-task-loop-2026-07-07.md`, `docs/tenant-capability-enforcement-kernel.md`, `docs/platform-execution-envelope-kernel.md`, `docs/platform-scoped-approval-kernel.md`, `docs/platform-execution-concurrency-kernel.md`, and `docs/platform-adapter-contract-kernel.md`.
+See `terminology-review-2026-06-29.md`, `sql-authority-map-2026-06-29.md`, `handoff-report-2026-06-29.md`, `remaining-task-loop-2026-07-07.md`, `docs/tenant-capability-enforcement-kernel.md`, `docs/platform-execution-envelope-kernel.md`, `docs/platform-scoped-approval-kernel.md`, `docs/platform-execution-concurrency-kernel.md`, `docs/platform-adapter-contract-kernel.md`, and `docs/platform-shadow-pilot-parity-kernel.md`.
