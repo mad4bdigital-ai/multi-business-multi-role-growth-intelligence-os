@@ -98,15 +98,12 @@ function severityMax(a = "info", b = "info") {
 
 function resourceRefForAlert(alert = {}) {
   const evidence = alert.evidence && typeof alert.evidence === "object" ? alert.evidence : {};
-  return alert.source_ref
-    || alert.evidence_ref
-    || evidence.resource_ref
-    || evidence.source_ref
-    || (evidence.system_id ? `connected-system://${evidence.system_id}` : null)
-    || (evidence.task_id ? `task://${evidence.task_id}` : null)
-    || (alert.workspace_id ? `workspace://${alert.workspace_id}` : null)
-    || alert.source_type
-    || "tenant-operational-attention";
+  if (evidence.resource_ref) return evidence.resource_ref;
+  if (evidence.system_id) return `connected-system://${evidence.system_id}`;
+  if (evidence.task_id) return `task://${evidence.task_id}`;
+  if (alert.workspace_id) return `workspace://${alert.workspace_id}`;
+  if (alert.source_type && alert.source_type !== "execution_log") return alert.source_ref || alert.evidence_ref || evidence.source_ref || alert.source_type;
+  return alert.source_type || "tenant-operational-attention";
 }
 
 function buildImpactSummary(alert = {}, rootFamily = "general_operational_review") {
