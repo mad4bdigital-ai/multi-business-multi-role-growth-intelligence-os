@@ -1441,7 +1441,7 @@ export async function writeSessionSummary({ pool = getPool(), session, insight, 
   let graphAttachmentError = null;
   try {
     graphAttachment = await attachSessionSummaryToGraph({ pool, session, summaryId, insight });
-    recordOperation(operationLog, {
+    recordOperation(operation_log, {
       stage: "attach_session_summary_graph",
       status: "succeeded",
       summary_id: summaryId,
@@ -1450,7 +1450,7 @@ export async function writeSessionSummary({ pool = getPool(), session, insight, 
     });
   } catch (err) {
     graphAttachmentError = sanitizeModelError(err);
-    recordOperation(operationLog, {
+    recordOperation(operation_log, {
       stage: "attach_session_summary_graph",
       status: "failed",
       summary_id: summaryId,
