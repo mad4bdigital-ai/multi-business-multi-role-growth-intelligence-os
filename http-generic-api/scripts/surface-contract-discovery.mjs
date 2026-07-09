@@ -559,7 +559,7 @@ export function renderSurfaceContractMarkdown(report) {
 
 export function buildPersistedDiscoveryReport(report) {
   const migrationIndexColumns = [
-    "migration_file",
+    "migration_file_index",
     "documentation_complete",
     "gap_severity",
     "attestation_sha256",
@@ -567,18 +567,63 @@ export function buildPersistedDiscoveryReport(report) {
     "safety_marker_count",
     "openapi_missing_route_count",
   ];
-  const compactMigration = (entry) => [
-    entry.migration_file,
+  const severityCode = (value = "") => ({ high: "H", medium: "M", low: "L" }[value] || "");
+  const evidenceModeCode = (value = "") => (value === "static_no_external_side_effects" ? "S" : value || "");
+  const compactCoverageSummary = (summary = {}) => ({
+    migrations_with_surfaces: summary.migrations_with_surfaces || 0,
+    docs_complete_count: summary.docs_complete_count || 0,
+    docs_gap_count: summary.docs_gap_count || 0,
+    docs_completion_percent: summary.docs_completion_percent || 0,
+    surface_totals: summary.surface_totals || {},
+    migrations_by_surface_type: summary.migrations_by_surface_type || {},
+    missing_doc_target_counts: summary.missing_doc_target_counts || {},
+    gap_severity_counts: summary.gap_severity_counts || {},
+    safety_marker_counts: summary.safety_marker_counts || {},
+    safety_marker_gap_migrations: summary.safety_marker_gap_migrations || 0,
+    route_coverage: {
+      sql_route_count: summary.route_coverage?.sql_route_count || 0,
+      total_sql_route_like_count: summary.route_coverage?.total_sql_route_like_count || 0,
+      openapi_exempt_sql_route_count: summary.route_coverage?.openapi_exempt_sql_route_count || 0,
+      route_class_counts: summary.route_coverage?.route_class_counts || {},
+      openapi_documented_sql_route_count: summary.route_coverage?.openapi_documented_sql_route_count || 0,
+      openapi_missing_sql_route_count: summary.route_coverage?.openapi_missing_sql_route_count || 0,
+      openapi_sql_route_coverage_percent: summary.route_coverage?.openapi_sql_route_coverage_percent || 0,
+      route_openapi_gap_count: summary.route_coverage?.route_openapi_gaps?.length || 0,
+    },
+    high_risk_missing_docs_count: summary.high_risk_missing_docs?.length || 0,
+    medium_risk_missing_docs_count: summary.medium_risk_missing_docs?.length || 0,
+  });
+  const compactGapQueue = (queue = {}) => ({
+    ok: queue.ok === true,
+    schema_version: queue.schema_version,
+    serialization_profile: "summary_tuple_v2",
+    total_items: queue.total_items || 0,
+    class_counts: queue.class_counts || {},
+    top_item_columns: ["score", "queue_class", "gap_severity", "missing_doc_count", "missing_openapi_route_count", "safety_marker_gap_count", "surface_counts"],
+    top_items: (queue.top_items || []).slice(0, 10).map((item) => [
+      item.score || 0,
+      item.queue_class || "",
+      item.gap_severity || "",
+      item.missing_docs?.length || 0,
+      item.missing_openapi_routes?.length || 0,
+      item.safety_marker_gaps?.length || 0,
+      item.surface_counts || {},
+    ]),
+    safety: queue.safety || report.safety,
+  });
+  const migrationFileDictionary = report.all_migrations.map((entry) => entry.migration_file);
+  const compactMigration = (entry, fileIndex) => [
+    fileIndex,
     entry.documentation_complete === true ? 1 : 0,
-    entry.coverage?.gap_severity === "none" ? "" : entry.coverage?.gap_severity || "",
-    entry.safety_attestation?.migration_sha256 || "",
-    entry.safety_attestation?.evidence_mode || "",
+    severityCode(entry.coverage?.gap_severity),
+    entry.safety_attestation?.migration_sha256?.slice(0, 8) || "",
+    evidenceModeCode(entry.safety_attestation?.evidence_mode),
     entry.coverage?.safety_marker_count || 0,
     entry.coverage?.route_coverage?.missing_count || 0,
   ];
   const allMigrationsIndex = report.all_migrations.map(compactMigration);
   const allMigrationPositions = new Map(
-    allMigrationsIndex.map((entry, index) => [entry[0], index])
+    migrationFileDictionary.map((migrationFile, index) => [migrationFile, index])
   );
   const reportedMigrationPositions = report.migrations.map((entry) => {
     const index = allMigrationPositions.get(entry.migration_file);
@@ -591,16 +636,17 @@ export function buildPersistedDiscoveryReport(report) {
     ok: report.ok === true,
     schema_version: report.schema_version,
     serialization_profile: "bounded_evidence_v3",
-    migration_index_detail_level: "compact_tuple_index_v3",
+    migration_index_detail_level: "compact_dictionary_tuple_index_v4",
     migration_index_columns: migrationIndexColumns,
+    migration_file_dictionary: migrationFileDictionary,
     reported_migration_reference: "all_migrations_index_position",
     migration_surface_count: report.migration_surface_count,
     reported_count: report.reported_count,
     openapi_operation_count: report.openapi_operation_count,
     openapi_path_count: report.openapi_path_count,
     documentation_targets: report.documentation_targets,
-    coverage_summary: report.coverage_summary,
-    gap_queue: report.gap_queue,
+    coverage_summary: compactCoverageSummary(report.coverage_summary),
+    gap_queue: compactGapQueue(report.gap_queue),
     reported_migrations_count: report.migrations.length,
     reported_migration_positions: reportedMigrationPositions,
     all_migrations_count: report.all_migrations.length,
