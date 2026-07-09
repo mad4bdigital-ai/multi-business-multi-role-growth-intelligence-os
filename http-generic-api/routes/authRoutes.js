@@ -135,6 +135,25 @@ function parseSignInOptions(value) {
   return unique.length ? unique : ["google", "email", "register"];
 }
 
+function cleanTenantGptRequestedScope(value) {
+  const requested = String(value || "")
+    .split(/\s+/)
+    .map((scope) => scope.trim())
+    .filter(Boolean);
+  const allowed = new Set(TENANT_GPT_SCOPE_LINKS);
+  const granted = [...new Set(requested.filter((scope) => allowed.has(scope)))];
+  return granted.length ? granted.join(" ") : "";
+}
+
+function safeOAuthScopeEvidence(value) {
+  const scopes = String(value || "").split(/\s+/).filter(Boolean);
+  return {
+    present: scopes.length > 0,
+    count: scopes.length,
+    sha256_prefix: scopes.length ? sha256(scopes.join(" ")).slice(0, 12) : null,
+  };
+}
+
 function parseActivationContext(query = {}) {
   const context = {
     purpose: "tenant_activation",
