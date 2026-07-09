@@ -74,9 +74,9 @@ assert.equal(report.gap_queue.safety.writes_database, false, "gap queue must not
 const persistedReport = buildPersistedDiscoveryReport(report);
 const persistedJson = `${JSON.stringify(persistedReport, null, 2)}\n`;
 assert.equal(persistedReport.serialization_profile, "bounded_evidence_v3", "persisted discovery artifact must declare bounded serialization v3");
-assert.equal(persistedReport.migration_index_detail_level, "compact_tuple_index_v3", "persisted migration evidence must declare tuple index detail level");
+assert.equal(persistedReport.migration_index_detail_level, "compact_dictionary_tuple_index_v4", "persisted migration evidence must declare dictionary tuple index detail level");
 assert.deepEqual(persistedReport.migration_index_columns, [
-  "migration_file",
+  "migration_file_index",
   "documentation_complete",
   "gap_severity",
   "attestation_sha256",
@@ -85,17 +85,20 @@ assert.deepEqual(persistedReport.migration_index_columns, [
   "openapi_missing_route_count",
 ]);
 assert.equal(persistedReport.all_migrations_count, report.all_migrations.length, "persisted discovery artifact must preserve the full migration count");
+assert.equal(persistedReport.migration_file_dictionary.length, report.all_migrations.length, "persisted filename dictionary must preserve every migration name");
 assert.equal(persistedReport.all_migrations_index.length, report.all_migrations.length, "persisted tuple index must preserve every migration row");
 assert.equal(persistedReport.reported_migration_reference, "all_migrations_index_position", "reported migrations must reference the canonical all-migrations index");
 assert.equal(persistedReport.reported_migration_positions.length, report.migrations.length, "persisted position index must preserve every reported migration row");
 assert(persistedReport.reported_migration_positions.every((index) => Number.isInteger(index) && index >= 0 && index < persistedReport.all_migrations_index.length), "reported migration positions must be valid all-migrations indexes");
 assert.deepEqual(
-  persistedReport.reported_migration_positions.map((index) => persistedReport.all_migrations_index[index][0]),
+  persistedReport.reported_migration_positions.map((index) => persistedReport.migration_file_dictionary[persistedReport.all_migrations_index[index][0]]),
   report.migrations.map((entry) => entry.migration_file),
   "reported migration positions must reconstruct the reported migration order"
 );
 assert.equal(persistedReport.reported_migrations_index, undefined, "persisted artifact must not duplicate reported migration tuples");
-assert(persistedReport.all_migrations_index.every((entry) => Array.isArray(entry) && entry.length === 7 && typeof entry[0] === "string" && [0, 1].includes(entry[1])), "persisted tuple rows must preserve migration identity and documentation state");
+assert(persistedReport.all_migrations_index.every((entry) => Array.isArray(entry) && entry.length === 7 && Number.isInteger(entry[0]) && entry[0] >= 0 && entry[0] < persistedReport.migration_file_dictionary.length && [0, 1].includes(entry[1])), "persisted tuple rows must preserve migration identity and documentation state through the filename dictionary");
+assert.equal(persistedReport.gap_queue.serialization_profile, "summary_tuple_v2", "persisted gap queue must use compact summary tuple serialization");
+assert(persistedReport.gap_queue.top_items.length <= 10, "persisted gap queue must stay bounded");
 assert.equal(persistedReport.all_migrations, undefined, "persisted artifact must not duplicate full all_migrations objects");
 assert.equal(persistedReport.migrations, undefined, "persisted artifact must not duplicate full reported migration objects");
 assert(Buffer.byteLength(persistedJson) < 100_000, "bounded persisted discovery artifact must remain below 100 KB");
