@@ -727,18 +727,20 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
   };
 }
 
-export function resolveSessionContextSubject(req) {
-  const requestedUserId = queryStringValue(req.query.user_id);
-  const requestedTenantId = queryStringValue(req.query.tenant_id);
-  const requestedWorkspaceId = queryContextValue(req.query, ["workspace_id"]);
-  const requestedWorkspaceKey = queryContextValue(req.query, ["workspace_key", "workspace_ref"]);
-  const requestedBrandKey = queryContextValue(req.query, ["brand_key", "target_key", "brand_ref", "evolution_brand_key"]);
-  const authUserId = queryStringValue(req.auth?.user_id);
-  const authTenantId = queryStringValue(req.auth?.tenant_id);
-  const authWorkspaceId = queryStringValue(req.auth?.workspace_id);
-  const authWorkspaceKey = queryStringValue(req.auth?.workspace_key);
-  const authBrandKey = queryStringValue(req.auth?.brand_key || req.auth?.target_key);
-  const isAdmin = req.auth?.is_admin === true;
+export function resolveSessionContextSubject(req = {}) {
+  const query = req.query || {};
+  const auth = req.auth || {};
+  const requestedUserId = queryStringValue(query.user_id);
+  const requestedTenantId = queryStringValue(query.tenant_id);
+  const requestedWorkspaceId = queryContextValue(query, ["workspace_id"]);
+  const requestedWorkspaceKey = queryContextValue(query, ["workspace_key", "workspace_ref"]);
+  const requestedBrandKey = queryContextValue(query, ["brand_key", "target_key", "brand_ref", "evolution_brand_key"]);
+  const authUserId = queryStringValue(auth.user_id);
+  const authTenantId = queryStringValue(auth.tenant_id);
+  const authWorkspaceId = queryStringValue(auth.workspace_id);
+  const authWorkspaceKey = queryStringValue(auth.workspace_key);
+  const authBrandKey = queryStringValue(auth.brand_key || auth.target_key);
+  const isAdmin = auth.is_admin === true;
   const userId = requestedUserId || authUserId || (isAdmin ? "platform_admin_service" : null);
   const tenantId = requestedTenantId || authTenantId || (isAdmin ? PLATFORM_TENANT_ID : null);
   const workspaceId = requestedWorkspaceId || authWorkspaceId || null;
