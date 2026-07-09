@@ -1,0 +1,7 @@
+{
+  "surface_key": "tenant_resolution_cases",
+  "source_table": "tenant_resolution_cases",
+  "reason": "Excluded because Spec 009 PR 2400 creates durable case persistence only. Tenant-visible problem cards and case APIs are intentionally deferred to a later child PR with object-level authorization and no-secret response contracts.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}
