@@ -1,5 +1,7 @@
 # Repo and SQL Change Documentation Governance
 
+> Change-governance contract for `20260709_resource_api_dynamic_db_surfaces.sql`: review must confirm the migration remains additive/idempotent registry seeding for DB-backed Resource API surfaces, exposes only safe readback/filter keys, and excludes secret, token, password, credential, encrypted, webhook, and provider URL fields. Merge requires OpenAPI parity generation/check coverage, docs parity across the surface-contract targets, and governed migration authorization/dry-run/apply readback. Production apply must use the governed runner only; no provider call, credential payload read, raw-secret output, external send/write, deployment, or destructive SQL is introduced.
+
 > `1041_sprint69_hard_disable_temporary_hostinger_executor_gate.sql` documents the final hard-disable for the temporary Hostinger SSH executor gate after parity verification. It performs no deploy, no provider call, no credential payload read, no raw secret, no external send/write, and only closes the temporary runtime config gate with enum-supported disabled status and false execution flags.
 
 > `1040_sprint69_normalize_temporary_hostinger_gate_statuses.sql` documents final status normalization for temporary Hostinger deployment recovery gates. It performs no deploy, no provider call, no credential payload read, no raw secret, no external send/write, and only normalizes enum-backed audit states to `disabled` and `revoked` after parity cleanup.
