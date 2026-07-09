@@ -1,19 +1,152 @@
 {
-  "openapi": "3.1.0",
   "info": {
+    "description": "Generated from platform_data_table_registry or the checked-in snapshot fallback. Do not edit by hand.",
     "title": "DB-backed Resource Surfaces",
-    "version": "2026-07-09",
-    "description": "Generated from platform_data_table_registry or the checked-in snapshot fallback. Do not edit by hand."
+    "version": "2026-07-09"
   },
-  "servers": [{"url":"https://auth.mad4b.com"}],
-  "x-generated-from": "snapshot",
-  "x-source-authority": "platform_data_table_registry",
-  "x-secrets-included": false,
-  "x-resource-surface-count": 10,
-  "x-resource-keys": ["admin_platform_endpoint_tools","agent_skill_grants","app_action_grants","capability_resolution_envelopes","cms_site_access_grants","permission_grants","platform_data_table_registry","platform_resource_operation_registry","system_endpoints","user_app_connections"],
+  "openapi": "3.1.0",
   "paths": {
-    "/admin/resource-types": {"get":{"operationId":"platformResourceTypesList","tags":["Resource API"],"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"type":"object","additionalProperties":true}}}}}}},
-    "/admin/resources/{resourceKey}": {"get":{"operationId":"platformResourceList","tags":["Resource API"],"parameters":[{"name":"resourceKey","in":"path","required":true,"schema":{"type":"string","enum":["admin_platform_endpoint_tools","app_action_grants","capability_resolution_envelopes","cms_site_access_grants","platform_data_table_registry","platform_resource_operation_registry","system_endpoints","user_app_connections"]}}],"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"type":"object","additionalProperties":true,"properties":{"secrets_included":{"type":"boolean","const":false}}}}}}}}},
-    "/me/workspaces/{tenant_id}/resources/{resourceKey}": {"get":{"operationId":"tenantResourceList","tags":["Resource API"],"parameters":[{"name":"tenant_id","in":"path","required":true,"schema":{"type":"string"}},{"name":"resourceKey","in":"path","required":true,"schema":{"type":"string","enum":["agent_skill_grants","cms_site_access_grants","permission_grants","user_app_connections"]}}],"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"type":"object","additionalProperties":true,"properties":{"secrets_included":{"type":"boolean","const":false}}}}}}}}}
-  }
+    "/admin/resource-types": {
+      "get": {
+        "operationId": "platformResourceTypesList",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "Resource API"
+        ]
+      }
+    },
+    "/admin/resources/{resourceKey}": {
+      "get": {
+        "operationId": "platformResourceList",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resourceKey",
+            "required": true,
+            "schema": {
+              "enum": [
+                "admin_platform_endpoint_tools",
+                "agent_skill_grants",
+                "app_action_grants",
+                "capability_resolution_envelopes",
+                "cms_site_access_grants",
+                "permission_grants",
+                "platform_data_table_registry",
+                "platform_resource_operation_registry",
+                "system_endpoints",
+                "user_app_connections"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "secrets_included": {
+                      "const": false,
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "Resource API"
+        ]
+      }
+    },
+    "/me/workspaces/{tenant_id}/resources/{resourceKey}": {
+      "get": {
+        "operationId": "tenantResourceList",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "resourceKey",
+            "required": true,
+            "schema": {
+              "enum": [
+                "agent_skill_grants",
+                "cms_site_access_grants",
+                "permission_grants",
+                "user_app_connections"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "secrets_included": {
+                      "const": false,
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "Resource API"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://auth.mad4b.com"
+    }
+  ],
+  "x-generated-from": "snapshot",
+  "x-resource-keys": [
+    "admin_platform_endpoint_tools",
+    "agent_skill_grants",
+    "app_action_grants",
+    "capability_resolution_envelopes",
+    "cms_site_access_grants",
+    "permission_grants",
+    "platform_data_table_registry",
+    "platform_resource_operation_registry",
+    "system_endpoints",
+    "user_app_connections"
+  ],
+  "x-resource-surface-count": 10,
+  "x-secrets-included": false,
+  "x-source-authority": "platform_data_table_registry"
 }
