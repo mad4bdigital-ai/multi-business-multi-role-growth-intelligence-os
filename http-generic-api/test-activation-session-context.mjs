@@ -148,6 +148,9 @@ assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
   assert.equal(source.includes("NULL AS activation_prompt"), true);
   assert.equal(source.includes("NULL AS conversation_context_ref"), true);
   assert.equal(source.includes("resolvePlatformGraphMemory"), true);
+  assert.equal(source.includes("loadTenantGptActivationContext"), true);
+  assert.equal(source.includes("activation_context: activationContext"), true);
+  assert.equal(source.includes("accessJti = req.auth?.claims?.jti"), true);
 }
 
 {
