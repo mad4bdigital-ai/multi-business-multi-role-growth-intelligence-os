@@ -65,6 +65,7 @@ import {
   refreshGrowthIntelligenceReadinessAdmin,
 } from "../growthIntelligenceAdminDecisions.js";
 import { issueRuntimeDispatchCertification } from "../runtimeDispatchCertificationIssuer.js";
+import { serializeDbControlQueryResult } from "./adminCliRoutes.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -798,6 +799,15 @@ const VIRTUAL_ADMIN_TOOLS = [
       },
       additionalProperties: false,
     },
+  },
+  {
+    name: "admin_control_db_mutation_serialization_smoke",
+    displayName: "Admin DB Mutation Serialization Smoke",
+    description: "Run one fixed no-op DB UPDATE through the same serializer used by admin_control DB single-statement mutations. No freeform SQL, row data, provider call, external write, or secret return.",
+    method: "VIRTUAL",
+    path: "internal://admin-control-db-mutation-serialization-smoke",
+    tags: ["admin", "db", "serialization", "smoke", "state_changing", "readback", "no_freeform_sql", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: { type: "object", additionalProperties: false },
   },
   {
     name: "sql_cache_runtime_diagnostics_get",
@@ -2354,7 +2364,33 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       };
     }
   }
-  if (callerType === "admin" && toolKey === "capability_resolution_envelope_lifecycle") {
+  if (callerType === "admin" && toolKey === "admin_control_db_mutation_serialization_smoke") {
+      try {
+        const [result, fields] = await getPool().query("UPDATE execution_policies SET updated_at = updated_at WHERE 1 = 0");
+        const serialized = serializeDbControlQueryResult(result, fields);
+        return {
+          status: 200,
+          body: {
+            ok: true,
+            smoke_key: "admin_control_db_mutation_serialization_smoke",
+            sql_kind: "fixed_noop_update",
+            statement_count: 1,
+            ...serialized,
+            readback_assertions: {
+              mutation_serialized: serialized.statement_result_type === "mutation",
+              affected_rows_present: Number.isFinite(serialized.result?.affectedRows),
+              changed_rows_present: Number.isFinite(serialized.result?.changedRows),
+              secrets_included_false: serialized.secrets_included === false,
+            },
+            secrets_included: false,
+          },
+        };
+      } catch (err) {
+        return { status: err?.status || 500, body: { ok: false, error: { code: err?.code || "admin_control_db_mutation_serialization_smoke_failed", message: err?.message }, secrets_included: false } };
+      }
+    }
+
+    if (callerType === "admin" && toolKey === "capability_resolution_envelope_lifecycle") {
       try {
         const result = await transitionCapabilityEnvelopeLifecycle({
           pool: getPool(),
