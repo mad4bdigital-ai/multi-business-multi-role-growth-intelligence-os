@@ -669,8 +669,20 @@ export async function verifySessionSummaryWrite({ pool = getPool(), session, sum
   const graphAssetNodePresent = nodeIds.has(assetNodeId);
   const graphEdgePresent = Boolean(edgeRows?.[0]);
   const graphTopologyPresent = graphConversationNodePresent && graphAssetNodePresent && graphEdgePresent;
+  const reason = !summaryRow
+    ? "summary_row_missing"
+    : !assetRow
+      ? "summary_graph_asset_missing"
+      : !graphConversationNodePresent
+        ? "summary_graph_conversation_node_missing"
+        : !graphAssetNodePresent
+          ? "summary_graph_asset_node_missing"
+          : !graphEdgePresent
+            ? "summary_graph_edge_missing"
+            : null;
   return {
     ok: Boolean(summaryRow) && graphTopologyPresent,
+    reason,
     summary_row_present: Boolean(summaryRow),
     graph_asset_present: Boolean(assetRow),
     graph_validation_status: assetRow?.validation_status || null,
