@@ -224,7 +224,7 @@ try {
     screen_hint: "signin",
     sign_in_options: ["email", "register"],
   };
-  const codeResult = await postJson(baseUrl, "/auth/oauth/code", { token: userToken, redirect_uri: redirectUri, state, activation_context: activationContext });
+  const codeResult = await postJson(baseUrl, "/auth/oauth/code", { token: userToken, redirect_uri: redirectUri, state, scope: TENANT_SCOPE, activation_context: activationContext });
   assert("code endpoint accepts signed user token", codeResult.status === 200, `${codeResult.status}`);
   assert("code response includes code", typeof codeResult.body.code === "string" && codeResult.body.code.length > 40);
   assert("code response redirects with state", String(codeResult.body.redirect_to || "").includes(`state=${state}`), codeResult.body.redirect_to);
