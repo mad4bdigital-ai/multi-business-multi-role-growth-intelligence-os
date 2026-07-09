@@ -88,6 +88,7 @@ async function getText(baseUrl, path, { headers = {} } = {}) {
 }
 
 const oauthTokenDiagnostics = [];
+const tenantGptActivationContexts = [];
 
 const oauthClientPool = {
   async query(sql, params) {
@@ -100,6 +101,21 @@ const oauthClientPool = {
         endpoint_key: params[8],
         parent_action_key: params[9],
         runtime_evidence_json: JSON.parse(params[10]),
+      });
+      return [{ affectedRows: 1 }];
+    }
+    if (sql.includes("CREATE TABLE IF NOT EXISTS `tenant_gpt_activation_contexts`")) {
+      return [{ affectedRows: 0 }];
+    }
+    if (sql.includes("INSERT INTO `tenant_gpt_activation_contexts`")) {
+      tenantGptActivationContexts.push({
+        access_jti: params[0],
+        oauth_code_jti: params[1],
+        user_id: params[2],
+        tenant_id: params[3],
+        client_id: params[4],
+        activation_context_json: params[5],
+        expires_at: params[6],
       });
       return [{ affectedRows: 1 }];
     }
@@ -252,11 +268,18 @@ try {
   assert("success token exchange writes diagnostic", Boolean(successDiagnostic), JSON.stringify(oauthTokenDiagnostics));
   assert("success diagnostic captures token type", successDiagnostic?.runtime_evidence_json?.access_token?.token_type === "Bearer", JSON.stringify(successDiagnostic));
   assert("success diagnostic captures token length only", successDiagnostic?.runtime_evidence_json?.access_token?.length === exchange.body.access_token.length, JSON.stringify(successDiagnostic));
+  assert("success diagnostic captures activation context storage only", successDiagnostic?.runtime_evidence_json?.activation_context?.stored === true, JSON.stringify(successDiagnostic));
   assert("success diagnostic excludes raw access token", !JSON.stringify(successDiagnostic || {}).includes(exchange.body.access_token), JSON.stringify(successDiagnostic));
+  assert("token exchange stores activation context server-side", tenantGptActivationContexts.length === 1, JSON.stringify(tenantGptActivationContexts));
+  const storedActivationContext = JSON.parse(tenantGptActivationContexts[0].activation_context_json);
+  assert("stored activation context preserves activation mode", storedActivationContext.activation_mode === "dedicated", JSON.stringify(storedActivationContext));
+  assert("stored activation context preserves workspace name", storedActivationContext.workspace_name === "Tenant Workspace", JSON.stringify(storedActivationContext));
+  assert("stored activation context marks secrets excluded", storedActivationContext.secrets_included === false, JSON.stringify(storedActivationContext));
   const accessPayload = jwt.verify(exchange.body.access_token, process.env.JWT_SECRET);
   assert("access JWT has platform issuer", accessPayload.iss === "https://auth.mad4b.com", JSON.stringify(accessPayload));
   assert("access JWT has tenant GPT audience", accessPayload.aud === "mad4b-tenant-gpt", JSON.stringify(accessPayload));
   assert("access JWT has tenant subject", accessPayload.sub === "tenant:tenant-1:user:user-1", JSON.stringify(accessPayload));
+  assert("stored activation context is linked to access JWT jti", tenantGptActivationContexts[0].access_jti === accessPayload.jti, JSON.stringify({ stored: tenantGptActivationContexts[0].access_jti, token: accessPayload.jti }));
   assert("access JWT carries linked tenant scopes", accessPayload.scope === TENANT_SCOPE, JSON.stringify(accessPayload));
   assert("access JWT carries scope links array", TENANT_SCOPE_LINKS.every((scope) => accessPayload.scope_links?.includes(scope)), JSON.stringify(accessPayload));
   assert("access JWT carries tenant GPT purpose", accessPayload.purpose === "tenant_gpt_access", JSON.stringify(accessPayload));

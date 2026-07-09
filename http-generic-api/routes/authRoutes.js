@@ -13,6 +13,7 @@ import {
   resolveTenantGptOAuthClientConfig,
   validateTenantGptOAuthClientCredentials,
 } from "../tenantGptOAuthClientConfig.js";
+import { recordTenantGptActivationContext } from "../tenantGptActivationContextStore.js";
 
 // Default fallback secret for development if missing.
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
@@ -172,7 +173,7 @@ function cleanTtlSeconds(value) {
   return Math.min(Math.max(Math.floor(parsed), 60), PLATFORM_JWT_CLIENT_MAX_TTL_SECONDS);
 }
 
-function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT_ID } = {}) {
+function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT_ID, jwtid = randomUUID() } = {}) {
   const userId = String(payload?.user_id || "").trim();
   if (!userId) {
     const err = new Error("Cannot issue tenant GPT token without user_id.");
@@ -198,7 +199,7 @@ function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT
       client_id: String(clientId || TENANT_GPT_OAUTH_CLIENT_ID).trim() || TENANT_GPT_OAUTH_CLIENT_ID,
     },
     JWT_SECRET,
-    { expiresIn: USER_TOKEN_TTL_SECONDS, jwtid: randomUUID() }
+    { expiresIn: USER_TOKEN_TTL_SECONDS, jwtid }
   );
 }
 
@@ -441,6 +442,7 @@ async function recordOAuthTokenDiagnostic(queryFn, event = {}) {
       code_redirect_uri: event.code_redirect_uri || null,
       client: event.client || null,
       access_token: event.access_token || null,
+      activation_context: event.activation_context || null,
       client_validation_source: event.client_validation_source || null,
       code_jti_present: event.code_jti_present === true,
       user_id_present: event.user_id_present === true,
@@ -861,10 +863,22 @@ export function buildAuthRoutes(deps) {
         [codePayload.user_id]
       );
       const tenantId = codePayload.tenant_id || memRows[0]?.tenant_id || null;
+      const accessJti = randomUUID();
+      const accessExpiresAt = new Date(Date.now() + USER_TOKEN_TTL_SECONDS * 1000);
       const accessToken = issueTenantGptAccessToken(
         { user_id: tokenUser.user_id, email: tokenUser.email, tenant_id: tenantId },
-        { clientId: clientValidation.client_id }
+        { clientId: clientValidation.client_id, jwtid: accessJti }
       );
+      const activationContextRecord = await recordTenantGptActivationContext({
+        query: tokenQuery,
+        access_jti: accessJti,
+        oauth_code_jti: codePayload.jti,
+        user_id: tokenUser.user_id,
+        tenant_id: tenantId,
+        client_id: clientValidation.client_id,
+        activation_context: codePayload.activation_context,
+        expires_at: accessExpiresAt,
+      });
 
       res.setHeader("Cache-Control", "no-store");
       res.setHeader("Pragma", "no-cache");
@@ -872,6 +886,11 @@ export function buildAuthRoutes(deps) {
         access_token: {
           token_type: "Bearer",
           length: accessToken.length,
+        },
+        activation_context: {
+          stored: activationContextRecord.stored === true,
+          source: activationContextRecord.source || null,
+          reason: activationContextRecord.reason || null,
         },
       });
       return res.status(200).json({

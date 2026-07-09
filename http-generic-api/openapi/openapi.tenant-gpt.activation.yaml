@@ -792,6 +792,29 @@ paths:
                     type: object
                     additionalProperties: true
                     properties: {}
+                  authorized_access:
+                    type: object
+                    additionalProperties: true
+                    description: Tenant-visible authorization envelope. When the OAuth popup supplied activation_context, it is read back under authorized_access.activation_context and remains absent from the OAuth token response.
+                    properties:
+                      activation_context:
+                        type: object
+                        additionalProperties: true
+                        properties:
+                          available:
+                            type: boolean
+                          source:
+                            type: string
+                          matched_by:
+                            type: string
+                          context:
+                            type: object
+                            additionalProperties: true
+                            properties: {}
+                          secrets_included:
+                            type: boolean
+                            enum:
+                              - false
                   product_guidance:
                     type: object
                     additionalProperties: true
