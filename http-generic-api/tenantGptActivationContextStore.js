@@ -51,7 +51,10 @@ async function runQuery(query, sql, params = []) {
   return Array.isArray(result) ? result[0] : result;
 }
 
+let activationContextTableReady = false;
+
 async function ensureTenantGptActivationContextTable(query) {
+  if (activationContextTableReady) return;
   await runQuery(
     query,
     `CREATE TABLE IF NOT EXISTS \`tenant_gpt_activation_contexts\` (
