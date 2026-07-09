@@ -715,6 +715,7 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
         tags: compactDelimitedList(row.tags),
       })),
       registered_surfaces: registeredSurfaces.surfaces || [],
+      activation_context: activationContext,
     },
     activation_policy: {
       use_authorized_access_for_context_selection: true,
