@@ -41,14 +41,6 @@ CREATE INDEX IF NOT EXISTS `idx_gst_context_scope_created`
     `created_at`
   );
 
-CREATE INDEX IF NOT EXISTS `idx_gst_session_context_lookup`
-  ON `gpt_session_turns` (
-    `session_id`,
-    `workspace_key`,
-    `brand_key`,
-    `created_at`
-  );
-
 CREATE INDEX IF NOT EXISTS `idx_gst_session_context_created`
   ON `gpt_session_turns` (
     `session_id`,
