@@ -507,6 +507,7 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
   const isAdmin = subject.is_admin === true;
   const tenantId = subject.tenant_id || req.auth?.tenant_id || null;
   const userId = subject.user_id || req.auth?.user_id || null;
+  const accessJti = req.auth?.claims?.jti || req.auth?.jti || null;
   const limit = capLimit(req.query?.authorized_access_limit, 25, 100);
   const tenantFilter = isAdmin ? "(? IS NULL OR tenant_id = ?)" : "tenant_id = ?";
   const tenantParams = isAdmin ? [tenantId, tenantId] : [tenantId];
