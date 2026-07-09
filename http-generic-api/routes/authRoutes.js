@@ -867,7 +867,7 @@ export function buildAuthRoutes(deps) {
       const accessExpiresAt = new Date(Date.now() + USER_TOKEN_TTL_SECONDS * 1000);
       const accessToken = issueTenantGptAccessToken(
         { user_id: tokenUser.user_id, email: tokenUser.email, tenant_id: tenantId },
-        { clientId: clientValidation.client_id, jwtid: accessJti }
+        { clientId: clientValidation.client_id, jwtid: accessJti, compact: true }
       );
       const activationContextRecord = await recordTenantGptActivationContext({
         query: tokenQuery,
