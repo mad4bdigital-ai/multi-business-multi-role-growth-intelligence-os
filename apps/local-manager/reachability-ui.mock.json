@@ -1,0 +1,30 @@
+{
+  "selected_device": {
+    "canonical_device_id": "dev_01HREACHABILITYEXAMPLE",
+    "display_label": "Essam PC",
+    "tenant_id": "00000000-0000-4000-a000-000000000001",
+    "user_id": "f242960c-2857-4b4d-a504-ee50f8a278b4"
+  },
+  "state_examples": [
+    {
+      "state": "needs_attention",
+      "status_reason_code": "registered_route_count_zero",
+      "last_verified_at": "2026-07-09T00:00:00.000Z",
+      "safe_details": {
+        "connector_auth_configured": true,
+        "route_count": 1,
+        "registered_route_count": 0,
+        "health_status": "unknown"
+      }
+    },
+    {
+      "state": "verification_pending",
+      "status_reason_code": "recovery_acknowledged_readback_pending",
+      "last_verified_at": null,
+      "safe_details": {
+        "provider_acknowledged": true,
+        "same_cycle_readback": false
+      }
+    }
+  ]
+}
