@@ -1,0 +1,49 @@
+{
+  "ok": false,
+  "target_selection": {
+    "target_key": "tenant:user:device",
+    "canonical_device_id": "lcdev_01JZ_CANONICAL",
+    "requested_device_id": "lcdev_01JZ_CANONICAL",
+    "selection_barrier": "tenant_id+user_id+canonical_device_id",
+    "ambiguous": false
+  },
+  "route_lifecycle": {
+    "profile_source": "db_runtime",
+    "applied_profiles": [],
+    "channels": [
+      {
+        "route_id": "lcr_01JZ_AUTH",
+        "route_channel": "tenant_auth_host",
+        "status": "unreachable",
+        "endpoint_host": "lc-c2dd912e.mad4b.com",
+        "last_health_at": "2026-07-08T23:00:00Z",
+        "last_error_code": "host_bad_gateway"
+      },
+      {
+        "route_id": "lcr_01JZ_ADMIN",
+        "route_channel": "admin_break_glass",
+        "status": "unreachable",
+        "endpoint_host": "connector.mad4b.com",
+        "last_health_at": "2026-07-08T23:00:00Z",
+        "last_error_code": "host_bad_gateway"
+      }
+    ]
+  },
+  "health_summary": {
+    "config_status": "present",
+    "registration_status": "route_registered_zero",
+    "heartbeat_status": "stale",
+    "auth_host_status": "502",
+    "break_glass_status": "502",
+    "tunnel_status": "unknown",
+    "local_service_status": "unknown",
+    "classification": "runtime_tunnel_host_reachability_gap"
+  },
+  "recovery_recommendation": {
+    "recommended_action": "admin_diagnostics",
+    "reason_code": "both_routes_unreachable",
+    "requires_fresh_authorization": true,
+    "requires_admin": true
+  },
+  "secrets_included": false
+}
