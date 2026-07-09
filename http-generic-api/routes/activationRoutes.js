@@ -24,6 +24,7 @@ import {
 } from "../activationHardResponseService.js";
 import { readActivationDynamicTabDetail } from "../activationAwarenessService.js";
 import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
+import { loadTenantGptActivationContext } from "../tenantGptActivationContextStore.js";
 import {
   REGISTRY_SPREADSHEET_ID,
   ACTIVITY_SPREADSHEET_ID,
