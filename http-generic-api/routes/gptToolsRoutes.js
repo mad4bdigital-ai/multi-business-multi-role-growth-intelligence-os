@@ -2308,7 +2308,22 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       };
     }
   }
-  if (callerType === "admin" && toolKey === "capability_resolution_envelope_apply_authorize") {
+  if (callerType === "admin" && toolKey === "capability_resolution_envelope_lifecycle") {
+      try {
+        const result = await transitionCapabilityEnvelopeLifecycle({
+          pool: getPool(),
+          envelopeId: String(args?.envelope_id || "").trim(),
+          action: String(args?.action || "").trim(),
+          executionRef: String(args?.execution_ref || "").trim(),
+          reason: String(args?.reason || "").trim(),
+        });
+        return { status: 200, body: result };
+      } catch (err) {
+        return { status: err?.status || 400, body: { ok: false, error: { code: err?.code || "capability_resolution_envelope_lifecycle_failed", message: err?.message }, secrets_included: false } };
+      }
+    }
+
+    if (callerType === "admin" && toolKey === "capability_resolution_envelope_apply_authorize") {
     try {
       const result = await authorizeCapabilityResolutionEnvelopeApply({
         envelopeId: String(args?.envelope_id || "").trim(),
