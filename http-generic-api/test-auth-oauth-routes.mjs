@@ -167,6 +167,7 @@ try {
     assert("authorize includes existing-account option", result.text.includes("Existing account"));
     assert("authorize includes new-workspace option", result.text.includes("New workspace"));
     assert("authorize carries activation mode", result.text.includes('"activation_mode":"managed"'));
+    assert("authorize carries requested OAuth scope", result.text.includes(TENANT_SCOPE));
     assert("authorize carries device id", result.text.includes('"device_id":"my-laptop"'));
     assert("authorize preselects signup panel", result.text.includes('const INITIAL_PANEL = "register"'));
     assert("authorize includes privacy policy link", result.text.includes('href="/privacy-policy"'));
