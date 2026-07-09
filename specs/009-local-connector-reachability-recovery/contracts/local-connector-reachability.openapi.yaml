@@ -1,0 +1,600 @@
+openapi: 3.1.0
+info:
+  title: Local Connector Reachability Recovery API
+  version: 0.1.0
+  summary: Contract for canonical device selection, reachability readback, heartbeat, probes, and gated recovery.
+  description: |
+    Implementation-ready contract for Local Connector reachability recovery.
+
+    Guardrails:
+      - Tenant/user work uses auth.mad4b.com only.
+      - connector.mad4b.com is admin break-glass diagnostics only.
+      - Every state-changing operation is scoped by tenant_id + user_id + canonical_device_id.
+      - Recovery is not successful until same-cycle readback verifies the selected device and route.
+      - Responses never include connector secrets, device tokens, signed installer URLs, authorization headers, or raw sensitive machine identifiers.
+servers:
+  - url: https://auth.mad4b.com
+    description: Tenant and admin auth-host API authority.
+tags:
+  - name: Local Connector Devices
+  - name: Local Connector Reachability
+  - name: Local Connector Recovery
+  - name: Local Connector Heartbeats
+  - name: Admin Break Glass Diagnostics
+security:
+  - bearerAuth: []
+paths:
+  /local-connector/devices:
+    get:
+      tags: [Local Connector Devices]
+      summary: List canonical local connector devices for the caller scope.
+      operationId: listLocalConnectorDevices
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Canonical devices visible to the caller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceListResponse'
+              examples:
+                normal:
+                  $ref: './examples/device-list.normal.json'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/DependencyUnavailable' }
+  /local-connector/devices/{canonicalDeviceId}/reachability:
+    get:
+      tags: [Local Connector Reachability]
+      summary: Read reachability for one selected canonical device.
+      operationId: getLocalConnectorReachability
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/CanonicalDeviceId'
+        - name: includeProbes
+          in: query
+          schema: { type: boolean, default: true }
+        - name: includeRecoveryRecommendation
+          in: query
+          schema: { type: boolean, default: true }
+      responses:
+        '200':
+          description: Current reachability evidence and classification.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReachabilityResponse'
+              examples:
+                unhealthy:
+                  $ref: './examples/reachability.unhealthy.json'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/DependencyUnavailable' }
+  /local-connector/devices/{canonicalDeviceId}/recovery-plan:
+    post:
+      tags: [Local Connector Recovery]
+      summary: Create a no-execution recovery plan preview for one canonical device.
+      operationId: createLocalConnectorRecoveryPlan
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/CanonicalDeviceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRecoveryPlanRequest'
+      responses:
+        '201':
+          description: Recovery plan preview created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecoveryPlanResponse'
+              examples:
+                preview:
+                  $ref: './examples/recovery-plan.preview.json'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/DependencyUnavailable' }
+  /local-connector/recovery-actions:
+    post:
+      tags: [Local Connector Recovery]
+      summary: Execute an approved recovery action and return readback requirements.
+      operationId: executeLocalConnectorRecoveryAction
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecuteRecoveryActionRequest'
+      responses:
+        '202':
+          description: Recovery action accepted; verification may still be pending.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecoveryActionAcceptedResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/DependencyUnavailable' }
+  /local-connector/heartbeats:
+    post:
+      tags: [Local Connector Heartbeats]
+      summary: Ingest a connector heartbeat without accepting secrets.
+      operationId: ingestLocalConnectorHeartbeat
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HeartbeatRequest'
+      responses:
+        '202':
+          description: Heartbeat accepted for verification.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeartbeatAcceptedResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/DependencyUnavailable' }
+  /admin/local-connector/devices/{canonicalDeviceId}/break-glass-probe:
+    post:
+      tags: [Admin Break Glass Diagnostics]
+      summary: Run admin-only break-glass diagnostics for a selected canonical device.
+      operationId: runAdminLocalConnectorBreakGlassProbe
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/CanonicalDeviceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminBreakGlassProbeRequest'
+      responses:
+        '202':
+          description: Admin probe accepted; evidence is redacted and readback-bound.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminBreakGlassProbeAcceptedResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/DependencyUnavailable' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    TenantId:
+      name: tenant_id
+      in: query
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 64
+    UserId:
+      name: user_id
+      in: query
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 64
+    CanonicalDeviceId:
+      name: canonicalDeviceId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 3
+        maxLength: 191
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 191
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+        maxLength: 512
+  responses:
+    ValidationError:
+      description: Invalid request.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: Missing or invalid authentication.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Forbidden:
+      description: Caller is authenticated but not authorized.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Resource not found in caller scope.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Conflict:
+      description: State or authority conflict.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    RateLimited:
+      description: Rate limited.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    DependencyUnavailable:
+      description: Required dependency unavailable.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  schemas:
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - target_device_required
+                - target_device_ambiguous
+                - target_device_not_found
+                - canonical_device_mismatch
+                - route_generation_mismatch
+                - route_unreachable
+                - fresh_authorization_required
+                - privileged_recovery_forbidden
+                - admin_break_glass_required
+                - tenant_break_glass_forbidden
+                - recovery_verification_pending
+                - recovered_readback_missing
+                - stale_heartbeat
+                - heartbeat_signature_invalid
+                - probe_timeout
+                - diagnostics_redacted
+                - rate_limited
+                - validation_error
+                - idempotency_conflict
+                - internal_dependency_unavailable
+            message: { type: string }
+            details: {}
+            requestId: { type: string }
+    Page:
+      type: object
+      required: [hasMore]
+      properties:
+        nextCursor:
+          type: [string, 'null']
+        hasMore:
+          type: boolean
+    DeviceAlias:
+      type: object
+      required: [alias_type, display_value, status]
+      properties:
+        alias_type:
+          type: string
+          enum: [hostname, legacy_config_id, local_manager_label, route_host_hash]
+        display_value:
+          type: string
+          maxLength: 191
+        status:
+          type: string
+          enum: [active, historical, deprecated]
+    LocalConnectorDevice:
+      type: object
+      required: [device_id, tenant_id, user_id, display_name, status]
+      properties:
+        device_id:
+          type: string
+          maxLength: 191
+        tenant_id:
+          type: string
+          maxLength: 64
+        user_id:
+          type: string
+          maxLength: 64
+        display_name:
+          type: string
+          maxLength: 191
+        current_hostname:
+          type: [string, 'null']
+          maxLength: 191
+        aliases:
+          type: array
+          items: { $ref: '#/components/schemas/DeviceAlias' }
+        status:
+          type: string
+          enum: [active, relink_required, disabled, archived]
+        last_seen_at:
+          type: [string, 'null']
+          format: date-time
+    DeviceListResponse:
+      type: object
+      required: [items, page, secrets_included]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/LocalConnectorDevice' }
+        page:
+          $ref: '#/components/schemas/Page'
+        secrets_included:
+          type: boolean
+          const: false
+    TargetSelection:
+      type: object
+      required: [target_key, canonical_device_id, selection_barrier, ambiguous]
+      properties:
+        target_key: { type: string }
+        canonical_device_id: { type: string }
+        requested_device_id: { type: [string, 'null'] }
+        selection_barrier:
+          type: string
+          enum: [tenant_id+user_id+canonical_device_id]
+        ambiguous: { type: boolean }
+    RouteChannel:
+      type: object
+      required: [route_id, route_channel, status]
+      properties:
+        route_id: { type: string }
+        route_channel:
+          type: string
+          enum: [tenant_auth_host, admin_break_glass]
+        status:
+          type: string
+          enum: [healthy, degraded, unreachable, unknown]
+        endpoint_host:
+          type: string
+          description: Redacted host label; do not include secrets or signed URLs.
+        last_health_at:
+          type: [string, 'null']
+          format: date-time
+        last_error_code:
+          type: [string, 'null']
+    RouteLifecycle:
+      type: object
+      required: [profile_source, channels]
+      properties:
+        profile_source:
+          type: string
+          enum: [db_runtime, registry_runtime, legacy_config, unknown]
+        applied_profiles:
+          type: array
+          items: { type: string }
+        channels:
+          type: array
+          items: { $ref: '#/components/schemas/RouteChannel' }
+    HealthSummary:
+      type: object
+      required: [classification]
+      properties:
+        config_status: { type: string }
+        registration_status: { type: string }
+        heartbeat_status: { type: string }
+        auth_host_status: { type: string }
+        break_glass_status: { type: string }
+        tunnel_status: { type: string }
+        local_service_status: { type: string }
+        classification:
+          type: string
+          enum:
+            - healthy
+            - user_auth_required
+            - route_generation_mismatch
+            - runtime_tunnel_host_reachability_gap
+            - local_service_unhealthy
+            - admin_diagnostics_required
+            - unknown
+    RecoveryRecommendation:
+      type: object
+      required: [recommended_action, reason_code, requires_fresh_authorization, requires_admin]
+      properties:
+        recommended_action:
+          type: string
+          enum: [none, retry_probe, relink_device, admin_diagnostics, reinstall_connector]
+        reason_code: { type: string }
+        requires_fresh_authorization: { type: boolean }
+        requires_admin: { type: boolean }
+    ReachabilityResponse:
+      type: object
+      required: [ok, target_selection, route_lifecycle, health_summary, secrets_included]
+      properties:
+        ok: { type: boolean }
+        target_selection: { $ref: '#/components/schemas/TargetSelection' }
+        route_lifecycle: { $ref: '#/components/schemas/RouteLifecycle' }
+        health_summary: { $ref: '#/components/schemas/HealthSummary' }
+        recovery_recommendation: { $ref: '#/components/schemas/RecoveryRecommendation' }
+        secrets_included:
+          type: boolean
+          const: false
+    CreateRecoveryPlanRequest:
+      type: object
+      required: [tenant_id, user_id, canonical_device_id, requested_recovery_mode]
+      properties:
+        tenant_id: { type: string, minLength: 1, maxLength: 64 }
+        user_id: { type: string, minLength: 1, maxLength: 64 }
+        canonical_device_id: { type: string, minLength: 3, maxLength: 191 }
+        requested_recovery_mode:
+          type: string
+          enum: [preview, relink, reinstall, replace_device, auto_install]
+        current_evidence_ref:
+          type: string
+          maxLength: 191
+    RecoveryPlan:
+      type: object
+      required: [recovery_plan_id, status, recommended_action, required_readback, blockers]
+      properties:
+        recovery_plan_id: { type: string }
+        status:
+          type: string
+          enum: [preview, approved, executing, verification_pending, verified, failed, expired]
+        recommended_action: { type: string }
+        required_readback:
+          type: array
+          items: { type: string }
+        blockers:
+          type: array
+          items: { type: string }
+    RecoveryPlanResponse:
+      type: object
+      required: [ok, plan, secrets_included]
+      properties:
+        ok: { type: boolean }
+        plan: { $ref: '#/components/schemas/RecoveryPlan' }
+        secrets_included:
+          type: boolean
+          const: false
+    ExecuteRecoveryActionRequest:
+      type: object
+      required: [tenant_id, user_id, canonical_device_id, recovery_plan_id, action]
+      properties:
+        tenant_id: { type: string, minLength: 1, maxLength: 64 }
+        user_id: { type: string, minLength: 1, maxLength: 64 }
+        canonical_device_id: { type: string, minLength: 3, maxLength: 191 }
+        recovery_plan_id: { type: string, minLength: 3, maxLength: 64 }
+        action:
+          type: string
+          enum: [start_relink, request_installer_link, mark_installed_for_probe, retry_readback]
+        fresh_authorization_ref:
+          type: [string, 'null']
+          maxLength: 191
+    RecoveryActionAcceptedResponse:
+      type: object
+      required: [ok, accepted, verification, secrets_included]
+      properties:
+        ok: { type: boolean }
+        accepted: { type: boolean }
+        verification:
+          type: object
+          required: [same_cycle_readback_complete, recovered]
+          properties:
+            same_cycle_readback_complete: { type: boolean }
+            recovered:
+              type: boolean
+              description: Must be false unless same_cycle_readback_complete is true.
+            pending_readbacks:
+              type: array
+              items: { type: string }
+        secrets_included:
+          type: boolean
+          const: false
+    HeartbeatRequest:
+      type: object
+      required: [tenant_id, user_id, canonical_device_id, observed_at, heartbeat_signature]
+      properties:
+        tenant_id: { type: string, minLength: 1, maxLength: 64 }
+        user_id: { type: string, minLength: 1, maxLength: 64 }
+        canonical_device_id: { type: string, minLength: 3, maxLength: 191 }
+        observed_at: { type: string, format: date-time }
+        route_generation: { type: integer, minimum: 1 }
+        local_manager_version: { type: string, maxLength: 64 }
+        connector_version: { type: string, maxLength: 64 }
+        local_service_status:
+          type: string
+          enum: [running, stopped, unknown]
+        heartbeat_signature:
+          type: string
+          description: Bounded proof; not a reusable secret.
+    HeartbeatAcceptedResponse:
+      type: object
+      required: [ok, accepted, verification_status, secrets_included]
+      properties:
+        ok: { type: boolean }
+        accepted: { type: boolean }
+        verification_status:
+          type: string
+          enum: [accepted_for_readback, rejected, stale, invalid_signature]
+        secrets_included:
+          type: boolean
+          const: false
+    AdminBreakGlassProbeRequest:
+      type: object
+      required: [tenant_id, user_id, canonical_device_id, reason]
+      properties:
+        tenant_id: { type: string, minLength: 1, maxLength: 64 }
+        user_id: { type: string, minLength: 1, maxLength: 64 }
+        canonical_device_id: { type: string, minLength: 3, maxLength: 191 }
+        reason:
+          type: string
+          minLength: 20
+          maxLength: 1000
+        include_connector_host_probe:
+          type: boolean
+          default: true
+    AdminBreakGlassProbeAcceptedResponse:
+      type: object
+      required: [ok, accepted, probe_id, redaction, secrets_included]
+      properties:
+        ok: { type: boolean }
+        accepted: { type: boolean }
+        probe_id: { type: string }
+        redaction:
+          type: object
+          required: [diagnostics_redacted, raw_sensitive_fields_returned]
+          properties:
+            diagnostics_redacted: { type: boolean, const: true }
+            raw_sensitive_fields_returned: { type: boolean, const: false }
+        secrets_included:
+          type: boolean
+          const: false
