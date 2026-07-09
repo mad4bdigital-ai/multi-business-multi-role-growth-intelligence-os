@@ -462,6 +462,7 @@ async function recordOAuthTokenDiagnostic(queryFn, event = {}) {
       client: event.client || null,
       access_token: event.access_token || null,
       activation_context: event.activation_context || null,
+      requested_scope: event.requested_scope || null,
       client_validation_source: event.client_validation_source || null,
       code_jti_present: event.code_jti_present === true,
       user_id_present: event.user_id_present === true,
