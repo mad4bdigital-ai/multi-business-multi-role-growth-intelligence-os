@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "feature_key": "009-local-connector-reachability-recovery",
+  "error_codes": [
+    {
+      "code": "target_device_required",
+      "http_status": 400,
+      "message": "Select one canonical device before running diagnostics or recovery.",
+      "recoverability": "user_action"
+    },
+    {
+      "code": "target_device_ambiguous",
+      "http_status": 409,
+      "message": "More than one matching device exists; choose a canonical device.",
+      "recoverability": "user_action"
+    },
+    {
+      "code": "target_device_not_found",
+      "http_status": 404,
+      "message": "The selected canonical device was not found in the caller scope.",
+      "recoverability": "user_action"
+    },
+    {
+      "code": "canonical_device_mismatch",
+      "http_status": 409,
+      "message": "The request device does not match the tenant/user/canonical device barrier.",
+      "recoverability": "operator_review"
+    },
+    {
+      "code": "route_generation_mismatch",
+      "http_status": 409,
+      "message": "Route generation does not match device generation; relink or regenerate safely.",
+      "recoverability": "relink"
+    },
+    {
+      "code": "route_unreachable",
+      "http_status": 503,
+      "message": "The selected route is currently unreachable.",
+      "recoverability": "probe_or_repair"
+    },
+    {
+      "code": "fresh_authorization_required",
+      "http_status": 403,
+      "message": "Privileged recovery requires fresh Local Manager authorization.",
+      "recoverability": "reauth"
+    },
+    {
+      "code": "privileged_recovery_forbidden",
+      "http_status": 403,
+      "message": "Caller is not allowed to perform privileged recovery for this device.",
+      "recoverability": "admin_review"
+    },
+    {
+      "code": "admin_break_glass_required",
+      "http_status": 403,
+      "message": "This diagnostic requires admin break-glass scope.",
+      "recoverability": "admin_review"
+    },
+    {
+      "code": "tenant_break_glass_forbidden",
+      "http_status": 403,
+      "message": "Tenant path cannot fallback to admin break-glass diagnostics.",
+      "recoverability": "blocked"
+    },
+    {
+      "code": "recovery_verification_pending",
+      "http_status": 202,
+      "message": "Recovery was accepted but verification readback is still pending.",
+      "recoverability": "wait"
+    },
+    {
+      "code": "recovered_readback_missing",
+      "http_status": 409,
+      "message": "Recovered status cannot be declared without same-cycle readback.",
+      "recoverability": "probe_or_repair"
+    },
+    {
+      "code": "stale_heartbeat",
+      "http_status": 409,
+      "message": "Heartbeat evidence is stale for this route/device generation.",
+      "recoverability": "probe_or_repair"
+    },
+    {
+      "code": "heartbeat_signature_invalid",
+      "http_status": 403,
+      "message": "Heartbeat signature is invalid or expired.",
+      "recoverability": "relink"
+    },
+    {
+      "code": "probe_timeout",
+      "http_status": 504,
+      "message": "Bounded probe timed out.",
+      "recoverability": "retry"
+    },
+    {
+      "code": "diagnostics_redacted",
+      "http_status": 200,
+      "message": "Diagnostics were redacted to prevent secret exposure.",
+      "recoverability": "none"
+    },
+    {
+      "code": "rate_limited",
+      "http_status": 429,
+      "message": "Too many reachability or recovery attempts.",
+      "recoverability": "retry_after"
+    },
+    {
+      "code": "validation_error",
+      "http_status": 400,
+      "message": "Request validation failed.",
+      "recoverability": "fix_request"
+    },
+    {
+      "code": "idempotency_conflict",
+      "http_status": 409,
+      "message": "Idempotency key conflicts with a different request body.",
+      "recoverability": "fix_request"
+    },
+    {
+      "code": "internal_dependency_unavailable",
+      "http_status": 503,
+      "message": "A required internal dependency is unavailable.",
+      "recoverability": "retry"
+    }
+  ],
+  "invariants": [
+    "Every response MUST include secrets_included=false when the field exists.",
+    "No diagnostic response may include plaintext tokens, connector secrets, signed installer URLs, or raw machine identifiers.",
+    "Tenant requests MUST NOT call or fallback to connector.mad4b.com.",
+    "State-changing recovery MUST require tenant_id + user_id + canonical_device_id authority.",
+    "Recovered status MUST NOT be emitted until same-cycle readback is complete."
+  ]
+}
