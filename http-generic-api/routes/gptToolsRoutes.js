@@ -717,6 +717,25 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "capability_resolution_envelope_lifecycle",
+    displayName: "Transition Capability Resolution Envelope Lifecycle",
+    description: "Transition one capability resolution envelope lifecycle state by using the governed lifecycle actions consume, cancel, or expire. Internal registry mutation only; no provider call, external write, credential payload read, or secret return.",
+    method: "VIRTUAL",
+    path: "internal://capability-resolution-envelope-lifecycle",
+    tags: ["admin", "capability_resolution", "lifecycle", "state_changing", "readback", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["envelope_id", "action"],
+      properties: {
+        envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+        action: { type: "string", enum: CAPABILITY_ENVELOPE_LIFECYCLE_ACTIONS },
+        execution_ref: { type: "string", maxLength: 191 },
+        reason: { type: "string", maxLength: 512 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "governed_migration_authorization_bootstrap",
     displayName: "Governed Migration Authorization Bootstrap",
     description: "Authorize one checksum-bound additive migration for the governed runner without executing migration SQL. Requires exact checksum, statement count, merged PR evidence, typed confirmation, a ready capability envelope, zero-risk preflight, and same-cycle authorization readback.",
