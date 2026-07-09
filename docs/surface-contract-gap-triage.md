@@ -4,15 +4,16 @@
 
 ## Summary
 
-- Triaged items: 1
-- Gate candidates: 1
-- New-gap gate: pass
-- Blocking new items: 0
+- Triaged items: 2
+- Gate candidates: 2
+- New-gap gate: fail
+- Blocking new items: 1
 
 ## Class counts
 
-- new_surface_immediate_review: 1
+- new_surface_immediate_review: 2
 
 ## Immediate review candidates
 
 - `1031_sprint69_github_actions_diagnostics_endpoints_seed.sql` — critical_review, score 1071; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `20260709_tenant_resolution_registry_schema.sql` — critical_review, score 817; next: add targeted patch-index, parity, and governance documentation
