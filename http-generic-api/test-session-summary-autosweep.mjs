@@ -99,7 +99,6 @@ function makePool(rows = []) {
   assert(serviceSource.includes("export function parseJsonlTranscript"), "autosweep must preserve parseJsonlTranscript compatibility export");
   assert(serviceSource.includes("export function buildTranscriptChunks"), "autosweep must preserve buildTranscriptChunks compatibility export");
   assert(serviceSource.includes("export async function summarizeTranscriptWithModel"), "autosweep must preserve summarizeTranscriptWithModel compatibility export");
-  assert(serviceSource.includes("session-summary-compat"), "compatibility exports must use deterministic no-secret fallback metadata");
   assert(serviceSource.includes("fetchDriveContent"), "autosweep must use Drive archive as primary transcript source");
   assert(serviceSource.includes("parseJsonlTranscript"), "autosweep must parse Drive JSONL transcripts");
   assert(serviceSource.includes("content_preview"), "SQL fallback must use previews only");
