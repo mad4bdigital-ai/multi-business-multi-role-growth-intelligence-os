@@ -918,12 +918,13 @@ export function buildAuthRoutes(deps) {
           reason: activationContextRecord.reason || null,
         },
       });
-      return res.status(200).json({
+      const tokenResponse = {
         access_token: accessToken,
         token_type: "Bearer",
         expires_in: USER_TOKEN_TTL_SECONDS,
-        scope: TENANT_GPT_SCOPE,
-      });
+      };
+      if (codePayload.scope) tokenResponse.scope = codePayload.scope;
+      return res.status(200).json(tokenResponse);
     } catch (err) {
       logTokenExchange("failed", err?.name === "TokenExpiredError" ? "oauth_code_expired" : "oauth_code_invalid_or_exception", 400, {
         exception_name: err?.name || null,
