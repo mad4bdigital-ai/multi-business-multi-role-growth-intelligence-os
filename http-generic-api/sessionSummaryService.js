@@ -1438,13 +1438,28 @@ export async function writeSessionSummary({ pool = getPool(), session, insight, 
   );
 
   let graphAttachment = null;
+  let graphAttachmentError = null;
   try {
     graphAttachment = await attachSessionSummaryToGraph({ pool, session, summaryId, insight });
+    recordOperation(operationLog, {
+      stage: "attach_session_summary_graph",
+      status: "succeeded",
+      summary_id: summaryId,
+      graph_asset_id: graphAttachment?.asset_id || null,
+      graph_edge_id: graphAttachment?.edge_id || null,
+    });
   } catch (err) {
+    graphAttachmentError = sanitizeModelError(err);
+    recordOperation(operationLog, {
+      stage: "attach_session_summary_graph",
+      status: "failed",
+      summary_id: summaryId,
+      error: graphAttachmentError,
+    });
     console.warn("[sessionSummary] graph attachment failed", {
       session_id: session.session_id,
       summary_id: summaryId,
-      message: err?.message || String(err),
+      message: graphAttachmentError,
     });
   }
 
