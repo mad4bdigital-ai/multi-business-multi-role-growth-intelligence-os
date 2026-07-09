@@ -24,6 +24,7 @@ import {
 } from "../activationHardResponseService.js";
 import { readActivationDynamicTabDetail } from "../activationAwarenessService.js";
 import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
+import { loadTenantGptActivationContext } from "../tenantGptActivationContextStore.js";
 import {
   REGISTRY_SPREADSHEET_ID,
   ACTIVITY_SPREADSHEET_ID,
@@ -506,11 +507,12 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
   const isAdmin = subject.is_admin === true;
   const tenantId = subject.tenant_id || req.auth?.tenant_id || null;
   const userId = subject.user_id || req.auth?.user_id || null;
+  const accessJti = req.auth?.claims?.jti || req.auth?.jti || null;
   const limit = capLimit(req.query?.authorized_access_limit, 25, 100);
   const tenantFilter = isAdmin ? "(? IS NULL OR tenant_id = ?)" : "tenant_id = ?";
   const tenantParams = isAdmin ? [tenantId, tenantId] : [tenantId];
 
-  const [memberships, roles, workspaces, systems, installations, grants, runtimeActions, adminTools, registeredSurfaces] = await Promise.all([
+  const [memberships, roles, workspaces, systems, installations, grants, runtimeActions, adminTools, registeredSurfaces, activationContext] = await Promise.all([
     userId
       ? queryFn(
           `SELECT tenant_id, role, status, granted_at, updated_at
@@ -596,7 +598,8 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
           []
         )
       : { ok: true, rows: [], skipped: true, reason: "admin_tools_require_admin_principal" },
-    loadActivationRegisteredSurfaces(req, subject, { query: queryFn })
+    loadActivationRegisteredSurfaces(req, subject, { query: queryFn }),
+    loadTenantGptActivationContext({ query: queryFn, access_jti: accessJti, user_id: userId, tenant_id: tenantId })
   ]);
 
   const permissionKeys = [...new Set(rowsOrEmpty(grants).map((row) => row.permission_key).filter(Boolean))].sort();
@@ -696,6 +699,7 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
         tags: compactDelimitedList(row.tags),
       })),
       registered_surfaces: registeredSurfaces.surfaces || [],
+      activation_context: activationContext,
     },
     activation_policy: {
       use_authorized_access_for_context_selection: true,
