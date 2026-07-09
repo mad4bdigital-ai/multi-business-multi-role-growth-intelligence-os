@@ -394,6 +394,14 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
+  router.get("/tenant/resolution/problem-cards", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantProblemCardsResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_resolution_problem_cards_read_failed");
+    }
+  });
+
   router.get("/tenant/activation/dynamic-tabs/detail", requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await detailResponse(req, false));
