@@ -428,6 +428,7 @@ function queuedFetch(entries, calls = []) {
   assert.equal(blobCalls.length, 2);
   assert.equal(blobCalls[1].body.content, "export const alpha = true;\nexport const beta = true;\n");
   const commitCall = calls.find((call) => call.url.endsWith("/git/commits") && call.method === "POST");
+  assert.equal(commitCall.body.tree, NEW_TREE_SHA);
   assert.deepEqual(commitCall.body.parents, [BASE_SHA]);
 }
 
