@@ -587,6 +587,66 @@ export function buildPersistedDiscoveryReport(report) {
     }
     return index;
   });
+  const compactGapQueue = {
+    ok: report.gap_queue?.ok === true,
+    schema_version: report.gap_queue?.schema_version || "surface-contract-gap-queue-v1",
+    total_items: report.gap_queue?.total_items || 0,
+    class_counts: report.gap_queue?.class_counts || {},
+    top_item_count: report.gap_queue?.top_items?.length || 0,
+    top_item_columns: [
+      "migration_file",
+      "queue_class",
+      "score",
+      "gap_severity",
+      "missing_docs_count",
+      "missing_openapi_routes_count",
+      "safety_marker_gaps_count",
+      "remediation_action_keys",
+    ],
+    top_items: (report.gap_queue?.top_items || []).slice(0, 20).map((item) => [
+      item.migration_file,
+      item.queue_class,
+      item.score,
+      item.gap_severity,
+      item.missing_docs?.length || 0,
+      item.missing_openapi_routes?.length || 0,
+      item.safety_marker_gaps?.length || 0,
+      (item.remediation || []).map((entry) => entry.action_key).join(","),
+    ]),
+    safety: report.gap_queue?.safety || {
+      executes_provider_calls: false,
+      reads_credentials: false,
+      mutates_runtime: false,
+      writes_database: false,
+      external_sends: false,
+      deploys: false,
+      secrets_included: false,
+    },
+  };
+  const summary = report.coverage_summary || {};
+  const routeCoverage = summary.route_coverage || {};
+  const compactCoverageSummary = {
+    migrations_with_surfaces: summary.migrations_with_surfaces || 0,
+    docs_complete_count: summary.docs_complete_count || 0,
+    docs_gap_count: summary.docs_gap_count || 0,
+    docs_completion_percent: summary.docs_completion_percent || 0,
+    gap_severity_counts: summary.gap_severity_counts || {},
+    surface_totals: summary.surface_totals || {},
+    migrations_by_surface_type: summary.migrations_by_surface_type || {},
+    missing_doc_target_counts: summary.missing_doc_target_counts || {},
+    safety_marker_counts: summary.safety_marker_counts || {},
+    safety_marker_gap_migrations: summary.safety_marker_gap_migrations || 0,
+    route_coverage: {
+      sql_route_count: routeCoverage.sql_route_count || 0,
+      total_sql_route_like_count: routeCoverage.total_sql_route_like_count || 0,
+      openapi_exempt_sql_route_count: routeCoverage.openapi_exempt_sql_route_count || 0,
+      openapi_documented_sql_route_count: routeCoverage.openapi_documented_sql_route_count || 0,
+      openapi_missing_sql_route_count: routeCoverage.openapi_missing_sql_route_count || 0,
+      openapi_sql_route_coverage_percent: routeCoverage.openapi_sql_route_coverage_percent || 0,
+      route_class_counts: routeCoverage.route_class_counts || {},
+      route_openapi_gap_count: routeCoverage.route_openapi_gaps?.length || 0,
+    },
+  };
   return {
     ok: report.ok === true,
     schema_version: report.schema_version,
