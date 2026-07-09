@@ -191,7 +191,7 @@
         "migration_apply_status": "verified",
         "migration_schema_readback_status": "pass",
         "production_verification_status": "verified",
-        "post_merge_audit_status": "pending"
+        "post_merge_audit_status": "verified_with_tracked_residual_debt"
       }
     },
     "pull_request": {
