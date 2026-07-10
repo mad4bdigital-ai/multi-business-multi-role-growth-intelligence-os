@@ -228,14 +228,18 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
     relationships.set(activityEdge.relationship_id,activityEdge);
 
     const supported = parseJson(activity.supported_workflows,[]);
-    const workflowKeys = Array.isArray(supported) ? supported.map(String) : String(activity.supported_workflows || "").split(/[,\n]/).map(value => value.trim()).filter(Boolean);
+    const workflowKeys = Array.isArray(supported)
+      ? supported.map(String).map(value => value.trim()).filter(Boolean)
+      : String(activity.supported_workflows || "").split(/[,;|\n]/).map(value => value.trim()).filter(Boolean);
     for (const workflowKey of workflowKeys) {
       const matches = source.workflows.filter(row => activeValue(row.active || row.status) && [row.workflow_key,row.workflow_id].filter(Boolean).some(value => String(value) === workflowKey));
-      if (matches.length !== 1) {
+      const exactWorkflowIdMatches = matches.filter(row => String(row.workflow_id || "") === workflowKey);
+      const resolvedWorkflowMatches = matches.length === 1 ? matches : exactWorkflowIdMatches.length === 1 ? exactWorkflowIdMatches : matches;
+      if (resolvedWorkflowMatches.length !== 1) {
         issues.push(issue(projectionRunId,{ tenant_id:tenantId,workspace_id:workspace.workspace_id,source_table:"workflows",source_ref:workflowKey,issue_code:matches.length > 1 ? "workflow_projection_ambiguous" : "workflow_projection_missing",severity:"medium",issue_detail:"Supported workflow did not resolve to exactly one workflow row.",candidate_refs:matches.map(row => row.workflow_key || row.workflow_id) }));
         continue;
       }
-      const workflow = matches[0];
+      const workflow = resolvedWorkflowMatches[0];
       const key = String(workflow.workflow_key || workflow.workflow_id);
       const workflowContainer = addUnique(containers,containerRow({ tenantId,type:"workflow",key:`workflow:${key}`,subjectType:"workflow",subjectRef:key,displayName:workflow.workflow_name || key,source:"workflows" }));
       const workflowEdge = relationshipRow({ tenantId,fromId:activityContainer.container_id,toId:workflowContainer.container_id,source:"business_activity_types.supported_workflows" });
