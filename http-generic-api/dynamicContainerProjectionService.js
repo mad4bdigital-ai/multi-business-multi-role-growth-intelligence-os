@@ -197,9 +197,21 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
     relationships.set(brandEdge.relationship_id,brandEdge);
 
     const paths = source.brandPaths.filter(row => activeValue(row.active || row.status) && [row.brand_key,row.target_key].filter(Boolean).some(value => String(value).toLowerCase() === brandKey.toLowerCase()));
-    const businessTypes = [...new Set(paths.map(row => row.business_type_key).filter(Boolean).map(String))];
-    const activityCandidates = source.activities.filter(row => activeValue(row.active || row.status) && businessTypes.includes(String(row.business_type_key || "")));
-    if (activityCandidates.length !== 1) {
+    const businessTypes = [...new Set(paths.map(row => row.business_type_key).filter(Boolean).map(value => String(value).trim()).filter(Boolean))];
+    const businessTypeLookup = new Set(businessTypes.map(value => value.toLowerCase()));
+    const activityCandidates = source.activities.filter(row => {
+      if (!activeValue(row.active || row.status)) return false;
+      return [row.business_type_key,row.business_activity_type_key,row.activity_key]
+        .filter(Boolean)
+        .some(value => businessTypeLookup.has(String(value).trim().toLowerCase()));
+    });
+    const candidateKeys = new Set(activityCandidates.flatMap(row => [row.business_activity_type_key,row.activity_key].filter(Boolean).map(value => String(value).trim().toLowerCase())));
+    const rootActivityCandidates = activityCandidates.filter(row => {
+      const parent = String(row.parent_activity_type || "").trim().toLowerCase();
+      return !parent || !candidateKeys.has(parent);
+    });
+    const resolvedActivityCandidates = activityCandidates.length === 1 ? activityCandidates : rootActivityCandidates.length === 1 ? rootActivityCandidates : activityCandidates;
+    if (resolvedActivityCandidates.length !== 1) {
       issues.push(issue(projectionRunId,{
         tenant_id:tenantId,workspace_id:workspace.workspace_id,source_table:"business_activity_types",source_ref:brandKey,
         issue_code:activityCandidates.length > 1 ? "business_activity_context_ambiguous" : "business_activity_context_required",
@@ -208,7 +220,7 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
       }));
       continue;
     }
-    const activity = activityCandidates[0];
+    const activity = resolvedActivityCandidates[0];
     const activityKey = String(activity.business_activity_type_key || activity.activity_key);
     const activityContainer = addUnique(containers,containerRow({ tenantId,type:"activity",key:`activity:${activityKey}`,subjectType:"business_activity_type",subjectRef:activityKey,displayName:activity.label || activityKey,source:"business_activity_types" }));
     activityContainerByTenantAndKey.set(`${tenantId}|${activityKey}`,activityContainer);
