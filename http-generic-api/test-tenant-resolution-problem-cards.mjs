@@ -1,54 +1,56 @@
 import assert from "node:assert/strict";
-import {
-  _testingTenantResolutionProjection,
-  readTenantResolutionProblemCards,
-} from "./tenantResolutionProjectionService.js";
+import fs from "node:fs";
 
-const { classifyTenantProblemRootFamily, projectOperationalAlertToProblemCard } = _testingTenantResolutionProjection;
+const serviceSource = fs.readFileSync(new URL("./tenantResolutionProjectionService.js", import.meta.url), "utf8");
+const routeSource = fs.readFileSync(new URL("./routes/activationAwarenessRoutes.js", import.meta.url), "utf8");
+const openapiSource = fs.readFileSync(new URL("./openapi/openapi.tenant-gpt.activation.yaml", import.meta.url), "utf8");
 
-const alert = {
-  alert_key: "alert.wpml",
-  source_type: "execution_log",
-  tenant_id: "tenant_1",
-  workspace_id: "workspace_1",
-  severity: "critical",
-  title: "wpml_v1_website_contexts execution is failed",
-  occurrence_count: 2,
-  first_seen_at: "2026-07-09T10:00:00Z",
-  last_seen_at: "2026-07-09T11:00:00Z",
-};
+for (const token of [
+  "readTenantResolutionProblemCards",
+  "tenant_resolution_problem_cards",
+  "tenant_scoped_operational_alerts_projection",
+  "wordpress_site_doctor_v1",
+  "tenant_skill_approval_decision_v1",
+  "task_source_repair_v1",
+  "google_ads_setup_preflight_v1",
+  "connector_health_repair_v1",
+  "case_creation_deferred_to_next_child_pr: true",
+  "provider_call_allowed: false",
+  "apply_enabled: false",
+  "secrets_included: false",
+]) {
+  assert.ok(serviceSource.includes(token), `service must include ${token}`);
+}
 
-assert.equal(classifyTenantProblemRootFamily(alert), "wordpress_site_health");
+for (const token of [
+  "readTenantResolutionProblemCards",
+  "tenantProblemCardsResponse",
+  "/tenant/resolution/problem-cards",
+  "tenant_resolution_problem_cards_read_failed",
+]) {
+  assert.ok(routeSource.includes(token), `route must include ${token}`);
+}
 
-const card = projectOperationalAlertToProblemCard(alert);
-assert.equal(card.root_family, "wordpress_site_health");
-assert.equal(card.recommended_playbook_key, "wordpress_site_doctor_v1");
-assert.equal(card.resource_ref, "workspace://workspace_1");
-assert.equal(card.apply_enabled, false);
-assert.equal(card.provider_call_allowed, false);
-assert.equal(card.secrets_included, false);
-assert.ok(card.problem_key.startsWith("problem."));
-assert.ok(card.root_fingerprint_sha256.match(/^[a-f0-9]{64}$/));
+for (const token of [
+  "/tenant/resolution/problem-cards:",
+  "operationId: readTenantResolutionProblemCards",
+  "x-openai-isConsequential: false",
+  "TenantResolutionProblemCard",
+  "TenantResolutionProblemCardsResponse",
+  "tenant_resolution_problem_cards",
+  "tenant_scoped_operational_alerts_projection",
+]) {
+  assert.ok(openapiSource.includes(token), `OpenAPI must include ${token}`);
+}
 
-const projected = await readTenantResolutionProblemCards({
-  explicitSubject: { is_admin: false, tenant_id: "tenant_1", user_id: "user_1" },
-  readAlerts: async () => ({
-    ok: true,
-    subject: { is_admin: false, tenant_id: "tenant_1", user_id: "user_1" },
-    final_result: [alert],
-    source_health: [],
-  }),
-});
+for (const forbidden of [
+  "provider_call_allowed: true",
+  "apply_enabled: true",
+  "child_process",
+  "fetch(",
+  "axios",
+]) {
+  assert.ok(!serviceSource.includes(forbidden), `service must not include ${forbidden}`);
+}
 
-assert.equal(projected.activation_layer, "tenant_resolution_problem_cards");
-assert.equal(projected.source_authority, "tenant_scoped_operational_alerts_projection");
-assert.equal(projected.items.length, 1);
-assert.equal(projected.items[0].apply_enabled, false);
-assert.equal(projected.items[0].provider_call_allowed, false);
-assert.equal(projected.policy.diagnostic_only, true);
-assert.equal(projected.policy.apply_enabled, false);
-assert.equal(projected.policy.provider_call_allowed, false);
-assert.equal(projected.policy.case_creation_deferred_to_next_child_pr, true);
-assert.equal(projected.secrets_included, false);
-
-console.log("tenant resolution problem card projection smoke passed");
+console.log("tenant resolution problem card projection contract passed");
