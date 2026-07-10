@@ -195,8 +195,11 @@ export async function runRepositoryReconciliationOrchestrator(args = {}, deps = 
     );
     const results = [];
     for (const step of plan.steps.filter((item) => item.status === "active")) {
-      await assertRepositoryOperationLease({ owner:input.owner, repo:input.repo, branch:input.branch,
-        holder_run_id:input.operationId, resource_fingerprint:fingerprint }, { pool, now:deps.now });
+      await assertRepositoryOperationLeaseHolder({
+        lease_id: lease.lease.lease_id,
+        holder_run_id: input.operationId,
+        resource_fingerprint: lease.lease.resource_fingerprint,
+      }, { pool });
       const auth = stepAuthorization(input, step);
       const reservation = await reserve(pool, input, plan, step, deps);
       if (reservation.reused) { results.push({ step_key:step.step_key, run_id:reservation.runId, reused:true }); continue; }
