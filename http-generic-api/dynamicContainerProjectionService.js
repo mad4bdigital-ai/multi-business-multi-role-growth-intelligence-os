@@ -227,7 +227,7 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
     const activityEdge = relationshipRow({ tenantId,fromId:brandContainer.container_id,toId:activityContainer.container_id,source:"brand_paths.business_type_key" });
     relationships.set(activityEdge.relationship_id,activityEdge);
 
-    const supported = parseJson(activity.supported_workflows,[]);
+    const supported = parseJson(activity.supported_workflows,null);
     const workflowKeys = Array.isArray(supported)
       ? supported.map(String).map(value => value.trim()).filter(Boolean)
       : String(activity.supported_workflows || "").split(/[,;|\n]/).map(value => value.trim()).filter(Boolean);
