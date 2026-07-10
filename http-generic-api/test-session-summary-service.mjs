@@ -282,6 +282,31 @@ function makePool() {
 }
 
 {
+  const pool = makePool();
+  pool.state.surfacesRequiredForExecution = false;
+  const result = await summarizeAndStoreSession({
+    pool,
+    session: {
+      session_id: "sess-mandatory-graph-policy",
+      tenant_id: "tenant-1",
+      user_id: "user-1",
+      workspace_key: "platform_admin",
+      model_name: "test-model",
+      turn_count: 1,
+      drive_jsonl_id: null,
+    },
+    callModel: null,
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.verification.reason, null);
+  assert.equal(result.verification.graph_topology_present, true);
+  assert(
+    result.operation_log.some((event) => event.stage === "attach_session_summary_graph" && event.status === "succeeded"),
+    "mandatory graph policy should still attach graph memory when surfaces are authoritative but not required-for-execution"
+  );
+}
+
+{
   const redacted = redactSensitiveText("Authorization: Bearer sk_live_123 password=supersecret api_key:abc123");
   assert(!redacted.includes("sk_live_123"));
   assert(!redacted.includes("supersecret"));
