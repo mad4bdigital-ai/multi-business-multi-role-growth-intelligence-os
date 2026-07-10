@@ -125,22 +125,40 @@ function legacyClosureRouteClassification(route, fileName) {
   };
 }
 
-function collectOpenapiPaths() {
-  if (!fs.existsSync(OPENAPI_PATH)) return { operations: [], paths: [] };
-  try {
-    const doc = YAML.parse(fs.readFileSync(OPENAPI_PATH, "utf8"));
-    const operations = [];
-    const paths = [];
-    for (const [pathKey, item] of Object.entries(doc.paths || {})) {
-      paths.push(pathKey);
-      for (const method of Object.keys(item || {})) {
-        if (METHODS.has(method)) operations.push(`${method.toUpperCase()} ${pathKey}`);
-      }
-    }
-    return { operations: unique(operations), paths: unique(paths) };
-  } catch {
-    return { operations: [], paths: [] };
+function listOpenapiSpecFiles() {
+  const files = [];
+  if (fs.existsSync(OPENAPI_PATH)) files.push(OPENAPI_PATH);
+  if (fs.existsSync(OPENAPI_DIR)) {
+    files.push(...fs.readdirSync(OPENAPI_DIR, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && /\.(?:ya?ml|json)$/i.test(entry.name))
+      .map((entry) => path.join(OPENAPI_DIR, entry.name))
+      .sort());
   }
+  return unique(files);
+}
+
+function parseOpenapiDocument(filePath) {
+  const source = fs.readFileSync(filePath, "utf8");
+  return filePath.toLowerCase().endsWith(".json") ? JSON.parse(source) : YAML.parse(source);
+}
+
+function collectOpenapiPaths() {
+  const operations = [];
+  const paths = [];
+  for (const filePath of listOpenapiSpecFiles()) {
+    try {
+      const doc = parseOpenapiDocument(filePath);
+      for (const [pathKey, item] of Object.entries(doc.paths || {})) {
+        paths.push(pathKey);
+        for (const method of Object.keys(item || {})) {
+          if (METHODS.has(method)) operations.push(`${method.toUpperCase()} ${pathKey}`);
+        }
+      }
+    } catch {
+      continue;
+    }
+  }
+  return { operations: unique(operations), paths: unique(paths) };
 }
 
 function classifyRoute(route, source = "") {
