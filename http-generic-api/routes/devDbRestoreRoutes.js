@@ -54,20 +54,43 @@ function decryptArtifact(artifact, keyDoc) {
   return Buffer.concat([decipher.update(artifact), decipher.final()]);
 }
 
-function splitSqlStatements(sqlText) {
-  const statements = [];
-  let current = "";
-  for (const line of sqlText.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("--")) continue;
-    current += (current ? "\n" : "") + line;
-    if (trimmed.endsWith(";")) {
-      statements.push(current);
-      current = "";
+async function consumeSqlLine(conn, state, line) {
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.startsWith("--")) return;
+  state.current += (state.current ? "\n" : "") + line;
+  if (trimmed.endsWith(";")) {
+    await conn.query(state.current);
+    state.current = "";
+    state.executed += 1;
+  }
+}
+
+async function executeSqlBufferStatements(conn, sqlBuffer) {
+  const decoder = new StringDecoder("utf8");
+  const state = { current: "", executed: 0 };
+  const chunkSize = Number(process.env.DEV_DB_RESTORE_SQL_CHUNK_BYTES || 1024 * 1024);
+  let carry = "";
+
+  for (let offset = 0; offset < sqlBuffer.length; offset += chunkSize) {
+    const text = carry + decoder.write(sqlBuffer.subarray(offset, Math.min(offset + chunkSize, sqlBuffer.length)));
+    const lines = text.split(/\r?\n/);
+    carry = lines.pop() || "";
+    for (const line of lines) {
+      await consumeSqlLine(conn, state, line);
     }
   }
-  if (current.trim()) statements.push(current);
-  return statements;
+
+  const tail = carry + decoder.end();
+  if (tail) {
+    for (const line of tail.split(/\r?\n/)) {
+      await consumeSqlLine(conn, state, line);
+    }
+  }
+  if (state.current.trim()) {
+    await conn.query(state.current);
+    state.executed += 1;
+  }
+  return state.executed;
 }
 
 async function getTableCounts(conn) {
