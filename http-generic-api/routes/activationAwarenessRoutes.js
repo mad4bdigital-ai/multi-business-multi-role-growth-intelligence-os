@@ -16,6 +16,7 @@ import {
   updateOperationalAlertLifecycle,
 } from "../operationalAlertService.js";
 import { readTenantResolutionProblemCards } from "../tenantResolutionProjectionService.js";
+import { createTenantResolutionCase } from "../tenantResolutionCaseService.js";
 import { acknowledgeActivationRun, readActivationRunArchive } from "../activationSessionLifecycleService.js";
 import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
 
