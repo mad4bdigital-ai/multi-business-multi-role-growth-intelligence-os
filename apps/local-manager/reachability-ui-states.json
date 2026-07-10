@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "surface": "local_manager_reachability_public_states",
+  "states": [
+    { "key": "connected", "label": "Connected", "severity": "success", "headline": "Local Connector is connected.", "body": "This device is selected and passed the latest reachability checks.", "primary_action": null, "allowed_actions": ["view_details"], "terminal": false },
+    { "key": "needs_attention", "label": "Needs attention", "severity": "warning", "headline": "Connection needs attention.", "body": "The device is known, but one or more route or heartbeat checks are unhealthy.", "primary_action": "view_recovery_plan", "allowed_actions": ["view_details", "view_recovery_plan", "retry_status_check"], "terminal": false },
+    { "key": "relink_required", "label": "Relink required", "severity": "warning", "headline": "Relink this device.", "body": "A fresh Local Manager authorization is required before privileged recovery can continue.", "primary_action": "forget_device_and_link_again", "allowed_actions": ["forget_device_and_link_again", "view_details"], "terminal": false },
+    { "key": "choose_device", "label": "Choose device", "severity": "info", "headline": "Choose the device to repair.", "body": "Multiple devices are available. Select the target before any recovery action.", "primary_action": "choose_device", "allowed_actions": ["choose_device", "view_details"], "terminal": false },
+    { "key": "admin_repair_required", "label": "Admin repair required", "severity": "error", "headline": "Admin repair required.", "body": "User-safe recovery cannot complete from this screen. An admin must diagnose the break-glass path separately.", "primary_action": null, "allowed_actions": ["view_details"], "terminal": false },
+    { "key": "verification_pending", "label": "Verification pending", "severity": "info", "headline": "Waiting for verification.", "body": "A recovery step was acknowledged. Success is not confirmed until same-cycle readback passes.", "primary_action": "retry_status_check", "allowed_actions": ["view_details", "retry_status_check"], "terminal": false },
+    { "key": "recovery_failed", "label": "Recovery failed", "severity": "error", "headline": "Recovery could not be verified.", "body": "The attempted recovery did not pass readback. No recovered status was applied.", "primary_action": "view_recovery_plan", "allowed_actions": ["view_details", "view_recovery_plan"], "terminal": true }
+  ],
+  "copy_rules": {
+    "never_show": ["connector_secret", "device_token", "signed_installer_url", "raw_hostname", "raw_machine_guid", "authorization_header"],
+    "must_show_when_available": ["canonical_device_id", "selected_device_label", "last_verified_at", "status_reason_code"]
+  }
+}
