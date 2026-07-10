@@ -2,6 +2,7 @@
 import fs from "node:fs/promises";
 import { createWriteStream } from "node:fs";
 import path from "node:path";
+import { spawn } from "node:child_process";
 import { createHash, randomBytes, createCipheriv } from "node:crypto";
 import { gzip } from "node:zlib";
 import { promisify } from "node:util";
@@ -9,9 +10,11 @@ import { getPool } from "../db.js";
 
 const gzipAsync = promisify(gzip);
 const EXPORT_ROOT = process.env.DB_BACKUP_EXPORT_ROOT || "/tmp/growth-os-db-backups";
+const JOB_ROOT = path.join(EXPORT_ROOT, "jobs");
 const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || process.env.AUTH_BASE_URL || "https://auth.mad4b.com").replace(/\/$/, "");
 
 function clean(value = "") { return String(value ?? "").trim(); }
+function safeJobId(value = "") { const v = clean(value); return /^[a-f0-9]{24}$/.test(v) ? v : ""; }
 function parseArgs(argv = process.argv.slice(2)) {
   const args = { action: "create", retention_minutes: "30" };
   for (const arg of argv) {
@@ -35,6 +38,46 @@ function sqlValue(value) {
 async function sha256File(filePath) {
   const data = await fs.readFile(filePath);
   return createHash("sha256").update(data).digest("hex");
+}
+async function writeJobStatus(jobId, payload = {}) {
+  const id = safeJobId(jobId);
+  if (!id) return;
+  await fs.mkdir(JOB_ROOT, { recursive: true, mode: 0o700 });
+  const statusPath = path.join(JOB_ROOT, `${id}.json`);
+  await fs.writeFile(statusPath, `${JSON.stringify({ job_id: id, updated_at: new Date().toISOString(), ...payload }, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+}
+async function readJobStatus(jobId) {
+  const id = safeJobId(jobId);
+  if (!id) throw new Error("job_id must be a 24 character hex id.");
+  const statusPath = path.join(JOB_ROOT, `${id}.json`);
+  return JSON.parse(await fs.readFile(statusPath, "utf8"));
+}
+async function startBackgroundExport(args = {}) {
+  const jobId = randomBytes(12).toString("hex");
+  const retentionMinutes = Math.max(5, Math.min(Number(args.retention_minutes || 30), 120));
+  await writeJobStatus(jobId, {
+    ok: true,
+    action: "create",
+    status: "running",
+    started_at: new Date().toISOString(),
+    retention_minutes: retentionMinutes,
+    secrets_included: false
+  });
+  const child = spawn(process.execPath, [process.argv[1], "--action=create", `--retention-minutes=${retentionMinutes}`, `--job-id=${jobId}`], {
+    detached: true,
+    stdio: "ignore",
+    env: { ...process.env, DB_BACKUP_EXPORT_JOB_ID: jobId }
+  });
+  child.unref();
+  console.log(JSON.stringify({
+    ok: true,
+    action: "start",
+    job_id: jobId,
+    status: "running",
+    retention_minutes: retentionMinutes,
+    note: "Encrypted DB backup export started in a detached server process. Poll with --action=status --job-id=<job_id>.",
+    secrets_included: false
+  }, null, 2));
 }
 async function writeLine(stream, line = "") {
   await new Promise((resolve, reject) => stream.write(`${line}\n`, (err) => err ? reject(err) : resolve()));
@@ -86,7 +129,16 @@ async function dumpDatabase(conn, sqlPath) {
 }
 async function main() {
   const args = parseArgs();
-  if (clean(args.action || "create") !== "create") throw new Error("Only --action=create is supported.");
+  const action = clean(args.action || "create");
+  if (action === "start") return startBackgroundExport(args);
+  if (action === "status") {
+    const status = await readJobStatus(args.job_id);
+    console.log(JSON.stringify({ ok: true, action: "status", ...status }, null, 2));
+    return;
+  }
+  if (action !== "create") throw new Error("Unsupported --action. Use create, start, or status.");
+  const jobId = safeJobId(args.job_id || process.env.DB_BACKUP_EXPORT_JOB_ID || "");
+  if (jobId) await writeJobStatus(jobId, { ok: true, action: "create", status: "running", started_at: new Date().toISOString(), secrets_included: false });
   await fs.mkdir(EXPORT_ROOT, { recursive: true });
   const exportId = randomBytes(12).toString("hex");
   const dir = path.join(EXPORT_ROOT, exportId);
@@ -162,8 +214,10 @@ async function main() {
   const download = { export_id: exportId, token_sha256: tokenSha, expires_at: expiresAt, files: [path.basename(artifactPath), path.basename(manifestPath), path.basename(keyPath)] };
   await fs.writeFile(path.join(dir, "download.json"), `${JSON.stringify(download, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
   const url = (file) => `${PUBLIC_BASE_URL}/backup-artifacts/export/${exportId}/${encodeURIComponent(file)}?token=${encodeURIComponent(token)}`;
-  console.log(JSON.stringify({
+  const result = {
     ok: true,
+    action: "create",
+    status: "succeeded",
     export_id: exportId,
     expires_at: expiresAt,
     artifact_filename: path.basename(artifactPath),
@@ -176,7 +230,27 @@ async function main() {
     size_bytes: artifactStat.size,
     table_count: dumpStats.tableCount,
     row_count: dumpStats.rowCount,
-    note: "Encrypted DB backup export created on server. Download URLs are temporary."
-  }, null, 2));
+    completed_at: new Date().toISOString(),
+    note: "Encrypted DB backup export created on server. Download URLs are temporary.",
+    secret_bearing_urls_included: true,
+    secrets_included: false
+  };
+  if (jobId) await writeJobStatus(jobId, result);
+  console.log(JSON.stringify(result, null, 2));
 }
-main().catch((err) => { console.error(JSON.stringify({ ok: false, error: { code: err.code || "db_backup_export_failed", message: err.message } }, null, 2)); process.exitCode = 1; });
+main().catch(async (err) => {
+  const args = parseArgs();
+  const jobId = safeJobId(args.job_id || process.env.DB_BACKUP_EXPORT_JOB_ID || "");
+  if (jobId) {
+    await writeJobStatus(jobId, {
+      ok: false,
+      action: clean(args.action || "create"),
+      status: "failed",
+      completed_at: new Date().toISOString(),
+      error: { code: err.code || "db_backup_export_failed", message: err.message },
+      secrets_included: false
+    }).catch(() => {});
+  }
+  console.error(JSON.stringify({ ok: false, error: { code: err.code || "db_backup_export_failed", message: err.message }, secrets_included: false }, null, 2));
+  process.exitCode = 1;
+});
