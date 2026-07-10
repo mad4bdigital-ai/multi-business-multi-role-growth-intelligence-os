@@ -131,7 +131,7 @@ function makePool() {
           storage_type: "sql_tables",
           active_status: "active",
           authority_status: "authoritative",
-          required_for_execution: "TRUE",
+          required_for_execution: state.surfacesRequiredForExecution === false ? "FALSE" : "TRUE",
           resolution_rule: "sql_primary",
           source_surface_id: null,
           source_surface_role: null,
