@@ -116,6 +116,7 @@ export const testCommands = [
   "node test-activation-followup-hardening.mjs",
   "node test-admin-control.mjs",
   "node test-activation-run-archive-admin-control-read.mjs",
+  "node test-repository-reconciliation-automation.mjs",
   "node test-admin-db-tool-dispatch-backend-auth.mjs",
   "node test-admin-tool-registry-updated-at-column.mjs",
   "node test-admin-tool-registry-tags-text.mjs",
