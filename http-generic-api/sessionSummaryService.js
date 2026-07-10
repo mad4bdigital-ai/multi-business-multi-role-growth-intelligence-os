@@ -1250,14 +1250,15 @@ async function existingSummary(pool, sessionId) {
 }
 
 async function attachSessionSummaryToGraph({ pool, session, summaryId, insight }) {
+  const graphPolicy = await resolveSessionSummaryGraphPolicy({ pool, session });
   const jsonAssetSurfaceAuthority = await assertSurfaceAuthority(
     SURFACE_KEYS.JSON_ASSET_REGISTRY,
-    { requireExecution: true },
+    { requireExecution: graphPolicy.require_surface_execution === true },
     { pool }
   );
   const platformGraphSurfaceAuthority = await assertSurfaceAuthority(
     SURFACE_KEYS.PLATFORM_GRAPH_MEMORY,
-    { requireExecution: true },
+    { requireExecution: graphPolicy.require_surface_execution === true },
     { pool }
   );
   const tenantId = session.tenant_id || PLATFORM_TENANT_ID;
