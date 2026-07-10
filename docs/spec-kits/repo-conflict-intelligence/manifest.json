@@ -1,0 +1,26 @@
+{
+  "spec_key": "repo_conflict_intelligence_v1",
+  "status": "draft_implementation",
+  "version": "0.1.0",
+  "owner": "repository_governance",
+  "surfaces": {
+    "admin": [
+      "repo_conflict_intelligence_analyze",
+      "repo_conflict_intelligence_plan",
+      "repo_conflict_intelligence_semantic_preview"
+    ],
+    "tenant": [
+      "tenant_repo_conflict_intelligence_analyze",
+      "tenant_repo_conflict_intelligence_plan"
+    ]
+  },
+  "required_invariants": {
+    "no_provider_mutation_by_default": true,
+    "no_secret_response": true,
+    "typed_resolution_strategies": true,
+    "path_policy_classification": true,
+    "manual_required_for_sensitive_paths": true,
+    "clean_branch_replay_for_bot_generated_conflicts": true,
+    "ci_required_before_merge": true
+  }
+}
