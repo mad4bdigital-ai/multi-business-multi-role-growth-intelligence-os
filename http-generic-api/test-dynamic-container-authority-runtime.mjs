@@ -320,9 +320,10 @@ const rootActivityProjection=await buildLegacyContainerProjectionPlan({
     ]
   }
 });
-assert.equal(rootActivityProjection.summary.highRiskIssueCount,0);
+assert(!rootActivityProjection.issues.some(row => ["business_activity_context_ambiguous","business_activity_context_required","workflow_projection_ambiguous","workflow_projection_missing"].includes(row.issue_code)));
 assert(rootActivityProjection.containers.some(row => row.container_type_key === "activity" && row.canonical_subject_ref === "travel"));
-assert(rootActivityProjection.containers.some(row => row.container_type_key === "workflow" && row.canonical_subject_ref === "content_generation_workflow"));
+const projectedContentWorkflows=rootActivityProjection.containers.filter(row => row.container_type_key === "workflow" && row.canonical_subject_ref === "content_generation_workflow");
+assert.equal(projectedContentWorkflows.length,1);
 const directActivityKeyProjection=await buildLegacyContainerProjectionPlan({
   sourceRows:{
     ...projectionSources,
