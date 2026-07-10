@@ -416,6 +416,15 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
+  router.post("/tenant/resolution/cases", requireTenantUserJwt, async (req, res) => {
+    try {
+      const result = await tenantResolutionCaseCreateResponse(req);
+      return res.status(result.created ? 201 : 200).json(result);
+    } catch (err) {
+      return errorResponse(res, err, "tenant_resolution_case_create_failed");
+    }
+  });
+
   router.get("/tenant/activation/dynamic-tabs/detail", requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await detailResponse(req, false));
