@@ -146,11 +146,13 @@ export function buildActivationHostGatewayRoutes({
     delete req.headers.cookie;
 
     if (isOAuthPath(pathname)) {
-      return res.status(404).json(errorResponse(
-        "ACTIVATION_HOST_OAUTH_NOT_ALLOWED",
-        "OAuth endpoints are only served from auth.mad4b.com.",
-        req,
-      ));
+      req.activationHostGateway = {
+        host,
+        enforced: true,
+        oauth_handoff: true,
+        secrets_included: false,
+      };
+      return next();
     }
 
     if (!isActivationHostAllowedPath(pathname)) {
