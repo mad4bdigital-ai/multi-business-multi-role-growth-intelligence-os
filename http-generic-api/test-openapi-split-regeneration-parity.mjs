@@ -96,7 +96,10 @@ for (const signature of [
 assert.equal([...adminCoreOps].some((signature) => signature.includes(" /activation/") || signature.includes(" /tenant/activation/")), false);
 assert.equal([...tenantCoreOps].some((signature) => signature.includes(" /activation/") || signature.includes(" /tenant/activation/")), false);
 assert.equal([...adminActivationOps].every((signature) => signature.includes(" /activation/")), true);
-assert.equal([...tenantActivationOps].every((signature) => signature.includes(" /tenant/activation/")), true);
+assert.equal(
+  [...tenantActivationOps].every((signature) => signature.includes(" /tenant/activation/") || signature.includes(" /tenant/resolution/")),
+  true,
+);
 
 for (const [label, doc, scheme] of [
   ["admin core", adminCore, "backendBearerAuth"],
