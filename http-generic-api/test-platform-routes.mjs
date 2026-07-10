@@ -190,8 +190,12 @@ section("activation host gateway boundary");
   ok("activation host root uses activation scope", root.body.scope === "activation", `got ${root.body.scope}`);
 
   const oauth = await getWithHost("/auth/oauth/authorize", "activation.mad4b.com");
-  ok("activation host rejects OAuth routes", oauth.status === 404, `got ${oauth.status}`);
-  ok("activation host OAuth rejection is explicit", oauth.body.error?.code === "ACTIVATION_HOST_OAUTH_NOT_ALLOWED", JSON.stringify(oauth.body));
+  ok("activation host lets OAuth handoff pass gateway boundary", oauth.body.error?.code !== "ACTIVATION_HOST_OAUTH_NOT_ALLOWED", JSON.stringify(oauth.body));
+  ok("activation host OAuth handoff reaches downstream router boundary in smoke app", oauth.status === 404, `got ${oauth.status}`);
+
+  const sensitiveAuthRoute = await postWithHost("/auth/platform-jwt/issue", "activation.mad4b.com", {});
+  ok("activation host rejects sensitive auth routes", sensitiveAuthRoute.status === 404, `got ${sensitiveAuthRoute.status}`);
+  ok("activation host sensitive auth rejection is explicit", sensitiveAuthRoute.body.error?.code === "ACTIVATION_HOST_ROUTE_NOT_ALLOWED", JSON.stringify(sensitiveAuthRoute.body));
 
   const coreRoute = await getWithHost("/system/tools", "activation.mad4b.com");
   ok("activation host rejects core routes", coreRoute.status === 404, `got ${coreRoute.status}`);
