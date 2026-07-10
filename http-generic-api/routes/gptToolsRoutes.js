@@ -65,6 +65,7 @@ import {
   refreshGrowthIntelligenceReadinessAdmin,
 } from "../growthIntelligenceAdminDecisions.js";
 import { issueRuntimeDispatchCertification } from "../runtimeDispatchCertificationIssuer.js";
+import { serializeDbControlQueryResult } from "./adminCliRoutes.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -114,9 +115,25 @@ export const CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT = Object.freeze({
     "system_tools",
     "device_tools",
     "repo_inspect",
+    "repo_automation",
     "connector_dispatch",
     "any_governed_tool_response",
   ]),
+  dynamic_ttl: Object.freeze({
+    supported: true,
+    option_keys: Object.freeze([
+      "response_options.chunk_ttl_ms",
+      "response_options.chunk_ttl_minutes",
+      "chunk_ttl_ms",
+      "chunk_ttl_minutes",
+      "response_chunk_ttl_ms",
+      "response_chunk_ttl_minutes",
+    ]),
+    default_ttl_ms: DEFAULT_TOOL_RESPONSE_CHUNK_TTL_MS,
+    min_ttl_ms: MIN_TOOL_RESPONSE_CHUNK_TTL_MS,
+    max_ttl_ms: MAX_TOOL_RESPONSE_CHUNK_TTL_MS,
+    extension_policy: "extend_cache_on_each_successful_chunk_read",
+  }),
   fallback_allowed_only_after: "all_chunks_read_or_chunk_cache_expired_or_authorized_tool_unavailable",
   secrets_included: false,
 });
@@ -411,10 +428,10 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "repo_inspect",
     displayName: "Repository Inspect",
-    description: "Read-only repository inspection. Actions: list, read, search, git_status, git_log, git_show, git_diff_name_status. Paths are repo-confined; secrets/build folders are blocked. Git helpers return metadata only and never expose .git internals.",
+    description: "Read-only repository inspection. Actions: list, read, search, git_status, git_log, git_show, git_diff_name_status. Paths are repo-confined; secrets/build folders are blocked. Git helpers return metadata only and never expose .git internals. Large responses must use the governed response chunk contract with dynamic TTL support.",
     method: "VIRTUAL",
     path: "internal://repo-inspect",
-    tags: ["repo", "read_only", "diagnostics"],
+    tags: ["repo", "read_only", "diagnostics", "chunk_contract", "dynamic_ttl"],
     inputSchema: {
       type: "object",
       required: ["action"],
@@ -431,6 +448,16 @@ const VIRTUAL_ADMIN_TOOLS = [
         recursive: { type: "boolean", default: false },
         max_entries: { type: "integer", minimum: 1, maximum: 500, default: 100 },
         max_chars: { type: "integer", minimum: 1000, maximum: 50000, default: 12000 },
+        response_options: {
+          type: "object",
+          description: "Optional governed response envelope controls. Use chunk_ttl_ms or chunk_ttl_minutes to extend durable response chunk availability.",
+          properties: {
+            max_chars: { type: "integer", minimum: 5000, maximum: 150000 },
+            chunk_ttl_ms: { type: "integer", minimum: 300000, maximum: 7200000 },
+            chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 120 },
+          },
+          additionalProperties: true,
+        },
       },
     },
   },
@@ -647,10 +674,10 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "response_chunk_read",
     displayName: "Read Tool Response Chunk",
-    description: "Read the next chunk of an oversized governed tool response. Reads the in-process cache first and recovers from durable MySQL storage after cache loss or process restart.",
+    description: "Read the next chunk of an oversized governed tool response. Reads the in-process cache first and recovers from durable MySQL storage after cache loss or process restart. Supports dynamic sliding TTL through chunk_ttl_ms or chunk_ttl_minutes.",
     method: "VIRTUAL",
     path: "internal://response-chunk-read",
-    tags: ["tooling", "pagination", "read_only"],
+    tags: ["tooling", "pagination", "read_only", "dynamic_ttl"],
     inputSchema: {
       type: "object",
       required: ["chunk_id"],
@@ -658,6 +685,16 @@ const VIRTUAL_ADMIN_TOOLS = [
         chunk_id: { type: "string" },
         cursor: { type: "integer", minimum: 0, default: 0 },
         max_chars: { type: "integer", minimum: 5000, maximum: 150000, default: 45000 },
+        chunk_ttl_ms: { type: "integer", minimum: 300000, maximum: 7200000 },
+        chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 120 },
+        response_options: {
+          type: "object",
+          properties: {
+            chunk_ttl_ms: { type: "integer", minimum: 300000, maximum: 7200000 },
+            chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 120 },
+          },
+          additionalProperties: true,
+        },
       },
     },
   },
@@ -764,6 +801,15 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "admin_control_db_mutation_serialization_smoke",
+    displayName: "Admin DB Mutation Serialization Smoke",
+    description: "Run one fixed no-op DB UPDATE through the same serializer used by admin_control DB single-statement mutations. No freeform SQL, row data, provider call, external write, or secret return.",
+    method: "VIRTUAL",
+    path: "internal://admin-control-db-mutation-serialization-smoke",
+    tags: ["admin", "db", "serialization", "smoke", "state_changing", "readback", "no_freeform_sql", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: { type: "object", additionalProperties: false },
+  },
+  {
     name: "sql_cache_runtime_diagnostics_get",
     displayName: "SQL Cache Runtime Diagnostics Get",
     description: "Read process-lifetime SQL cache counters, derived hit/miss/error metrics, policy freshness, circuit/cooldown state, and threshold-based operational alerts. No cache or policy mutation is performed.",
@@ -841,10 +887,10 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "admin_tool_catalog_search",
     displayName: "Search Admin Tool Catalog",
-    description: "Search and paginate the full governed admin tool catalog through callAdminTool when the direct list surface cannot pass cursor/query parameters.",
+    description: "Search and paginate the full governed admin tool catalog through callAdminTool when the direct list surface cannot pass cursor/query parameters. Large catalog responses must preserve governed chunk continuation and dynamic TTL controls.",
     method: "VIRTUAL",
     path: "internal://admin-tool-catalog-search",
-    tags: ["tooling", "catalog", "pagination", "read_only"],
+    tags: ["tooling", "catalog", "pagination", "read_only", "chunk_contract", "dynamic_ttl"],
     inputSchema: {
       type: "object",
       properties: {
@@ -852,6 +898,16 @@ const VIRTUAL_ADMIN_TOOLS = [
         tag: { type: "string" },
         cursor: { type: "integer", minimum: 0, default: 0 },
         limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+        response_options: {
+          type: "object",
+          description: "Optional governed response envelope controls. Use chunk_ttl_ms or chunk_ttl_minutes to extend durable response chunk availability.",
+          properties: {
+            max_chars: { type: "integer", minimum: 5000, maximum: 150000 },
+            chunk_ttl_ms: { type: "integer", minimum: 300000, maximum: 7200000 },
+            chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 120 },
+          },
+          additionalProperties: true,
+        },
       },
       additionalProperties: false,
     },
@@ -2308,7 +2364,33 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       };
     }
   }
-  if (callerType === "admin" && toolKey === "capability_resolution_envelope_lifecycle") {
+  if (callerType === "admin" && toolKey === "admin_control_db_mutation_serialization_smoke") {
+      try {
+        const [result, fields] = await getPool().query("UPDATE execution_policies SET updated_at = updated_at WHERE 1 = 0");
+        const serialized = serializeDbControlQueryResult(result, fields);
+        return {
+          status: 200,
+          body: {
+            ok: true,
+            smoke_key: "admin_control_db_mutation_serialization_smoke",
+            sql_kind: "fixed_noop_update",
+            statement_count: 1,
+            ...serialized,
+            readback_assertions: {
+              mutation_serialized: serialized.statement_result_type === "mutation",
+              affected_rows_present: Number.isFinite(serialized.result?.affectedRows),
+              changed_rows_present: Number.isFinite(serialized.result?.changedRows),
+              secrets_included_false: serialized.secrets_included === false,
+            },
+            secrets_included: false,
+          },
+        };
+      } catch (err) {
+        return { status: err?.status || 500, body: { ok: false, error: { code: err?.code || "admin_control_db_mutation_serialization_smoke_failed", message: err?.message }, secrets_included: false } };
+      }
+    }
+
+    if (callerType === "admin" && toolKey === "capability_resolution_envelope_lifecycle") {
       try {
         const result = await transitionCapabilityEnvelopeLifecycle({
           pool: getPool(),
