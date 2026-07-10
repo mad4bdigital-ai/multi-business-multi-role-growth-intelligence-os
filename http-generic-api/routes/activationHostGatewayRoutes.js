@@ -20,12 +20,17 @@ const ACTIVATION_SCHEMA_FILES_BY_PATH = new Map([
 const ALLOWED_EXACT_PATHS = new Set([
   "/",
   "/health",
+  "/auth/oauth",
+  "/auth/google",
+  "/auth/login",
+  "/auth/register",
   ...ACTIVATION_SCHEMA_FILES_BY_PATH.keys(),
 ]);
 
 const ALLOWED_PREFIXES = [
   "/activation/",
   "/tenant/activation/",
+  "/auth/oauth/",
 ];
 
 function requestHost(req) {
