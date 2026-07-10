@@ -16,6 +16,7 @@ const BASE_SHA = "a".repeat(40);
 const HEAD_SHA = "b".repeat(40);
 const COMMIT_SHA = "c".repeat(40);
 const TREE_SHA = "d".repeat(40);
+const NEW_TREE_SHA = "2".repeat(40);
 const BLOB_SHA = "e".repeat(40);
 const PATCH_BLOB_SHA = "1".repeat(40);
 
@@ -406,7 +407,7 @@ function queuedFetch(entries, calls = []) {
       { status: 200, payload: { type: "file", sha: PATCH_BLOB_SHA, encoding: "base64", content: Buffer.from("export const alpha = true;\nexport const beta = false;\n").toString("base64") } },
       { status: 201, payload: { sha: BLOB_SHA } },
       { status: 201, payload: { sha: PATCH_BLOB_SHA } },
-      { status: 201, payload: { sha: TREE_SHA } },
+      { status: 201, payload: { sha: NEW_TREE_SHA } },
       { status: 201, payload: { sha: COMMIT_SHA } },
       { status: 201, payload: { ref: "refs/heads/gpt/atomic-change-set", object: { sha: COMMIT_SHA } } },
       { status: 200, payload: { object: { sha: COMMIT_SHA } } },
@@ -427,6 +428,7 @@ function queuedFetch(entries, calls = []) {
   assert.equal(blobCalls.length, 2);
   assert.equal(blobCalls[1].body.content, "export const alpha = true;\nexport const beta = true;\n");
   const commitCall = calls.find((call) => call.url.endsWith("/git/commits") && call.method === "POST");
+  assert.equal(commitCall.body.tree, NEW_TREE_SHA);
   assert.deepEqual(commitCall.body.parents, [BASE_SHA]);
 }
 
