@@ -98,6 +98,7 @@ surfaces:
       tenant_operation_ids:
         - activateSession
         - readTenantActivationOperationalAttention
+        - readTenantResolutionProblemCards
         - readTenantActivationAwareness
         - readTenantActivationDynamicTabDetail
 
