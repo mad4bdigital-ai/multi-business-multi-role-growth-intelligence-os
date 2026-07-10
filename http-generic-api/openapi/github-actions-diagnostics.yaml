@@ -1,0 +1,128 @@
+openapi: 3.1.0
+info:
+  title: GitHub Actions Diagnostics Registry Paths
+  version: 2026-07-10
+  summary: OpenAPI coverage for GitHub Actions diagnostics endpoints registered by migration 1031.
+  description: Documents the read-only diagnostics paths seeded by 1031_sprint69_github_actions_diagnostics_endpoints_seed.sql. The write-capable review endpoint remains governed by typed approval and is intentionally not promoted for automatic execution here.
+servers:
+  - url: https://api.github.com
+    description: GitHub REST API
+tags:
+  - name: github-actions-diagnostics
+    description: GitHub Actions workflow diagnostics endpoints for run jobs and pending deployment readback.
+paths:
+  /repos/{owner}/{repo}/actions/runs/{run_id}/jobs:
+    get:
+      tags:
+        - github-actions-diagnostics
+      operationId: githubListJobsForWorkflowRun
+      summary: List jobs for a workflow run
+      description: Read-only diagnostics endpoint used to inspect workflow job state for one GitHub Actions run. No provider mutation and no secret response are expected.
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9_.-]+$'
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9_.-]+$'
+        - name: run_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+        - name: filter
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [latest, all]
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Workflow run jobs list.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  total_count:
+                    type: integer
+                  jobs:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+        '401':
+          description: Authentication failed.
+        '403':
+          description: Authorization failed.
+        '404':
+          description: Repository or workflow run not found.
+        '422':
+          description: Invalid request.
+        '429':
+          description: Rate limited.
+  /repos/{owner}/{repo}/actions/runs/{run_id}/pending_deployments:
+    get:
+      tags:
+        - github-actions-diagnostics
+      operationId: githubGetPendingDeploymentsForWorkflowRun
+      summary: Get pending deployments for a workflow run
+      description: Read-only diagnostics endpoint used before any protected environment approval attempt. No provider mutation and no secret response are expected.
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9_.-]+$'
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9_.-]+$'
+        - name: run_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Pending deployment environments for the workflow run.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+        '401':
+          description: Authentication failed.
+        '403':
+          description: Authorization failed.
+        '404':
+          description: Repository or workflow run not found.
+        '429':
+          description: Rate limited.
