@@ -827,6 +827,8 @@ export async function loadSessionSummaryGraphMemory({
   session_id = null,
   tenant_id = null,
   user_id = null,
+  workspace_key = null,
+  brand_key = null,
   limit = 10,
 } = {}) {
   const summarySurfaceAuthority = await assertSurfaceAuthority(
