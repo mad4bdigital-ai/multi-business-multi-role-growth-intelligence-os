@@ -1368,7 +1368,14 @@ async function attachSessionSummaryToGraph({ pool, session, summaryId, insight }
       brand_key: session.brand_key,
       role_key: null,
     } : null,
-  ].filter(Boolean);
+  ].filter(Boolean).filter((link) => graphPolicy.allowed_scope_types.includes(link.scope_type));
+
+  if (!memoryScopeLinks.some((link) => link.scope_type === "conversation")) {
+    const err = new Error("Session summary graph policy must allow conversation scope for mandatory graph attachment.");
+    err.status = 422;
+    err.code = "session_summary_graph_policy_scope_invalid";
+    throw err;
+  }
 
   for (const link of memoryScopeLinks) {
     await pool.query(
