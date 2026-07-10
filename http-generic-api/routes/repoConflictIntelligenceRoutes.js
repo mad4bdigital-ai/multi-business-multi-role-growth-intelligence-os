@@ -64,5 +64,9 @@ export function buildRepoConflictIntelligenceRoutes({ requireBackendApiKey, requ
     try { return res.status(200).json({ scope: "tenant", ...buildRepoConflictPlan(req.body || {}), execution_allowed: false, safe_next_actions: ["request_admin_resolution"], secrets_included: false }); } catch (error) { return errorResponse(res, error, "tenant_repo_conflict_plan_failed"); }
   });
 
+  router.post("/me/repo-conflict-intelligence/resolve-dry-run", requireUserJwt, async (req, res) => {
+    try { return res.status(200).json(buildTenantConflictResolutionDryRun(req.body || {})); } catch (error) { return errorResponse(res, error, "tenant_repo_conflict_resolver_dry_run_failed"); }
+  });
+
   return router;
 }
