@@ -1,6 +1,15 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
-import { analyzeRepoConflict, buildRepoConflictPlan, buildTenantConflictSummary, previewSemanticPatches } from "../repoConflictIntelligenceService.js";
+import {
+  analyzeRepoConflict,
+  buildConflictCaseStudy,
+  buildPrAutomationPreview,
+  buildRepoConflictPlan,
+  buildRepoConflictResolutionDryRun,
+  buildTenantConflictResolutionDryRun,
+  buildTenantConflictSummary,
+  previewSemanticPatches,
+} from "../repoConflictIntelligenceService.js";
 
 function verifyUserJwt(authorization) {
   if (!authorization || !authorization.startsWith("Bearer ")) return null;
