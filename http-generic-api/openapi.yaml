@@ -1028,6 +1028,217 @@ components:
               additionalProperties: true
             - type: 'null'
 
+    TenantResolutionProblemCard:
+      type: object
+      additionalProperties: false
+      required:
+        - problem_key
+        - root_fingerprint_sha256
+        - tenant_id
+        - root_family
+        - severity
+        - impact_summary
+        - recommended_playbook_key
+        - allowed_next_actions
+        - apply_enabled
+        - provider_call_allowed
+        - secrets_included
+      properties:
+        problem_key:
+          type: string
+        root_fingerprint_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        tenant_id:
+          type:
+            - string
+            - "null"
+        workspace_id:
+          type:
+            - string
+            - "null"
+        resource_ref:
+          type: string
+        root_family:
+          type: string
+          enum:
+            - wordpress_site_health
+            - tenant_skill_approval
+            - task_source_quality
+            - provider_setup_ads
+            - connector_runtime_readiness
+            - general_operational_review
+        root_family_display:
+          type: string
+        severity:
+          type: string
+          enum:
+            - info
+            - low
+            - medium
+            - high
+            - critical
+        impact_summary:
+          type: string
+        recommended_playbook_key:
+          type: string
+        status:
+          type: string
+          enum:
+            - detected
+        source_alert_keys:
+          type: array
+          items:
+            type: string
+        source_refs:
+          type: array
+          items:
+            type: string
+        evidence_refs:
+          type: array
+          items:
+            type: string
+        allowed_next_actions:
+          type: array
+          items:
+            type: string
+            enum:
+              - diagnose
+              - create_case
+              - escalate
+        blocked_reasons:
+          type: array
+          items:
+            type: string
+        alert_count:
+          type: integer
+          minimum: 1
+        occurrence_count:
+          type: integer
+          minimum: 1
+        first_seen_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        last_seen_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        sample_alert:
+          type: object
+          additionalProperties: true
+        apply_enabled:
+          type: boolean
+          enum:
+            - false
+        provider_call_allowed:
+          type: boolean
+          enum:
+            - false
+        secrets_included:
+          type: boolean
+          enum:
+            - false
+    TenantResolutionProblemCardsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - activation_layer
+        - source_authority
+        - subject
+        - summary
+        - items
+        - page
+        - policy
+        - source_health
+        - secrets_included
+      properties:
+        ok:
+          type: boolean
+        activation_layer:
+          type: string
+          enum:
+            - tenant_resolution_problem_cards
+        source_authority:
+          type: string
+          enum:
+            - tenant_scoped_operational_alerts_projection
+        subject:
+          type: object
+          additionalProperties: true
+        summary:
+          type: object
+          additionalProperties: true
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenantResolutionProblemCard"
+        page:
+          type: object
+          additionalProperties: false
+          required:
+            - cursor
+            - limit
+            - returned_count
+            - total_count
+            - has_more
+          properties:
+            cursor:
+              type: integer
+              minimum: 0
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 100
+            returned_count:
+              type: integer
+              minimum: 0
+            total_count:
+              type: integer
+              minimum: 0
+            has_more:
+              type: boolean
+            next_cursor:
+              type:
+                - integer
+                - "null"
+              minimum: 0
+        policy:
+          type: object
+          additionalProperties: true
+          required:
+            - diagnostic_only
+            - apply_enabled
+            - provider_call_allowed
+            - secrets_included
+          properties:
+            diagnostic_only:
+              type: boolean
+              enum:
+                - true
+            apply_enabled:
+              type: boolean
+              enum:
+                - false
+            provider_call_allowed:
+              type: boolean
+              enum:
+                - false
+            secrets_included:
+              type: boolean
+              enum:
+                - false
+        source_health:
+          type: array
+          items:
+            $ref: '#/components/schemas/OperationalAlertSourceHealth'
+        secrets_included:
+          type: boolean
+          enum:
+            - false
     OperationalAlertSyncResponse:
       type: object
       additionalProperties: false
