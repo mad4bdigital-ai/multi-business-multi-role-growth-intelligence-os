@@ -7,6 +7,8 @@ import {
   loadSessionTranscript,
   parseSessionJsonl,
   redactSensitiveText,
+  resolveSessionSummaryGraphPolicy,
+  SESSION_SUMMARY_GRAPH_POLICY_SURFACE_KEY,
   summarizeAndStoreSession,
   summarizeSessionIfNeeded,
   summarizeSessionTranscript,
@@ -129,7 +131,7 @@ function makePool() {
           storage_type: "sql_tables",
           active_status: "active",
           authority_status: "authoritative",
-          required_for_execution: "TRUE",
+          required_for_execution: key === "surface.session_summary_memory" ? "TRUE" : (state.surfacesRequiredForExecution === false ? "FALSE" : "TRUE"),
           resolution_rule: "sql_primary",
           source_surface_id: null,
           source_surface_role: null,
@@ -229,6 +231,41 @@ function makePool() {
 
 {
   const pool = {
+    async query(sql, params = []) {
+      const compact = String(sql).replace(/\s+/g, " ").trim();
+      if (compact.startsWith("SELECT preference_id, tenant_id, user_id, surface_key, preferences_json")) {
+        assert.equal(params[0], SESSION_SUMMARY_GRAPH_POLICY_SURFACE_KEY);
+        return [[{
+          preference_id: "pref-user-graph-policy",
+          tenant_id: "tenant-1",
+          user_id: "user-1",
+          surface_key: SESSION_SUMMARY_GRAPH_POLICY_SURFACE_KEY,
+          preferences_json: JSON.stringify({
+            require_surface_execution: true,
+            allowed_scope_types: ["conversation", "user", "unsupported_scope"],
+            raw_transcript_allowed: true,
+            promotion_allowed: true,
+            graph_attachment_required: false,
+          }),
+          updated_at: "2026-07-10T00:00:00.000Z",
+        }]];
+      }
+      return [[]];
+    },
+  };
+  const policy = await resolveSessionSummaryGraphPolicy({ pool, session: { tenant_id: "tenant-1", user_id: "user-1" } });
+  assert.equal(policy.require_surface_execution, true);
+  assert.deepEqual(policy.allowed_scope_types, ["conversation", "user"]);
+  assert.equal(policy.graph_attachment_required, true);
+  assert.equal(policy.require_graph_readback, true);
+  assert.equal(policy.raw_transcript_allowed, false);
+  assert.equal(policy.promotion_allowed, false);
+  assert.equal(policy.require_human_review_for_promotions, true);
+  assert.equal(policy.secrets_included, false);
+}
+
+{
+  const pool = {
     async query(sql) {
       const compact = String(sql).replace(/\s+/g, " ").trim();
       if (compact.startsWith("SELECT summary_id, session_id, tenant_id, turn_count, created_at FROM `session_summaries`")) {
@@ -242,6 +279,31 @@ function makePool() {
   assert.equal(verification.summary_row_present, true);
   assert.equal(verification.graph_asset_present, false);
   assert.equal(verification.reason, "summary_graph_asset_missing");
+}
+
+{
+  const pool = makePool();
+  pool.state.surfacesRequiredForExecution = false;
+  const result = await summarizeAndStoreSession({
+    pool,
+    session: {
+      session_id: "sess-mandatory-graph-policy",
+      tenant_id: "tenant-1",
+      user_id: "user-1",
+      workspace_key: "platform_admin",
+      model_name: "test-model",
+      turn_count: 1,
+      drive_jsonl_id: null,
+    },
+    callModel: null,
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.verification.reason, null);
+  assert.equal(result.verification.graph_topology_present, true);
+  assert(
+    result.operation_log.some((event) => event.stage === "attach_session_summary_graph" && event.status === "succeeded"),
+    "mandatory graph policy should still attach graph memory when surfaces are authoritative but not required-for-execution"
+  );
 }
 
 {
