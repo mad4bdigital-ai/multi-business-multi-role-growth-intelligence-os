@@ -4,7 +4,7 @@
   "title": "Adaptive Authorization and Execution Governance",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-09T15:10:00Z",
+  "last_updated_at": "2026-07-09T23:55:00Z",
   "delivery": {
     "implementation_prs": [
       {
@@ -56,18 +56,27 @@
         "merge_sha": "04bb276759f3c266745e363a0005f542d7a71902",
         "status": "merged",
         "branch_deleted_verified": false
+      },
+      {
+        "sequence": 8,
+        "role": "shadow_pilot_parity_without_provider_mutation",
+        "pull_request": 2440,
+        "merge_sha": "c06224f60179406ba65765c23de9c472be3a1231",
+        "status": "merged",
+        "branch_deleted_verified": false
       }
     ],
     "remaining_task_loop": {
-      "status": "t040_next_shadow_pilots",
+      "status": "t041_next_mismatch_classification",
       "provider_mutation": false,
+      "external_write": false,
       "migration_execution": "not_started",
       "enforcement_change": false
     },
     "next_pr": {
-      "sequence": 8,
-      "scope": "T040 shadow pilots without provider mutation",
-      "status": "blocked_until_t030_post_merge_readback_and_ledger_fix_complete"
+      "sequence": 9,
+      "scope": "T041 classify all legacy adaptive mismatches from shadow pilot evidence",
+      "status": "ready_after_t040_ledger_closeout"
     }
   },
   "evidence": {
@@ -78,10 +87,12 @@
         "T021",
         "T022",
         "T023",
-        "T030"
+        "T030",
+        "T040"
       ],
-      "latest_task": "T030",
+      "latest_task": "T040",
       "provider_mutation_allowed": false,
+      "external_write_allowed": false,
       "enforcement_cutover_allowed": false,
       "migration_execution_authorized": false,
       "new_authority_tables_allowed": false
@@ -99,11 +110,11 @@
         "T021",
         "T022",
         "T023",
-        "T030"
+        "T030",
+        "T040"
       ],
-      "next_task_scope": "T040 run three pilots in shadow mode without provider mutation",
+      "next_task_scope": "T041 classify all legacy/adaptive mismatches",
       "remaining_tasks": [
-        "T040",
         "T041",
         "T042",
         "T043",
@@ -115,14 +126,15 @@
         "T062",
         "D010"
       ],
-      "remaining_task_count": 11,
+      "remaining_task_count": 10,
       "provider_mutation_allowed": false,
+      "external_write_allowed": false,
       "enforcement_change_allowed": false,
       "new_authority_tables_allowed": false
     },
     "production_rollout": {
       "status": "pending",
-      "reason": "T040 through T053, pilots, migrations, production verification, rollback rehearsal, and post-merge audit remain incomplete."
+      "reason": "T041 through T053, mismatch approvals, compatibility wrappers, production verification, rollback rehearsal, and post-merge audit remain incomplete."
     }
   },
   "sensitive_values_included": false
