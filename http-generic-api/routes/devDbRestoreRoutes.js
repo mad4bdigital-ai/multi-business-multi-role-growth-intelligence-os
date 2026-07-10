@@ -2,6 +2,7 @@ import { Router } from "express";
 import { createHash, createDecipheriv, timingSafeEqual } from "node:crypto";
 import { gunzip } from "node:zlib";
 import { promisify } from "node:util";
+import { StringDecoder } from "node:string_decoder";
 import { getPool } from "../db.js";
 
 const gunzipAsync = promisify(gunzip);
