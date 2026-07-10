@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
+// Ledger closeout assertions intentionally track the latest completed task.
 const completion = JSON.parse(
   fs.readFileSync(
     new URL("../specs/006-adaptive-authorization-execution-governance/completion.json", import.meta.url),
@@ -17,13 +18,15 @@ const tasks = fs.readFileSync(
 );
 
 assert(tasks.includes("- [x] T030 Implement adapter bindings"));
-assert(remainingLoop.includes("Completed through T030"));
+assert(tasks.includes("- [x] T040 Run the three pilots in shadow mode without provider mutation."));
+assert(remainingLoop.includes("Completed through T040"));
 assert(remainingLoop.includes("PR #2389 merged T030"));
-assert.equal(completion.evidence.execution_governance.latest_task, "T030");
+assert(remainingLoop.includes("PR #2440 merged T040"));
+assert.equal(completion.evidence.execution_governance.latest_task, "T040");
 assert(completion.evidence.execution_governance.completed_tasks.includes("T030"));
-assert.equal(completion.evidence.implementation.remaining_task_count, 11);
+assert(completion.evidence.execution_governance.completed_tasks.includes("T040"));
+assert.equal(completion.evidence.implementation.remaining_task_count, 10);
 assert.deepEqual(completion.evidence.implementation.remaining_tasks, [
-  "T040",
   "T041",
   "T042",
   "T043",
@@ -36,8 +39,9 @@ assert.deepEqual(completion.evidence.implementation.remaining_tasks, [
   "D010",
 ]);
 assert.equal(completion.evidence.implementation.provider_mutation_allowed, false);
+assert.equal(completion.evidence.implementation.external_write_allowed, false);
 assert.equal(completion.evidence.implementation.enforcement_change_allowed, false);
 assert.equal(completion.evidence.execution_governance.migration_execution_authorized, false);
 assert.equal(completion.sensitive_values_included, false);
 
-console.log("T030 ledger closeout assertions passed");
+console.log("T040 ledger closeout assertions passed");
