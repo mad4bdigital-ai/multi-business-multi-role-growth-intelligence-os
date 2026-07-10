@@ -1,5 +1,9 @@
 # Deployment Parity Checklist
 
+## GitHub Actions diagnostics endpoint parity
+
+Migration `1031_sprint69_github_actions_diagnostics_endpoints_seed.sql` is parity-complete when endpoint registry readback confirms active/ready entries for `github_list_jobs_for_workflow_run` and `github_get_pending_deployments_for_workflow_run`, OpenAPI includes `/repos/{owner}/{repo}/actions/runs/{run_id}/jobs` and `/repos/{owner}/{repo}/actions/runs/{run_id}/pending_deployments`, and the migration text includes `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included_false`. The diagnostics readback endpoints are read-only; any pending-deployment review path remains typed-approval governed and is not a deploy bypass.
+
 ## Resource API dynamic DB surfaces parity
 
 Migration `20260709_resource_api_dynamic_db_surfaces.sql` is rollout-complete when the governed migration ledger records checksum `51ae02ddb9d83305432dc3d997426c6bee6ba5048eb8c3bfec3e2cdc6a68b498`, statement count `1`, zero-risk preflight, and readback confirms the ten Resource API surfaces are active with `secrets_included=false`: `system_endpoints`, `admin_platform_endpoint_tools`, `platform_data_table_registry`, `platform_resource_operation_registry`, `capability_resolution_envelopes`, `user_app_connections`, `app_action_grants`, `cms_site_access_grants`, `agent_skill_grants`, and `permission_grants`. The migration performs no provider call, no credential payload read, no raw-secret access, no external send/write, and no deploy.
