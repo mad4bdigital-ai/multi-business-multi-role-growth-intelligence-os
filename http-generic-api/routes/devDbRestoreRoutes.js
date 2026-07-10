@@ -176,6 +176,9 @@ export function buildDevDbRestoreRoutes(deps = {}) {
           secrets_included: false,
         });
       } finally {
+        if (foreignKeyChecksDisabled) {
+          await conn.query("SET FOREIGN_KEY_CHECKS=1").catch(() => {});
+        }
         conn.release();
       }
     } catch (err) {
