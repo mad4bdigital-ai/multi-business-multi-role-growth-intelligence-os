@@ -79,7 +79,7 @@ assert.equal(created.ok, true);
 assert.equal(created.created, true);
 assert.equal(created.case.case_id, "11111111-1111-4111-8111-111111111111");
 assert.equal(created.case.playbook_key, "wordpress_site_doctor_v1");
-assert.equal(created.case.provider_call_allowed, undefined);
+assert.equal(created.case.secrets_included, false);
 assert.equal(created.policy.provider_call_allowed, false);
 assert.equal(created.policy.external_write_allowed, false);
 assert.equal(created.policy.repair_apply_allowed, false);
