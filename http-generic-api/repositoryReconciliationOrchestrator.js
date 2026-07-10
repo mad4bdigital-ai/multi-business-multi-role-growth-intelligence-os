@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { getPool } from "./db.js";
 import {
   acquireRepositoryOperationLease,
-  assertRepositoryOperationLease,
+  assertRepositoryOperationLeaseHolder,
   releaseRepositoryOperationLease,
 } from "./repositoryOperationLeaseService.js";
 
