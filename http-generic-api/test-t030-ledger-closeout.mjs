@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
+// Ledger closeout assertions intentionally track the latest completed task.
 const completion = JSON.parse(
   fs.readFileSync(
     new URL("../specs/006-adaptive-authorization-execution-governance/completion.json", import.meta.url),
