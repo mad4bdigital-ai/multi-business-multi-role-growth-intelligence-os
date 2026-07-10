@@ -9,6 +9,7 @@ const API_ROOT = process.cwd();
 const REPO_ROOT = path.resolve(API_ROOT, "..");
 const MIGRATIONS_DIR = path.join(API_ROOT, "migrations");
 const OPENAPI_PATH = path.join(API_ROOT, "openapi.yaml");
+const OPENAPI_DIR = path.join(API_ROOT, "openapi");
 const OUTPUT_PATH = path.join(REPO_ROOT, "docs", "surface-contract-discovery-status.md");
 const JSON_OUTPUT_PATH = path.join(REPO_ROOT, "docs", "surface-contract-discovery-status.json");
 const GAP_QUEUE_PATH = path.join(REPO_ROOT, "docs", "surface-contract-gap-queue.md");
