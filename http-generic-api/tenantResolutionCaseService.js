@@ -100,7 +100,7 @@ function normalizeCaseInput(input = {}, subject = {}) {
   const playbookKey = safeString(payload.playbook_key || payload.recommended_playbook_key || ROOT_FAMILY_PLAYBOOKS[rootFamily], 191);
   const severity = ALLOWED_SEVERITIES.has(payload.severity) ? payload.severity : "medium";
   const workspaceId = safeString(payload.workspace_id || input.workspace_id, 64) || null;
-  const resourceRef = safeString(payload.resource_ref || input.resource_ref || workspaceId && `workspace://${workspaceId}` || rootFamily, 512);
+  const resourceRef = safeString(payload.resource_ref || input.resource_ref || (workspaceId ? `workspace://${workspaceId}` : rootFamily), 512);
   const rootFingerprint = rootFingerprintFor(payload, { ...subject, workspace_id: workspaceId }, rootFamily, playbookKey, resourceRef);
   const sourceAlertKeys = normalizeArray(payload.source_alert_keys || input.source_alert_keys, 100, 191);
   const sourceRefs = normalizeArray(payload.source_refs || input.source_refs || payload.evidence_refs || input.evidence_refs, 100, 512);
