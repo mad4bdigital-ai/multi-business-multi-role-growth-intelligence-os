@@ -213,6 +213,22 @@ function resolveRoute(indexes, method, pathname) {
   return { route, allowedMethods: new Set(matches.map((entry) => entry.route.method)) };
 }
 
+const OAUTH_HANDOFF_ROUTES = new Map([
+  ["GET /auth/oauth", { operationId: "oauthHandoff", allowedQueryParameters: [] }],
+  ["GET /auth/oauth/authorize", { operationId: "oauthAuthorizeHandoff", allowedQueryParameters: ["client_id", "code_challenge", "code_challenge_method", "login_hint", "prompt", "redirect_uri", "response_type", "scope", "state"] }],
+  ["GET /auth/oauth/code", { operationId: "oauthCodeHandoff", allowedQueryParameters: ["code", "error", "error_description", "state"] }],
+  ["POST /auth/oauth/token", { operationId: "oauthTokenHandoff", allowedQueryParameters: [] }],
+  ["GET /auth/google", { operationId: "googleOAuthHandoff", allowedQueryParameters: ["code", "error", "error_description", "prompt", "redirect_uri", "scope", "state"] }],
+  ["GET /auth/login", { operationId: "loginPageHandoff", allowedQueryParameters: ["redirect_uri", "state"] }],
+  ["POST /auth/login", { operationId: "loginHandoff", allowedQueryParameters: [] }],
+  ["GET /auth/register", { operationId: "registerPageHandoff", allowedQueryParameters: ["redirect_uri", "state"] }],
+  ["POST /auth/register", { operationId: "registerHandoff", allowedQueryParameters: [] }],
+]);
+
+function resolveOAuthHandoff(method, pathname) {
+  return OAUTH_HANDOFF_ROUTES.get(routeKey(method, pathname)) || null;
+}
+
 function forwardedRequestHeaders(request, policy, requestId) {
   const headers = new Headers();
   for (const [name, value] of request.headers.entries()) {
