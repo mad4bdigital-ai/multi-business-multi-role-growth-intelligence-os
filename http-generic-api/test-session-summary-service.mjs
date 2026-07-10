@@ -230,6 +230,41 @@ function makePool() {
 }
 
 {
+  const pool = {
+    async query(sql, params = []) {
+      const compact = String(sql).replace(/\s+/g, " ").trim();
+      if (compact.startsWith("SELECT preference_id, tenant_id, user_id, surface_key, preferences_json")) {
+        assert.equal(params[0], SESSION_SUMMARY_GRAPH_POLICY_SURFACE_KEY);
+        return [[{
+          preference_id: "pref-user-graph-policy",
+          tenant_id: "tenant-1",
+          user_id: "user-1",
+          surface_key: SESSION_SUMMARY_GRAPH_POLICY_SURFACE_KEY,
+          preferences_json: JSON.stringify({
+            require_surface_execution: true,
+            allowed_scope_types: ["conversation", "user", "unsupported_scope"],
+            raw_transcript_allowed: true,
+            promotion_allowed: true,
+            graph_attachment_required: false,
+          }),
+          updated_at: "2026-07-10T00:00:00.000Z",
+        }]];
+      }
+      return [[]];
+    },
+  };
+  const policy = await resolveSessionSummaryGraphPolicy({ pool, session: { tenant_id: "tenant-1", user_id: "user-1" } });
+  assert.equal(policy.require_surface_execution, true);
+  assert.deepEqual(policy.allowed_scope_types, ["conversation", "user"]);
+  assert.equal(policy.graph_attachment_required, true);
+  assert.equal(policy.require_graph_readback, true);
+  assert.equal(policy.raw_transcript_allowed, false);
+  assert.equal(policy.promotion_allowed, false);
+  assert.equal(policy.require_human_review_for_promotions, true);
+  assert.equal(policy.secrets_included, false);
+}
+
+{
   const pool = makePool();
   pool.state.surfacesRequiredForExecution = false;
   const result = await summarizeAndStoreSession({
