@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "feature_key": "local-connector-reachability-recovery",
+  "error_codes": [
+    "target_device_required",
+    "target_device_ambiguous",
+    "target_device_not_found",
+    "canonical_device_mismatch",
+    "route_generation_mismatch",
+    "route_unreachable",
+    "fresh_authorization_required",
+    "privileged_recovery_forbidden",
+    "admin_break_glass_required",
+    "tenant_break_glass_forbidden",
+    "recovery_verification_pending",
+    "recovered_readback_missing",
+    "stale_heartbeat",
+    "heartbeat_signature_invalid",
+    "probe_timeout",
+    "diagnostics_redacted",
+    "rate_limited",
+    "validation_error",
+    "idempotency_conflict",
+    "internal_dependency_unavailable"
+  ],
+  "invariants": [
+    "Tenant requests MUST NOT call or fallback to connector.mad4b.com.",
+    "State-changing recovery MUST require tenant_id + user_id + canonical_device_id authority.",
+    "Recovered status MUST NOT be emitted until same-cycle readback is complete.",
+    "Diagnostics MUST NOT expose plaintext tokens, connector secrets, signed installer URLs, or raw machine identifiers."
+  ],
+  "secrets_included": false
+}
