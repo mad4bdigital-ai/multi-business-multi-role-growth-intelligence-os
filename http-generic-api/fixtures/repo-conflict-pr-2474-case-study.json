@@ -1,0 +1,42 @@
+{
+  "case_key": "pr_2474_generated_docs_conflict",
+  "title": "PR 2474 generated documentation conflict",
+  "base": "main",
+  "head": "gpt/repo-conflict-intelligence-dynamic-20260710",
+  "compare": {
+    "mergeable": false,
+    "mergeable_state": "dirty"
+  },
+  "commits": [
+    {
+      "sha": "6d1f3c56540a74d1f1a7c106d22345d1e85791bf",
+      "author": { "login": "docs-agent[bot]" },
+      "message": "Docs agent: update generated documentation"
+    }
+  ],
+  "files": [
+    {
+      "filename": "docs/auto-docs-agent/pr-2470.md",
+      "status": "conflicting",
+      "conflicted": true
+    },
+    {
+      "filename": "docs/work-maps/generated.json",
+      "status": "modified"
+    },
+    {
+      "filename": "http-generic-api/routes/index.js",
+      "status": "modified"
+    },
+    {
+      "filename": "http-generic-api/repoConflictIntelligenceService.js",
+      "status": "added"
+    }
+  ],
+  "expected": {
+    "classification": "dirty_generated_docs_conflict",
+    "recommended_path": "clean_branch_replay",
+    "provider_write": false,
+    "secrets_included": false
+  }
+}

@@ -1,0 +1,231 @@
+openapi: 3.1.0
+info:
+  title: Repository Conflict Intelligence API
+  version: 2026-07-11
+  summary: ADMIN and TENANT-safe repository conflict analysis, planning, dry-run resolution, and advisory preview.
+  description: >-
+    Documents the governed repository conflict intelligence surfaces. All endpoints are
+    summary-first and no-secret. Resolver and automation preview endpoints do not mutate Git
+    or post provider comments. Provider writes remain separate and approval-gated.
+servers:
+  - url: https://auth.mad4b.com
+    description: Production auth-host API
+tags:
+  - name: repo-conflict-intelligence-admin
+  - name: repo-conflict-intelligence-tenant
+paths:
+  /admin/repo-conflict-intelligence/analyze:
+    post:
+      tags: [repo-conflict-intelligence-admin]
+      operationId: analyzeRepositoryConflict
+      summary: Analyze repository conflict metadata
+      security: [{ backendApiKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConflictInput' }
+      responses:
+        '200': { description: Conflict analysis, content: { application/json: { schema: { $ref: '#/components/schemas/ConflictAnalysis' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/repo-conflict-intelligence/plan:
+    post:
+      tags: [repo-conflict-intelligence-admin]
+      operationId: planRepositoryConflictResolution
+      summary: Build a typed conflict-resolution plan
+      security: [{ backendApiKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Resolution plan, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/repo-conflict-intelligence/semantic-preview:
+    post:
+      tags: [repo-conflict-intelligence-admin]
+      operationId: previewRepositorySemanticPatches
+      summary: Preview idempotent semantic patches
+      security: [{ backendApiKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operations]
+              properties:
+                operations: { type: array, maxItems: 50, items: { type: object, additionalProperties: true } }
+                max_preview_chars: { type: integer, minimum: 500, maximum: 12000, default: 4000 }
+              additionalProperties: false
+      responses:
+        '200': { description: Semantic patch previews, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/repo-conflict-intelligence/resolve-dry-run:
+    post:
+      tags: [repo-conflict-intelligence-admin]
+      operationId: dryRunRepositoryConflictResolution
+      summary: Produce a typed no-mutation resolution dry-run
+      security: [{ backendApiKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: No-mutation resolver dry-run, content: { application/json: { schema: { $ref: '#/components/schemas/ResolverDryRun' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/repo-conflict-intelligence/pr-automation-preview:
+    post:
+      tags: [repo-conflict-intelligence-admin]
+      operationId: previewRepositoryConflictPrAutomation
+      summary: Build a no-post advisory comment preview
+      security: [{ backendApiKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: PR automation decision and Markdown preview, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/repo-conflict-intelligence/case-studies/{caseKey}:
+    get:
+      tags: [repo-conflict-intelligence-admin]
+      operationId: getRepositoryConflictCaseStudy
+      summary: Read a bounded built-in conflict case study
+      security: [{ backendApiKey: [] }]
+      parameters:
+        - name: caseKey
+          in: path
+          required: true
+          schema: { type: string, enum: [pr_2474_generated_docs_conflict] }
+      responses:
+        '200': { description: Case-study analysis, plan, dry-run, and comment preview, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /me/repo-conflict-intelligence/analyze:
+    post:
+      tags: [repo-conflict-intelligence-tenant]
+      operationId: analyzeTenantVisibleRepositoryConflict
+      summary: Analyze tenant-visible conflict metadata
+      security: [{ userJwt: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConflictInput' }
+      responses:
+        '200': { description: Tenant-safe summary, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/repo-conflict-intelligence/plan:
+    post:
+      tags: [repo-conflict-intelligence-tenant]
+      operationId: planTenantRepositoryConflictRequest
+      summary: Build a tenant-safe request-only plan
+      security: [{ userJwt: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Tenant request-only plan, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/repo-conflict-intelligence/resolve-dry-run:
+    post:
+      tags: [repo-conflict-intelligence-tenant]
+      operationId: dryRunTenantRepositoryConflictResolution
+      summary: Produce a tenant-safe no-execution dry-run
+      security: [{ userJwt: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Tenant-safe dry-run with execution disabled, content: { application/json: { schema: { $ref: '#/components/schemas/ResolverDryRun' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+components:
+  securitySchemes:
+    backendApiKey:
+      type: apiKey
+      in: header
+      name: x-api-key
+    userJwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ConflictInput:
+      type: object
+      properties:
+        base: { type: string, maxLength: 128 }
+        head: { type: string, maxLength: 256 }
+        compare: { type: object, additionalProperties: true }
+        files: { type: array, maxItems: 500, items: { type: object, additionalProperties: true } }
+        commits: { type: array, maxItems: 200, items: { type: object, additionalProperties: true } }
+      additionalProperties: true
+    ConflictAnalysis:
+      type: object
+      required: [ok, classification, recommended_path, safe_to_auto_resolve, secrets_included]
+      properties:
+        ok: { type: boolean }
+        classification: { type: string }
+        recommended_path: { type: string }
+        safe_to_auto_resolve: { type: boolean }
+        summary: { type: object, additionalProperties: true }
+        files: { type: array, items: { type: object, additionalProperties: true } }
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: true
+    ResolverDryRun:
+      type: object
+      required: [ok, mode, execution_allowed, provider_write, secrets_included]
+      properties:
+        ok: { type: boolean }
+        mode: { type: string, const: dry_run }
+        execution_allowed: { type: boolean, const: false }
+        provider_write: { type: boolean, const: false }
+        operations: { type: array, items: { type: object, additionalProperties: true } }
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: true
+    ErrorEnvelope:
+      type: object
+      required: [ok, error, secrets_included]
+      properties:
+        ok: { type: boolean, const: false }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: array, items: { type: object, additionalProperties: true } }
+            requestId: { type: string }
+          additionalProperties: true
+        secrets_included: { type: boolean, const: false }
+  responses:
+    BadRequest:
+      description: Invalid request.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unauthorized:
+      description: Authentication required.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Forbidden:
+      description: Authenticated but not authorized.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Resource not found.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
