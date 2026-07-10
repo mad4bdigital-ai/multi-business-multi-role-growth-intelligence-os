@@ -885,7 +885,7 @@ export async function loadSessionSummaryGraphMemory({
   const safeLimit = Math.max(1, Math.min(Number(limit) || 10, 50));
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const [rows] = await pool.query(
-    `SELECT summary_id, session_id, tenant_id, user_id, workspace_key,
+    `SELECT ss.summary_id, ss.session_id, ss.tenant_id, ss.user_id, ss.workspace_key,
             summary_text, tasks_completed, blockers, feature_requests,
             integration_needs, complexity, turn_count, created_at
        FROM \`session_summaries\`
