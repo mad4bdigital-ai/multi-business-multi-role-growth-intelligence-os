@@ -152,18 +152,11 @@ export function buildDevDbRestoreRoutes(deps = {}) {
       const sqlBuffer = await gunzipAsync(gz);
       if (!safeEqualHex(sha256(sqlBuffer), manifest.plaintext_sql_sha256)) throw new Error("Plain SQL checksum does not match manifest.");
 
-      const sqlText = sqlBuffer.toString("utf8");
-      const statements = splitSqlStatements(sqlText);
       const conn = await getPool().getConnection();
       let executed = 0;
       try {
         await conn.query("SET FOREIGN_KEY_CHECKS=0");
-        for (const statement of statements) {
-          const trimmed = statement.trim();
-          if (!trimmed) continue;
-          await conn.query(trimmed);
-          executed += 1;
-        }
+        executed = await executeSqlBufferStatements(conn, sqlBuffer);
         await conn.query("SET FOREIGN_KEY_CHECKS=1");
         const [[db]] = await conn.query("SELECT DATABASE() AS db_name");
         const counts = await getTableCounts(conn);
