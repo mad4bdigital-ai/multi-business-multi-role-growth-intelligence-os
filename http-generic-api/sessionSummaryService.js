@@ -897,7 +897,8 @@ export async function loadSessionSummaryGraphMemory({
             ) AS brand_key,
             ss.summary_text, ss.tasks_completed, ss.blockers, ss.feature_requests,
             ss.integration_needs, ss.complexity, ss.turn_count, ss.created_at
-       FROM \`session_summaries\`
+       FROM \`session_summaries\` ss
+       LEFT JOIN \`customer_sessions\` cs ON cs.session_id = ss.session_id
        ${where}
       ORDER BY created_at DESC
       LIMIT ?`,
