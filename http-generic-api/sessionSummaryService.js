@@ -850,16 +850,37 @@ export async function loadSessionSummaryGraphMemory({
   const clauses = [];
   const params = [];
   if (session_id) {
-    clauses.push("session_id = ?");
+    clauses.push("ss.session_id = ?");
     params.push(session_id);
   }
   if (tenant_id) {
-    clauses.push("tenant_id = ?");
+    clauses.push("ss.tenant_id = ?");
     params.push(tenant_id);
   }
   if (user_id) {
-    clauses.push("user_id = ?");
+    clauses.push("ss.user_id = ?");
     params.push(user_id);
+  }
+  if (workspace_key) {
+    clauses.push(`(
+      ss.workspace_key = ?
+      OR EXISTS (
+        SELECT 1 FROM \`gpt_session_turns\` gst
+         WHERE gst.session_id = ss.session_id
+           AND gst.workspace_key = ?
+         LIMIT 1
+      )
+    )`);
+    params.push(workspace_key, workspace_key);
+  }
+  if (brand_key) {
+    clauses.push(`EXISTS (
+      SELECT 1 FROM \`gpt_session_turns\` gst
+       WHERE gst.session_id = ss.session_id
+         AND gst.brand_key = ?
+       LIMIT 1
+    )`);
+    params.push(brand_key);
   }
   const safeLimit = Math.max(1, Math.min(Number(limit) || 10, 50));
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
