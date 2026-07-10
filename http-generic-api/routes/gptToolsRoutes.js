@@ -174,6 +174,43 @@ export function resolveGptSessionPin(req, args = {}) {
   return value ? String(value).trim() : null;
 }
 
+export function resolveGptSessionContext(req, args = {}) {
+  const body = args && typeof args === "object" ? args : {};
+  const workspaceCandidates = [
+    body.workspace_key,
+    body.workspaceKey,
+    body._workspace_key,
+    req?.headers?.["x-workspace-key"],
+  ];
+  const brandCandidates = [
+    body.brand_key,
+    body.brandKey,
+    body.target_key,
+    body.targetKey,
+    body._brand_key,
+    req?.headers?.["x-brand-key"],
+    req?.headers?.["x-target-key"],
+  ];
+  const businessTypeCandidates = [body.business_type_key, body.businessTypeKey, req?.headers?.["x-business-type-key"]];
+  const businessActivityCandidates = [body.business_activity_type_key, body.businessActivityTypeKey, body.activity_type_key, body.activityTypeKey, req?.headers?.["x-business-activity-type-key"], req?.headers?.["x-activity-type-key"]];
+  const activityCandidates = [body.activity_key, body.activityKey, req?.headers?.["x-activity-key"]];
+  const knowledgeProfileCandidates = [body.knowledge_profile_key, body.knowledgeProfileKey, req?.headers?.["x-knowledge-profile-key"]];
+  const workspace = workspaceCandidates.find((candidate) => String(candidate || "").trim());
+  const brand = brandCandidates.find((candidate) => String(candidate || "").trim());
+  const businessType = businessTypeCandidates.find((candidate) => String(candidate || "").trim());
+  const businessActivity = businessActivityCandidates.find((candidate) => String(candidate || "").trim());
+  const activity = activityCandidates.find((candidate) => String(candidate || "").trim());
+  const knowledgeProfile = knowledgeProfileCandidates.find((candidate) => String(candidate || "").trim());
+  return {
+    workspace_key: workspace ? String(workspace).trim() : null,
+    brand_key: brand ? String(brand).trim() : null,
+    business_type_key: businessType ? String(businessType).trim() : null,
+    business_activity_type_key: businessActivity ? String(businessActivity).trim() : null,
+    activity_key: activity ? String(activity).trim() : null,
+    knowledge_profile_key: knowledgeProfile ? String(knowledgeProfile).trim() : null,
+  };
+}
+
 async function countConversationTurns(pool, sessionId) {
   const [[row]] = await pool.query(
     `SELECT
@@ -319,6 +356,14 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       truncatedResult,
     ].join("\n");
 
+    const {
+      workspace_key: workspaceKey,
+      brand_key: brandKey,
+      business_type_key: businessTypeKey,
+      business_activity_type_key: businessActivityTypeKey,
+      activity_key: activityKey,
+      knowledge_profile_key: knowledgeProfileKey,
+    } = resolveGptSessionContext(req, args);
     const writeback = await recordGptSessionTurn({
       pool,
       session,
@@ -326,6 +371,12 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       content,
       action_key: toolKey,
       turnIndex,
+      workspace_key: workspaceKey,
+      brand_key: brandKey,
+      business_type_key: businessTypeKey,
+      business_activity_type_key: businessActivityTypeKey,
+      activity_key: activityKey,
+      knowledge_profile_key: knowledgeProfileKey,
     });
     return { ok: true, ...writeback };
   } catch (err) {

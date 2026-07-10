@@ -2,6 +2,26 @@ import { randomUUID, createHash } from "node:crypto";
 
 const DEFAULT_REUSE_WINDOW_HOURS = 24;
 
+export const ACTIVATION_CONTEXT_LIFECYCLE_CONTRACT = Object.freeze({
+  session_container_scope: "conversation",
+  turn_context_scope: "operation_resolution",
+  inherited_brand_context: Object.freeze([
+    "business_type_key",
+    "business_activity_type_key",
+    "activity_key",
+    "knowledge_profile_key",
+  ]),
+  inheritance_sources: Object.freeze([
+    "brand_paths",
+    "business_activity_types",
+    "business_type_profiles",
+  ]),
+  invariant: "brand-derived business/activity/knowledge context is required for operation resolution like Brand Core, but must not rebind the whole customer_sessions container",
+  admin_surface_required: true,
+  tenant_surface_required: true,
+  secrets_included: false,
+});
+
 function compactError(err, fallback = "activation_session_lifecycle_failed") {
   return { code: err?.code || fallback, message: err?.message || String(err || fallback) };
 }
@@ -18,13 +38,24 @@ export function normalizeActivationSessionPolicy(value) {
   return "reuse_or_create";
 }
 
-export function deriveActivationIdempotencyKey({ explicitKey = null, tenantId = null, userId = null, conversationRef = null } = {}) {
+export function deriveActivationIdempotencyKey({
+  explicitKey = null,
+  tenantId = null,
+  userId = null,
+  workspaceKey = null,
+  brandKey = null,
+  conversationRef = null,
+} = {}) {
   const explicit = normalizeText(explicitKey, 180);
   if (explicit) return explicit;
   const conversation = normalizeText(conversationRef, 500);
   if (!conversation) return null;
   return createHash("sha256")
-    .update([tenantId || "platform", userId || "anonymous", conversation].join("|"))
+    .update([
+      tenantId || "platform",
+      userId || "anonymous",
+      conversation,
+    ].join("|"))
     .digest("hex");
 }
 
@@ -40,9 +71,11 @@ async function querySafe(pool, sql, params = []) {
 async function findActiveSession(pool, subject = {}) {
   const tenantId = subject.tenant_id || "00000000-0000-0000-0000-000000000000";
   const userId = subject.user_id || null;
+  const workspaceKey = subject.workspace_key || null;
+  const brandKey = subject.brand_key || null;
   const result = await querySafe(
     pool,
-    `SELECT session_id, tenant_id, user_id, session_status, started_at, ended_at
+    `SELECT session_id, tenant_id, user_id, workspace_key, brand_key, session_status, started_at, ended_at
        FROM customer_sessions
       WHERE originator = 'gpt_action'
         AND tenant_id = ?
@@ -55,14 +88,14 @@ async function findActiveSession(pool, subject = {}) {
   return result.ok ? result.rows[0] || null : null;
 }
 
-async function findReusableRun(pool, { tenantId, userId, idempotencyKey, reuseWindowHours }) {
+async function findReusableRun(pool, { tenantId, userId, workspaceKey, brandKey, idempotencyKey, reuseWindowHours }) {
   if (!idempotencyKey) return { ok: true, row: null };
   const result = await querySafe(
     pool,
     `SELECT r.run_id, r.session_id, r.idempotency_key, r.response_profile,
             r.run_status, r.validation_state, r.evidence_state, r.delivery_state,
             r.consumer_ack_state, r.retry_count, r.snapshot_id, r.created_at, r.updated_at,
-            s.session_status, s.started_at
+            s.session_status, s.started_at, s.workspace_key, s.brand_key
        FROM activation_runs r
        JOIN customer_sessions s ON s.session_id = r.session_id
       WHERE r.tenant_id = ?
@@ -119,12 +152,16 @@ export async function resolveActivationSessionLifecycle({
 
   const tenantId = subject.tenant_id || "00000000-0000-0000-0000-000000000000";
   const userId = subject.user_id || null;
+  const workspaceKey = subject.workspace_key || null;
+  const brandKey = subject.brand_key || null;
   const sessionPolicy = normalizeActivationSessionPolicy(options.session_policy || (options.read_only ? "read_only" : "reuse_or_create"));
   const responseProfile = normalizeText(options.response_profile, 40) || "evidence";
   const idempotencyKey = deriveActivationIdempotencyKey({
     explicitKey: options.idempotency_key,
     tenantId,
     userId,
+    workspaceKey,
+    brandKey,
     conversationRef: options.conversation_ref,
   });
   const reuseWindowHours = Math.min(Math.max(Number(options.reuse_window_hours || DEFAULT_REUSE_WINDOW_HOURS), 1), 168);
@@ -148,12 +185,18 @@ export async function resolveActivationSessionLifecycle({
         status_written: null,
         read_only: true,
         reused_existing_session: Boolean(existing),
+        context_read: {
+          tenant_id: existing?.tenant_id || tenantId,
+          user_id: existing?.user_id || userId,
+          workspace_key: existing?.workspace_key || workspaceKey,
+          brand_key: existing?.brand_key || brandKey,
+        },
       },
     };
   }
 
   if (sessionPolicy !== "create_new" && idempotencyKey) {
-    const reusable = await findReusableRun(pool, { tenantId, userId, idempotencyKey, reuseWindowHours });
+    const reusable = await findReusableRun(pool, { tenantId, userId, workspaceKey, brandKey, idempotencyKey, reuseWindowHours });
     if (reusable.ok && reusable.row) {
       await touchReusableRun(pool, reusable.row, responseProfile);
       return {
@@ -177,6 +220,12 @@ export async function resolveActivationSessionLifecycle({
           read_only: false,
           reused_existing_session: true,
           retry_count: Number(reusable.row.retry_count || 0) + 1,
+          context_read: {
+            tenant_id: tenantId,
+            user_id: userId,
+            workspace_key: reusable.row.workspace_key || workspaceKey,
+            brand_key: reusable.row.brand_key || brandKey,
+          },
         },
       };
     }
