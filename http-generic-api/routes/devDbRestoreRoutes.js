@@ -154,10 +154,13 @@ export function buildDevDbRestoreRoutes(deps = {}) {
 
       const conn = await getPool().getConnection();
       let executed = 0;
+      let foreignKeyChecksDisabled = false;
       try {
         await conn.query("SET FOREIGN_KEY_CHECKS=0");
+        foreignKeyChecksDisabled = true;
         executed = await executeSqlBufferStatements(conn, sqlBuffer);
         await conn.query("SET FOREIGN_KEY_CHECKS=1");
+        foreignKeyChecksDisabled = false;
         const [[db]] = await conn.query("SELECT DATABASE() AS db_name");
         const counts = await getTableCounts(conn);
         return res.status(200).json({
