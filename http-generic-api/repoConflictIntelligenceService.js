@@ -20,7 +20,11 @@ export const DEFAULT_REPO_CONFLICT_PATH_POLICIES = [
 function sanitize(value) {
   if (Array.isArray(value)) return value.map(sanitize);
   if (!value || typeof value !== "object") return value;
-  return Object.fromEntries(Object.entries(value).filter(([key]) => !SENSITIVE_KEY_PATTERN.test(key)).map(([key, item]) => [key, sanitize(item)]));
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => key === "secrets_included" || !SENSITIVE_KEY_PATTERN.test(key))
+      .map(([key, item]) => [key, sanitize(item)])
+  );
 }
 
 function safeString(value, max = 512) {
