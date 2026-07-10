@@ -886,8 +886,17 @@ export async function loadSessionSummaryGraphMemory({
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const [rows] = await pool.query(
     `SELECT ss.summary_id, ss.session_id, ss.tenant_id, ss.user_id, ss.workspace_key,
-            summary_text, tasks_completed, blockers, feature_requests,
-            integration_needs, complexity, turn_count, created_at
+            COALESCE(
+              (SELECT gst.brand_key
+                 FROM \`gpt_session_turns\` gst
+                WHERE gst.session_id = ss.session_id
+                  AND gst.brand_key IS NOT NULL
+                ORDER BY gst.created_at DESC
+                LIMIT 1),
+              cs.brand_key
+            ) AS brand_key,
+            ss.summary_text, ss.tasks_completed, ss.blockers, ss.feature_requests,
+            ss.integration_needs, ss.complexity, ss.turn_count, ss.created_at
        FROM \`session_summaries\`
        ${where}
       ORDER BY created_at DESC
