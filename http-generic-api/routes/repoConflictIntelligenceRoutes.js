@@ -7,6 +7,7 @@ import {
   buildPrAutomationPreview,
   buildRepoConflictPlan,
   buildRepoConflictResolutionDryRun,
+  buildTenantConflictReadinessReport,
   buildTenantConflictResolutionDryRun,
   buildTenantConflictSummary,
   previewSemanticPatches,
