@@ -4739,6 +4739,58 @@ paths:
         '404': { description: Resource not found }
         '409': { description: Operation conflicts with lifecycle or policy }
   /gpt/sessions/{id}/turns:
+    post:
+      operationId: writeGptSessionTurns
+      summary: Append multiple turns to a customer session archive
+      tags: [session-archive]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [turns]
+              properties:
+                turns:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [role, content]
+                    properties:
+                      role:
+                        type: string
+                        enum: [user, assistant, tool, system]
+                      content:
+                        type: string
+                        maxLength: 120000
+                      action_key:
+                        type: string
+                        nullable: true
+                      workspace_key:
+                        type: string
+                        description: Optional turn-level workspace context
+                      brand_key:
+                        type: string
+                        description: Optional turn-level brand context
+                      target_key:
+                        type: string
+                        description: Alias for brand_key
+      responses:
+        '200': { description: Turns appended successfully. }
+        '400': { description: Invalid request body. }
+        '401': { description: Authentication required. }
+        '403': { description: Not authorized to append turns. }
+        '404': { description: Session not found. }
+        '409': { description: Session is closed. }
     get:
       operationId: getGptSessionsIdTurns
       summary: "GET /gpt/sessions/{id}/turns"
