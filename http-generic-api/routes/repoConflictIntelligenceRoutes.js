@@ -1,5 +1,6 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
+import { getPool } from "../db.js";
 import {
   analyzeRepoConflict,
   buildConflictCaseStudy,
