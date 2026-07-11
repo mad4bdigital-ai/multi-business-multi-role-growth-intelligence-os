@@ -236,7 +236,7 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
     }
     const activity = resolvedActivityCandidates[0];
     const activityKey = String(activity.business_activity_type_key || activity.activity_key);
-    const activityContainer = addUnique(containers,containerRow({ tenantId,type:"activity",key:`activity:${activityKey}`,subjectType:"business_activity_type",subjectRef:activityKey,displayName:activity.label || activityKey,source:"business_activity_types" }));
+    const activityContainer = addUnique(containers,projectedContainerRow({ tenantId,type:"activity",key:`activity:${activityKey}`,subjectType:"business_activity_type",subjectRef:activityKey,displayName:activity.label || activityKey,source:"business_activity_types" }));
     activityContainerByTenantAndKey.set(`${tenantId}|${activityKey}`,activityContainer);
     const activityEdge = relationshipRow({ tenantId,fromId:brandContainer.container_id,toId:activityContainer.container_id,source:"brand_paths.business_type_key" });
     relationships.set(activityEdge.relationship_id,activityEdge);
