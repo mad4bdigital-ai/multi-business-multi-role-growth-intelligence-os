@@ -1276,8 +1276,8 @@ export function buildLocalConnectorInstallRoutes(deps) {
       const payload = verifyInstallerDownloadToken(req.query.token);
       if (!["ps1", "bat"].includes(payload.format)) throw httpError(400, "unsupported_format", "Only ps1 or bat installer downloads are supported.");
       const [[config]] = await getPool().query(
-        "SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url, connector_secret, cf_token FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
-        [payload.user_id, payload.device_id]
+        "SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url, connector_secret, cf_token FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+        [payload.user_id, payload.tenant_id, payload.device_id]
       );
       if (!config) throw httpError(404, "connector_config_not_found", "No active connector config was found for this download token.");
       if (!config.cf_token || !config.connector_secret) throw httpError(409, "connector_config_incomplete", "Connector config is missing recovery token or connector secret.");
