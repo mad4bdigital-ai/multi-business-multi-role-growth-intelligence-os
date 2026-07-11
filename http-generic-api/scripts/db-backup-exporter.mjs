@@ -34,8 +34,11 @@ function sqlValue(value) {
   return sqlString(value);
 }
 async function sha256File(filePath) {
-  const data = await fs.readFile(filePath);
-  return createHash("sha256").update(data).digest("hex");
+  const hash = createHash("sha256");
+  for await (const chunk of createReadStream(filePath)) {
+    hash.update(chunk);
+  }
+  return hash.digest("hex");
 }
 async function writeJobStatus(jobId, payload = {}) {
   const id = safeJobId(jobId);
