@@ -17,7 +17,7 @@ const ALLOWED_STATUSES = new Set([
 
 const TENANT_SAFE_TRANSITIONS = Object.freeze({
   detected: new Set(["diagnosing", "escalated", "cancelled"]),
-  diagnosing: new Set(["needs_connection", "needs_approval", "ready_to_apply", "escalated", "cancelled"]),
+  diagnosing: new Set(["needs_connection", "needs_approval", "ready_to_apply", "blocked_missing_authority", "escalated", "cancelled"]),
   needs_connection: new Set(["diagnosing", "escalated", "cancelled"]),
   needs_approval: new Set(["diagnosing", "ready_to_apply", "deferred_by_policy", "escalated", "cancelled"]),
   ready_to_apply: new Set(["deferred_by_policy", "escalated", "cancelled"]),
