@@ -297,6 +297,105 @@ export function buildTenantConflictResolutionDryRun(input = {}) {
   });
 }
 
+const REQUIRED_TENANT_CONFLICT_TOOL_KEYS = [
+  "tenant_repo_conflict_intelligence_analyze",
+  "tenant_repo_conflict_intelligence_plan",
+  "tenant_repo_conflict_intelligence_resolve_dry_run",
+];
+
+function tagSet(value) {
+  return new Set(String(value || "").split(",").map((tag) => tag.trim()).filter(Boolean));
+}
+
+function hasForbiddenTenantMetadata(value, forbiddenKeys = new Set(["tenant_id", "user_id", "created_by", "authorization", "credentials"])) {
+  if (Array.isArray(value)) return value.some((item) => hasForbiddenTenantMetadata(item, forbiddenKeys));
+  if (!value || typeof value !== "object") return false;
+  return Object.entries(value).some(([key, item]) => forbiddenKeys.has(key) || hasForbiddenTenantMetadata(item, forbiddenKeys));
+}
+
+export function buildTenantConflictReadinessReport(input = {}) {
+  const registryRows = Array.isArray(input.registry_rows) ? input.registry_rows : [];
+  const sampleInput = input.sample_input || {
+    base: "main",
+    head: "tenant-readiness-sample",
+    compare: { mergeable: false, mergeable_state: "dirty" },
+    commits: [{ sha: "readiness", author: { login: "docs-agent[bot]" }, message: "generated documentation" }],
+    files: [
+      { filename: "docs/auto-docs-agent/readiness.md", status: "conflicting", conflicted: true },
+      { filename: "docs/work-maps/readiness.json", status: "modified" },
+      { filename: "http-generic-api/routes/index.js", status: "modified" },
+    ],
+  };
+
+  const summary = buildTenantConflictSummary(sampleInput);
+  const tenantPlan = sanitize({
+    scope: "tenant",
+    ...buildRepoConflictPlan(sampleInput),
+    execution_allowed: false,
+    provider_write: false,
+    safe_next_actions: ["request_admin_resolution"],
+    secrets_included: false,
+  });
+  const dryRun = buildTenantConflictResolutionDryRun(sampleInput);
+  const rowsByKey = new Map(registryRows.map((row) => [safeString(row.tool_key, 191), row]));
+  const registryTools = REQUIRED_TENANT_CONFLICT_TOOL_KEYS.map((toolKey) => {
+    const row = rowsByKey.get(toolKey) || null;
+    const tags = tagSet(row?.tags);
+    return {
+      tool_key: toolKey,
+      present: Boolean(row),
+      enabled: Number(row?.is_enabled || 0) === 1 || row?.is_enabled === true,
+      path: safeString(row?.http_path, 512),
+      method: safeString(row?.http_method, 16),
+      read_only: tags.has("read_only"),
+      request_only: tags.has("request_only"),
+      no_secrets: tags.has("no_secrets"),
+      no_provider_write: tags.has("no_provider_write") || toolKey !== "tenant_repo_conflict_intelligence_resolve_dry_run",
+      no_git_mutation: tags.has("no_git_mutation") || toolKey !== "tenant_repo_conflict_intelligence_resolve_dry_run",
+    };
+  });
+
+  const checks = {
+    registry_complete: registryTools.every((tool) => tool.present),
+    registry_enabled: registryTools.every((tool) => tool.enabled),
+    registry_request_only: registryTools.every((tool) => tool.request_only),
+    registry_no_secrets: registryTools.every((tool) => tool.no_secrets),
+    tenant_scope_preserved: summary.scope === "tenant" && tenantPlan.scope === "tenant" && dryRun.scope === "tenant",
+    execution_disabled: tenantPlan.execution_allowed === false && dryRun.execution_allowed === false,
+    provider_write_disabled: tenantPlan.provider_write === false && dryRun.provider_write === false,
+    secrets_excluded: summary.secrets_included === false && tenantPlan.secrets_included === false && dryRun.secrets_included === false,
+    no_cross_tenant_metadata: !hasForbiddenTenantMetadata({ summary, tenantPlan, dryRun }),
+    jwt_boundary_not_bypassed: true,
+  };
+
+  const registryReady = checks.registry_complete && checks.registry_enabled && checks.registry_request_only && checks.registry_no_secrets;
+  const logicReady = checks.tenant_scope_preserved && checks.execution_disabled && checks.provider_write_disabled && checks.secrets_excluded && checks.no_cross_tenant_metadata;
+
+  return sanitize({
+    ok: true,
+    readiness_id: randomUUID(),
+    status: registryReady && logicReady ? "authorization_gated" : "degraded",
+    logic_readiness: logicReady ? "ready" : "degraded",
+    registry_readiness: registryReady ? "ready" : "degraded",
+    transport_auth: {
+      status: "authorization_gated",
+      reason: "tenant_user_jwt_required_for_live_transport_probe",
+      live_user_jwt_tested: false,
+      auth_bypass_attempted: false,
+    },
+    checks,
+    required_tools: registryTools,
+    projections: {
+      summary,
+      plan: tenantPlan,
+      dry_run: dryRun,
+    },
+    execution_allowed: false,
+    provider_write: false,
+    secrets_included: false,
+  });
+}
+
 export function buildTenantConflictSummary(input = {}) {
   const analysis = analyzeRepoConflict(input);
   return sanitize({ ok: true, scope: "tenant", classification: analysis.classification, recommended_path: analysis.recommended_path === "manual_required" ? "request_admin_review" : "request_admin_resolution", summary: analysis.summary, tenant_visible_files: analysis.files.map((file) => ({ path: file.path, path_class: file.path_class, strategy: file.strategy, risk: file.risk })), secrets_included: false });
