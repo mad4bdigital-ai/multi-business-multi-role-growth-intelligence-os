@@ -179,6 +179,15 @@ assert.equal(migration1026.coverage.route_coverage.missing_count, 0, "registry-d
 assert(migration1026.coverage.route_coverage.route_classifications.some((entry) => entry.route === "/repos/{owner}/{repo}/actions/runs"), "migration 1026 must preserve route classification evidence for the GitHub Actions workflow-runs provider path");
 assert(migration1026.coverage.route_coverage.route_classifications.every((entry) => entry.route_class === "registry_only_surface"), "migration 1026 route literals must be classified as registry_only_surface");
 
+const migration1031 = report.all_migrations.find((entry) => entry.migration_file === "1031_sprint69_github_actions_diagnostics_endpoints_seed.sql");
+assert(migration1031, "migration 1031 must be discoverable for GitHub Actions diagnostics OpenAPI coverage");
+assert.equal(migration1031.coverage.route_coverage.missing_count, 0, "OpenAPI artifacts under http-generic-api/openapi must satisfy migration 1031 route coverage");
+assert.equal(
+  report.gap_queue.top_items.some((entry) => entry.migration_file === "1031_sprint69_github_actions_diagnostics_endpoints_seed.sql"),
+  false,
+  "migration 1031 must leave the actionable gap queue after docs, safety markers, and OpenAPI directory coverage"
+);
+
 const migration286 = report.all_migrations.find((entry) => entry.migration_file === "286_sprint68_platform_schema_contract_completion_registry.sql");
 assert(migration286, "migration 286 must be discoverable for synthetic endpoint schema route classification");
 assert.equal(migration286.coverage.route_coverage.missing_count, 0, "synthetic endpoint-native schema routes in migration 286 must not be treated as OpenAPI gaps");

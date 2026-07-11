@@ -15,6 +15,7 @@ import {
   synchronizeOperationalAlerts,
   updateOperationalAlertLifecycle,
 } from "../operationalAlertService.js";
+import { readTenantResolutionProblemCards } from "../tenantResolutionProjectionService.js";
 import { acknowledgeActivationRun, readActivationRunArchive } from "../activationSessionLifecycleService.js";
 import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
 
@@ -235,6 +236,24 @@ async function operationalAttentionResponse(req, isAdmin) {
   });
 }
 
+async function tenantProblemCardsResponse(req) {
+  return readTenantResolutionProblemCards({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    cursor: boundedInt(req.query.cursor, 0, 0, 1000000),
+    limit: boundedInt(req.query.limit, 25, 1, 100),
+    lookbackHours: boundedInt(req.query.lookback_hours, 168, 1, 2160),
+    rootFamily: queryText(req.query.root_family, 128),
+    severity: queryText(req.query.severity, 32),
+    q: queryText(req.query.q, 300),
+  });
+}
+
 async function operationalAttentionSyncResponse(req, isAdmin) {
   return synchronizeOperationalAlerts({
     sessionContext: subjectContext(req, isAdmin),
@@ -375,6 +394,14 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
+  router.get("/tenant/resolution/problem-cards", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantProblemCardsResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_resolution_problem_cards_read_failed");
+    }
+  });
+
   router.get("/tenant/activation/dynamic-tabs/detail", requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await detailResponse(req, false));
@@ -395,4 +422,5 @@ export const _testingActivationAwarenessRoutes = {
   queryBoolean,
   profileValue,
   subjectContext,
+  tenantProblemCardsResponse,
 };

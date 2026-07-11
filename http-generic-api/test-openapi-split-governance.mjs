@@ -108,7 +108,10 @@ const tenantActivation = loadYaml(registry.surfaces.tenant_activation.output_fil
 assert.equal(Object.keys(adminCore.paths).some((path) => path.startsWith("/activation") || path.startsWith("/tenant/activation")), false);
 assert.equal(Object.keys(tenantCore.paths).some((path) => path.startsWith("/activation") || path.startsWith("/tenant/activation")), false);
 assert.equal(Object.keys(adminActivation.paths).every((path) => path.startsWith("/activation")), true);
-assert.equal(Object.keys(tenantActivation.paths).every((path) => path.startsWith("/tenant/activation")), true);
+assert.equal(
+  Object.keys(tenantActivation.paths).every((path) => path.startsWith("/tenant/activation") || path.startsWith("/tenant/resolution")),
+  true,
+);
 
 assert(splitScript.includes("SURFACE_REGISTRY_FILE"), "split generator must read the canonical surface registry");
 assert(splitScript.includes("validateGeneratedDoc"), "split generator must validate generated operations against the source OpenAPI");

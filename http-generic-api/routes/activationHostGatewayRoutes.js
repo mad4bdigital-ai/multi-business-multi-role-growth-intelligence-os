@@ -20,12 +20,17 @@ const ACTIVATION_SCHEMA_FILES_BY_PATH = new Map([
 const ALLOWED_EXACT_PATHS = new Set([
   "/",
   "/health",
+  "/auth/oauth",
+  "/auth/google",
+  "/auth/login",
+  "/auth/register",
   ...ACTIVATION_SCHEMA_FILES_BY_PATH.keys(),
 ]);
 
 const ALLOWED_PREFIXES = [
   "/activation/",
   "/tenant/activation/",
+  "/auth/oauth/",
 ];
 
 function requestHost(req) {
@@ -141,11 +146,13 @@ export function buildActivationHostGatewayRoutes({
     delete req.headers.cookie;
 
     if (isOAuthPath(pathname)) {
-      return res.status(404).json(errorResponse(
-        "ACTIVATION_HOST_OAUTH_NOT_ALLOWED",
-        "OAuth endpoints are only served from auth.mad4b.com.",
-        req,
-      ));
+      req.activationHostGateway = {
+        host,
+        enforced: true,
+        oauth_handoff: true,
+        secrets_included: false,
+      };
+      return next();
     }
 
     if (!isActivationHostAllowedPath(pathname)) {

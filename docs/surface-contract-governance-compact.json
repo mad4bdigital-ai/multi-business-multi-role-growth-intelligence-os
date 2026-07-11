@@ -1,19 +1,13 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 98.59,
-  "docs_complete_count": 491,
-  "docs_gap_count": 7,
-  "queue_items": 9,
-  "blocking_new_item_count": 4,
+  "docs_completion_percent": 99.6,
+  "docs_complete_count": 498,
+  "docs_gap_count": 2,
+  "queue_items": 2,
+  "blocking_new_item_count": 1,
   "gate_ok": false,
   "top_actionable": [
-    {
-      "migration_file": "1030_sprint69_default_blocker_recovery_governance_seed.sql",
-      "queue_class": "critical_review",
-      "score": 1079,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
     {
       "migration_file": "1031_sprint69_github_actions_diagnostics_endpoints_seed.sql",
       "queue_class": "critical_review",
@@ -21,33 +15,9 @@
       "next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption"
     },
     {
-      "migration_file": "1040_sprint69_capability_enablement_operational_dashboard.sql",
-      "queue_class": "high_review",
-      "score": 552,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "20260706_session_archive_stale_closure_autosweep.sql",
-      "queue_class": "high_review",
-      "score": 511,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "1039_sprint69_disable_temporary_hostinger_deploy_gates.sql",
-      "queue_class": "high_review",
-      "score": 462,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "1038_sprint69_hostinger_deploy_resource_authority_binding.sql",
-      "queue_class": "high_review",
-      "score": 459,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "1041_sprint69_hard_disable_temporary_hostinger_executor_gate.sql",
-      "queue_class": "high_review",
-      "score": 426,
+      "migration_file": "20260709_tenant_resolution_registry_schema.sql",
+      "queue_class": "critical_review",
+      "score": 817,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
@@ -59,8 +29,8 @@
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 4,
-    "warning_new_item_count": 4
+    "blocking_new_item_count": 1,
+    "warning_new_item_count": 1
   },
   "safety": {
     "executes_provider_calls": false,

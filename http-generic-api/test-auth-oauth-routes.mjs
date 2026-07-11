@@ -88,6 +88,7 @@ async function getText(baseUrl, path, { headers = {} } = {}) {
 }
 
 const oauthTokenDiagnostics = [];
+const tenantGptActivationContexts = [];
 
 const oauthClientPool = {
   async query(sql, params) {
@@ -100,6 +101,21 @@ const oauthClientPool = {
         endpoint_key: params[8],
         parent_action_key: params[9],
         runtime_evidence_json: JSON.parse(params[10]),
+      });
+      return [{ affectedRows: 1 }];
+    }
+    if (sql.includes("CREATE TABLE IF NOT EXISTS `tenant_gpt_activation_contexts`")) {
+      return [{ affectedRows: 0 }];
+    }
+    if (sql.includes("INSERT INTO `tenant_gpt_activation_contexts`")) {
+      tenantGptActivationContexts.push({
+        access_jti: params[0],
+        oauth_code_jti: params[1],
+        user_id: params[2],
+        tenant_id: params[3],
+        client_id: params[4],
+        activation_context_json: params[5],
+        expires_at: params[6],
       });
       return [{ affectedRows: 1 }];
     }
@@ -143,7 +159,7 @@ try {
   section("authorize popup");
 
   {
-    const result = await getText(baseUrl, `/auth/oauth/authorize?redirect_uri=${encodedRedirect}&state=${state}&screen_hint=signup&activation_mode=managed&device_id=my-laptop&workspace_name=Acme%20Growth&sign_in_options=google,email,register`);
+    const result = await getText(baseUrl, `/auth/oauth/authorize?redirect_uri=${encodedRedirect}&state=${state}&scope=${encodeURIComponent(TENANT_SCOPE)}&screen_hint=signup&activation_mode=managed&device_id=my-laptop&workspace_name=Acme%20Growth&sign_in_options=google,email,register`);
     assert("authorize returns html", result.status === 200, `${result.status}`);
     assert("authorize is not cacheable", result.cacheControl.includes("no-store"), result.cacheControl);
     assert("authorize includes app name", result.text.includes("Growth Intelligence Platform"));
@@ -151,6 +167,7 @@ try {
     assert("authorize includes existing-account option", result.text.includes("Existing account"));
     assert("authorize includes new-workspace option", result.text.includes("New workspace"));
     assert("authorize carries activation mode", result.text.includes('"activation_mode":"managed"'));
+    assert("authorize carries requested OAuth scope", result.text.includes(TENANT_SCOPE));
     assert("authorize carries device id", result.text.includes('"device_id":"my-laptop"'));
     assert("authorize preselects signup panel", result.text.includes('const INITIAL_PANEL = "register"'));
     assert("authorize includes privacy policy link", result.text.includes('href="/privacy-policy"'));
@@ -208,7 +225,7 @@ try {
     screen_hint: "signin",
     sign_in_options: ["email", "register"],
   };
-  const codeResult = await postJson(baseUrl, "/auth/oauth/code", { token: userToken, redirect_uri: redirectUri, state, activation_context: activationContext });
+  const codeResult = await postJson(baseUrl, "/auth/oauth/code", { token: userToken, redirect_uri: redirectUri, state, scope: TENANT_SCOPE, activation_context: activationContext });
   assert("code endpoint accepts signed user token", codeResult.status === 200, `${codeResult.status}`);
   assert("code response includes code", typeof codeResult.body.code === "string" && codeResult.body.code.length > 40);
   assert("code response redirects with state", String(codeResult.body.redirect_to || "").includes(`state=${state}`), codeResult.body.redirect_to);
@@ -245,13 +262,30 @@ try {
   assert("token endpoint exchanges authorization code", exchange.status === 200, `${exchange.status}`);
   assert("token endpoint returns bearer token", exchange.body.token_type === "Bearer", JSON.stringify(exchange.body));
   assert("token endpoint mints a fresh access JWT", exchange.body.access_token !== userToken && typeof exchange.body.access_token === "string", JSON.stringify(exchange.body));
-  assert("token endpoint returns standard OAuth response only", !Object.prototype.hasOwnProperty.call(exchange.body, "scope") && !Object.prototype.hasOwnProperty.call(exchange.body, "activation_context"), JSON.stringify(exchange.body));
+  assert("token endpoint returns standard OAuth scope", exchange.body.scope === TENANT_SCOPE, JSON.stringify(exchange.body));
+  assert("token endpoint excludes non-standard activation context", !Object.prototype.hasOwnProperty.call(exchange.body, "activation_context"), JSON.stringify(exchange.body));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const successDiagnostic = oauthTokenDiagnostics.find((row) => row.execution_status === "success");
+  assert("success token exchange writes diagnostic", Boolean(successDiagnostic), JSON.stringify(oauthTokenDiagnostics));
+  assert("success diagnostic captures token type", successDiagnostic?.runtime_evidence_json?.access_token?.token_type === "Bearer", JSON.stringify(successDiagnostic));
+  assert("success diagnostic captures token length only", successDiagnostic?.runtime_evidence_json?.access_token?.length === exchange.body.access_token.length, JSON.stringify(successDiagnostic));
+  assert("success diagnostic captures activation context storage only", successDiagnostic?.runtime_evidence_json?.activation_context?.stored === true, JSON.stringify(successDiagnostic));
+  assert("success diagnostic captures requested scope count only", successDiagnostic?.runtime_evidence_json?.requested_scope?.count === TENANT_SCOPE_LINKS.length, JSON.stringify(successDiagnostic));
+  assert("success diagnostic excludes raw access token", !JSON.stringify(successDiagnostic || {}).includes(exchange.body.access_token), JSON.stringify(successDiagnostic));
+  assert("token exchange stores activation context server-side", tenantGptActivationContexts.length === 1, JSON.stringify(tenantGptActivationContexts));
+  const storedActivationContext = JSON.parse(tenantGptActivationContexts[0].activation_context_json);
+  assert("stored activation context preserves activation mode", storedActivationContext.activation_mode === "dedicated", JSON.stringify(storedActivationContext));
+  assert("stored activation context preserves workspace name", storedActivationContext.workspace_name === "Tenant Workspace", JSON.stringify(storedActivationContext));
+  assert("stored activation context marks secrets excluded", storedActivationContext.secrets_included === false, JSON.stringify(storedActivationContext));
   const accessPayload = jwt.verify(exchange.body.access_token, process.env.JWT_SECRET);
   assert("access JWT has platform issuer", accessPayload.iss === "https://auth.mad4b.com", JSON.stringify(accessPayload));
   assert("access JWT has tenant GPT audience", accessPayload.aud === "mad4b-tenant-gpt", JSON.stringify(accessPayload));
   assert("access JWT has tenant subject", accessPayload.sub === "tenant:tenant-1:user:user-1", JSON.stringify(accessPayload));
+  assert("stored activation context is linked to access JWT jti", tenantGptActivationContexts[0].access_jti === accessPayload.jti, JSON.stringify({ stored: tenantGptActivationContexts[0].access_jti, token: accessPayload.jti }));
   assert("access JWT carries linked tenant scopes", accessPayload.scope === TENANT_SCOPE, JSON.stringify(accessPayload));
-  assert("access JWT carries scope links array", TENANT_SCOPE_LINKS.every((scope) => accessPayload.scope_links?.includes(scope)), JSON.stringify(accessPayload));
+  assert("OAuth access JWT omits duplicated scope links", accessPayload.scope_links === undefined, JSON.stringify(accessPayload));
+  assert("OAuth access JWT omits duplicated client id", accessPayload.client_id === undefined, JSON.stringify(accessPayload));
+  assert("OAuth access JWT stays compact", exchange.body.access_token.length < 1000, String(exchange.body.access_token.length));
   assert("access JWT carries tenant GPT purpose", accessPayload.purpose === "tenant_gpt_access", JSON.stringify(accessPayload));
 
   const mismatch = await postForm(baseUrl, "/auth/oauth/token", {
