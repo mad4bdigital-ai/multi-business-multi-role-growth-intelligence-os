@@ -114,6 +114,58 @@ async function countIds(pool, table, idColumn, ids) {
   return count;
 }
 
+async function readActiveOrphanReferences(pool, tenantIds) {
+  const tenants = [...new Set(tenantIds.map(String).filter(Boolean))];
+  if (!tenants.length) {
+    return { relationships: 0, role_assignments: 0, resource_bindings: 0, graph_nodes: 0, total: 0 };
+  }
+  const placeholders = tenants.map(() => "?").join(",");
+  const [[relationshipRow]] = await pool.query(
+    `SELECT COUNT(*) AS row_count
+       FROM container_relationships r
+       LEFT JOIN containers source_container ON source_container.container_id = r.from_container_id
+       LEFT JOIN containers target_container ON target_container.container_id = r.to_container_id
+      WHERE r.status = 'active'
+        AND r.tenant_id IN (${placeholders})
+        AND (source_container.container_id IS NULL OR target_container.container_id IS NULL)`,
+    tenants
+  );
+  const [[roleRow]] = await pool.query(
+    `SELECT COUNT(*) AS row_count
+       FROM container_role_assignments a
+       LEFT JOIN containers c ON c.container_id = a.container_id
+      WHERE a.status = 'active'
+        AND a.tenant_id IN (${placeholders})
+        AND c.container_id IS NULL`,
+    tenants
+  );
+  const [[bindingRow]] = await pool.query(
+    `SELECT COUNT(*) AS row_count
+       FROM container_resource_bindings b
+       LEFT JOIN containers c ON c.container_id = b.container_id
+      WHERE b.status = 'active'
+        AND b.tenant_id IN (${placeholders})
+        AND c.container_id IS NULL`,
+    tenants
+  );
+  const [[graphRow]] = await pool.query(
+    `SELECT COUNT(*) AS row_count
+       FROM platform_graph_nodes n
+       LEFT JOIN containers c ON c.container_id = n.source_pk
+      WHERE n.lifecycle_status = 'active'
+        AND n.source_table = 'containers'
+        AND n.source_pk IS NOT NULL
+        AND c.container_id IS NULL`
+  );
+  const counts = {
+    relationships: Number(relationshipRow?.row_count || 0),
+    role_assignments: Number(roleRow?.row_count || 0),
+    resource_bindings: Number(bindingRow?.row_count || 0),
+    graph_nodes: Number(graphRow?.row_count || 0),
+  };
+  return { ...counts, total: Object.values(counts).reduce((sum, value) => sum + value, 0) };
+}
+
 export async function readDynamicContainerProjectionApply(plan, { pool = getPool() } = {}) {
   const [[run]] = await pool.query(
     `SELECT projection_run_id, mode, status, source_snapshot_sha256,
