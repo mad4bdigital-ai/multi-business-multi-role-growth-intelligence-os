@@ -4,9 +4,9 @@
 
 ## Summary
 
-- Total queue items: 5
+- Total queue items: 6
 - Critical review: 4
-- High review: 1
+- High review: 2
 - Medium review: 0
 - Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
@@ -67,7 +67,22 @@
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 5. `20260711_temporary_hostinger_probe_config_authority.sql`
+### 5. `1044_sprint69_dynamic_container_projection_apply_governance.sql`
+
+- Queue class: high_review
+- Score: 584
+- Gap severity: medium
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`
+- Surface counts: plugins=0, tools=4, views=0, policies=1, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `requires_dispatch_allowed`, `requires_readback`, `requires_ready_for_dispatch`, `same_cycle_projection_readback_required`
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `dynamic_container_projection_apply_policy_v1`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`
+
+### 6. `20260711_temporary_hostinger_probe_config_authority.sql`
 
 - Queue class: high_review
 - Score: 524
