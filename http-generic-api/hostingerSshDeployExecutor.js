@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { getPool } from "./db.js";
 import { resolveEffectiveCredential } from "./credentialResolver.js";
 import { maybeCreateCredentialIntakeRequirement } from "./credentialIntakeEnforcement.js";
@@ -401,23 +401,37 @@ export function buildRemoteDeployScript({ appPath, branch, expectedCommitSha, fo
 function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", privateKey, password, remoteScript, timeoutMs }) {
   return new Promise(async (resolve) => {
     const usePassword = authMode === "password";
-    const tempDir = usePassword ? null : await mkdtemp(join(tmpdir(), "mad4b-hostinger-ssh-"));
-    const keyFile = tempDir ? join(tempDir, "id_ed25519") : null;
+    const tempDir = await mkdtemp(join(tmpdir(), "mad4b-hostinger-ssh-"));
+    const keyFile = join(tempDir, "id_ed25519");
+    const passwordFile = join(tempDir, "password");
+    const askpassFile = join(tempDir, "askpass.mjs");
     let settled = false;
     let child = null;
     const cleanup = async () => {
-      if (!tempDir) return;
       try { await rm(tempDir, { recursive: true, force: true }); } catch { /* noop */ }
     };
     try {
       let command = "ssh";
       let args;
-      let stdio = ["ignore", "pipe", "pipe"];
+      let spawnEnv = process.env;
       if (usePassword) {
-        command = "sshpass";
+        await writeFile(passwordFile, String(password || ""), { mode: 0o600 });
+        await writeFile(
+          askpassFile,
+          [
+            "#!/usr/bin/env node",
+            "import { readFileSync, rmSync } from 'node:fs';",
+            "const file = process.env.MAD4B_SSH_ASKPASS_FILE;",
+            "if (!file) process.exit(1);",
+            "try {",
+            "  const value = readFileSync(file, 'utf8');",
+            "  rmSync(file, { force: true });",
+            "  process.stdout.write(value);",
+            "} catch { process.exit(1); }",
+          ].join("\n"),
+          { mode: 0o700 }
+        );
         args = [
-          "-d", "3",
-          "ssh",
           ...hardenedSshOptions({ usePassword: true }),
           "-p", String(port || 22),
           `${user}@${host}`,
@@ -425,7 +439,13 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
           "-lc",
           remoteScript,
         ];
-        stdio = ["ignore", "pipe", "pipe", "pipe"];
+        spawnEnv = {
+          ...process.env,
+          SSH_ASKPASS: askpassFile,
+          SSH_ASKPASS_REQUIRE: "force",
+          DISPLAY: "mad4b-askpass:0",
+          MAD4B_SSH_ASKPASS_FILE: passwordFile,
+        };
       } else {
         await writeFile(keyFile, privateKey, { mode: 0o600 });
         args = [
@@ -438,15 +458,15 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
           remoteScript,
         ];
       }
-      if (!usePassword) {
-        const wrapped = withCoreutilsTimeout(command, args, timeoutMs);
-        command = wrapped.command;
-        args = wrapped.args;
-      }
-      child = spawn(command, args, { stdio, shell: false, detached: true });
-      if (usePassword && child.stdio?.[3]) {
-        child.stdio[3].end(`${password}\n`);
-      }
+      const wrapped = withCoreutilsTimeout(command, args, timeoutMs);
+      command = wrapped.command;
+      args = wrapped.args;
+      child = spawn(command, args, {
+        stdio: ["ignore", "pipe", "pipe"],
+        shell: false,
+        detached: true,
+        env: spawnEnv,
+      });
       let stdout = "";
       let stderr = "";
       const timer = setTimeout(() => {
@@ -454,7 +474,7 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
         settled = true;
         killProcessTree(child, "SIGTERM");
         setTimeout(() => killProcessTree(child, "SIGKILL"), SSH_PROCESS_KILL_GRACE_MS).unref?.();
-        cleanup().finally(() => resolve({ ok: false, exit_code: 124, timed_out: true, auth_mode: authMode, stdout: sanitizeSshOutput(stdout), stderr: sanitizeSshOutput(stderr) }));
+        cleanup().finally(() => resolve({ ok: false, exit_code: 124, timed_out: true, auth_mode: authMode, password_transport: usePassword ? "openssh_askpass_tempfile" : null, stdout: sanitizeSshOutput(stdout), stderr: sanitizeSshOutput(stderr) }));
       }, Number(timeoutMs || DEFAULT_TIMEOUT_MS) + SSH_PROCESS_KILL_GRACE_MS + 1000);
       child.stdout.on("data", (chunk) => { stdout += chunk.toString("utf8"); });
       child.stderr.on("data", (chunk) => { stderr += chunk.toString("utf8"); });
@@ -468,6 +488,7 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
           exit_code: exitCode,
           timed_out: exitCode === 124,
           auth_mode: authMode,
+          password_transport: usePassword ? "openssh_askpass_tempfile" : null,
           stdout: sanitizeSshOutput(stdout),
           stderr: sanitizeSshOutput(stderr),
         }));
@@ -476,13 +497,13 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        cleanup().finally(() => resolve({ ok: false, exit_code: 127, timed_out: false, auth_mode: authMode, stdout: "", stderr: sanitizeSshOutput(err.message) }));
+        cleanup().finally(() => resolve({ ok: false, exit_code: 127, timed_out: false, auth_mode: authMode, password_transport: usePassword ? "openssh_askpass_tempfile" : null, stdout: "", stderr: sanitizeSshOutput(err.message) }));
       });
     } catch (err) {
       if (!settled) {
         settled = true;
         await cleanup();
-        resolve({ ok: false, exit_code: 1, timed_out: false, auth_mode: authMode, stdout: "", stderr: sanitizeSshOutput(err.message) });
+        resolve({ ok: false, exit_code: 1, timed_out: false, auth_mode: authMode, password_transport: usePassword ? "openssh_askpass_tempfile" : null, stdout: "", stderr: sanitizeSshOutput(err.message) });
       }
     }
   });
