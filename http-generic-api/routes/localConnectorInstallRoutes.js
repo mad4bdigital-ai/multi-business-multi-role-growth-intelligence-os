@@ -1141,6 +1141,10 @@ export function buildLocalConnectorInstallRoutes(deps) {
     try {
       const device = await requireFreshLocalManagerDeviceForPrivilegedInstaller(req);
       const format = String(req.body?.format || "bat").trim().toLowerCase();
+      const requestedTenantId = req.auth?.is_admin === true
+        ? String(req.body?.tenant_id || "").trim()
+        : "";
+      const selectedTenantId = requestedTenantId || device.tenant_id || "";
       const ttl = Math.max(5, Math.min(60, Number(req.body?.ttl_minutes || 30)));
       const permissionGrants = normalizePermissionGrants({ ...(req.body?.permission_grants || {}), capabilities: req.body?.capabilities || [] });
       const capabilities = permissionGrants.capabilities;
