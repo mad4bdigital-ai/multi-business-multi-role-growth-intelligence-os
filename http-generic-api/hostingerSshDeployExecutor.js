@@ -224,7 +224,7 @@ function preferredSshAuthMode(input = {}, target = {}) {
   return "private_key";
 }
 
-function normalizeSshPasswordTransport(value = "auto") {
+export function normalizeSshPasswordTransport(value = "auto") {
   const normalized = compact(value || "auto", 32).toLowerCase();
   return SSH_PASSWORD_TRANSPORT_MODES.has(normalized) ? normalized : "auto";
 }
@@ -234,10 +234,10 @@ function commandAvailable(command) {
   return !result.error && result.status === 0;
 }
 
-function resolveSshPasswordTransport(value = "auto") {
+export function resolveSshPasswordTransport(value = "auto", isCommandAvailable = commandAvailable) {
   const requested = normalizeSshPasswordTransport(value);
   if (requested !== "auto") return requested;
-  return commandAvailable("sshpass") ? "sshpass" : "askpass";
+  return isCommandAvailable("sshpass") ? "sshpass" : "askpass";
 }
 
 export function normalizeHostingerSshTargetProbeJobPayload(input = {}) {
