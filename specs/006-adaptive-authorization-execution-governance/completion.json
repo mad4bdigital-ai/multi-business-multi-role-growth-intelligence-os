@@ -4,7 +4,7 @@
   "title": "Adaptive Authorization and Execution Governance",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-09T23:55:00Z",
+  "last_updated_at": "2026-07-10T10:25:00Z",
   "delivery": {
     "implementation_prs": [
       {
@@ -64,19 +64,27 @@
         "merge_sha": "c06224f60179406ba65765c23de9c472be3a1231",
         "status": "merged",
         "branch_deleted_verified": false
+      },
+      {
+        "sequence": 9,
+        "role": "shadow_mismatch_classification_only",
+        "pull_request": 2460,
+        "merge_sha": "b5c8369c78ee87a19573554faf5083e8b4f7a5d4",
+        "status": "merged",
+        "branch_deleted_verified": false
       }
     ],
     "remaining_task_loop": {
-      "status": "t041_next_mismatch_classification",
+      "status": "t042_next_parity_threshold_approval",
       "provider_mutation": false,
       "external_write": false,
       "migration_execution": "not_started",
       "enforcement_change": false
     },
     "next_pr": {
-      "sequence": 9,
-      "scope": "T041 classify all legacy adaptive mismatches from shadow pilot evidence",
-      "status": "ready_after_t040_ledger_closeout"
+      "sequence": 10,
+      "scope": "T042 approve parity thresholds before canary enforcement",
+      "status": "blocked_until_explicit_threshold_approval_design"
     }
   },
   "evidence": {
@@ -88,9 +96,10 @@
         "T022",
         "T023",
         "T030",
-        "T040"
+        "T040",
+        "T041"
       ],
-      "latest_task": "T040",
+      "latest_task": "T041",
       "provider_mutation_allowed": false,
       "external_write_allowed": false,
       "enforcement_cutover_allowed": false,
@@ -111,11 +120,11 @@
         "T022",
         "T023",
         "T030",
-        "T040"
+        "T040",
+        "T041"
       ],
-      "next_task_scope": "T041 classify all legacy/adaptive mismatches",
+      "next_task_scope": "T042 approve parity thresholds before canary enforcement",
       "remaining_tasks": [
-        "T041",
         "T042",
         "T043",
         "T050",
@@ -126,7 +135,7 @@
         "T062",
         "D010"
       ],
-      "remaining_task_count": 10,
+      "remaining_task_count": 9,
       "provider_mutation_allowed": false,
       "external_write_allowed": false,
       "enforcement_change_allowed": false,
@@ -134,7 +143,7 @@
     },
     "production_rollout": {
       "status": "pending",
-      "reason": "T041 through T053, mismatch approvals, compatibility wrappers, production verification, rollback rehearsal, and post-merge audit remain incomplete."
+      "reason": "T042 through T053, threshold approval, compatibility wrappers, production verification, rollback rehearsal, and post-merge audit remain incomplete."
     }
   },
   "sensitive_values_included": false
