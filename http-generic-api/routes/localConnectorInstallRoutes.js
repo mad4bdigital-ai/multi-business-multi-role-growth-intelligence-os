@@ -1169,7 +1169,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
                    CASE WHEN c.tenant_id = ? THEN 0 WHEN c.tenant_id = '00000000-0000-0000-0000-000000000000' THEN 1 ELSE 2 END,
                    COALESCE(c.last_health_at, c.updated_at, c.created_at) DESC
           LIMIT 1`,
-        [device.user_id, device.device_id, device.device_id, device.user_id, device.device_id, device.tenant_id || ""]
+        [device.user_id, device.device_id, device.device_id, device.user_id, device.device_id, selectedTenantId]
       );
       const config = rows[0] || null;
       if (!config) return res.status(404).json({ ok: false, error: { code: "connector_config_not_found", message: "No active connector config was found for this linked device." }, secrets_included: false });
