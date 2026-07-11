@@ -255,7 +255,7 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
       }
       const workflow = resolvedWorkflowMatches[0];
       const key = String(workflow.workflow_key || workflow.workflow_id);
-      const workflowContainer = addUnique(containers,containerRow({ tenantId,type:"workflow",key:`workflow:${key}`,subjectType:"workflow",subjectRef:key,displayName:workflow.workflow_name || key,source:"workflows" }));
+      const workflowContainer = addUnique(containers,projectedContainerRow({ tenantId,type:"workflow",key:`workflow:${key}`,subjectType:"workflow",subjectRef:key,displayName:workflow.workflow_name || key,source:"workflows" }));
       const workflowEdge = relationshipRow({ tenantId,fromId:activityContainer.container_id,toId:workflowContainer.container_id,source:"business_activity_types.supported_workflows" });
       relationships.set(workflowEdge.relationship_id,workflowEdge);
     }
