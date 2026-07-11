@@ -259,6 +259,7 @@ export function normalizeHostingerSshTargetProbeJobPayload(input = {}) {
 
 export function validateHostingerSshTargetProbeJobPayload(input = {}) {
   const errors = [];
+  const requestedPasswordTransport = compact(input.ssh_password_transport || input.sshPasswordTransport || "auto", 32).toLowerCase();
   let payload;
   try { payload = normalizeHostingerSshTargetProbeJobPayload(input); }
   catch (err) { return [err?.message || "Hostinger SSH probe job payload is invalid."]; }
@@ -266,7 +267,7 @@ export function validateHostingerSshTargetProbeJobPayload(input = {}) {
   if (payload.app_key !== "auth.mad4b.com") errors.push("app_key must be auth.mad4b.com.");
   if (payload.expected_commit_sha && !/^[0-9a-f]{40}$/.test(payload.expected_commit_sha)) errors.push("expected_commit_sha must be a 40-character git SHA when supplied.");
   if (!SSH_AUTH_MODES.has(payload.ssh_auth_mode)) errors.push("ssh_auth_mode must be password or private_key.");
-  if (!SSH_PASSWORD_TRANSPORT_MODES.has(payload.ssh_password_transport)) errors.push("ssh_password_transport must be auto, sshpass, or askpass.");
+  if (!SSH_PASSWORD_TRANSPORT_MODES.has(requestedPasswordTransport)) errors.push("ssh_password_transport must be auto, sshpass, or askpass.");
   errors.push(...validateHostingerSshProbeRunnerMode(payload.runner_mode));
   if (payload.approval_reason.length < 20) errors.push("approval_reason with at least 20 characters is required for queued SSH probe execution.");
   return errors;
