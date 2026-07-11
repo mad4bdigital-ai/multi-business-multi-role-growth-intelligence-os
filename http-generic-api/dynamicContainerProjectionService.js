@@ -101,7 +101,8 @@ async function loadProjectionSources(executor = getPool()) {
     "SELECT link_id,workspace_id,workspace_key,tenant_id,connection_id,app_key,linked_by,status,permission_mode,created_at FROM workspace_app_links",
     "SELECT grant_id,connection_id,workspace_id,agent_id,app_key,action_key,grant_mode,granted_by,expires_at,status,created_at FROM app_action_grants",
     "SELECT grant_id,agent_id,skill_id,tenant_id,brand_key,granted_by,granted_at,expires_at,status FROM agent_skill_grants",
-    "SELECT asset_id,tenant_id,asset_type,asset_ref,display_name,brand_ref,site_ref,workflow_ref,visibility,lifecycle_status,metadata_json,created_by FROM workspace_assets"
+    "SELECT asset_id,tenant_id,asset_type,asset_ref,display_name,brand_ref,site_ref,workflow_ref,visibility,lifecycle_status,metadata_json,created_by FROM workspace_assets",
+    "SELECT container_id,tenant_id,container_key,container_type_key,canonical_subject_type,canonical_subject_ref,status,updated_at FROM containers"
   ];
   const source = {};
   for (let index = 0; index < queries.length; index += 1) {
