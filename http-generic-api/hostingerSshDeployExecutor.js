@@ -224,6 +224,22 @@ function preferredSshAuthMode(input = {}, target = {}) {
   return "private_key";
 }
 
+function normalizeSshPasswordTransport(value = "auto") {
+  const normalized = compact(value || "auto", 32).toLowerCase();
+  return SSH_PASSWORD_TRANSPORT_MODES.has(normalized) ? normalized : "auto";
+}
+
+function commandAvailable(command) {
+  const result = spawnSync(command, ["-V"], { stdio: "ignore", shell: false });
+  return !result.error && result.status === 0;
+}
+
+function resolveSshPasswordTransport(value = "auto") {
+  const requested = normalizeSshPasswordTransport(value);
+  if (requested !== "auto") return requested;
+  return commandAvailable("sshpass") ? "sshpass" : "askpass";
+}
+
 export function normalizeHostingerSshTargetProbeJobPayload(input = {}) {
   return {
     target_id: compact(input.target_id || input.targetId, 64),
