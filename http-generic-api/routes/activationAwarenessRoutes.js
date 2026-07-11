@@ -16,6 +16,7 @@ import {
   updateOperationalAlertLifecycle,
 } from "../operationalAlertService.js";
 import { readTenantResolutionProblemCards } from "../tenantResolutionProjectionService.js";
+import { createTenantResolutionCase } from "../tenantResolutionCaseService.js";
 import { acknowledgeActivationRun, readActivationRunArchive } from "../activationSessionLifecycleService.js";
 import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
 
@@ -254,6 +255,19 @@ async function tenantProblemCardsResponse(req) {
   });
 }
 
+async function tenantResolutionCaseCreateResponse(req) {
+  return createTenantResolutionCase({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    input: req.body || {},
+  });
+}
+
 async function operationalAttentionSyncResponse(req, isAdmin) {
   return synchronizeOperationalAlerts({
     sessionContext: subjectContext(req, isAdmin),
@@ -402,6 +416,15 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
+  router.post("/tenant/resolution/cases", requireTenantUserJwt, async (req, res) => {
+    try {
+      const result = await tenantResolutionCaseCreateResponse(req);
+      return res.status(result.created ? 201 : 200).json(result);
+    } catch (err) {
+      return errorResponse(res, err, "tenant_resolution_case_create_failed");
+    }
+  });
+
   router.get("/tenant/activation/dynamic-tabs/detail", requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await detailResponse(req, false));
@@ -423,4 +446,5 @@ export const _testingActivationAwarenessRoutes = {
   profileValue,
   subjectContext,
   tenantProblemCardsResponse,
+  tenantResolutionCaseCreateResponse,
 };

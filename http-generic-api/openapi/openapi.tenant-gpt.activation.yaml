@@ -1287,6 +1287,115 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /tenant/resolution/cases:
+    post:
+      tags:
+        - activation
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      operationId: createTenantResolutionCase
+      x-openai-isConsequential: true
+      summary: Create or return a tenant resolution case
+      description: Creates an internal tenant-scoped resolution case from a Problem Card. This endpoint does not call providers, write externally, or apply repairs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                problem_card:
+                  $ref: "#/components/schemas/TenantResolutionProblemCard"
+                problem_key:
+                  type: string
+                root_family:
+                  type: string
+                  enum:
+                    - wordpress_site_health
+                    - tenant_skill_approval
+                    - task_source_quality
+                    - provider_setup_ads
+                    - connector_runtime_readiness
+                    - general_operational_review
+                recommended_playbook_key:
+                  type: string
+                playbook_key:
+                  type: string
+                workspace_id:
+                  type: string
+                resource_ref:
+                  type: string
+                severity:
+                  type: string
+                  enum:
+                    - info
+                    - low
+                    - medium
+                    - high
+                    - critical
+                impact_summary:
+                  type: string
+                  maxLength: 2000
+                source_alert_keys:
+                  type: array
+                  maxItems: 100
+                  items:
+                    type: string
+                    maxLength: 191
+                source_refs:
+                  type: array
+                  maxItems: 100
+                  items:
+                    type: string
+                    maxLength: 512
+                idempotency_key:
+                  type: string
+                  maxLength: 191
+      responses:
+        "201":
+          description: Resolution case created.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "200":
+          description: Existing active case returned idempotently.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          description: Invalid problem card payload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Active tenant membership required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: No active tenant-visible playbook is available.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /tenant/activation/dynamic-tabs/detail:
     get:
       tags:
