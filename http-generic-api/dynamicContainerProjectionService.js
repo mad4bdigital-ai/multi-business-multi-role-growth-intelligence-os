@@ -205,7 +205,7 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
     }
     const brand = exact[0];
     const brandKey = String(brand.target_key);
-    const brandContainer = addUnique(containers,containerRow({ tenantId,type:"brand",key:`brand:${brandKey}`,subjectType:"brand_target_key",subjectRef:brandKey,displayName:brand.brand_name || brandKey,source:"brands.target_key" }));
+    const brandContainer = addUnique(containers,projectedContainerRow({ tenantId,type:"brand",key:`brand:${brandKey}`,subjectType:"brand_target_key",subjectRef:brandKey,displayName:brand.brand_name || brandKey,source:"brands.target_key" }));
     brandContainerByTenantAndTarget.set(`${tenantId}|${brandKey}`,brandContainer);
     const brandEdge = relationshipRow({ tenantId,fromId:workspaceContainer.container_id,toId:brandContainer.container_id,source:"workspace_registry.linked_brand_key" });
     relationships.set(brandEdge.relationship_id,brandEdge);
