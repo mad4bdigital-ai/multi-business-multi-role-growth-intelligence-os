@@ -225,6 +225,7 @@ export async function readDynamicContainerProjectionApply(plan, { pool = getPool
     expected_counts: expected,
     actual_counts: actual,
     count_mismatches: countMismatches,
+    orphan_references: orphanReferences,
     secrets_included: false,
   };
 }
