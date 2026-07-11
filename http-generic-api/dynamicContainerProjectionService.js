@@ -382,7 +382,7 @@ async function upsertProjectionRows(connection, plan, tenantId) {
       `INSERT INTO containers
         (container_id,tenant_id,container_key,container_type_key,canonical_subject_type,canonical_subject_ref,display_name,status,version,metadata_json,created_by,updated_by)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
-       ON DUPLICATE KEY UPDATE display_name=VALUES(display_name),status=VALUES(status),metadata_json=VALUES(metadata_json),updated_by=VALUES(updated_by),updated_at=UTC_TIMESTAMP()`,
+       ON DUPLICATE KEY UPDATE container_key=VALUES(container_key),container_type_key=VALUES(container_type_key),canonical_subject_type=VALUES(canonical_subject_type),canonical_subject_ref=VALUES(canonical_subject_ref),display_name=VALUES(display_name),status=VALUES(status),metadata_json=VALUES(metadata_json),updated_by=VALUES(updated_by),updated_at=UTC_TIMESTAMP()`,
       [row.container_id,row.tenant_id,row.container_key,row.container_type_key,row.canonical_subject_type,row.canonical_subject_ref,row.display_name,row.status,row.version,row.metadata_json,row.created_by,row.updated_by]
     );
     await connection.query(
