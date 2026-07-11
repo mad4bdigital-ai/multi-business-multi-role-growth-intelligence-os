@@ -86,7 +86,7 @@ function containerRow({ tenantId, type, key, subjectType, subjectRef, displayNam
 async function loadProjectionSources(executor = getPool()) {
   const names = [
     "tenants","workspaces","brands","brandPaths","activities","workflows","memberships","roleAssignments",
-    "workspaceGrants","workspaceAppLinks","actionGrants","skillGrants","workspaceAssets"
+    "workspaceGrants","workspaceAppLinks","actionGrants","skillGrants","workspaceAssets","existingContainers"
   ];
   const queries = [
     "SELECT tenant_id,tenant_type,display_name,status,updated_at FROM tenants",
