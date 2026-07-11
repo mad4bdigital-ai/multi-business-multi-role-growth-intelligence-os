@@ -389,7 +389,7 @@ async function upsertProjectionRows(connection, plan, tenantId) {
       `INSERT INTO platform_graph_nodes
         (node_id,node_type,node_label,scope_type,subject_ref,source_table,source_pk,authority_status,lifecycle_status,visibility_scope,sensitivity,evidence_level,runtime_role,source_system,metadata_json)
        VALUES (?,?,?,?,?,'containers',?,'projection_only','active','internal','internal','registry','context_only','mysql_primary',?)
-       ON DUPLICATE KEY UPDATE node_label=VALUES(node_label),subject_ref=VALUES(subject_ref),authority_status='projection_only',lifecycle_status=VALUES(lifecycle_status),runtime_role='context_only',metadata_json=VALUES(metadata_json),updated_at=UTC_TIMESTAMP()`,
+       ON DUPLICATE KEY UPDATE node_type=VALUES(node_type),node_label=VALUES(node_label),scope_type=VALUES(scope_type),subject_ref=VALUES(subject_ref),source_table=VALUES(source_table),source_pk=VALUES(source_pk),authority_status='projection_only',lifecycle_status=VALUES(lifecycle_status),runtime_role='context_only',metadata_json=VALUES(metadata_json),updated_at=UTC_TIMESTAMP()`,
       [`container:${row.container_id}`,`container_${row.container_type_key}`,row.display_name,row.container_type_key,row.canonical_subject_ref,row.container_id,row.metadata_json]
     );
   }
