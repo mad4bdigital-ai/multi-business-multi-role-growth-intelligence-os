@@ -383,6 +383,36 @@ async function provisionTunnel(accountId, tunnelName, cfToken = null) {
   return { tunnelId: tunnel.id, tunnelName: tunnel.name, token: tokenResult };
 }
 
+async function rotateTunnelCredential(accountId, tunnelId, tunnelName, cfToken = null) {
+  const tunnelSecret = Buffer.from(
+    randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, ""),
+    "hex",
+  ).toString("base64");
+  const updated = await cfRequest(
+    "PATCH",
+    `/accounts/${accountId}/cfd_tunnel/${tunnelId}`,
+    { name: tunnelName, tunnel_secret: tunnelSecret },
+    cfToken,
+  );
+  const token = updated?.token || await cfRequest(
+    "GET",
+    `/accounts/${accountId}/cfd_tunnel/${tunnelId}/token`,
+    null,
+    cfToken,
+  );
+  await cfRequest(
+    "DELETE",
+    `/accounts/${accountId}/cfd_tunnel/${tunnelId}/connections`,
+    null,
+    cfToken,
+  );
+  return {
+    tunnelId: updated?.id || tunnelId,
+    tunnelName: updated?.name || tunnelName,
+    token,
+  };
+}
+
 async function readTunnelIngress(accountId, tunnelId, cfToken = null) {
   try {
     const result = await cfRequest("GET", `/accounts/${accountId}/cfd_tunnel/${tunnelId}/configurations`, null, cfToken);
@@ -932,7 +962,7 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
   if (!tenant) throw httpError(404, "tenant_not_found", "Tenant not found.");
 
   const [[existing]] = await pool.query(
-    `SELECT config_id, cf_tunnel_id, cf_token, connector_secret, ${connectorLocalApiKeySelect}, tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url FROM \`local_connector_user_configs\` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1`,
+    `SELECT config_id, cf_tunnel_id, cf_tunnel_name, cf_token, connector_secret, ${connectorLocalApiKeySelect}, tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url FROM \`local_connector_user_configs\` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1`,
     [resolvedUserId, resolvedTenantId, device_id]
   );
 
@@ -951,12 +981,21 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
 
   if (!existing || reprovision) {
     const tunnelName = `${safeDnsLabel(resolvedUserId, "user")}-${safeDnsLabel(device_id, "device")}-connector`.slice(0, 128);
-    const provisioned = await provisionTunnel(accountId, tunnelName, provisioningCredentials.cloudflareToken);
+    const provisioned = existing?.cf_tunnel_id && reprovision
+          ? await rotateTunnelCredential(
+            accountId,
+            existing.cf_tunnel_id,
+            existing.cf_tunnel_name || tunnelName,
+            provisioningCredentials.cloudflareToken,
+          )
+          : await provisionTunnel(accountId, tunnelName, provisioningCredentials.cloudflareToken);
     tunnelId = provisioned.tunnelId;
     tunnelToken = provisioned.token;
     tunnelUrl = `https://${tunnelId}.cfargotunnel.com`;
     connectorSecret = randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
-    connectorLocalApiKey = connectorLocalApiKey || randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
+    connectorLocalApiKey = reprovision
+          ? randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "")
+          : connectorLocalApiKey || randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
 
     if (connectorLocalApiKeyColumnSupported) {
       await pool.query(
