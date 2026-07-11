@@ -981,7 +981,14 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
 
   if (!existing || reprovision) {
     const tunnelName = `${safeDnsLabel(resolvedUserId, "user")}-${safeDnsLabel(device_id, "device")}-connector`.slice(0, 128);
-    const provisioned = await provisionTunnel(accountId, tunnelName, provisioningCredentials.cloudflareToken);
+    const provisioned = existing?.cf_tunnel_id && reprovision
+          ? await rotateTunnelCredential(
+            accountId,
+            existing.cf_tunnel_id,
+            existing.cf_tunnel_name || tunnelName,
+            provisioningCredentials.cloudflareToken,
+          )
+          : await provisionTunnel(accountId, tunnelName, provisioningCredentials.cloudflareToken);
     tunnelId = provisioned.tunnelId;
     tunnelToken = provisioned.token;
     tunnelUrl = `https://${tunnelId}.cfargotunnel.com`;
