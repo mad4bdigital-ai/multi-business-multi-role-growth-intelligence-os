@@ -1184,6 +1184,8 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
       allowlisted_deploy_only: true,
       exit_code: sshResult.exit_code,
       timed_out: sshResult.timed_out,
+      password_transport_requested: sshResult.password_transport_requested,
+      password_transport: sshResult.password_transport,
     },
     deploy: {
       ok: deployOk,
