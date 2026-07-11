@@ -214,7 +214,7 @@ export async function readDynamicContainerProjectionApply(plan, { pool = getPool
     Number(run.secrets_included || 0) === 0
   );
   return {
-    ok: runMatches && countMismatches.length === 0,
+    ok: runMatches && countMismatches.length === 0 && orphanReferences.total === 0,
     projection_run: run ? {
       projection_run_id: run.projection_run_id,
       mode: run.mode,
