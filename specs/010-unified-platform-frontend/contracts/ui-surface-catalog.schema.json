@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/ui-surface-catalog.schema.json",
+  "title": "MAD4B UI Surface Catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "ok",
+    "version",
+    "generated_at",
+    "surfaces",
+    "secrets_included"
+  ],
+  "properties": {
+    "ok": {
+      "const": true
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^ui-surfaces-v[0-9]+$"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "secrets_included": {
+      "const": false
+    },
+    "surfaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "surface_key",
+          "label",
+          "scope",
+          "group",
+          "status",
+          "mutation_mode",
+          "auth_mode"
+        ],
+        "properties": {
+          "surface_key": {
+            "type": "string",
+            "pattern": "^[a-z0-9._-]+$"
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "public",
+              "tenant",
+              "workspace_owner",
+              "admin",
+              "local_device",
+              "developer"
+            ]
+          },
+          "group": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "live",
+              "cataloged",
+              "service_session_required",
+              "planned"
+            ]
+          },
+          "read_endpoint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "href": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "render_mode": {
+            "enum": [
+              "overview",
+              "cards",
+              "table",
+              "json",
+              "link",
+              "locked"
+            ]
+          },
+          "mutation_mode": {
+            "enum": [
+              "none",
+              "preview_only",
+              "explicit_approval",
+              "tenant_admin_approval",
+              "platform_admin_approval"
+            ]
+          },
+          "auth_mode": {
+            "enum": [
+              "none",
+              "user_jwt",
+              "admin_bff_session",
+              "device_trust",
+              "explicit_grant"
+            ]
+          },
+          "evidence_endpoint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
