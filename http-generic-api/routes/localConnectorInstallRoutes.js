@@ -1172,6 +1172,16 @@ export function buildLocalConnectorInstallRoutes(deps) {
         [device.user_id, device.device_id, device.device_id, device.user_id, device.device_id, selectedTenantId]
       );
       const config = rows[0] || null;
+      if (requestedTenantId && config && String(config.tenant_id || "") !== requestedTenantId) {
+        return res.status(404).json({
+          ok: false,
+          error: {
+            code: "connector_config_tenant_mismatch",
+            message: "No active connector config was found for the requested tenant and linked device.",
+          },
+          secrets_included: false,
+        });
+      }
       if (!config) return res.status(404).json({ ok: false, error: { code: "connector_config_not_found", message: "No active connector config was found for this linked device." }, secrets_included: false });
       const token = signInstallerDownloadToken({
         user_id: device.user_id,
