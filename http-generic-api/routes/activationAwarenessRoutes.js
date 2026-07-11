@@ -528,4 +528,8 @@ export const _testingActivationAwarenessRoutes = {
   subjectContext,
   tenantProblemCardsResponse,
   tenantResolutionCaseCreateResponse,
+  tenantWorkspaceScope,
+  tenantResolutionCaseListResponse,
+  tenantResolutionCaseDetailResponse,
+  tenantResolutionCaseTransitionResponse,
 };
