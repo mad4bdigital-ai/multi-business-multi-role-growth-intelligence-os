@@ -1,0 +1,55 @@
+name: CI Autostart Recovery
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ci-autostart-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  dispatch-ci-if-missing:
+    name: Dispatch CI if PR head has no run
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'gpt/') &&
+      !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch CI when no run exists for PR head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+
+          RUNS_JSON=$(gh api "/repos/${REPO}/actions/workflows/ci.yml/runs" \
+            -f head_sha="${HEAD_SHA}" \
+            -f per_page=10)
+          RUN_COUNT=$(node -e '
+            const fs = require("fs");
+            const data = JSON.parse(fs.readFileSync(0, "utf8"));
+            const activeStatuses = new Set(["queued", "in_progress", "waiting", "requested", "completed"]);
+            const runs = (data.workflow_runs || []).filter((run) => activeStatuses.has(run.status));
+            console.log(runs.length);
+          ' <<<"${RUNS_JSON}")
+
+          echo "Existing CI runs for ${HEAD_SHA}: ${RUN_COUNT}"
+          if [ "${RUN_COUNT}" != "0" ]; then
+            echo "CI already exists for this PR head; no dispatch needed."
+            exit 0
+          fi
+
+          printf '{"ref":"%s"}' "${HEAD_REF}" | \
+            gh api -X POST "/repos/${REPO}/actions/workflows/ci.yml/dispatches" \
+              --input -
+          echo "Dispatched CI workflow for ${HEAD_REF} at ${HEAD_SHA}."
