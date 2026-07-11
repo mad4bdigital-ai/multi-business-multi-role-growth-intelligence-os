@@ -1288,6 +1288,103 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
   /tenant/resolution/cases:
+    get:
+      tags:
+        - activation
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      operationId: listTenantResolutionCases
+      x-openai-isConsequential: false
+      summary: List tenant resolution cases
+      description: Returns tenant-scoped resolution cases with optional workspace and lifecycle filters. This operation never calls providers or applies repairs.
+      parameters:
+        - in: query
+          name: cursor
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - in: query
+          name: workspace_id
+          schema:
+            type: string
+            maxLength: 64
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum:
+              - detected
+              - diagnosing
+              - needs_connection
+              - needs_approval
+              - ready_to_apply
+              - applying
+              - verifying
+              - resolved
+              - deferred_by_policy
+              - escalated
+              - blocked_missing_authority
+              - cancelled
+        - in: query
+          name: root_family
+          schema:
+            type: string
+            enum:
+              - wordpress_site_health
+              - tenant_skill_approval
+              - task_source_quality
+              - provider_setup_ads
+              - connector_runtime_readiness
+              - general_operational_review
+        - in: query
+          name: severity
+          schema:
+            type: string
+            enum:
+              - info
+              - low
+              - medium
+              - high
+              - critical
+      responses:
+        "200":
+          description: Tenant-scoped resolution case page.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          description: Invalid filter.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Active tenant membership required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     post:
       tags:
         - activation
