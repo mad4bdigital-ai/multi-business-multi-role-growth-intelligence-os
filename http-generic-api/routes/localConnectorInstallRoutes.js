@@ -1141,6 +1141,10 @@ export function buildLocalConnectorInstallRoutes(deps) {
     try {
       const device = await requireFreshLocalManagerDeviceForPrivilegedInstaller(req);
       const format = String(req.body?.format || "bat").trim().toLowerCase();
+      const requestedTenantId = req.auth?.is_admin === true
+        ? String(req.body?.tenant_id || "").trim()
+        : "";
+      const selectedTenantId = requestedTenantId || device.tenant_id || "";
       const ttl = Math.max(5, Math.min(60, Number(req.body?.ttl_minutes || 30)));
       const permissionGrants = normalizePermissionGrants({ ...(req.body?.permission_grants || {}), capabilities: req.body?.capabilities || [] });
       const capabilities = permissionGrants.capabilities;
@@ -1165,9 +1169,19 @@ export function buildLocalConnectorInstallRoutes(deps) {
                    CASE WHEN c.tenant_id = ? THEN 0 WHEN c.tenant_id = '00000000-0000-0000-0000-000000000000' THEN 1 ELSE 2 END,
                    COALESCE(c.last_health_at, c.updated_at, c.created_at) DESC
           LIMIT 1`,
-        [device.user_id, device.device_id, device.device_id, device.user_id, device.device_id, device.tenant_id || ""]
+        [device.user_id, device.device_id, device.device_id, device.user_id, device.device_id, selectedTenantId]
       );
       const config = rows[0] || null;
+      if (requestedTenantId && config && String(config.tenant_id || "") !== requestedTenantId) {
+        return res.status(404).json({
+          ok: false,
+          error: {
+            code: "connector_config_tenant_mismatch",
+            message: "No active connector config was found for the requested tenant and linked device.",
+          },
+          secrets_included: false,
+        });
+      }
       if (!config) return res.status(404).json({ ok: false, error: { code: "connector_config_not_found", message: "No active connector config was found for this linked device." }, secrets_included: false });
       const token = signInstallerDownloadToken({
         user_id: device.user_id,

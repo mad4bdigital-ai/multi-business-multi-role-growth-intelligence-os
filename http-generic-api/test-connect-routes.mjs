@@ -933,7 +933,8 @@ const doc = (() => {
       source.includes("auth_context: device.auth_context") &&
       source.includes("reauth_required_for_stale_device_tokens: true") &&
       source.includes("secrets_included: false"));
-    assert("Local Manager privileged installer guard returns structured fresh-auth error context",
+    assert("local connector admin installer tenant selection is explicit and mismatch safe", source.includes("requestedTenantId") && source.includes("selectedTenantId") && source.includes("connector_config_tenant_mismatch"));
+assert("Local Manager privileged installer guard returns structured fresh-auth error context",
       deviceLinkSource.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller") &&
       deviceLinkSource.includes("fresh_local_manager_authorization_required") &&
       deviceLinkSource.includes("saved_device_token") &&
