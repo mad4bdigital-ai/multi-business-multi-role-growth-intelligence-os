@@ -161,6 +161,7 @@ export function buildDevDbRestoreRoutes(deps = {}) {
 
   router.post("/dev/db/restore-from-backup", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
     const startedAt = Date.now();
+    let sqlPath = "";
     try {
       if (!isDevRequest(req)) return res.status(403).json({ ok: false, error: { code: "dev_db_restore_not_allowed", message: "Restore is only allowed on dev.mad4b.com with DB_NAME ending in _dev." } });
       const { artifact_url, manifest_url, key_url, confirm } = req.body || {};
