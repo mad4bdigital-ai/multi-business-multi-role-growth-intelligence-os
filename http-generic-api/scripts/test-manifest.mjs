@@ -20,6 +20,7 @@ export const testCommands = [
   "node test-capability-enablement-operationalization.mjs",
   "node test-dynamic-container-authority-foundation.mjs",
   "node test-dynamic-container-authority-runtime.mjs",
+  "node test-dynamic-container-projection-apply-tool.mjs",
   "node test-dynamic-container-team-management.mjs",
   "node test-dynamic-container-rollout-safety.mjs",
   "node test-dynamic-container-migration-preflight.mjs",
