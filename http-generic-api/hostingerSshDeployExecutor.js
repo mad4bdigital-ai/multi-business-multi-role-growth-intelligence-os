@@ -415,9 +415,10 @@ export function buildRemoteDeployScript({ appPath, branch, expectedCommitSha, fo
   ].join(" && ");
 }
 
-function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", privateKey, password, remoteScript, timeoutMs }) {
+function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", privateKey, password, password_transport: passwordTransport = "auto", remoteScript, timeoutMs }) {
   return new Promise(async (resolve) => {
     const usePassword = authMode === "password";
+    const selectedPasswordTransport = usePassword ? resolveSshPasswordTransport(passwordTransport) : null;
     const tempDir = await mkdtemp(join(tmpdir(), "mad4b-hostinger-ssh-"));
     const keyFile = join(tempDir, "id_ed25519");
     const passwordFile = join(tempDir, "password");
@@ -431,7 +432,21 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
       let command = "ssh";
       let args;
       let spawnEnv = process.env;
-      if (usePassword) {
+      let stdio = ["ignore", "pipe", "pipe"];
+      if (usePassword && selectedPasswordTransport === "sshpass") {
+        command = "sshpass";
+        args = [
+          "-d", "3",
+          "ssh",
+          ...hardenedSshOptions({ usePassword: true }),
+          "-p", String(port || 22),
+          `${user}@${host}`,
+          "bash",
+          "-lc",
+          remoteScript,
+        ];
+        stdio = ["ignore", "pipe", "pipe", "pipe"];
+      } else if (usePassword) {
         await writeFile(passwordFile, String(password || ""), { mode: 0o600 });
         await writeFile(
           askpassFile,
@@ -479,19 +494,27 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
       command = wrapped.command;
       args = wrapped.args;
       child = spawn(command, args, {
-        stdio: ["ignore", "pipe", "pipe"],
+        stdio,
         shell: false,
         detached: true,
         env: spawnEnv,
       });
+      if (usePassword && selectedPasswordTransport === "sshpass" && child.stdio?.[3]) {
+        child.stdio[3].end(`${password}\n`);
+      }
       let stdout = "";
       let stderr = "";
+      const resultBase = {
+        auth_mode: authMode,
+        password_transport_requested: usePassword ? normalizeSshPasswordTransport(passwordTransport) : null,
+        password_transport: selectedPasswordTransport,
+      };
       const timer = setTimeout(() => {
         if (settled) return;
         settled = true;
         killProcessTree(child, "SIGTERM");
         setTimeout(() => killProcessTree(child, "SIGKILL"), SSH_PROCESS_KILL_GRACE_MS).unref?.();
-        cleanup().finally(() => resolve({ ok: false, exit_code: 124, timed_out: true, auth_mode: authMode, password_transport: usePassword ? "openssh_askpass_tempfile" : null, stdout: sanitizeSshOutput(stdout), stderr: sanitizeSshOutput(stderr) }));
+        cleanup().finally(() => resolve({ ...resultBase, ok: false, exit_code: 124, timed_out: true, stdout: sanitizeSshOutput(stdout), stderr: sanitizeSshOutput(stderr) }));
       }, Number(timeoutMs || DEFAULT_TIMEOUT_MS) + SSH_PROCESS_KILL_GRACE_MS + 1000);
       child.stdout.on("data", (chunk) => { stdout += chunk.toString("utf8"); });
       child.stderr.on("data", (chunk) => { stderr += chunk.toString("utf8"); });
@@ -501,11 +524,10 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
         clearTimeout(timer);
         const exitCode = Number(code);
         cleanup().finally(() => resolve({
+          ...resultBase,
           ok: exitCode === 0,
           exit_code: exitCode,
           timed_out: exitCode === 124,
-          auth_mode: authMode,
-          password_transport: usePassword ? "openssh_askpass_tempfile" : null,
           stdout: sanitizeSshOutput(stdout),
           stderr: sanitizeSshOutput(stderr),
         }));
@@ -514,13 +536,22 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        cleanup().finally(() => resolve({ ok: false, exit_code: 127, timed_out: false, auth_mode: authMode, password_transport: usePassword ? "openssh_askpass_tempfile" : null, stdout: "", stderr: sanitizeSshOutput(err.message) }));
+        cleanup().finally(() => resolve({ ...resultBase, ok: false, exit_code: 127, timed_out: false, stdout: "", stderr: sanitizeSshOutput(err.message) }));
       });
     } catch (err) {
       if (!settled) {
         settled = true;
         await cleanup();
-        resolve({ ok: false, exit_code: 1, timed_out: false, auth_mode: authMode, password_transport: usePassword ? "openssh_askpass_tempfile" : null, stdout: "", stderr: sanitizeSshOutput(err.message) });
+        resolve({
+          ok: false,
+          exit_code: 1,
+          timed_out: false,
+          auth_mode: authMode,
+          password_transport_requested: usePassword ? normalizeSshPasswordTransport(passwordTransport) : null,
+          password_transport: selectedPasswordTransport,
+          stdout: "",
+          stderr: sanitizeSshOutput(err.message),
+        });
       }
     }
   });
