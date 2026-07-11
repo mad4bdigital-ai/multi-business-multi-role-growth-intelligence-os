@@ -88,7 +88,10 @@ for (const signature of [
   "GET /tenant/activation/awareness readTenantActivationAwareness non_consequential",
   "GET /tenant/activation/operational-attention readTenantActivationOperationalAttention non_consequential",
   "GET /tenant/resolution/problem-cards readTenantResolutionProblemCards non_consequential",
+  "GET /tenant/resolution/cases listTenantResolutionCases non_consequential",
   "POST /tenant/resolution/cases createTenantResolutionCase consequential",
+  "GET /tenant/resolution/cases/{caseId} getTenantResolutionCase non_consequential",
+  "POST /tenant/resolution/cases/{caseId}/transitions transitionTenantResolutionCase consequential",
   "GET /tenant/activation/dynamic-tabs/detail readTenantActivationDynamicTabDetail non_consequential",
 ]) {
   assertHasOperation(tenantActivationOps, signature, "tenant Activation artifact");
