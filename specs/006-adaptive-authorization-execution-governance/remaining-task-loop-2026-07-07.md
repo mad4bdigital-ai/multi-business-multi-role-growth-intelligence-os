@@ -6,19 +6,21 @@
 **Migration execution:** none  
 **Enforcement cutover:** none
 
-## Completed through T040
+## Completed through T041
 
 T010 through T015 are complete. PR #2290 merged the decision-plane resolver and shadow metadata. PR #2322 merged the dynamic shared enforcement kernel for T020. PR #2346 merged revision-bound execution envelopes for T021. PR #2365 merged scoped approval requests and append-only decisions for T022. PR #2380 merged stale-envelope invalidation, idempotency, and concurrency controls for T023.
 
 PR #2389 merged T030 adapter binding, certification, deterministic selection, readback contract, execution evidence, and drift classification contracts. The T030 implementation remains contract-only: it does not execute provider adapters, perform external writes, persist runtime locks, execute migrations, run pilots, or cut over enforcement.
 
-PR #2440 merged T040 shadow pilot parity for the three canonical pilots: `activation.skills.read`, `platform.output-artifact.write`, and `content.wordpress.publish`. The T040 implementation remains shadow-only: it records bounded parity evidence, mismatch classification, and safety flags without provider mutation, external writes, migration execution, credential selection, adapter dispatch, or enforcement cutover.
+PR #2440 merged T040 shadow pilot parity for the three canonical pilots. The T040 implementation remains shadow-only and preserves no-mutation safety boundaries.
 
-## T040 shadow pilot parity evidence
+PR #2460 merged T041 legacy/adaptive mismatch classification. The T041 implementation is classification-only: it maps match, semantic translation, policy difference, privilege expansion, adaptive error, missing evidence, and unclassified mismatch categories to bounded rollout actions without approving thresholds, dispatching adapters, selecting credentials, executing providers, writing external systems, running migrations, or cutting over enforcement.
 
-The shadow pilot parity kernel is implemented in `http-generic-api/platformShadowPilotParityKernel.js` with focused tests in `http-generic-api/test-platform-shadow-pilot-parity-kernel.mjs` and documentation in `docs/platform-shadow-pilot-parity-kernel.md`.
+## T041 mismatch classification evidence
 
-The kernel keeps `providerApplyAllowed: false`, `externalWriteAllowed: false`, `mutationAllowed: false`, `enforcementCutover: false`, and `secretsIncluded: false` across all pilot records. Evidence stores request-shape hashes, revision-vector hashes, and required idempotency/readback/provider-binding hashes for write-like pilots without raw payloads or prompts.
+The mismatch classification kernel is implemented in `http-generic-api/platformShadowMismatchClassificationKernel.js` with focused tests in `http-generic-api/test-platform-shadow-mismatch-classification-kernel.mjs` and documentation in `docs/platform-shadow-mismatch-classification-kernel.md`.
+
+Classification preserves `providerApplyAllowed: false`, `externalWriteAllowed: false`, `mutationAllowed: false`, `enforcementCutover: false`, `migrationExecutionAuthorized: false`, and `secretsIncluded: false`. Privilege expansion, adaptive error, missing evidence, and unapproved categories block canary progression.
 
 ## Task loop classification
 
@@ -31,9 +33,10 @@ The kernel keeps `providerApplyAllowed: false`, `externalWriteAllowed: false`, `
 | T023 Stale/idempotency/concurrency | complete | concurrency control kernel and tests | no persistence or adapter execution yet |
 | T030 Adapter bindings, certification, and drift | complete | adapter contract kernel, tests, docs, and PR #2389 merge readback | contract-only; no provider adapter execution |
 | T040 Three shadow pilots | complete | shadow pilot parity kernel, tests, docs, and PR #2440 merge readback | shadow-only; no provider mutation or external write |
-| T041-T043 Mismatch thresholds, canary prerequisites, and compatibility wrappers | open | mismatch review and approval thresholds remain incomplete | future work |
+| T041 Legacy/adaptive mismatch classification | complete | mismatch classification kernel, tests, docs, and PR #2460 merge readback | classification-only; no threshold approval or canary cutover |
+| T042-T043 Threshold approval and compatibility wrappers | open | parity thresholds and measured deprecation remain incomplete | future work |
 | T050-T053 Verification and rollout | open | closeout verification remains incomplete | future work |
-| T061-T062 Closeout | open | closeout cannot run while mismatch, rollout, and audit tasks remain open | future work |
+| T061-T062 Closeout | open | closeout cannot run while threshold, rollout, and audit tasks remain open | future work |
 
 ## Safety boundaries retained
 
@@ -43,10 +46,10 @@ The kernel keeps `providerApplyAllowed: false`, `externalWriteAllowed: false`, `
 - No migration execution.
 - No new authority table.
 - No secrets selected or returned.
-- No raw payloads or prompts in parity evidence.
+- No raw payloads or prompts in parity or classification evidence.
 - Ambiguity remains fail-closed.
 - Adapter execution remains blocked until later runtime wiring, certification, and rollout PRs.
 
 ## Current next scope
 
-Next implementation scope is T041: classify all legacy/adaptive mismatches from the shadow pilot evidence. T041 must remain evidence and classification only unless a later explicit approval threshold task authorizes canary behavior. It must not include provider apply, external writes, migration execution, production rollout, or enforcement cutover.
+Next implementation scope is T042: approve parity thresholds before any canary enforcement. T042 must remain a bounded threshold-approval contract and must not enable provider apply, external writes, migration execution, production rollout, or enforcement cutover without separate explicit runtime authority.
