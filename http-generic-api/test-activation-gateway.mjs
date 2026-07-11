@@ -48,6 +48,14 @@ assert.equal(policy.upstream_origin, "https://auth.mad4b.com");
 assert.equal(policy.public_host, "activation.mad4b.com");
 assert.equal(policy.routes.some((route) => route.path === "/tenant/activation/session-context"), true);
 assert.equal(policy.routes.some((route) => route.path === "/activation/session-context"), true);
+assert.deepEqual(
+  policy.oauth_handoff_routes.map((route) => `${route.method} ${route.path}`).sort(),
+  [
+    "GET /auth/oauth/authorize",
+    "POST /auth/oauth/code",
+    "POST /auth/oauth/token",
+  ],
+);
 
 const validEnv = await signedEnvironment();
 const verification = await verifyDeploymentAttestation(policy, validEnv, {
@@ -310,7 +318,7 @@ assert.equal(verification.surfaceRegistryVersion, policy.surface_registry_versio
     logger: { info() {} },
   });
   const response = await handler(new Request(
-    "https://activation.mad4b.com/auth/oauth/authorize?client_id=chatgpt&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fcallback&response_type=code&scope=activation&state=test-state",
+    "https://activation.mad4b.com/auth/oauth/authorize?client_id=mad4b-tenant-gpt&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fcallback&response_type=code&scope=activation&state=test-state&activation_mode=managed",
     {
       headers: {
         cookie: "session=must-not-forward",
@@ -320,7 +328,7 @@ assert.equal(verification.surfaceRegistryVersion, policy.surface_registry_versio
     },
   ), validEnv, {});
   assert.equal(response.status, 200);
-  assert.equal(upstreamRequest.url, "https://auth.mad4b.com/auth/oauth/authorize?client_id=chatgpt&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fcallback&response_type=code&scope=activation&state=test-state");
+  assert.equal(upstreamRequest.url, "https://auth.mad4b.com/auth/oauth/authorize?client_id=mad4b-tenant-gpt&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fcallback&response_type=code&scope=activation&state=test-state&activation_mode=managed");
   assert.equal(upstreamRequest.method, "GET");
   assert.equal(upstreamRequest.headers.get("authorization"), "Bearer tenant-token");
   assert.equal(upstreamRequest.headers.get("cookie"), null);
@@ -329,25 +337,98 @@ assert.equal(verification.surfaceRegistryVersion, policy.surface_registry_versio
 }
 
 {
-  let forwarded = false;
+  let forwardedBody = "";
+  const gatewayLogs = [];
   const handler = createActivationGateway({
     policy,
-    fetchImpl: async () => {
-      forwarded = true;
-      return new Response(null, { status: 204 });
+    fetchImpl: async (input, init = {}) => {
+      assert.equal(String(input), "https://auth.mad4b.com/auth/oauth/token");
+      assert.equal(init.method, "POST");
+      forwardedBody = Buffer.from(init.body || new ArrayBuffer(0)).toString("utf8");
+      return new Response(JSON.stringify({ access_token: "upstream-access-token", token_type: "Bearer" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    },
+    cryptoImpl: webcrypto,
+    now: () => Date.parse("2029-01-01T00:00:00.000Z"),
+    logger: { info(message) { gatewayLogs.push(message); } },
+  });
+  const form = new URLSearchParams({
+    grant_type: "authorization_code",
+    code: "oauth-code-value",
+    client_id: "mad4b-tenant-gpt",
+    client_secret: "gateway-test-client-secret",
+  });
+  const response = await handler(new Request("https://activation.mad4b.com/auth/oauth/token", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: form.toString(),
+  }), validEnv, {});
+  assert.equal(response.status, 200);
+  assert.match(forwardedBody, /client_secret=gateway-test-client-secret/);
+  assert.equal(gatewayLogs.length, 1);
+  assert.match(gatewayLogs[0], /tenantGptOAuthToken/);
+  assert.doesNotMatch(gatewayLogs[0], /gateway-test-client-secret|oauth-code-value|upstream-access-token/);
+}
+
+{
+  let forwardedBody = null;
+  const handler = createActivationGateway({
+    policy,
+    fetchImpl: async (input, init = {}) => {
+      assert.equal(String(input), "https://auth.mad4b.com/auth/oauth/code");
+      forwardedBody = JSON.parse(Buffer.from(init.body || new ArrayBuffer(0)).toString("utf8"));
+      return new Response(JSON.stringify({ ok: true, redirect_to: "https://chatgpt.com/callback?code=test&state=state-1" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
     },
     cryptoImpl: webcrypto,
     now: () => Date.parse("2029-01-01T00:00:00.000Z"),
     logger: { info() {} },
   });
-  const response = await handler(new Request("https://activation.mad4b.com/auth/platform-jwt/issue", {
+  const response = await handler(new Request("https://activation.mad4b.com/auth/oauth/code", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: "{}",
+    body: JSON.stringify({
+      credential: { kind: "login", email: "user@example.com", password: "popup-test-password" },
+      redirect_uri: "https://chatgpt.com/callback",
+      state: "state-1",
+    }),
   }), validEnv, {});
-  assert.equal(response.status, 404);
-  assert.equal((await response.json()).error.code, "GATEWAY_ROUTE_NOT_ALLOWED");
-  assert.equal(forwarded, false, "sensitive auth routes must not reach upstream");
+  assert.equal(response.status, 200);
+  assert.equal(forwardedBody.credential.kind, "login");
+}
+
+{
+  for (const [method, path] of [
+    ["GET", "/auth/oauth/code"],
+    ["GET", "/auth/oauth/token"],
+    ["POST", "/auth/login"],
+    ["POST", "/auth/register"],
+    ["POST", "/auth/google"],
+    ["POST", "/auth/platform-jwt/issue"],
+    ["POST", "/auth/oauth/revoke"],
+    ["GET", "/system/tools"],
+  ]) {
+    let forwarded = false;
+    const handler = createActivationGateway({
+      policy,
+      fetchImpl: async () => {
+        forwarded = true;
+        return new Response(null, { status: 204 });
+      },
+      cryptoImpl: webcrypto,
+      now: () => Date.parse("2029-01-01T00:00:00.000Z"),
+      logger: { info() {} },
+    });
+    const init = method === "GET" ? undefined : { method, headers: { "content-type": "application/json" }, body: "{}" };
+    const response = await handler(new Request(`https://activation.mad4b.com${path}`, init), validEnv, {});
+    assert.equal(response.status, 404, `${method} ${path} must remain blocked`);
+    assert.equal((await response.json()).error.code, "GATEWAY_ROUTE_NOT_ALLOWED");
+    assert.equal(forwarded, false, `${method} ${path} must not reach upstream`);
+  }
 }
 
 console.log("Activation Gateway contract and security tests passed.");
