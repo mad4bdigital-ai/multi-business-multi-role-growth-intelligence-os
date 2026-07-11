@@ -305,6 +305,27 @@ for (const type of ["platform","tenant","workspace","brand","activity","workflow
 }
 const projectionAgain=await buildLegacyContainerProjectionPlan({ sourceRows:projectionSources });
 assert.deepEqual(projection.containers.map(row => row.container_id).sort(),projectionAgain.containers.map(row => row.container_id).sort());
+const existingTenantContainerId="legacy-tenant-container-id";
+const canonicalReuseProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    existingContainers:[{
+      container_id:existingTenantContainerId,
+      tenant_id:TENANT,
+      container_key:"platform:root",
+      container_type_key:"platform",
+      canonical_subject_type:"tenant",
+      canonical_subject_ref:TENANT,
+      status:"active"
+    }]
+  }
+});
+const reusedTenantContainer=canonicalReuseProjection.containers.find(row => row.canonical_subject_type === "tenant" && row.canonical_subject_ref === TENANT);
+assert.equal(reusedTenantContainer.container_id,existingTenantContainerId);
+assert.equal(reusedTenantContainer.container_type_key,"tenant");
+assert.equal(reusedTenantContainer.container_key,`tenant:${TENANT}`);
+assert(canonicalReuseProjection.relationships.some(row => row.to_container_id === existingTenantContainerId));
+assert(canonicalReuseProjection.roleAssignments.some(row => row.container_id === existingTenantContainerId));
 const rootActivityProjection=await buildLegacyContainerProjectionPlan({
   sourceRows:{
     ...projectionSources,
