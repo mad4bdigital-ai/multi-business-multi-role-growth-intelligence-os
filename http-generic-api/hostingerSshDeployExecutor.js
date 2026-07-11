@@ -845,6 +845,8 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
       activated_target: probeOk && activateOnSuccess,
       exit_code: sshResult.exit_code,
       timed_out: sshResult.timed_out,
+      password_transport_requested: sshResult.password_transport_requested,
+      password_transport: sshResult.password_transport,
       parsed_probe: parsed,
       stdout_preview: sshResult.stdout.slice(0, 2000),
       stderr_preview: sshResult.stderr.slice(0, 2000),
