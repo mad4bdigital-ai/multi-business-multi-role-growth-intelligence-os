@@ -273,6 +273,58 @@ async function tenantResolutionCaseCreateResponse(req) {
   });
 }
 
+function tenantWorkspaceScope(req) {
+  return queryText(req.query?.workspace_id || req.body?.workspace_id || req.headers?.["x-workspace-id"], 64);
+}
+
+async function tenantResolutionCaseListResponse(req) {
+  return listTenantResolutionCases({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    cursor: boundedInt(req.query.cursor, 0, 0, 1000000),
+    limit: boundedInt(req.query.limit, 25, 1, 100),
+    workspaceId: tenantWorkspaceScope(req),
+    status: queryText(req.query.status, 64),
+    rootFamily: queryText(req.query.root_family, 128),
+    severity: queryText(req.query.severity, 32),
+  });
+}
+
+async function tenantResolutionCaseDetailResponse(req) {
+  return getTenantResolutionCase({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    caseId: req.params.caseId,
+    workspaceId: tenantWorkspaceScope(req),
+    eventLimit: boundedInt(req.query.event_limit, 50, 1, 100),
+  });
+}
+
+async function tenantResolutionCaseTransitionResponse(req) {
+  return transitionTenantResolutionCase({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    caseId: req.params.caseId,
+    workspaceId: tenantWorkspaceScope(req),
+    input: req.body || {},
+  });
+}
+
 async function operationalAttentionSyncResponse(req, isAdmin) {
   return synchronizeOperationalAlerts({
     sessionContext: subjectContext(req, isAdmin),
