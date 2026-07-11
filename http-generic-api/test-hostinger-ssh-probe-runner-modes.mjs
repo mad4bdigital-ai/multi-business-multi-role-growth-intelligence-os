@@ -8,6 +8,8 @@ import {
 } from "./hostingerSshProbeRunnerModes.js";
 import {
   normalizeHostingerSshTargetProbeJobPayload,
+  normalizeSshPasswordTransport,
+  resolveSshPasswordTransport,
   validateHostingerSshTargetProbeJobPayload,
 } from "./hostingerSshDeployExecutor.js";
 
