@@ -150,8 +150,8 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
 
   for (const tenant of source.tenants.filter(row => activeValue(row.status))) {
     const tenantId = String(tenant.tenant_id);
-    const platform = addUnique(containers,containerRow({ tenantId,type:"platform",key:"platform-root",subjectType:"platform_tenant_anchor",subjectRef:tenantId,displayName:"Platform",source:"tenants" }));
-    const tenantContainer = addUnique(containers,containerRow({ tenantId,type:"tenant",key:`tenant:${tenantId}`,subjectType:"tenant",subjectRef:tenantId,displayName:tenant.display_name || tenantId,source:"tenants" }));
+    const platform = addUnique(containers,projectedContainerRow({ tenantId,type:"platform",key:"platform-root",subjectType:"platform_tenant_anchor",subjectRef:tenantId,displayName:"Platform",source:"tenants" }));
+    const tenantContainer = addUnique(containers,projectedContainerRow({ tenantId,type:"tenant",key:`tenant:${tenantId}`,subjectType:"tenant",subjectRef:tenantId,displayName:tenant.display_name || tenantId,source:"tenants" }));
     tenantContainerByTenant.set(tenantId,tenantContainer);
     const edge = relationshipRow({ tenantId,fromId:platform.container_id,toId:tenantContainer.container_id,source:"tenants" });
     relationships.set(edge.relationship_id,edge);
