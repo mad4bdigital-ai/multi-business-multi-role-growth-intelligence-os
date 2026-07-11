@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { getPool } from "./db.js";
 import { resolveEffectiveCredential } from "./credentialResolver.js";
 import { maybeCreateCredentialIntakeRequirement } from "./credentialIntakeEnforcement.js";
