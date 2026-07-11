@@ -993,7 +993,9 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     tunnelToken = provisioned.token;
     tunnelUrl = `https://${tunnelId}.cfargotunnel.com`;
     connectorSecret = randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
-    connectorLocalApiKey = connectorLocalApiKey || randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
+    connectorLocalApiKey = reprovision
+          ? randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "")
+          : connectorLocalApiKey || randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
 
     if (connectorLocalApiKeyColumnSupported) {
       await pool.query(
