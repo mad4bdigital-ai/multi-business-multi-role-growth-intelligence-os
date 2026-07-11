@@ -219,6 +219,10 @@ export function buildDevDbRestoreRoutes(deps = {}) {
       }
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: err.code || "dev_db_restore_failed", message: err.message }, duration_ms: Date.now() - startedAt });
+    } finally {
+      if (sqlPath) {
+        await fs.rm(sqlPath, { force: true }).catch(() => {});
+      }
     }
   });
 
