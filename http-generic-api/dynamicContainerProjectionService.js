@@ -66,9 +66,9 @@ function relationshipRow({ tenantId, fromId, toId, relationshipType = "contains"
   };
 }
 
-function containerRow({ tenantId, type, key, subjectType, subjectRef, displayName, status = "active", source }) {
+function containerRow({ tenantId, type, key, subjectType, subjectRef, displayName, status = "active", source, containerId = null }) {
   return {
-    container_id:stableUuid("container",tenantId,type,key),
+    container_id:containerId || stableUuid("container",tenantId,type,key),
     tenant_id:tenantId,
     container_key:key,
     container_type_key:type,
