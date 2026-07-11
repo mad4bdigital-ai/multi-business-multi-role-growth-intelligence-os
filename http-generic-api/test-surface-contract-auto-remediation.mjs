@@ -165,4 +165,22 @@ assert(workflow.includes('if gh pr merge "$PR_URL" --auto --squash; then'), "aut
 assert(workflow.includes("Repository auto-merge is unavailable; the remediation PR remains open for governed review."), "workflow must leave a clear governed-review fallback warning");
 assert(!workflow.includes("http-generic-api/migrations/*.sql\n          git add"), "workflow must not stage migration SQL");
 
-console.log("surface contract auto remediation tests passed");
+const diagnostic1026Source = readFileSync("migrations/1026_sprint69_repository_reconciliation_automation.sql", "utf8");
+const diagnostic1026 = validateManualAttestation({
+  item: {
+    migration_file: "1026_sprint69_repository_reconciliation_automation.sql",
+    migration_sha256: "0".repeat(64),
+    checksum_canonicalization: "utf8_lf_v1",
+    preflight_status: "pass",
+    preflight_risk_count: 0,
+    statement_count: 1,
+    accepted_forbidden_patterns: [],
+    required_sql_fragments: [],
+    reviewed_by: "diagnostic-only",
+    reviewed_at: "2026-07-11T00:00:00Z",
+    rationale: "Temporary diagnostic record used only to print validator facts before the checksum-bound attestation is authored.",
+    execution_authorized: false,
+  },
+  source: diagnostic1026Source,
+});
+throw new Error(`MIGRATION_1026_VALIDATOR_FACTS ${JSON.stringify(diagnostic1026.actual)}`);
