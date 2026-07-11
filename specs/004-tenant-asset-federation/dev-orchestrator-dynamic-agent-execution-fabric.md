@@ -1,6 +1,6 @@
 # Dev Orchestrator Dynamic Agent Execution Fabric
 
-**Status:** design-only extension for PR #1898  
+**Status:** design-only extension for PR #1898
 **Runtime authorized:** No. **Migrations:** No. **Provider dispatch:** No. **Credential access:** No.
 
 ## 1. Decision
