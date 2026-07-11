@@ -98,14 +98,13 @@ async function consumeSqlLine(conn, state, line) {
   }
 }
 
-async function executeSqlBufferStatements(conn, sqlBuffer) {
+async function executeSqlStreamStatements(conn, readable) {
   const decoder = new StringDecoder("utf8");
   const state = { current: "", executed: 0 };
-  const chunkSize = Number(process.env.DEV_DB_RESTORE_SQL_CHUNK_BYTES || 1024 * 1024);
   let carry = "";
 
-  for (let offset = 0; offset < sqlBuffer.length; offset += chunkSize) {
-    const text = carry + decoder.write(sqlBuffer.subarray(offset, Math.min(offset + chunkSize, sqlBuffer.length)));
+  for await (const chunk of readable) {
+    const text = carry + decoder.write(chunk);
     const lines = text.split(/\r?\n/);
     carry = lines.pop() || "";
     for (const line of lines) {
