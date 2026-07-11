@@ -1,11 +1,14 @@
 import { Router } from "express";
-import { createHash, createDecipheriv, timingSafeEqual } from "node:crypto";
-import { gunzip } from "node:zlib";
-import { promisify } from "node:util";
+import fs from "node:fs/promises";
+import { createReadStream, createWriteStream } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { createHash, createDecipheriv, randomBytes, timingSafeEqual } from "node:crypto";
+import { Readable, Transform } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import { createGunzip } from "node:zlib";
 import { StringDecoder } from "node:string_decoder";
 import { getPool } from "../db.js";
-
-const gunzipAsync = promisify(gunzip);
 const MAX_ARTIFACT_BYTES = Number(process.env.DEV_DB_RESTORE_MAX_BYTES || 512 * 1024 * 1024);
 
 function sha256(buffer) {
@@ -43,7 +46,16 @@ async function fetchBuffer(url, label) {
   return buf;
 }
 
-function decryptArtifact(artifact, keyDoc) {
+function createHashingTransform(hash) {
+  return new Transform({
+    transform(chunk, encoding, callback) {
+      hash.update(chunk);
+      callback(null, chunk);
+    },
+  });
+}
+
+function createArtifactDecipher(artifact, keyDoc) {
   if (keyDoc.algorithm !== "aes-256-gcm") throw new Error("Unsupported key algorithm.");
   if (!safeEqualHex(sha256(artifact), keyDoc.artifact_sha256)) throw new Error("Encrypted artifact sha256 mismatch.");
   const key = Buffer.from(keyDoc.key_b64, "base64");
@@ -51,7 +63,28 @@ function decryptArtifact(artifact, keyDoc) {
   const tag = Buffer.from(keyDoc.auth_tag_b64, "base64");
   const decipher = createDecipheriv("aes-256-gcm", key, iv);
   decipher.setAuthTag(tag);
-  return Buffer.concat([decipher.update(artifact), decipher.final()]);
+  return decipher;
+}
+
+async function materializeVerifiedSqlFile(artifact, keyDoc, manifest, sqlPath) {
+  const gzipHash = createHash("sha256");
+  const sqlHash = createHash("sha256");
+  const decipher = createArtifactDecipher(artifact, keyDoc);
+
+  await pipeline(
+    Readable.from([artifact]),
+    decipher,
+    createHashingTransform(gzipHash),
+    createGunzip(),
+    createHashingTransform(sqlHash),
+    createWriteStream(sqlPath, { mode: 0o600 })
+  );
+
+  const gzipSha256 = gzipHash.digest("hex");
+  const sqlSha256 = sqlHash.digest("hex");
+  if (!safeEqualHex(gzipSha256, manifest.gzip_sha256)) throw new Error("Gzip checksum does not match manifest.");
+  if (!safeEqualHex(sqlSha256, manifest.plaintext_sql_sha256)) throw new Error("Plain SQL checksum does not match manifest.");
+  return { gzip_sha256: gzipSha256, plaintext_sql_sha256: sqlSha256 };
 }
 
 async function consumeSqlLine(conn, state, line) {
@@ -65,14 +98,13 @@ async function consumeSqlLine(conn, state, line) {
   }
 }
 
-async function executeSqlBufferStatements(conn, sqlBuffer) {
+async function executeSqlStreamStatements(conn, readable) {
   const decoder = new StringDecoder("utf8");
   const state = { current: "", executed: 0 };
-  const chunkSize = Number(process.env.DEV_DB_RESTORE_SQL_CHUNK_BYTES || 1024 * 1024);
   let carry = "";
 
-  for (let offset = 0; offset < sqlBuffer.length; offset += chunkSize) {
-    const text = carry + decoder.write(sqlBuffer.subarray(offset, Math.min(offset + chunkSize, sqlBuffer.length)));
+  for await (const chunk of readable) {
+    const text = carry + decoder.write(chunk);
     const lines = text.split(/\r?\n/);
     carry = lines.pop() || "";
     for (const line of lines) {
@@ -129,6 +161,7 @@ export function buildDevDbRestoreRoutes(deps = {}) {
 
   router.post("/dev/db/restore-from-backup", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
     const startedAt = Date.now();
+    let sqlPath = "";
     try {
       if (!isDevRequest(req)) return res.status(403).json({ ok: false, error: { code: "dev_db_restore_not_allowed", message: "Restore is only allowed on dev.mad4b.com with DB_NAME ending in _dev." } });
       const { artifact_url, manifest_url, key_url, confirm } = req.body || {};
@@ -147,10 +180,8 @@ export function buildDevDbRestoreRoutes(deps = {}) {
       const keyDoc = JSON.parse(keyBuffer.toString("utf8"));
 
       if (!safeEqualHex(sha256(artifact), manifest.checksum_value)) throw new Error("Artifact checksum does not match manifest.");
-      const gz = decryptArtifact(artifact, keyDoc);
-      if (!safeEqualHex(sha256(gz), manifest.gzip_sha256)) throw new Error("Gzip checksum does not match manifest.");
-      const sqlBuffer = await gunzipAsync(gz);
-      if (!safeEqualHex(sha256(sqlBuffer), manifest.plaintext_sql_sha256)) throw new Error("Plain SQL checksum does not match manifest.");
+      sqlPath = path.join(os.tmpdir(), `growth-os-dev-restore-${randomBytes(12).toString("hex")}.sql`);
+      await materializeVerifiedSqlFile(artifact, keyDoc, manifest, sqlPath);
 
       const conn = await getPool().getConnection();
       let executed = 0;
@@ -158,7 +189,12 @@ export function buildDevDbRestoreRoutes(deps = {}) {
       try {
         await conn.query("SET FOREIGN_KEY_CHECKS=0");
         foreignKeyChecksDisabled = true;
-        executed = await executeSqlBufferStatements(conn, sqlBuffer);
+        executed = await executeSqlStreamStatements(
+          conn,
+          createReadStream(sqlPath, {
+            highWaterMark: Number(process.env.DEV_DB_RESTORE_SQL_CHUNK_BYTES || 1024 * 1024),
+          })
+        );
         await conn.query("SET FOREIGN_KEY_CHECKS=1");
         foreignKeyChecksDisabled = false;
         const [[db]] = await conn.query("SELECT DATABASE() AS db_name");
@@ -183,6 +219,10 @@ export function buildDevDbRestoreRoutes(deps = {}) {
       }
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: err.code || "dev_db_restore_failed", message: err.message }, duration_ms: Date.now() - startedAt });
+    } finally {
+      if (sqlPath) {
+        await fs.rm(sqlPath, { force: true }).catch(() => {});
+      }
     }
   });
 
