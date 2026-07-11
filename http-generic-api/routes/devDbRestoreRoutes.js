@@ -46,7 +46,16 @@ async function fetchBuffer(url, label) {
   return buf;
 }
 
-function decryptArtifact(artifact, keyDoc) {
+function createHashingTransform(hash) {
+  return new Transform({
+    transform(chunk, encoding, callback) {
+      hash.update(chunk);
+      callback(null, chunk);
+    },
+  });
+}
+
+function createArtifactDecipher(artifact, keyDoc) {
   if (keyDoc.algorithm !== "aes-256-gcm") throw new Error("Unsupported key algorithm.");
   if (!safeEqualHex(sha256(artifact), keyDoc.artifact_sha256)) throw new Error("Encrypted artifact sha256 mismatch.");
   const key = Buffer.from(keyDoc.key_b64, "base64");
@@ -54,7 +63,28 @@ function decryptArtifact(artifact, keyDoc) {
   const tag = Buffer.from(keyDoc.auth_tag_b64, "base64");
   const decipher = createDecipheriv("aes-256-gcm", key, iv);
   decipher.setAuthTag(tag);
-  return Buffer.concat([decipher.update(artifact), decipher.final()]);
+  return decipher;
+}
+
+async function materializeVerifiedSqlFile(artifact, keyDoc, manifest, sqlPath) {
+  const gzipHash = createHash("sha256");
+  const sqlHash = createHash("sha256");
+  const decipher = createArtifactDecipher(artifact, keyDoc);
+
+  await pipeline(
+    Readable.from([artifact]),
+    decipher,
+    createHashingTransform(gzipHash),
+    createGunzip(),
+    createHashingTransform(sqlHash),
+    createWriteStream(sqlPath, { mode: 0o600 })
+  );
+
+  const gzipSha256 = gzipHash.digest("hex");
+  const sqlSha256 = sqlHash.digest("hex");
+  if (!safeEqualHex(gzipSha256, manifest.gzip_sha256)) throw new Error("Gzip checksum does not match manifest.");
+  if (!safeEqualHex(sqlSha256, manifest.plaintext_sql_sha256)) throw new Error("Plain SQL checksum does not match manifest.");
+  return { gzip_sha256: gzipSha256, plaintext_sql_sha256: sqlSha256 };
 }
 
 async function consumeSqlLine(conn, state, line) {
