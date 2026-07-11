@@ -1,14 +1,12 @@
 #!/usr/bin/env node
 import fs from "node:fs/promises";
-import { createWriteStream } from "node:fs";
+import { createReadStream, createWriteStream } from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { createHash, randomBytes, createCipheriv } from "node:crypto";
-import { gzip } from "node:zlib";
-import { promisify } from "node:util";
+import { createGzip } from "node:zlib";
+import { pipeline } from "node:stream/promises";
 import { getPool } from "../db.js";
-
-const gzipAsync = promisify(gzip);
 const EXPORT_ROOT = process.env.DB_BACKUP_EXPORT_ROOT || "/tmp/growth-os-db-backups";
 const JOB_ROOT = path.join(EXPORT_ROOT, "jobs");
 const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || process.env.AUTH_BASE_URL || "https://auth.mad4b.com").replace(/\/$/, "");
