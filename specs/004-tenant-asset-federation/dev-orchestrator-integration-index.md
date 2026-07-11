@@ -32,6 +32,35 @@ Read the bundle in this order:
 
 ---
 
+## 1A. Dynamic multi-surface execution extension
+
+The following documents extend the original Dev Orchestrator bundle with provider-neutral agent surfaces, official agent APIs, Browser Bridge execution, local runtimes, connected apps, reusable triggers, user preferences, current database reuse, and acceptance contracts:
+
+1. `dev-orchestrator-dynamic-agent-execution-fabric.md`
+   Defines the unified resolution chain from trigger and business activity through logical agent, surface binding, adapter, runtime, provider, policies, execution, and readback.
+
+2. `dev-orchestrator-multi-surface-agent-binding-contract.md`
+   Separates logical agents from ChatGPT Custom GPT, Gemini Gem, Workspace Agent, Hermes, OpenClaw, platform-native, and model-API bindings.
+
+3. `dev-orchestrator-trigger-starter-and-workflow-contract.md`
+   Unifies Tenant GPT prompts, manual starters, n8n, schedules, webhooks, events, approvals, recovery, and callbacks under one orchestration-run contract.
+
+4. `dev-orchestrator-preference-inheritance-resolution.md`
+   Defines platform-to-run preference inheritance, deny-wins constraints, candidate scoring, user customization, and non-overridable controls.
+
+5. `dev-orchestrator-browser-workspace-local-runtime-adapters.md`
+   Defines Browser Bridge, Workspace Agents API, Mad4B connected MCP app, Hermes, OpenClaw, model API, and local-model adapter boundaries.
+
+6. `dev-orchestrator-current-platform-db-surface-reuse-map.md`
+   Maps the design onto existing agent, browser, local runtime, model, workflow, connection, approval, budget, capability, concurrency, and execution-plan authorities.
+
+7. `dev-orchestrator-multi-surface-api-and-acceptance-contract.md`
+   Provides the future OpenAPI resource model, structured errors, positive and negative tests, surface acceptance matrix, rollout gates, and stop conditions.
+
+These documents are design-only. They do not register a surface, connect an account, install a runtime, create a route, mutate the database, dispatch a provider, or activate Browser Bridge execution.
+
+---
+
 ## 2. How this integrates with the original Spec Kit
 
 | Original file | Integration role |
