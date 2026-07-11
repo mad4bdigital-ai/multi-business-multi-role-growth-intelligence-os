@@ -4,7 +4,7 @@
   "title": "Adaptive Authorization and Execution Governance",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-10T10:25:00Z",
+  "last_updated_at": "2026-07-11T14:00:00Z",
   "delivery": {
     "implementation_prs": [
       {
@@ -72,19 +72,27 @@
         "merge_sha": "b5c8369c78ee87a19573554faf5083e8b4f7a5d4",
         "status": "merged",
         "branch_deleted_verified": false
+      },
+      {
+        "sequence": 10,
+        "role": "parity_threshold_approval_contract_only",
+        "pull_request": 2513,
+        "merge_sha": "1bebe286bd2ee97efd3e4c71ac13e155f4a580f8",
+        "status": "merged",
+        "branch_deleted_verified": false
       }
     ],
     "remaining_task_loop": {
-      "status": "t042_next_parity_threshold_approval",
+      "status": "t043_next_compatibility_wrappers_and_deprecation_metadata",
       "provider_mutation": false,
       "external_write": false,
       "migration_execution": "not_started",
       "enforcement_change": false
     },
     "next_pr": {
-      "sequence": 10,
-      "scope": "T042 approve parity thresholds before canary enforcement",
-      "status": "blocked_until_explicit_threshold_approval_design"
+      "sequence": 11,
+      "scope": "T043 add compatibility wrappers and measured deprecation metadata",
+      "status": "ready_after_t042_ledger_closeout"
     }
   },
   "evidence": {
@@ -97,14 +105,16 @@
         "T023",
         "T030",
         "T040",
-        "T041"
+        "T041",
+        "T042"
       ],
-      "latest_task": "T041",
+      "latest_task": "T042",
       "provider_mutation_allowed": false,
       "external_write_allowed": false,
       "enforcement_cutover_allowed": false,
       "migration_execution_authorized": false,
-      "new_authority_tables_allowed": false
+      "new_authority_tables_allowed": false,
+      "canary_activation_allowed": false
     },
     "implementation": {
       "status": "in_progress",
@@ -121,11 +131,11 @@
         "T023",
         "T030",
         "T040",
-        "T041"
+        "T041",
+        "T042"
       ],
-      "next_task_scope": "T042 approve parity thresholds before canary enforcement",
+      "next_task_scope": "T043 add compatibility wrappers and measured deprecation metadata",
       "remaining_tasks": [
-        "T042",
         "T043",
         "T050",
         "T051",
@@ -135,15 +145,16 @@
         "T062",
         "D010"
       ],
-      "remaining_task_count": 9,
+      "remaining_task_count": 8,
       "provider_mutation_allowed": false,
       "external_write_allowed": false,
       "enforcement_change_allowed": false,
-      "new_authority_tables_allowed": false
+      "new_authority_tables_allowed": false,
+      "canary_activation_allowed": false
     },
     "production_rollout": {
       "status": "pending",
-      "reason": "T042 through T053, threshold approval, compatibility wrappers, production verification, rollback rehearsal, and post-merge audit remain incomplete."
+      "reason": "T043 and T050 through T053, compatibility wrappers, verification, rollback rehearsal, release readiness, production parity, and post-merge audit remain incomplete."
     }
   },
   "sensitive_values_included": false

@@ -1,8 +1,65 @@
 {
-  "content_hash_sha256": "ee06b8aa2e79a6e2f66ed080eca559e91fe39a210fee29ac315499a312ac3b60",
+  "content_hash_sha256": "9166fdcef27bd2abc7112afe48a95ad56178f7ae697ef40ee26ee935b84d6849",
   "deployment_signature_required": true,
   "manifest_version": 1,
   "mutation_stale_policy": "deny",
+  "oauth_handoff_routes": [
+    {
+      "allowed_query_parameters": [
+        "activation_mode",
+        "auth_options",
+        "client_id",
+        "cloudflare_mode",
+        "code_challenge",
+        "code_challenge_method",
+        "device_id",
+        "google_auth_mode",
+        "language",
+        "login_hint",
+        "mode",
+        "n8n_activation_mode",
+        "prompt",
+        "redirect_uri",
+        "response_type",
+        "scope",
+        "screen_hint",
+        "sign_in_options",
+        "state",
+        "tenant_display_name",
+        "workspace_name"
+      ],
+      "method": "GET",
+      "operation_ids": [
+        "tenantGptOAuthAuthorize"
+      ],
+      "path": "/auth/oauth/authorize",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [],
+      "method": "POST",
+      "operation_ids": [
+        "tenantGptOAuthCode"
+      ],
+      "path": "/auth/oauth/code",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [],
+      "method": "POST",
+      "operation_ids": [
+        "tenantGptOAuthToken"
+      ],
+      "path": "/auth/oauth/token",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "timeout_ms": 30000
+    }
+  ],
   "policy_key": "activation_gateway",
   "public_host": "activation.mad4b.com",
   "read_stale_grace_seconds": 0,
@@ -300,6 +357,49 @@
         "activateSession"
       ],
       "path": "/tenant/activation/session-context",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "tenant_activation"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [],
+      "auth_profiles": [
+        "tenant_oauth"
+      ],
+      "method": "POST",
+      "mutation": true,
+      "operation_ids": [
+        "createTenantResolutionCase"
+      ],
+      "path": "/tenant/resolution/cases",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "tenant_activation"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [
+        "cursor",
+        "limit",
+        "lookback_hours",
+        "q",
+        "root_family",
+        "severity"
+      ],
+      "auth_profiles": [
+        "tenant_oauth"
+      ],
+      "method": "GET",
+      "mutation": false,
+      "operation_ids": [
+        "readTenantResolutionProblemCards"
+      ],
+      "path": "/tenant/resolution/problem-cards",
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
