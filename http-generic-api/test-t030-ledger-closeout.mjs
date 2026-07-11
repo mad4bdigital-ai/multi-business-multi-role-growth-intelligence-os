@@ -19,15 +19,13 @@ const tasks = fs.readFileSync(
 
 assert(tasks.includes("- [x] T030 Implement adapter bindings"));
 assert(tasks.includes("- [x] T040 Run the three pilots in shadow mode without provider mutation."));
-assert(remainingLoop.includes("Completed through T040"));
-assert(remainingLoop.includes("PR #2389 merged T030"));
-assert(remainingLoop.includes("PR #2440 merged T040"));
-assert.equal(completion.evidence.execution_governance.latest_task, "T040");
-assert(completion.evidence.execution_governance.completed_tasks.includes("T030"));
-assert(completion.evidence.execution_governance.completed_tasks.includes("T040"));
-assert.equal(completion.evidence.implementation.remaining_task_count, 10);
+assert(tasks.includes("- [x] T041 Classify all legacy/adaptive mismatches."));
+assert(remainingLoop.includes("Completed through T041"));
+assert(remainingLoop.includes("PR #2460 merged T041"));
+assert.equal(completion.evidence.execution_governance.latest_task, "T041");
+assert(completion.evidence.execution_governance.completed_tasks.includes("T041"));
+assert.equal(completion.evidence.implementation.remaining_task_count, 9);
 assert.deepEqual(completion.evidence.implementation.remaining_tasks, [
-  "T041",
   "T042",
   "T043",
   "T050",
@@ -44,4 +42,4 @@ assert.equal(completion.evidence.implementation.enforcement_change_allowed, fals
 assert.equal(completion.evidence.execution_governance.migration_execution_authorized, false);
 assert.equal(completion.sensitive_values_included, false);
 
-console.log("T040 ledger closeout assertions passed");
+console.log("T041 ledger closeout assertions passed");
