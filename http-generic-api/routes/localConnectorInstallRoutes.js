@@ -383,6 +383,36 @@ async function provisionTunnel(accountId, tunnelName, cfToken = null) {
   return { tunnelId: tunnel.id, tunnelName: tunnel.name, token: tokenResult };
 }
 
+async function rotateTunnelCredential(accountId, tunnelId, tunnelName, cfToken = null) {
+  const tunnelSecret = Buffer.from(
+    randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, ""),
+    "hex",
+  ).toString("base64");
+  const updated = await cfRequest(
+    "PATCH",
+    `/accounts/${accountId}/cfd_tunnel/${tunnelId}`,
+    { name: tunnelName, tunnel_secret: tunnelSecret },
+    cfToken,
+  );
+  const token = updated?.token || await cfRequest(
+    "GET",
+    `/accounts/${accountId}/cfd_tunnel/${tunnelId}/token`,
+    null,
+    cfToken,
+  );
+  await cfRequest(
+    "DELETE",
+    `/accounts/${accountId}/cfd_tunnel/${tunnelId}/connections`,
+    null,
+    cfToken,
+  );
+  return {
+    tunnelId: updated?.id || tunnelId,
+    tunnelName: updated?.name || tunnelName,
+    token,
+  };
+}
+
 async function readTunnelIngress(accountId, tunnelId, cfToken = null) {
   try {
     const result = await cfRequest("GET", `/accounts/${accountId}/cfd_tunnel/${tunnelId}/configurations`, null, cfToken);
