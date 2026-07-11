@@ -134,6 +134,19 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
   const workspaceContainerByWorkspace = new Map();
   const brandContainerByTenantAndTarget = new Map();
   const activityContainerByTenantAndKey = new Map();
+  const existingContainerByCanonicalIdentity = new Map(
+    (source.existingContainers || [])
+      .filter(row => row.tenant_id && row.canonical_subject_type && row.canonical_subject_ref)
+      .map(row => [
+        `${String(row.tenant_id)}|${String(row.canonical_subject_type)}|${String(row.canonical_subject_ref)}`,
+        row,
+      ])
+  );
+  const projectedContainerRow = (fields) => {
+    const canonicalIdentity = `${String(fields.tenantId)}|${String(fields.subjectType)}|${String(fields.subjectRef)}`;
+    const existing = existingContainerByCanonicalIdentity.get(canonicalIdentity);
+    return containerRow({ ...fields, containerId: existing?.container_id || null });
+  };
 
   for (const tenant of source.tenants.filter(row => activeValue(row.status))) {
     const tenantId = String(tenant.tenant_id);
