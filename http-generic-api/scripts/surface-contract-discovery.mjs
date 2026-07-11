@@ -9,6 +9,7 @@ const API_ROOT = process.cwd();
 const REPO_ROOT = path.resolve(API_ROOT, "..");
 const MIGRATIONS_DIR = path.join(API_ROOT, "migrations");
 const OPENAPI_PATH = path.join(API_ROOT, "openapi.yaml");
+const OPENAPI_DIR = path.join(API_ROOT, "openapi");
 const OUTPUT_PATH = path.join(REPO_ROOT, "docs", "surface-contract-discovery-status.md");
 const JSON_OUTPUT_PATH = path.join(REPO_ROOT, "docs", "surface-contract-discovery-status.json");
 const GAP_QUEUE_PATH = path.join(REPO_ROOT, "docs", "surface-contract-gap-queue.md");
@@ -124,22 +125,40 @@ function legacyClosureRouteClassification(route, fileName) {
   };
 }
 
-function collectOpenapiPaths() {
-  if (!fs.existsSync(OPENAPI_PATH)) return { operations: [], paths: [] };
-  try {
-    const doc = YAML.parse(fs.readFileSync(OPENAPI_PATH, "utf8"));
-    const operations = [];
-    const paths = [];
-    for (const [pathKey, item] of Object.entries(doc.paths || {})) {
-      paths.push(pathKey);
-      for (const method of Object.keys(item || {})) {
-        if (METHODS.has(method)) operations.push(`${method.toUpperCase()} ${pathKey}`);
-      }
-    }
-    return { operations: unique(operations), paths: unique(paths) };
-  } catch {
-    return { operations: [], paths: [] };
+function listOpenapiSpecFiles() {
+  const files = [];
+  if (fs.existsSync(OPENAPI_PATH)) files.push(OPENAPI_PATH);
+  if (fs.existsSync(OPENAPI_DIR)) {
+    files.push(...fs.readdirSync(OPENAPI_DIR, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && /\.(?:ya?ml|json)$/i.test(entry.name))
+      .map((entry) => path.join(OPENAPI_DIR, entry.name))
+      .sort());
   }
+  return unique(files);
+}
+
+function parseOpenapiDocument(filePath) {
+  const source = fs.readFileSync(filePath, "utf8");
+  return filePath.toLowerCase().endsWith(".json") ? JSON.parse(source) : YAML.parse(source);
+}
+
+function collectOpenapiPaths() {
+  const operations = [];
+  const paths = [];
+  for (const filePath of listOpenapiSpecFiles()) {
+    try {
+      const doc = parseOpenapiDocument(filePath);
+      for (const [pathKey, item] of Object.entries(doc.paths || {})) {
+        paths.push(pathKey);
+        for (const method of Object.keys(item || {})) {
+          if (METHODS.has(method)) operations.push(`${method.toUpperCase()} ${pathKey}`);
+        }
+      }
+    } catch {
+      continue;
+    }
+  }
+  return { operations: unique(operations), paths: unique(paths) };
 }
 
 function classifyRoute(route, source = "") {
