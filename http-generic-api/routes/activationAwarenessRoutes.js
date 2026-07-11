@@ -473,12 +473,36 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
+  router.get("/tenant/resolution/cases", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantResolutionCaseListResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_resolution_case_list_failed");
+    }
+  });
+
   router.post("/tenant/resolution/cases", requireTenantUserJwt, async (req, res) => {
     try {
       const result = await tenantResolutionCaseCreateResponse(req);
       return res.status(result.created ? 201 : 200).json(result);
     } catch (err) {
       return errorResponse(res, err, "tenant_resolution_case_create_failed");
+    }
+  });
+
+  router.get("/tenant/resolution/cases/:caseId", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantResolutionCaseDetailResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_resolution_case_read_failed");
+    }
+  });
+
+  router.post("/tenant/resolution/cases/:caseId/transitions", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantResolutionCaseTransitionResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_resolution_case_transition_failed");
     }
   });
 
