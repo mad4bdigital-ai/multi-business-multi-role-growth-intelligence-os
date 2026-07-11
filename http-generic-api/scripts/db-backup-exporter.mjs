@@ -157,15 +157,20 @@ async function main() {
   try { dumpStats = await dumpDatabase(conn, sqlPath); }
   finally { conn.release(); await getPool().end(); }
 
-  const sqlBuffer = await fs.readFile(sqlPath);
-  const gzBuffer = await gzipAsync(sqlBuffer, { level: 9 });
-  await fs.writeFile(gzPath, gzBuffer);
+  await pipeline(
+    createReadStream(sqlPath),
+    createGzip({ level: 9 }),
+    createWriteStream(gzPath, { mode: 0o600 })
+  );
   const key = randomBytes(32);
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const encrypted = Buffer.concat([cipher.update(gzBuffer), cipher.final()]);
+  await pipeline(
+    createReadStream(gzPath),
+    cipher,
+    createWriteStream(artifactPath, { mode: 0o600 })
+  );
   const tag = cipher.getAuthTag();
-  await fs.writeFile(artifactPath, encrypted);
 
   const artifactSha = await sha256File(artifactPath);
   const gzSha = await sha256File(gzPath);
