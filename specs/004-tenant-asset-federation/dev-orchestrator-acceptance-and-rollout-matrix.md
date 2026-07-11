@@ -132,6 +132,25 @@ The SDK coordinates. The platform decides.
 | Evidence source deleted but signal remains active | test fails |
 | Authority mode completes automatically | test fails |
 
+## 8A. Multi-surface execution acceptance
+
+| Scenario | Required behavior |
+|---|---|
+| Tenant GPT orchestrates platform sub-agents | Logical agents are resolved through the platform; the GPT may request or synthesize but may not bypass eligibility or effect authority. |
+| Custom GPT Browser Bridge | User-owned profile, exact GPT verification, bounded queue, output stabilization, platform validation, and readback are required. |
+| Gemini Custom Gem Bridge | Google identity and Gem access are verified; target mismatch, revocation, or account switching blocks the run. |
+| ChatGPT Workspace Agent | Official API capability and published-agent evidence are required; tenant access is authorized separately through the Mad4B connected app. |
+| Mad4B connected MCP app | OAuth identity, workspace permission, tenant scope, tool allowlist, approval behavior, and readback are enforced. |
+| Hermes or OpenClaw | Runtime health, sandbox, skills/tools, channel identity, provider/model compatibility, and scoped memory are validated. |
+| n8n or scheduled run | Stable idempotency key, callback or polling contract, autonomous failure policy, budget ceiling, and bounded duration are required. |
+| Manual starter or prompt intent | Starter and intent must resolve to registered activities, logical agents, parameters, and policies; arbitrary runtimes and URLs are rejected. |
+| User preference changes execution order | Preferences rank only eligible candidates and cannot override platform, tenant, privacy, budget, tool, or act/authority denials. |
+| Browser/API/local fallback | Fallback is typed, explained, budget-compatible, and prohibited after committed or unknown effects. |
+| Duplicate trigger or callback | Exactly-once continuation is preserved through event keys, signatures, leases, and idempotency. |
+| Missing output validation or readback | Run remains failed, partial, blocked, or recovery-required; it cannot be marked completed. |
+
+Required multi-surface negative tests include profile/tenant crossover, exact-target mismatch, prompt-injected tool JSON, unregistered callback URL, Workspace Agent without connected-app authorization, local terminal/file access outside the tool profile, scheduled reuse of an active interactive tab, silent paid fallback, and fallback after unknown effect.
+
 ## 9. Rollout phases
 
 | Phase | Name | Allowed behavior | Stop condition |
