@@ -197,6 +197,10 @@ export async function readDynamicContainerProjectionApply(plan, { pool = getPool
   const countMismatches = Object.keys(expected)
     .filter((key) => actual[key] !== expected[key])
     .map((key) => ({ field: key, expected: expected[key], actual: actual[key] }));
+  const orphanReferences = await readActiveOrphanReferences(
+    pool,
+    plan.containers.map((row) => row.tenant_id)
+  );
   const runMatches = Boolean(
     run &&
     run.mode === "apply" &&
