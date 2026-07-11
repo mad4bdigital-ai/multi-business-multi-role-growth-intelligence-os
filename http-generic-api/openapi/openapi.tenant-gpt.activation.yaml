@@ -1493,6 +1493,168 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /tenant/resolution/cases/{caseId}:
+    get:
+      tags:
+        - activation
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      operationId: getTenantResolutionCase
+      x-openai-isConsequential: false
+      summary: Read one tenant resolution case
+      description: Returns one tenant-scoped resolution case and its recent append-only events. Optional workspace scope is enforced when supplied.
+      parameters:
+        - in: path
+          name: caseId
+          required: true
+          schema:
+            type: string
+            maxLength: 64
+        - in: query
+          name: workspace_id
+          schema:
+            type: string
+            maxLength: 64
+        - in: query
+          name: event_limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Tenant-scoped resolution case detail.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          description: Invalid case identifier.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Active tenant membership required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Case not found within tenant or workspace scope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /tenant/resolution/cases/{caseId}/transitions:
+    post:
+      tags:
+        - activation
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      operationId: transitionTenantResolutionCase
+      x-openai-isConsequential: true
+      summary: Transition a tenant resolution case
+      description: Appends a lifecycle event and changes case status within the tenant-safe diagnostic state graph. Applying, verifying, and resolved transitions are blocked in this phase.
+      parameters:
+        - in: path
+          name: caseId
+          required: true
+          schema:
+            type: string
+            maxLength: 64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - to_status
+              properties:
+                to_status:
+                  type: string
+                  enum:
+                    - diagnosing
+                    - needs_connection
+                    - needs_approval
+                    - ready_to_apply
+                    - deferred_by_policy
+                    - escalated
+                    - blocked_missing_authority
+                    - cancelled
+                workspace_id:
+                  type: string
+                  maxLength: 64
+                current_step_key:
+                  type: string
+                  maxLength: 191
+                note:
+                  type: string
+                  maxLength: 2000
+                evidence_ref:
+                  type: string
+                  maxLength: 512
+                idempotency_key:
+                  type: string
+                  maxLength: 191
+      responses:
+        "200":
+          description: Resolution case transition result.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          description: Invalid target status or request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Active tenant membership required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Case not found within tenant or workspace scope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Invalid transition or concurrent case update.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /tenant/activation/dynamic-tabs/detail:
     get:
       tags:
