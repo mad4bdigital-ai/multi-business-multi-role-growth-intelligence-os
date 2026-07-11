@@ -180,10 +180,8 @@ export function buildDevDbRestoreRoutes(deps = {}) {
       const keyDoc = JSON.parse(keyBuffer.toString("utf8"));
 
       if (!safeEqualHex(sha256(artifact), manifest.checksum_value)) throw new Error("Artifact checksum does not match manifest.");
-      const gz = decryptArtifact(artifact, keyDoc);
-      if (!safeEqualHex(sha256(gz), manifest.gzip_sha256)) throw new Error("Gzip checksum does not match manifest.");
-      const sqlBuffer = await gunzipAsync(gz);
-      if (!safeEqualHex(sha256(sqlBuffer), manifest.plaintext_sql_sha256)) throw new Error("Plain SQL checksum does not match manifest.");
+      sqlPath = path.join(os.tmpdir(), `growth-os-dev-restore-${randomBytes(12).toString("hex")}.sql`);
+      await materializeVerifiedSqlFile(artifact, keyDoc, manifest, sqlPath);
 
       const conn = await getPool().getConnection();
       let executed = 0;
