@@ -48,6 +48,7 @@ assert.deepEqual(
 );
 assert.deepEqual(assertTenantSafeTransition("detected", "diagnosing"), { idempotent: false });
 assert.deepEqual(assertTenantSafeTransition("diagnosing", "diagnosing"), { idempotent: true });
+assert.deepEqual(assertTenantSafeTransition("diagnosing", "blocked_missing_authority"), { idempotent: false });
 assert.throws(
   () => assertTenantSafeTransition("detected", "resolved"),
   (error) => error.code === "TENANT_RESOLUTION_INVALID_TRANSITION" && error.status === 409
