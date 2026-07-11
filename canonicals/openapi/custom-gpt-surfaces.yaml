@@ -99,7 +99,10 @@ surfaces:
         - activateSession
         - readTenantActivationOperationalAttention
         - readTenantResolutionProblemCards
+        - listTenantResolutionCases
         - createTenantResolutionCase
+        - getTenantResolutionCase
+        - transitionTenantResolutionCase
         - readTenantActivationAwareness
         - readTenantActivationDynamicTabDetail
 
