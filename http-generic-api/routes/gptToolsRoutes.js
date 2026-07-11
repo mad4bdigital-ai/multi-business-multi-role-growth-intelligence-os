@@ -2531,6 +2531,73 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       return { status: err?.status || 500, body: { ok: false, error: { code: err?.code || "governed_migration_schema_readback_failed", message: err?.message || "Governed migration schema readback failed.", details: err?.details }, secrets_included: false } };
     }
   }
+  if (callerType === "admin" && toolKey === "dynamic_container_projection_apply") {
+    try {
+      const result = await runDynamicContainerProjectionApply(args || {}, {
+        pool: getPool(),
+        resolveEnvelope: async ({ envelopeId }) => {
+          const resolved = await resolveCapabilityExecutionEnvelope({
+            pool: getPool(),
+            envelopeId,
+            source: args || {},
+            acceptedAppKeys: ["platform_orchestration"],
+            acceptedIntents: ["dynamic_container_projection_apply"],
+            acceptedCapabilityKeys: ["dynamic_container_projection_apply"],
+            allowReferenced: true,
+            requireReadyForDispatch: true,
+            requireDispatchAllowed: true,
+            requireNoApprovalRequired: false,
+            requireNoBlockingGaps: true,
+            requireNoSecrets: true,
+          });
+          if (!resolved?.ok) {
+            throw capabilityEnvelopeError(
+              resolved,
+              "Projection apply requires a valid ready capability resolution envelope."
+            );
+          }
+          if (resolved.apply_allowed !== true) {
+            throw capabilityEnvelopeError(
+              {
+                status: "dynamic_container_projection_apply_not_authorized",
+                envelope_id: envelopeId,
+                apply_allowed: false,
+                secrets_included: false,
+              },
+              "Projection apply requires explicit dynamic apply authorization."
+            );
+          }
+          return resolved;
+        },
+        markReferenced: async ({ envelopeId, executionRef }) => markCapabilityEnvelopeReferenced({
+          pool: getPool(),
+          envelopeId,
+          executionRef,
+        }),
+        consumeEnvelope: async ({ envelopeId, executionRef, reason }) => transitionCapabilityEnvelopeLifecycle({
+          pool: getPool(),
+          envelopeId,
+          action: "consume",
+          executionRef,
+          reason,
+        }),
+      });
+      return { status: 200, body: result };
+    } catch (err) {
+      return {
+        status: err?.status || 409,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "dynamic_container_projection_apply_failed",
+            message: err?.message || "Dynamic container projection apply failed.",
+            details: err?.details,
+          },
+          secrets_included: false,
+        },
+      };
+    }
+  }
   if (callerType === "admin" && toolKey === "governed_migration_execute") {
     try {
       const result = await runGovernedMigrationExecution(args || {}, {
