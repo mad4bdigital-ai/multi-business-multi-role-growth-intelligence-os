@@ -60,6 +60,8 @@ assert.equal(registry.surfaces.admin_core.server_url, "https://auth.mad4b.com");
 assert.equal(registry.surfaces.tenant_core.server_url, "https://auth.mad4b.com");
 assert.equal(registry.surfaces.activation_admin.server_url, "https://activation.mad4b.com");
 assert.equal(registry.surfaces.tenant_activation.server_url, "https://activation.mad4b.com");
+assert.equal(registry.surfaces.tenant_activation.oauth_endpoints.authorization_url, "https://activation.mad4b.com/auth/oauth/authorize");
+assert.equal(registry.surfaces.tenant_activation.oauth_endpoints.token_url, "https://activation.mad4b.com/auth/oauth/token");
 assert.equal(registry.surfaces.local_connector_admin.mode, "canonical_copy");
 assert.equal(registry.surfaces.local_connector_admin.server_url, "https://connector.mad4b.com");
 assert.equal(registry.gateway_policies.activation_gateway.upstream_origin, "https://auth.mad4b.com");
@@ -112,6 +114,10 @@ assert.equal(
   Object.keys(tenantActivation.paths).every((path) => path.startsWith("/tenant/activation") || path.startsWith("/tenant/resolution")),
   true,
 );
+assert.equal(tenantCore.components.securitySchemes.userBearerAuth.flows.authorizationCode.authorizationUrl, "https://auth.mad4b.com/auth/oauth/authorize");
+assert.equal(tenantCore.components.securitySchemes.userBearerAuth.flows.authorizationCode.tokenUrl, "https://auth.mad4b.com/auth/oauth/token");
+assert.equal(tenantActivation.components.securitySchemes.userBearerAuth.flows.authorizationCode.authorizationUrl, "https://activation.mad4b.com/auth/oauth/authorize");
+assert.equal(tenantActivation.components.securitySchemes.userBearerAuth.flows.authorizationCode.tokenUrl, "https://activation.mad4b.com/auth/oauth/token");
 
 assert(splitScript.includes("SURFACE_REGISTRY_FILE"), "split generator must read the canonical surface registry");
 assert(splitScript.includes("validateGeneratedDoc"), "split generator must validate generated operations against the source OpenAPI");
