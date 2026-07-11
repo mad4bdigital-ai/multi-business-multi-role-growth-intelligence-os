@@ -189,7 +189,12 @@ export function buildDevDbRestoreRoutes(deps = {}) {
       try {
         await conn.query("SET FOREIGN_KEY_CHECKS=0");
         foreignKeyChecksDisabled = true;
-        executed = await executeSqlBufferStatements(conn, sqlBuffer);
+        executed = await executeSqlStreamStatements(
+          conn,
+          createReadStream(sqlPath, {
+            highWaterMark: Number(process.env.DEV_DB_RESTORE_SQL_CHUNK_BYTES || 1024 * 1024),
+          })
+        );
         await conn.query("SET FOREIGN_KEY_CHECKS=1");
         foreignKeyChecksDisabled = false;
         const [[db]] = await conn.query("SELECT DATABASE() AS db_name");
