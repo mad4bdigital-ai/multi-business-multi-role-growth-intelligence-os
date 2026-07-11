@@ -810,7 +810,7 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
   );
   const remoteScript = buildRemoteProbeScript({ appPath, expectedCommitSha });
   const sshResult = await withPhaseTimeout(
-    runSshCommand({ ...sshConnection, remoteScript, timeoutMs }),
+    runSshCommand({ ...sshConnection, password_transport: sshPasswordTransport, remoteScript, timeoutMs }),
     { phase: "ssh_command_execution", timeoutMs: timeoutMs + SSH_PROCESS_KILL_GRACE_MS + 2000, details: { target_id: targetId, ssh_auth_mode: sshAuthMode } }
   );
   const parsed = parseProbeOutput(sshResult.stdout);
