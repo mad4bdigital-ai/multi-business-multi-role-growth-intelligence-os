@@ -17,16 +17,13 @@ const tasks = fs.readFileSync(
   "utf8",
 );
 
-assert(tasks.includes("- [x] T030 Implement adapter bindings"));
-assert(tasks.includes("- [x] T040 Run the three pilots in shadow mode without provider mutation."));
-assert(tasks.includes("- [x] T041 Classify all legacy/adaptive mismatches."));
-assert(remainingLoop.includes("Completed through T041"));
-assert(remainingLoop.includes("PR #2460 merged T041"));
-assert.equal(completion.evidence.execution_governance.latest_task, "T041");
-assert(completion.evidence.execution_governance.completed_tasks.includes("T041"));
-assert.equal(completion.evidence.implementation.remaining_task_count, 9);
+assert(tasks.includes("- [x] T042 Approve parity thresholds before canary enforcement."));
+assert(remainingLoop.includes("Completed through T042"));
+assert(remainingLoop.includes("PR #2513 merged T042"));
+assert.equal(completion.evidence.execution_governance.latest_task, "T042");
+assert(completion.evidence.execution_governance.completed_tasks.includes("T042"));
+assert.equal(completion.evidence.implementation.remaining_task_count, 8);
 assert.deepEqual(completion.evidence.implementation.remaining_tasks, [
-  "T042",
   "T043",
   "T050",
   "T051",
@@ -40,6 +37,8 @@ assert.equal(completion.evidence.implementation.provider_mutation_allowed, false
 assert.equal(completion.evidence.implementation.external_write_allowed, false);
 assert.equal(completion.evidence.implementation.enforcement_change_allowed, false);
 assert.equal(completion.evidence.execution_governance.migration_execution_authorized, false);
+assert.equal(completion.evidence.execution_governance.canary_activation_allowed, false);
+assert.equal(completion.evidence.implementation.canary_activation_allowed, false);
 assert.equal(completion.sensitive_values_included, false);
 
-console.log("T041 ledger closeout assertions passed");
+console.log("T042 ledger closeout assertions passed");
