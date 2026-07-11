@@ -179,7 +179,7 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
       issues.push(issue(projectionRunId,{ tenant_id:tenantId,workspace_id:workspace.workspace_id,source_table:"workspace_registry",source_ref:workspace.workspace_id,issue_code:"workspace_tenant_missing",severity:"high",issue_detail:"Workspace tenant is absent or inactive.",candidate_refs:[] }));
       continue;
     }
-    const workspaceContainer = addUnique(containers,containerRow({
+    const workspaceContainer = addUnique(containers,projectedContainerRow({
       tenantId,type:"workspace",key:workspace.workspace_key || `workspace:${workspace.workspace_id}`,subjectType:"workspace",subjectRef:workspace.workspace_id,
       displayName:workspace.display_name || workspace.workspace_key || workspace.workspace_id,status:workspace.bootstrap_status === "ready" ? "active" : "draft",source:"workspace_registry"
     }));
