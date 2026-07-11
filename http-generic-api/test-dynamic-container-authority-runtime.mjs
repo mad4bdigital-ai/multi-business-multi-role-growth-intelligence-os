@@ -279,7 +279,7 @@ assert.throws(() => _testingDynamicContainerOverrideService.requireExactValue("*
 function emptyProjectionSources() {
   return {
     tenants:[],workspaces:[],brands:[],brandPaths:[],activities:[],workflows:[],memberships:[],roleAssignments:[],
-    workspaceGrants:[],workspaceAppLinks:[],actionGrants:[],skillGrants:[],workspaceAssets:[]
+    workspaceGrants:[],workspaceAppLinks:[],actionGrants:[],skillGrants:[],workspaceAssets:[],existingContainers:[]
   };
 }
 const projectionSources={
