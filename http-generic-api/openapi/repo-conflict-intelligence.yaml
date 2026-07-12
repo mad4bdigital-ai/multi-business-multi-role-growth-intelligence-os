@@ -230,6 +230,40 @@ components:
         operations: { type: array, items: { type: object, additionalProperties: true } }
         secrets_included: { type: boolean, const: false }
       additionalProperties: true
+    TenantReadinessReport:
+      type: object
+      required:
+        - ok
+        - status
+        - logic_readiness
+        - registry_readiness
+        - transport_auth
+        - checks
+        - execution_allowed
+        - provider_write
+        - secrets_included
+      properties:
+        ok: { type: boolean, const: true }
+        readiness_id: { type: string }
+        status: { type: string, enum: [authorization_gated, degraded] }
+        logic_readiness: { type: string, enum: [ready, degraded] }
+        registry_readiness: { type: string, enum: [ready, degraded] }
+        transport_auth:
+          type: object
+          required: [status, reason, live_user_jwt_tested, auth_bypass_attempted]
+          properties:
+            status: { type: string, const: authorization_gated }
+            reason: { type: string, const: tenant_user_jwt_required_for_live_transport_probe }
+            live_user_jwt_tested: { type: boolean, const: false }
+            auth_bypass_attempted: { type: boolean, const: false }
+          additionalProperties: false
+        checks: { type: object, additionalProperties: { type: boolean } }
+        required_tools: { type: array, items: { type: object, additionalProperties: true } }
+        projections: { type: object, additionalProperties: true }
+        execution_allowed: { type: boolean, const: false }
+        provider_write: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: true
     ErrorEnvelope:
       type: object
       required: [ok, error, secrets_included]
