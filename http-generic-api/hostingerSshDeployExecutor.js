@@ -247,7 +247,7 @@ export function normalizeHostingerSshTargetProbeJobPayload(input = {}) {
     app_path: assertSafeRemotePath(input.app_path || input.appPath || DEFAULT_AUTH_APP_PATH),
     expected_commit_sha: compact(input.expected_commit_sha || input.expectedCommitSha || input.commit_sha || input.commitSha || "", 64).toLowerCase(),
     ssh_auth_mode: compact(input.ssh_auth_mode || input.sshAuthMode || "password", 32).toLowerCase(),
-    ssh_password_transport: normalizeSshPasswordTransport(input.ssh_password_transport || input.sshPasswordTransport || "auto"),
+    ssh_transport_mode: normalizeSshPasswordTransport(input.ssh_transport_mode || input.sshTransportMode || input.ssh_password_transport || input.sshPasswordTransport || "auto"),
     activate_on_success: bool(input.activate_on_success || input.activateOnSuccess),
     approval_reason: compact(input.approval_reason || input.approvalReason || input.break_glass_reason || input.breakGlassReason, 1000),
     timeout_ms: boundedInt(input.timeout_ms || input.timeoutMs, DEFAULT_PROBE_TIMEOUT_MS, 1000, MAX_PROBE_TIMEOUT_MS),
@@ -259,7 +259,7 @@ export function normalizeHostingerSshTargetProbeJobPayload(input = {}) {
 
 export function validateHostingerSshTargetProbeJobPayload(input = {}) {
   const errors = [];
-  const requestedPasswordTransport = compact(input.ssh_password_transport || input.sshPasswordTransport || "auto", 32).toLowerCase();
+  const requestedPasswordTransport = compact(input.ssh_transport_mode || input.sshTransportMode || input.ssh_password_transport || input.sshPasswordTransport || "auto", 32).toLowerCase();
   let payload;
   try { payload = normalizeHostingerSshTargetProbeJobPayload(input); }
   catch (err) { return [err?.message || "Hostinger SSH probe job payload is invalid."]; }
@@ -509,8 +509,8 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
       let stderr = "";
       const resultBase = {
         auth_mode: authMode,
-        password_transport_requested: usePassword ? normalizeSshPasswordTransport(passwordTransport) : null,
-        password_transport: selectedPasswordTransport,
+        transport_mode_requested: usePassword ? normalizeSshPasswordTransport(passwordTransport) : null,
+        transport_mode: selectedPasswordTransport,
       };
       const timer = setTimeout(() => {
         if (settled) return;
@@ -550,8 +550,8 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
           exit_code: 1,
           timed_out: false,
           auth_mode: authMode,
-          password_transport_requested: usePassword ? normalizeSshPasswordTransport(passwordTransport) : null,
-          password_transport: selectedPasswordTransport,
+          transport_mode_requested: usePassword ? normalizeSshPasswordTransport(passwordTransport) : null,
+          transport_mode: selectedPasswordTransport,
           stdout: "",
           stderr: sanitizeSshOutput(err.message),
         });
@@ -739,13 +739,13 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
     throw err;
   }
   const sshAuthMode = preferredSshAuthMode(input, target);
-  const sshPasswordTransport = normalizeSshPasswordTransport(input.ssh_password_transport || input.sshPasswordTransport || "auto");
+  const sshPasswordTransport = normalizeSshPasswordTransport(input.ssh_transport_mode || input.sshTransportMode || input.ssh_password_transport || input.sshPasswordTransport || "auto");
 
   const plan = await planRemoteRuntimeDispatchDryRun({
     pool,
     targetId,
     commandKey: "ssh_probe",
-    inputs: { app_key: appKey, app_path: appPath, expected_commit_sha: expectedCommitSha || null, activate_on_success: activateOnSuccess, ssh_auth_mode: sshAuthMode, ssh_password_transport: sshPasswordTransport },
+    inputs: { app_key: appKey, app_path: appPath, expected_commit_sha: expectedCommitSha || null, activate_on_success: activateOnSuccess, ssh_auth_mode: sshAuthMode, ssh_transport_mode: sshPasswordTransport },
     approvalReason,
   });
 
@@ -759,7 +759,7 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
     expected_commit_sha: expectedCommitSha || null,
     activate_on_success: activateOnSuccess,
     ssh_auth_mode: sshAuthMode,
-    ssh_password_transport: sshPasswordTransport,
+    ssh_transport_mode: sshPasswordTransport,
     deployment_run_id: traceId,
     deployment_status: dryRun ? "planned" : "executing",
     dry_run: dryRun,
@@ -846,8 +846,8 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
       activated_target: probeOk && activateOnSuccess,
       exit_code: sshResult.exit_code,
       timed_out: sshResult.timed_out,
-      password_transport_requested: sshResult.password_transport_requested,
-      password_transport: sshResult.password_transport,
+      transport_mode_requested: sshResult.transport_mode_requested,
+      transport_mode: sshResult.transport_mode,
       parsed_probe: parsed,
       stdout_preview: sshResult.stdout.slice(0, 2000),
       stderr_preview: sshResult.stderr.slice(0, 2000),
@@ -874,8 +874,8 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
       target_activated: probeOk && activateOnSuccess,
       exit_code: sshResult.exit_code,
       timed_out: sshResult.timed_out,
-      password_transport_requested: sshResult.password_transport_requested,
-      password_transport: sshResult.password_transport,
+      transport_mode_requested: sshResult.transport_mode_requested,
+      transport_mode: sshResult.transport_mode,
     },
     probe: {
       ok: probeOk,
@@ -1038,13 +1038,13 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     throw err;
   }
   const sshAuthMode = preferredSshAuthMode(input, target);
-  const sshPasswordTransport = normalizeSshPasswordTransport(input.ssh_password_transport || input.sshPasswordTransport || "auto");
+  const sshPasswordTransport = normalizeSshPasswordTransport(input.ssh_transport_mode || input.sshTransportMode || input.ssh_password_transport || input.sshPasswordTransport || "auto");
 
   const plan = await planRemoteRuntimeDispatchDryRun({
     pool,
     targetId,
     commandKey: "deploy_release",
-    inputs: { app_key: appKey, app_path: appPath, branch, expected_commit_sha: expectedCommitSha, force_clean: forceClean, restart, ssh_auth_mode: sshAuthMode, ssh_password_transport: sshPasswordTransport },
+    inputs: { app_key: appKey, app_path: appPath, branch, expected_commit_sha: expectedCommitSha, force_clean: forceClean, restart, ssh_auth_mode: sshAuthMode, ssh_transport_mode: sshPasswordTransport },
     approvalReason,
   });
 
@@ -1060,7 +1060,7 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     force_clean: forceClean,
     restart,
     ssh_auth_mode: sshAuthMode,
-    ssh_password_transport: sshPasswordTransport,
+    ssh_transport_mode: sshPasswordTransport,
     dry_run: dryRun,
     will_execute: !dryRun,
     dispatch_plan: {
@@ -1151,8 +1151,8 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
       executed: deployOk,
       exit_code: sshResult.exit_code,
       timed_out: sshResult.timed_out,
-      password_transport_requested: sshResult.password_transport_requested,
-      password_transport: sshResult.password_transport,
+      transport_mode_requested: sshResult.transport_mode_requested,
+      transport_mode: sshResult.transport_mode,
       parsed_deploy: parsedDeploy,
       reload_verification: reloadVerification,
       continuation,
@@ -1185,8 +1185,8 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
       allowlisted_deploy_only: true,
       exit_code: sshResult.exit_code,
       timed_out: sshResult.timed_out,
-      password_transport_requested: sshResult.password_transport_requested,
-      password_transport: sshResult.password_transport,
+      transport_mode_requested: sshResult.transport_mode_requested,
+      transport_mode: sshResult.transport_mode,
     },
     deploy: {
       ok: deployOk,
