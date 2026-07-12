@@ -66,6 +66,3 @@ UPDATE `platform_graph_nodes`
     OR (`source_table` = 'containers'
         AND `source_pk` = '70a55858-ded7-4cc5-af76-f3de11753b2d');
 
-DELETE FROM `container_closure`
- WHERE `ancestor_container_id` = '70a55858-ded7-4cc5-af76-f3de11753b2d'
-    OR `descendant_container_id` = '70a55858-ded7-4cc5-af76-f3de11753b2d';
