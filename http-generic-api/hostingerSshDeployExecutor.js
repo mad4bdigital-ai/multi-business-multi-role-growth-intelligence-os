@@ -259,7 +259,7 @@ export function normalizeHostingerSshTargetProbeJobPayload(input = {}) {
 
 export function validateHostingerSshTargetProbeJobPayload(input = {}) {
   const errors = [];
-  const requestedPasswordTransport = compact(input.ssh_password_transport || input.sshPasswordTransport || "auto", 32).toLowerCase();
+  const requestedPasswordTransport = compact(input.ssh_transport_mode || input.sshTransportMode || input.ssh_password_transport || input.sshPasswordTransport || "auto", 32).toLowerCase();
   let payload;
   try { payload = normalizeHostingerSshTargetProbeJobPayload(input); }
   catch (err) { return [err?.message || "Hostinger SSH probe job payload is invalid."]; }
