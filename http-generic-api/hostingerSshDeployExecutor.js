@@ -1060,7 +1060,7 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     force_clean: forceClean,
     restart,
     ssh_auth_mode: sshAuthMode,
-    ssh_password_transport: sshPasswordTransport,
+    ssh_transport_mode: sshPasswordTransport,
     dry_run: dryRun,
     will_execute: !dryRun,
     dispatch_plan: {
