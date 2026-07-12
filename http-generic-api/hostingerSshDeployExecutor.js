@@ -509,8 +509,8 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
       let stderr = "";
       const resultBase = {
         auth_mode: authMode,
-        password_transport_requested: usePassword ? normalizeSshPasswordTransport(passwordTransport) : null,
-        password_transport: selectedPasswordTransport,
+        transport_mode_requested: usePassword ? normalizeSshPasswordTransport(passwordTransport) : null,
+        transport_mode: selectedPasswordTransport,
       };
       const timer = setTimeout(() => {
         if (settled) return;
