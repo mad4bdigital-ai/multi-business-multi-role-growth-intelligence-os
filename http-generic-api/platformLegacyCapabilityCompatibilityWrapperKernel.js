@@ -4,69 +4,68 @@ import { classifyShadowPilotMismatch } from "./platformShadowPilotParityKernel.j
 export const LEGACY_COMPATIBILITY_WRAPPER_VERSION =
   "platform-legacy-capability-compatibility-wrapper-v1";
 
-const ALIAS_STATUSES = new Set(["active", "deprecated"]);
+const ROUTABLE_ALIAS_STATUSES = new Set(["active", "deprecated"]);
 const SENSITIVE_KEY_PATTERN =
   /(authorization|cookie|credential|password|prompt|raw[_-]?payload|secret|token)/i;
 
-function requiredText(value, name) {
-  const output = String(value ?? "").trim();
-  if (!output) {
-    throw Object.assign(new TypeError(`${name} is required.`), {
+function requiredText(value, field) {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) {
+    throw Object.assign(new TypeError(`${field} is required.`), {
       code: "legacy_compatibility_field_required",
       status: 422,
-      field: name,
+      field,
     });
   }
-  return output;
+  return normalized;
 }
 
-function finiteNonNegative(value, name) {
-  const output = Number(value);
-  if (!Number.isFinite(output) || output < 0) {
-    throw Object.assign(new TypeError(`${name} must be a finite non-negative number.`), {
+function finiteNonNegative(value, field) {
+  const normalized = Number(value);
+  if (!Number.isFinite(normalized) || normalized < 0) {
+    throw Object.assign(new TypeError(`${field} must be a finite non-negative number.`), {
       code: "legacy_compatibility_number_invalid",
       status: 422,
-      field: name,
+      field,
     });
   }
-  return output;
+  return normalized;
 }
 
-function positiveInteger(value, name) {
-  const output = Number(value);
-  if (!Number.isInteger(output) || output < 1) {
-    throw Object.assign(new TypeError(`${name} must be a positive integer.`), {
+function positiveInteger(value, field) {
+  const normalized = Number(value);
+  if (!Number.isInteger(normalized) || normalized < 1) {
+    throw Object.assign(new TypeError(`${field} must be a positive integer.`), {
       code: "legacy_compatibility_integer_invalid",
       status: 422,
-      field: name,
+      field,
     });
   }
-  return output;
+  return normalized;
 }
 
-function sha256(value, name) {
-  const output = requiredText(value, name).toLowerCase();
-  if (!/^[a-f0-9]{64}$/.test(output)) {
-    throw Object.assign(new TypeError(`${name} must be a SHA-256 hex digest.`), {
+function sha256(value, field) {
+  const normalized = requiredText(value, field).toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(normalized)) {
+    throw Object.assign(new TypeError(`${field} must be a SHA-256 hex digest.`), {
       code: "legacy_compatibility_hash_invalid",
       status: 422,
-      field: name,
+      field,
     });
   }
-  return output;
+  return normalized;
 }
 
-function isoInstant(value, name, { nullable = false } = {}) {
-  if ((value === null || value === undefined || value === "") && nullable) return null;
-  const output = requiredText(value, name);
-  if (Number.isNaN(Date.parse(output))) {
-    throw Object.assign(new TypeError(`${name} must be an ISO-8601 timestamp.`), {
+function isoInstant(value, field) {
+  const normalized = requiredText(value, field);
+  if (Number.isNaN(Date.parse(normalized))) {
+    throw Object.assign(new TypeError(`${field} must be an ISO-8601 timestamp.`), {
       code: "legacy_compatibility_timestamp_invalid",
       status: 422,
-      field: name,
+      field,
     });
   }
-  return output;
+  return normalized;
 }
 
 function assertNoSensitiveKeys(value, path = "decisionInput", seen = new Set()) {
@@ -95,15 +94,22 @@ function assertNoSensitiveKeys(value, path = "decisionInput", seen = new Set()) 
 }
 
 function normalizeAliasResolution(input = {}) {
-  const selectorType = requiredText(input.selector_type, "aliasResolution.selector_type").toLowerCase();
+  const selectorType = requiredText(
+    input.selector_type,
+    "aliasResolution.selector_type",
+  ).toLowerCase();
   const selectorValue = normalizeSelectorValue(selectorType, input.selector_value);
   const surface = requiredText(input.surface, "aliasResolution.surface").toLowerCase();
   const status = requiredText(input.status, "aliasResolution.status").toLowerCase();
 
-  if (!ALIAS_STATUSES.has(status)) {
+  if (!ROUTABLE_ALIAS_STATUSES.has(status)) {
     throw Object.assign(
       new TypeError("Compatibility wrappers require an active or deprecated alias."),
-      { code: "legacy_compatibility_alias_not_routable", status: 409, alias_status: status },
+      {
+        code: "legacy_compatibility_alias_not_routable",
+        status: 409,
+        alias_status: status,
+      },
     );
   }
 
@@ -117,8 +123,14 @@ function normalizeAliasResolution(input = {}) {
       input.canonical_capability_id,
       "aliasResolution.canonical_capability_id",
     ),
-    capability_key: requiredText(input.capability_key, "aliasResolution.capability_key"),
-    registry_version: requiredText(input.registry_version, "aliasResolution.registry_version"),
+    capability_key: requiredText(
+      input.capability_key,
+      "aliasResolution.capability_key",
+    ),
+    registry_version: requiredText(
+      input.registry_version,
+      "aliasResolution.registry_version",
+    ),
   });
 }
 
@@ -141,19 +153,30 @@ function normalizeDeprecationPolicy(policy = {}, aliasStatus) {
   if (minimumParityRate > 1) {
     throw Object.assign(
       new TypeError("deprecationPolicy.minimumParityRate must be between 0 and 1."),
-      { code: "legacy_compatibility_parity_rate_invalid", status: 422 },
+      {
+        code: "legacy_compatibility_parity_rate_invalid",
+        status: 422,
+      },
     );
   }
 
-  const announcedAt = isoInstant(policy.announcedAt, "deprecationPolicy.announcedAt");
+  const announcedAt = isoInstant(
+    policy.announcedAt,
+    "deprecationPolicy.announcedAt",
+  );
   const removalNotBefore = isoInstant(
     policy.removalNotBefore,
     "deprecationPolicy.removalNotBefore",
   );
   if (Date.parse(removalNotBefore) <= Date.parse(announcedAt)) {
     throw Object.assign(
-      new TypeError,"deprecationPolicy.removalNotBefore must be later than announcedAt."),
-      { code: "legacy_compatibility_deprecation_window_invalid", status: 422 },
+      new TypeError(
+        "deprecationPolicy.removalNotBefore must be later than announcedAt.",
+      ),
+      {
+        code: "legacy_compatibility_deprecation_window_invalid",
+        status: 422,
+      },
     );
   }
 
@@ -170,7 +193,12 @@ function normalizeDeprecationPolicy(policy = {}, aliasStatus) {
   });
 }
 
-function buildDeprecationEvidence({ aliasStatus, policy, measurements, evaluatedAt }) {
+function buildDeprecationEvidence({
+  aliasStatus,
+  policy,
+  measurements = {},
+  evaluatedAt,
+}) {
   const observedCallCount = finiteNonNegative(
     measurements.observedCallCount,
     "measurements.observedCallCount",
@@ -194,18 +222,28 @@ function buildDeprecationEvidence({ aliasStatus, policy, measurements, evaluated
 
   if (parityMatchCount > observedCallCount) {
     throw Object.assign(
-      new TypeError("measurements.parityMatchCount cannot exceed observedCallCount."),
-      { code: "legacy_compatibility_measurement_inconsistent", status: 422 },
+      new TypeError(
+        "measurements.parityMatchCount cannot exceed observedCallCount.",
+      ),
+      {
+        code: "legacy_compatibility_measurement_inconsistent",
+        status: 422,
+      },
     );
   }
 
-  const parityRate = observedCallCount === 0 ? 0 : parityMatchCount / observedCallCount;
-  const rollbackReadbackApproved = measurements.rollbackReadbackApproved === true;
+  const parityRate =
+    observedCallCount === 0 ? 0 : parityMatchCount / observedCallCount;
+  const rollbackReadbackApproved =
+    measurements.rollbackReadbackApproved === true;
+
   const checks =
     aliasStatus === "deprecated"
       ? Object.freeze({
-          windowElapsed: Date.parse(evaluatedAt) >= Date.parse(policy.removalNotBefore),
-          observationCountMet: observedCallCount >= policy.minimumObservationCount,
+          windowElapsed:
+            Date.parse(evaluatedAt) >= Date.parse(policy.removalNotBefore),
+          observationCountMet:
+            observedCallCount >= policy.minimumObservationCount,
           parityRateMet: parityRate >= policy.minimumParityRate,
           criticalMismatchFree: criticalMismatchCount === 0,
           adaptiveErrorFree: adaptiveErrorCount === 0,
@@ -246,16 +284,28 @@ function buildDeprecationEvidence({ aliasStatus, policy, measurements, evaluated
   });
 }
 
-export async function runLegacyCapabilityCompatibilityWrapper(input = {}, deps = {}) {
+export async function runLegacyCapabilityCompatibilityWrapper(
+  input = {},
+  deps = {},
+) {
   if (typeof deps.resolveAdaptiveDecision !== "function") {
-    throw Object.assign(new TypeError("deps.resolveAdaptiveDecision is required."), {
-      code: "legacy_compatibility_adaptive_resolver_required",
-      status: 500,
-    });
+    throw Object.assign(
+      new TypeError("deps.resolveAdaptiveDecision is required."),
+      {
+        code: "legacy_compatibility_adaptive_resolver_required",
+        status: 500,
+      },
+    );
   }
 
-  const selectorType = requiredText(input.selectorType, "selectorType").toLowerCase();
-  const selectorValue = normalizeSelectorValue(selectorType, input.selectorValue);
+  const selectorType = requiredText(
+    input.selectorType,
+    "selectorType",
+  ).toLowerCase();
+  const selectorValue = normalizeSelectorValue(
+    selectorType,
+    input.selectorValue,
+  );
   const surface = requiredText(input.surface, "surface").toLowerCase();
   const aliasResolution = normalizeAliasResolution(input.aliasResolution);
 
@@ -265,17 +315,33 @@ export async function runLegacyCapabilityCompatibilityWrapper(input = {}, deps =
     aliasResolution.surface !== surface
   ) {
     throw Object.assign(
-      new TypeError("Alias resolution does not match the requested legacy selector."),
-      { code: "legacy_compatibility_alias_binding_mismatch", status: 409 },
+      new TypeError(
+        "Alias resolution does not match the requested legacy selector.",
+      ),
+      {
+        code: "legacy_compatibility_alias_binding_mismatch",
+        status: 409,
+      },
     );
   }
 
   const observedAt = isoInstant(input.observedAt, "observedAt");
-  const requestShapeHash = sha256(input.requestShapeHash, "requestShapeHash");
-  const revisionVectorHash = sha256(input.revisionVectorHash, "revisionVectorHash");
-  const legacyDecision = requiredText(input.legacyDecision, "legacyDecision").toLowerCase();
+  const requestShapeHash = sha256(
+    input.requestShapeHash,
+    "requestShapeHash",
+  );
+  const revisionVectorHash = sha256(
+    input.revisionVectorHash,
+    "revisionVectorHash",
+  );
+  const legacyDecision = requiredText(
+    input.legacyDecision,
+    "legacyDecision",
+  ).toLowerCase();
   const decisionInput =
-    input.decisionInput && typeof input.decisionInput === "object" ? input.decisionInput : {};
+    input.decisionInput && typeof input.decisionInput === "object"
+      ? input.decisionInput
+      : {};
   assertNoSensitiveKeys(decisionInput);
 
   const adaptive = await deps.resolveAdaptiveDecision({
@@ -286,30 +352,33 @@ export async function runLegacyCapabilityCompatibilityWrapper(input = {}, deps =
     surface,
     decisionInput,
   });
-
   const adaptiveDecision = requiredText(
     adaptive?.decision,
     "adaptiveDecision.decision",
   ).toLowerCase();
   const adaptiveReasonCodes = Object.freeze(
     (Array.isArray(adaptive?.reasonCodes) ? adaptive.reasonCodes : [])
-      .map((value) => String(value || "").trim())
+      .map((value) => String(value ?? "").trim())
       .filter(Boolean)
       .slice(0, 20),
   );
-  const mismatch = classifyShadowPilotMismatch({ legacyDecision, adaptiveDecision });
+
+  const mismatch = classifyShadowPilotMismatch({
+    legacyDecision,
+    adaptiveDecision,
+  });
   const deprecationPolicy = normalizeDeprecationPolicy(
-    input.deprecationPolicy || {},
+    input.deprecationPolicy ?? {},
     aliasResolution.status,
   );
   const deprecation = buildDeprecationEvidence({
     aliasStatus: aliasResolution.status,
     policy: deprecationPolicy,
-    measurements: input.measurements || {},
+    measurements: input.measurements ?? {},
     evaluatedAt: observedAt,
   });
-
   const parityMatch = mismatch.category === "match";
+
   const compatibilityMetadata = Object.freeze({
     schema_version: LEGACY_COMPATIBILITY_WRAPPER_VERSION,
     mode: "legacy_response_passthrough_adaptive_shadow",
@@ -320,7 +389,8 @@ export async function runLegacyCapabilityCompatibilityWrapper(input = {}, deps =
       selectorValue,
       surface,
       status: aliasResolution.status,
-      canonicalCapabilityId: aliasResolution.canonical_capability_id,
+      canonicalCapabilityId:
+        aliasResolution.canonical_capability_id,
       capabilityKey: aliasResolution.capability_key,
       registryVersion: aliasResolution.registry_version,
     }),
