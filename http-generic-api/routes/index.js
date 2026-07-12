@@ -108,6 +108,7 @@ import { buildSessionInsightRemainingScopeCompletionRoutes } from "./sessionInsi
 import { buildSessionInsightBacklogTargetWriteRoutes } from "./sessionInsightBacklogTargetWriteRoutes.js";
 import { buildSessionInsightTargetWriteReadbackRoutes } from "./sessionInsightTargetWriteReadbackRoutes.js";
 import { buildRuntimeVerificationRoutes } from "./runtimeVerificationRoutes.js";
+import { buildReleaseOperationRoutes } from "./releaseOperationRoutes.js";
 import { buildOperationalConsoleRoutes } from "./operationalConsoleRoutes.js";
 import { buildActivationGuidanceRoutes } from "./activationGuidanceRoutes.js";
 import { buildGrowthIntelligenceRoutes } from "./growthIntelligenceRoutes.js";
