@@ -476,10 +476,11 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
         ];
         spawnEnv = {
           ...process.env,
-          SSH_ASKPASS: askpassFile,
+          SSH_ASKPASS: process.execPath,
           SSH_ASKPASS_REQUIRE: "force",
           DISPLAY: "mad4b-askpass:0",
           MAD4B_SSH_ASKPASS_FILE: passwordFile,
+          NODE_OPTIONS: [process.env.NODE_OPTIONS, `--require=${askpassFile}`].filter(Boolean).join(" "),
         };
       } else {
         await writeFile(keyFile, privateKey, { mode: 0o600 });
