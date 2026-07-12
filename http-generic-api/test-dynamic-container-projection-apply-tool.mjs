@@ -197,5 +197,13 @@ assert.ok(routeSource.includes("action: \"consume\""));
 assert.ok(manifestSource.includes("test-dynamic-container-projection-apply-tool.mjs"));
 assert.ok(migrationSource.includes("dynamic_container_projection_apply_policy_v1"));
 assert.ok(migrationSource.includes("same_cycle_projection_readback_required"));
+assert.ok(remediationMigrationSource.includes("00000000-0000-4000-a000-00000000c001"));
+assert.ok(remediationMigrationSource.includes("70a55858-ded7-4cc5-af76-f3de11753b2d"));
+assert.ok(remediationMigrationSource.includes("UPDATE `container_relationships`"));
+assert.ok(remediationMigrationSource.includes("UPDATE `container_role_assignments`"));
+assert.ok(remediationMigrationSource.includes("UPDATE `container_resource_bindings`"));
+assert.ok(remediationMigrationSource.includes("UPDATE `platform_graph_edges`"));
+assert.ok(remediationMigrationSource.includes("UPDATE `platform_graph_nodes`"));
+assert.ok(remediationMigrationSource.includes("DELETE FROM `container_closure`"));
 
 console.log("dynamic container projection apply tool tests passed");
