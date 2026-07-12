@@ -131,6 +131,7 @@ export const testCommands = [
   "node test-repo-conflict-intelligence-service.mjs",
   "node test-repo-conflict-intelligence-phase2.mjs",
   "node test-repo-conflict-intelligence-registry-contract.mjs",
+  "node test-repo-conflict-intelligence-tenant-readiness.mjs",
   "node test-platform-resource-recipe-capability.mjs",
   "node test-resource-recipe-apply-evidence.mjs",
   "node test-github-file-patch-plan-runtime.mjs",

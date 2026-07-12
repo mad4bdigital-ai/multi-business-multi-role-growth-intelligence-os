@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   dynamicContainerProjectionApplyConfirmation,
+  readDynamicContainerProjectionApply,
   runDynamicContainerProjectionApply,
 } from "./dynamicContainerProjectionApplyTool.js";
 
@@ -12,7 +13,10 @@ function fakePlan() {
   return {
     projectionRunId: "projection-run-1044",
     sourceSnapshotSha256: SNAPSHOT,
-    containers: [{ container_id: "container-1" }, { container_id: "container-2" }],
+    containers: [
+      { container_id: "container-1", tenant_id: "tenant-1" },
+      { container_id: "container-2", tenant_id: "tenant-1" },
+    ],
     relationships: [{ relationship_id: "relationship-1" }],
     roleAssignments: [{ assignment_id: "assignment-1" }],
     resourceBindings: [{ binding_id: "binding-1" }],
@@ -142,9 +146,50 @@ await assert.rejects(
   assert.equal(consumed, false);
 }
 
+{
+  const pool = {
+    async query(sql) {
+      const text = String(sql);
+      if (text.includes("FROM container_projection_runs")) {
+        return [[{
+          projection_run_id: "projection-run-1044",
+          mode: "apply",
+          status: "completed",
+          source_snapshot_sha256: SNAPSHOT,
+          projected_container_count: 2,
+          projected_relationship_count: 1,
+          held_issue_count: 1,
+          summary_json: JSON.stringify({ projectedRoleAssignmentCount: 1, projectedResourceBindingCount: 1 }),
+          completed_at: "2026-07-11T18:23:45.000Z",
+          secrets_included: 0,
+        }]];
+      }
+      if (text.includes("FROM containers WHERE container_id IN")) return [[{ row_count: 2 }]];
+      if (text.includes("FROM container_relationships WHERE relationship_id IN")) return [[{ row_count: 1 }]];
+      if (text.includes("FROM container_role_assignments WHERE assignment_id IN")) return [[{ row_count: 1 }]];
+      if (text.includes("FROM container_resource_bindings WHERE binding_id IN")) return [[{ row_count: 1 }]];
+      if (text.includes("FROM container_relationships r")) return [[{ row_count: 0 }]];
+      if (text.includes("FROM container_role_assignments a")) return [[{ row_count: 0 }]];
+      if (text.includes("FROM container_resource_bindings b")) return [[{ row_count: 0 }]];
+      if (text.includes("FROM platform_graph_nodes n")) return [[{ row_count: 1 }]];
+      if (text.includes("FROM platform_graph_edges e")) return [[{ row_count: 0 }]];
+      if (text.includes("FROM container_closure closure_row")) return [[{ row_count: 0 }]];
+      throw new Error(`Unexpected SQL in orphan readback test: ${text}`);
+    },
+  };
+  const readback = await readDynamicContainerProjectionApply(fakePlan(), { pool });
+  assert.equal(readback.ok, false);
+  assert.deepEqual(readback.count_mismatches, []);
+  assert.equal(readback.orphan_references.graph_nodes, 1);
+  assert.equal(readback.orphan_references.graph_edges, 0);
+  assert.equal(readback.orphan_references.closure_rows, 0);
+  assert.equal(readback.orphan_references.total, 1);
+}
+
 const routeSource = readFileSync("routes/gptToolsRoutes.js", "utf8");
 const manifestSource = readFileSync("scripts/test-manifest.mjs", "utf8");
 const migrationSource = readFileSync("migrations/1044_sprint69_dynamic_container_projection_apply_governance.sql", "utf8");
+const remediationMigrationSource = readFileSync("migrations/1045_sprint69_dynamic_container_canonical_id_remediation.sql", "utf8");
 assert.ok(routeSource.includes("dynamic_container_projection_apply"));
 assert.ok(routeSource.includes("runDynamicContainerProjectionApply"));
 assert.ok(routeSource.includes("acceptedCapabilityKeys: [\"dynamic_container_projection_apply\"]"));
@@ -152,5 +197,13 @@ assert.ok(routeSource.includes("action: \"consume\""));
 assert.ok(manifestSource.includes("test-dynamic-container-projection-apply-tool.mjs"));
 assert.ok(migrationSource.includes("dynamic_container_projection_apply_policy_v1"));
 assert.ok(migrationSource.includes("same_cycle_projection_readback_required"));
+assert.ok(remediationMigrationSource.includes("00000000-0000-4000-a000-00000000c001"));
+assert.ok(remediationMigrationSource.includes("70a55858-ded7-4cc5-af76-f3de11753b2d"));
+assert.ok(remediationMigrationSource.includes("UPDATE `container_relationships`"));
+assert.ok(remediationMigrationSource.includes("UPDATE `container_role_assignments`"));
+assert.ok(remediationMigrationSource.includes("UPDATE `container_resource_bindings`"));
+assert.ok(remediationMigrationSource.includes("UPDATE `platform_graph_edges`"));
+assert.ok(remediationMigrationSource.includes("UPDATE `platform_graph_nodes`"));
+assert.ok(remediationMigrationSource.includes("DELETE FROM `container_closure`"));
 
 console.log("dynamic container projection apply tool tests passed");

@@ -114,6 +114,87 @@ async function countIds(pool, table, idColumn, ids) {
   return count;
 }
 
+async function readActiveOrphanReferences(pool, tenantIds) {
+  const tenants = [...new Set(tenantIds.map(String).filter(Boolean))];
+  if (!tenants.length) {
+    return {
+      relationships: 0,
+      role_assignments: 0,
+      resource_bindings: 0,
+      graph_nodes: 0,
+      graph_edges: 0,
+      closure_rows: 0,
+      total: 0,
+    };
+  }
+  const placeholders = tenants.map(() => "?").join(",");
+  const [[relationshipRow]] = await pool.query(
+    `SELECT COUNT(*) AS row_count
+       FROM container_relationships r
+       LEFT JOIN containers source_container ON source_container.container_id = r.from_container_id
+       LEFT JOIN containers target_container ON target_container.container_id = r.to_container_id
+      WHERE r.status = 'active'
+        AND r.tenant_id IN (${placeholders})
+        AND (source_container.container_id IS NULL OR target_container.container_id IS NULL)`,
+    tenants
+  );
+  const [[roleRow]] = await pool.query(
+    `SELECT COUNT(*) AS row_count
+       FROM container_role_assignments a
+       LEFT JOIN containers c ON c.container_id = a.container_id
+      WHERE a.status = 'active'
+        AND a.tenant_id IN (${placeholders})
+        AND c.container_id IS NULL`,
+    tenants
+  );
+  const [[bindingRow]] = await pool.query(
+    `SELECT COUNT(*) AS row_count
+       FROM container_resource_bindings b
+       LEFT JOIN containers c ON c.container_id = b.container_id
+      WHERE b.status = 'active'
+        AND b.tenant_id IN (${placeholders})
+        AND c.container_id IS NULL`,
+    tenants
+  );
+  const [[graphRow]] = await pool.query(
+    `SELECT COUNT(*) AS row_count
+       FROM platform_graph_nodes n
+       LEFT JOIN containers c ON c.container_id = n.source_pk
+      WHERE n.lifecycle_status = 'active'
+        AND n.source_table = 'containers'
+        AND n.source_pk IS NOT NULL
+        AND c.container_id IS NULL`
+  );
+  const [[graphEdgeRow]] = await pool.query(
+    `SELECT COUNT(*) AS row_count
+       FROM platform_graph_edges e
+       LEFT JOIN platform_graph_nodes source_node ON source_node.node_id = e.source_node_id
+       LEFT JOIN platform_graph_nodes target_node ON target_node.node_id = e.target_node_id
+      WHERE e.lifecycle_status = 'active'
+        AND (source_node.node_id IS NULL OR target_node.node_id IS NULL
+             OR source_node.lifecycle_status <> 'active'
+             OR target_node.lifecycle_status <> 'active')`
+  );
+  const [[closureRow]] = await pool.query(
+    `SELECT COUNT(*) AS row_count
+       FROM container_closure closure_row
+       LEFT JOIN containers ancestor ON ancestor.container_id = closure_row.ancestor_container_id
+       LEFT JOIN containers descendant ON descendant.container_id = closure_row.descendant_container_id
+      WHERE closure_row.tenant_id IN (${placeholders})
+        AND (ancestor.container_id IS NULL OR descendant.container_id IS NULL)`,
+    tenants
+  );
+  const counts = {
+    relationships: Number(relationshipRow?.row_count || 0),
+    role_assignments: Number(roleRow?.row_count || 0),
+    resource_bindings: Number(bindingRow?.row_count || 0),
+    graph_nodes: Number(graphRow?.row_count || 0),
+    graph_edges: Number(graphEdgeRow?.row_count || 0),
+    closure_rows: Number(closureRow?.row_count || 0),
+  };
+  return { ...counts, total: Object.values(counts).reduce((sum, value) => sum + value, 0) };
+}
+
 export async function readDynamicContainerProjectionApply(plan, { pool = getPool() } = {}) {
   const [[run]] = await pool.query(
     `SELECT projection_run_id, mode, status, source_snapshot_sha256,
@@ -145,6 +226,10 @@ export async function readDynamicContainerProjectionApply(plan, { pool = getPool
   const countMismatches = Object.keys(expected)
     .filter((key) => actual[key] !== expected[key])
     .map((key) => ({ field: key, expected: expected[key], actual: actual[key] }));
+  const orphanReferences = await readActiveOrphanReferences(
+    pool,
+    plan.containers.map((row) => row.tenant_id)
+  );
   const runMatches = Boolean(
     run &&
     run.mode === "apply" &&
@@ -158,7 +243,7 @@ export async function readDynamicContainerProjectionApply(plan, { pool = getPool
     Number(run.secrets_included || 0) === 0
   );
   return {
-    ok: runMatches && countMismatches.length === 0,
+    ok: runMatches && countMismatches.length === 0 && orphanReferences.total === 0,
     projection_run: run ? {
       projection_run_id: run.projection_run_id,
       mode: run.mode,
@@ -169,6 +254,7 @@ export async function readDynamicContainerProjectionApply(plan, { pool = getPool
     expected_counts: expected,
     actual_counts: actual,
     count_mismatches: countMismatches,
+    orphan_references: orphanReferences,
     secrets_included: false,
   };
 }
