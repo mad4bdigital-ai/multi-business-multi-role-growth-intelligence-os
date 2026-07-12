@@ -1104,7 +1104,8 @@ assert("Local Manager privileged installer guard returns structured fresh-auth e
     const routeSource = readFileSync("routes/localConnectorInstallRoutes.js", "utf8");
     const scriptSource = readFileSync("scripts/installer-reprovision-smoke.mjs", "utf8");
     const packageSource = readFileSync("package.json", "utf8");
-    assert("install status response is read-only and explicitly non-secret",
+    assert("installer reprovision rotates the existing tunnel and local credentials", routeSource.includes("rotateTunnelCredential(") && routeSource.includes("existing?.cf_tunnel_id && reprovision") && routeSource.includes("existing.cf_tunnel_name || tunnelName") && routeSource.includes("connectorLocalApiKey = reprovision") && routeSource.includes("/connections"));
+assert("install status response is read-only and explicitly non-secret",
       routeSource.includes("read_only: true") &&
       routeSource.includes("secrets_included: false") &&
       routeSource.includes("download_link_available") &&

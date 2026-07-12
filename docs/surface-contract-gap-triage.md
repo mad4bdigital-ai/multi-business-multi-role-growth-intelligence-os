@@ -4,19 +4,20 @@
 
 ## Summary
 
-- Triaged items: 6
-- Gate candidates: 6
+- Triaged items: 7
+- Gate candidates: 7
 - New-gap gate: fail
-- Blocking new items: 6
+- Blocking new items: 7
 
 ## Class counts
 
-- new_surface_immediate_review: 6
+- new_surface_immediate_review: 7
 
 ## Immediate review candidates
 
 - `1026_sprint69_repository_reconciliation_automation.sql` — critical_review, score 931; next: add targeted patch-index, parity, and governance documentation
 - `20260709_tenant_resolution_registry_schema.sql` — critical_review, score 817; next: add targeted patch-index, parity, and governance documentation
+- `20260711_repo_conflict_intelligence_tenant_readiness.sql` — critical_review, score 748; next: add targeted patch-index, parity, and governance documentation
 - `20260711_repo_conflict_intelligence_phase2.sql` — critical_review, score 730; next: add targeted patch-index, parity, and governance documentation
 - `20260710_repo_conflict_intelligence.sql` — critical_review, score 729; next: add targeted patch-index, parity, and governance documentation
 - `1044_sprint69_dynamic_container_projection_apply_governance.sql` — high_review, score 584; next: add targeted patch-index, parity, and governance documentation
