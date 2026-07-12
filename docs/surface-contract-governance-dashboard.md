@@ -4,18 +4,19 @@
 - Queue schema: surface-contract-gap-queue-v1
 - Triage schema: surface-contract-gap-triage-v1
 - Gate schema: surface-contract-new-gap-gate-v1
-- Queue items: 8
-- Triaged items: 8
-- Gate candidates: 8
+- Queue items: 9
+- Triaged items: 9
+- Gate candidates: 9
 - New-gap gate: fail
-- Blocking new items: 8
-- Docs completion: 98.42%
+- Blocking new items: 9
+- Docs completion: 98.23%
 - SQL route OpenAPI coverage: 100%
 
 ## Top immediate items
 
 - `1026_sprint69_repository_reconciliation_automation.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260709_tenant_resolution_registry_schema.sql` — critical_review, add targeted patch-index, parity, and governance documentation
+- `20260712_release_operation_ledger.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260711_repo_conflict_intelligence_tenant_readiness.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260710_repo_conflict_intelligence.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260711_repo_conflict_intelligence_phase2.sql` — critical_review, add targeted patch-index, parity, and governance documentation
