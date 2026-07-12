@@ -21,9 +21,13 @@ function sanitize(value) {
   if (Array.isArray(value)) return value.map(sanitize);
   if (!value || typeof value !== "object") return value;
   const safeSensitiveMetadataKeys = new Set(["secrets_included", "secrets_excluded", "no_secrets"]);
+  const isSafeSensitiveMetadataKey = (key) => safeSensitiveMetadataKeys.has(key)
+    || key.endsWith("_secrets_included")
+    || key.endsWith("_secrets_excluded")
+    || key.endsWith("_no_secrets");
   return Object.fromEntries(
     Object.entries(value)
-      .filter(([key]) => safeSensitiveMetadataKeys.has(key) || !SENSITIVE_KEY_PATTERN.test(key))
+      .filter(([key]) => isSafeSensitiveMetadataKey(key) || !SENSITIVE_KEY_PATTERN.test(key))
       .map(([key, item]) => [key, sanitize(item)])
   );
 }
@@ -351,8 +355,8 @@ export function buildTenantConflictReadinessReport(input = {}) {
       read_only: tags.has("read_only"),
       request_only: tags.has("request_only"),
       no_secrets: tags.has("no_secrets"),
-      no_provider_write: tags.has("no_provider_write") || toolKey !== "tenant_repo_conflict_intelligence_resolve_dry_run",
-      no_git_mutation: tags.has("no_git_mutation") || toolKey !== "tenant_repo_conflict_intelligence_resolve_dry_run",
+      no_provider_write: tags.has("no_provider_write"),
+      no_git_mutation: tags.has("no_git_mutation"),
     };
   });
 
@@ -361,6 +365,8 @@ export function buildTenantConflictReadinessReport(input = {}) {
     registry_enabled: registryTools.every((tool) => tool.enabled),
     registry_request_only: registryTools.every((tool) => tool.request_only),
     registry_no_secrets: registryTools.every((tool) => tool.no_secrets),
+    registry_no_provider_write: registryTools.every((tool) => tool.no_provider_write),
+    registry_no_git_mutation: registryTools.every((tool) => tool.no_git_mutation),
     tenant_scope_preserved: summary.scope === "tenant" && tenantPlan.scope === "tenant" && dryRun.scope === "tenant",
     execution_disabled: tenantPlan.execution_allowed === false && dryRun.execution_allowed === false,
     provider_write_disabled: tenantPlan.provider_write === false && dryRun.provider_write === false,
@@ -369,7 +375,12 @@ export function buildTenantConflictReadinessReport(input = {}) {
     jwt_boundary_not_bypassed: true,
   };
 
-  const registryReady = checks.registry_complete && checks.registry_enabled && checks.registry_request_only && checks.registry_no_secrets;
+  const registryReady = checks.registry_complete
+    && checks.registry_enabled
+    && checks.registry_request_only
+    && checks.registry_no_secrets
+    && checks.registry_no_provider_write
+    && checks.registry_no_git_mutation;
   const logicReady = checks.tenant_scope_preserved && checks.execution_disabled && checks.provider_write_disabled && checks.secrets_excluded && checks.no_cross_tenant_metadata;
 
   return sanitize({

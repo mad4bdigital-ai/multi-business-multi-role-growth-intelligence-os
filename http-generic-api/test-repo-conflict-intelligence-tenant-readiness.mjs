@@ -7,14 +7,14 @@ const registryRows = [
     is_enabled: 1,
     http_method: "POST",
     http_path: "/me/repo-conflict-intelligence/analyze",
-    tags: "repo_conflict_intelligence,tenant,read_only,request_only,no_secrets",
+    tags: "repo_conflict_intelligence,tenant,read_only,request_only,no_provider_write,no_git_mutation,no_secrets",
   },
   {
     tool_key: "tenant_repo_conflict_intelligence_plan",
     is_enabled: 1,
     http_method: "POST",
     http_path: "/me/repo-conflict-intelligence/plan",
-    tags: "repo_conflict_intelligence,tenant,planner,read_only,preview_only,request_only,no_secrets",
+    tags: "repo_conflict_intelligence,tenant,planner,read_only,preview_only,request_only,no_provider_write,no_git_mutation,no_secrets",
   },
   {
     tool_key: "tenant_repo_conflict_intelligence_resolve_dry_run",
@@ -35,6 +35,10 @@ assert.equal(report.transport_auth.live_user_jwt_tested, false);
 assert.equal(report.transport_auth.auth_bypass_attempted, false);
 assert.equal(report.checks.registry_complete, true);
 assert.equal(report.checks.registry_enabled, true);
+assert.equal(report.checks.registry_request_only, true);
+assert.equal(report.checks.registry_no_secrets, true);
+assert.equal(report.checks.registry_no_provider_write, true);
+assert.equal(report.checks.registry_no_git_mutation, true);
 assert.equal(report.checks.tenant_scope_preserved, true);
 assert.equal(report.checks.execution_disabled, true);
 assert.equal(report.checks.provider_write_disabled, true);
