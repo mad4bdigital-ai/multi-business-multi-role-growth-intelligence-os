@@ -204,6 +204,7 @@ assert.ok(remediationMigrationSource.includes("UPDATE `container_role_assignment
 assert.ok(remediationMigrationSource.includes("UPDATE `container_resource_bindings`"));
 assert.ok(remediationMigrationSource.includes("UPDATE `platform_graph_edges`"));
 assert.ok(remediationMigrationSource.includes("UPDATE `platform_graph_nodes`"));
-assert.ok(remediationMigrationSource.includes("DELETE FROM `container_closure`"));
+assert.equal(remediationMigrationSource.includes("DELETE FROM `container_closure`"), false);
+assert.ok(remediationMigrationSource.includes("Closure rows are rebuilt and verified by the subsequent governed projection apply."));
 
 console.log("dynamic container projection apply tool tests passed");
