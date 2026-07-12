@@ -11,7 +11,11 @@ assert.ok(program.includes('await RepairConnectorAsync();'));
 assert.ok(program.includes('app_managed_installer = true'));
 assert.ok(program.includes('browser_download = false'));
 assert.ok(program.includes('secrets_included = false'));
-assert.ok(program.indexOf('string.Equals(action, "repair_connector"') < program.indexOf('string.Equals(action, "open_url"'));
+const repairCommandStart = program.indexOf('string.Equals(action, "repair_connector"');
+const repairCommandEnd = program.indexOf('string.Equals(action, "focus_local_manager"', repairCommandStart);
+assert.ok(repairCommandStart >= 0 && repairCommandEnd > repairCommandStart);
+const repairCommandBlock = program.slice(repairCommandStart, repairCommandEnd);
+assert.doesNotMatch(repairCommandBlock, /OpenUrlAsync|Process\.Start|open_url/i);
 
 assert.ok(desktopRoutes.includes('"repair_connector"'));
 assert.ok(desktopRoutes.includes('const ALLOWED_ACTIONS = new Set'));
