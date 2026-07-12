@@ -351,8 +351,8 @@ export function buildTenantConflictReadinessReport(input = {}) {
       read_only: tags.has("read_only"),
       request_only: tags.has("request_only"),
       no_secrets: tags.has("no_secrets"),
-      no_provider_write: tags.has("no_provider_write") || toolKey !== "tenant_repo_conflict_intelligence_resolve_dry_run",
-      no_git_mutation: tags.has("no_git_mutation") || toolKey !== "tenant_repo_conflict_intelligence_resolve_dry_run",
+      no_provider_write: tags.has("no_provider_write"),
+      no_git_mutation: tags.has("no_git_mutation"),
     };
   });
 
