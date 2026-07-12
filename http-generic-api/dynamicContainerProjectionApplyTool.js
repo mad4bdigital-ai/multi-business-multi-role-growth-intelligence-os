@@ -165,11 +165,32 @@ async function readActiveOrphanReferences(pool, tenantIds) {
         AND n.source_pk IS NOT NULL
         AND c.container_id IS NULL`
   );
+  const [[graphEdgeRow]] = await pool.query(
+    `SELECT COUNT(*) AS row_count
+       FROM platform_graph_edges e
+       LEFT JOIN platform_graph_nodes source_node ON source_node.node_id = e.source_node_id
+       LEFT JOIN platform_graph_nodes target_node ON target_node.node_id = e.target_node_id
+      WHERE e.lifecycle_status = 'active'
+        AND (source_node.node_id IS NULL OR target_node.node_id IS NULL
+             OR source_node.lifecycle_status <> 'active'
+             OR target_node.lifecycle_status <> 'active')`
+  );
+  const [[closureRow]] = await pool.query(
+    `SELECT COUNT(*) AS row_count
+       FROM container_closure closure_row
+       LEFT JOIN containers ancestor ON ancestor.container_id = closure_row.ancestor_container_id
+       LEFT JOIN containers descendant ON descendant.container_id = closure_row.descendant_container_id
+      WHERE closure_row.tenant_id IN (${placeholders})
+        AND (ancestor.container_id IS NULL OR descendant.container_id IS NULL)`,
+    tenants
+  );
   const counts = {
     relationships: Number(relationshipRow?.row_count || 0),
     role_assignments: Number(roleRow?.row_count || 0),
     resource_bindings: Number(bindingRow?.row_count || 0),
     graph_nodes: Number(graphRow?.row_count || 0),
+    graph_edges: Number(graphEdgeRow?.row_count || 0),
+    closure_rows: Number(closureRow?.row_count || 0),
   };
   return { ...counts, total: Object.values(counts).reduce((sum, value) => sum + value, 0) };
 }
