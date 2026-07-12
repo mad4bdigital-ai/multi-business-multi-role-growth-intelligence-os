@@ -425,7 +425,7 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
     const tempDir = await mkdtemp(join(tmpdir(), "mad4b-hostinger-ssh-"));
     const keyFile = join(tempDir, "id_ed25519");
     const passwordFile = join(tempDir, "password");
-    const askpassFile = join(tempDir, "askpass.mjs");
+    const askpassFile = join(tempDir, "askpass.cjs");
     let settled = false;
     let child = null;
     const cleanup = async () => {
