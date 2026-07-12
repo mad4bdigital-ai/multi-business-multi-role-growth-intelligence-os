@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "feature_key": "009-platform-request-execution-hardening",
+  "delivery_mode": "single_pr",
+  "status": "in_progress",
+  "requirements": {
+    "migration": false,
+    "production_verification": false,
+    "post_merge_audit": false
+  },
+  "delivery": {
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": 2551,
+      "branch": "gpt/platform-request-execution-hardening-spec-kit-20260712",
+      "role": "design_specification",
+      "status": "current_pr"
+    }
+  },
+  "evidence": {
+    "ci": {
+      "status": "pending",
+      "head_sha": "d403bac0ffbefad4c993eaeda612a22b16930b30"
+    },
+    "release_readiness": {
+      "status": "design_only_pending_ci"
+    }
+  },
+  "constraints": {
+    "runtime_changes": false,
+    "database_migrations": false,
+    "provider_writes": false,
+    "deployment": false,
+    "merge": false
+  },
+  "secrets_included": false
+}
