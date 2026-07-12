@@ -5,9 +5,10 @@
 **Provider mutation:** none  
 **Migration execution:** none  
 **Enforcement cutover:** none  
-**Canary activation:** none
+**Canary activation:** none  
+**Route removal:** none
 
-## Completed through T042
+## Completed through T043
 
 T010 through T015 are complete.
 
@@ -17,25 +18,24 @@ PR #2389 merged T030 adapter binding, certification, deterministic selection, re
 
 PR #2440 merged T040 shadow parity for the three canonical pilots without provider mutation. PR #2460 merged T041 legacy/adaptive mismatch classification without threshold approval or canary activation.
 
-PR #2513 merged T042 parity-threshold approval contracts. T042 binds threshold policy and classification evidence hashes, approver identity, expiry, and exact typed confirmation. Passing evaluation means only `eligibleForCanaryEvaluation: true`; it always preserves `canaryActivationAllowed: false`, `providerApplyAllowed: false`, `externalWriteAllowed: false`, `migrationExecutionAuthorized: false`, and `enforcementCutover: false`.
+PR #2513 merged T042 parity-threshold approval contracts. Passing evaluation means only `eligibleForCanaryEvaluation: true`; it preserves `canaryActivationAllowed: false`, `providerApplyAllowed: false`, `externalWriteAllowed: false`, `migrationExecutionAuthorized: false`, and `enforcementCutover: false`.
 
-## T042 acceptance evidence
+PR #2531 merged T043 legacy capability compatibility wrappers and measured deprecation metadata. The legacy response remains unchanged, alias resolution reuses the existing capability authority, and the adaptive decision path runs once in shadow mode. Even complete deprecation evidence preserves `routeRemovalAllowed: false` and requires separate explicit route-removal authority.
 
-The approved threshold contract requires:
+## T043 acceptance evidence
 
-- 100% cross-tenant denial
-- 100% replay and stale-envelope validation
-- zero unresolved critical privilege expansions
-- at least 99.9% deterministic decision repeatability
-- zero credential leakage findings
-- 100% idempotency and readback for state-changing pilots
-- zero unresolved ambiguous adapter selections
-- decision-latency SLO success
-- reconciliation-lag policy success
-- completed security review
-- approved rollback/readback evidence
+The compatibility wrapper:
 
-A global parity percentage alone remains insufficient.
+- validates exact legacy selector and resolved alias binding;
+- accepts only active or deprecated aliases;
+- preserves the legacy response object unchanged;
+- invokes the injected adaptive resolver exactly once in shadow mode;
+- records bounded parity and usage increments;
+- records deprecation policy hash, observation minimum, parity minimum, window, active-consumer count, and rollback/readback evidence;
+- rejects sensitive credential, token, authorization, secret, prompt, cookie, password, and raw-payload fields;
+- never activates canary enforcement, dispatches providers, performs external writes, runs migrations, cuts over enforcement, or removes routes.
+
+The merged source branch `gpt/t043-legacy-compatibility-wrapper` was verified absent after merge with a GitHub reference `404`.
 
 ## Task loop classification
 
@@ -47,8 +47,8 @@ A global parity percentage alone remains insufficient.
 | T040 Shadow pilots | complete | PR #2440 | shadow-only |
 | T041 Mismatch classification | complete | PR #2460 | classification-only |
 | T042 Threshold approval | complete | PR #2513 | eligibility only; no canary activation |
-| T043 Compatibility wrappers | open | not yet implemented | next scope |
-| T050-T053 Verification and rollout | open | incomplete | future work |
+| T043 Compatibility wrappers | complete | PR #2531 | legacy passthrough; no route removal |
+| T050-T053 Verification and rollout | open | incomplete | next work |
 | T061-T062 Closeout | open | incomplete | future work |
 | D010 Final delivery closeout | open | incomplete | future work |
 
@@ -59,11 +59,11 @@ A global parity percentage alone remains insufficient.
 - No canary activation.
 - No enforcement cutover.
 - No migration execution.
+- No route or alias removal.
 - No new authority table.
-- No credentials or secrets selected or returned.
-- No raw payloads or prompts in parity evidence.
+- No credentials, secrets, raw payloads, or prompts in evidence.
 - Ambiguity remains fail-closed.
 
 ## Current next scope
 
-The next implementation scope is T043: add compatibility wrappers and measured deprecation metadata. T043 must remain backward-compatible and must not activate canary enforcement, dispatch provider adapters, perform external writes, execute migrations, or cut over production enforcement.
+The next implementation scope is T050: register unit, integration, isolation, replay, stale-revision, ambiguity, and redaction tests across the completed authorization and execution-governance surfaces. T050 is verification registration only and must not enable provider execution, canary activation, route removal, migration execution, external writes, or production enforcement cutover.
