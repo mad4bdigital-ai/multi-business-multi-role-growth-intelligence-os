@@ -292,3 +292,6 @@ components:
     NotFound:
       description: Resource not found.
       content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    InternalError:
+      description: Unexpected server failure.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
