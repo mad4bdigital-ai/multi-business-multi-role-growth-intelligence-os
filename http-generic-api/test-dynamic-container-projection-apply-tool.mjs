@@ -181,6 +181,8 @@ await assert.rejects(
   assert.equal(readback.ok, false);
   assert.deepEqual(readback.count_mismatches, []);
   assert.equal(readback.orphan_references.graph_nodes, 1);
+  assert.equal(readback.orphan_references.graph_edges, 0);
+  assert.equal(readback.orphan_references.closure_rows, 0);
   assert.equal(readback.orphan_references.total, 1);
 }
 
