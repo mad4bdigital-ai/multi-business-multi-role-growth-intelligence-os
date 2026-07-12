@@ -6,7 +6,7 @@
 --   - Idempotent and scoped to one tenant, one missing planned container ID, and derived artifacts.
 --   - Preserves the existing canonical container_id and normalizes its key/type/subject fields.
 --   - Disables orphan relationships, role assignments, resource bindings, graph edges, and graph node.
---   - Deletes only derived closure rows that reference the missing container ID; closure is rebuilt by projection apply.
+--   - Leaves derived closure cleanup to the governed projection transaction, which rebuilds closure rows per tenant.
 --   - No provider call, credential payload read, external write, secret read, or raw endpoint activation.
 -- Readback after apply:
 --   1. Existing canonical tenant container uses container_id 00000000-0000-4000-a000-00000000c001.
