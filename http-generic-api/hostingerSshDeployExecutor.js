@@ -454,17 +454,17 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
         await writeFile(
           askpassFile,
           [
-            "#!/usr/bin/env node",
-            "import { readFileSync, rmSync } from 'node:fs';",
+            "const { readFileSync, rmSync } = require('node:fs');",
             "const file = process.env.MAD4B_SSH_ASKPASS_FILE;",
             "if (!file) process.exit(1);",
             "try {",
             "  const value = readFileSync(file, 'utf8');",
             "  rmSync(file, { force: true });",
             "  process.stdout.write(value);",
+            "  process.exit(0);",
             "} catch { process.exit(1); }",
           ].join("\n"),
-          { mode: 0o700 }
+          { mode: 0o600 }
         );
         args = [
           ...hardenedSshOptions({ usePassword: true }),
