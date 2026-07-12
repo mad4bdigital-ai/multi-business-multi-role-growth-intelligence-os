@@ -361,6 +361,8 @@ export function buildTenantConflictReadinessReport(input = {}) {
     registry_enabled: registryTools.every((tool) => tool.enabled),
     registry_request_only: registryTools.every((tool) => tool.request_only),
     registry_no_secrets: registryTools.every((tool) => tool.no_secrets),
+    registry_no_provider_write: registryTools.every((tool) => tool.no_provider_write),
+    registry_no_git_mutation: registryTools.every((tool) => tool.no_git_mutation),
     tenant_scope_preserved: summary.scope === "tenant" && tenantPlan.scope === "tenant" && dryRun.scope === "tenant",
     execution_disabled: tenantPlan.execution_allowed === false && dryRun.execution_allowed === false,
     provider_write_disabled: tenantPlan.provider_write === false && dryRun.provider_write === false,
