@@ -12,7 +12,7 @@
 --   1. Existing canonical tenant container uses container_id 00000000-0000-4000-a000-00000000c001.
 --   2. No active relationship, role assignment, resource binding, graph node, or graph edge references
 --      70a55858-ded7-4cc5-af76-f3de11753b2d.
---   3. No closure row references the missing ID.
+--   3. Closure rows are rebuilt and verified by the subsequent governed projection apply.
 
 UPDATE `containers`
    SET `container_key` = 'tenant:00000000-0000-0000-0000-000000000000',
