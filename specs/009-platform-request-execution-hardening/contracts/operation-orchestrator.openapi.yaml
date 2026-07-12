@@ -1,0 +1,89 @@
+openapi: 3.1.0
+info:
+  title: Platform Operation Orchestrator
+  version: 0.1.0
+paths:
+  /operations/context:
+    post:
+      operationId: operationContextGet
+      summary: Resolve bounded operation context
+      responses:
+        '200':
+          description: Bounded context snapshot
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /operations/preview:
+    post:
+      operationId: operationPreview
+      summary: Preview a high-level governed operation
+      responses:
+        '200':
+          description: Operation preview
+  /operations:
+    post:
+      operationId: operationExecute
+      summary: Execute a high-level governed operation
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: Operation accepted
+        '409':
+          $ref: '#/components/responses/Error'
+  /operations/{operationId}:
+    get:
+      operationId: operationStatusGet
+      parameters:
+        - in: path
+          name: operationId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Operation status and evidence
+  /operations/{operationId}/resume:
+    post:
+      operationId: operationResume
+      parameters:
+        - in: path
+          name: operationId
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: Resume accepted
+components:
+  responses:
+    Error:
+      description: Structured error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            classification:
+              type: string
+            retryable:
+              type: boolean
+            requestId:
+              type: string
