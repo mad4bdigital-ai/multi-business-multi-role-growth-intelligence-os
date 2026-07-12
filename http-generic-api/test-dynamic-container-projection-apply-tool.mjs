@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   dynamicContainerProjectionApplyConfirmation,
+  readDynamicContainerProjectionApply,
   runDynamicContainerProjectionApply,
 } from "./dynamicContainerProjectionApplyTool.js";
 
