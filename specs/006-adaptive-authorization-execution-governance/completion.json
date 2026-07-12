@@ -4,7 +4,7 @@
   "title": "Adaptive Authorization and Execution Governance",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-11T14:00:00Z",
+  "last_updated_at": "2026-07-12T14:30:00Z",
   "delivery": {
     "implementation_prs": [
       {
@@ -80,19 +80,29 @@
         "merge_sha": "1bebe286bd2ee97efd3e4c71ac13e155f4a580f8",
         "status": "merged",
         "branch_deleted_verified": false
+      },
+      {
+        "sequence": 11,
+        "role": "legacy_compatibility_wrapper_and_measured_deprecation_metadata",
+        "pull_request": 2531,
+        "merge_sha": "9c9c5ec0ad7cb4f8f3b6860a02ecadd993dc80d0",
+        "status": "merged",
+        "branch_deleted_verified": true
       }
     ],
     "remaining_task_loop": {
-      "status": "t043_next_compatibility_wrappers_and_deprecation_metadata",
+      "status": "t050_next_verification_test_registration",
       "provider_mutation": false,
       "external_write": false,
       "migration_execution": "not_started",
-      "enforcement_change": false
+      "enforcement_change": false,
+      "canary_activation": false,
+      "route_removal": false
     },
     "next_pr": {
-      "sequence": 11,
-      "scope": "T043 add compatibility wrappers and measured deprecation metadata",
-      "status": "ready_after_t042_ledger_closeout"
+      "sequence": 12,
+      "scope": "T050 register unit, integration, isolation, replay, stale-revision, ambiguity, and redaction tests",
+      "status": "ready_after_t043_ledger_closeout"
     }
   },
   "evidence": {
@@ -106,15 +116,17 @@
         "T030",
         "T040",
         "T041",
-        "T042"
+        "T042",
+        "T043"
       ],
-      "latest_task": "T042",
+      "latest_task": "T043",
       "provider_mutation_allowed": false,
       "external_write_allowed": false,
       "enforcement_cutover_allowed": false,
       "migration_execution_authorized": false,
       "new_authority_tables_allowed": false,
-      "canary_activation_allowed": false
+      "canary_activation_allowed": false,
+      "route_removal_allowed": false
     },
     "implementation": {
       "status": "in_progress",
@@ -132,11 +144,11 @@
         "T030",
         "T040",
         "T041",
-        "T042"
+        "T042",
+        "T043"
       ],
-      "next_task_scope": "T043 add compatibility wrappers and measured deprecation metadata",
+      "next_task_scope": "T050 register unit, integration, isolation, replay, stale-revision, ambiguity, and redaction tests",
       "remaining_tasks": [
-        "T043",
         "T050",
         "T051",
         "T052",
@@ -145,16 +157,17 @@
         "T062",
         "D010"
       ],
-      "remaining_task_count": 8,
+      "remaining_task_count": 7,
       "provider_mutation_allowed": false,
       "external_write_allowed": false,
       "enforcement_change_allowed": false,
       "new_authority_tables_allowed": false,
-      "canary_activation_allowed": false
+      "canary_activation_allowed": false,
+      "route_removal_allowed": false
     },
     "production_rollout": {
       "status": "pending",
-      "reason": "T043 and T050 through T053, compatibility wrappers, verification, rollback rehearsal, release readiness, production parity, and post-merge audit remain incomplete."
+      "reason": "T050 through T053 verification and rollout evidence, T061 through T062 closeout, and D010 final delivery closeout remain incomplete."
     }
   },
   "sensitive_values_included": false
