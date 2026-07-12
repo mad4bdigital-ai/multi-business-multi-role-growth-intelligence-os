@@ -8,6 +8,8 @@ import {
 } from "./hostingerSshProbeRunnerModes.js";
 import {
   normalizeHostingerSshTargetProbeJobPayload,
+  normalizeSshPasswordTransport,
+  resolveSshPasswordTransport,
   validateHostingerSshTargetProbeJobPayload,
 } from "./hostingerSshDeployExecutor.js";
 
@@ -37,6 +39,30 @@ for (const runner_mode of Object.values(HOSTINGER_SSH_PROBE_RUNNER_MODES)) {
   assert.equal(description.request_waits_for_ssh, false);
   assert.equal(description.secrets_included, false);
 }
+
+assert.equal(normalizeSshPasswordTransport("SSHPASS"), "sshpass");
+assert.equal(normalizeSshPasswordTransport("askpass"), "askpass");
+assert.equal(normalizeSshPasswordTransport("auto"), "auto");
+assert.equal(resolveSshPasswordTransport("sshpass", () => false), "sshpass");
+assert.equal(resolveSshPasswordTransport("askpass", () => true), "askpass");
+assert.equal(resolveSshPasswordTransport("auto", () => true), "sshpass");
+assert.equal(resolveSshPasswordTransport("auto", () => false), "askpass");
+
+for (const ssh_password_transport of ["auto", "sshpass", "askpass"]) {
+  const payload = normalizeHostingerSshTargetProbeJobPayload({ ...basePayload, ssh_password_transport });
+  assert.equal(payload.ssh_password_transport, ssh_password_transport);
+  assert.deepEqual(validateHostingerSshTargetProbeJobPayload({ ...basePayload, ssh_password_transport }), []);
+}
+
+const invalidTransportErrors = validateHostingerSshTargetProbeJobPayload({
+  ...basePayload,
+  ssh_password_transport: "unsupported_transport",
+});
+assert.equal(
+  invalidTransportErrors.some((message) => message.includes("ssh_password_transport must be auto, sshpass, or askpass")),
+  true,
+  "unknown SSH password transports must be rejected explicitly"
+);
 
 const asyncSource = readFileSync(new URL("./executionAsync.js", import.meta.url), "utf8");
 assert(asyncSource.includes("HOSTINGER_SSH_PROBE_RUNNER_MODES.DETACHED_PROCESS"), "async submission must support detached_process mode");
