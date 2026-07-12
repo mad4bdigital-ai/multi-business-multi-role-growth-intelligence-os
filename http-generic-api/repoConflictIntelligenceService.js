@@ -371,7 +371,12 @@ export function buildTenantConflictReadinessReport(input = {}) {
     jwt_boundary_not_bypassed: true,
   };
 
-  const registryReady = checks.registry_complete && checks.registry_enabled && checks.registry_request_only && checks.registry_no_secrets;
+  const registryReady = checks.registry_complete
+    && checks.registry_enabled
+    && checks.registry_request_only
+    && checks.registry_no_secrets
+    && checks.registry_no_provider_write
+    && checks.registry_no_git_mutation;
   const logicReady = checks.tenant_scope_preserved && checks.execution_disabled && checks.provider_write_disabled && checks.secrets_excluded && checks.no_cross_tenant_metadata;
 
   return sanitize({
