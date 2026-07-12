@@ -10,12 +10,15 @@
   "database_migrations": false,
   "deployment": false,
   "merge": false,
-  "source_main_sha": "c5fc5f3e59b75cdbeacccea902cb365907824217",
+  "source_main_sha": "95721d2d98e72e4f59cf0329d82c27a29c0f6607",
   "branch": "gpt/platform-request-execution-hardening-spec-kit-20260712",
+  "pull_request": 2551,
   "deliverables": [
     "spec",
     "plan",
     "tasks",
+    "completion_evidence",
+    "requirements_checklist",
     "openapi_contract",
     "quickstart",
     "integration_index"
@@ -23,6 +26,7 @@
   "constraints": [
     "no_runtime_change",
     "no_database_migration",
+    "no_provider_write",
     "no_deployment",
     "no_merge"
   ]
