@@ -1152,7 +1152,7 @@ export function buildAuthRoutes(deps) {
       res.setHeader("Pragma", "no-cache");
       logTokenExchange("success", null, 200, {
         access_token: {
-          token_type: "Bearer",
+          token_type: "bearer",
           length: accessToken.length,
         },
         activation_context: {
