@@ -739,7 +739,7 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
     throw err;
   }
   const sshAuthMode = preferredSshAuthMode(input, target);
-  const sshPasswordTransport = normalizeSshPasswordTransport(input.ssh_password_transport || input.sshPasswordTransport || "auto");
+  const sshPasswordTransport = normalizeSshPasswordTransport(input.ssh_transport_mode || input.sshTransportMode || input.ssh_password_transport || input.sshPasswordTransport || "auto");
 
   const plan = await planRemoteRuntimeDispatchDryRun({
     pool,
