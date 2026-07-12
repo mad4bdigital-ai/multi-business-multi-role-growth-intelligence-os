@@ -4,8 +4,8 @@
 
 ## Summary
 
-- Total queue items: 6
-- Critical review: 4
+- Total queue items: 7
+- Critical review: 5
 - High review: 2
 - Medium review: 0
 - Low review: 0
@@ -41,7 +41,21 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `apply_tool_key`, `budget_preflight_only`, `closeout_requires_readback`, `connector_runtime_readiness`, `decision_tool_key`, `diagnostic_tool_key`, `fk_tenant_resolution_readbacks_case`, `google_ads_setup_preflight`, `google_ads_setup_preflight_v1`, `idx_tenant_resolution_readbacks_case_created`, `idx_tenant_resolution_readbacks_playbook_decision`, `last_preflight_json`, ...and 6 more
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 3. `20260711_repo_conflict_intelligence_phase2.sql`
+### 3. `20260711_repo_conflict_intelligence_tenant_readiness.sql`
+
+- Queue class: critical_review
+- Score: 748
+- Gap severity: high
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=1
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `repo_conflict_intelligence_tenant_readiness_smoke`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+
+### 4. `20260711_repo_conflict_intelligence_phase2.sql`
 
 - Queue class: critical_review
 - Score: 730
@@ -54,7 +68,7 @@
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 4. `20260710_repo_conflict_intelligence.sql`
+### 5. `20260710_repo_conflict_intelligence.sql`
 
 - Queue class: critical_review
 - Score: 729
@@ -67,7 +81,7 @@
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 5. `1044_sprint69_dynamic_container_projection_apply_governance.sql`
+### 6. `1044_sprint69_dynamic_container_projection_apply_governance.sql`
 
 - Queue class: high_review
 - Score: 584
@@ -82,7 +96,7 @@
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `dynamic_container_projection_apply_policy_v1`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`
 
-### 6. `20260711_temporary_hostinger_probe_config_authority.sql`
+### 7. `20260711_temporary_hostinger_probe_config_authority.sql`
 
 - Queue class: high_review
 - Score: 524

@@ -44,10 +44,14 @@ assert(probeBlock.includes("secrets_included: false"), "probe responses and evid
 assert(executor.includes("isPlatformManagedTarget"), "managed platform Hostinger targets must route missing credentials to platform-scoped intake");
 assert(executor.includes("intakeScope: result?.owner_type === \"platform\""), "credential intake scope must prefer platform ownership signals");
 assert(executor.includes("ssh_password"), "Hostinger SSH password credential role must be supported");
-assert(executor.includes("sshpass"), "password auth must use sshpass helper rather than interactive shell prompts");
+assert(executor.includes("sshpass"), "password auth must retain the sshpass transport mode");
 assert(executor.includes("\"-d\", \"3\""), "sshpass must read password from a file descriptor, not argv or environment");
-assert(executor.includes("if (!usePassword)"), "password auth must bypass coreutils timeout wrapper so fd 3 is delivered directly to sshpass");
-assert(executor.includes("killProcessTree"), "password auth must still rely on Node process-group timeout kill fallback");
+assert(executor.includes("SSH_ASKPASS"), "password auth must support the OpenSSH askpass transport mode");
+assert(executor.includes("SSH_ASKPASS_REQUIRE"), "askpass transport must force non-interactive password delivery");
+assert(executor.includes("MAD4B_SSH_ASKPASS_FILE"), "askpass transport must use a bounded temporary password file reference");
+assert(executor.includes("mode: 0o600"), "temporary password and private-key files must be owner-readable only");
+assert(executor.includes("withCoreutilsTimeout(command, args, timeoutMs)"), "all SSH transports must use the bounded coreutils timeout wrapper");
+assert(executor.includes("killProcessTree"), "all SSH transports must retain the Node process-group timeout kill fallback");
 assert(!executor.includes("SSHPASS"), "SSH password must not be exposed through environment variables");
 assert(!probeBlock.includes("git fetch"), "probe must not fetch remote git data");
 assert(!probeBlock.includes("git checkout"), "probe must not checkout or mutate repo state");
