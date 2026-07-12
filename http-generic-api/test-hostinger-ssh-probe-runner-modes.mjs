@@ -48,20 +48,27 @@ assert.equal(resolveSshPasswordTransport("askpass", () => true), "askpass");
 assert.equal(resolveSshPasswordTransport("auto", () => true), "sshpass");
 assert.equal(resolveSshPasswordTransport("auto", () => false), "askpass");
 
-for (const ssh_password_transport of ["auto", "sshpass", "askpass"]) {
-  const payload = normalizeHostingerSshTargetProbeJobPayload({ ...basePayload, ssh_password_transport });
-  assert.equal(payload.ssh_password_transport, ssh_password_transport);
-  assert.deepEqual(validateHostingerSshTargetProbeJobPayload({ ...basePayload, ssh_password_transport }), []);
+for (const ssh_transport_mode of ["auto", "sshpass", "askpass"]) {
+  const payload = normalizeHostingerSshTargetProbeJobPayload({ ...basePayload, ssh_transport_mode });
+  assert.equal(payload.ssh_transport_mode, ssh_transport_mode);
+  assert.deepEqual(validateHostingerSshTargetProbeJobPayload({ ...basePayload, ssh_transport_mode }), []);
 }
+
+const legacyTransportAliasPayload = normalizeHostingerSshTargetProbeJobPayload({
+  ...basePayload,
+  ssh_password_transport: "askpass",
+});
+assert.equal(legacyTransportAliasPayload.ssh_transport_mode, "askpass");
+assert.equal(Object.hasOwn(legacyTransportAliasPayload, "ssh_password_transport"), false);
 
 const invalidTransportErrors = validateHostingerSshTargetProbeJobPayload({
   ...basePayload,
-  ssh_password_transport: "unsupported_transport",
+  ssh_transport_mode: "unsupported_transport",
 });
 assert.equal(
-  invalidTransportErrors.some((message) => message.includes("ssh_password_transport must be auto, sshpass, or askpass")),
+  invalidTransportErrors.some((message) => message.includes("ssh_transport_mode must be auto, sshpass, or askpass")),
   true,
-  "unknown SSH password transports must be rejected explicitly"
+  "unknown SSH transport modes must be rejected explicitly"
 );
 
 const asyncSource = readFileSync(new URL("./executionAsync.js", import.meta.url), "utf8");
