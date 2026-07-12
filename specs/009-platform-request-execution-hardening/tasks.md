@@ -1,0 +1,23 @@
+# Tasks
+
+- [ ] Define operation contract schema and registry.
+- [ ] Define Admin/Tenant projection and redaction contracts.
+- [ ] Implement exact intent-to-operation resolver.
+- [ ] Implement unified operation context.
+- [ ] Implement early authority preflight.
+- [ ] Implement Repo Change Orchestrator.
+- [ ] Implement Managed Ephemeral Git Worker.
+- [ ] Implement server-side reconciliation without file-count limits.
+- [ ] Implement generated-artifact registry.
+- [ ] Implement CI diagnosis.
+- [ ] Implement JSON-only upstream error adapter.
+- [ ] Implement transparent response chunk aggregation.
+- [ ] Implement operation-scoped capability lifecycle.
+- [ ] Implement persistent operation state and resume.
+- [ ] Implement execution budgets and circuit breakers.
+- [ ] Add typed catalog APIs.
+- [ ] Add Admin/Tenant isolation and authorization tests.
+- [ ] Add timeout, response explosion, rate-limit, and 503 tests.
+- [ ] Add OpenAPI 3.1 contracts and examples.
+- [ ] Add latency, internal-call, discovery, retry, and failure dashboards.
+- [ ] Run shadow and pilot rollout.
