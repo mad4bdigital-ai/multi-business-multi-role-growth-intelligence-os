@@ -187,6 +187,7 @@ await assert.rejects(
 const routeSource = readFileSync("routes/gptToolsRoutes.js", "utf8");
 const manifestSource = readFileSync("scripts/test-manifest.mjs", "utf8");
 const migrationSource = readFileSync("migrations/1044_sprint69_dynamic_container_projection_apply_governance.sql", "utf8");
+const remediationMigrationSource = readFileSync("migrations/1045_sprint69_dynamic_container_canonical_id_remediation.sql", "utf8");
 assert.ok(routeSource.includes("dynamic_container_projection_apply"));
 assert.ok(routeSource.includes("runDynamicContainerProjectionApply"));
 assert.ok(routeSource.includes("acceptedCapabilityKeys: [\"dynamic_container_projection_apply\"]"));
