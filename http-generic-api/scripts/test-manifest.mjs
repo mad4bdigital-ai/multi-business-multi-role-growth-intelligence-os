@@ -180,6 +180,7 @@ export const testCommands = [
   "node test-local-manager-device-link-client.mjs",
   "node test-local-manager-device-control-client.mjs",
   "node test-local-manager-signed-installer-coordinator.mjs",
+  "node test-local-manager-repair-connector-command.mjs",
   "node test-local-manager-capability-verifier-and-sidecar-dispatcher.mjs",
   "node test-local-manager-runtime-readback-boundary.mjs",
   "node test-local-manager-sidecar-lifecycle-supervision.mjs",
