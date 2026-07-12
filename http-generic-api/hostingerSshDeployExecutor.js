@@ -759,7 +759,7 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
     expected_commit_sha: expectedCommitSha || null,
     activate_on_success: activateOnSuccess,
     ssh_auth_mode: sshAuthMode,
-    ssh_password_transport: sshPasswordTransport,
+    ssh_transport_mode: sshPasswordTransport,
     deployment_run_id: traceId,
     deployment_status: dryRun ? "planned" : "executing",
     dry_run: dryRun,
