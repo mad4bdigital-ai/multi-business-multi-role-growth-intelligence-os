@@ -117,7 +117,15 @@ async function countIds(pool, table, idColumn, ids) {
 async function readActiveOrphanReferences(pool, tenantIds) {
   const tenants = [...new Set(tenantIds.map(String).filter(Boolean))];
   if (!tenants.length) {
-    return { relationships: 0, role_assignments: 0, resource_bindings: 0, graph_nodes: 0, total: 0 };
+    return {
+      relationships: 0,
+      role_assignments: 0,
+      resource_bindings: 0,
+      graph_nodes: 0,
+      graph_edges: 0,
+      closure_rows: 0,
+      total: 0,
+    };
   }
   const placeholders = tenants.map(() => "?").join(",");
   const [[relationshipRow]] = await pool.query(
