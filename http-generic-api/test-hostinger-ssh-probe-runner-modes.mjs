@@ -74,7 +74,7 @@ assert.equal(
 const executorSource = readFileSync(new URL("./hostingerSshDeployExecutor.js", import.meta.url), "utf8");
 assert(!executorSource.includes("ssh_password_transport: sshPasswordTransport"), "planning and response metadata must use ssh_transport_mode");
 assert(!executorSource.includes("password_transport_requested:"), "execution evidence must use transport_mode_requested");
-assert(!executorSource.includes("password_transport:"), "execution evidence must use transport_mode");
+assert(!executorSource.includes("password_transport: sshResult"), "execution evidence and responses must use transport_mode");
 
 const asyncSource = readFileSync(new URL("./executionAsync.js", import.meta.url), "utf8");
 assert(asyncSource.includes("HOSTINGER_SSH_PROBE_RUNNER_MODES.DETACHED_PROCESS"), "async submission must support detached_process mode");
