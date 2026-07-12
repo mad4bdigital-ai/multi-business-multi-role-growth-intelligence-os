@@ -21,9 +21,13 @@ function sanitize(value) {
   if (Array.isArray(value)) return value.map(sanitize);
   if (!value || typeof value !== "object") return value;
   const safeSensitiveMetadataKeys = new Set(["secrets_included", "secrets_excluded", "no_secrets"]);
+  const isSafeSensitiveMetadataKey = (key) => safeSensitiveMetadataKeys.has(key)
+    || key.endsWith("_secrets_included")
+    || key.endsWith("_secrets_excluded")
+    || key.endsWith("_no_secrets");
   return Object.fromEntries(
     Object.entries(value)
-      .filter(([key]) => safeSensitiveMetadataKeys.has(key) || !SENSITIVE_KEY_PATTERN.test(key))
+      .filter(([key]) => isSafeSensitiveMetadataKey(key) || !SENSITIVE_KEY_PATTERN.test(key))
       .map(([key, item]) => [key, sanitize(item)])
   );
 }
