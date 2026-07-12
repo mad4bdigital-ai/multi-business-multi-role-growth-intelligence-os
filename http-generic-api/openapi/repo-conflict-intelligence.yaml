@@ -116,6 +116,35 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /admin/repo-conflict-intelligence/tenant-readiness-smoke:
+    post:
+      tags: [repo-conflict-intelligence-admin]
+      operationId: smokeTenantRepositoryConflictReadiness
+      summary: Validate tenant-safe conflict logic and registry readiness without bypassing JWT authentication
+      description: >-
+        Runs bounded tenant-safe projections and validates the three TENANT registry tools. The response
+        reports authorization_gated when no real Tenant JWT transport probe has been performed. This
+        diagnostic does not issue credentials, bypass authentication, mutate Git, or call providers.
+      security: [{ backendApiKey: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sample_input: { $ref: '#/components/schemas/ConflictInput' }
+              additionalProperties: false
+      responses:
+        '200':
+          description: Tenant logic and registry readiness report with explicit transport-auth status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TenantReadinessReport' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /me/repo-conflict-intelligence/analyze:
     post:
       tags: [repo-conflict-intelligence-tenant]
