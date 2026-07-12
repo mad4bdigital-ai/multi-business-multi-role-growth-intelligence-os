@@ -1163,7 +1163,7 @@ export function buildAuthRoutes(deps) {
       });
       const tokenResponse = {
         access_token: accessToken,
-        token_type: "Bearer",
+        token_type: "bearer",
         expires_in: USER_TOKEN_TTL_SECONDS,
       };
       if (codePayload.scope) tokenResponse.scope = codePayload.scope;
