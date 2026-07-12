@@ -559,6 +559,7 @@ export const testCommands = [
   "node test-platform-plugin-security-alerts.mjs",
   "node test-spec-kit-phase0-containment-evidence.mjs",
   "node test-runtime-verification-contract.mjs",
+  "node test-release-operation-ledger.mjs",
   "node test-policy-only-target-rule-migration.mjs",
   "node test-safe-additive-repair-policy-literal.mjs",
   "node test-execution-job-tick-admin.mjs",
