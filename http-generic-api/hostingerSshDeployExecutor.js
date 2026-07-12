@@ -745,7 +745,7 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
     pool,
     targetId,
     commandKey: "ssh_probe",
-    inputs: { app_key: appKey, app_path: appPath, expected_commit_sha: expectedCommitSha || null, activate_on_success: activateOnSuccess, ssh_auth_mode: sshAuthMode, ssh_password_transport: sshPasswordTransport },
+    inputs: { app_key: appKey, app_path: appPath, expected_commit_sha: expectedCommitSha || null, activate_on_success: activateOnSuccess, ssh_auth_mode: sshAuthMode, ssh_transport_mode: sshPasswordTransport },
     approvalReason,
   });
 
