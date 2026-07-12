@@ -1044,7 +1044,7 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     pool,
     targetId,
     commandKey: "deploy_release",
-    inputs: { app_key: appKey, app_path: appPath, branch, expected_commit_sha: expectedCommitSha, force_clean: forceClean, restart, ssh_auth_mode: sshAuthMode, ssh_password_transport: sshPasswordTransport },
+    inputs: { app_key: appKey, app_path: appPath, branch, expected_commit_sha: expectedCommitSha, force_clean: forceClean, restart, ssh_auth_mode: sshAuthMode, ssh_transport_mode: sshPasswordTransport },
     approvalReason,
   });
 
