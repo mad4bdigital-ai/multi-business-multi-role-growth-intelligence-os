@@ -874,8 +874,8 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
       target_activated: probeOk && activateOnSuccess,
       exit_code: sshResult.exit_code,
       timed_out: sshResult.timed_out,
-      password_transport_requested: sshResult.password_transport_requested,
-      password_transport: sshResult.password_transport,
+      transport_mode_requested: sshResult.transport_mode_requested,
+      transport_mode: sshResult.transport_mode,
     },
     probe: {
       ok: probeOk,
