@@ -6,13 +6,13 @@
 --   - Idempotent and scoped to one tenant, one missing planned container ID, and derived artifacts.
 --   - Preserves the existing canonical container_id and normalizes its key/type/subject fields.
 --   - Disables orphan relationships, role assignments, resource bindings, graph edges, and graph node.
---   - Deletes only derived closure rows that reference the missing container ID; closure is rebuilt by projection apply.
+--   - Leaves derived closure cleanup to the governed projection transaction, which rebuilds closure rows per tenant.
 --   - No provider call, credential payload read, external write, secret read, or raw endpoint activation.
 -- Readback after apply:
 --   1. Existing canonical tenant container uses container_id 00000000-0000-4000-a000-00000000c001.
 --   2. No active relationship, role assignment, resource binding, graph node, or graph edge references
 --      70a55858-ded7-4cc5-af76-f3de11753b2d.
---   3. No closure row references the missing ID.
+--   3. Closure rows are rebuilt and verified by the subsequent governed projection apply.
 
 UPDATE `containers`
    SET `container_key` = 'tenant:00000000-0000-0000-0000-000000000000',
@@ -66,6 +66,3 @@ UPDATE `platform_graph_nodes`
     OR (`source_table` = 'containers'
         AND `source_pk` = '70a55858-ded7-4cc5-af76-f3de11753b2d');
 
-DELETE FROM `container_closure`
- WHERE `ancestor_container_id` = '70a55858-ded7-4cc5-af76-f3de11753b2d'
-    OR `descendant_container_id` = '70a55858-ded7-4cc5-af76-f3de11753b2d';
