@@ -1,0 +1,29 @@
+{
+  "spec_key": "009-platform-request-execution-hardening",
+  "status": "proposed",
+  "scope": [
+    "admin",
+    "tenant_user"
+  ],
+  "design_only": true,
+  "runtime_changes": false,
+  "database_migrations": false,
+  "deployment": false,
+  "merge": false,
+  "source_main_sha": "caa3c7c761829cdfbe31717c0a2bf793f454b9a2",
+  "branch": "gpt/platform-request-execution-hardening-spec-kit-20260712",
+  "deliverables": [
+    "spec",
+    "plan",
+    "tasks",
+    "openapi_contract",
+    "quickstart",
+    "integration_index"
+  ],
+  "constraints": [
+    "no_runtime_change",
+    "no_database_migration",
+    "no_deployment",
+    "no_merge"
+  ]
+}
