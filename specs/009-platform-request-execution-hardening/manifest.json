@@ -10,7 +10,7 @@
   "database_migrations": false,
   "deployment": false,
   "merge": false,
-  "source_main_sha": "ec58a3f07e210b06cf900daae558c24bfbd63071",
+  "source_main_sha": "c5fc5f3e59b75cdbeacccea902cb365907824217",
   "branch": "gpt/platform-request-execution-hardening-spec-kit-20260712",
   "deliverables": [
     "spec",
