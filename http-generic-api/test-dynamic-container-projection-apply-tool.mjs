@@ -172,6 +172,8 @@ await assert.rejects(
       if (text.includes("FROM container_role_assignments a")) return [[{ row_count: 0 }]];
       if (text.includes("FROM container_resource_bindings b")) return [[{ row_count: 0 }]];
       if (text.includes("FROM platform_graph_nodes n")) return [[{ row_count: 1 }]];
+      if (text.includes("FROM platform_graph_edges e")) return [[{ row_count: 0 }]];
+      if (text.includes("FROM container_closure closure_row")) return [[{ row_count: 0 }]];
       throw new Error(`Unexpected SQL in orphan readback test: ${text}`);
     },
   };
