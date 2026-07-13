@@ -11,7 +11,7 @@
   },
   "delivery": {
     "specification_pr": {
-      "number": null,
+      "number": 2579,
       "branch": "gpt/repo-driven-frontend-dispatch-20260713",
       "role": "specification_and_dispatch_foundation",
       "status": "current_pr"
@@ -44,7 +44,7 @@
       "developer_evidence": false,
       "cutover": false
     },
-    "ci": { "status": "pending" },
+    "ci": { "status": "action_required_workflow_approval" },
     "migration": { "status": "pending_admin_ui_session_ledger" },
     "production_verification": { "status": "pending" },
     "post_merge_audit": { "status": "pending" }
