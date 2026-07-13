@@ -564,8 +564,25 @@ export async function projectPlatformKnowledgeGraph({ projectionKey = "runtime_p
       });
     }
 
-    if (!dryRun) { await writePlatformGraphProjectionAtomically({ pool, nodes, edges });  }
-    const resultCounts = { nodes: nodes.size, edges: edges.size, dry_run: Boolean(dryRun), downgraded_runtime_enforced_edges: downgradedRuntimeEnforcedEdges };
+    const endpointInspection = inspectPlatformGraphEdgeEndpoints(nodes, edges);
+    if (!endpointInspection.ok) {
+      throw graphProjectionError(
+        "platform_graph_projection_missing_edge_endpoints",
+        "Graph projection contains edges whose endpoints are absent from the desired node set.",
+        endpointInspection
+      );
+    }
+    const writeReadback = dryRun
+      ? { ok: true, node_count: nodes.size, edge_count: edges.size, same_cycle_readback_verified: false }
+      : await writePlatformGraphProjectionAtomically({ pool, nodes, edges });
+    const resultCounts = {
+      nodes: nodes.size,
+      edges: edges.size,
+      dry_run: Boolean(dryRun),
+      downgraded_runtime_enforced_edges: downgradedRuntimeEnforcedEdges,
+      endpoint_preflight: endpointInspection,
+      write_readback: writeReadback,
+    };
     await pool.query(`UPDATE platform_graph_projection_runs SET status='completed', source_counts_json=?, result_counts_json=?, warnings_json=?, completed_at=NOW() WHERE run_id=?`, [safeJson(sourceCounts), safeJson(resultCounts), safeJson(warnings), runId]);
     return { ok: true, run_id: runId, source_counts: sourceCounts, result_counts: resultCounts, warnings };
   } catch (error) {
