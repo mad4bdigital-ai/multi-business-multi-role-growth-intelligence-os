@@ -109,6 +109,22 @@ function addEdge(edges, input) {
   return edge.edge_id;
 }
 
+export function addOptionalGraphEdgeWithExistingTarget({ nodes, edges, input, warnings, warning = {} }) {
+  const targetNodeId = normalize(input?.target_node_id);
+  if (!targetNodeId || !nodes?.has(targetNodeId)) {
+    warnings?.push({
+      code: "optional_graph_edge_target_missing",
+      target_node_id: targetNodeId || null,
+      source_node_id: input?.source_node_id || null,
+      source_table: input?.source_table || null,
+      source_pk: input?.source_pk || null,
+      ...warning,
+    });
+    return null;
+  }
+  return addEdge(edges, input);
+}
+
 function graphProjectionError(code, message, details = undefined) {
   const error = new Error(message);
   error.code = code;
