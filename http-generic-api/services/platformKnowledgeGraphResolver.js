@@ -569,7 +569,7 @@ export async function projectPlatformKnowledgeGraph({ projectionKey = "runtime_p
     await pool.query(`UPDATE platform_graph_projection_runs SET status='completed', source_counts_json=?, result_counts_json=?, warnings_json=?, completed_at=NOW() WHERE run_id=?`, [safeJson(sourceCounts), safeJson(resultCounts), safeJson(warnings), runId]);
     return { ok: true, run_id: runId, source_counts: sourceCounts, result_counts: resultCounts, warnings };
   } catch (error) {
-    await pool.query(`UPDATE platform_graph_projection_runs SET status='failed', error_json=?, completed_at=NOW() WHERE run_id=?`, [safeJson({ code: error.code || "projection_failed", message: error.message }), runId]);
+    await pool.query(`UPDATE platform_graph_projection_runs SET status='failed', error_json=?, completed_at=NOW() WHERE run_id=?`, [safeJson({ code: error.code || "projection_failed", message: error.message, details: error.details || null }), runId]);
     throw error;
   }
 }
