@@ -1177,7 +1177,12 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     };
   }
 
-  const executorGate = await loadHostingerSshExecutorGate(pool, targetId, env);
+  const executorGate = await loadHostingerSshExecutorGate(pool, {
+    targetId,
+    expectedCommitSha,
+    capabilityEnvelopeId: extractCapabilityEnvelopeId(input),
+    env,
+  });
   if (!executorGate.enabled) {
     const err = new Error(`Hostinger SSH executor is disabled. Set ${EXECUTOR_FLAG}=true or enable ${EXECUTOR_DB_FLAG_KEY} only after approval and deployment readiness.`);
     err.status = 403;
