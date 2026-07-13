@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "feature_key": "006-adaptive-authorization-execution-governance",
+  "task": "T050",
+  "required_categories": [
+    "unit",
+    "integration",
+    "tenant_isolation",
+    "replay",
+    "stale_revision",
+    "ambiguity",
+    "redaction"
+  ],
+  "evidence_contract": {
+    "manifest_hash": "sha256",
+    "revision_vector_hash": "sha256",
+    "request_shape_hash": "sha256",
+    "counts": [
+      "executed",
+      "passed",
+      "failed",
+      "skipped"
+    ],
+    "sensitive_data_scan": "required",
+    "skipped_tests_count_as_pass": false
+  },
+  "safety": {
+    "provider_execution_allowed": false,
+    "external_write_allowed": false,
+    "migration_execution_allowed": false,
+    "canary_activation_allowed": false,
+    "route_removal_allowed": false,
+    "enforcement_cutover_allowed": false,
+    "secrets_included": false
+  },
+  "tests": [
+    {
+      "id": "t040-shadow-pilot-parity",
+      "script": "test-platform-shadow-pilot-parity-kernel.mjs",
+      "categories": [
+        "integration",
+        "tenant_isolation"
+      ]
+    },
+    {
+      "id": "t041-shadow-mismatch-classification",
+      "script": "test-platform-shadow-mismatch-classification-kernel.mjs",
+      "categories": [
+        "unit",
+        "ambiguity"
+      ]
+    },
+    {
+      "id": "t042-parity-threshold-approval",
+      "script": "test-platform-parity-threshold-approval-kernel.mjs",
+      "categories": [
+        "replay",
+        "stale_revision"
+      ]
+    },
+    {
+      "id": "t043-legacy-compatibility-wrapper",
+      "script": "test-platform-legacy-capability-compatibility-wrapper-kernel.mjs",
+      "categories": [
+        "integration",
+        "ambiguity",
+        "redaction"
+      ]
+    },
+    {
+      "id": "t050-verification-manifest-contract",
+      "script": "test-adaptive-authorization-verification-manifest.mjs",
+      "categories": [
+        "unit",
+        "integration"
+      ]
+    },
+    {
+      "id": "github-rerun-response-schema-alignment",
+      "script": "test-github-rerun-workflow-response-schema-alignment.mjs",
+      "categories": [
+        "unit",
+        "integration"
+      ]
+    }
+  ]
+}
