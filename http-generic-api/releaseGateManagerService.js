@@ -221,11 +221,12 @@ async function validateEnvelope(connection, envelopeId, { adapter, operation, ta
   );
   const envelope = rows[0];
   if (!envelope) fail("release_gate_envelope_not_found", "Capability resolution envelope was not found.", 404);
-  if (envelope.envelope_status !== "ready_for_dispatch" || envelope.approval_hold_status !== "approved") {
-    fail("release_gate_envelope_not_approved", "Capability resolution envelope is not approved and ready for dispatch.", 403);
+  const lifecycle = classifyCapabilityEnvelopeForReleaseGate(envelope, { requireApproval: true });
+  if (lifecycle.reasons.includes("envelope_expired")) {
+    fail("release_gate_envelope_expired", "Capability resolution envelope has expired.", 403, lifecycle);
   }
-  if (envelope.expires_at && new Date(envelope.expires_at) <= new Date()) {
-    fail("release_gate_envelope_expired", "Capability resolution envelope has expired.", 403);
+  if (lifecycle.status !== "ready") {
+    fail("release_gate_envelope_not_approved", "Capability resolution envelope is not approved and ready for dispatch.", 403, lifecycle);
   }
   const acceptedAppKeys = Array.isArray(adapter.accepted_app_keys_json) ? adapter.accepted_app_keys_json : [adapter.app_key];
   if (!acceptedAppKeys.includes(envelope.app_key) || !acceptedAppKeys.includes(appKey)) {
@@ -234,7 +235,7 @@ async function validateEnvelope(connection, envelopeId, { adapter, operation, ta
   if (adapter.capability_key && envelope.capability_key !== adapter.capability_key) {
     fail("release_gate_envelope_capability_mismatch", "Envelope capability_key does not match the release gate adapter.", 409);
   }
-  if (envelope.expected_commit_sha && String(envelope.expected_commit_sha).toLowerCase() !== expectedCommitSha) {
+  if (lifecycle.expected_commit_sha && lifecycle.expected_commit_sha !== expectedCommitSha) {
     fail("release_gate_envelope_commit_mismatch", "Envelope expected commit does not match the release gate request.", 409);
   }
   if (target.tenant_id && envelope.tenant_id && String(target.tenant_id) !== String(envelope.tenant_id)) {
