@@ -459,7 +459,12 @@ export async function reconcileReleaseGates(input = {}) {
   const limit = boundedInt(input.limit, 50, 1, 200);
   const [rows] = await pool.query(
     `SELECT g.*, o.current_status AS operation_status,
-            e.envelope_status, e.approval_hold_status, e.expires_at AS envelope_expires_at
+            e.envelope_status, e.decision AS envelope_decision,
+            e.authority_status AS envelope_authority_status,
+            e.dispatch_allowed AS envelope_dispatch_allowed,
+            e.blocking_gap_count AS envelope_blocking_gap_count,
+            e.execution_status AS envelope_execution_status,
+            e.envelope_json, e.expires_at AS envelope_expires_at
        FROM release_gates g
        LEFT JOIN release_operations o ON o.operation_id = g.operation_id
        LEFT JOIN capability_resolution_envelope_ledger e ON e.envelope_id = g.capability_envelope_id
@@ -475,10 +480,20 @@ export async function reconcileReleaseGates(input = {}) {
     if (!row.operation_status) reasons.push("operation_missing");
     else if (TERMINAL_OPERATION_STATUSES.has(row.operation_status)) reasons.push("operation_terminal");
     if (!row.envelope_status) reasons.push("envelope_missing");
-    else if (row.envelope_status !== "ready_for_dispatch") reasons.push("envelope_not_ready");
-    if (row.approval_hold_status !== "approved") reasons.push("approval_not_active");
-    if (row.envelope_expires_at && new Date(row.envelope_expires_at) <= now) reasons.push("envelope_expired");
-    return { gate_id: row.gate_id, action: reasons.length ? "hard_disable" : "none", reasons, secrets_included: false };
+    else {
+      const lifecycle = classifyCapabilityEnvelopeForReleaseGate({
+        envelope_status: row.envelope_status,
+        decision: row.envelope_decision,
+        authority_status: row.envelope_authority_status,
+        dispatch_allowed: row.envelope_dispatch_allowed,
+        blocking_gap_count: row.envelope_blocking_gap_count,
+        execution_status: row.envelope_execution_status,
+        envelope_json: row.envelope_json,
+        expires_at: row.envelope_expires_at,
+      }, { now, requireApproval: true });
+      reasons.push(...lifecycle.reasons);
+    }
+    return { gate_id: row.gate_id, action: reasons.length ? "hard_disable" : "none", reasons: [...new Set(reasons)], secrets_included: false };
   }).filter((item) => item.action !== "none");
   const applied = [];
   if (!dryRun) {
