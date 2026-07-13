@@ -164,8 +164,79 @@ async function loadHostingerSshProbeGate(pool, targetId, env = process.env) {
   return await loadHostingerSshGate(pool, { targetId, env, envFlag: PROBE_FLAG, dbKey: PROBE_DB_FLAG_KEY });
 }
 
-async function loadHostingerSshExecutorGate(pool, targetId, env = process.env) {
-  return await loadHostingerSshGate(pool, { targetId, env, envFlag: EXECUTOR_FLAG, dbKey: EXECUTOR_DB_FLAG_KEY });
+export async function loadHostingerSshExecutorGate(pool, {
+  targetId,
+  expectedCommitSha,
+  capabilityEnvelopeId,
+  env = process.env,
+} = {}) {
+  const normalizedTargetId = compact(targetId, 64);
+  const normalizedCommitSha = compact(expectedCommitSha, 64).toLowerCase();
+  const normalizedEnvelopeId = compact(capabilityEnvelopeId, 64);
+  const dynamicRows = await safeQuery(
+    pool,
+    `SELECT g.gate_id, g.operation_id, g.target_id, g.expected_commit_sha,
+            g.capability_envelope_id, g.expires_at, g.status,
+            o.current_status AS operation_status
+       FROM release_gates g
+       LEFT JOIN release_operations o ON o.operation_id = g.operation_id
+      WHERE g.adapter_key = 'hostinger_ssh_executor'
+        AND g.target_id = ?
+        AND g.status = 'open'
+      ORDER BY g.opened_at DESC
+      LIMIT 1`,
+    [normalizedTargetId]
+  );
+  const dynamicGate = dynamicRows[0];
+  if (dynamicGate) {
+    const expiresAt = compact(dynamicGate.expires_at || "", 64);
+    const expiresAtMs = expiresAt ? Date.parse(expiresAt) : NaN;
+    const notExpired = Boolean(expiresAt) && !Number.isNaN(expiresAtMs) && expiresAtMs > Date.now();
+    const commitMatches = Boolean(normalizedCommitSha)
+      && String(dynamicGate.expected_commit_sha || "").toLowerCase() === normalizedCommitSha;
+    const envelopeMatches = Boolean(normalizedEnvelopeId)
+      && String(dynamicGate.capability_envelope_id || "") === normalizedEnvelopeId;
+    const operationActive = [
+      "ready_for_execution",
+      "deploy_started",
+      "executing",
+      "restart_in_progress",
+      "readback_pending",
+    ].includes(String(dynamicGate.operation_status || ""));
+    return {
+      enabled: dynamicGate.status === "open" && notExpired && commitMatches && envelopeMatches && operationActive,
+      source: "release_gates",
+      key: dynamicGate.gate_id,
+      gate_id: dynamicGate.gate_id,
+      operation_id: dynamicGate.operation_id,
+      target_allowed: String(dynamicGate.target_id || "") === normalizedTargetId,
+      commit_matches: commitMatches,
+      envelope_matches: envelopeMatches,
+      operation_status: dynamicGate.operation_status || null,
+      operation_active: operationActive,
+      expires_at: expiresAt || null,
+      expired: !notExpired,
+      reason: dynamicGate.status !== "open"
+        ? "dynamic_gate_not_open"
+        : !notExpired
+          ? "dynamic_gate_expired"
+          : !commitMatches
+            ? "dynamic_gate_commit_mismatch"
+            : !envelopeMatches
+              ? "dynamic_gate_envelope_mismatch"
+              : !operationActive
+                ? "dynamic_gate_operation_not_active"
+                : "enabled",
+      secrets_included: false,
+    };
+  }
+  const legacyGate = await loadHostingerSshGate(pool, {
+    targetId: normalizedTargetId,
+    env,
+    envFlag: EXECUTOR_FLAG,
+    dbKey: EXECUTOR_DB_FLAG_KEY,
+  });
+  return { ...legacyGate, legacy_fallback: true, secrets_included: false };
 }
 
 async function loadTarget(pool, targetId) {
@@ -575,7 +646,15 @@ function buildRemoteProbeScript({ appPath, expectedCommitSha }) {
     "echo \"git_branch=$(git rev-parse --abbrev-ref HEAD)\"",
     "echo \"worktree_status_count=$(git status --short | wc -l | tr -d ' ')\"",
     "test -f package.json",
-    "test -d routes",
+    "if [ -d http-generic-api/routes ]; then echo \"routes_path=http-generic-api/routes\"; elif [ -d routes ]; then echo \"routes_path=routes\"; else echo \"routes_path=missing\"; exit 31; fi",
+    "if [ -f http-generic-api/server.js ]; then echo \"entrypoint_path=http-generic-api/server.js\"; elif [ -f server.js ]; then echo \"entrypoint_path=server.js\"; else echo \"entrypoint_path=missing\"; exit 32; fi",
+    "echo \"node_version=$(node --version 2>/dev/null || echo unavailable)\"",
+    "if command -v pgrep >/dev/null 2>&1; then uid=$(id -u); echo \"node_process_count=$(pgrep -u \"$uid\" -f 'node|passenger' 2>/dev/null | wc -l | tr -d ' ')\"; else echo \"node_process_count=unknown\"; fi",
+    "if command -v ss >/dev/null 2>&1; then echo \"listening_tcp_count=$(ss -ltn 2>/dev/null | tail -n +2 | wc -l | tr -d ' ')\"; else echo \"listening_tcp_count=unknown\"; fi",
+    "if [ -f tmp/restart.txt ]; then echo \"restart_marker_mtime=$(date -r tmp/restart.txt -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo unknown)\"; else echo \"restart_marker_mtime=missing\"; fi",
+    "startup_log=none; for candidate in console.log http-generic-api/console.log stderr.log http-generic-api/stderr.log; do if [ -f \"$candidate\" ]; then startup_log=\"$candidate\"; break; fi; done; echo \"startup_log=$startup_log\"",
+    "if [ \"$startup_log\" != \"none\" ]; then echo \"startup_log_size=$(wc -c < \"$startup_log\" | tr -d ' ')\"; else echo \"startup_log_size=0\"; fi",
+    "if [ \"$startup_log\" != \"none\" ]; then startup_error_signature=$(tail -n 200 \"$startup_log\" | grep -Eo 'EADDRINUSE|MODULE_NOT_FOUND|Cannot find|SyntaxError|ReferenceError|TypeError|Unhandled|uncaught|ECONNREFUSED|Error|Exception|listen' | tail -n 1 || true); if [ -n \"$startup_error_signature\" ]; then echo \"startup_error_signature=$startup_error_signature\"; else echo \"startup_error_signature=none\"; fi; else echo \"startup_error_signature=none\"; fi",
     expectedCheck,
     "echo \"probe_result=ok\"",
   ].join(" && ");
@@ -1098,7 +1177,12 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     };
   }
 
-  const executorGate = await loadHostingerSshExecutorGate(pool, targetId, env);
+  const executorGate = await loadHostingerSshExecutorGate(pool, {
+    targetId,
+    expectedCommitSha,
+    capabilityEnvelopeId: extractCapabilityEnvelopeId(input),
+    env,
+  });
   if (!executorGate.enabled) {
     const err = new Error(`Hostinger SSH executor is disabled. Set ${EXECUTOR_FLAG}=true or enable ${EXECUTOR_DB_FLAG_KEY} only after approval and deployment readiness.`);
     err.status = 403;

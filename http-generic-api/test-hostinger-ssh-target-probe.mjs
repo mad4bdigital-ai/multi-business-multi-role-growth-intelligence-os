@@ -13,6 +13,13 @@ const end = executor.indexOf(endMarker, start);
 assert(start >= 0, "executor must export executeHostingerSshTargetProbe");
 assert(end > start, "probe block must be separate from deploy executor block");
 const probeBlock = executor.slice(start, end);
+const probeScriptStartMarker = "function buildRemoteProbeScript";
+const probeScriptEndMarker = "function parseProbeOutput";
+const probeScriptStart = executor.indexOf(probeScriptStartMarker);
+const probeScriptEnd = executor.indexOf(probeScriptEndMarker, probeScriptStart);
+assert(probeScriptStart >= 0, "executor must define buildRemoteProbeScript");
+assert(probeScriptEnd > probeScriptStart, "probe script block must end before parseProbeOutput");
+const probeScriptBlock = executor.slice(probeScriptStart, probeScriptEnd);
 
 assert(executor.includes("REMOTE_RUNTIME_HOSTINGER_SSH_PROBE_ENABLED"), "actual SSH probe must be behind an explicit feature flag");
 assert(executor.includes("remote_runtime_hostinger_ssh_probe_enabled"), "probe must support governed DB-backed execution gate for stateless runtimes");
@@ -57,6 +64,15 @@ assert(!probeBlock.includes("git fetch"), "probe must not fetch remote git data"
 assert(!probeBlock.includes("git checkout"), "probe must not checkout or mutate repo state");
 assert(!probeBlock.includes("touch tmp/restart.txt"), "probe must not restart the app");
 assert(!probeBlock.includes("rm -rf"), "probe must not run destructive shell commands");
+assert(probeScriptBlock.includes("routes_path=http-generic-api/routes"), "probe must recognize the repository's actual routes directory");
+assert(probeScriptBlock.includes("entrypoint_path=http-generic-api/server.js"), "probe must validate the production entrypoint path");
+assert(probeScriptBlock.includes("node_process_count="), "probe must report bounded Node or Passenger process evidence");
+assert(probeScriptBlock.includes("listening_tcp_count="), "probe must report bounded listening socket evidence when available");
+assert(probeScriptBlock.includes("restart_marker_mtime="), "probe must report restart marker evidence without mutating it");
+assert(probeScriptBlock.includes("startup_log_size="), "probe must report only bounded startup log metadata");
+assert(probeScriptBlock.includes("startup_error_signature="), "probe must report a classified startup error signature");
+assert(!probeScriptBlock.includes("cat $startup_log"), "probe must never emit full startup log content");
+assert(!probeScriptBlock.includes("tail -n 200 \"$startup_log\" | head"), "probe must not return raw startup log lines");
 
 assert(routes.includes("executeHostingerSshTargetProbe"), "platform routes must import target probe executor");
 assert(routes.includes('/platform/remote-runtime/hosting/ssh-probe'), "platform routes must expose SSH probe path");
