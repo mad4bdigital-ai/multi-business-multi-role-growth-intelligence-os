@@ -18,6 +18,17 @@ function activeValue(value) {
   return new Set(["active","ready","enabled","true","1","yes"]).has(String(value ?? "").trim().toLowerCase());
 }
 
+const GOVERNED_SANDBOX_FIXTURE_ALLOWLIST = new Set([
+  "activation_authorized_access_tenant_smoke",
+]);
+
+function governedSandboxFixture(workspace) {
+  if (String(workspace?.workspace_type || "").trim().toLowerCase() !== "sandbox") return null;
+  const config = parseJson(workspace?.config_json, {});
+  const fixture = String(config?.fixture || "").trim();
+  return GOVERNED_SANDBOX_FIXTURE_ALLOWLIST.has(fixture) ? fixture : null;
+}
+
 function roleTemplateFor(value) {
   const role = String(value || "").toLowerCase();
   if (["owner","platform_owner"].includes(role)) return role === "platform_owner" ? "platform_owner" : "container_admin";
