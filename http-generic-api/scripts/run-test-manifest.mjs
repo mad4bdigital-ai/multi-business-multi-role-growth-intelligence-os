@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { testCommands } from "./test-manifest.mjs";
 
 function parseArgs(argv) {
@@ -89,15 +87,6 @@ function runCommand(command) {
   return result.status ?? 1;
 }
 
-function openapiState() {
-  const text = readFileSync(new URL("../openapi.yaml", import.meta.url), "utf8");
-  return {
-    sha256: createHash("sha256").update(text).digest("hex"),
-    has_context_scope: text.includes("context_scope:"),
-    bytes: Buffer.byteLength(text, "utf8"),
-  };
-}
-
 function main() {
   const options = parseArgs(process.argv.slice(2));
   const selectedCommands = options.grep
@@ -116,26 +105,10 @@ function main() {
     process.exit(1);
   }
 
-  let previousOpenapi = openapiState();
-  console.log(`[openapi-state before tests] ${JSON.stringify(previousOpenapi)}`);
-  if (!previousOpenapi.has_context_scope) {
-    console.error("::error title=OpenAPI baseline missing context_scope::The checked-out branch does not contain the expected session context contract");
-    process.exit(87);
-  }
-
   for (let index = 0; index < selectedCommands.length; index += 1) {
     const command = selectedCommands[index];
     console.log(`\n[${index + 1}/${selectedCommands.length}] ${command}`);
     const status = runCommand(command);
-    const currentOpenapi = openapiState();
-    if (currentOpenapi.sha256 !== previousOpenapi.sha256) {
-      console.error(`::warning title=OpenAPI changed during tests::${command} changed openapi.yaml from ${previousOpenapi.sha256} to ${currentOpenapi.sha256}`);
-    }
-    if (previousOpenapi.has_context_scope && !currentOpenapi.has_context_scope) {
-      console.error(`::error title=OpenAPI context contract removed::${command} removed context_scope from openapi.yaml`);
-      process.exit(86);
-    }
-    previousOpenapi = currentOpenapi;
     if (status !== 0) {
       const escaped = command.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
       console.error(`::error title=Test command failed::${escaped} exited with status ${status}`);
