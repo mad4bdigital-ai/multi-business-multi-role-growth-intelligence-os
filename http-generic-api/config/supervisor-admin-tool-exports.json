@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "group": "supervisor_admin_shell_exports",
+  "alias_file": "routes/adminCliRoutes.js",
+  "package_file": "package.json",
+  "test_manifest": "scripts/test-manifest.mjs",
+  "tools": [
+    {
+      "tool_key": "supervisor_runtime_readiness",
+      "alias": "supervisor_runtime_readiness",
+      "script": "scripts/supervisor-runtime-readiness.mjs",
+      "alias_arg": "http-generic-api/scripts/supervisor-runtime-readiness.mjs",
+      "migration": "migrations/20260711_supervisor_runtime_admin_tool_exports.sql",
+      "max_extra_args": 1,
+      "npm_script": "supervisor:readiness",
+      "mode": "read_only"
+    },
+    {
+      "tool_key": "supervisor_behavioral_certification",
+      "alias": "supervisor_behavioral_certification",
+      "script": "scripts/supervisor-behavioral-certification.mjs",
+      "alias_arg": "http-generic-api/scripts/supervisor-behavioral-certification.mjs",
+      "migration": "migrations/20260711_supervisor_runtime_admin_tool_exports.sql",
+      "max_extra_args": 2,
+      "npm_script": "supervisor:certify",
+      "apply_confirmation": "APPLY_SUPERVISOR_BEHAVIORAL_CERTIFICATION",
+      "mode": "transaction_rollback"
+    },
+    {
+      "tool_key": "supervisor_causal_provider_certification",
+      "alias": "supervisor_causal_provider_certification",
+      "script": "scripts/supervisor-causal-provider-certification.mjs",
+      "alias_arg": "http-generic-api/scripts/supervisor-causal-provider-certification.mjs",
+      "migration": "migrations/1008_sprint69_supervisor_causal_provider_certification_tool.sql",
+      "max_extra_args": 3,
+      "apply_confirmation": "CERTIFY_SUPERVISOR_CAUSAL_PROVIDER_LANE",
+      "mode": "bounded_provider_certification"
+    }
+  ]
+}
