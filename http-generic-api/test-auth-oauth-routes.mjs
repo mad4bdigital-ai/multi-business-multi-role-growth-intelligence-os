@@ -14,6 +14,7 @@ import jwt from "jsonwebtoken";
 import { readFileSync } from "node:fs";
 
 const { buildAuthRoutes } = await import("./routes/authRoutes.js");
+const { buildActivationHostGatewayRoutes } = await import("./routes/activationHostGatewayRoutes.js");
 
 const TENANT_SCOPE_LINKS = [
   "https://auth.mad4b.com/scopes/tenant.links",
@@ -59,19 +60,19 @@ async function readJson(response) {
   }
 }
 
-async function postJson(baseUrl, path, body) {
+async function postJson(baseUrl, path, body, { headers = {} } = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify(body),
   });
   return { status: response.status, body: await readJson(response) };
 }
 
-async function postForm(baseUrl, path, body) {
+async function postForm(baseUrl, path, body, { headers = {} } = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
+    headers: { "content-type": "application/x-www-form-urlencoded", ...headers },
     body: new URLSearchParams(body).toString(),
   });
   return { status: response.status, body: await readJson(response) };
@@ -89,6 +90,7 @@ async function getText(baseUrl, path, { headers = {} } = {}) {
 
 const oauthTokenDiagnostics = [];
 const tenantGptActivationContexts = [];
+const oauthCredentialRequests = [];
 
 const oauthClientPool = {
   async query(sql, params) {
@@ -146,7 +148,25 @@ const oauthClientPool = {
 
 const app = express();
 app.use(express.json());
-app.use("/auth", buildAuthRoutes({ getPool: () => oauthClientPool }));
+app.use(buildActivationHostGatewayRoutes());
+app.use("/auth", buildAuthRoutes({
+  getPool: () => oauthClientPool,
+  async resolveTenantGptOAuthCredential(credential) {
+    oauthCredentialRequests.push({
+      kind: credential?.kind || null,
+      email: credential?.email || null,
+      password_present: Boolean(credential?.password),
+    });
+    if (credential?.kind !== "login" || credential?.email !== "user@example.com") return null;
+    return {
+      user_id: "user-1",
+      email: "user@example.com",
+      display_name: "User One",
+      tenant_id: "tenant-1",
+      memberships: [{ tenant_id: "tenant-1", role: "owner", status: "active" }],
+    };
+  },
+}));
 
 const { server, baseUrl } = await startServer(app);
 
@@ -159,8 +179,12 @@ try {
   section("authorize popup");
 
   {
-    const result = await getText(baseUrl, `/auth/oauth/authorize?redirect_uri=${encodedRedirect}&state=${state}&scope=${encodeURIComponent(TENANT_SCOPE)}&screen_hint=signup&activation_mode=managed&device_id=my-laptop&workspace_name=Acme%20Growth&sign_in_options=google,email,register`);
-    assert("authorize returns html", result.status === 200, `${result.status}`);
+    const result = await getText(
+      baseUrl,
+      `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&redirect_uri=${encodedRedirect}&state=${state}&scope=${encodeURIComponent(TENANT_SCOPE)}&screen_hint=signup&activation_mode=managed&device_id=my-laptop&workspace_name=Acme%20Growth&sign_in_options=google,email,register`,
+      { headers: { "x-forwarded-host": "activation.mad4b.com" } },
+    );
+    assert("activation host authorize reaches shared auth route", result.status === 200, `${result.status}`);
     assert("authorize is not cacheable", result.cacheControl.includes("no-store"), result.cacheControl);
     assert("authorize includes app name", result.text.includes("Growth Intelligence Platform"));
     assert("authorize renders Google Sign-In", result.text.includes("accounts.google.com/gsi/client"));
@@ -170,10 +194,17 @@ try {
     assert("authorize carries requested OAuth scope", result.text.includes(TENANT_SCOPE));
     assert("authorize carries device id", result.text.includes('"device_id":"my-laptop"'));
     assert("authorize preselects signup panel", result.text.includes('const INITIAL_PANEL = "register"'));
-    assert("authorize includes privacy policy link", result.text.includes('href="/privacy-policy"'));
+    assert("authorize setup link always targets auth host", result.text.includes('href="https://auth.mad4b.com/connect"'));
+    assert("authorize privacy link always targets auth host", result.text.includes('href="https://auth.mad4b.com/privacy-policy"'));
+    assert("authorize terms link always targets auth host", result.text.includes('href="https://auth.mad4b.com/terms-of-use"'));
+    assert("authorize does not emit activation-host setup link", !result.text.includes('href="/connect"'));
     assert("authorize includes configured Google client", result.text.includes(process.env.GOOGLE_CLIENT_ID));
     assert("authorize preserves requested ChatGPT callback", result.text.includes(redirectUri));
     assert("authorize does not rewrite callback before ChatGPT state validation", !result.text.includes('const REDIRECT_URI = "https://chatgpt.com'));
+    assert("authorize popup submits every identity mode through OAuth code endpoint", result.text.includes('fetch("/auth/oauth/code"'));
+    assert("authorize popup does not call broad login route", !result.text.includes('fetch("/auth/login"'));
+    assert("authorize popup does not call broad registration route", !result.text.includes('fetch("/auth/register"'));
+    assert("authorize popup does not call broad Google auth route", !result.text.includes('fetch("/auth/google"'));
     assert("authorize leaves GIS button locale automatic", !/locale\s*:\s*["'][^"']+["']/.test(result.text));
     assert("authorize does not force a GSI hl parameter", !result.text.includes("gsi/client?hl="));
   }
@@ -181,7 +212,7 @@ try {
   {
     const result = await getText(
       baseUrl,
-      `/auth/oauth/authorize?redirect_uri=${encodedRedirect}&state=${state}&language=ar-EG`,
+      `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&redirect_uri=${encodedRedirect}&state=${state}&language=ar-EG`,
       { headers: { "accept-language": "ar-EG,ar;q=0.9,en;q=0.8" } }
     );
     assert("Arabic browser language still returns authorize html", result.status === 200, `${result.status}`);
@@ -201,13 +232,23 @@ try {
   }
 
   {
-    const result = await getText(baseUrl, "/auth/oauth/authorize?redirect_uri=file%3A%2F%2Fbad");
+    const result = await getText(baseUrl, `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&state=${state}&redirect_uri=file%3A%2F%2Fbad`);
     assert("authorize rejects unsafe redirect scheme", result.status === 400, `${result.status}`);
   }
 
   {
-    const result = await getText(baseUrl, "/auth/oauth/authorize?redirect_uri=https%3A%2F%2Fevil.example%2Faip%2Fg-bad%2Foauth%2Fcallback");
+    const result = await getText(baseUrl, `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&state=${state}&redirect_uri=https%3A%2F%2Fevil.example%2Faip%2Fg-bad%2Foauth%2Fcallback`);
     assert("authorize rejects unapproved redirect host", result.status === 400, `${result.status}`);
+  }
+
+  {
+    const result = await getText(baseUrl, `/auth/oauth/authorize?client_id=other-client&response_type=code&state=${state}&redirect_uri=${encodedRedirect}`);
+    assert("authorize rejects non-Tenant-GPT client", result.status === 400, `${result.status}`);
+  }
+
+  {
+    const result = await getText(baseUrl, `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&redirect_uri=${encodedRedirect}`);
+    assert("authorize requires state before rendering popup", result.status === 400, `${result.status}`);
   }
 
   section("code issuance and token exchange");
@@ -234,13 +275,24 @@ try {
   assert("code response preserves activation mode", codeResult.body.activation_context?.activation_mode === "dedicated", JSON.stringify(codeResult.body.activation_context));
   assert("code response preserves sign-in options", Array.isArray(codeResult.body.activation_context?.sign_in_options) && codeResult.body.activation_context.sign_in_options.includes("email"), JSON.stringify(codeResult.body.activation_context));
 
+  const credentialCodeResult = await postJson(baseUrl, "/auth/oauth/code", {
+    credential: { kind: "login", email: "user@example.com", password: "not-logged" },
+    redirect_uri: redirectUri,
+    state: "credential-state",
+    scope: TENANT_SCOPE,
+    activation_context: activationContext,
+  }, { headers: { "x-forwarded-host": "activation.mad4b.com" } });
+  assert("activation host routes popup credentials into shared OAuth code logic", credentialCodeResult.status === 200, `${credentialCodeResult.status}`);
+  assert("credential code preserves OAuth state", String(credentialCodeResult.body.redirect_to || "").includes("state=credential-state"), credentialCodeResult.body.redirect_to);
+  assert("credential resolver receives the selected popup mode", oauthCredentialRequests[0]?.kind === "login", JSON.stringify(oauthCredentialRequests));
+
   const invalidClient = await postForm(baseUrl, "/auth/oauth/token", {
     grant_type: "authorization_code",
     code: codeResult.body.code,
     redirect_uri: redirectUri,
     client_id: "mad4b-tenant-gpt",
     client_secret: "wrong-secret",
-  });
+  }, { headers: { "x-forwarded-host": "activation.mad4b.com" } });
   assert("token endpoint rejects wrong OAuth client secret", invalidClient.status === 401, `${invalidClient.status}`);
   assert("wrong OAuth client secret reports invalid_client", invalidClient.body.error === "invalid_client", JSON.stringify(invalidClient.body));
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -258,16 +310,16 @@ try {
     redirect_uri: redirectUri,
     client_id: "mad4b-tenant-gpt",
     client_secret: "test-client-secret",
-  });
+  }, { headers: { "x-forwarded-host": "activation.mad4b.com" } });
   assert("token endpoint exchanges authorization code", exchange.status === 200, `${exchange.status}`);
-  assert("token endpoint returns bearer token", exchange.body.token_type === "Bearer", JSON.stringify(exchange.body));
+  assert("token endpoint returns lowercase bearer token type", exchange.body.token_type === "bearer", JSON.stringify(exchange.body));
   assert("token endpoint mints a fresh access JWT", exchange.body.access_token !== userToken && typeof exchange.body.access_token === "string", JSON.stringify(exchange.body));
   assert("token endpoint returns standard OAuth scope", exchange.body.scope === TENANT_SCOPE, JSON.stringify(exchange.body));
   assert("token endpoint excludes non-standard activation context", !Object.prototype.hasOwnProperty.call(exchange.body, "activation_context"), JSON.stringify(exchange.body));
   await new Promise((resolve) => setTimeout(resolve, 0));
   const successDiagnostic = oauthTokenDiagnostics.find((row) => row.execution_status === "success");
   assert("success token exchange writes diagnostic", Boolean(successDiagnostic), JSON.stringify(oauthTokenDiagnostics));
-  assert("success diagnostic captures token type", successDiagnostic?.runtime_evidence_json?.access_token?.token_type === "Bearer", JSON.stringify(successDiagnostic));
+  assert("success diagnostic captures lowercase token type", successDiagnostic?.runtime_evidence_json?.access_token?.token_type === "bearer", JSON.stringify(successDiagnostic));
   assert("success diagnostic captures token length only", successDiagnostic?.runtime_evidence_json?.access_token?.length === exchange.body.access_token.length, JSON.stringify(successDiagnostic));
   assert("success diagnostic captures activation context storage only", successDiagnostic?.runtime_evidence_json?.activation_context?.stored === true, JSON.stringify(successDiagnostic));
   assert("success diagnostic captures requested scope count only", successDiagnostic?.runtime_evidence_json?.requested_scope?.count === TENANT_SCOPE_LINKS.length, JSON.stringify(successDiagnostic));
@@ -297,6 +349,20 @@ try {
   });
   assert("token endpoint rejects redirect mismatch", mismatch.status === 400, `${mismatch.status}`);
   assert("redirect mismatch reports invalid_grant", mismatch.body.error === "invalid_grant", JSON.stringify(mismatch.body));
+
+  for (const path of ["/auth/login", "/auth/register", "/auth/google", "/auth/platform-jwt/issue", "/auth/oauth/revoke"]) {
+    const blocked = await postJson(baseUrl, path, {}, { headers: { "x-forwarded-host": "activation.mad4b.com" } });
+    assert(`activation host blocks unrelated auth route ${path}`, blocked.status === 404, `${blocked.status}`);
+    assert(`activation host returns explicit boundary error for ${path}`, blocked.body.error?.code === "ACTIVATION_HOST_ROUTE_NOT_ALLOWED", JSON.stringify(blocked.body));
+  }
+
+  {
+    const blocked = await postJson(baseUrl, "/auth/login", {}, {
+      headers: { "x-original-host": "activation.mad4b.com", "x-forwarded-host": "auth.mad4b.com" },
+    });
+    assert("activation host evidence cannot be bypassed by spoofing auth forwarded host", blocked.status === 404, `${blocked.status}`);
+    assert("spoofed forwarded host still returns the activation boundary error", blocked.body.error?.code === "ACTIVATION_HOST_ROUTE_NOT_ALLOWED", JSON.stringify(blocked.body));
+  }
 
   section("platform JWT client");
 

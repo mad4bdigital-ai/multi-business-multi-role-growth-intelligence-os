@@ -32,7 +32,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          RUNS_JSON=$(gh api "/repos/${REPO}/actions/workflows/ci.yml/runs" \
+          RUNS_JSON=$(gh api --method GET "/repos/${REPO}/actions/workflows/ci.yml/runs" \
             -f head_sha="${HEAD_SHA}" \
             -f per_page=10)
           RUN_COUNT=$(node -e '

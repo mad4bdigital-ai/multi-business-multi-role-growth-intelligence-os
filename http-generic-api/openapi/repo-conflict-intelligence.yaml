@@ -116,6 +116,35 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /admin/repo-conflict-intelligence/tenant-readiness-smoke:
+    post:
+      tags: [repo-conflict-intelligence-admin]
+      operationId: smokeTenantRepositoryConflictReadiness
+      summary: Validate tenant-safe conflict logic and registry readiness without bypassing JWT authentication
+      description: >-
+        Runs bounded tenant-safe projections and validates the three TENANT registry tools. The response
+        reports authorization_gated when no real Tenant JWT transport probe has been performed. This
+        diagnostic does not issue credentials, bypass authentication, mutate Git, or call providers.
+      security: [{ backendApiKey: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sample_input: { $ref: '#/components/schemas/ConflictInput' }
+              additionalProperties: false
+      responses:
+        '200':
+          description: Tenant logic and registry readiness report with explicit transport-auth status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TenantReadinessReport' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /me/repo-conflict-intelligence/analyze:
     post:
       tags: [repo-conflict-intelligence-tenant]
@@ -201,6 +230,40 @@ components:
         operations: { type: array, items: { type: object, additionalProperties: true } }
         secrets_included: { type: boolean, const: false }
       additionalProperties: true
+    TenantReadinessReport:
+      type: object
+      required:
+        - ok
+        - status
+        - logic_readiness
+        - registry_readiness
+        - transport_auth
+        - checks
+        - execution_allowed
+        - provider_write
+        - secrets_included
+      properties:
+        ok: { type: boolean, const: true }
+        readiness_id: { type: string }
+        status: { type: string, enum: [authorization_gated, degraded] }
+        logic_readiness: { type: string, enum: [ready, degraded] }
+        registry_readiness: { type: string, enum: [ready, degraded] }
+        transport_auth:
+          type: object
+          required: [status, reason, live_user_jwt_tested, auth_bypass_attempted]
+          properties:
+            status: { type: string, const: authorization_gated }
+            reason: { type: string, const: tenant_user_jwt_required_for_live_transport_probe }
+            live_user_jwt_tested: { type: boolean, const: false }
+            auth_bypass_attempted: { type: boolean, const: false }
+          additionalProperties: false
+        checks: { type: object, additionalProperties: { type: boolean } }
+        required_tools: { type: array, items: { type: object, additionalProperties: true } }
+        projections: { type: object, additionalProperties: true }
+        execution_allowed: { type: boolean, const: false }
+        provider_write: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: true
     ErrorEnvelope:
       type: object
       required: [ok, error, secrets_included]
@@ -228,4 +291,7 @@ components:
       content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
     NotFound:
       description: Resource not found.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    InternalError:
+      description: Unexpected server failure.
       content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
