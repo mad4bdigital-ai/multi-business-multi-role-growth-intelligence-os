@@ -7,6 +7,7 @@ import {
   scanRepositoryAutomationHygiene,
 } from "../repositoryAutomationControlPlane.js";
 import { dispatchToolForCaller, resolveCallerTypeForRequest } from "./gptToolsRoutes.js";
+import { buildOperationOrchestratorRoutes } from "./operationOrchestratorRoutes.js";
 
 function bodyOf(req) {
   const body = req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {};
@@ -80,6 +81,8 @@ export function buildRepositoryAutomationRoutes({ requireBackendApiKey, requireA
       return errorResponse(res, error, "repository_automation_hygiene_scan_failed");
     }
   });
+
+  router.use(buildOperationOrchestratorRoutes({ requireBackendApiKey, requireAdminPrincipal }));
 
   return router;
 }
