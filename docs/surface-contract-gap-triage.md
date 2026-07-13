@@ -4,17 +4,18 @@
 
 ## Summary
 
-- Triaged items: 10
-- Gate candidates: 10
+- Triaged items: 11
+- Gate candidates: 11
 - New-gap gate: fail
-- Blocking new items: 10
+- Blocking new items: 11
 
 ## Class counts
 
-- new_surface_immediate_review: 10
+- new_surface_immediate_review: 11
 
 ## Immediate review candidates
 
+- `20260713_dynamic_release_gate_manager.sql` — critical_review, score 956; next: add targeted patch-index, parity, and governance documentation
 - `1026_sprint69_repository_reconciliation_automation.sql` — critical_review, score 931; next: add targeted patch-index, parity, and governance documentation
 - `20260709_tenant_resolution_registry_schema.sql` — critical_review, score 817; next: add targeted patch-index, parity, and governance documentation
 - `20260712_release_operation_ledger.sql` — critical_review, score 784; next: add targeted patch-index, parity, and governance documentation
@@ -24,4 +25,4 @@
 - `20260713_release_operation_ledger_mutation_policy.sql` — high_review, score 630; next: add targeted patch-index, parity, and governance documentation
 - `1044_sprint69_dynamic_container_projection_apply_governance.sql` — high_review, score 584; next: add targeted patch-index, parity, and governance documentation
 - `20260712_local_manager_repair_connector_action.sql` — high_review, score 548; next: add targeted patch-index, parity, and governance documentation
-- `20260711_temporary_hostinger_probe_config_authority.sql` — high_review, score 524; next: add targeted patch-index, parity, and governance documentation
+- `20260711_temporary_hostinger_probe_config_authority.sql` — high_review, score 523; next: add targeted patch-index, parity, and governance documentation
