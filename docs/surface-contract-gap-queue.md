@@ -4,8 +4,8 @@
 
 ## Summary
 
-- Total queue items: 11
-- Critical review: 7
+- Total queue items: 12
+- Critical review: 8
 - High review: 4
 - Medium review: 0
 - Low review: 0
@@ -84,7 +84,20 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `repo_conflict_intelligence_tenant_readiness_smoke`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 6. `20260710_repo_conflict_intelligence.sql`
+### 6. `20260711_transactional_outbox_shadow_sync_foundation.sql`
+
+- Queue class: critical_review
+- Score: 730
+- Gap severity: high
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+- Surface counts: plugins=0, tools=0, views=0, policies=0, routes=1
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+
+### 7. `20260710_repo_conflict_intelligence.sql`
 
 - Queue class: critical_review
 - Score: 729
@@ -97,7 +110,7 @@
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 7. `20260711_repo_conflict_intelligence_phase2.sql`
+### 8. `20260711_repo_conflict_intelligence_phase2.sql`
 
 - Queue class: critical_review
 - Score: 729
@@ -110,7 +123,7 @@
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 8. `20260713_release_operation_ledger_mutation_policy.sql`
+### 9. `20260713_release_operation_ledger_mutation_policy.sql`
 
 - Queue class: high_review
 - Score: 630
@@ -125,7 +138,7 @@
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `release_operation_internal_persistence_policy_v1`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 9. `1044_sprint69_dynamic_container_projection_apply_governance.sql`
+### 10. `1044_sprint69_dynamic_container_projection_apply_governance.sql`
 
 - Queue class: high_review
 - Score: 584
@@ -140,7 +153,7 @@
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `dynamic_container_projection_apply_policy_v1`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`
 
-### 10. `20260712_local_manager_repair_connector_action.sql`
+### 11. `20260712_local_manager_repair_connector_action.sql`
 
 - Queue class: high_review
 - Score: 548
@@ -154,7 +167,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 11. `20260711_temporary_hostinger_probe_config_authority.sql`
+### 12. `20260711_temporary_hostinger_probe_config_authority.sql`
 
 - Queue class: high_review
 - Score: 523
