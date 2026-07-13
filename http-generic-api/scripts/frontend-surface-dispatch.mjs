@@ -231,7 +231,7 @@ function taskFor(family) {
   if (family.surface_decision.decision === "requires_review") blockers.push("surface_policy_decision_required");
   if (family.operations.some((operation) => operation.mutation) && !family.evidence_routes.length) blockers.push("mutation_readback_gap");
   return {
-    task_key: `frontend.${toKebab(family.source_file)}`,
+    task_key: `frontend.${family.family_key}`,
     title: `Resolve and deliver ${family.label}`,
     wave: waveFor(family),
     state: blockers.length ? "blocked" : "ready",
