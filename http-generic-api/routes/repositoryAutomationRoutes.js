@@ -6,6 +6,7 @@ import {
   runRepositoryAutomation,
   scanRepositoryAutomationHygiene,
 } from "../repositoryAutomationControlPlane.js";
+import { createOperationRuntimeGuard } from "../operationRuntimeGuard.js";
 import { dispatchToolForCaller, resolveCallerTypeForRequest } from "./gptToolsRoutes.js";
 import { buildOperationOrchestratorRoutes } from "./operationOrchestratorRoutes.js";
 
@@ -82,7 +83,10 @@ export function buildRepositoryAutomationRoutes({ requireBackendApiKey, requireA
     }
   });
 
-  router.use(buildOperationOrchestratorRoutes({ requireBackendApiKey, requireAdminPrincipal }));
+  router.use(
+    createOperationRuntimeGuard(),
+    buildOperationOrchestratorRoutes({ requireBackendApiKey, requireAdminPrincipal }),
+  );
 
   return router;
 }
