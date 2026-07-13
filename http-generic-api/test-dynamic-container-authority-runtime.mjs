@@ -360,6 +360,61 @@ const namespaceMismatch=await buildLegacyContainerProjectionPlan({
 });
 assert(namespaceMismatch.issues.some(row => row.issue_code === "workspace_brand_key_namespace_mismatch" && row.status === "held"));
 
+const governedSandboxFixtureProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    workspaces:[{
+      ...projectionSources.workspaces[0],
+      workspace_id:"sandbox-fixture-workspace",
+      workspace_key:"activation-smoke-workspace",
+      workspace_type:"sandbox",
+      linked_brand_key:"activation_smoke_brand",
+      config_json:JSON.stringify({ fixture:"activation_authorized_access_tenant_smoke",secrets_included:false })
+    }]
+  }
+});
+assert.equal(governedSandboxFixtureProjection.summary.highRiskIssueCount,0);
+assert(governedSandboxFixtureProjection.issues.some(row =>
+  row.issue_code === "workspace_brand_fixture_excluded" &&
+  row.severity === "info" &&
+  row.status === "ignored"
+));
+assert(!governedSandboxFixtureProjection.containers.some(row =>
+  row.container_type_key === "brand" && row.canonical_subject_ref === "activation_smoke_brand"
+));
+
+const unknownSandboxFixtureProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    workspaces:[{
+      ...projectionSources.workspaces[0],
+      workspace_id:"unknown-sandbox-workspace",
+      workspace_type:"sandbox",
+      linked_brand_key:"unknown_sandbox_brand",
+      config_json:JSON.stringify({ fixture:"unknown_fixture" })
+    }]
+  }
+});
+assert.equal(unknownSandboxFixtureProjection.summary.highRiskIssueCount,1);
+assert(unknownSandboxFixtureProjection.issues.some(row =>
+  row.issue_code === "workspace_brand_target_missing" && row.severity === "high" && row.status === "held"
+));
+
+const nonSandboxFixtureProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    workspaces:[{
+      ...projectionSources.workspaces[0],
+      workspace_id:"production-fixture-name-workspace",
+      workspace_type:"production",
+      linked_brand_key:"activation_smoke_brand",
+      config_json:JSON.stringify({ fixture:"activation_authorized_access_tenant_smoke" })
+    }]
+  }
+});
+assert.equal(nonSandboxFixtureProjection.summary.highRiskIssueCount,1);
+assert(nonSandboxFixtureProjection.issues.some(row => row.issue_code === "workspace_brand_target_missing"));
+
 const sequentialSourceExecutor={
   active:0,maxActive:0,calls:[],
   query:async sql => {
