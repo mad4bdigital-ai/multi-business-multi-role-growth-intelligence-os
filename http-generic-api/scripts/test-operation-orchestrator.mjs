@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import "./test-operation-run-ownership.mjs";
 import {
   getOperationContract,
   listOperationContracts,
@@ -18,20 +19,20 @@ assert.ok(tenantContracts.every((item) => item.principal_scopes.includes("tenant
 
 assert.throws(
   () => validateOperationInput(getOperationContract("repo.change.execute"), { owner: "o", repo: "r" }),
-  (error) => error.code === "OPERATION_REQUIRED_FIELDS_MISSING"
+  (error) => error.code === "OPERATION_REQUIRED_FIELDS_MISSING",
 );
 
 assert.equal(
   _testingOperationContextService.principalClass({ mode: "user_jwt", user_id: "u", tenant_id: "t" }),
-  "tenant"
+  "tenant",
 );
 assert.equal(
   _testingOperationContextService.principalClass({ mode: "backend_api", is_admin: true }),
-  "admin"
+  "admin",
 );
 assert.equal(
   _testingOperationContextService.repositoryUri({ owner: "mad4bdigital-ai", repo: "repo" }),
-  "github://mad4bdigital-ai/repo"
+  "github://mad4bdigital-ai/repo",
 );
 assert.equal(_testingOperationContextService.responseMode({ response_mode: "full" }), "full");
 assert.equal(_testingOperationContextService.responseMode({ response_mode: "invalid" }), "summary");
