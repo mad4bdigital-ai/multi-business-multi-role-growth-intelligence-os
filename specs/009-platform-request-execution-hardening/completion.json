@@ -4,34 +4,70 @@
   "delivery_mode": "single_pr",
   "status": "in_progress",
   "requirements": {
-    "migration": false,
+    "migration": true,
     "production_verification": false,
     "post_merge_audit": false
   },
   "delivery": {
-    "implementation_prs": [],
+    "implementation_prs": [
+      2551
+    ],
     "closeout_pr": {
       "number": 2551,
       "branch": "gpt/platform-request-execution-hardening-spec-kit-20260712",
-      "role": "design_specification",
+      "role": "runtime_implementation_and_spec",
       "status": "current_pr"
-    }
-  },
+    },
   "evidence": {
-    "ci": {
-      "status": "pending",
-      "head_sha": "d403bac0ffbefad4c993eaeda612a22b16930b30"
+    "runtime": {
+      "operation_contract_registry": "http-generic-api/operationContractRegistry.js",
+      "operation_context": "http-generic-api/operationContextService.js",
+      "orchestrator": "http-generic-api/operationOrchestrator.js",
+      "routes": "http-generic-api/routes/operationOrchestratorRoutes.js",
+      "tenant_run_ownership": "http-generic-api/operationRunOwnershipService.js"
+    },
+    "migration": {
+      "status": "included_not_applied",
+      "path": "http-generic-api/migrations/20260713_operation_run_ownership.sql",
+      "destructive": false,
+      "backfill_required": false
+    },
+    "tests": {
+      "status": "passing_on_openapi_commit",
+      "head_sha": "d7b2013d98e1d3badcd376158a1131d914468900",
+      "required_checks": {
+        "Syntax Check": "success",
+        "Architecture Drift Detection": "success",
+        "Execution Resolver Gate": "success",
+        "Unit & Integration Tests": "success"
+      },
+      "tenant_isolation": "Tenant A cannot read or resume Tenant B operation runs"
+    },
+    "openapi": {
+      "status": "synchronized",
+      "path": "specs/009-platform-request-execution-hardening/contracts/operation-orchestrator.openapi.yaml",
+      "version": "3.1.0"
     },
     "release_readiness": {
-      "status": "design_only_pending_ci"
+      "status": "blocked_remaining_tasks",
+      "remaining": [
+        "managed_ephemeral_git_worker_lifecycle_evidence",
+        "automatic_capability_lifecycle",
+        "runtime_budget_and_circuit_breaker_enforcement",
+        "generated_artifact_registry",
+        "transparent_chunk_aggregation",
+        "typed_catalog_apis",
+        "resilience_tests",
+        "observability_dashboards",
+        "shadow_and_pilot_rollout"
+      ]
     }
   },
   "constraints": {
-    "runtime_changes": false,
-    "database_migrations": false,
     "provider_writes": false,
     "deployment": false,
-    "merge": false
+    "merge": false,
+    "force_push": false
   },
   "secrets_included": false
 }
