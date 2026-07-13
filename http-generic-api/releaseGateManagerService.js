@@ -149,6 +149,29 @@ export function classifyReleaseGateReadback({ gate, adapter, configRow, now = ne
   };
 }
 
+export function classifyCapabilityEnvelopeForReleaseGate(envelope = {}, { now = new Date(), requireApproval = true } = {}) {
+  const envelopeJson = parseJson(envelope.envelope_json, {});
+  const approvalStatus = safeNullableString(envelopeJson?.approval?.status, 64);
+  const expectedCommitSha = safeNullableString(envelopeJson?.capability?.expected_commit_sha, 64)?.toLowerCase() || null;
+  const reasons = [];
+  if (envelope.envelope_status !== "ready_for_dispatch" || envelope.decision !== "ready_for_dispatch") reasons.push("envelope_not_ready");
+  if (envelope.authority_status !== "passed") reasons.push("authority_not_passed");
+  if (!bool(envelope.dispatch_allowed)) reasons.push("dispatch_not_allowed");
+  if (Number(envelope.blocking_gap_count || 0) > 0) reasons.push("blocking_gaps_present");
+  if (requireApproval && approvalStatus !== "approved") reasons.push("approval_not_active");
+  if (envelope.expires_at && new Date(envelope.expires_at) <= now) reasons.push("envelope_expired");
+  if (["failed", "cancelled"].includes(String(envelope.execution_status || ""))) reasons.push("execution_not_usable");
+  return {
+    status: reasons.length === 0 ? "ready" : "blocked",
+    reasons,
+    approval_status: approvalStatus,
+    expected_commit_sha: expectedCommitSha,
+    dispatch_allowed: bool(envelope.dispatch_allowed),
+    blocking_gap_count: Number(envelope.blocking_gap_count || 0),
+    secrets_included: false,
+  };
+}
+
 async function loadAdapter(connection, adapterKey, { forUpdate = false } = {}) {
   const key = safeString(adapterKey || "hostinger_ssh_executor", 64);
   const [rows] = await connection.query(
