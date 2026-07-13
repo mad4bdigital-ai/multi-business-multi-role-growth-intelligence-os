@@ -18,7 +18,11 @@ function fakePlan() {
       { container_id: "container-1", tenant_id: "tenant-1" },
       { container_id: "container-2", tenant_id: "tenant-1" },
     ],
-    relationships: [{ relationship_id: "relationship-1" }],
+    relationships: [{
+      relationship_id: "relationship-1",
+      from_container_id: "container-1",
+      to_container_id: "container-2",
+    }],
     roleAssignments: [{ assignment_id: "assignment-1" }],
     resourceBindings: [{ binding_id: "binding-1" }],
     issues: [{ status: "held", severity: "high" }],
