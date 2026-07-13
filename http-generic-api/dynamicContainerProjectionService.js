@@ -490,4 +490,4 @@ export async function applyLegacyContainerProjection(plan, { createdBy = "dynami
   }
 }
 
-export const _testingDynamicContainerProjectionService = { stableUuid,activeValue,roleTemplateFor,parseJson,loadProjectionSources };
+export const _testingDynamicContainerProjectionService = { stableUuid,activeValue,roleTemplateFor,parseJson,loadProjectionSources,upsertProjectionRows };
