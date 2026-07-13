@@ -563,11 +563,11 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
     </section>` : ''}
     <div id="error" class="error" role="alert"></div>
     <div class="links">
-      <a href="/connect" target="_blank" rel="noopener">Open setup page</a>
+      <a href="https://auth.mad4b.com/connect" target="_blank" rel="noopener">Open setup page</a>
       <span aria-hidden="true"> | </span>
-      <a href="/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a>
+      <a href="https://auth.mad4b.com/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a>
       <span aria-hidden="true"> | </span>
-      <a href="/terms-of-use" target="_blank" rel="noopener">Terms of Use</a>
+      <a href="https://auth.mad4b.com/terms-of-use" target="_blank" rel="noopener">Terms of Use</a>
     </div>
   </main>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -1152,7 +1152,7 @@ export function buildAuthRoutes(deps) {
       res.setHeader("Pragma", "no-cache");
       logTokenExchange("success", null, 200, {
         access_token: {
-          token_type: "Bearer",
+          token_type: "bearer",
           length: accessToken.length,
         },
         activation_context: {
@@ -1163,7 +1163,7 @@ export function buildAuthRoutes(deps) {
       });
       const tokenResponse = {
         access_token: accessToken,
-        token_type: "Bearer",
+        token_type: "bearer",
         expires_in: USER_TOKEN_TTL_SECONDS,
       };
       if (codePayload.scope) tokenResponse.scope = codePayload.scope;
