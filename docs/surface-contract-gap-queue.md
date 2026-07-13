@@ -4,9 +4,9 @@
 
 ## Summary
 
-- Total queue items: 9
+- Total queue items: 10
 - Critical review: 6
-- High review: 3
+- High review: 4
 - Medium review: 0
 - Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
@@ -95,7 +95,22 @@
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 7. `1044_sprint69_dynamic_container_projection_apply_governance.sql`
+### 7. `20260713_release_operation_ledger_mutation_policy.sql`
+
+- Queue class: high_review
+- Score: 630
+- Gap severity: medium
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=4, views=0, policies=1, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `release_operation_gate_event_append`, `release_operation_writes_are_internal_persistence_with_same_cycle_readback`, `same_cycle_readback`, `same_cycle_readback_required`
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `release_operation_internal_persistence_policy_v1`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 8. `1044_sprint69_dynamic_container_projection_apply_governance.sql`
 
 - Queue class: high_review
 - Score: 584
@@ -110,7 +125,7 @@
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `dynamic_container_projection_apply_policy_v1`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`
 
-### 8. `20260712_local_manager_repair_connector_action.sql`
+### 9. `20260712_local_manager_repair_connector_action.sql`
 
 - Queue class: high_review
 - Score: 548
@@ -124,7 +139,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 9. `20260711_temporary_hostinger_probe_config_authority.sql`
+### 10. `20260711_temporary_hostinger_probe_config_authority.sql`
 
 - Queue class: high_review
 - Score: 524
