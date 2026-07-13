@@ -499,7 +499,31 @@ export async function projectPlatformKnowledgeGraph({ projectionKey = "runtime_p
       addNode(nodes, { node_id: agent, node_type: "agent", node_label: r.agent_id, source_table: "agent_skill_grants", source_pk: r.grant_id, authority_status: "candidate" });
       addNode(nodes, { node_id: skill, node_type: "skill", node_label: r.skill_id, source_table: "agent_skill_grants", source_pk: r.grant_id, authority_status: "candidate" });
       addEdge(edges, { source_node_id: agent, edge_type: "grants_skill", target_node_id: skill, scope_type: r.tenant_id ? "tenant" : r.brand_key ? "brand" : "platform", source_table: "agent_skill_grants", source_pk: r.grant_id, authority_status: "authoritative", lifecycle_status: lifecycle(r.status), runtime_role: "authority", runtime_enforced: r.status === "active", metadata_json: { tenant_id: r.tenant_id, brand_key: r.brand_key, expires_at: r.expires_at } });
-      if (r.brand_key) addEdge(edges, { source_node_id: agent, edge_type: "linked_to", target_node_id: nodeId("brand", r.brand_key), scope_type: "brand", source_table: "agent_skill_grants", source_pk: r.grant_id, authority_status: "authoritative", runtime_role: "authority", runtime_enforced: r.status === "active" });
+      if (r.brand_key) {
+        const brandTarget = nodeId("brand", r.brand_key);
+        addOptionalGraphEdgeWithExistingTarget({
+          nodes,
+          edges,
+          warnings,
+          input: {
+            source_node_id: agent,
+            edge_type: "linked_to",
+            target_node_id: brandTarget,
+            scope_type: "brand",
+            source_table: "agent_skill_grants",
+            source_pk: r.grant_id,
+            authority_status: "authoritative",
+            runtime_role: "authority",
+            runtime_enforced: r.status === "active",
+          },
+          warning: {
+            reason: "brand_target_not_in_desired_node_set",
+            brand_key: r.brand_key,
+            tenant_id: r.tenant_id || null,
+            grant_id: r.grant_id,
+          },
+        });
+      }
     }
 
     const agentWorkflowBindings = await rowsIfExists(pool, "agent_workflow_bindings", `SELECT id, agent_id, workflow_key, trigger_condition FROM agent_workflow_bindings`);
