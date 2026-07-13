@@ -561,6 +561,8 @@ export const testCommands = [
   "node test-runtime-verification-contract.mjs",
   "node test-release-operation-ledger.mjs",
   "node test-release-operation-ledger-mutation-policy.mjs",
+  "node test-dynamic-release-gate-manager.mjs",
+  "node test-hostinger-dynamic-release-gate-precedence.mjs",
   "node test-policy-only-target-rule-migration.mjs",
   "node test-safe-additive-repair-policy-literal.mjs",
   "node test-execution-job-tick-admin.mjs",
