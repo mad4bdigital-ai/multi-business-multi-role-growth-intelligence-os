@@ -36,7 +36,7 @@
       "status": "dispatch_foundation_in_current_pr",
       "dispatch_generator": true,
       "dispatch_fixture_tests": true,
-      "full_repo_generated_plan": false,
+      "full_repo_generated_plan": true,
       "tenant_shell": false,
       "admin_bff": false,
       "admin_workspaces": false,
