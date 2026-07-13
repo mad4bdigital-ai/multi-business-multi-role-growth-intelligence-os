@@ -18,6 +18,17 @@ function activeValue(value) {
   return new Set(["active","ready","enabled","true","1","yes"]).has(String(value ?? "").trim().toLowerCase());
 }
 
+const GOVERNED_SANDBOX_FIXTURE_ALLOWLIST = new Set([
+  "activation_authorized_access_tenant_smoke",
+]);
+
+function governedSandboxFixture(workspace) {
+  if (String(workspace?.workspace_type || "").trim().toLowerCase() !== "sandbox") return null;
+  const config = parseJson(workspace?.config_json, {});
+  const fixture = String(config?.fixture || "").trim();
+  return GOVERNED_SANDBOX_FIXTURE_ALLOWLIST.has(fixture) ? fixture : null;
+}
+
 function roleTemplateFor(value) {
   const role = String(value || "").toLowerCase();
   if (["owner","platform_owner"].includes(role)) return role === "platform_owner" ? "platform_owner" : "container_admin";
@@ -194,6 +205,21 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
     }
     const exact = brandsByTarget.get(linkedBrandKey.toLowerCase()) || [];
     if (exact.length !== 1) {
+      const fixture = governedSandboxFixture(workspace);
+      if (exact.length === 0 && fixture) {
+        issues.push(issue(projectionRunId,{
+          tenant_id:tenantId,
+          workspace_id:workspace.workspace_id,
+          source_table:"workspace_registry",
+          source_ref:workspace.workspace_id,
+          issue_code:"workspace_brand_fixture_excluded",
+          severity:"info",
+          status:"ignored",
+          issue_detail:"Explicit allowlisted sandbox fixture was excluded from canonical brand authority projection.",
+          candidate_refs:[linkedBrandKey,fixture]
+        }));
+        continue;
+      }
       const nameCandidates = brandsByName.get(linkedBrandKey.toLowerCase()) || [];
       issues.push(issue(projectionRunId,{
         tenant_id:tenantId,workspace_id:workspace.workspace_id,source_table:"workspace_registry",source_ref:workspace.workspace_id,
