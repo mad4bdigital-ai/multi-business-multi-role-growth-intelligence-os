@@ -34,7 +34,10 @@
     "validate": "node validate-architecture.mjs",
     "verify": "node verify-runtime.mjs",
     "activation-gateway:bundle:sync": "node scripts/sync-activation-gateway-runtime-bundle.mjs --write",
-    "activation-gateway:bundle:check": "node scripts/sync-activation-gateway-runtime-bundle.mjs --check"
+    "activation-gateway:bundle:check": "node scripts/sync-activation-gateway-runtime-bundle.mjs --check",
+    "frontend:surface:plan": "node scripts/frontend-surface-dispatch.mjs --json",
+    "frontend:surface:write": "node scripts/frontend-surface-dispatch.mjs --write",
+    "frontend:surface:check": "node scripts/frontend-surface-dispatch.mjs --check"
   },
   "engines": {
     "node": ">=22 <23"
