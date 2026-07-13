@@ -67,6 +67,39 @@ const expiredGate = { ...gate, expires_at: new Date(Date.now() - 60_000) };
 const expiredReadback = classifyReleaseGateReadback({ gate: expiredGate, adapter, configRow: { status: "active", config_json: JSON.stringify(config) } });
 assert.equal(expiredReadback.status, "expired_open_gate");
 
+const productionEnvelope = {
+  envelope_status: "ready_for_dispatch",
+  decision: "ready_for_dispatch",
+  authority_status: "passed",
+  dispatch_allowed: 1,
+  blocking_gap_count: 0,
+  execution_status: "not_executed",
+  expires_at: new Date(Date.now() + 15 * 60_000),
+  envelope_json: JSON.stringify({
+    capability: { expected_commit_sha: null },
+    approval: { status: "approved", hold_id: "55555555-5555-4555-8555-555555555555" },
+    secrets_included: false,
+  }),
+};
+const productionLifecycle = classifyCapabilityEnvelopeForReleaseGate(productionEnvelope);
+assert.equal(productionLifecycle.status, "ready");
+assert.equal(productionLifecycle.approval_status, "approved");
+assert.deepEqual(productionLifecycle.reasons, []);
+
+const missingApprovalLifecycle = classifyCapabilityEnvelopeForReleaseGate({
+  ...productionEnvelope,
+  envelope_json: JSON.stringify({ capability: { expected_commit_sha: null }, secrets_included: false }),
+});
+assert.equal(missingApprovalLifecycle.status, "blocked");
+assert.ok(missingApprovalLifecycle.reasons.includes("approval_not_active"));
+
+const expiredEnvelopeLifecycle = classifyCapabilityEnvelopeForReleaseGate({
+  ...productionEnvelope,
+  expires_at: new Date(Date.now() - 60_000),
+});
+assert.equal(expiredEnvelopeLifecycle.status, "blocked");
+assert.ok(expiredEnvelopeLifecycle.reasons.includes("envelope_expired"));
+
 const migration = fs.readFileSync(path.join(__dirname, "migrations", "20260713_dynamic_release_gate_manager.sql"), "utf8");
 assert.match(migration, /CREATE TABLE IF NOT EXISTS release_gate_adapters/);
 assert.match(migration, /CREATE TABLE IF NOT EXISTS release_gates/);
