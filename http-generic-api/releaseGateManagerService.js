@@ -413,7 +413,6 @@ export async function readReleaseGate(gateId) {
   const adapter = await loadAdapter(pool, gate.adapter_key);
   const [configRows] = await pool.query(`SELECT config_key, config_json, status, note, updated_at FROM platform_runtime_config WHERE config_key = ? LIMIT 1`, [adapter.config_key]);
   const readback = classifyReleaseGateReadback({ gate, adapter, configRow: configRows[0] || null });
-  await pool.query(`UPDATE release_gates SET readback_json = ?, last_readback_at = NOW(3) WHERE gate_id = ?`, [JSON.stringify(readback), gate.gate_id]).catch(() => null);
   return { ok: true, gate: shapeGate(gate), adapter, compatibility_config: configRows[0] ? { ...configRows[0], config_json: parseJson(configRows[0].config_json, {}) } : null, readback, secrets_included: false };
 }
 
