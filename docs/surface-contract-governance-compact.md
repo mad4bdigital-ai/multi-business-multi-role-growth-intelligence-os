@@ -1,9 +1,9 @@
 # Surface Contract Governance Compact
 
 - Gate: fail
-- Blocking new items: 9
-- Docs completion: 499/508 (98.23%)
-- Queue items: 9
+- Blocking new items: 10
+- Docs completion: 499/509 (98.04%)
+- Queue items: 10
 - OpenAPI missing SQL routes: 0
 - OpenAPI-exempt SQL route-like literals: 631/650
 - Safety marker gap migrations: 5
@@ -17,6 +17,7 @@
 - `20260711_repo_conflict_intelligence_tenant_readiness.sql` — critical_review, score 747; add targeted patch-index, parity, and governance documentation
 - `20260710_repo_conflict_intelligence.sql` — critical_review, score 729; add targeted patch-index, parity, and governance documentation
 - `20260711_repo_conflict_intelligence_phase2.sql` — critical_review, score 729; add targeted patch-index, parity, and governance documentation
+- `20260713_release_operation_ledger_mutation_policy.sql` — high_review, score 630; add targeted patch-index, parity, and governance documentation
 - `1044_sprint69_dynamic_container_projection_apply_governance.sql` — high_review, score 584; add targeted patch-index, parity, and governance documentation
 - `20260712_local_manager_repair_connector_action.sql` — high_review, score 548; add targeted patch-index, parity, and governance documentation
 - `20260711_temporary_hostinger_probe_config_authority.sql` — high_review, score 524; add targeted patch-index, parity, and governance documentation
