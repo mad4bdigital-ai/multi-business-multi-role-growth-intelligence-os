@@ -104,16 +104,23 @@ function parseRoutesFromFile(source, file, mountPrefix = "/") {
     const method = match[1].toUpperCase();
     if (!HTTP_METHODS.has(method)) continue;
     const routePath = joinRoutePath(mountPrefix, match[3]);
-    operations.push({ method, path: routePath, signature: `${method} ${routePath}`, source_file: file });
+    const declarationEnd = source.indexOf(");", match.index);
+    const declaration = source.slice(match.index, declarationEnd >= 0 ? Math.min(declarationEnd + 2, match.index + 1600) : match.index + 800);
+    operations.push({ method, path: routePath, signature: `${method} ${routePath}`, source_file: file, source_index: match.index, declaration });
   }
   return operations;
 }
 
-function scopeFor({ path: routePath, source }) {
-  if (/^\/admin(?:\/|$)/.test(routePath) || /requireAdminPrincipal|requireBackendApiKey/.test(source)) return "admin";
+function scopeFor({ path: routePath, source, declaration = "", sourceIndex = 0 }) {
+  if (/^\/(?:connect\/assets|favicon\.ico|robots\.txt|legal)(?:\/|$)/.test(routePath)) return "public";
   if (/local-manager|local-gateway|connector\/(?:devices?|routes?)/i.test(routePath)) return "local_device";
   if (/^\/me(?:\/|$)|\/workspaces?\/{[^}]+}/.test(routePath)) return "tenant";
-  if (/^\/(?:connect\/assets|favicon\.ico|robots\.txt|legal)(?:\/|$)/.test(routePath)) return "public";
+  if (/requireTenant|requireUser|requireMembership|requireWorkspace/i.test(declaration)) return "tenant";
+  if (/^\/admin(?:\/|$)/.test(routePath) || /requireAdminPrincipal|requireBackendApiKey/.test(declaration)) return "admin";
+  const globalAdminGuards = [...source.matchAll(/(?:router|app)\.use\s*\(\s*(?:requireBackendApiKey|requireAdminPrincipal)/g)]
+    .map((match) => match.index)
+    .filter((index) => index < sourceIndex);
+  if (globalAdminGuards.length) return "admin";
   if (/developer|openapi|schema|audit|evidence/i.test(routePath)) return "developer";
   return "unresolved";
 }
@@ -268,38 +275,39 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
     const source = readText(filePath);
     const operations = parseRoutesFromFile(source, mount.file, mount.mount_prefix).map((operation) => ({
       ...operation,
-      scope: scopeFor({ path: operation.path, source }),
+      scope: scopeFor({ path: operation.path, source, declaration: operation.declaration, sourceIndex: operation.source_index }),
       mutation: operation.method !== "GET",
       openapi_documented: openapiOperations.has(operation.signature),
       evidence_candidate: evidenceRoute(operation),
-    }));
+    })).map(({ declaration, source_index, ...operation }) => operation);
     const scopes = unique(operations.map((operation) => operation.scope));
-    const scope = scopes.includes("admin") ? "admin"
-      : scopes.includes("local_device") ? "local_device"
-        : scopes.includes("tenant") ? "tenant"
-          : scopes.includes("developer") ? "developer"
-            : scopes.length === 1 ? scopes[0] : "unresolved";
-    const family = {
-      family_key: toKebab(path.basename(mount.file)),
-      label: toKebab(path.basename(mount.file)).replace(/-/g, " "),
-      source_file: mount.file,
-      source_digest: digest(source),
-      mount_prefix: mount.mount_prefix,
-      mount_order: mount.mount_order,
-      group: groupFor(operations[0]?.path || mount.mount_prefix, mount.file),
-      scope,
-      operations,
-      openapi_gaps: operations.filter((operation) => !operation.openapi_documented).map((operation) => operation.signature),
-      evidence_routes: operations.filter((operation) => operation.evidence_candidate).map((operation) => operation.signature),
-      tests: testsForFamily(mount.file, testFiles),
-      resources: resourceEvidenceForFamily(mount.file, resourceManifest),
-      embedded_ui: embeddedUiState(source),
-      source_refs: unique([mount.file, "routes/index.js", "openapi.yaml", "resource-api-coverage.manifest.json", "scripts/test-manifest.mjs", DEFAULT_POLICY]),
-    };
-    family.surface_decision = policyDecision(family, policy);
-    family.risk = riskFor(family);
-    family.wave = waveFor(family);
-    families.push(family);
+    for (const scope of scopes.length ? scopes : ["unresolved"]) {
+      const scopedOperations = operations.filter((operation) => operation.scope === scope);
+      const baseKey = toKebab(path.basename(mount.file));
+      const split = scopes.length > 1;
+      const family = {
+        family_key: split ? `${baseKey}.${scope}` : baseKey,
+        label: `${baseKey.replace(/-/g, " ")}${split ? ` (${scope})` : ""}`,
+        source_file: mount.file,
+        source_digest: digest(source),
+        mount_prefix: mount.mount_prefix,
+        mount_order: mount.mount_order,
+        split_from_mixed_scope_file: split,
+        group: groupFor(scopedOperations[0]?.path || mount.mount_prefix, mount.file),
+        scope,
+        operations: scopedOperations,
+        openapi_gaps: scopedOperations.filter((operation) => !operation.openapi_documented).map((operation) => operation.signature),
+        evidence_routes: scopedOperations.filter((operation) => operation.evidence_candidate).map((operation) => operation.signature),
+        tests: testsForFamily(mount.file, testFiles),
+        resources: resourceEvidenceForFamily(mount.file, resourceManifest),
+        embedded_ui: embeddedUiState(source),
+        source_refs: unique([mount.file, "routes/index.js", "openapi.yaml", "resource-api-coverage.manifest.json", "scripts/test-manifest.mjs", DEFAULT_POLICY]),
+      };
+      family.surface_decision = policyDecision(family, policy);
+      family.risk = riskFor(family);
+      family.wave = waveFor(family);
+      families.push(family);
+    }
   }
 
   families.sort((a, b) => a.mount_order - b.mount_order || a.family_key.localeCompare(b.family_key));
@@ -327,6 +335,8 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
     },
     coverage: {
       mounted_family_count: families.length,
+      mounted_route_file_count: mounted.length,
+      mixed_scope_route_file_count: new Set(families.filter((family) => family.split_from_mixed_scope_file).map((family) => family.source_file)).size,
       operation_count: operationCount,
       openapi_documented_count: operationCount - openapiGapCount,
       openapi_gap_count: openapiGapCount,
