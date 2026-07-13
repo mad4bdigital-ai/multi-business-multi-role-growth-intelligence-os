@@ -57,6 +57,15 @@ assert(!probeBlock.includes("git fetch"), "probe must not fetch remote git data"
 assert(!probeBlock.includes("git checkout"), "probe must not checkout or mutate repo state");
 assert(!probeBlock.includes("touch tmp/restart.txt"), "probe must not restart the app");
 assert(!probeBlock.includes("rm -rf"), "probe must not run destructive shell commands");
+assert(probeBlock.includes("routes_path=http-generic-api/routes"), "probe must recognize the repository's actual routes directory");
+assert(probeBlock.includes("entrypoint_path=http-generic-api/server.js"), "probe must validate the production entrypoint path");
+assert(probeBlock.includes("node_process_count="), "probe must report bounded Node or Passenger process evidence");
+assert(probeBlock.includes("listening_tcp_count="), "probe must report bounded listening socket evidence when available");
+assert(probeBlock.includes("restart_marker_mtime="), "probe must report restart marker evidence without mutating it");
+assert(probeBlock.includes("startup_log_size="), "probe must report only bounded startup log metadata");
+assert(probeBlock.includes("startup_error_signature="), "probe must report a classified startup error signature");
+assert(!probeBlock.includes("cat $startup_log"), "probe must never emit full startup log content");
+assert(!probeBlock.includes("tail -n 200 \"$startup_log\" | head"), "probe must not return raw startup log lines");
 
 assert(routes.includes("executeHostingerSshTargetProbe"), "platform routes must import target probe executor");
 assert(routes.includes('/platform/remote-runtime/hosting/ssh-probe'), "platform routes must expose SSH probe path");
