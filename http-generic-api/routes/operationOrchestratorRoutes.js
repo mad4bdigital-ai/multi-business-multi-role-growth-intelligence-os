@@ -8,7 +8,14 @@ import {
   previewOperation,
 } from "../operationOrchestrator.js";
 import { buildOperationContext } from "../operationContextService.js";
-import { listOperationContracts } from "../operationContractRegistry.js";
+import {
+  listOperationContracts,
+  normalizeOperationKey,
+} from "../operationContractRegistry.js";
+import {
+  assertOperationRunAccess,
+  recordOperationRunOwnership,
+} from "../operationRunOwnershipService.js";
 import { dispatchToolForCaller, resolveCallerTypeForRequest } from "./gptToolsRoutes.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
@@ -37,7 +44,7 @@ async function tenantMembership(userId, requestedTenantId = null) {
         ${tenantClause}
       ORDER BY m.granted_at ASC
       LIMIT 1`,
-    params
+    params,
   );
   return rows[0] || null;
 }
@@ -83,6 +90,14 @@ function depsFor(req) {
   };
 }
 
+function isTenant(req) {
+  return req.auth?.mode === "user_jwt" && req.auth?.is_admin !== true;
+}
+
+function isResumeOperation(input = {}) {
+  return normalizeOperationKey(input.operation_key || input.operation || input.intent) === "operation.resume";
+}
+
 function mountOperationRoutes(router, middleware = []) {
   router.get("/operations/contracts", ...middleware, async (req, res) => {
     try {
@@ -104,14 +119,31 @@ function mountOperationRoutes(router, middleware = []) {
 
   router.post("/operations/execute", ...middleware, async (req, res) => {
     try {
-      const result = await executeOperation(bodyOf(req), depsFor(req));
-      return res.status(result?.status === "awaiting_input" ? 202 : result?.ok === false ? 409 : 200).json(result);
+      const input = bodyOf(req);
+      if (isTenant(req) && isResumeOperation(input)) {
+        await assertOperationRunAccess({ pool: getPool(), auth: req.auth, runId: input.run_id });
+      }
+      const result = await executeOperation(input, depsFor(req));
+      const ownership = await recordOperationRunOwnership({
+        pool: getPool(),
+        auth: req.auth,
+        input,
+        result,
+        operationKey: normalizeOperationKey(input.operation_key || input.operation || input.intent),
+      });
+      return res.status(result?.status === "awaiting_input" ? 202 : result?.ok === false ? 409 : 200).json({
+        ...result,
+        ownership,
+      });
     } catch (error) { return errorResponse(res, error, "OPERATION_EXECUTION_FAILED"); }
   });
 
   router.post("/operations/status", ...middleware, async (req, res) => {
-    try { return res.status(200).json(await getOperationStatus(bodyOf(req), depsFor(req))); }
-    catch (error) { return errorResponse(res, error, "OPERATION_STATUS_FAILED"); }
+    try {
+      const input = bodyOf(req);
+      await assertOperationRunAccess({ pool: getPool(), auth: req.auth, runId: input.run_id });
+      return res.status(200).json(await getOperationStatus(input, depsFor(req)));
+    } catch (error) { return errorResponse(res, error, "OPERATION_STATUS_FAILED"); }
   });
 
   router.post("/operations/ci-diagnose", ...middleware, async (req, res) => {
@@ -137,4 +169,5 @@ export function buildOperationOrchestratorRoutes({ requireBackendApiKey, require
 export const _testingOperationOrchestratorRoutes = {
   verifyUserJwt,
   errorResponse,
+  isResumeOperation,
 };
