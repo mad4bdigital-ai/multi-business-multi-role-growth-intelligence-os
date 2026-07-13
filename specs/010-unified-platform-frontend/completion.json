@@ -13,7 +13,7 @@
     "specification_pr": {
       "number": 2579,
       "branch": "gpt/repo-driven-frontend-dispatch-20260713",
-      "role": "specification_and_dispatch_foundation",
+      "role": "specification_dispatch_and_f1_shell_foundation",
       "status": "current_pr"
     },
     "implementation_prs": [],
@@ -33,10 +33,13 @@
       "delivery_dag": true
     },
     "implementation": {
-      "status": "dispatch_foundation_in_current_pr",
+      "status": "f1_shell_foundation_in_current_pr",
       "dispatch_generator": true,
       "dispatch_fixture_tests": true,
       "full_repo_generated_plan": true,
+      "platform_shell": true,
+      "browser_safe_surface_catalog": true,
+      "light_dark_system_theme": true,
       "tenant_shell": false,
       "admin_bff": false,
       "admin_workspaces": false,

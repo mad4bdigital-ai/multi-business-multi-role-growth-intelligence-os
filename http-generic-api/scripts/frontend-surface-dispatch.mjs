@@ -25,6 +25,17 @@ function readJson(file, fallback = {}) {
   return JSON.parse(readText(file));
 }
 
+function filesUnder(root) {
+  if (!fs.existsSync(root)) return [];
+  const files = [];
+  for (const entry of fs.readdirSync(root, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    const target = path.join(root, entry.name);
+    if (entry.isDirectory()) files.push(...filesUnder(target));
+    else if (entry.isFile()) files.push(target);
+  }
+  return files;
+}
+
 function unique(values = []) {
   return [...new Set(values.filter(Boolean))].sort();
 }
@@ -57,7 +68,45 @@ function toKebab(value = "") {
     .toLowerCase();
 }
 
-export function parseOpenApiOperations(source = "") {
+function decodeJsonPointerSegment(value = "") {
+  return String(value).replace(/~1/g, "/").replace(/~0/g, "~");
+}
+
+function referencedPathItemMethods({ reference, sourcePath, apiRoot }) {
+  const [relativeFile, fragment = ""] = String(reference || "").split("#", 2);
+  if (!relativeFile || !fragment.startsWith("/") || !sourcePath || !apiRoot) return [];
+  const target = path.resolve(path.dirname(sourcePath), relativeFile);
+  const root = path.resolve(apiRoot);
+  if (target !== root && !target.startsWith(`${root}${path.sep}`)) return [];
+  const source = readText(target);
+  if (!source) return [];
+
+  const segments = fragment.slice(1).split("/").map(decodeJsonPointerSegment);
+  if (segments.length !== 1) return [];
+  const key = segments[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const lines = source.split("\n");
+  const start = lines.findIndex((line) => new RegExp(`^${key}:\\s*(?:#.*)?$`).test(line));
+  if (start < 0) return [];
+  const methods = [];
+  for (let index = start + 1; index < lines.length; index += 1) {
+    if (/^\S/.test(lines[index])) break;
+    const method = lines[index].match(/^\s{2}(get|post|put|patch|delete):\s*(?:#.*)?$/i)?.[1];
+    if (method) methods.push(method.toUpperCase());
+  }
+  return methods;
+}
+
+function openApiReferenceFiles(source = "", sourcePath, apiRoot) {
+  if (!sourcePath || !apiRoot) return [];
+  const root = path.resolve(apiRoot);
+  return unique([...canonicalText(source).matchAll(/^\s+\$ref:\s*["']?([^"'\s#]+\.ya?ml)#/gim)].map((match) => {
+    const target = path.resolve(path.dirname(sourcePath), match[1]);
+    if (target !== root && !target.startsWith(`${root}${path.sep}`)) return null;
+    return target;
+  }));
+}
+
+export function parseOpenApiOperations(source = "", { sourcePath, apiRoot } = {}) {
   const operations = new Set();
   let currentPath = "";
   for (const line of canonicalText(source).split("\n")) {
@@ -68,6 +117,12 @@ export function parseOpenApiOperations(source = "") {
     }
     const methodMatch = line.match(/^\s{4}(get|post|put|patch|delete):\s*(?:#.*)?$/i);
     if (currentPath && methodMatch) operations.add(`${methodMatch[1].toUpperCase()} ${currentPath}`);
+    const refMatch = line.match(/^\s{4}\$ref:\s*["']?([^"'\s]+)["']?\s*(?:#.*)?$/i);
+    if (currentPath && refMatch) {
+      for (const method of referencedPathItemMethods({ reference: refMatch[1], sourcePath, apiRoot })) {
+        operations.add(`${method} ${currentPath}`);
+      }
+    }
     else if (/^\s{0,2}\S/.test(line) && !/^\s{2}\//.test(line)) currentPath = "";
   }
   return operations;
@@ -104,23 +159,87 @@ export function parseMountedRouteFiles(indexSource = "") {
     });
 }
 
-function parseRoutesFromFile(source, file, mountPrefix = "/") {
+function findMatchingBrace(source, openingIndex) {
+  let depth = 0;
+  let quote = "";
+  let escaped = false;
+  for (let index = openingIndex; index < source.length; index += 1) {
+    const character = source[index];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === quote) quote = "";
+      continue;
+    }
+    if (["\"", "'", "`"].includes(character)) {
+      quote = character;
+      continue;
+    }
+    if (character === "{") depth += 1;
+    if (character === "}" && --depth === 0) return index;
+  }
+  return -1;
+}
+
+function enclosingHelper(source, sourceIndex) {
+  const functionRe = /function\s+([A-Za-z0-9_]+)\s*\([^)]*\)\s*\{/g;
+  let match;
+  let enclosing = null;
+  while ((match = functionRe.exec(source)) !== null && match.index < sourceIndex) {
+    const opening = functionRe.lastIndex - 1;
+    const closing = findMatchingBrace(source, opening);
+    if (closing >= sourceIndex) enclosing = { name: match[1], closing };
+  }
+  return enclosing;
+}
+
+function staticTemplateExpansions(source, sourceIndex, routeTemplate) {
+  const tokens = unique([...String(routeTemplate).matchAll(/\$\{([A-Za-z0-9_]+)}/g)].map((match) => match[1]));
+  if (!tokens.length) return [routeTemplate];
+  const helper = enclosingHelper(source, sourceIndex);
+  if (!helper) return [];
+  const callRe = new RegExp(`\\b${helper.name}\\s*\\(([\\s\\S]*?)\\);`, "g");
+  callRe.lastIndex = helper.closing + 1;
+  const expanded = [];
+  let call;
+  while ((call = callRe.exec(source)) !== null) {
+    const bindings = {};
+    for (const token of tokens) {
+      const escapedToken = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const value = call[1].match(new RegExp(`\\b${escapedToken}\\s*:\\s*([\"'\\x60])([^\"'\\x60]+)\\1`))?.[2];
+      if (value) bindings[token] = value;
+    }
+    if (tokens.every((token) => bindings[token])) {
+      expanded.push(tokens.reduce((value, token) => value.replaceAll(`\${${token}}`, bindings[token]), routeTemplate));
+    }
+  }
+  return unique(expanded);
+}
+
+function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver = "router_or_app" } = {}) {
   const operations = [];
-  const routeRe = /(?:router|app)\.(get|post|put|patch|delete)\s*\(\s*(["'`])([^"'`]+)\2/gs;
+  const receiverPattern = receiver === "app" ? "app" : "(?:router|app)";
+  const routeRe = new RegExp(`${receiverPattern}\\.(get|post|put|patch|delete)\\s*\\(\\s*([\"'\\x60])([^\"'\\x60]+)\\2`, "gs");
   let match;
   while ((match = routeRe.exec(source)) !== null) {
     const method = match[1].toUpperCase();
     if (!HTTP_METHODS.has(method)) continue;
-    const routePath = joinRoutePath(mountPrefix, match[3]);
-    const declarationEnd = source.indexOf(");", match.index);
-    const declaration = source.slice(match.index, declarationEnd >= 0 ? Math.min(declarationEnd + 2, match.index + 1600) : match.index + 800);
-    operations.push({ method, path: routePath, signature: `${method} ${routePath}`, source_file: file, source_index: match.index, declaration });
+    const nextRouteRe = new RegExp(`${receiverPattern}\\.(?:get|post|put|patch|delete)\\s*\\(`, "gs");
+    nextRouteRe.lastIndex = routeRe.lastIndex;
+    const nextRoute = nextRouteRe.exec(source);
+    const declaration = source.slice(match.index, nextRoute?.index ?? source.length);
+    const expansions = staticTemplateExpansions(source, match.index, match[3]);
+    const routes = expansions.length ? expansions : [match[3]];
+    for (const route of routes) {
+      const routePath = joinRoutePath(mountPrefix, route);
+      operations.push({ method, path: routePath, signature: `${method} ${routePath}`, source_file: file, source_index: match.index, declaration });
+    }
   }
   return operations;
 }
 
 function scopeFor({ path: routePath, source, declaration = "", sourceIndex = 0 }) {
-  if (/^\/(?:connect\/assets|favicon\.ico|robots\.txt|legal)(?:\/|$)/.test(routePath)) return "public";
+  if (/^\/(?:connect$|connect\/assets(?:\/|$)|platform$|platform\/assets(?:\/|$)|platform\/ui-surfaces$|favicon\.ico$|robots\.txt$|legal(?:\/|$))/.test(routePath)) return "public";
   if (/local-manager|local-gateway|connector\/(?:devices?|routes?)/i.test(routePath)) return "local_device";
   if (/^\/me(?:\/|$)|\/workspaces?\/{[^}]+}/.test(routePath)) return "tenant";
   if (/requireTenant|requireUser|requireMembership|requireWorkspace/i.test(declaration)) return "tenant";
@@ -129,7 +248,7 @@ function scopeFor({ path: routePath, source, declaration = "", sourceIndex = 0 }
     .map((match) => match.index)
     .filter((index) => index < sourceIndex);
   if (globalAdminGuards.length) return "admin";
-  if (/developer|openapi|schema|audit|evidence/i.test(routePath)) return "developer";
+  if (/developer|openapi|audit|evidence/i.test(routePath)) return "developer";
   return "unresolved";
 }
 
@@ -159,16 +278,28 @@ function evidenceRoute(operation) {
 }
 
 function testFilesFromManifest(source = "") {
-  return unique([...canonicalText(source).matchAll(/(?:\.\/)?(test-[A-Za-z0-9_.-]+\.mjs)/g)].map((match) => match[1]));
+  return unique([...canonicalText(source).matchAll(/\bnode\s+((?:[A-Za-z0-9_.-]+\/)*test-[A-Za-z0-9_.-]+\.mjs)\b/g)].map((match) => match[1]));
 }
 
-function testsForFamily(file, testFiles) {
-  const key = toKebab(path.basename(file));
-  const tokens = key.split("-").filter((token) => token.length > 3 && !["route", "routes", "build"].includes(token));
-  return testFiles.filter((testFile) => {
-    const normalized = toKebab(testFile.replace(/^test-/, ""));
-    return tokens.length > 0 && tokens.filter((token) => normalized.includes(token)).length >= Math.min(2, tokens.length);
-  });
+function loadRegisteredTestEvidence(apiRoot, testFiles) {
+  const root = path.resolve(apiRoot);
+  const bySignature = new Map();
+  const claimedFiles = [];
+  for (const testFile of testFiles) {
+    const target = path.resolve(apiRoot, testFile);
+    if (target !== root && !target.startsWith(`${root}${path.sep}`)) continue;
+    const source = readText(target);
+    let claimed = false;
+    for (const match of canonicalText(source).matchAll(/^\s*\/\/\s*frontend-surface-operation:\s*(get|post|put|patch|delete)\s+(\/\S+)\s*$/gim)) {
+      const signature = `${match[1].toUpperCase()} ${normalizeRoutePath(match[2])}`;
+      if (!bySignature.has(signature)) bySignature.set(signature, []);
+      bySignature.get(signature).push(testFile);
+      claimed = true;
+    }
+    if (claimed) claimedFiles.push(target);
+  }
+  for (const [signature, files] of bySignature) bySignature.set(signature, unique(files));
+  return { bySignature, claimedFiles: unique(claimedFiles) };
 }
 
 function resourceEvidenceForFamily(file, resourceManifest) {
@@ -185,20 +316,45 @@ function resourceEvidenceForFamily(file, resourceManifest) {
     .filter(Boolean);
 }
 
-function embeddedUiState(source = "") {
-  return /text\/html|sendFile\s*\(|express\.static|public\/(?:connect|platform)|<!doctype html/i.test(source);
+function operationDeliveryEvidence(operation) {
+  const declaration = String(operation.declaration || "");
+  const evidence = [];
+  if (/text\/html|\.type\s*\(\s*["']html["']|<!doctype html/i.test(declaration)) evidence.push("response_content_type:text/html");
+  if (/sendFile\s*\(/.test(declaration) && /\/assets(?:\/|\{|$)/.test(operation.path)) evidence.push("response_static_asset");
+  return {
+    embedded_ui: evidence.length > 0,
+    embedded_ui_evidence: evidence,
+    delivery_kind: evidence.includes("response_content_type:text/html") ? "embedded_html" : evidence.length ? "embedded_asset" : "api",
+  };
 }
 
 function policyDecision(family, policy) {
   const rules = Array.isArray(policy?.rules) ? policy.rules : [];
-  const rule = rules.find((candidate) => {
+  const matchingRules = rules.filter((candidate) => {
+    if (candidate.family_key && candidate.family_key !== family.family_key) return false;
     if (candidate.source_file && candidate.source_file !== family.source_file) return false;
-    if (candidate.path_prefix && !family.operations.some((operation) => operation.path.startsWith(candidate.path_prefix))) return false;
+    if (candidate.scope && candidate.scope !== family.scope) return false;
+    if (candidate.path_prefix && (!family.operations.length || !family.operations.every((operation) => operation.path.startsWith(candidate.path_prefix)))) return false;
     if (candidate.group && candidate.group !== family.group) return false;
     return true;
   });
-  if (family.embedded_ui) return { decision: "embedded_ui", rationale: "HTML/static UI is discoverable in the mounted route source." };
-  if (rule) return { decision: rule.decision, rationale: rule.rationale, owner: rule.owner || null };
+  if (matchingRules.length > 1) {
+    return {
+      decision: "requires_review",
+      rationale: `Multiple surface policy rules match this family: ${matchingRules.map((rule) => rule.rule_id || "unnamed").join(", ")}.`,
+      owner: null,
+    };
+  }
+  const rule = matchingRules[0];
+  if (rule && rule.owner && rule.rationale) {
+    return {
+      decision: rule.decision,
+      rationale: rule.rationale,
+      owner: rule.owner,
+      rule_id: rule.rule_id || null,
+      evidence_refs: unique(rule.evidence_refs || []),
+    };
+  }
   return { decision: policy?.default_decision || "requires_review", rationale: "No repository policy decision covers this route family.", owner: null };
 }
 
@@ -226,7 +382,7 @@ function riskFor(family) {
   if (family.scope === "unresolved") score += 5;
   if (family.operations.some((operation) => operation.mutation)) score += 3;
   if (family.openapi_gaps.length) score += 2;
-  if (!family.tests.length) score += 2;
+  if (family.untested_operations.length) score += 2;
   if (family.surface_decision.decision === "requires_review") score += 2;
   return { score, class: score >= 9 ? "critical" : score >= 6 ? "high" : score >= 3 ? "medium" : "low" };
 }
@@ -235,8 +391,8 @@ function taskFor(family) {
   const blockers = [];
   if (family.scope === "unresolved") blockers.push("scope_unresolved");
   if (family.openapi_gaps.length) blockers.push("openapi_contract_gap");
-  if (!family.tests.length) blockers.push("test_ownership_gap");
-  if (family.surface_decision.decision === "requires_review") blockers.push("surface_policy_decision_required");
+  if (family.untested_operations.length) blockers.push("test_ownership_gap");
+  if (["requires_review", "deferred"].includes(family.surface_decision.decision)) blockers.push("surface_policy_decision_required");
   if (family.operations.some((operation) => operation.mutation) && !family.evidence_routes.length) blockers.push("mutation_readback_gap");
   return {
     task_key: `frontend.${family.family_key}`,
@@ -263,6 +419,7 @@ function taskFor(family) {
 }
 
 export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = process.env.GITHUB_SHA || "working-tree" } = {}) {
+  const generatorPath = fileURLToPath(import.meta.url);
   const indexPath = path.join(apiRoot, "routes", "index.js");
   const openapiPath = path.join(apiRoot, "openapi.yaml");
   const resourcePath = path.join(apiRoot, "resource-api-coverage.manifest.json");
@@ -272,27 +429,53 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
   const openapiSource = readText(openapiPath);
   const resourceManifest = readJson(resourcePath, {});
   const testManifestSource = readText(testManifestPath);
+  const frontendAssetPaths = unique([
+    ...filesUnder(path.join(apiRoot, "public", "connect")),
+    ...filesUnder(path.join(apiRoot, "public", "platform")),
+  ]);
   const policy = readJson(policyPath, { schema_version: "frontend-surface-policy-v1", default_decision: "requires_review", rules: [] });
-  const openapiOperations = parseOpenApiOperations(openapiSource);
+  const openapiReferencePaths = openApiReferenceFiles(openapiSource, openapiPath, apiRoot);
+  const openapiOperations = parseOpenApiOperations(openapiSource, { sourcePath: openapiPath, apiRoot });
   const testFiles = testFilesFromManifest(testManifestSource);
+  const testEvidence = loadRegisteredTestEvidence(apiRoot, testFiles);
   const mounted = parseMountedRouteFiles(indexSource);
+  const directIndexOperations = parseRoutesFromFile(indexSource, "routes/index.js", "/", { receiver: "app" });
+  if (directIndexOperations.length) {
+    mounted.push({
+      builder: "directAppRoutes",
+      file: "routes/index.js",
+      mount_prefix: "/",
+      mount_order: Math.min(...directIndexOperations.map((operation) => operation.source_index)),
+      direct: true,
+    });
+  }
   const families = [];
 
   for (const mount of mounted) {
     const filePath = path.join(apiRoot, mount.file.replace(/^routes\//, "routes/"));
     const source = readText(filePath);
-    const operations = parseRoutesFromFile(source, mount.file, mount.mount_prefix).map((operation) => ({
+    const discoveredOperations = mount.direct
+      ? directIndexOperations
+      : parseRoutesFromFile(source, mount.file, mount.mount_prefix);
+    const operations = discoveredOperations.map((operation) => ({
       ...operation,
       scope: scopeFor({ path: operation.path, source, declaration: operation.declaration, sourceIndex: operation.source_index }),
       mutation: operation.method !== "GET",
       openapi_documented: openapiOperations.has(operation.signature),
       evidence_candidate: evidenceRoute(operation),
+      ...operationDeliveryEvidence(operation),
+      tests: testEvidence.bySignature.get(operation.signature) || [],
     })).map(({ declaration, source_index, ...operation }) => operation);
     const scopes = unique(operations.map((operation) => operation.scope));
     for (const scope of scopes.length ? scopes : ["unresolved"]) {
       const scopedOperations = operations.filter((operation) => operation.scope === scope);
       const baseKey = toKebab(path.basename(mount.file));
       const split = scopes.length > 1;
+      const familyEmbeddedUi = scopedOperations.some((operation) => operation.embedded_ui);
+      const familyTests = unique(scopedOperations.flatMap((operation) => operation.tests));
+      const untestedOperations = scopedOperations.length
+        ? scopedOperations.filter((operation) => !operation.tests.length).map((operation) => operation.signature)
+        : ["NO_DISCOVERED_OPERATIONS"];
       const family = {
         family_key: split ? `${baseKey}.${scope}` : baseKey,
         label: `${baseKey.replace(/-/g, " ")}${split ? ` (${scope})` : ""}`,
@@ -306,10 +489,22 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
         operations: scopedOperations,
         openapi_gaps: scopedOperations.filter((operation) => !operation.openapi_documented).map((operation) => operation.signature),
         evidence_routes: scopedOperations.filter((operation) => operation.evidence_candidate).map((operation) => operation.signature),
-        tests: testsForFamily(mount.file, testFiles),
+        tests: familyTests,
+        untested_operations: untestedOperations,
         resources: resourceEvidenceForFamily(mount.file, resourceManifest),
-        embedded_ui: embeddedUiState(source),
-        source_refs: unique([mount.file, "routes/index.js", "openapi.yaml", "resource-api-coverage.manifest.json", "scripts/test-manifest.mjs", DEFAULT_POLICY]),
+        embedded_ui: familyEmbeddedUi,
+        embedded_ui_operations: scopedOperations.filter((operation) => operation.embedded_ui).map((operation) => operation.signature),
+        source_refs: unique([
+          mount.file,
+          "routes/index.js",
+          "openapi.yaml",
+          ...openapiReferencePaths.map((file) => path.relative(apiRoot, file).replace(/\\/g, "/")),
+          ...(familyEmbeddedUi ? frontendAssetPaths.map((file) => path.relative(apiRoot, file).replace(/\\/g, "/")) : []),
+          "resource-api-coverage.manifest.json",
+          "scripts/test-manifest.mjs",
+          ...familyTests,
+          DEFAULT_POLICY,
+        ]),
       };
       family.surface_decision = policyDecision(family, policy);
       family.risk = riskFor(family);
@@ -320,13 +515,26 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
 
   families.sort((a, b) => a.mount_order - b.mount_order || a.family_key.localeCompare(b.family_key));
   const tasks = families.map(taskFor).sort((a, b) => a.wave.localeCompare(b.wave) || b.state.localeCompare(a.state) || a.task_key.localeCompare(b.task_key));
-  const sourceAuthority = [indexPath, openapiPath, resourcePath, testManifestPath, policyPath].map((file) => ({
+  const sourceAuthority = unique([
+    indexPath,
+    generatorPath,
+    openapiPath,
+    ...openapiReferencePaths,
+    ...frontendAssetPaths,
+    resourcePath,
+    testManifestPath,
+    ...testEvidence.claimedFiles,
+    policyPath,
+    path.resolve(apiRoot, "..", "specs", "010-unified-platform-frontend", "contracts", "frontend-dispatch-plan.schema.json"),
+    path.resolve(apiRoot, "..", "specs", "010-unified-platform-frontend", "contracts", "ui-surface-catalog.schema.json"),
+  ]).map((file) => ({
     file: path.relative(apiRoot, file).replace(/\\/g, "/"),
     sha256: digest(readText(file)),
     present: fs.existsSync(file),
   }));
   const operationCount = families.reduce((sum, family) => sum + family.operations.length, 0);
   const openapiGapCount = families.reduce((sum, family) => sum + family.openapi_gaps.length, 0);
+  const untestedOperationCount = families.reduce((sum, family) => sum + family.operations.filter((operation) => !operation.tests.length).length, 0);
   const unresolvedDecisions = families.filter((family) => family.surface_decision.decision === "requires_review").length;
 
   return {
@@ -350,8 +558,10 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
       openapi_gap_count: openapiGapCount,
       embedded_ui_family_count: families.filter((family) => family.embedded_ui).length,
       unresolved_surface_decision_count: unresolvedDecisions,
-      test_owned_family_count: families.filter((family) => family.tests.length).length,
-      untested_family_count: families.filter((family) => !family.tests.length).length,
+      test_owned_family_count: families.filter((family) => !family.untested_operations.length).length,
+      untested_family_count: families.filter((family) => family.untested_operations.length).length,
+      test_owned_operation_count: operationCount - untestedOperationCount,
+      untested_operation_count: untestedOperationCount,
       ready_task_count: tasks.filter((task) => task.state === "ready").length,
       blocked_task_count: tasks.filter((task) => task.state === "blocked").length,
       coverage_complete: openapiGapCount === 0 && unresolvedDecisions === 0 && tasks.every((task) => task.state === "ready"),
@@ -378,8 +588,9 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
 }
 
 export function syncDispatchPlan({ apiRoot = process.cwd(), mode = "write", output = DEFAULT_OUTPUT, baselineRef } = {}) {
-  const plan = buildDispatchPlan({ apiRoot, baselineRef });
   const target = path.resolve(apiRoot, output);
+  const persistedBaselineRef = mode === "check" ? readJson(target, {})?.baseline?.ref : null;
+  const plan = buildDispatchPlan({ apiRoot, baselineRef: baselineRef || persistedBaselineRef });
   const content = `${JSON.stringify(plan, null, 2)}\n`;
   const current = readText(target);
   const drift = current !== content;

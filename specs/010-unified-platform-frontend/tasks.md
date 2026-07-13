@@ -23,8 +23,8 @@
 
 ## F1 tenant shell
 
-- [ ] T100 Add browser-safe surface catalog and `/platform` shell.
-- [ ] T101 Add MAD4B tokens, light/dark/system themes, responsive navigation, and accessibility states.
+- [x] T100 Add browser-safe surface catalog and `/platform` shell.
+- [x] T101 Add MAD4B tokens, light/dark/system themes, responsive navigation, and accessibility states.
 - [ ] T102 Add tenant login/session restore, workspace context, and sign-out.
 - [ ] T103 Implement overview/growth and logical resources.
 - [ ] T104 Implement connections/devices, agents/sessions, support, and settings.

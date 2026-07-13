@@ -40,6 +40,8 @@
         "unresolved_surface_decision_count": { "type": "integer", "minimum": 0 },
         "test_owned_family_count": { "type": "integer", "minimum": 0 },
         "untested_family_count": { "type": "integer", "minimum": 0 },
+        "test_owned_operation_count": { "type": "integer", "minimum": 0 },
+        "untested_operation_count": { "type": "integer", "minimum": 0 },
         "ready_task_count": { "type": "integer", "minimum": 0 },
         "blocked_task_count": { "type": "integer", "minimum": 0 },
         "coverage_complete": { "type": "boolean" }
@@ -50,7 +52,11 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["family_key", "source_file", "source_digest", "scope", "operations", "openapi_gaps", "tests", "surface_decision", "risk", "wave"]
+        "required": ["family_key", "source_file", "source_digest", "scope", "operations", "openapi_gaps", "tests", "untested_operations", "surface_decision", "risk", "wave"],
+        "properties": {
+          "tests": { "type": "array", "items": { "type": "string" } },
+          "untested_operations": { "type": "array", "items": { "type": "string" } }
+        }
       }
     },
     "tasks": {

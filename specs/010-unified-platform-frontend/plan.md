@@ -9,8 +9,8 @@ Build the frontend as two coupled systems: a governed application shell and a so
 - **Discovery**: `scripts/frontend-surface-dispatch.mjs` reads mounted routes, OpenAPI, Resource API, surface policy, and the test manifest.
 - **Policy**: `frontend-surface-policy.json` records only explicit UI/API/legacy/deferred decisions.
 - **Generated contract**: `frontend-surface-dispatch.generated.json` is deterministic and source-pinned.
-- **Runtime catalog**: a later route serves a browser-safe subset of approved descriptors.
-- **Application shell**: `/platform` with shared theme, navigation, workspace, loading/error/denied/approval/evidence states.
+- **Runtime catalog**: `/platform/ui-surfaces` serves a browser-safe, fail-closed subset of approved descriptors.
+- **Application shell**: `/platform` now provides the dependency-light public foundation with shared light/dark/system theme, responsive navigation, loading/locked/error states, and no tenant data or browser-held service key. Workspace/authenticated states remain F1 follow-up work.
 - **Adapters**: explicit tenant and admin read/action adapters; no generic privileged proxy.
 
 ## Authority inputs
@@ -29,7 +29,7 @@ See `repo-source-authority-map.md`. Runtime mount topology outranks OpenAPI pres
 
 ## Dynamic dispatch algorithm
 
-For each mounted builder, collect literal operations and source digest; normalize signatures; join OpenAPI, resource and test evidence; infer scope conservatively; apply explicit surface policy; score risk; attach dependencies; and emit `ready` only when all hard blockers are absent. A changed authority digest moves work back through discovery.
+For each mounted builder and direct `app.METHOD` registration, collect concrete operations and source digests; expand statically registered route templates; resolve local OpenAPI path-item references; join Resource API and explicit operation-level test claims; infer scope conservatively; apply exact surface policy; score risk; attach dependencies; and emit `ready` only when all hard blockers are absent. A changed authority, test, contract, generator, schema, or browser-asset digest moves work back through discovery.
 
 ## Planned runtime structure
 
@@ -66,4 +66,4 @@ http-generic-api/
 
 ## Branch strategy
 
-The specification/foundation PR contains F0 only. Runtime UI waves follow as bounded PRs referenced by `completion.json`. Before each wave, regenerate on current `main`; do not dispatch from the original specification baseline.
+At the user's direction, PR #2579 now carries F0 plus the bounded F1-A public shell/catalog foundation on the same branch. Authenticated tenant data, Admin BFF, admin workspaces, Local Manager, developer/evidence, and cutover remain separately gated implementation slices referenced by `completion.json`. Before every slice, regenerate from the synchronized repository baseline.

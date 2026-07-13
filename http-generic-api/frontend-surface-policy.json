@@ -5,28 +5,45 @@
   "description": "Explicit exceptions and product decisions for repository-discovered frontend surface families. Discovery remains fail-closed; absence of a matching rule blocks dispatch.",
   "rules": [
     {
+      "rule_id": "platform-shell-public",
+      "family_key": "platform-frontend",
+      "scope": "public",
+      "decision": "unified_ui",
+      "owner": "frontend-platform",
+      "rationale": "The dependency-light public platform shell and browser-safe catalog are the governed entrypoint for the unified frontend.",
+      "evidence_refs": ["routes/platformFrontendRoutes.js", "public/platform", "test-platform-frontend-routes.mjs"]
+    },
+    {
+      "rule_id": "connect-assets-compatibility",
       "path_prefix": "/connect/assets",
       "decision": "embedded_ui",
       "owner": "frontend-platform",
-      "rationale": "Existing Connect assets remain a compatibility surface while the unified shell is introduced."
+      "rationale": "Existing Connect assets remain a compatibility surface while the unified shell is introduced.",
+      "evidence_refs": ["routes/connectRoutes.js", "public/connect"]
     },
     {
+      "rule_id": "local-manager-compatibility",
       "path_prefix": "/local-manager",
       "decision": "legacy_compatibility",
       "owner": "local-manager",
-      "rationale": "Existing Local Manager browser pages remain supported until wave F4 reaches verified parity."
+      "rationale": "Existing Local Manager browser pages remain supported until wave F4 reaches verified parity.",
+      "evidence_refs": ["routes/localManagerBetaRoutes.js", "routes/localManagerDesktopCommandRoutes.js", "specs/010-unified-platform-frontend/plan.md"]
     },
     {
+      "rule_id": "health-component-data",
       "path_prefix": "/health",
       "decision": "api_only",
       "owner": "runtime-operations",
-      "rationale": "Health contracts feed status components but are not standalone navigation destinations."
+      "rationale": "Health contracts feed status components but are not standalone navigation destinations.",
+      "evidence_refs": ["routes/healthRoutes.js", "openapi.yaml"]
     },
     {
+      "rule_id": "status-component-data",
       "path_prefix": "/status",
       "decision": "api_only",
       "owner": "runtime-operations",
-      "rationale": "Status contracts feed operational views but are not standalone navigation destinations."
+      "rationale": "Status contracts feed operational views but are not standalone navigation destinations.",
+      "evidence_refs": ["routes/statusRoutes.js", "openapi.yaml"]
     }
   ],
   "secrets_included": false

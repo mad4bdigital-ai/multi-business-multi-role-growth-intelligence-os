@@ -3859,6 +3859,46 @@ x-tenant-gpt-auth:
         - https://auth.mad4b.com/scopes/tenant.system-tools
 
 paths:
+  /platform:
+    get:
+      operationId: getPlatformFrontend
+      summary: Load the governed MAD4B platform shell
+      tags: [platform-frontend]
+      security: []
+      responses:
+        '200':
+          description: Dependency-light platform application shell
+          content:
+            text/html:
+              schema: { type: string }
+  /platform/assets/{file}:
+    get:
+      operationId: getPlatformFrontendAsset
+      summary: Load an allowlisted platform shell asset
+      tags: [platform-frontend]
+      security: []
+      parameters:
+        - name: file
+          in: path
+          required: true
+          schema: { type: string, enum: [tokens.css, shell.css, shell.js] }
+      responses:
+        '200': { description: Allowlisted browser asset }
+        '404': { description: Asset not found }
+  /platform/ui-surfaces:
+    get:
+      operationId: getPlatformUiSurfaces
+      summary: Read the browser-safe repository-governed UI surface catalog
+      tags: [platform-frontend]
+      security: []
+      responses:
+        '200':
+          description: Browser-safe UI surface catalog
+          content:
+            application/json:
+              schema:
+                $ref: '../specs/010-unified-platform-frontend/contracts/ui-surface-catalog.schema.json'
+        '503': { description: Dispatch artifact missing or invalid }
   # BEGIN RESOURCE API COVERAGE
   /admin/resource-types:
     get:
