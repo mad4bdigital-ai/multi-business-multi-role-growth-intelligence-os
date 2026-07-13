@@ -55,6 +55,7 @@ export function policyPayload(policy) {
     read_stale_grace_seconds: policy.read_stale_grace_seconds,
     source_registry: policy.source_registry,
     source_surfaces: policy.source_surfaces,
+    oauth_handoff_routes: policy.oauth_handoff_routes,
     routes: policy.routes,
   };
 }
@@ -213,20 +214,12 @@ function resolveRoute(indexes, method, pathname) {
   return { route, allowedMethods: new Set(matches.map((entry) => entry.route.method)) };
 }
 
-const OAUTH_HANDOFF_ROUTES = new Map([
-  ["GET /auth/oauth", { operationId: "oauthHandoff", allowedQueryParameters: [] }],
-  ["GET /auth/oauth/authorize", { operationId: "oauthAuthorizeHandoff", allowedQueryParameters: ["client_id", "code_challenge", "code_challenge_method", "login_hint", "prompt", "redirect_uri", "response_type", "scope", "state"] }],
-  ["GET /auth/oauth/code", { operationId: "oauthCodeHandoff", allowedQueryParameters: ["code", "error", "error_description", "state"] }],
-  ["POST /auth/oauth/token", { operationId: "oauthTokenHandoff", allowedQueryParameters: [] }],
-  ["GET /auth/google", { operationId: "googleOAuthHandoff", allowedQueryParameters: ["code", "error", "error_description", "prompt", "redirect_uri", "scope", "state"] }],
-  ["GET /auth/login", { operationId: "loginPageHandoff", allowedQueryParameters: ["redirect_uri", "state"] }],
-  ["POST /auth/login", { operationId: "loginHandoff", allowedQueryParameters: [] }],
-  ["GET /auth/register", { operationId: "registerPageHandoff", allowedQueryParameters: ["redirect_uri", "state"] }],
-  ["POST /auth/register", { operationId: "registerHandoff", allowedQueryParameters: [] }],
-]);
+function buildOAuthHandoffIndex(policy) {
+  return new Map((policy.oauth_handoff_routes || []).map((route) => [routeKey(route.method, route.path), route]));
+}
 
-function resolveOAuthHandoff(method, pathname) {
-  return OAUTH_HANDOFF_ROUTES.get(routeKey(method, pathname)) || null;
+function resolveOAuthHandoff(index, method, pathname) {
+  return index.get(routeKey(method, pathname)) || null;
 }
 
 function forwardedRequestHeaders(request, policy, requestId) {
@@ -281,6 +274,7 @@ export function createActivationGateway({
 } = {}) {
   if (!policy || typeof policy !== "object") throw new Error("Activation gateway policy is required");
   const indexes = buildRouteIndexes(policy);
+  const oauthHandoffIndex = buildOAuthHandoffIndex(policy);
   let verificationCacheKey = "";
   let verificationCache = null;
 
@@ -364,14 +358,14 @@ export function createActivationGateway({
         return jsonResponse(status, errorBody("GATEWAY_PATH_INVALID", "The request path is not canonical.", requestId), requestId);
       }
 
-      const oauthHandoff = resolveOAuthHandoff(request.method, url.pathname);
+      const oauthHandoff = resolveOAuthHandoff(oauthHandoffIndex, request.method, url.pathname);
       if (oauthHandoff) {
-        operationIds = [oauthHandoff.operationId];
+        operationIds = oauthHandoff.operation_ids || [];
         if (verification.stale) {
           status = 503;
           return jsonResponse(status, errorBody("GATEWAY_POLICY_STALE", "The Activation Gateway policy is stale.", requestId), requestId);
         }
-        const allowedQuery = new Set(oauthHandoff.allowedQueryParameters || []);
+        const allowedQuery = new Set(oauthHandoff.allowed_query_parameters || []);
         const unsupported = [...new Set([...url.searchParams.keys()].filter((key) => !allowedQuery.has(key)))];
         if (unsupported.length > 0) {
           status = 400;
@@ -379,10 +373,10 @@ export function createActivationGateway({
         }
         const body = ["GET", "HEAD"].includes(request.method.toUpperCase())
           ? undefined
-          : await boundedBody(request.clone(), 1048576);
+          : await boundedBody(request.clone(), Number(oauthHandoff.request_body_limit_bytes));
         const target = new URL(`${url.pathname}${url.search}`, policy.upstream_origin);
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 30000);
+        const timer = setTimeout(() => controller.abort(), Number(oauthHandoff.timeout_ms));
         let upstream;
         try {
           upstream = await fetchImpl(target, {
@@ -400,7 +394,7 @@ export function createActivationGateway({
           status = 502;
           return jsonResponse(status, errorBody("GATEWAY_UPSTREAM_REDIRECT_BLOCKED", "The upstream returned a redirect, which is blocked.", requestId), requestId);
         }
-        const responseBody = await boundedResponseBody(upstream, 5242880);
+        const responseBody = await boundedResponseBody(upstream, Number(oauthHandoff.response_body_limit_bytes));
         status = upstream.status;
         return new Response(responseBody, { status, headers: filteredResponseHeaders(upstream, requestId, policy) });
       }

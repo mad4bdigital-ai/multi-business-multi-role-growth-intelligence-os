@@ -17,8 +17,8 @@ components:
       description: Tenant GPT OAuth. ChatGPT signs in through the Growth Intelligence Platform popup, then /auth/oauth/token mints a fresh Mad4B tenant access JWT with issuer, audience, subject, scope, user_id, and tenant_id claims. Google Sign-In is only an upstream identity proof inside the popup; do not call OAuth.
       flows:
         authorizationCode:
-          authorizationUrl: https://auth.mad4b.com/auth/oauth/authorize
-          tokenUrl: https://auth.mad4b.com/auth/oauth/token
+          authorizationUrl: https://activation.mad4b.com/auth/oauth/authorize
+          tokenUrl: https://activation.mad4b.com/auth/oauth/token
           scopes:
             https://auth.mad4b.com/scopes/tenant.links: Access tenant-scoped Growth Intelligence links for the signed-in user.
             https://auth.mad4b.com/scopes/tenant.status: Read tenant connection status for the signed-in user.
@@ -485,6 +485,7 @@ components:
         sample_alert:
           type: object
           additionalProperties: true
+          properties: {}
         apply_enabled:
           type: boolean
           enum:
@@ -525,9 +526,11 @@ components:
         subject:
           type: object
           additionalProperties: true
+          properties: {}
         summary:
           type: object
           additionalProperties: true
+          properties: {}
         items:
           type: array
           items:
@@ -1218,6 +1221,7 @@ paths:
             - https://auth.mad4b.com/scopes/tenant.install
             - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: readTenantResolutionProblemCards
+      x-custom-gpt-exclude: false
       x-openai-isConsequential: false
       summary: Read tenant self-healing problem cards
       description: Projects tenant-scoped Operational Attention alerts into root-family Problem Cards. This endpoint is diagnostic-only and does not create cases, execute providers, or apply repairs.
@@ -1396,6 +1400,7 @@ paths:
             - https://auth.mad4b.com/scopes/tenant.install
             - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: createTenantResolutionCase
+      x-custom-gpt-exclude: false
       x-openai-isConsequential: true
       summary: Create or return a tenant resolution case
       description: Creates an internal tenant-scoped resolution case from a Problem Card. This endpoint does not call providers, write externally, or apply repairs.
@@ -1455,8 +1460,8 @@ paths:
                   type: string
                   maxLength: 191
       responses:
-        "201":
-          description: Resolution case created.
+        "200":
+          description: Existing active case returned idempotently.
           content:
             application/json:
               schema:
@@ -1900,8 +1905,8 @@ x-gpt-action-auth-preset:
   client_secret: <resolved-from-governed-platform-secret>
   client_secret_ref: platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET
   client_secret_config_key: tenant_gpt.oauth.client
-  authorization_url: https://auth.mad4b.com/auth/oauth/authorize
-  token_url: https://auth.mad4b.com/auth/oauth/token
+  authorization_url: https://activation.mad4b.com/auth/oauth/authorize
+  token_url: https://activation.mad4b.com/auth/oauth/token
   token_exchange_method: Default (POST request)
   callback_urls_to_allow:
     - https://chat.openai.com/aip/g-d36db295032b9022dd77233041763f513e8ba5fa/oauth/callback

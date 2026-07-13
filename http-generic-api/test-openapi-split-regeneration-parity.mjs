@@ -118,6 +118,12 @@ assert.equal(adminCore.servers?.[0]?.url, "https://auth.mad4b.com");
 assert.equal(tenantCore.servers?.[0]?.url, "https://auth.mad4b.com");
 assert.equal(adminActivation.servers?.[0]?.url, "https://activation.mad4b.com");
 assert.equal(tenantActivation.servers?.[0]?.url, "https://activation.mad4b.com");
+assert.equal(tenantCore.components.securitySchemes.userBearerAuth.flows.authorizationCode.authorizationUrl, "https://auth.mad4b.com/auth/oauth/authorize");
+assert.equal(tenantCore.components.securitySchemes.userBearerAuth.flows.authorizationCode.tokenUrl, "https://auth.mad4b.com/auth/oauth/token");
+assert.equal(tenantActivation.components.securitySchemes.userBearerAuth.flows.authorizationCode.authorizationUrl, "https://activation.mad4b.com/auth/oauth/authorize");
+assert.equal(tenantActivation.components.securitySchemes.userBearerAuth.flows.authorizationCode.tokenUrl, "https://activation.mad4b.com/auth/oauth/token");
+assert.equal(tenantActivation["x-gpt-action-auth-preset"].authorization_url, "https://activation.mad4b.com/auth/oauth/authorize");
+assert.equal(tenantActivation["x-gpt-action-auth-preset"].token_url, "https://activation.mad4b.com/auth/oauth/token");
 
 assert(splitScript.includes("SURFACE_REGISTRY_FILE"));
 assert(splitScript.includes("selectOperations"));
