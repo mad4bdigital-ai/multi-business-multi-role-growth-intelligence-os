@@ -108,6 +108,11 @@ components:
       description: >
         Send Authorization: Bearer <BACKEND_API_KEY> for admin/service access, or
         Authorization: Bearer <USER_JWT> after user sign-in.
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key
+      description: Backend API key supplied as a bearer token and accepted only when the runtime admin-principal guard also succeeds.
     backendApiKeyAuth:
       type: apiKey
       in: header
@@ -8180,8 +8185,7 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
       security:
-        - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.activation
+        - userJwtAuth: []
 
   /activation/platform-access:
     get:
@@ -14478,7 +14482,7 @@ paths:
   /connect/status:
     get:
       tags: [tenant-connect]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: getConnectStatus
       summary: Tenant connection status for signed-in user
       description: "Returns the signed-in user, their active tenant membership, the tenant backend connection (mode, status, cloudflare_mode, google_auth_mode, n8n_activation_mode), and the user's configured devices. Requires user JWT."
@@ -14514,7 +14518,7 @@ paths:
   /connect/activate:
     post:
       tags: [tenant-connect]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: postConnectActivate
       summary: Activate tenant backend connection
       description: "Activates the tenant backend connection in managed or dedicated mode. Optionally records Cloudflare account context for dedicated mode (tokens are never stored). Upserts tenant_backend_connections and returns the resolved connection."
@@ -14567,7 +14571,7 @@ paths:
   /connect/device-install:
     post:
       tags: [tenant-connect]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: postConnectDeviceInstall
       summary: Provision a local connector device for the tenant
       description: "Provisions a Cloudflare tunnel and connector config for the named device. Uses managed or dedicated provisioning depending on the tenant connection's cloudflare_mode. Returns install bundle pointers and updates device_count."
@@ -14607,7 +14611,7 @@ paths:
       security:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
-        - userBearerAuth: []
+        - userJwtAuth: []
       operationId: listLocalGatewayTools
       summary: List tenant-safe local gateway tools
       description: "Returns local gateway tool descriptors available to the authenticated caller. Caller and tenant context are derived from the validated credential; include_planned defaults to false."
@@ -14641,7 +14645,7 @@ paths:
   /local-connector/health:
     get:
       tags: [local-connector]
-      security: [backendBearerAuth: [], backendApiKeyAuth: [], userBearerAuth: []]
+      security: [backendBearerAuth: [], backendApiKeyAuth: [], userJwtAuth: []]
       operationId: getLocalConnectorHealth
       summary: Check tunnel reachability for a tenant device
       description: "Resolves the tenant device's tunnel_url and connector_secret, then probes the connector /health endpoint with a 10s timeout. Returns the agent's health payload on success, or a structured connector_unreachable error on failure (HTTP 200 either way for tenant ergonomics)."
@@ -14720,7 +14724,7 @@ paths:
     get:
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getConnectOnboardingState
       summary: Read Connect onboarding state for the signed-in user
       responses:
@@ -14731,7 +14735,7 @@ paths:
       x-openai-isConsequential: true
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: createConnectWorkspace
       summary: Create or select a workspace during Connect onboarding
       requestBody:
@@ -14747,7 +14751,7 @@ paths:
       x-openai-isConsequential: true
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: escalateConnectRequest
       summary: Escalate a Connect onboarding or access request
       requestBody:
@@ -14762,7 +14766,7 @@ paths:
     get:
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getCurrentConnectUser
       summary: Read the current user profile for Connect surfaces
       responses:
@@ -14772,7 +14776,7 @@ paths:
     get:
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: listCurrentWorkspaceBrands
       summary: List tenant-safe brands visible to the signed-in workspace member
       parameters:
@@ -14787,7 +14791,7 @@ paths:
     get:
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: listCurrentUserWorkspaces
       summary: List workspaces available to the current user
       responses:
@@ -14796,7 +14800,7 @@ paths:
       x-openai-isConsequential: true
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: createCurrentUserWorkspace
       summary: Create a workspace for the current user
       requestBody:
@@ -14811,7 +14815,7 @@ paths:
     get:
       tags: [agent-surfaces]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: listAgentSurfaceCatalog
       summary: List Hermes, OpenClaude, and OpenClaw capabilities and deployment modes
       responses:
@@ -14827,7 +14831,7 @@ paths:
     get:
       tags: [agent-surfaces]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getTenantAgentSurfaces
       summary: Read tenant deployments, current-user preferences, and readiness
       responses:
@@ -14843,7 +14847,7 @@ paths:
     get:
       tags: [agent-surfaces]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getTenantAgentSurfaceReadiness
       summary: Read platform-managed and dedicated-managed runtime readiness
       responses:
@@ -14859,7 +14863,7 @@ paths:
     put:
       tags: [agent-surfaces]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: replaceOwnAgentSurfacePreferences
       summary: Replace the authenticated user's preferences for one surface
       parameters:
@@ -14896,7 +14900,7 @@ paths:
     put:
       tags: [agent-surfaces]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: setTenantAgentSurfaceDeployment
       summary: Set platform-managed or dedicated-managed deployment for one tenant surface
       parameters:
@@ -14927,7 +14931,7 @@ paths:
     get:
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getCurrentUserCapabilities
       summary: Read current user capability flags
       responses:
@@ -14938,7 +14942,7 @@ paths:
       x-openai-isConsequential: true
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: updateConnectPreferences
       summary: Update Connect user preferences
       requestBody:
@@ -14954,7 +14958,7 @@ paths:
       x-openai-isConsequential: true
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: updateConnectProfile
       summary: Update Connect user profile metadata
       requestBody:
@@ -16746,12 +16750,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
       security:
-        - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+        - userJwtAuth: []
   /platform/action-manifest/resolve:
     post:
       x-openai-isConsequential: false
@@ -18077,6 +18076,7 @@ paths:
     post:
       x-openai-isConsequential: false
       tags: [platform-intelligence]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: platformCapabilityVaultRepoIngestionPlan
       summary: Plan repo-to-capability ingestion
       description: >
@@ -18171,6 +18171,7 @@ paths:
     post:
       x-openai-isConsequential: false
       tags: [platform-intelligence]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: platformCapabilityVaultInstallRequestPlan
       summary: Plan tenant, brand, or user package install request
       description: >
@@ -18207,6 +18208,7 @@ paths:
     post:
       x-openai-isConsequential: false
       tags: [platform-intelligence]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: platformCapabilityVaultVariantMergePlan
       summary: Plan three-way merge of scoped variant patches
       description: >
@@ -20058,7 +20060,7 @@ paths:
   /connect/api/app-integrations:
     get:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: listConnectApiAppIntegrations
       summary: List active app integrations the user can connect
       responses:
@@ -20068,7 +20070,7 @@ paths:
   /connect/api/connections:
     get:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: listConnectApiConnections
       summary: List the signed-in user's app connections
       description: "Returns the caller's own user_app_connections rows. Does NOT include encrypted_credentials or any secret material."
@@ -20079,7 +20081,7 @@ paths:
   /connect/api/connections/{connection_id}:
     delete:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: deleteConnectApiConnection
       summary: Revoke a user connection and zero its credentials
       parameters:
@@ -20092,7 +20094,7 @@ paths:
   /connect/api/integration-policy:
     post:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: updateConnectIntegrationPolicy
       summary: Update per-app managed/dedicated integration source policy
       description: Keeps tenant activation mode canonical while allowing mixed per-app credential sources.
@@ -20141,7 +20143,7 @@ paths:
   /connect/api/credential-intake/sessions:
     post:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: createConnectCredentialIntakeSession
       summary: Create a user-scoped secure credential intake link
       description: Creates a short-lived URL where the signed-in tenant user can enter integration secrets outside GPT chat.
@@ -20204,7 +20206,7 @@ paths:
     get:
       tags: [connect]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: waitConnectCredentialIntakeSession
       summary: Wait for tenant credential intake completion
       description: Long-polls a tenant-scoped credential-intake session and returns completion metadata plus connection_id without exposing submitted secrets. Intended for automated post-intake verification flows and webhook-safe completion handling.
@@ -20256,7 +20258,7 @@ paths:
   /connect/api/cms/claims:
     get:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: listConnectApiCmsClaims
       summary: List the user's CMS account claims
       responses:
@@ -20264,7 +20266,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
     post:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: createConnectApiCmsClaim
       summary: Verify a user-supplied WordPress account and create a private claim
       description: "Calls /wp/v2/users/me on the supplied site with Basic auth (username + application_password), creates an encrypted user_app_connections row, a private credential_bindings row, and a cms_account_claims row. user_id is taken from the authenticated session and rejected if present in the body. Secrets are never returned."
@@ -20311,7 +20313,7 @@ paths:
   /connect/api/cms/claims/{claim_id}/approve:
     post:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: approveConnectApiCmsClaim
       summary: Approve a CMS claim for workspace/tenant sharing
       parameters:
@@ -20323,7 +20325,7 @@ paths:
   /connect/api/cms/claims/{claim_id}/reject:
     post:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: rejectConnectApiCmsClaim
       summary: Reject a CMS claim
       parameters:

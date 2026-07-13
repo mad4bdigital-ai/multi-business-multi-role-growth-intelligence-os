@@ -3,10 +3,31 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import YAML from "yaml";
 
 const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 const DEFAULT_OUTPUT = "frontend-surface-dispatch.generated.json";
 const DEFAULT_POLICY = "frontend-surface-policy.json";
+const DEFAULT_OPENAPI_INDEX = "openapi/frontend-runtime-routes.generated.yaml";
+const AUTH_GUARDS = new Set([
+  "requireBackendApiKey",
+  "requireAdminPrincipal",
+  "requireAdmin",
+  "requireUserJwt",
+  "requireTenantUserJwt",
+  "verifyUserJwt",
+  "requireUser",
+  "requireTenantPrincipal",
+  "requireResolutionPrincipal",
+  "requireActiveMembership",
+  "requireWorkspaceOwner",
+  "requireLocalManagerDevice",
+  "requireLocalManagerUser",
+  "requireFreshLocalManagerDeviceForPrivilegedInstaller",
+  "requireMcpToken",
+  "verifyInstallerDownloadToken",
+]);
+const OPERATION_CLASSIFICATIONS = new Set(["read", "read_action", "preflight", "state_change", "external_effect", "disabled", "unresolved"]);
 
 function canonicalText(value = "") {
   return String(value).replace(/\r\n?/g, "\n");
@@ -128,6 +149,92 @@ export function parseOpenApiOperations(source = "", { sourcePath, apiRoot } = {}
   return operations;
 }
 
+function jsonPointerValue(document, fragment = "") {
+  if (!fragment || fragment === "#") return document;
+  const pointer = fragment.startsWith("#") ? fragment.slice(1) : fragment;
+  if (!pointer.startsWith("/")) return null;
+  return pointer.slice(1).split("/").map(decodeJsonPointerSegment).reduce((value, key) => value?.[key], document);
+}
+
+function resolveOpenApiReference(reference, sourcePath, apiRoot) {
+  const [relativeFile = "", fragment = ""] = String(reference || "").split("#", 2);
+  if (!relativeFile || !sourcePath || !apiRoot) return null;
+  const target = path.resolve(path.dirname(sourcePath), relativeFile);
+  const root = path.resolve(apiRoot);
+  if (target !== root && !target.startsWith(`${root}${path.sep}`)) return null;
+  const source = readText(target);
+  if (!source) return null;
+  const document = YAML.parse(source);
+  return { value: jsonPointerValue(document, `#${fragment}`), sourcePath: target };
+}
+
+function normalizeSecurityAlternatives(security) {
+  if (!Array.isArray(security)) return null;
+  if (security.length === 0) return [];
+  return security
+    .map((requirement) => Object.keys(requirement || {}).sort())
+    .filter((requirement) => requirement.length)
+    .sort((a, b) => a.join("+").localeCompare(b.join("+")));
+}
+
+function canonicalAlternativeList(alternatives) {
+  return (alternatives || [])
+    .map((entry) => [...entry].sort())
+    .sort((a, b) => a.join("+").localeCompare(b.join("+")));
+}
+
+export function parseOpenApiContracts(source = "", { sourcePath, apiRoot } = {}) {
+  const contracts = new Map();
+  const document = YAML.parse(canonicalText(source)) || {};
+  const knownSchemes = new Set(Object.keys(document.components?.securitySchemes || {}));
+  for (const [routePath, rawPathItem] of Object.entries(document.paths || {})) {
+    let pathItem = rawPathItem;
+    let operationSource = sourcePath || "openapi.yaml";
+    if (rawPathItem?.$ref) {
+      const resolved = resolveOpenApiReference(rawPathItem.$ref, sourcePath, apiRoot);
+      if (resolved?.value) {
+        pathItem = resolved.value;
+        operationSource = resolved.sourcePath;
+      }
+    }
+    for (const [method, operation] of Object.entries(pathItem || {})) {
+      const normalizedMethod = method.toUpperCase();
+      if (!HTTP_METHODS.has(normalizedMethod)) continue;
+      const security = Object.hasOwn(operation || {}, "security") ? operation.security : document.security;
+      const alternatives = normalizeSecurityAlternatives(security);
+      const usedSchemes = unique((alternatives || []).flat());
+      contracts.set(`${normalizedMethod} ${normalizeRoutePath(routePath)}`, {
+        signature: `${normalizedMethod} ${normalizeRoutePath(routePath)}`,
+        source_file: sourcePath && apiRoot ? path.relative(apiRoot, operationSource).replace(/\\/g, "/") : operationSource,
+        security_declared: Object.hasOwn(operation || {}, "security"),
+        security_alternatives: alternatives,
+        unknown_security_schemes: usedSchemes.filter((scheme) => !knownSchemes.has(scheme)),
+        operation_id: operation?.operationId || null,
+        contract_level: operation?.["x-contract-completeness"] || "canonical",
+      });
+    }
+  }
+  return contracts;
+}
+
+function authParity(runtimeAuth, openapiAuth) {
+  if (!openapiAuth) return { state: "missing_openapi", reasons: ["operation_not_documented"] };
+  if (openapiAuth.unknown_security_schemes?.length) {
+    return { state: "undefined_scheme", reasons: openapiAuth.unknown_security_schemes.map((scheme) => `undefined_security_scheme:${scheme}`) };
+  }
+  if (runtimeAuth?.state !== "resolved") return { state: "unknown", reasons: [runtimeAuth?.profile || "runtime_auth_unresolved"] };
+  if (openapiAuth.security_alternatives === null) return { state: "unknown", reasons: ["openapi_security_inheritance_unresolved"] };
+  const runtimeAlternatives = canonicalAlternativeList(runtimeAuth.alternatives);
+  const contractAlternatives = canonicalAlternativeList(openapiAuth.security_alternatives);
+  const runtime = JSON.stringify(runtimeAlternatives);
+  const contract = JSON.stringify(contractAlternatives);
+  if (runtime === contract) return { state: "equivalent", reasons: [] };
+  return {
+    state: "mismatch",
+    reasons: [`runtime:${runtimeAlternatives.map((entry) => entry.join("+")).join("|") || "public"}`, `openapi:${contractAlternatives.map((entry) => entry.join("+")).join("|") || "public"}`],
+  };
+}
+
 export function parseMountedRouteFiles(indexSource = "") {
   const imports = new Map();
   const importRe = /import\s*{([\s\S]*?)}\s*from\s*["']\.\/([^"']+)["'];/g;
@@ -181,6 +288,176 @@ function findMatchingBrace(source, openingIndex) {
   return -1;
 }
 
+function findMatchingDelimiter(source, openingIndex, openingCharacter, closingCharacter) {
+  let depth = 0;
+  let quote = "";
+  let escaped = false;
+  let lineComment = false;
+  let blockComment = false;
+  for (let index = openingIndex; index < source.length; index += 1) {
+    const character = source[index];
+    const next = source[index + 1];
+    if (lineComment) {
+      if (character === "\n") lineComment = false;
+      continue;
+    }
+    if (blockComment) {
+      if (character === "*" && next === "/") {
+        blockComment = false;
+        index += 1;
+      }
+      continue;
+    }
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === quote) quote = "";
+      continue;
+    }
+    if (character === "/" && next === "/") {
+      lineComment = true;
+      index += 1;
+      continue;
+    }
+    if (character === "/" && next === "*") {
+      blockComment = true;
+      index += 1;
+      continue;
+    }
+    if (["\"", "'", "`"].includes(character)) {
+      quote = character;
+      continue;
+    }
+    if (character === openingCharacter) depth += 1;
+    if (character === closingCharacter && --depth === 0) return index;
+  }
+  return -1;
+}
+
+function splitTopLevelArguments(source = "") {
+  const values = [];
+  let start = 0;
+  let quote = "";
+  let escaped = false;
+  let round = 0;
+  let square = 0;
+  let curly = 0;
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === quote) quote = "";
+      continue;
+    }
+    if (["\"", "'", "`"].includes(character)) {
+      quote = character;
+      continue;
+    }
+    if (character === "(") round += 1;
+    else if (character === ")") round -= 1;
+    else if (character === "[") square += 1;
+    else if (character === "]") square -= 1;
+    else if (character === "{") curly += 1;
+    else if (character === "}") curly -= 1;
+    else if (character === "," && round === 0 && square === 0 && curly === 0) {
+      values.push(source.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  const tail = source.slice(start).trim();
+  if (tail) values.push(tail);
+  return values;
+}
+
+function middlewareAliases(source = "") {
+  const aliases = new Map();
+  for (const match of canonicalText(source).matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*\[([\s\S]*?)\]\s*;/g)) {
+    aliases.set(match[1], match[2]);
+  }
+  return aliases;
+}
+
+function middlewareGuards(expression = "", aliases = new Map(), seen = new Set()) {
+  const guards = [];
+  for (const match of String(expression).matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g)) {
+    const name = match[1];
+    if (AUTH_GUARDS.has(name)) guards.push(name);
+    if (aliases.has(name) && !seen.has(name)) {
+      const nextSeen = new Set(seen);
+      nextSeen.add(name);
+      guards.push(...middlewareGuards(aliases.get(name), aliases, nextSeen));
+    }
+  }
+  return unique(guards);
+}
+
+function activeRouterUseGuards(source, sourceIndex, routePath, aliases) {
+  const guards = [];
+  const useRe = /(?:router|app)\.use\s*\(/g;
+  let match;
+  while ((match = useRe.exec(source)) !== null && match.index < sourceIndex) {
+    const opening = source.indexOf("(", match.index);
+    const closing = findMatchingDelimiter(source, opening, "(", ")");
+    if (closing < 0 || closing >= sourceIndex) continue;
+    const args = splitTopLevelArguments(source.slice(opening + 1, closing));
+    const prefixMatch = args[0]?.match(/^["'`]([^"'`]+)["'`]$/);
+    const prefix = prefixMatch ? normalizeRoutePath(prefixMatch[1]) : null;
+    if (prefix && routePath !== prefix && !routePath.startsWith(`${prefix}/`)) continue;
+    for (const argument of prefix ? args.slice(1) : args) guards.push(...middlewareGuards(argument, aliases));
+  }
+  return unique(guards);
+}
+
+function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [], override = null }) {
+  const guardChain = unique([...inheritedGuards, ...routeGuards]);
+  const evidence = [
+    ...inheritedGuards.map((guard) => `router.use:${guard}`),
+    ...routeGuards.map((guard) => `route:${guard}`),
+  ];
+  if (override?.profile) {
+    const profiles = {
+      public: { alternatives: [], principal: "anonymous" },
+      user_jwt: { alternatives: [["userJwtAuth"]], principal: "tenant_user" },
+      admin_backend: { alternatives: [["adminBearerAuth"], ["backendApiKeyAuth"]], principal: "admin" },
+      backend_or_user: { alternatives: [["backendBearerAuth"], ["backendApiKeyAuth"]], principal: "authenticated" },
+      local_manager: { alternatives: [["localManagerBearerAuth"]], principal: "local_manager" },
+      mcp_query_token: { alternatives: [["mcpQueryTokenAuth"]], principal: "mcp_client" },
+      signed_query_token: { alternatives: [["signedQueryTokenAuth"]], principal: "signed_link" },
+    };
+    const selected = profiles[override.profile];
+    if (selected) return { state: "resolved", profile: override.profile, ...selected, guard_chain: guardChain, evidence: unique([...evidence, ...(override.evidence_refs || [])]), configuration_dependencies: [] };
+  }
+
+  const hasBackend = guardChain.includes("requireBackendApiKey");
+  const hasAdmin = guardChain.includes("requireAdminPrincipal") || guardChain.includes("requireAdmin");
+  const hasUser = guardChain.some((guard) => ["requireUserJwt", "requireTenantUserJwt", "verifyUserJwt", "requireUser", "requireTenantPrincipal", "requireResolutionPrincipal", "requireActiveMembership", "requireWorkspaceOwner"].includes(guard));
+  const hasLocal = guardChain.some((guard) => ["requireLocalManagerDevice", "requireLocalManagerUser", "requireFreshLocalManagerDeviceForPrivilegedInstaller"].includes(guard));
+  const hasMcp = guardChain.includes("requireMcpToken");
+  const hasSignedQuery = guardChain.includes("verifyInstallerDownloadToken");
+  const modes = [hasBackend || hasAdmin, hasUser, hasLocal, hasMcp, hasSignedQuery].filter(Boolean).length;
+  if (modes > 1 && !(hasBackend && hasAdmin && modes === 1)) {
+    return { state: "unresolved", profile: "mixed_guard_chain", alternatives: null, principal: null, guard_chain: guardChain, evidence, configuration_dependencies: [] };
+  }
+  if (hasAdmin && !hasBackend) {
+    return { state: "unresolved", profile: "authorizer_without_authenticator", alternatives: null, principal: "admin", guard_chain: guardChain, evidence, configuration_dependencies: [] };
+  }
+  if (hasBackend && hasAdmin) {
+    return { state: "resolved", profile: "admin_backend", alternatives: [["adminBearerAuth"], ["backendApiKeyAuth"]], principal: "admin", guard_chain: guardChain, evidence, configuration_dependencies: ["BACKEND_API_KEY"] };
+  }
+  if (hasBackend) {
+    return { state: "resolved", profile: "backend_or_user", alternatives: [["backendBearerAuth"], ["backendApiKeyAuth"]], principal: "authenticated", guard_chain: guardChain, evidence, configuration_dependencies: ["BACKEND_API_KEY"] };
+  }
+  if (hasUser) return { state: "resolved", profile: "user_jwt", alternatives: [["userJwtAuth"]], principal: "tenant_user", guard_chain: guardChain, evidence, configuration_dependencies: ["JWT_SECRET"] };
+  if (hasLocal) return { state: "resolved", profile: "local_manager", alternatives: [["localManagerBearerAuth"]], principal: "local_manager", guard_chain: guardChain, evidence, configuration_dependencies: [] };
+  if (hasMcp) return { state: "resolved", profile: "mcp_query_token", alternatives: [["mcpQueryTokenAuth"]], principal: "mcp_client", guard_chain: guardChain, evidence, configuration_dependencies: ["MCP_QUERY_TOKEN"] };
+  if (hasSignedQuery) return { state: "resolved", profile: "signed_query_token", alternatives: [["signedQueryTokenAuth"]], principal: "signed_link", guard_chain: guardChain, evidence, configuration_dependencies: [] };
+  if (/^\/(?:connect$|connect\/assets(?:\/|$)|platform$|platform\/assets(?:\/|$)|platform\/ui-surfaces$|favicon\.ico$|robots\.txt$)/.test(routePath)) {
+    return { state: "resolved", profile: "public", alternatives: [], principal: "anonymous", guard_chain: [], evidence: ["explicit_public_route_allowlist"], configuration_dependencies: [] };
+  }
+  return { state: "unresolved", profile: "no_explicit_auth_evidence", alternatives: null, principal: null, guard_chain: guardChain, evidence, configuration_dependencies: [] };
+}
+
 function enclosingHelper(source, sourceIndex) {
   const functionRe = /function\s+([A-Za-z0-9_]+)\s*\([^)]*\)\s*\{/g;
   let match;
@@ -218,27 +495,47 @@ function staticTemplateExpansions(source, sourceIndex, routeTemplate) {
 
 function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver = "router_or_app" } = {}) {
   const operations = [];
+  const aliases = middlewareAliases(source);
   const receiverPattern = receiver === "app" ? "app" : "(?:router|app)";
   const routeRe = new RegExp(`${receiverPattern}\\.(get|post|put|patch|delete)\\s*\\(\\s*([\"'\\x60])([^\"'\\x60]+)\\2`, "gs");
   let match;
   while ((match = routeRe.exec(source)) !== null) {
     const method = match[1].toUpperCase();
     if (!HTTP_METHODS.has(method)) continue;
-    const nextRouteRe = new RegExp(`${receiverPattern}\\.(?:get|post|put|patch|delete)\\s*\\(`, "gs");
-    nextRouteRe.lastIndex = routeRe.lastIndex;
-    const nextRoute = nextRouteRe.exec(source);
-    const declaration = source.slice(match.index, nextRoute?.index ?? source.length);
+    const opening = source.indexOf("(", match.index);
+    const closing = findMatchingDelimiter(source, opening, "(", ")");
+    if (closing < 0) continue;
+    const declaration = source.slice(match.index, closing + 1);
+    const args = splitTopLevelArguments(source.slice(opening + 1, closing));
+    const routeGuards = unique(args.slice(1, -1).flatMap((argument) => middlewareGuards(argument, aliases)));
     const expansions = staticTemplateExpansions(source, match.index, match[3]);
     const routes = expansions.length ? expansions : [match[3]];
     for (const route of routes) {
       const routePath = joinRoutePath(mountPrefix, route);
-      operations.push({ method, path: routePath, signature: `${method} ${routePath}`, source_file: file, source_index: match.index, declaration });
+      const inheritedGuards = activeRouterUseGuards(source, match.index, routePath, aliases);
+      operations.push({
+        method,
+        path: routePath,
+        signature: `${method} ${routePath}`,
+        source_file: file,
+        source_index: match.index,
+        declaration,
+        route_guards: routeGuards,
+        inherited_guards: inheritedGuards,
+      });
     }
   }
   return operations;
 }
 
-function scopeFor({ path: routePath, source, declaration = "", sourceIndex = 0 }) {
+function scopeFor({ path: routePath, source, declaration = "", sourceIndex = 0, runtimeAuth = null }) {
+  if (runtimeAuth?.state === "resolved") {
+    if (runtimeAuth.profile === "public") return "public";
+    if (runtimeAuth.profile === "admin_backend") return "admin";
+    if (runtimeAuth.profile === "user_jwt") return "tenant";
+    if (runtimeAuth.profile === "local_manager") return "local_device";
+    if (["mcp_query_token", "signed_query_token"].includes(runtimeAuth.profile)) return "developer";
+  }
   if (/^\/(?:connect$|connect\/assets(?:\/|$)|platform$|platform\/assets(?:\/|$)|platform\/ui-surfaces$|favicon\.ico$|robots\.txt$|legal(?:\/|$))/.test(routePath)) return "public";
   if (/local-manager|local-gateway|connector\/(?:devices?|routes?)/i.test(routePath)) return "local_device";
   if (/^\/me(?:\/|$)|\/workspaces?\/{[^}]+}/.test(routePath)) return "tenant";
@@ -358,6 +655,176 @@ function policyDecision(family, policy) {
   return { decision: policy?.default_decision || "requires_review", rationale: "No repository policy decision covers this route family.", owner: null };
 }
 
+function matchingOperationRules(operation, policy) {
+  return (Array.isArray(policy?.operation_rules) ? policy.operation_rules : []).filter((rule) => {
+    if (rule.operation !== operation.signature) return false;
+    if (rule.source_file && rule.source_file !== operation.source_file) return false;
+    return true;
+  });
+}
+
+function referencedOperations(control = {}) {
+  return unique([control.operation, ...(Array.isArray(control.operations) ? control.operations : [])]);
+}
+
+function mutationGovernance(operation, policy, discoveredSignatures) {
+  if (operation.method === "GET") {
+    return {
+      classification: "read",
+      classification_source: "http_method",
+      mutation_candidate: false,
+      governed: true,
+      controls: null,
+      blockers: [],
+      rule_id: null,
+    };
+  }
+  const rules = matchingOperationRules(operation, policy);
+  if (rules.length !== 1) {
+    return {
+      classification: "unresolved",
+      classification_source: "fail_closed",
+      mutation_candidate: true,
+      governed: false,
+      controls: null,
+      blockers: [rules.length > 1 ? "duplicate_operation_rule" : "operation_classification_gap"],
+      rule_id: null,
+    };
+  }
+  const rule = rules[0];
+  const classification = OPERATION_CLASSIFICATIONS.has(rule.classification) ? rule.classification : "unresolved";
+  const blockers = [];
+  if (!rule.owner || !rule.rationale) blockers.push("operation_rule_attribution_gap");
+  if (classification === "unresolved") blockers.push("operation_classification_gap");
+  const mutation = ["state_change", "external_effect"].includes(classification);
+  const controls = mutation ? {
+    preflight: rule.preflight || null,
+    approval: rule.approval || null,
+    readback: rule.readback || null,
+    rollback: rule.rollback || null,
+  } : null;
+  if (mutation) {
+    for (const controlName of ["preflight", "approval", "readback", "rollback"]) {
+      const control = controls[controlName];
+      if (!control?.mode) {
+        blockers.push(`mutation_${controlName}_gap`);
+        continue;
+      }
+      const references = referencedOperations(control);
+      if (references.some((signature) => !discoveredSignatures.has(signature))) blockers.push(`mutation_${controlName}_reference_gap`);
+      if (controlName === "readback" && references.includes(operation.signature) && control.mode !== "inline_post_commit") blockers.push("mutation_readback_self_reference");
+      if (control.mode === "inline_post_commit" && !(rule.evidence_refs || []).length) blockers.push(`mutation_${controlName}_evidence_gap`);
+      if (control.mode === "not_required" && (!control.rationale || !rule.owner)) blockers.push(`mutation_${controlName}_exemption_gap`);
+    }
+    if (!(rule.evidence_refs || []).length) blockers.push("mutation_evidence_gap");
+    if (!rule.parameter_bindings && ["state_change", "external_effect"].includes(classification)) blockers.push("mutation_parameter_binding_gap");
+  }
+  return {
+    classification,
+    classification_source: "operation_rule",
+    mutation_candidate: true,
+    governed: blockers.length === 0,
+    controls,
+    parameter_bindings: rule.parameter_bindings || null,
+    blockers: unique(blockers),
+    rule_id: rule.rule_id || null,
+    owner: rule.owner || null,
+    rationale: rule.rationale || null,
+    evidence_refs: unique(rule.evidence_refs || []),
+  };
+}
+
+function operationAuthOverride(operation, policy) {
+  const rules = matchingOperationRules(operation, policy);
+  return rules.length === 1 ? rules[0].auth || null : null;
+}
+
+function generatedOperationId(operation) {
+  const base = `${operation.method.toLowerCase()}-${operation.path}`
+    .replace(/\{([^}]+)\}/g, "-by-$1")
+    .replace(/[^A-Za-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .split("-")
+    .filter(Boolean)
+    .map((part, index) => index === 0 ? part : `${part[0]?.toUpperCase() || ""}${part.slice(1)}`)
+    .join("");
+  return `${base || "runtimeOperation"}${digest(operation.signature).slice(0, 8)}`;
+}
+
+function securityRequirements(alternatives) {
+  if (!alternatives?.length) return [];
+  return alternatives.map((schemes) => Object.fromEntries(schemes.map((scheme) => [scheme, []])));
+}
+
+function runtimeOpenApiDocument(plan) {
+  const bySignature = new Map();
+  for (const family of plan.families || []) {
+    for (const operation of family.operations || []) {
+      if (operation.openapi_canonical_documented || operation.runtime_auth?.state !== "resolved") continue;
+      if (!bySignature.has(operation.signature)) bySignature.set(operation.signature, []);
+      bySignature.get(operation.signature).push(operation);
+    }
+  }
+  const paths = {};
+  for (const [signature, records] of [...bySignature.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    const profiles = unique(records.map((record) => JSON.stringify(record.runtime_auth.alternatives || [])));
+    if (profiles.length !== 1) continue;
+    const operation = records[0];
+    const parameters = [...operation.path.matchAll(/\{([^}]+)}/g)].map((match) => ({
+      name: match[1],
+      in: "path",
+      required: true,
+      schema: { type: "string", minLength: 1 },
+    }));
+    if (!paths[operation.path]) paths[operation.path] = {};
+    paths[operation.path][operation.method.toLowerCase()] = {
+      operationId: generatedOperationId(operation),
+      summary: `${signature} (runtime operation index)`,
+      description: "Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.",
+      tags: ["runtime-route-index"],
+      security: securityRequirements(operation.runtime_auth.alternatives),
+      ...(parameters.length ? { parameters } : {}),
+      responses: {
+        default: { description: "Runtime response shape is not yet captured by a reviewed canonical schema." },
+      },
+      "x-contract-completeness": "operation-index-only",
+      "x-source-file": operation.source_file,
+      "x-mad4b-runtime-auth": {
+        profile: operation.runtime_auth.profile,
+        principal: operation.runtime_auth.principal,
+        guard_chain: operation.runtime_auth.guard_chain,
+        configuration_dependencies: operation.runtime_auth.configuration_dependencies,
+      },
+    };
+  }
+  return {
+    openapi: "3.1.0",
+    info: {
+      title: "MAD4B Runtime Route Operation Index",
+      version: "1.0.0-generated",
+      description: "Generated from mounted Express routes. This document closes operation-discovery gaps only; x-contract-completeness=operation-index-only is not a reviewed request/response schema contract.",
+    },
+    servers: [{ url: "https://auth.mad4b.com" }],
+    tags: [{ name: "runtime-route-index", description: "Fail-closed generated inventory of runtime operations with explicit authentication evidence." }],
+    paths,
+    components: {
+      securitySchemes: {
+        adminBearerAuth: { type: "http", scheme: "bearer", bearerFormat: "Backend API Key", description: "Backend API key supplied as a bearer token and accepted only with the admin principal guard." },
+        backendBearerAuth: { type: "http", scheme: "bearer", bearerFormat: "Backend API Key, User JWT, or API credential" },
+        backendApiKeyAuth: { type: "apiKey", in: "header", name: "x-api-key" },
+        userJwtAuth: { type: "http", scheme: "bearer", bearerFormat: "User JWT" },
+        localManagerBearerAuth: { type: "http", scheme: "bearer", bearerFormat: "User JWT or Local Manager device token" },
+        mcpQueryTokenAuth: { type: "apiKey", in: "query", name: "token" },
+        signedQueryTokenAuth: { type: "apiKey", in: "query", name: "token" },
+      },
+    },
+  };
+}
+
+function runtimeOpenApiContent(plan) {
+  return `${YAML.stringify(runtimeOpenApiDocument(plan), { lineWidth: 0 })}`;
+}
+
 function waveFor(family) {
   if (family.scope === "admin") return "F3-admin-workspaces";
   if (family.scope === "local_device") return "F4-local-manager";
@@ -371,6 +838,7 @@ function dependenciesFor(family) {
   if (family.scope === "admin") deps.push("F2-admin-bff-session");
   if (family.scope === "local_device") deps.push("F1-tenant-workspace-context", "F4-device-trust");
   if (["tenant", "developer"].includes(family.scope)) deps.push("F1-tenant-workspace-context");
+  if (family.operations.some((operation) => operation.mutation_candidate)) deps.push("operation-classification");
   if (family.operations.some((operation) => operation.mutation)) deps.push("mutation-preflight", "same-cycle-readback");
   return unique(deps);
 }
@@ -380,8 +848,11 @@ function riskFor(family) {
   if (family.scope === "admin") score += 5;
   if (family.scope === "local_device") score += 4;
   if (family.scope === "unresolved") score += 5;
-  if (family.operations.some((operation) => operation.mutation)) score += 3;
+  if (family.operations.some((operation) => operation.mutation_candidate)) score += 2;
+  if (family.operations.some((operation) => operation.mutation)) score += 2;
   if (family.openapi_gaps.length) score += 2;
+  if (family.openapi_detail_gaps?.length) score += 1;
+  if (family.auth_contract_gaps?.length) score += 2;
   if (family.untested_operations.length) score += 2;
   if (family.surface_decision.decision === "requires_review") score += 2;
   return { score, class: score >= 9 ? "critical" : score >= 6 ? "high" : score >= 3 ? "medium" : "low" };
@@ -391,9 +862,11 @@ function taskFor(family) {
   const blockers = [];
   if (family.scope === "unresolved") blockers.push("scope_unresolved");
   if (family.openapi_gaps.length) blockers.push("openapi_contract_gap");
+  if (family.openapi_detail_gaps?.length) blockers.push("openapi_detail_contract_gap");
+  if (family.auth_contract_gaps?.length) blockers.push("auth_contract_gap");
   if (family.untested_operations.length) blockers.push("test_ownership_gap");
   if (["requires_review", "deferred"].includes(family.surface_decision.decision)) blockers.push("surface_policy_decision_required");
-  if (family.operations.some((operation) => operation.mutation) && !family.evidence_routes.length) blockers.push("mutation_readback_gap");
+  blockers.push(...unique((family.operation_blockers || []).flatMap((entry) => entry.blockers)));
   return {
     task_key: `frontend.${family.family_key}`,
     title: `Resolve and deliver ${family.label}`,
@@ -408,6 +881,7 @@ function taskFor(family) {
       "openapi_or_explicit_exemption",
       "surface_policy_resolved",
       "tests_registered",
+      ...(family.operations.some((operation) => operation.mutation_candidate) ? ["operation_classification_explicit"] : []),
       ...(family.operations.some((operation) => operation.mutation) ? ["preflight_approval_readback_rollback"] : []),
     ],
     verification: unique([
@@ -422,6 +896,8 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
   const generatorPath = fileURLToPath(import.meta.url);
   const indexPath = path.join(apiRoot, "routes", "index.js");
   const openapiPath = path.join(apiRoot, "openapi.yaml");
+  const runtimeOpenapiPath = path.join(apiRoot, DEFAULT_OPENAPI_INDEX);
+  const openapiAllowlistPath = path.join(apiRoot, "openapi-route-coverage.allowlist.json");
   const resourcePath = path.join(apiRoot, "resource-api-coverage.manifest.json");
   const testManifestPath = path.join(apiRoot, "scripts", "test-manifest.mjs");
   const policyPath = path.join(apiRoot, DEFAULT_POLICY);
@@ -435,7 +911,22 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
   ]);
   const policy = readJson(policyPath, { schema_version: "frontend-surface-policy-v1", default_decision: "requires_review", rules: [] });
   const openapiReferencePaths = openApiReferenceFiles(openapiSource, openapiPath, apiRoot);
-  const openapiOperations = parseOpenApiOperations(openapiSource, { sourcePath: openapiPath, apiRoot });
+  const additionalOpenApiPaths = filesUnder(path.join(apiRoot, "openapi"))
+    .filter((file) => /\.ya?ml$/i.test(file) && file !== runtimeOpenapiPath)
+    .filter((file) => /^\s*openapi:/m.test(readText(file)) && /^\s*paths:/m.test(readText(file)));
+  const canonicalOpenApiPaths = unique([openapiPath, ...additionalOpenApiPaths]);
+  const canonicalOpenApiContracts = new Map();
+  for (const file of canonicalOpenApiPaths) {
+    for (const [signature, contract] of parseOpenApiContracts(readText(file), { sourcePath: file, apiRoot })) canonicalOpenApiContracts.set(signature, contract);
+  }
+  const generatedOpenApiContracts = fs.existsSync(runtimeOpenapiPath)
+    ? parseOpenApiContracts(readText(runtimeOpenapiPath), { sourcePath: runtimeOpenapiPath, apiRoot })
+    : new Map();
+  const openapiContracts = new Map([...generatedOpenApiContracts, ...canonicalOpenApiContracts]);
+  const openapiAllowlist = readJson(openapiAllowlistPath, { exact: [], prefixes: [], files: [] });
+  const isOpenApiExempt = (operation) => (openapiAllowlist.exact || []).includes(operation.signature)
+    || (openapiAllowlist.prefixes || []).some((prefix) => operation.path === prefix || operation.path.startsWith(`${prefix}/`))
+    || (openapiAllowlist.files || []).includes(operation.source_file);
   const testFiles = testFilesFromManifest(testManifestSource);
   const testEvidence = loadRegisteredTestEvidence(apiRoot, testFiles);
   const mounted = parseMountedRouteFiles(indexSource);
@@ -457,15 +948,36 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
     const discoveredOperations = mount.direct
       ? directIndexOperations
       : parseRoutesFromFile(source, mount.file, mount.mount_prefix);
-    const operations = discoveredOperations.map((operation) => ({
-      ...operation,
-      scope: scopeFor({ path: operation.path, source, declaration: operation.declaration, sourceIndex: operation.source_index }),
-      mutation: operation.method !== "GET",
-      openapi_documented: openapiOperations.has(operation.signature),
-      evidence_candidate: evidenceRoute(operation),
-      ...operationDeliveryEvidence(operation),
-      tests: testEvidence.bySignature.get(operation.signature) || [],
-    })).map(({ declaration, source_index, ...operation }) => operation);
+    const operations = discoveredOperations.map((operation) => {
+      const runtimeAuth = runtimeAuthProfile({
+        routePath: operation.path,
+        routeGuards: operation.route_guards,
+        inheritedGuards: operation.inherited_guards,
+        override: operationAuthOverride(operation, policy),
+      });
+      const canonicalOpenApi = canonicalOpenApiContracts.get(operation.signature) || null;
+      const openapi = openapiContracts.get(operation.signature) || null;
+      const openapiExempt = !openapi && isOpenApiExempt(operation);
+      return {
+        ...operation,
+        scope: scopeFor({ path: operation.path, source, declaration: operation.declaration, sourceIndex: operation.source_index, runtimeAuth }),
+        runtime_auth: runtimeAuth,
+        openapi_auth: openapi ? {
+          source_file: openapi.source_file,
+          security_declared: openapi.security_declared,
+          security_alternatives: openapi.security_alternatives,
+          unknown_security_schemes: openapi.unknown_security_schemes,
+        } : null,
+        auth_parity: openapiExempt ? { state: "exempt", reasons: ["repository_openapi_allowlist"] } : authParity(runtimeAuth, openapi),
+        openapi_documented: Boolean(openapi),
+        openapi_canonical_documented: Boolean(canonicalOpenApi),
+        openapi_exempt: openapiExempt,
+        openapi_contract_level: canonicalOpenApi ? "canonical" : openapi ? openapi.contract_level : openapiExempt ? "explicit_exemption" : "missing",
+        evidence_candidate: evidenceRoute(operation),
+        ...operationDeliveryEvidence(operation),
+        tests: testEvidence.bySignature.get(operation.signature) || [],
+      };
+    }).map(({ declaration, source_index, route_guards, inherited_guards, ...operation }) => operation);
     const scopes = unique(operations.map((operation) => operation.scope));
     for (const scope of scopes.length ? scopes : ["unresolved"]) {
       const scopedOperations = operations.filter((operation) => operation.scope === scope);
@@ -487,7 +999,10 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
         group: groupFor(scopedOperations[0]?.path || mount.mount_prefix, mount.file),
         scope,
         operations: scopedOperations,
-        openapi_gaps: scopedOperations.filter((operation) => !operation.openapi_documented).map((operation) => operation.signature),
+        openapi_gaps: scopedOperations.filter((operation) => !operation.openapi_documented && !operation.openapi_exempt).map((operation) => operation.signature),
+        openapi_exemptions: scopedOperations.filter((operation) => operation.openapi_exempt).map((operation) => operation.signature),
+        openapi_detail_gaps: scopedOperations.filter((operation) => operation.openapi_contract_level === "operation-index-only").map((operation) => operation.signature),
+        auth_contract_gaps: scopedOperations.filter((operation) => !["equivalent", "exempt"].includes(operation.auth_parity.state)).map((operation) => ({ signature: operation.signature, state: operation.auth_parity.state, reasons: operation.auth_parity.reasons })),
         evidence_routes: scopedOperations.filter((operation) => operation.evidence_candidate).map((operation) => operation.signature),
         tests: familyTests,
         untested_operations: untestedOperations,
@@ -498,6 +1013,8 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
           mount.file,
           "routes/index.js",
           "openapi.yaml",
+          ...scopedOperations.map((operation) => operation.openapi_auth?.source_file),
+          "openapi-route-coverage.allowlist.json",
           ...openapiReferencePaths.map((file) => path.relative(apiRoot, file).replace(/\\/g, "/")),
           ...(familyEmbeddedUi ? frontendAssetPaths.map((file) => path.relative(apiRoot, file).replace(/\\/g, "/")) : []),
           "resource-api-coverage.manifest.json",
@@ -507,10 +1024,22 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
         ]),
       };
       family.surface_decision = policyDecision(family, policy);
-      family.risk = riskFor(family);
-      family.wave = waveFor(family);
       families.push(family);
     }
+  }
+
+  const discoveredSignatures = new Set(families.flatMap((family) => family.operations.map((operation) => operation.signature)));
+  for (const family of families) {
+    for (const operation of family.operations) {
+      operation.governance = mutationGovernance(operation, policy, discoveredSignatures);
+      operation.mutation_candidate = operation.governance.mutation_candidate;
+      operation.mutation = ["state_change", "external_effect"].includes(operation.governance.classification);
+    }
+    family.operation_blockers = family.operations
+      .filter((operation) => operation.governance.blockers.length)
+      .map((operation) => ({ signature: operation.signature, blockers: operation.governance.blockers }));
+    family.risk = riskFor(family);
+    family.wave = waveFor(family);
   }
 
   families.sort((a, b) => a.mount_order - b.mount_order || a.family_key.localeCompare(b.family_key));
@@ -519,6 +1048,9 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
     indexPath,
     generatorPath,
     openapiPath,
+    runtimeOpenapiPath,
+    openapiAllowlistPath,
+    ...canonicalOpenApiPaths,
     ...openapiReferencePaths,
     ...frontendAssetPaths,
     resourcePath,
@@ -534,8 +1066,25 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
   }));
   const operationCount = families.reduce((sum, family) => sum + family.operations.length, 0);
   const openapiGapCount = families.reduce((sum, family) => sum + family.openapi_gaps.length, 0);
+  const openapiExemptionCount = families.reduce((sum, family) => sum + family.openapi_exemptions.length, 0);
+  const openapiDetailGapCount = families.reduce((sum, family) => sum + family.openapi_detail_gaps.length, 0);
+  const openapiCanonicalCount = families.reduce((sum, family) => sum + family.operations.filter((operation) => operation.openapi_canonical_documented).length, 0);
+  const authParityCounts = Object.fromEntries([...new Set(families.flatMap((family) => family.operations.map((operation) => operation.auth_parity.state)))]
+    .sort()
+    .map((state) => [state, families.reduce((sum, family) => sum + family.operations.filter((operation) => operation.auth_parity.state === state).length, 0)]));
+  const operationRules = Array.isArray(policy.operation_rules) ? policy.operation_rules : [];
+  const unusedOperationRules = operationRules.filter((rule) => !families.some((family) => family.operations.some((operation) => rule.operation === operation.signature && (!rule.source_file || rule.source_file === operation.source_file))));
+  const operationRuleKeys = operationRules.map((rule) => `${rule.operation || ""}|${rule.source_file || "*"}`);
+  const duplicateOperationRuleKeys = unique(operationRuleKeys.filter((key, index) => operationRuleKeys.indexOf(key) !== index));
+  const policyIssues = [
+    ...unusedOperationRules.map((rule) => ({ code: "unused_operation_rule", rule_id: rule.rule_id || null, operation: rule.operation || null })),
+    ...duplicateOperationRuleKeys.map((key) => ({ code: "duplicate_operation_rule", key })),
+    ...operationRules.filter((rule) => !OPERATION_CLASSIFICATIONS.has(rule.classification)).map((rule) => ({ code: "invalid_operation_classification", rule_id: rule.rule_id || null, operation: rule.operation || null })),
+  ];
   const untestedOperationCount = families.reduce((sum, family) => sum + family.operations.filter((operation) => !operation.tests.length).length, 0);
   const unresolvedDecisions = families.filter((family) => family.surface_decision.decision === "requires_review").length;
+  const mutationCandidates = families.flatMap((family) => family.operations).filter((operation) => operation.mutation_candidate);
+  const classifiedMutations = mutationCandidates.filter((operation) => operation.mutation);
 
   return {
     schema_version: "frontend-surface-dispatch-v1",
@@ -548,14 +1097,26 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
       key: policy.policy_key || "frontend_surface_policy_v1",
       default_decision: policy.default_decision || "requires_review",
       allowed_decisions: ["embedded_ui", "unified_ui", "api_only", "internal_only", "legacy_compatibility", "deferred", "requires_review"],
+      issues: policyIssues,
     },
     coverage: {
       mounted_family_count: families.length,
       mounted_route_file_count: mounted.length,
       mixed_scope_route_file_count: new Set(families.filter((family) => family.split_from_mixed_scope_file).map((family) => family.source_file)).size,
       operation_count: operationCount,
-      openapi_documented_count: operationCount - openapiGapCount,
+      openapi_documented_count: operationCount - openapiGapCount - openapiExemptionCount,
+      openapi_canonical_documented_count: openapiCanonicalCount,
+      openapi_generated_index_count: openapiDetailGapCount,
+      openapi_exemption_count: openapiExemptionCount,
       openapi_gap_count: openapiGapCount,
+      openapi_detail_gap_count: openapiDetailGapCount,
+      auth_parity_counts: authParityCounts,
+      auth_contract_gap_count: Object.entries(authParityCounts).filter(([state]) => !["equivalent", "exempt"].includes(state)).reduce((sum, [, count]) => sum + count, 0),
+      operation_policy_issue_count: policyIssues.length,
+      non_get_candidate_count: mutationCandidates.length,
+      unresolved_operation_class_count: mutationCandidates.filter((operation) => operation.governance.classification === "unresolved").length,
+      classified_mutation_count: classifiedMutations.length,
+      governed_mutation_operation_count: classifiedMutations.filter((operation) => operation.governance.governed).length,
       embedded_ui_family_count: families.filter((family) => family.embedded_ui).length,
       unresolved_surface_decision_count: unresolvedDecisions,
       test_owned_family_count: families.filter((family) => !family.untested_operations.length).length,
@@ -564,7 +1125,7 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
       untested_operation_count: untestedOperationCount,
       ready_task_count: tasks.filter((task) => task.state === "ready").length,
       blocked_task_count: tasks.filter((task) => task.state === "blocked").length,
-      coverage_complete: openapiGapCount === 0 && unresolvedDecisions === 0 && tasks.every((task) => task.state === "ready"),
+      coverage_complete: openapiGapCount === 0 && openapiDetailGapCount === 0 && policyIssues.length === 0 && unresolvedDecisions === 0 && tasks.every((task) => task.state === "ready"),
     },
     waves: [
       { key: "F0-authority-resolution", requires: ["source baseline", "scope decision", "policy decision"] },
@@ -589,13 +1150,29 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
 
 export function syncDispatchPlan({ apiRoot = process.cwd(), mode = "write", output = DEFAULT_OUTPUT, baselineRef } = {}) {
   const target = path.resolve(apiRoot, output);
+  const openapiIndexTarget = path.resolve(apiRoot, DEFAULT_OPENAPI_INDEX);
   const persistedBaselineRef = mode === "check" ? readJson(target, {})?.baseline?.ref : null;
-  const plan = buildDispatchPlan({ apiRoot, baselineRef: baselineRef || persistedBaselineRef });
+  let plan = buildDispatchPlan({ apiRoot, baselineRef: baselineRef || persistedBaselineRef });
+  const expectedOpenApiIndex = runtimeOpenApiContent(plan);
+  const openapiIndexDrift = readText(openapiIndexTarget) !== expectedOpenApiIndex;
+  if (mode === "write") {
+    fs.mkdirSync(path.dirname(openapiIndexTarget), { recursive: true });
+    fs.writeFileSync(openapiIndexTarget, expectedOpenApiIndex);
+    plan = buildDispatchPlan({ apiRoot, baselineRef: baselineRef || persistedBaselineRef });
+  }
   const content = `${JSON.stringify(plan, null, 2)}\n`;
   const current = readText(target);
   const drift = current !== content;
   if (mode === "write") fs.writeFileSync(target, content);
-  return { ok: mode === "write" || !drift, mode, output: path.relative(apiRoot, target).replace(/\\/g, "/"), drift, plan };
+  return {
+    ok: mode === "write" || (!drift && !openapiIndexDrift),
+    mode,
+    output: path.relative(apiRoot, target).replace(/\\/g, "/"),
+    openapi_index: path.relative(apiRoot, openapiIndexTarget).replace(/\\/g, "/"),
+    drift,
+    openapi_index_drift: openapiIndexDrift,
+    plan,
+  };
 }
 
 function parseArgs(argv = process.argv.slice(2)) {
@@ -616,6 +1193,15 @@ if (isDirectExecution(import.meta.url)) {
   const result = args.mode === "json"
     ? { ok: true, mode: "json", plan: buildDispatchPlan({ baselineRef: args.baselineRef }) }
     : syncDispatchPlan({ mode: args.mode, output: args.output, baselineRef: args.baselineRef });
-  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  const printable = args.mode === "json" ? result : {
+    ok: result.ok,
+    mode: result.mode,
+    output: result.output,
+    openapi_index: result.openapi_index,
+    drift: result.drift,
+    openapi_index_drift: result.openapi_index_drift,
+    coverage: result.plan.coverage,
+  };
+  process.stdout.write(`${JSON.stringify(printable, null, 2)}\n`);
   if (!result.ok) process.exit(1);
 }

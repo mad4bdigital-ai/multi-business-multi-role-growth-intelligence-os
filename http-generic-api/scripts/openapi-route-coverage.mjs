@@ -1,10 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
+import { buildDispatchPlan } from "./frontend-surface-dispatch.mjs";
 
 const ROOT = process.cwd();
 const ROUTES_DIR = path.join(ROOT, "routes");
 const OPENAPI_PATH = path.join(ROOT, "openapi.yaml");
+const OPENAPI_DIR = path.join(ROOT, "openapi");
 const ALLOWLIST_PATH = path.join(ROOT, "openapi-route-coverage.allowlist.json");
 const HTTP_METHODS = new Set(["get", "post", "put", "patch", "delete"]);
 const ROUTE_FILE_RE = /(?:router|app)\.(get|post|put|patch|delete)\s*\(\s*([`'\"])(.*?)\2/gs;
@@ -57,21 +59,28 @@ function collectOpenApiOperationsFromText(source) {
 }
 
 function collectOpenApiOperations() {
-  const source = fs.readFileSync(OPENAPI_PATH, "utf8");
-  try {
-    const doc = YAML.parse(source);
-    const ops = new Set();
-    for (const [pathKey, pathItem] of Object.entries(doc.paths || {})) {
-      for (const method of Object.keys(pathItem || {})) {
-        if (HTTP_METHODS.has(method)) ops.add(`${method.toUpperCase()} ${pathKey}`);
+  const files = [
+    OPENAPI_PATH,
+    ...(fs.existsSync(OPENAPI_DIR) ? fs.readdirSync(OPENAPI_DIR).filter((name) => /\.ya?ml$/i.test(name)).map((name) => path.join(OPENAPI_DIR, name)) : []),
+  ];
+  const ops = new Set();
+  for (const file of files) {
+    const source = fs.readFileSync(file, "utf8");
+    try {
+      const doc = YAML.parse(source);
+      if (!doc?.openapi || !doc?.paths) continue;
+      for (const [pathKey, pathItem] of Object.entries(doc.paths || {})) {
+        for (const method of Object.keys(pathItem || {})) {
+          if (HTTP_METHODS.has(method)) ops.add(`${method.toUpperCase()} ${pathKey}`);
+        }
       }
+    } catch (error) {
+      const fallback = collectOpenApiOperationsFromText(source);
+      if (fallback.size === 0) throw error;
+      for (const signature of fallback) ops.add(signature);
     }
-    return ops;
-  } catch (error) {
-    const ops = collectOpenApiOperationsFromText(source);
-    if (ops.size > 0) return ops;
-    throw error;
   }
+  return ops;
 }
 
 function collectMountPrefixes(indexSource) {
@@ -131,6 +140,7 @@ function allowlistMatchers(allowlist) {
 
 function main() {
   const openapiOps = collectOpenApiOperations();
+  const dispatchCoverage = buildDispatchPlan({ apiRoot: ROOT }).coverage;
   const allowlist = loadJson(ALLOWLIST_PATH, { exact: [], prefixes: [], files: [], required_files: [] });
   const routes = collectRoutes(allowlist.required_files);
   const isAllowed = allowlistMatchers(allowlist);
@@ -161,6 +171,15 @@ function main() {
     route_count: routes.length,
     openapi_operation_count: openapiOps.size,
     coverage_scope: allowlist.required_files || [],
+    full_repository: {
+      operation_count: dispatchCoverage.operation_count,
+      canonical_documented_count: dispatchCoverage.openapi_canonical_documented_count,
+      generated_index_count: dispatchCoverage.openapi_generated_index_count,
+      explicit_exemption_count: dispatchCoverage.openapi_exemption_count,
+      operation_gap_count: dispatchCoverage.openapi_gap_count,
+      detail_contract_gap_count: dispatchCoverage.openapi_detail_gap_count,
+      auth_contract_gap_count: dispatchCoverage.auth_contract_gap_count,
+    },
     allowlist_counts: {
       exact: (allowlist.exact || []).length,
       prefixes: (allowlist.prefixes || []).length,

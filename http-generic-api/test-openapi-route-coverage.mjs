@@ -19,5 +19,9 @@ assert.equal(result.ok, true);
 assert(result.route_count > 0, "route coverage guard must inspect Express routes");
 assert(result.openapi_operation_count > 0, "route coverage guard must inspect openapi.yaml operations");
 assert(Array.isArray(result.coverage_scope), "route coverage result must include active coverage scope");
+assert(result.full_repository?.operation_count > result.route_count, "route coverage must report the complete mounted repository inventory alongside the staged guard");
+assert.equal(typeof result.full_repository.operation_gap_count, "number");
+assert.equal(typeof result.full_repository.detail_contract_gap_count, "number");
+assert.equal(typeof result.full_repository.auth_contract_gap_count, "number");
 
 console.log("openapi route coverage tests passed");

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildDispatchPlan, isDirectExecution, parseMountedRouteFiles, parseOpenApiOperations, syncDispatchPlan } from "./scripts/frontend-surface-dispatch.mjs";
+import { buildDispatchPlan, isDirectExecution, parseMountedRouteFiles, parseOpenApiContracts, parseOpenApiOperations, syncDispatchPlan } from "./scripts/frontend-surface-dispatch.mjs";
 
 function write(root, relative, content) {
   const target = path.join(root, relative);
@@ -172,6 +172,28 @@ write(apiRoot, "frontend-surface-policy.json", JSON.stringify({
     ,{ source_file: "routes/mixedRoutes.js", decision: "unified_ui", owner: "support-ui", rationale: "fixture" }
     ,{ source_file: "routes/dynamicTeamRoutes.js", decision: "unified_ui", owner: "tenant-ui", rationale: "fixture" }
     ,{ source_file: "routes/index.js", decision: "internal_only", owner: "admin-runtime", rationale: "fixture" }
+  ],
+  operation_rules: [
+    {
+      rule_id: "tenant-preview-read-action",
+      operation: "POST /me/workspaces/{tenant_id}/dashboard/preview",
+      classification: "read_action",
+      owner: "tenant-ui",
+      rationale: "Preview calculates a response without persisting state."
+    },
+    {
+      rule_id: "admin-verification-run",
+      operation: "POST /admin/runtime/verification/run",
+      classification: "state_change",
+      owner: "runtime-operations",
+      rationale: "Verification runs are persisted and read back in the same governed flow.",
+      preflight: { mode: "operation", operation: "GET /admin/runtime/verification" },
+      approval: { mode: "runtime_authorization" },
+      readback: { mode: "operation", operation: "GET /admin/runtime/verification/readback" },
+      rollback: { mode: "transaction" },
+      parameter_bindings: {},
+      evidence_refs: ["test-admin-runtime-verification.mjs"]
+    }
   ]
 }));
 
@@ -181,6 +203,25 @@ assert.equal(parseOpenApiOperations(fs.readFileSync(path.join(apiRoot, "openapi.
   sourcePath: path.join(apiRoot, "openapi.yaml"),
   apiRoot,
 }).size, 18);
+const securityContracts = parseOpenApiContracts(`
+openapi: 3.1.0
+security: []
+components:
+  securitySchemes:
+    A: { type: http, scheme: bearer }
+    B: { type: apiKey, in: header, name: x-key }
+paths:
+  /or:
+    get:
+      security: [{ A: [] }, { B: [] }]
+      responses: { default: { description: ok } }
+  /and:
+    get:
+      security: [{ A: [], B: [] }]
+      responses: { default: { description: ok } }
+`);
+assert.deepEqual(securityContracts.get("GET /or").security_alternatives, [["A"], ["B"]]);
+assert.deepEqual(securityContracts.get("GET /and").security_alternatives, [["A", "B"]]);
 assert.equal(parseMountedRouteFiles(fs.readFileSync(path.join(apiRoot, "routes/index.js"), "utf8")).length, 4);
 
 const plan = buildDispatchPlan({ apiRoot, baselineRef: "fixture-sha" });
@@ -215,9 +256,14 @@ assert.deepEqual(
 assert(plan.baseline.authority.some((entry) => entry.file === "openapi/team.yaml"));
 assert(plan.baseline.authority.some((entry) => entry.file.endsWith("/scripts/frontend-surface-dispatch.mjs") || entry.file === "scripts/frontend-surface-dispatch.mjs"));
 assert(plan.tasks.find((task) => task.wave === "F3-admin-workspaces").dependencies.includes("F2-admin-bff-session"));
-assert(plan.tasks.filter((task) => task.state === "ready").length >= 1);
+assert.equal(plan.tasks.filter((task) => task.state === "ready").length, 0, "auth and operation governance gaps must fail closed");
+assert.equal(plan.coverage.non_get_candidate_count, 9);
+assert.equal(plan.coverage.classified_mutation_count, 1);
+assert.equal(plan.coverage.governed_mutation_operation_count, 1);
+assert.equal(plan.coverage.unresolved_operation_class_count, 7);
+assert(plan.families.find((family) => family.source_file === "routes/dynamicTeamRoutes.js").operation_blockers.every((entry) => entry.blockers.includes("operation_classification_gap")));
 assert.equal(plan.safety.secrets_included, false);
-assert.equal(JSON.stringify(plan).includes("BACKEND_API_KEY"), false);
+assert.equal(JSON.stringify(plan).includes("configuration_dependencies"), true);
 
 const writeResult = syncDispatchPlan({ apiRoot, mode: "write", baselineRef: "fixture-sha" });
 assert.equal(writeResult.ok, true);

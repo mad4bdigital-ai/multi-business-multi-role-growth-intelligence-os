@@ -5,11 +5,14 @@ on:
     paths:
       - "http-generic-api/routes/**"
       - "http-generic-api/openapi.yaml"
+      - "http-generic-api/openapi/**"
+      - "http-generic-api/openapi-route-coverage.allowlist.json"
       - "http-generic-api/resource-api-coverage.manifest.json"
       - "http-generic-api/frontend-surface-policy.json"
       - "http-generic-api/scripts/frontend-surface-dispatch.mjs"
       - "http-generic-api/scripts/test-manifest.mjs"
       - "http-generic-api/test-frontend-surface-dispatch.mjs"
+      - "http-generic-api/test-frontend-auth-openapi-parity.mjs"
       - "specs/010-unified-platform-frontend/**"
       - ".github/workflows/frontend-surface-dispatch.yml"
   workflow_dispatch:
@@ -33,13 +36,16 @@ jobs:
           cache-dependency-path: http-generic-api/package-lock.json
       - run: npm ci
       - name: Generate source-pinned dispatch plan
-        run: npm run frontend:surface:write -- --baseline-ref="${{ github.event.pull_request.base.sha || github.sha }}"
+        run: npm run frontend:dispatch:generate -- --baseline-ref="${{ github.event.pull_request.base.sha || github.sha }}"
       - name: Verify generator contract
-        run: node test-frontend-surface-dispatch.mjs
+        run: |
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
       - name: Enforce committed deterministic output
         run: |
-          if [[ -n "$(git status --porcelain -- frontend-surface-dispatch.generated.json)" ]]; then
-            echo "::error::frontend-surface-dispatch.generated.json is missing or stale; regenerate and commit it."
+          if [[ -n "$(git status --porcelain -- frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)" ]]; then
+            echo "::error::frontend dispatch/OpenAPI generated evidence is missing or stale; regenerate and commit it."
             exit 1
           fi
       - name: Upload dispatch evidence
@@ -47,6 +53,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-surface-dispatch
-          path: http-generic-api/frontend-surface-dispatch.generated.json
+          path: |
+            http-generic-api/frontend-surface-dispatch.generated.json
+            http-generic-api/openapi/frontend-runtime-routes.generated.yaml
           if-no-files-found: error
           retention-days: 14

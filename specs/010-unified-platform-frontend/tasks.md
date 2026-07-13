@@ -19,6 +19,10 @@
 - [x] T016 Register the test in `scripts/test-manifest.mjs`.
 - [x] T017 Generate the first full-repository dispatch artifact on the synchronized branch.
 - [ ] T018 Review unresolved classifications and commit explicit policy decisions.
+  - [x] T018a Add per-operation runtime/OpenAPI authentication profiles and fail-closed parity states.
+  - [x] T018b Replace family-wide mutation/readback inference with exact operation classification and control contracts.
+  - [x] T018c Account for canonical OpenAPI documents and explicit exemptions, and generate a conservative auth-backed operation index.
+  - [ ] T018d Resolve remaining auth aliases/handler-level tokens, canonical detail contracts, operation classifications, and rollback/compensation gaps.
 - [x] T019 Add generated-plan schema contract and changed-scope CI drift gate.
 
 ## F1 tenant shell
