@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   dynamicContainerProjectionApplyConfirmation,
+  inspectPlannedContainerGraphRows,
   readDynamicContainerProjectionApply,
   runDynamicContainerProjectionApply,
 } from "./dynamicContainerProjectionApplyTool.js";
@@ -17,7 +18,11 @@ function fakePlan() {
       { container_id: "container-1", tenant_id: "tenant-1" },
       { container_id: "container-2", tenant_id: "tenant-1" },
     ],
-    relationships: [{ relationship_id: "relationship-1" }],
+    relationships: [{
+      relationship_id: "relationship-1",
+      from_container_id: "container-1",
+      to_container_id: "container-2",
+    }],
     roleAssignments: [{ assignment_id: "assignment-1" }],
     resourceBindings: [{ binding_id: "binding-1" }],
     issues: [{ status: "held", severity: "high" }],
@@ -171,8 +176,24 @@ await assert.rejects(
       if (text.includes("FROM container_relationships r")) return [[{ row_count: 0 }]];
       if (text.includes("FROM container_role_assignments a")) return [[{ row_count: 0 }]];
       if (text.includes("FROM container_resource_bindings b")) return [[{ row_count: 0 }]];
-      if (text.includes("FROM platform_graph_nodes n")) return [[{ row_count: 1 }]];
-      if (text.includes("FROM platform_graph_edges e")) return [[{ row_count: 0 }]];
+      if (text.includes("FROM platform_graph_nodes WHERE node_id IN")) {
+        return [[{
+          node_id: "container:container-1",
+          source_table: "containers",
+          source_pk: "container-1",
+          lifecycle_status: "active",
+        }]];
+      }
+      if (text.includes("FROM platform_graph_edges WHERE edge_id IN")) {
+        return [[{
+          edge_id: "container-edge:relationship-1",
+          source_node_id: "container:container-1",
+          target_node_id: "container:container-2",
+          source_table: "container_relationships",
+          source_pk: "relationship-1",
+          lifecycle_status: "active",
+        }]];
+      }
       if (text.includes("FROM container_closure closure_row")) return [[{ row_count: 0 }]];
       throw new Error(`Unexpected SQL in orphan readback test: ${text}`);
     },
@@ -184,6 +205,78 @@ await assert.rejects(
   assert.equal(readback.orphan_references.graph_edges, 0);
   assert.equal(readback.orphan_references.closure_rows, 0);
   assert.equal(readback.orphan_references.total, 1);
+}
+
+{
+  const plan = fakePlan();
+  const nodeRows = [
+    { node_id: "container:container-1", source_table: "containers", source_pk: "container-1", lifecycle_status: "active" },
+    { node_id: "container:container-2", source_table: "containers", source_pk: "container-2", lifecycle_status: "active" },
+  ];
+  const edgeRows = [
+    {
+      edge_id: "container-edge:relationship-1",
+      source_node_id: "container:container-1",
+      target_node_id: "container:container-2",
+      source_table: "container_relationships",
+      source_pk: "relationship-1",
+      lifecycle_status: "active",
+    },
+    {
+      edge_id: "workflow-edge:unrelated",
+      source_node_id: "workflow:archived-source",
+      target_node_id: "task-route:target",
+      source_table: "workflow_routes",
+      source_pk: "unrelated",
+      lifecycle_status: "active",
+    },
+  ];
+  const inspection = inspectPlannedContainerGraphRows(plan, nodeRows, edgeRows);
+  assert.equal(inspection.graph_nodes, 0);
+  assert.equal(inspection.graph_edges, 0);
+  assert.deepEqual(inspection.graph_node_issues, []);
+  assert.deepEqual(inspection.graph_edge_issues, []);
+
+  const missingEdgeInspection = inspectPlannedContainerGraphRows(plan, nodeRows, []);
+  assert.equal(missingEdgeInspection.graph_nodes, 0);
+  assert.equal(missingEdgeInspection.graph_edges, 1);
+  assert.equal(missingEdgeInspection.graph_edge_issues[0].issue, "graph_edge_missing");
+}
+
+{
+  const plan = fakePlan();
+  const nodeRows = [
+    { node_id: "container:container-1", source_table: "containers", source_pk: "container-1", lifecycle_status: "active" },
+    { node_id: "container:container-2", source_table: "containers", source_pk: "container-2", lifecycle_status: "active" },
+  ];
+  const edgeRows = [
+    {
+      edge_id: "container-edge:relationship-1",
+      source_node_id: "container:container-1",
+      target_node_id: "container:container-2",
+      source_table: "container_relationships",
+      source_pk: "relationship-1",
+      lifecycle_status: "active",
+    },
+    {
+      edge_id: "workflow-edge:unrelated",
+      source_node_id: "workflow:archived-source",
+      target_node_id: "task-route:target",
+      source_table: "workflow_routes",
+      source_pk: "unrelated",
+      lifecycle_status: "active",
+    },
+  ];
+  const inspection = inspectPlannedContainerGraphRows(plan, nodeRows, edgeRows);
+  assert.equal(inspection.graph_nodes, 0);
+  assert.equal(inspection.graph_edges, 0);
+  assert.deepEqual(inspection.graph_node_issues, []);
+  assert.deepEqual(inspection.graph_edge_issues, []);
+
+  const missingEdgeInspection = inspectPlannedContainerGraphRows(plan, nodeRows, []);
+  assert.equal(missingEdgeInspection.graph_nodes, 0);
+  assert.equal(missingEdgeInspection.graph_edges, 1);
+  assert.equal(missingEdgeInspection.graph_edge_issues[0].issue, "graph_edge_missing");
 }
 
 const routeSource = readFileSync("routes/gptToolsRoutes.js", "utf8");
