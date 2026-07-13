@@ -4,14 +4,14 @@
 
 ## Summary
 
-- Triaged items: 9
-- Gate candidates: 9
+- Triaged items: 10
+- Gate candidates: 10
 - New-gap gate: fail
-- Blocking new items: 9
+- Blocking new items: 10
 
 ## Class counts
 
-- new_surface_immediate_review: 9
+- new_surface_immediate_review: 10
 
 ## Immediate review candidates
 
@@ -21,6 +21,7 @@
 - `20260711_repo_conflict_intelligence_tenant_readiness.sql` — critical_review, score 747; next: add targeted patch-index, parity, and governance documentation
 - `20260710_repo_conflict_intelligence.sql` — critical_review, score 729; next: add targeted patch-index, parity, and governance documentation
 - `20260711_repo_conflict_intelligence_phase2.sql` — critical_review, score 729; next: add targeted patch-index, parity, and governance documentation
+- `20260713_release_operation_ledger_mutation_policy.sql` — high_review, score 630; next: add targeted patch-index, parity, and governance documentation
 - `1044_sprint69_dynamic_container_projection_apply_governance.sql` — high_review, score 584; next: add targeted patch-index, parity, and governance documentation
 - `20260712_local_manager_repair_connector_action.sql` — high_review, score 548; next: add targeted patch-index, parity, and governance documentation
 - `20260711_temporary_hostinger_probe_config_authority.sql` — high_review, score 524; next: add targeted patch-index, parity, and governance documentation
