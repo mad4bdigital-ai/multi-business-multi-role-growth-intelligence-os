@@ -1,13 +1,19 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 98.23,
+  "docs_completion_percent": 97.84,
   "docs_complete_count": 499,
-  "docs_gap_count": 9,
-  "queue_items": 9,
-  "blocking_new_item_count": 9,
+  "docs_gap_count": 11,
+  "queue_items": 11,
+  "blocking_new_item_count": 11,
   "gate_ok": false,
   "top_actionable": [
+    {
+      "migration_file": "20260713_dynamic_release_gate_manager.sql",
+      "queue_class": "critical_review",
+      "score": 956,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
     {
       "migration_file": "1026_sprint69_repository_reconciliation_automation.sql",
       "queue_class": "critical_review",
@@ -45,6 +51,12 @@
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
+      "migration_file": "20260713_release_operation_ledger_mutation_policy.sql",
+      "queue_class": "high_review",
+      "score": 630,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
       "migration_file": "1044_sprint69_dynamic_container_projection_apply_governance.sql",
       "queue_class": "high_review",
       "score": 584,
@@ -55,24 +67,18 @@
       "queue_class": "high_review",
       "score": 548,
       "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "20260711_temporary_hostinger_probe_config_authority.sql",
-      "queue_class": "high_review",
-      "score": 524,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
   "openapi_missing_sql_route_count": 0,
-  "openapi_exempt_sql_route_count": 631,
-  "total_sql_route_like_count": 650,
+  "openapi_exempt_sql_route_count": 638,
+  "total_sql_route_like_count": 657,
   "safety_marker_gap_migrations": 5,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 9,
-    "warning_new_item_count": 9
+    "blocking_new_item_count": 11,
+    "warning_new_item_count": 11
   },
   "safety": {
     "executes_provider_calls": false,
