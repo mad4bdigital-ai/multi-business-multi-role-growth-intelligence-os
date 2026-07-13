@@ -103,7 +103,10 @@ surfaces:
         - readTenantActivationOperationalAttention
         - readTenantActivationAwareness
         - readTenantResolutionProblemCards
+        - listTenantResolutionCases
         - createTenantResolutionCase
+        - getTenantResolutionCase
+        - transitionTenantResolutionCase
         - readTenantActivationDynamicTabDetail
 
   local_connector_admin:
