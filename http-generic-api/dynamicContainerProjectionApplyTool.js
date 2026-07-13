@@ -114,8 +114,82 @@ async function countIds(pool, table, idColumn, ids) {
   return count;
 }
 
-async function readActiveOrphanReferences(pool, tenantIds) {
-  const tenants = [...new Set(tenantIds.map(String).filter(Boolean))];
+async function readRowsByIds(pool, table, idColumn, columns, ids) {
+  const expectedIds = [...new Set(ids.map(String).filter(Boolean))];
+  if (!expectedIds.length) return [];
+  const rows = [];
+  for (let offset = 0; offset < expectedIds.length; offset += 200) {
+    const chunk = expectedIds.slice(offset, offset + 200);
+    const placeholders = chunk.map(() => "?").join(",");
+    const [result] = await pool.query(
+      `SELECT ${columns} FROM ${table} WHERE ${idColumn} IN (${placeholders})`,
+      chunk
+    );
+    rows.push(...(result || []));
+  }
+  return rows;
+}
+
+export function inspectPlannedContainerGraphRows(plan, nodeRows = [], edgeRows = []) {
+  const actualNodes = new Map(nodeRows.map((row) => [String(row.node_id), row]));
+  const actualEdges = new Map(edgeRows.map((row) => [String(row.edge_id), row]));
+  const graphNodeIssues = [];
+  const graphEdgeIssues = [];
+
+  for (const container of plan.containers || []) {
+    const nodeId = `container:${container.container_id}`;
+    const actual = actualNodes.get(nodeId);
+    const valid = Boolean(
+      actual &&
+      String(actual.source_table || "") === "containers" &&
+      String(actual.source_pk || "") === String(container.container_id) &&
+      String(actual.lifecycle_status || "") === "active"
+    );
+    if (!valid) {
+      graphNodeIssues.push({
+        node_id: nodeId,
+        container_id: String(container.container_id),
+        issue: actual ? "graph_node_mismatch" : "graph_node_missing",
+        actual: actual || null,
+      });
+    }
+  }
+
+  for (const relationship of plan.relationships || []) {
+    const edgeId = `container-edge:${relationship.relationship_id}`;
+    const expectedSource = `container:${relationship.from_container_id}`;
+    const expectedTarget = `container:${relationship.to_container_id}`;
+    const actual = actualEdges.get(edgeId);
+    const valid = Boolean(
+      actual &&
+      String(actual.source_node_id || "") === expectedSource &&
+      String(actual.target_node_id || "") === expectedTarget &&
+      String(actual.source_table || "") === "container_relationships" &&
+      String(actual.source_pk || "") === String(relationship.relationship_id) &&
+      String(actual.lifecycle_status || "") === "active"
+    );
+    if (!valid) {
+      graphEdgeIssues.push({
+        edge_id: edgeId,
+        relationship_id: String(relationship.relationship_id),
+        expected_source_node_id: expectedSource,
+        expected_target_node_id: expectedTarget,
+        issue: actual ? "graph_edge_mismatch" : "graph_edge_missing",
+        actual: actual || null,
+      });
+    }
+  }
+
+  return {
+    graph_nodes: graphNodeIssues.length,
+    graph_edges: graphEdgeIssues.length,
+    graph_node_issues: graphNodeIssues,
+    graph_edge_issues: graphEdgeIssues,
+  };
+}
+
+async function readActiveOrphanReferences(pool, plan) {
+  const tenants = [...new Set((plan.containers || []).map((row) => String(row.tenant_id)).filter(Boolean))];
   if (!tenants.length) {
     return {
       relationships: 0,
@@ -124,6 +198,8 @@ async function readActiveOrphanReferences(pool, tenantIds) {
       graph_nodes: 0,
       graph_edges: 0,
       closure_rows: 0,
+      graph_node_issues: [],
+      graph_edge_issues: [],
       total: 0,
     };
   }
@@ -156,25 +232,21 @@ async function readActiveOrphanReferences(pool, tenantIds) {
         AND c.container_id IS NULL`,
     tenants
   );
-  const [[graphRow]] = await pool.query(
-    `SELECT COUNT(*) AS row_count
-       FROM platform_graph_nodes n
-       LEFT JOIN containers c ON c.container_id = n.source_pk
-      WHERE n.lifecycle_status = 'active'
-        AND n.source_table = 'containers'
-        AND n.source_pk IS NOT NULL
-        AND c.container_id IS NULL`
+  const graphNodeRows = await readRowsByIds(
+    pool,
+    "platform_graph_nodes",
+    "node_id",
+    "node_id,source_table,source_pk,lifecycle_status",
+    (plan.containers || []).map((row) => `container:${row.container_id}`)
   );
-  const [[graphEdgeRow]] = await pool.query(
-    `SELECT COUNT(*) AS row_count
-       FROM platform_graph_edges e
-       LEFT JOIN platform_graph_nodes source_node ON source_node.node_id = e.source_node_id
-       LEFT JOIN platform_graph_nodes target_node ON target_node.node_id = e.target_node_id
-      WHERE e.lifecycle_status = 'active'
-        AND (source_node.node_id IS NULL OR target_node.node_id IS NULL
-             OR source_node.lifecycle_status <> 'active'
-             OR target_node.lifecycle_status <> 'active')`
+  const graphEdgeRows = await readRowsByIds(
+    pool,
+    "platform_graph_edges",
+    "edge_id",
+    "edge_id,source_node_id,target_node_id,source_table,source_pk,lifecycle_status",
+    (plan.relationships || []).map((row) => `container-edge:${row.relationship_id}`)
   );
+  const graphInspection = inspectPlannedContainerGraphRows(plan, graphNodeRows, graphEdgeRows);
   const [[closureRow]] = await pool.query(
     `SELECT COUNT(*) AS row_count
        FROM container_closure closure_row
@@ -188,11 +260,16 @@ async function readActiveOrphanReferences(pool, tenantIds) {
     relationships: Number(relationshipRow?.row_count || 0),
     role_assignments: Number(roleRow?.row_count || 0),
     resource_bindings: Number(bindingRow?.row_count || 0),
-    graph_nodes: Number(graphRow?.row_count || 0),
-    graph_edges: Number(graphEdgeRow?.row_count || 0),
+    graph_nodes: graphInspection.graph_nodes,
+    graph_edges: graphInspection.graph_edges,
     closure_rows: Number(closureRow?.row_count || 0),
   };
-  return { ...counts, total: Object.values(counts).reduce((sum, value) => sum + value, 0) };
+  return {
+    ...counts,
+    graph_node_issues: graphInspection.graph_node_issues,
+    graph_edge_issues: graphInspection.graph_edge_issues,
+    total: Object.values(counts).reduce((sum, value) => sum + value, 0),
+  };
 }
 
 export async function readDynamicContainerProjectionApply(plan, { pool = getPool() } = {}) {
