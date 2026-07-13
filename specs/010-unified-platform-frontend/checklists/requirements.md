@@ -11,7 +11,7 @@
 - [x] Light/dark/system theme and MAD4B identity are specified.
 - [x] Connect and Local Manager compatibility is preserved through verified cutover.
 - [x] Completion claims match committed implementation state.
-- [ ] Full repository dispatch artifact is generated on current `main`.
+- [x] Full repository dispatch artifact is generated from the synchronized `main` baseline.
 - [ ] Every discovered family has a reviewed product decision and test owner.
 - [ ] Admin BFF threat model is approved.
 - [ ] WCAG 2.2 AA and production parity evidence pass.
