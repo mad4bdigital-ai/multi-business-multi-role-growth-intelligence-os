@@ -243,6 +243,42 @@ await assert.rejects(
   assert.equal(missingEdgeInspection.graph_edge_issues[0].issue, "graph_edge_missing");
 }
 
+{
+  const plan = fakePlan();
+  const nodeRows = [
+    { node_id: "container:container-1", source_table: "containers", source_pk: "container-1", lifecycle_status: "active" },
+    { node_id: "container:container-2", source_table: "containers", source_pk: "container-2", lifecycle_status: "active" },
+  ];
+  const edgeRows = [
+    {
+      edge_id: "container-edge:relationship-1",
+      source_node_id: "container:container-1",
+      target_node_id: "container:container-2",
+      source_table: "container_relationships",
+      source_pk: "relationship-1",
+      lifecycle_status: "active",
+    },
+    {
+      edge_id: "workflow-edge:unrelated",
+      source_node_id: "workflow:archived-source",
+      target_node_id: "task-route:target",
+      source_table: "workflow_routes",
+      source_pk: "unrelated",
+      lifecycle_status: "active",
+    },
+  ];
+  const inspection = inspectPlannedContainerGraphRows(plan, nodeRows, edgeRows);
+  assert.equal(inspection.graph_nodes, 0);
+  assert.equal(inspection.graph_edges, 0);
+  assert.deepEqual(inspection.graph_node_issues, []);
+  assert.deepEqual(inspection.graph_edge_issues, []);
+
+  const missingEdgeInspection = inspectPlannedContainerGraphRows(plan, nodeRows, []);
+  assert.equal(missingEdgeInspection.graph_nodes, 0);
+  assert.equal(missingEdgeInspection.graph_edges, 1);
+  assert.equal(missingEdgeInspection.graph_edge_issues[0].issue, "graph_edge_missing");
+}
+
 const routeSource = readFileSync("routes/gptToolsRoutes.js", "utf8");
 const manifestSource = readFileSync("scripts/test-manifest.mjs", "utf8");
 const migrationSource = readFileSync("migrations/1044_sprint69_dynamic_container_projection_apply_governance.sql", "utf8");
