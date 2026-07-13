@@ -347,10 +347,10 @@ async function disableGate({ gateId, status, eventType, reason, actor, verificat
       `UPDATE release_gates
        SET status = ?, active_scope_key = NULL, runtime_verification_run_id = COALESCE(?, runtime_verification_run_id),
            verified_commit_sha = COALESCE(?, verified_commit_sha), close_reason = ?, closed_by = ?, closed_at = NOW(3),
-           hard_disabled_at = CASE WHEN ? = 'hard_disabled' THEN NOW(3) ELSE hard_disabled_at END,
+           hard_disabled_at = NOW(3),
            config_snapshot_json = ?, updated_at = NOW(3)
        WHERE gate_id = ?`,
-      [status, verificationRunId, verifiedCommitSha, safeString(reason, 1000), safeString(actor || "gpt_admin", 191), status, JSON.stringify(config), gate.gate_id],
+      [status, verificationRunId, verifiedCommitSha, safeString(reason, 1000), safeString(actor || "gpt_admin", 191), JSON.stringify(config), gate.gate_id],
     );
     await writeCompatibilityConfig(connection, adapter, config, `Dynamic release gate ${gate.gate_id} ${status}.`, false);
     await insertGateEvent(connection, gate, { eventType, gateStatus: status, reason, actor, verificationRunId, detail: { verified_commit_sha: verifiedCommitSha } });
