@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import {
+  addOptionalGraphEdgeWithExistingTarget,
   inspectPlatformGraphEdgeEndpoints,
   writePlatformGraphProjectionAtomically,
 } from "./services/platformKnowledgeGraphResolver.js";
