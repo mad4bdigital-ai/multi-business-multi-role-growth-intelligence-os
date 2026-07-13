@@ -99,6 +99,7 @@ assert.equal(plan.coverage.unresolved_surface_decision_count, 0);
 assert.equal(plan.families.find((family) => family.scope === "admin").wave, "F3-admin-workspaces");
 assert.equal(plan.families.filter((family) => family.source_file === "routes/mixedRoutes.js").length, 2);
 assert.deepEqual(plan.families.filter((family) => family.source_file === "routes/mixedRoutes.js").map((family) => family.scope).sort(), ["admin", "tenant"]);
+assert.equal(new Set(plan.tasks.map((task) => task.task_key)).size, plan.tasks.length, "split-scope dispatch tasks must keep unique keys");
 assert(plan.tasks.find((task) => task.wave === "F3-admin-workspaces").dependencies.includes("F2-admin-bff-session"));
 assert(plan.tasks.filter((task) => task.state === "ready").length >= 1);
 assert.equal(plan.safety.secrets_included, false);
