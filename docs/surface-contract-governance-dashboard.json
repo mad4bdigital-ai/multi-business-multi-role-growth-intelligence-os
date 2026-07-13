@@ -7,14 +7,14 @@
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
     "migrations_with_surfaces": 511,
-    "docs_complete_count": 499,
-    "docs_gap_count": 12,
-    "docs_completion_percent": 97.65,
+    "docs_complete_count": 511,
+    "docs_gap_count": 0,
+    "docs_completion_percent": 100,
     "gap_severity_counts": {
-      "high": 7,
-      "medium": 5,
+      "high": 0,
+      "medium": 0,
       "low": 0,
-      "none": 499
+      "none": 511
     },
     "surface_totals": {
       "plugins": 13,
@@ -31,21 +31,21 @@
       "routes": 261
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 12,
-      "deployment_parity_checklist.md": 12,
-      "docs/ai-docs-agent-governance.md": 12,
-      "docs/auto-docs-agent/README.md": 12,
-      "docs/change-documentation-governance.md": 12
+      "Updating Registry Patch Index.md": 0,
+      "deployment_parity_checklist.md": 0,
+      "docs/ai-docs-agent-governance.md": 0,
+      "docs/auto-docs-agent/README.md": 0,
+      "docs/change-documentation-governance.md": 0
     },
     "safety_marker_counts": {
-      "no_provider_call": 501,
-      "no_credential_payload_read": 501,
-      "no_raw_secrets": 499,
-      "no_external_send": 499,
-      "no_external_write": 500,
-      "secrets_included_false": 505
+      "no_provider_call": 511,
+      "no_credential_payload_read": 511,
+      "no_raw_secrets": 511,
+      "no_external_send": 511,
+      "no_external_write": 511,
+      "secrets_included_false": 511
     },
-    "safety_marker_gap_migrations": 6,
+    "safety_marker_gap_migrations": 0,
     "route_coverage": {
       "sql_route_count": 19,
       "total_sql_route_like_count": 658,
@@ -66,546 +66,26 @@
     }
   },
   "queue": {
-    "total_items": 12,
+    "total_items": 0,
     "class_counts": {
-      "critical_review": 8,
-      "high_review": 4,
+      "critical_review": 0,
+      "high_review": 0,
       "medium_review": 0,
       "low_review": 0
     }
   },
   "triage": {
-    "total_items": 12,
-    "class_counts": {
-      "new_surface_immediate_review": 12
-    },
-    "gate_candidate_count": 12
+    "total_items": 0,
+    "class_counts": {},
+    "gate_candidate_count": 0
   },
   "gate": {
-    "ok": false,
+    "ok": true,
     "mode": "future_only_all_new_gaps",
-    "new_item_count": 12,
-    "blocking_new_item_count": 12
+    "new_item_count": 0,
+    "blocking_new_item_count": 0
   },
-  "top_immediate_items": [
-    {
-      "migration_file": "20260713_dynamic_release_gate_manager.sql",
-      "score": 956,
-      "queue_class": "critical_review",
-      "triage_class": "new_surface_immediate_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "high",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write"
-      ],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "verify_tool_registry_binding",
-        "verify_policy_seed_readiness",
-        "add_explicit_safety_markers"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
-        "runtime-registry-review",
-        "runtime-policy-review",
-        "safety-contract-review"
-      ],
-      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "1026_sprint69_repository_reconciliation_automation.sql",
-      "score": 931,
-      "queue_class": "critical_review",
-      "triage_class": "new_surface_immediate_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "high",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write"
-      ],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "verify_tool_registry_binding",
-        "add_explicit_safety_markers"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
-        "runtime-registry-review",
-        "safety-contract-review"
-      ],
-      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "20260709_tenant_resolution_registry_schema.sql",
-      "score": 817,
-      "queue_class": "critical_review",
-      "triage_class": "new_surface_immediate_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "medium",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write"
-      ],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "verify_tool_registry_binding",
-        "add_explicit_safety_markers"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
-        "runtime-registry-review",
-        "safety-contract-review"
-      ],
-      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "20260712_release_operation_ledger.sql",
-      "score": 784,
-      "queue_class": "critical_review",
-      "triage_class": "new_surface_immediate_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "high",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write",
-        "secrets_included_false"
-      ],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "verify_tool_registry_binding",
-        "add_explicit_safety_markers"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
-        "runtime-registry-review",
-        "safety-contract-review"
-      ],
-      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "20260711_repo_conflict_intelligence_tenant_readiness.sql",
-      "score": 747,
-      "queue_class": "critical_review",
-      "triage_class": "new_surface_immediate_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "high",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write",
-        "secrets_included_false"
-      ],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "verify_tool_registry_binding",
-        "add_explicit_safety_markers"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
-        "runtime-registry-review",
-        "safety-contract-review"
-      ],
-      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "20260711_transactional_outbox_shadow_sync_foundation.sql",
-      "score": 730,
-      "queue_class": "critical_review",
-      "triage_class": "new_surface_immediate_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "high",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write",
-        "secrets_included_false"
-      ],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "add_explicit_safety_markers"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
-        "safety-contract-review"
-      ],
-      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "20260710_repo_conflict_intelligence.sql",
-      "score": 729,
-      "queue_class": "critical_review",
-      "triage_class": "new_surface_immediate_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "high",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write",
-        "secrets_included_false"
-      ],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "add_explicit_safety_markers"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
-        "safety-contract-review"
-      ],
-      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "20260711_repo_conflict_intelligence_phase2.sql",
-      "score": 729,
-      "queue_class": "critical_review",
-      "triage_class": "new_surface_immediate_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "high",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write",
-        "secrets_included_false"
-      ],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "add_explicit_safety_markers"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
-        "safety-contract-review"
-      ],
-      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "20260713_release_operation_ledger_mutation_policy.sql",
-      "score": 630,
-      "queue_class": "high_review",
-      "triage_class": "new_surface_immediate_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "medium",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write"
-      ],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "verify_tool_registry_binding",
-        "verify_policy_seed_readiness",
-        "add_explicit_safety_markers"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
-        "runtime-registry-review",
-        "runtime-policy-review",
-        "safety-contract-review"
-      ],
-      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "1044_sprint69_dynamic_container_projection_apply_governance.sql",
-      "score": 584,
-      "queue_class": "high_review",
-      "triage_class": "new_surface_immediate_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "medium",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send"
-      ],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "verify_tool_registry_binding",
-        "verify_policy_seed_readiness",
-        "add_explicit_safety_markers"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
-        "runtime-registry-review",
-        "runtime-policy-review",
-        "safety-contract-review"
-      ],
-      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "20260712_local_manager_repair_connector_action.sql",
-      "score": 548,
-      "queue_class": "high_review",
-      "triage_class": "new_surface_immediate_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "medium",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write",
-        "secrets_included_false"
-      ],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "verify_tool_registry_binding",
-        "add_explicit_safety_markers"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
-        "runtime-registry-review",
-        "safety-contract-review"
-      ],
-      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "20260711_temporary_hostinger_probe_config_authority.sql",
-      "score": 523,
-      "queue_class": "high_review",
-      "triage_class": "new_surface_immediate_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "medium",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write"
-      ],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "verify_tool_registry_binding",
-        "add_explicit_safety_markers"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
-        "runtime-registry-review",
-        "safety-contract-review"
-      ],
-      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    }
-  ],
+  "top_immediate_items": [],
   "safety": {
     "executes_provider_calls": false,
     "reads_credentials": false,
