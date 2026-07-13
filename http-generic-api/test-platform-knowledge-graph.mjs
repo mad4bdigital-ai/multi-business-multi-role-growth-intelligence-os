@@ -1,4 +1,8 @@
 import { readFileSync } from "node:fs";
+import {
+  inspectPlatformGraphEdgeEndpoints,
+  writePlatformGraphProjectionAtomically,
+} from "./services/platformKnowledgeGraphResolver.js";
 
 let passed = 0;
 let failed = 0;
