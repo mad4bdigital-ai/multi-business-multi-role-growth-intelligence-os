@@ -89,6 +89,15 @@ function runCommand(command) {
   return result.status ?? 1;
 }
 
+function openapiState() {
+  const text = readFileSync(new URL("../openapi.yaml", import.meta.url), "utf8");
+  return {
+    sha256: createHash("sha256").update(text).digest("hex"),
+    has_context_scope: text.includes("context_scope:"),
+    bytes: Buffer.byteLength(text, "utf8"),
+  };
+}
+
 function main() {
   const options = parseArgs(process.argv.slice(2));
   const selectedCommands = options.grep
