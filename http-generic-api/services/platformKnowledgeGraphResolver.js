@@ -108,6 +108,121 @@ function addEdge(edges, input) {
   edges.set(edge.edge_id, edge);
   return edge.edge_id;
 }
+
+function graphProjectionError(code, message, details = undefined) {
+  const error = new Error(message);
+  error.code = code;
+  if (details) error.details = details;
+  return error;
+}
+
+export function inspectPlatformGraphEdgeEndpoints(nodes, edges) {
+  const nodeIds = new Set(nodes instanceof Map ? nodes.keys() : []);
+  const edgeRows = edges instanceof Map ? edges.values() : [];
+  const missingSources = new Set();
+  const missingTargets = new Set();
+  let missingEdgeCount = 0;
+  for (const edge of edgeRows) {
+    let missing = false;
+    if (!nodeIds.has(edge.source_node_id)) {
+      missingSources.add(edge.source_node_id);
+      missing = true;
+    }
+    if (!nodeIds.has(edge.target_node_id)) {
+      missingTargets.add(edge.target_node_id);
+      missing = true;
+    }
+    if (missing) missingEdgeCount += 1;
+  }
+  return {
+    ok: missingEdgeCount === 0,
+    missing_edge_count: missingEdgeCount,
+    missing_source_node_ids: [...missingSources].sort(),
+    missing_target_node_ids: [...missingTargets].sort(),
+  };
+}
+
+async function findMissingPersistedIds(client, table, idColumn, ids) {
+  const expected = [...new Set(ids.map(String).filter(Boolean))];
+  if (!expected.length) return [];
+  const found = new Set();
+  for (let offset = 0; offset < expected.length; offset += 200) {
+    const chunk = expected.slice(offset, offset + 200);
+    const placeholders = chunk.map(() => "?").join(",");
+    const [rows] = await client.query(
+      `SELECT ${idColumn} AS persisted_id FROM ${table} WHERE ${idColumn} IN (${placeholders})`,
+      chunk
+    );
+    for (const row of rows || []) found.add(String(row.persisted_id));
+  }
+  return expected.filter((id) => !found.has(id));
+}
+
+export async function writePlatformGraphProjectionAtomically({
+  pool,
+  nodes,
+  edges,
+  upsertNodesFn = upsertNodes,
+  upsertEdgesFn = upsertEdges,
+  findMissingIdsFn = findMissingPersistedIds,
+}) {
+  const endpointInspection = inspectPlatformGraphEdgeEndpoints(nodes, edges);
+  if (!endpointInspection.ok) {
+    throw graphProjectionError(
+      "platform_graph_projection_missing_edge_endpoints",
+      "Graph projection contains edges whose endpoints are absent from the desired node set.",
+      endpointInspection
+    );
+  }
+  const connection = await pool.getConnection();
+  let transactionStarted = false;
+  try {
+    await connection.beginTransaction();
+    transactionStarted = true;
+    await upsertNodesFn(connection, nodes);
+    const missingNodeIds = await findMissingIdsFn(
+      connection,
+      "platform_graph_nodes",
+      "node_id",
+      [...nodes.keys()]
+    );
+    if (missingNodeIds.length) {
+      throw graphProjectionError(
+        "platform_graph_projection_node_readback_failed",
+        "Projected graph nodes were not fully persisted before edge writes.",
+        { missing_node_ids: missingNodeIds }
+      );
+    }
+    await upsertEdgesFn(connection, edges);
+    const missingEdgeIds = await findMissingIdsFn(
+      connection,
+      "platform_graph_edges",
+      "edge_id",
+      [...edges.keys()]
+    );
+    if (missingEdgeIds.length) {
+      throw graphProjectionError(
+        "platform_graph_projection_edge_readback_failed",
+        "Projected graph edges were not fully persisted.",
+        { missing_edge_ids: missingEdgeIds }
+      );
+    }
+    await connection.commit();
+    transactionStarted = false;
+    return {
+      ok: true,
+      node_count: nodes.size,
+      edge_count: edges.size,
+      same_cycle_readback_verified: true,
+    };
+  } catch (error) {
+    if (transactionStarted) await connection.rollback();
+    throw error;
+  } finally {
+    connection.release?.();
+  }
+}
+
 async function upsertNodes(pool, nodes) {
   const rows = [...nodes.values()];
   for (let i = 0; i < rows.length; i += 200) {
@@ -449,12 +564,29 @@ export async function projectPlatformKnowledgeGraph({ projectionKey = "runtime_p
       });
     }
 
-    if (!dryRun) { await upsertNodes(pool, nodes); await upsertEdges(pool, edges); }
-    const resultCounts = { nodes: nodes.size, edges: edges.size, dry_run: Boolean(dryRun), downgraded_runtime_enforced_edges: downgradedRuntimeEnforcedEdges };
+    const endpointInspection = inspectPlatformGraphEdgeEndpoints(nodes, edges);
+    if (!endpointInspection.ok) {
+      throw graphProjectionError(
+        "platform_graph_projection_missing_edge_endpoints",
+        "Graph projection contains edges whose endpoints are absent from the desired node set.",
+        endpointInspection
+      );
+    }
+    const writeReadback = dryRun
+      ? { ok: true, node_count: nodes.size, edge_count: edges.size, same_cycle_readback_verified: false }
+      : await writePlatformGraphProjectionAtomically({ pool, nodes, edges });
+    const resultCounts = {
+      nodes: nodes.size,
+      edges: edges.size,
+      dry_run: Boolean(dryRun),
+      downgraded_runtime_enforced_edges: downgradedRuntimeEnforcedEdges,
+      endpoint_preflight: endpointInspection,
+      write_readback: writeReadback,
+    };
     await pool.query(`UPDATE platform_graph_projection_runs SET status='completed', source_counts_json=?, result_counts_json=?, warnings_json=?, completed_at=NOW() WHERE run_id=?`, [safeJson(sourceCounts), safeJson(resultCounts), safeJson(warnings), runId]);
     return { ok: true, run_id: runId, source_counts: sourceCounts, result_counts: resultCounts, warnings };
   } catch (error) {
-    await pool.query(`UPDATE platform_graph_projection_runs SET status='failed', error_json=?, completed_at=NOW() WHERE run_id=?`, [safeJson({ code: error.code || "projection_failed", message: error.message }), runId]);
+    await pool.query(`UPDATE platform_graph_projection_runs SET status='failed', error_json=?, completed_at=NOW() WHERE run_id=?`, [safeJson({ code: error.code || "projection_failed", message: error.message, details: error.details || null }), runId]);
     throw error;
   }
 }
