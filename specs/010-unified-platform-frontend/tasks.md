@@ -15,11 +15,11 @@
 - [x] T012 Add fail-closed surface policy with explicit owner/rationale rules.
 - [x] T013 Add risk, dependency, wave, blocker, and verification packet generation.
 - [x] T014 Add local fixture tests for discovery, Admin dependency, safety, determinism, and drift.
-- [ ] T015 Register generator scripts in `http-generic-api/package.json`.
-- [ ] T016 Register the test in `scripts/test-manifest.mjs`.
+- [x] T015 Register generator scripts in `http-generic-api/package.json`.
+- [x] T016 Register the test in `scripts/test-manifest.mjs`.
 - [ ] T017 Generate the first full-repository dispatch artifact on the rebased branch.
 - [ ] T018 Review unresolved classifications and commit explicit policy decisions.
-- [ ] T019 Add generated-plan schema validation and changed-scope CI gate.
+- [x] T019 Add generated-plan schema contract and changed-scope CI drift gate.
 
 ## F1 tenant shell
 
