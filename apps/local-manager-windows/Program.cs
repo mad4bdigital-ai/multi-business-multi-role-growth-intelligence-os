@@ -1618,6 +1618,23 @@ internal static class Program
                     await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, shown = true, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false });
                     return;
                 }
+                if (string.Equals(action, "repair_connector", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+                    Show();
+                    Activate();
+                    await RepairConnectorAsync();
+                    await CompleteDesktopCommandAsync(client, token, commandId, true, new
+                    {
+                        action,
+                        source = "local_manager_windows",
+                        app_managed_installer = true,
+                        browser_download = false,
+                        visible_desktop = true,
+                        secrets_included = false
+                    });
+                    return;
+                }
                 if (string.Equals(action, "focus_local_manager", StringComparison.OrdinalIgnoreCase))
                 {
                     if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
