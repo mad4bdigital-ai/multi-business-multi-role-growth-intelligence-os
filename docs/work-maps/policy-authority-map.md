@@ -238,6 +238,7 @@ flowchart TD
 | `provider_smoke_policy_v1` | 1 |
 | `recommendation_before_execution_policy_v1` | 3 |
 | `recovery_capability_taxonomy_policy_v1` | 2 |
+| `release_operation_internal_persistence_policy_v1` | 1 |
 | `release_readiness_orchestration_gate_policy_v1` | 1 |
 | `repo_conflict_policy_v1` | 1 |
 | `repository_close_superseded_positive_smoke_policy_v1` | 1 |
