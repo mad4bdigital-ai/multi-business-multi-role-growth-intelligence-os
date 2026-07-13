@@ -1,7 +1,7 @@
 {
   "ok": true,
   "schema_version": "surface-contract-manual-safety-attestations-v1",
-  "item_count": 3,
+  "item_count": 4,
   "items": [
     {
       "migration_file": "1013_sprint69_approval_hold_identity_collation_alignment.sql",
