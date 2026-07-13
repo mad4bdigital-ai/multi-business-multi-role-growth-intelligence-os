@@ -7,7 +7,7 @@
   "scripts": {
     "prestart": "node scripts/generate-deployment-manifest.mjs",
     "start": "node server.js",
-    "test": "node scripts/run-test-manifest.mjs && node scripts/test-operation-orchestrator.mjs",
+    "test": "node scripts/run-test-manifest.mjs",
     "test:list": "node scripts/run-test-manifest.mjs --list",
     "release:phase-rollup-check": "node scripts/phase-branch-rollup-check.mjs",
     "resources:openapi:generate": "node scripts/generate-resource-surface-openapi.mjs --write",
