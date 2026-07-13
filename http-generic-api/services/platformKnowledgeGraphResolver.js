@@ -564,7 +564,7 @@ export async function projectPlatformKnowledgeGraph({ projectionKey = "runtime_p
       });
     }
 
-    if (!dryRun) { await writePlatformGraphProjectionAtomically({ pool, nodes, edges }); await upsertEdges(pool, edges); }
+    if (!dryRun) { await writePlatformGraphProjectionAtomically({ pool, nodes, edges });  }
     const resultCounts = { nodes: nodes.size, edges: edges.size, dry_run: Boolean(dryRun), downgraded_runtime_enforced_edges: downgradedRuntimeEnforcedEdges };
     await pool.query(`UPDATE platform_graph_projection_runs SET status='completed', source_counts_json=?, result_counts_json=?, warnings_json=?, completed_at=NOW() WHERE run_id=?`, [safeJson(sourceCounts), safeJson(resultCounts), safeJson(warnings), runId]);
     return { ok: true, run_id: runId, source_counts: sourceCounts, result_counts: resultCounts, warnings };
