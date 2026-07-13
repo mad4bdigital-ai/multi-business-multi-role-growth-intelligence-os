@@ -53,7 +53,7 @@ for (const entry of manifest.tests) {
 
 for (const value of Object.values(manifest.safety)) assert.equal(value, false);
 assert(packageJson.scripts.test.includes("run-adaptive-authorization-verification-manifest.mjs"));
-assert(runner.includes("spawnSync(process.execPath"));
+assert(runner.includes("spawnSync(process.execPath,"));
 assert(runner.includes('sensitiveDataScan: "passed"'));
 assert(runner.includes("skipped: 0"));
 assert(tasks.includes("- [x] T050 Register unit, integration, isolation, replay, stale-revision, ambiguity, and redaction tests."));
