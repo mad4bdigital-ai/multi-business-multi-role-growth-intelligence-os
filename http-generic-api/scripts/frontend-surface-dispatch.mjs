@@ -93,7 +93,15 @@ export function parseMountedRouteFiles(indexSource = "") {
     if (!file) continue;
     mounted.push({ builder, file, mount_prefix: normalizeRoutePath(match[2] || "/"), mount_order: match.index });
   }
-  return mounted.sort((a, b) => a.mount_order - b.mount_order);
+  const seen = new Set();
+  return mounted
+    .sort((a, b) => a.mount_order - b.mount_order)
+    .filter((entry) => {
+      const key = `${entry.builder}|${entry.file}|${entry.mount_prefix}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 function parseRoutesFromFile(source, file, mountPrefix = "/") {
