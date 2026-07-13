@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "feature_key": "010-unified-platform-frontend",
+  "title": "Repository-Driven Unified Platform Frontend",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "specification_pr": {
+      "number": null,
+      "branch": "gpt/repo-driven-frontend-dispatch-20260713",
+      "role": "specification_and_dispatch_foundation",
+      "status": "current_pr"
+    },
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": null,
+      "branch": null,
+      "role": "completion",
+      "status": "pending"
+    }
+  },
+  "evidence": {
+    "specification": {
+      "status": "complete",
+      "repo_authority_map": true,
+      "dynamic_dispatch_model": true,
+      "security_boundaries": true,
+      "delivery_dag": true
+    },
+    "implementation": {
+      "status": "dispatch_foundation_in_current_pr",
+      "dispatch_generator": true,
+      "dispatch_fixture_tests": true,
+      "full_repo_generated_plan": false,
+      "tenant_shell": false,
+      "admin_bff": false,
+      "admin_workspaces": false,
+      "local_manager_consolidation": false,
+      "developer_evidence": false,
+      "cutover": false
+    },
+    "ci": { "status": "pending" },
+    "migration": { "status": "pending_admin_ui_session_ledger" },
+    "production_verification": { "status": "pending" },
+    "post_merge_audit": { "status": "pending" }
+  },
+  "sensitive_values_included": false
+}
