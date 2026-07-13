@@ -176,8 +176,24 @@ await assert.rejects(
       if (text.includes("FROM container_relationships r")) return [[{ row_count: 0 }]];
       if (text.includes("FROM container_role_assignments a")) return [[{ row_count: 0 }]];
       if (text.includes("FROM container_resource_bindings b")) return [[{ row_count: 0 }]];
-      if (text.includes("FROM platform_graph_nodes n")) return [[{ row_count: 1 }]];
-      if (text.includes("FROM platform_graph_edges e")) return [[{ row_count: 0 }]];
+      if (text.includes("FROM platform_graph_nodes WHERE node_id IN")) {
+        return [[{
+          node_id: "container:container-1",
+          source_table: "containers",
+          source_pk: "container-1",
+          lifecycle_status: "active",
+        }]];
+      }
+      if (text.includes("FROM platform_graph_edges WHERE edge_id IN")) {
+        return [[{
+          edge_id: "container-edge:relationship-1",
+          source_node_id: "container:container-1",
+          target_node_id: "container:container-2",
+          source_table: "container_relationships",
+          source_pk: "relationship-1",
+          lifecycle_status: "active",
+        }]];
+      }
       if (text.includes("FROM container_closure closure_row")) return [[{ row_count: 0 }]];
       throw new Error(`Unexpected SQL in orphan readback test: ${text}`);
     },
