@@ -17,7 +17,7 @@
 - [x] T014 Add local fixture tests for discovery, Admin dependency, safety, determinism, and drift.
 - [x] T015 Register generator scripts in `http-generic-api/package.json`.
 - [x] T016 Register the test in `scripts/test-manifest.mjs`.
-- [ ] T017 Generate the first full-repository dispatch artifact on the rebased branch.
+- [x] T017 Generate the first full-repository dispatch artifact on the synchronized branch.
 - [ ] T018 Review unresolved classifications and commit explicit policy decisions.
 - [x] T019 Add generated-plan schema contract and changed-scope CI drift gate.
 
