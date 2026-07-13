@@ -1,0 +1,33 @@
+{
+  "schema_version": "frontend-surface-policy-v1",
+  "policy_key": "frontend_surface_policy_v1",
+  "default_decision": "requires_review",
+  "description": "Explicit exceptions and product decisions for repository-discovered frontend surface families. Discovery remains fail-closed; absence of a matching rule blocks dispatch.",
+  "rules": [
+    {
+      "path_prefix": "/connect/assets",
+      "decision": "embedded_ui",
+      "owner": "frontend-platform",
+      "rationale": "Existing Connect assets remain a compatibility surface while the unified shell is introduced."
+    },
+    {
+      "path_prefix": "/local-manager",
+      "decision": "legacy_compatibility",
+      "owner": "local-manager",
+      "rationale": "Existing Local Manager browser pages remain supported until wave F4 reaches verified parity."
+    },
+    {
+      "path_prefix": "/health",
+      "decision": "api_only",
+      "owner": "runtime-operations",
+      "rationale": "Health contracts feed status components but are not standalone navigation destinations."
+    },
+    {
+      "path_prefix": "/status",
+      "decision": "api_only",
+      "owner": "runtime-operations",
+      "rationale": "Status contracts feed operational views but are not standalone navigation destinations."
+    }
+  ],
+  "secrets_included": false
+}
