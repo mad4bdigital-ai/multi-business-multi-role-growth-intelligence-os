@@ -13,6 +13,13 @@ const end = executor.indexOf(endMarker, start);
 assert(start >= 0, "executor must export executeHostingerSshTargetProbe");
 assert(end > start, "probe block must be separate from deploy executor block");
 const probeBlock = executor.slice(start, end);
+const probeScriptStartMarker = "function buildRemoteProbeScript";
+const probeScriptEndMarker = "function parseProbeOutput";
+const probeScriptStart = executor.indexOf(probeScriptStartMarker);
+const probeScriptEnd = executor.indexOf(probeScriptEndMarker, probeScriptStart);
+assert(probeScriptStart >= 0, "executor must define buildRemoteProbeScript");
+assert(probeScriptEnd > probeScriptStart, "probe script block must end before parseProbeOutput");
+const probeScriptBlock = executor.slice(probeScriptStart, probeScriptEnd);
 
 assert(executor.includes("REMOTE_RUNTIME_HOSTINGER_SSH_PROBE_ENABLED"), "actual SSH probe must be behind an explicit feature flag");
 assert(executor.includes("remote_runtime_hostinger_ssh_probe_enabled"), "probe must support governed DB-backed execution gate for stateless runtimes");
