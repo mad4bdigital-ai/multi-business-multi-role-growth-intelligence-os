@@ -66,9 +66,9 @@ function relationshipRow({ tenantId, fromId, toId, relationshipType = "contains"
   };
 }
 
-function containerRow({ tenantId, type, key, subjectType, subjectRef, displayName, status = "active", source }) {
+function containerRow({ tenantId, type, key, subjectType, subjectRef, displayName, status = "active", source, containerId = null }) {
   return {
-    container_id:stableUuid("container",tenantId,type,key),
+    container_id:containerId || stableUuid("container",tenantId,type,key),
     tenant_id:tenantId,
     container_key:key,
     container_type_key:type,
@@ -86,7 +86,7 @@ function containerRow({ tenantId, type, key, subjectType, subjectRef, displayNam
 async function loadProjectionSources(executor = getPool()) {
   const names = [
     "tenants","workspaces","brands","brandPaths","activities","workflows","memberships","roleAssignments",
-    "workspaceGrants","workspaceAppLinks","actionGrants","skillGrants","workspaceAssets"
+    "workspaceGrants","workspaceAppLinks","actionGrants","skillGrants","workspaceAssets","existingContainers"
   ];
   const queries = [
     "SELECT tenant_id,tenant_type,display_name,status,updated_at FROM tenants",
@@ -101,7 +101,8 @@ async function loadProjectionSources(executor = getPool()) {
     "SELECT link_id,workspace_id,workspace_key,tenant_id,connection_id,app_key,linked_by,status,permission_mode,created_at FROM workspace_app_links",
     "SELECT grant_id,connection_id,workspace_id,agent_id,app_key,action_key,grant_mode,granted_by,expires_at,status,created_at FROM app_action_grants",
     "SELECT grant_id,agent_id,skill_id,tenant_id,brand_key,granted_by,granted_at,expires_at,status FROM agent_skill_grants",
-    "SELECT asset_id,tenant_id,asset_type,asset_ref,display_name,brand_ref,site_ref,workflow_ref,visibility,lifecycle_status,metadata_json,created_by FROM workspace_assets"
+    "SELECT asset_id,tenant_id,asset_type,asset_ref,display_name,brand_ref,site_ref,workflow_ref,visibility,lifecycle_status,metadata_json,created_by FROM workspace_assets",
+    "SELECT container_id,tenant_id,container_key,container_type_key,canonical_subject_type,canonical_subject_ref,status,updated_at FROM containers"
   ];
   const source = {};
   for (let index = 0; index < queries.length; index += 1) {
@@ -133,11 +134,24 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
   const workspaceContainerByWorkspace = new Map();
   const brandContainerByTenantAndTarget = new Map();
   const activityContainerByTenantAndKey = new Map();
+  const existingContainerByCanonicalIdentity = new Map(
+    (source.existingContainers || [])
+      .filter(row => row.tenant_id && row.canonical_subject_type && row.canonical_subject_ref)
+      .map(row => [
+        `${String(row.tenant_id)}|${String(row.canonical_subject_type)}|${String(row.canonical_subject_ref)}`,
+        row,
+      ])
+  );
+  const projectedContainerRow = (fields) => {
+    const canonicalIdentity = `${String(fields.tenantId)}|${String(fields.subjectType)}|${String(fields.subjectRef)}`;
+    const existing = existingContainerByCanonicalIdentity.get(canonicalIdentity);
+    return containerRow({ ...fields, containerId: existing?.container_id || null });
+  };
 
   for (const tenant of source.tenants.filter(row => activeValue(row.status))) {
     const tenantId = String(tenant.tenant_id);
-    const platform = addUnique(containers,containerRow({ tenantId,type:"platform",key:"platform-root",subjectType:"platform_tenant_anchor",subjectRef:tenantId,displayName:"Platform",source:"tenants" }));
-    const tenantContainer = addUnique(containers,containerRow({ tenantId,type:"tenant",key:`tenant:${tenantId}`,subjectType:"tenant",subjectRef:tenantId,displayName:tenant.display_name || tenantId,source:"tenants" }));
+    const platform = addUnique(containers,projectedContainerRow({ tenantId,type:"platform",key:"platform-root",subjectType:"platform_tenant_anchor",subjectRef:tenantId,displayName:"Platform",source:"tenants" }));
+    const tenantContainer = addUnique(containers,projectedContainerRow({ tenantId,type:"tenant",key:`tenant:${tenantId}`,subjectType:"tenant",subjectRef:tenantId,displayName:tenant.display_name || tenantId,source:"tenants" }));
     tenantContainerByTenant.set(tenantId,tenantContainer);
     const edge = relationshipRow({ tenantId,fromId:platform.container_id,toId:tenantContainer.container_id,source:"tenants" });
     relationships.set(edge.relationship_id,edge);
@@ -165,7 +179,7 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
       issues.push(issue(projectionRunId,{ tenant_id:tenantId,workspace_id:workspace.workspace_id,source_table:"workspace_registry",source_ref:workspace.workspace_id,issue_code:"workspace_tenant_missing",severity:"high",issue_detail:"Workspace tenant is absent or inactive.",candidate_refs:[] }));
       continue;
     }
-    const workspaceContainer = addUnique(containers,containerRow({
+    const workspaceContainer = addUnique(containers,projectedContainerRow({
       tenantId,type:"workspace",key:workspace.workspace_key || `workspace:${workspace.workspace_id}`,subjectType:"workspace",subjectRef:workspace.workspace_id,
       displayName:workspace.display_name || workspace.workspace_key || workspace.workspace_id,status:workspace.bootstrap_status === "ready" ? "active" : "draft",source:"workspace_registry"
     }));
@@ -191,15 +205,27 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
     }
     const brand = exact[0];
     const brandKey = String(brand.target_key);
-    const brandContainer = addUnique(containers,containerRow({ tenantId,type:"brand",key:`brand:${brandKey}`,subjectType:"brand_target_key",subjectRef:brandKey,displayName:brand.brand_name || brandKey,source:"brands.target_key" }));
+    const brandContainer = addUnique(containers,projectedContainerRow({ tenantId,type:"brand",key:`brand:${brandKey}`,subjectType:"brand_target_key",subjectRef:brandKey,displayName:brand.brand_name || brandKey,source:"brands.target_key" }));
     brandContainerByTenantAndTarget.set(`${tenantId}|${brandKey}`,brandContainer);
     const brandEdge = relationshipRow({ tenantId,fromId:workspaceContainer.container_id,toId:brandContainer.container_id,source:"workspace_registry.linked_brand_key" });
     relationships.set(brandEdge.relationship_id,brandEdge);
 
     const paths = source.brandPaths.filter(row => activeValue(row.active || row.status) && [row.brand_key,row.target_key].filter(Boolean).some(value => String(value).toLowerCase() === brandKey.toLowerCase()));
-    const businessTypes = [...new Set(paths.map(row => row.business_type_key).filter(Boolean).map(String))];
-    const activityCandidates = source.activities.filter(row => activeValue(row.active || row.status) && businessTypes.includes(String(row.business_type_key || "")));
-    if (activityCandidates.length !== 1) {
+    const businessTypes = [...new Set(paths.map(row => row.business_type_key).filter(Boolean).map(value => String(value).trim()).filter(Boolean))];
+    const businessTypeLookup = new Set(businessTypes.map(value => value.toLowerCase()));
+    const activityCandidates = source.activities.filter(row => {
+      if (!activeValue(row.active || row.status)) return false;
+      return [row.business_type_key,row.business_activity_type_key,row.activity_key]
+        .filter(Boolean)
+        .some(value => businessTypeLookup.has(String(value).trim().toLowerCase()));
+    });
+    const candidateKeys = new Set(activityCandidates.flatMap(row => [row.business_activity_type_key,row.activity_key].filter(Boolean).map(value => String(value).trim().toLowerCase())));
+    const rootActivityCandidates = activityCandidates.filter(row => {
+      const parent = String(row.parent_activity_type || "").trim().toLowerCase();
+      return !parent || !candidateKeys.has(parent);
+    });
+    const resolvedActivityCandidates = activityCandidates.length === 1 ? activityCandidates : rootActivityCandidates.length === 1 ? rootActivityCandidates : activityCandidates;
+    if (resolvedActivityCandidates.length !== 1) {
       issues.push(issue(projectionRunId,{
         tenant_id:tenantId,workspace_id:workspace.workspace_id,source_table:"business_activity_types",source_ref:brandKey,
         issue_code:activityCandidates.length > 1 ? "business_activity_context_ambiguous" : "business_activity_context_required",
@@ -208,24 +234,28 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
       }));
       continue;
     }
-    const activity = activityCandidates[0];
+    const activity = resolvedActivityCandidates[0];
     const activityKey = String(activity.business_activity_type_key || activity.activity_key);
-    const activityContainer = addUnique(containers,containerRow({ tenantId,type:"activity",key:`activity:${activityKey}`,subjectType:"business_activity_type",subjectRef:activityKey,displayName:activity.label || activityKey,source:"business_activity_types" }));
+    const activityContainer = addUnique(containers,projectedContainerRow({ tenantId,type:"activity",key:`activity:${activityKey}`,subjectType:"business_activity_type",subjectRef:activityKey,displayName:activity.label || activityKey,source:"business_activity_types" }));
     activityContainerByTenantAndKey.set(`${tenantId}|${activityKey}`,activityContainer);
     const activityEdge = relationshipRow({ tenantId,fromId:brandContainer.container_id,toId:activityContainer.container_id,source:"brand_paths.business_type_key" });
     relationships.set(activityEdge.relationship_id,activityEdge);
 
-    const supported = parseJson(activity.supported_workflows,[]);
-    const workflowKeys = Array.isArray(supported) ? supported.map(String) : String(activity.supported_workflows || "").split(/[,\n]/).map(value => value.trim()).filter(Boolean);
+    const supported = parseJson(activity.supported_workflows,null);
+    const workflowKeys = Array.isArray(supported)
+      ? supported.map(String).map(value => value.trim()).filter(Boolean)
+      : String(activity.supported_workflows || "").split(/[,;|\n]/).map(value => value.trim()).filter(Boolean);
     for (const workflowKey of workflowKeys) {
       const matches = source.workflows.filter(row => activeValue(row.active || row.status) && [row.workflow_key,row.workflow_id].filter(Boolean).some(value => String(value) === workflowKey));
-      if (matches.length !== 1) {
+      const exactWorkflowIdMatches = matches.filter(row => String(row.workflow_id || "") === workflowKey);
+      const resolvedWorkflowMatches = matches.length === 1 ? matches : exactWorkflowIdMatches.length === 1 ? exactWorkflowIdMatches : matches;
+      if (resolvedWorkflowMatches.length !== 1) {
         issues.push(issue(projectionRunId,{ tenant_id:tenantId,workspace_id:workspace.workspace_id,source_table:"workflows",source_ref:workflowKey,issue_code:matches.length > 1 ? "workflow_projection_ambiguous" : "workflow_projection_missing",severity:"medium",issue_detail:"Supported workflow did not resolve to exactly one workflow row.",candidate_refs:matches.map(row => row.workflow_key || row.workflow_id) }));
         continue;
       }
-      const workflow = matches[0];
+      const workflow = resolvedWorkflowMatches[0];
       const key = String(workflow.workflow_key || workflow.workflow_id);
-      const workflowContainer = addUnique(containers,containerRow({ tenantId,type:"workflow",key:`workflow:${key}`,subjectType:"workflow",subjectRef:key,displayName:workflow.workflow_name || key,source:"workflows" }));
+      const workflowContainer = addUnique(containers,projectedContainerRow({ tenantId,type:"workflow",key:`workflow:${key}`,subjectType:"workflow",subjectRef:key,displayName:workflow.workflow_name || key,source:"workflows" }));
       const workflowEdge = relationshipRow({ tenantId,fromId:activityContainer.container_id,toId:workflowContainer.container_id,source:"business_activity_types.supported_workflows" });
       relationships.set(workflowEdge.relationship_id,workflowEdge);
     }
@@ -352,14 +382,14 @@ async function upsertProjectionRows(connection, plan, tenantId) {
       `INSERT INTO containers
         (container_id,tenant_id,container_key,container_type_key,canonical_subject_type,canonical_subject_ref,display_name,status,version,metadata_json,created_by,updated_by)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
-       ON DUPLICATE KEY UPDATE display_name=VALUES(display_name),status=VALUES(status),metadata_json=VALUES(metadata_json),updated_by=VALUES(updated_by),updated_at=UTC_TIMESTAMP()`,
+       ON DUPLICATE KEY UPDATE container_key=VALUES(container_key),container_type_key=VALUES(container_type_key),canonical_subject_type=VALUES(canonical_subject_type),canonical_subject_ref=VALUES(canonical_subject_ref),display_name=VALUES(display_name),status=VALUES(status),metadata_json=VALUES(metadata_json),updated_by=VALUES(updated_by),updated_at=UTC_TIMESTAMP()`,
       [row.container_id,row.tenant_id,row.container_key,row.container_type_key,row.canonical_subject_type,row.canonical_subject_ref,row.display_name,row.status,row.version,row.metadata_json,row.created_by,row.updated_by]
     );
     await connection.query(
       `INSERT INTO platform_graph_nodes
         (node_id,node_type,node_label,scope_type,subject_ref,source_table,source_pk,authority_status,lifecycle_status,visibility_scope,sensitivity,evidence_level,runtime_role,source_system,metadata_json)
        VALUES (?,?,?,?,?,'containers',?,'projection_only','active','internal','internal','registry','context_only','mysql_primary',?)
-       ON DUPLICATE KEY UPDATE node_label=VALUES(node_label),subject_ref=VALUES(subject_ref),authority_status='projection_only',lifecycle_status=VALUES(lifecycle_status),runtime_role='context_only',metadata_json=VALUES(metadata_json),updated_at=UTC_TIMESTAMP()`,
+       ON DUPLICATE KEY UPDATE node_type=VALUES(node_type),node_label=VALUES(node_label),scope_type=VALUES(scope_type),subject_ref=VALUES(subject_ref),source_table=VALUES(source_table),source_pk=VALUES(source_pk),authority_status='projection_only',lifecycle_status=VALUES(lifecycle_status),runtime_role='context_only',metadata_json=VALUES(metadata_json),updated_at=UTC_TIMESTAMP()`,
       [`container:${row.container_id}`,`container_${row.container_type_key}`,row.display_name,row.container_type_key,row.canonical_subject_ref,row.container_id,row.metadata_json]
     );
   }

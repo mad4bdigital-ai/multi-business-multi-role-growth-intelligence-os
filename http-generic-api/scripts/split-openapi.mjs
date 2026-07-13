@@ -189,6 +189,34 @@ function normalizeTenantToolCallBody(operation) {
   if (schema?.type === "object" && schema.properties) delete schema.properties.arguments;
 }
 
+function applyTenantOAuthEndpointOverride(doc, surface) {
+  const override = surface.oauth_endpoints;
+  if (!override) return;
+
+  const authorizationUrl = String(override.authorization_url || "");
+  const tokenUrl = String(override.token_url || "");
+  if (!authorizationUrl || !tokenUrl) {
+    throw new Error("tenant OAuth endpoint override requires authorization_url and token_url");
+  }
+  for (const [label, value] of [["authorization_url", authorizationUrl], ["token_url", tokenUrl]]) {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "https:" || parsed.search || parsed.hash) {
+      throw new Error(`tenant OAuth ${label} must be an HTTPS URL without query or fragment`);
+    }
+  }
+
+  const scheme = Object.values(doc.components?.securitySchemes || {})[0];
+  const flow = scheme?.flows?.authorizationCode;
+  if (!flow) throw new Error("tenant OAuth authorizationCode flow is missing");
+  flow.authorizationUrl = authorizationUrl;
+  flow.tokenUrl = tokenUrl;
+
+  if (doc["x-gpt-action-auth-preset"]) {
+    doc["x-gpt-action-auth-preset"].authorization_url = authorizationUrl;
+    doc["x-gpt-action-auth-preset"].token_url = tokenUrl;
+  }
+}
+
 function selectOperations(sourceOperations, surfaceKey, surface) {
   const selector = surface.selector || {};
   if (Array.isArray(selector.operation_ids)) {
@@ -247,6 +275,7 @@ function applySecurityProfile(doc, sourceDoc, surface) {
     doc.components.securitySchemes = { [schemeName]: clone(tenantConfig.security_scheme) };
     doc.security = clone(tenantConfig.security);
     if (tenantConfig.action_auth_preset) doc["x-gpt-action-auth-preset"] = clone(tenantConfig.action_auth_preset);
+    applyTenantOAuthEndpointOverride(doc, surface);
     for (const item of Object.values(doc.paths || {})) {
       for (const [method, operation] of Object.entries(item || {})) {
         if (!METHOD_NAMES.has(method)) continue;

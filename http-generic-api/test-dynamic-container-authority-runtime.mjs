@@ -279,7 +279,7 @@ assert.throws(() => _testingDynamicContainerOverrideService.requireExactValue("*
 function emptyProjectionSources() {
   return {
     tenants:[],workspaces:[],brands:[],brandPaths:[],activities:[],workflows:[],memberships:[],roleAssignments:[],
-    workspaceGrants:[],workspaceAppLinks:[],actionGrants:[],skillGrants:[],workspaceAssets:[]
+    workspaceGrants:[],workspaceAppLinks:[],actionGrants:[],skillGrants:[],workspaceAssets:[],existingContainers:[]
   };
 }
 const projectionSources={
@@ -305,6 +305,56 @@ for (const type of ["platform","tenant","workspace","brand","activity","workflow
 }
 const projectionAgain=await buildLegacyContainerProjectionPlan({ sourceRows:projectionSources });
 assert.deepEqual(projection.containers.map(row => row.container_id).sort(),projectionAgain.containers.map(row => row.container_id).sort());
+const existingTenantContainerId="legacy-tenant-container-id";
+const canonicalReuseProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    existingContainers:[{
+      container_id:existingTenantContainerId,
+      tenant_id:TENANT,
+      container_key:"platform:root",
+      container_type_key:"platform",
+      canonical_subject_type:"tenant",
+      canonical_subject_ref:TENANT,
+      status:"active"
+    }]
+  }
+});
+const reusedTenantContainer=canonicalReuseProjection.containers.find(row => row.canonical_subject_type === "tenant" && row.canonical_subject_ref === TENANT);
+assert.equal(reusedTenantContainer.container_id,existingTenantContainerId);
+assert.equal(reusedTenantContainer.container_type_key,"tenant");
+assert.equal(reusedTenantContainer.container_key,`tenant:${TENANT}`);
+assert(canonicalReuseProjection.relationships.some(row => row.to_container_id === existingTenantContainerId));
+assert(canonicalReuseProjection.roleAssignments.some(row => row.container_id === existingTenantContainerId));
+const rootActivityProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    brandPaths:[{ brand_key:"brand-key-1",target_key:"brand-key-1",business_type_key:"destination_or_travel_business",status:"active",active:"active" }],
+    activities:[
+      { business_activity_type_key:"travel",activity_key:"travel",business_type_key:"destination_or_travel_business",label:"Travel",parent_activity_type:null,supported_workflows:"content_generation_workflow; brand_marketing_workflow",status:"active",active:"active" },
+      { business_activity_type_key:"air_travel",activity_key:"air_travel",business_type_key:"destination_or_travel_business",label:"Air Travel",parent_activity_type:"travel",supported_workflows:"content_generation_workflow",status:"active",active:"active" }
+    ],
+    workflows:[
+      { workflow_key:"content_generation_workflow",workflow_id:"content_generation_workflow",workflow_name:"Content Generation Workflow",status:"active",active:"active" },
+      { workflow_key:"content_generation_workflow",workflow_id:"wf_content_table",workflow_name:"Generate Article Structure",status:"active",active:"active" },
+      { workflow_key:"brand_marketing_workflow",workflow_id:"brand_marketing_workflow",workflow_name:"Brand Marketing Workflow",status:"active",active:"active" }
+    ]
+  }
+});
+assert(!rootActivityProjection.issues.some(row => ["business_activity_context_ambiguous","business_activity_context_required","workflow_projection_ambiguous","workflow_projection_missing"].includes(row.issue_code)));
+assert(rootActivityProjection.containers.some(row => row.container_type_key === "activity" && row.canonical_subject_ref === "travel"));
+const projectedContentWorkflows=rootActivityProjection.containers.filter(row => row.container_type_key === "workflow" && row.canonical_subject_ref === "content_generation_workflow");
+assert.equal(projectedContentWorkflows.length,1);
+const directActivityKeyProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    brandPaths:[{ brand_key:"brand-key-1",target_key:"brand-key-1",business_type_key:"travel",status:"active",active:"active" }],
+    activities:[{ business_activity_type_key:"travel",activity_key:"travel",business_type_key:"destination_or_travel_business",label:"Travel",supported_workflows:"[]",status:"active",active:"active" }],
+    workflows:[]
+  }
+});
+assert.equal(directActivityKeyProjection.summary.highRiskIssueCount,0);
+assert(directActivityKeyProjection.containers.some(row => row.container_type_key === "activity" && row.canonical_subject_ref === "travel"));
 const namespaceMismatch=await buildLegacyContainerProjectionPlan({
   sourceRows:{ ...projectionSources,workspaces:[{ ...projectionSources.workspaces[0],linked_brand_key:"Brand One" }] }
 });
@@ -322,11 +372,11 @@ const sequentialSourceExecutor={
   }
 };
 const sequentialSources=await _testingDynamicContainerProjectionService.loadProjectionSources(sequentialSourceExecutor);
-assert.equal(sequentialSourceExecutor.calls.length,13);
+assert.equal(sequentialSourceExecutor.calls.length,14);
 assert.equal(sequentialSourceExecutor.maxActive,1);
 assert.deepEqual(Object.keys(sequentialSources),[
   "tenants","workspaces","brands","brandPaths","activities","workflows","memberships","roleAssignments",
-  "workspaceGrants","workspaceAppLinks","actionGrants","skillGrants","workspaceAssets"
+  "workspaceGrants","workspaceAppLinks","actionGrants","skillGrants","workspaceAssets","existingContainers"
 ]);
 
 const failingSourceExecutor={
