@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import {
+  addOptionalGraphEdgeWithExistingTarget,
   inspectPlatformGraphEdgeEndpoints,
   writePlatformGraphProjectionAtomically,
 } from "./services/platformKnowledgeGraphResolver.js";
@@ -242,6 +243,54 @@ assert("parent and child OpenAPI define graph memory path and schema exactly onc
     countOccurrences(schema, "/platform/graph/memory:") === 1 &&
     countOccurrences(schema, "PlatformGraphMemoryResponse:") === 1
   ));
+
+{
+  const nodes = new Map([["agent.agent-1", { node_id: "agent.agent-1" }]]);
+  const edges = new Map();
+  const warnings = [];
+  const missingResult = addOptionalGraphEdgeWithExistingTarget({
+    nodes,
+    edges,
+    warnings,
+    input: {
+      source_node_id: "agent.agent-1",
+      edge_type: "linked_to",
+      target_node_id: "brand.activation_smoke_brand",
+      source_table: "agent_skill_grants",
+      source_pk: "grant-1",
+    },
+    warning: {
+      reason: "brand_target_not_in_desired_node_set",
+      brand_key: "activation_smoke_brand",
+      grant_id: "grant-1",
+    },
+  });
+  assert("missing optional brand target is held as a warning without an edge",
+    missingResult === null &&
+    edges.size === 0 &&
+    warnings.length === 1 &&
+    warnings[0].code === "optional_graph_edge_target_missing" &&
+    warnings[0].target_node_id === "brand.activation_smoke_brand");
+
+  nodes.set("brand.valid_brand", { node_id: "brand.valid_brand" });
+  const validResult = addOptionalGraphEdgeWithExistingTarget({
+    nodes,
+    edges,
+    warnings,
+    input: {
+      source_node_id: "agent.agent-1",
+      edge_type: "linked_to",
+      target_node_id: "brand.valid_brand",
+      source_table: "agent_skill_grants",
+      source_pk: "grant-2",
+    },
+  });
+  assert("existing optional brand target creates the graph edge",
+    typeof validResult === "string" &&
+    edges.size === 1 &&
+    [...edges.values()][0].target_node_id === "brand.valid_brand" &&
+    warnings.length === 1);
+}
 
 {
   const nodes = new Map([["node-1", { node_id: "node-1" }]]);
