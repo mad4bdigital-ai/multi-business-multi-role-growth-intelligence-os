@@ -17,14 +17,16 @@
       "branch": "gpt/platform-request-execution-hardening-spec-kit-20260712",
       "role": "runtime_implementation_and_spec",
       "status": "current_pr"
-    },
+    }
+  },
   "evidence": {
     "runtime": {
       "operation_contract_registry": "http-generic-api/operationContractRegistry.js",
       "operation_context": "http-generic-api/operationContextService.js",
       "orchestrator": "http-generic-api/operationOrchestrator.js",
       "routes": "http-generic-api/routes/operationOrchestratorRoutes.js",
-      "tenant_run_ownership": "http-generic-api/operationRunOwnershipService.js"
+      "tenant_run_ownership": "http-generic-api/operationRunOwnershipService.js",
+      "runtime_guard": "http-generic-api/operationRuntimeGuard.js"
     },
     "migration": {
       "status": "included_not_applied",
@@ -33,15 +35,20 @@
       "backfill_required": false
     },
     "tests": {
-      "status": "passing_on_openapi_commit",
-      "head_sha": "d7b2013d98e1d3badcd376158a1131d914468900",
+      "status": "pending_current_head_ci",
+      "head_sha": "1d19252679c1635244c18efbad5cfde92c6addda",
       "required_checks": {
-        "Syntax Check": "success",
-        "Architecture Drift Detection": "success",
-        "Execution Resolver Gate": "success",
-        "Unit & Integration Tests": "success"
+        "Syntax Check": "blocked_invalid_completion_json",
+        "Architecture Drift Detection": "not_run",
+        "Execution Resolver Gate": "not_run",
+        "Unit & Integration Tests": "not_run"
       },
-      "tenant_isolation": "Tenant A cannot read or resume Tenant B operation runs"
+      "tenant_isolation": "Tenant A cannot read or resume Tenant B operation runs",
+      "runtime_guard": [
+        "timeout",
+        "response_budget",
+        "raw_503_normalization"
+      ]
     },
     "openapi": {
       "status": "synchronized",
@@ -53,11 +60,11 @@
       "remaining": [
         "managed_ephemeral_git_worker_lifecycle_evidence",
         "automatic_capability_lifecycle",
-        "runtime_budget_and_circuit_breaker_enforcement",
+        "circuit_breaker_enforcement",
         "generated_artifact_registry",
         "transparent_chunk_aggregation",
         "typed_catalog_apis",
-        "resilience_tests",
+        "rate_limit_tests",
         "observability_dashboards",
         "shadow_and_pilot_rollout"
       ]
