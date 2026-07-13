@@ -17,6 +17,7 @@ import { buildAdminRoutes } from "./adminRoutes.js";
 import { buildMixedRoutes } from "./mixedRoutes.js";
 export function registerRoutes(app) {
   app.use(buildTenantRoutes());
+  app.use(buildTenantRoutes());
   app.use(buildAdminRoutes());
   app.use(buildMixedRoutes());
 }
