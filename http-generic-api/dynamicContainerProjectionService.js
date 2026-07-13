@@ -205,6 +205,21 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
     }
     const exact = brandsByTarget.get(linkedBrandKey.toLowerCase()) || [];
     if (exact.length !== 1) {
+      const fixture = governedSandboxFixture(workspace);
+      if (exact.length === 0 && fixture) {
+        issues.push(issue(projectionRunId,{
+          tenant_id:tenantId,
+          workspace_id:workspace.workspace_id,
+          source_table:"workspace_registry",
+          source_ref:workspace.workspace_id,
+          issue_code:"workspace_brand_fixture_excluded",
+          severity:"info",
+          status:"ignored",
+          issue_detail:"Explicit allowlisted sandbox fixture was excluded from canonical brand authority projection.",
+          candidate_refs:[linkedBrandKey,fixture]
+        }));
+        continue;
+      }
       const nameCandidates = brandsByName.get(linkedBrandKey.toLowerCase()) || [];
       issues.push(issue(projectionRunId,{
         tenant_id:tenantId,workspace_id:workspace.workspace_id,source_table:"workspace_registry",source_ref:workspace.workspace_id,
