@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   buildReleaseGateCompatibilityConfig,
+  classifyCapabilityEnvelopeForReleaseGate,
   classifyReleaseGateReadback,
   normalizeReleaseGateOpenInput,
 } from "./releaseGateManagerService.js";
