@@ -1964,7 +1964,7 @@ function builtInShellAllowlist() {
       timeout_ms: 600000,
       built_in: true
     },
-    db_backup_export_cleanup: {
+    platform_outbox_worker: { command: process.execPath, args: ["http-generic-api/scripts/platform-outbox-worker.mjs"], display_name: "Transactional outbox shadow sync worker", allow_extra_args: true, max_extra_args: 8, timeout_ms: 600000, built_in: true }, db_backup_export_cleanup: {
       command: process.execPath,
       args: ["http-generic-api/scripts/db-backup-export-cleanup.mjs"],
       display_name: "Temporary DB backup export cleanup",
@@ -2207,7 +2207,7 @@ function builtInShellAllowlist() {
       timeout_ms: 900000,
       built_in: true
     },
-    dev_db_status_client: { command: process.execPath, args: ["http-generic-api/scripts/dev-db-status-client.mjs"], display_name: "Dev database status client", allow_extra_args: true, max_extra_args: 2, timeout_ms: 120000, built_in: true }, backup_artifact_url_smoke: {
+    dev_governed_migration_client: { command: process.execPath, args: ["http-generic-api/scripts/dev-governed-migration-client.mjs"], display_name: "Dev-only governed migration client", allow_extra_args: true, max_extra_args: 40, timeout_ms: 300000, built_in: true }, dev_db_status_client: { command: process.execPath, args: ["http-generic-api/scripts/dev-db-status-client.mjs"], display_name: "Dev database status client", allow_extra_args: true, max_extra_args: 2, timeout_ms: 120000, built_in: true }, backup_artifact_url_smoke: {
       command: process.execPath,
       args: ["http-generic-api/scripts/backup-artifact-url-smoke.mjs"],
       display_name: "Backup artifact URL smoke diagnostic",

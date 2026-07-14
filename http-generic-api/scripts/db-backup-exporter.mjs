@@ -1,14 +1,12 @@
 #!/usr/bin/env node
 import fs from "node:fs/promises";
-import { createWriteStream } from "node:fs";
+import { createReadStream, createWriteStream } from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { createHash, randomBytes, createCipheriv } from "node:crypto";
-import { gzip } from "node:zlib";
-import { promisify } from "node:util";
+import { createGzip } from "node:zlib";
+import { pipeline } from "node:stream/promises";
 import { getPool } from "../db.js";
-
-const gzipAsync = promisify(gzip);
 const EXPORT_ROOT = process.env.DB_BACKUP_EXPORT_ROOT || "/tmp/growth-os-db-backups";
 const JOB_ROOT = path.join(EXPORT_ROOT, "jobs");
 const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || process.env.AUTH_BASE_URL || "https://auth.mad4b.com").replace(/\/$/, "");
@@ -36,8 +34,11 @@ function sqlValue(value) {
   return sqlString(value);
 }
 async function sha256File(filePath) {
-  const data = await fs.readFile(filePath);
-  return createHash("sha256").update(data).digest("hex");
+  const hash = createHash("sha256");
+  for await (const chunk of createReadStream(filePath)) {
+    hash.update(chunk);
+  }
+  return hash.digest("hex");
 }
 async function writeJobStatus(jobId, payload = {}) {
   const id = safeJobId(jobId);
@@ -156,15 +157,20 @@ async function main() {
   try { dumpStats = await dumpDatabase(conn, sqlPath); }
   finally { conn.release(); await getPool().end(); }
 
-  const sqlBuffer = await fs.readFile(sqlPath);
-  const gzBuffer = await gzipAsync(sqlBuffer, { level: 9 });
-  await fs.writeFile(gzPath, gzBuffer);
+  await pipeline(
+    createReadStream(sqlPath),
+    createGzip({ level: 9 }),
+    createWriteStream(gzPath, { mode: 0o600 })
+  );
   const key = randomBytes(32);
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const encrypted = Buffer.concat([cipher.update(gzBuffer), cipher.final()]);
+  await pipeline(
+    createReadStream(gzPath),
+    cipher,
+    createWriteStream(artifactPath, { mode: 0o600 })
+  );
   const tag = cipher.getAuthTag();
-  await fs.writeFile(artifactPath, encrypted);
 
   const artifactSha = await sha256File(artifactPath);
   const gzSha = await sha256File(gzPath);

@@ -20,32 +20,38 @@ const ACTIVATION_SCHEMA_FILES_BY_PATH = new Map([
 const ALLOWED_EXACT_PATHS = new Set([
   "/",
   "/health",
-  "/auth/oauth",
-  "/auth/google",
-  "/auth/login",
-  "/auth/register",
   ...ACTIVATION_SCHEMA_FILES_BY_PATH.keys(),
 ]);
 
 const ALLOWED_PREFIXES = [
   "/activation/",
   "/tenant/activation/",
-  "/auth/oauth/",
 ];
 
-function requestHost(req) {
-  return String(
-    req.headers?.["x-forwarded-host"]
-    || req.headers?.["x-original-host"]
-    || req.headers?.["x-host"]
-    || req.headers?.[":authority"]
-    || req.headers?.host
-    || "",
-  )
+const TENANT_GPT_OAUTH_HANDOFF_ROUTES = new Map([
+  ["GET /auth/oauth/authorize", { operation_id: "tenantGptOAuthAuthorize" }],
+  ["POST /auth/oauth/code", { operation_id: "tenantGptOAuthCode" }],
+  ["POST /auth/oauth/token", { operation_id: "tenantGptOAuthToken" }],
+]);
+
+function normalizedRequestHost(value) {
+  return String(value || "")
     .split(",")[0]
     .trim()
     .toLowerCase()
     .replace(/:\d+$/, "");
+}
+
+function requestHost(req, preferredHost = "") {
+  const candidates = [
+    req.headers?.["x-forwarded-host"],
+    req.headers?.["x-original-host"],
+    req.headers?.["x-host"],
+    req.headers?.[":authority"],
+    req.headers?.host,
+  ].map(normalizedRequestHost).filter(Boolean);
+  const preferred = normalizedRequestHost(preferredHost);
+  return (preferred && candidates.includes(preferred)) ? preferred : (candidates[0] || "");
 }
 
 function requestPath(req) {
@@ -90,8 +96,16 @@ function isActivationHostAllowedPath(pathname) {
     || ALLOWED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
-function isOAuthPath(pathname) {
-  return pathname === "/auth/oauth" || pathname.startsWith("/auth/oauth/");
+function routeKey(method, pathname) {
+  return `${String(method || "").toUpperCase()} ${pathname}`;
+}
+
+function tenantGptOAuthHandoff(method, pathname) {
+  return TENANT_GPT_OAUTH_HANDOFF_ROUTES.get(routeKey(method, pathname)) || null;
+}
+
+function isAuthPath(pathname) {
+  return pathname === "/auth" || pathname.startsWith("/auth/");
 }
 
 export function buildActivationHostGatewayRoutes({
@@ -126,7 +140,7 @@ export function buildActivationHostGatewayRoutes({
     const schemaFile = ACTIVATION_SCHEMA_FILES_BY_PATH.get(pathname);
     if (!schemaFile) return next();
 
-    const host = requestHost(req);
+    const host = requestHost(req, activationHost);
     if (!isActivationSchemaHost(host, activationHost)) return next();
 
     await serveActivationSchema(req, res, schemaFile);
@@ -136,26 +150,30 @@ export function buildActivationHostGatewayRoutes({
   router.use((req, res, next) => {
     if (!enabled) return next();
 
-    const host = requestHost(req);
+    const host = requestHost(req, activationHost);
     if (host !== activationHost) return next();
 
     const pathname = requestPath(req);
 
-    // Activation transport must be bearer-token based and stateless. OAuth
-    // authorization and token exchange stay exclusively on auth.mad4b.com.
+    // Activation transport remains bearer-token based and stateless. Only the
+    // three Tenant GPT OAuth handoff operations may enter the shared authRoutes
+    // router on this host. Login, registration, admin, and every other auth
+    // route remain unavailable through activation.mad4b.com.
     delete req.headers.cookie;
 
-    if (isOAuthPath(pathname)) {
+    const oauthHandoff = tenantGptOAuthHandoff(req.method, pathname);
+    if (oauthHandoff) {
       req.activationHostGateway = {
         host,
         enforced: true,
-        oauth_handoff: true,
+        tenant_gpt_oauth_handoff: true,
+        operation_id: oauthHandoff.operation_id,
         secrets_included: false,
       };
       return next();
     }
 
-    if (!isActivationHostAllowedPath(pathname)) {
+    if (isAuthPath(pathname) || !isActivationHostAllowedPath(pathname)) {
       return res.status(404).json(errorResponse(
         "ACTIVATION_HOST_ROUTE_NOT_ALLOWED",
         "This host only serves Activation transport routes and Activation OpenAPI schemas.",
@@ -179,8 +197,17 @@ export function activationHostGatewayAllowedPaths() {
     host: ACTIVATION_HOST_GATEWAY_HOST,
     exact_paths: [...ALLOWED_EXACT_PATHS],
     path_prefixes: [...ALLOWED_PREFIXES],
+    tenant_gpt_oauth_routes: [...TENANT_GPT_OAUTH_HANDOFF_ROUTES.entries()].map(([key, value]) => {
+      const splitAt = key.indexOf(" ");
+      return {
+        method: key.slice(0, splitAt),
+        path: key.slice(splitAt + 1),
+        operation_id: value.operation_id,
+      };
+    }),
     schema_hosts: [ACTIVATION_HOST_GATEWAY_HOST, AUTH_HOST],
-    oauth_host: AUTH_HOST,
+    oauth_host: ACTIVATION_HOST_GATEWAY_HOST,
+    oauth_upstream_host: AUTH_HOST,
     secrets_included: false,
   };
 }

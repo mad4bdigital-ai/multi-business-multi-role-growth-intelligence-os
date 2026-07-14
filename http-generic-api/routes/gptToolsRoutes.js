@@ -27,6 +27,7 @@ import { bootstrapGovernedMigrationApplyPolicy } from "../governedMigrationApply
 import { authorizeCapabilityResolutionEnvelopeApply } from "../scripts/capability-resolution-envelope-apply-authorize.mjs";
 import { runGovernedMigrationExecution } from "../governedMigrationExecutionTool.js";
 import { runGovernedMigrationSchemaReadback } from "../governedMigrationSchemaReadbackTool.js";
+import { runDynamicContainerProjectionApply } from "../dynamicContainerProjectionApplyTool.js";
 import {
   buildSqlCacheOperationalDiagnostics,
   runSqlCacheControlledLoadTest,
@@ -910,6 +911,40 @@ const VIRTUAL_ADMIN_TOOLS = [
         migration: { type: "string", pattern: "^[A-Za-z0-9._-]+\\.sql$" },
         expected_checksum_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
         expected_statement_count: { type: "integer", minimum: 1, maximum: 5000 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "dynamic_container_projection_apply",
+    displayName: "Governed Dynamic Container Projection Apply",
+    description: "Dry-run or apply the legacy-to-container projection through a pinned source snapshot and exact expected counts. Apply requires typed confirmation derived from the snapshot, an apply-authorized platform_orchestration capability envelope, per-tenant transactional writes, same-cycle projection-run and exact-ID readback, and envelope consumption. No provider call, credential payload read, external write, raw endpoint activation, or secret return.",
+    method: "VIRTUAL",
+    path: "internal://dynamic-container-projection-apply",
+    tags: ["admin", "dynamic_container", "projection", "mutation", "dry_run_default", "typed_confirmation", "capability_envelope", "same_cycle_readback", "internal_sql_only", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: [
+        "mode",
+        "expected_source_snapshot_sha256",
+        "expected_projected_container_count",
+        "expected_projected_relationship_count",
+        "expected_projected_role_assignment_count",
+        "expected_projected_resource_binding_count",
+        "expected_held_issue_count",
+        "expected_high_risk_issue_count",
+      ],
+      properties: {
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
+        expected_source_snapshot_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        expected_projected_container_count: { type: "integer", minimum: 0 },
+        expected_projected_relationship_count: { type: "integer", minimum: 0 },
+        expected_projected_role_assignment_count: { type: "integer", minimum: 0 },
+        expected_projected_resource_binding_count: { type: "integer", minimum: 0 },
+        expected_held_issue_count: { type: "integer", minimum: 0 },
+        expected_high_risk_issue_count: { type: "integer", minimum: 0 },
+        confirm: { type: "string", pattern: "^APPLY_DYNAMIC_CONTAINER_PROJECTION_[0-9A-F]{12}$" },
+        capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
       },
       additionalProperties: false,
     },
@@ -2545,6 +2580,73 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       return { status: result.ok ? 200 : 409, body: result };
     } catch (err) {
       return { status: err?.status || 500, body: { ok: false, error: { code: err?.code || "governed_migration_schema_readback_failed", message: err?.message || "Governed migration schema readback failed.", details: err?.details }, secrets_included: false } };
+    }
+  }
+  if (callerType === "admin" && toolKey === "dynamic_container_projection_apply") {
+    try {
+      const result = await runDynamicContainerProjectionApply(args || {}, {
+        pool: getPool(),
+        resolveEnvelope: async ({ envelopeId }) => {
+          const resolved = await resolveCapabilityExecutionEnvelope({
+            pool: getPool(),
+            envelopeId,
+            source: args || {},
+            acceptedAppKeys: ["platform_orchestration"],
+            acceptedIntents: ["dynamic_container_projection_apply"],
+            acceptedCapabilityKeys: ["dynamic_container_projection_apply"],
+            allowReferenced: true,
+            requireReadyForDispatch: true,
+            requireDispatchAllowed: true,
+            requireNoApprovalRequired: false,
+            requireNoBlockingGaps: true,
+            requireNoSecrets: true,
+          });
+          if (!resolved?.ok) {
+            throw capabilityEnvelopeError(
+              resolved,
+              "Projection apply requires a valid ready capability resolution envelope."
+            );
+          }
+          if (resolved.apply_allowed !== true) {
+            throw capabilityEnvelopeError(
+              {
+                status: "dynamic_container_projection_apply_not_authorized",
+                envelope_id: envelopeId,
+                apply_allowed: false,
+                secrets_included: false,
+              },
+              "Projection apply requires explicit dynamic apply authorization."
+            );
+          }
+          return resolved;
+        },
+        markReferenced: async ({ envelopeId, executionRef }) => markCapabilityEnvelopeReferenced({
+          pool: getPool(),
+          envelopeId,
+          executionRef,
+        }),
+        consumeEnvelope: async ({ envelopeId, executionRef, reason }) => transitionCapabilityEnvelopeLifecycle({
+          pool: getPool(),
+          envelopeId,
+          action: "consume",
+          executionRef,
+          reason,
+        }),
+      });
+      return { status: 200, body: result };
+    } catch (err) {
+      return {
+        status: err?.status || 409,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "dynamic_container_projection_apply_failed",
+            message: err?.message || "Dynamic container projection apply failed.",
+            details: err?.details,
+          },
+          secrets_included: false,
+        },
+      };
     }
   }
   if (callerType === "admin" && toolKey === "governed_migration_execute") {

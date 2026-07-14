@@ -1,4 +1,9 @@
 import { readFileSync } from "node:fs";
+import {
+  addOptionalGraphEdgeWithExistingTarget,
+  inspectPlatformGraphEdgeEndpoints,
+  writePlatformGraphProjectionAtomically,
+} from "./services/platformKnowledgeGraphResolver.js";
 
 let passed = 0;
 let failed = 0;
@@ -238,6 +243,152 @@ assert("parent and child OpenAPI define graph memory path and schema exactly onc
     countOccurrences(schema, "/platform/graph/memory:") === 1 &&
     countOccurrences(schema, "PlatformGraphMemoryResponse:") === 1
   ));
+
+{
+  const nodes = new Map([["agent.agent-1", { node_id: "agent.agent-1" }]]);
+  const edges = new Map();
+  const warnings = [];
+  const missingResult = addOptionalGraphEdgeWithExistingTarget({
+    nodes,
+    edges,
+    warnings,
+    input: {
+      source_node_id: "agent.agent-1",
+      edge_type: "linked_to",
+      target_node_id: "brand.activation_smoke_brand",
+      source_table: "agent_skill_grants",
+      source_pk: "grant-1",
+    },
+    warning: {
+      reason: "brand_target_not_in_desired_node_set",
+      brand_key: "activation_smoke_brand",
+      grant_id: "grant-1",
+    },
+  });
+  assert("missing optional brand target is held as a warning without an edge",
+    missingResult === null &&
+    edges.size === 0 &&
+    warnings.length === 1 &&
+    warnings[0].code === "optional_graph_edge_target_missing" &&
+    warnings[0].target_node_id === "brand.activation_smoke_brand");
+
+  nodes.set("brand.valid_brand", { node_id: "brand.valid_brand" });
+  const validResult = addOptionalGraphEdgeWithExistingTarget({
+    nodes,
+    edges,
+    warnings,
+    input: {
+      source_node_id: "agent.agent-1",
+      edge_type: "linked_to",
+      target_node_id: "brand.valid_brand",
+      source_table: "agent_skill_grants",
+      source_pk: "grant-2",
+    },
+  });
+  assert("existing optional brand target creates the graph edge",
+    typeof validResult === "string" &&
+    edges.size === 1 &&
+    [...edges.values()][0].target_node_id === "brand.valid_brand" &&
+    warnings.length === 1);
+}
+
+{
+  const nodes = new Map([["node-1", { node_id: "node-1" }]]);
+  const edges = new Map([["edge-1", {
+    edge_id: "edge-1",
+    source_node_id: "node-1",
+    target_node_id: "missing-node",
+  }]]);
+  const inspection = inspectPlatformGraphEdgeEndpoints(nodes, edges);
+  assert("graph endpoint inspection reports a missing target", !inspection.ok &&
+    inspection.missing_edge_count === 1 &&
+    inspection.missing_target_node_ids.includes("missing-node"));
+
+  let connectionRequested = false;
+  let rejectedBeforeConnection = false;
+  try {
+    await writePlatformGraphProjectionAtomically({
+      pool: { async getConnection() { connectionRequested = true; throw new Error("connection should not be requested"); } },
+      nodes,
+      edges,
+    });
+  } catch (error) {
+    rejectedBeforeConnection = error.code === "platform_graph_projection_missing_edge_endpoints";
+  }
+  assert("missing graph endpoint fails before opening a transaction", rejectedBeforeConnection && !connectionRequested);
+}
+
+function atomicTestConnection(calls) {
+  return {
+    async beginTransaction() { calls.push("begin"); },
+    async commit() { calls.push("commit"); },
+    async rollback() { calls.push("rollback"); },
+    release() { calls.push("release"); },
+  };
+}
+
+const atomicNodes = new Map([
+  ["node-1", { node_id: "node-1" }],
+  ["node-2", { node_id: "node-2" }],
+]);
+const atomicEdges = new Map([["edge-1", {
+  edge_id: "edge-1",
+  source_node_id: "node-1",
+  target_node_id: "node-2",
+}]]);
+
+{
+  const calls = [];
+  let errorCode = "";
+  try {
+    await writePlatformGraphProjectionAtomically({
+      pool: { async getConnection() { return atomicTestConnection(calls); } },
+      nodes: atomicNodes,
+      edges: atomicEdges,
+      upsertNodesFn: async () => { calls.push("nodes"); },
+      upsertEdgesFn: async () => { calls.push("edges"); },
+      findMissingIdsFn: async (_connection, table) => table === "platform_graph_nodes" ? ["node-2"] : [],
+    });
+  } catch (error) {
+    errorCode = error.code;
+  }
+  assert("node readback failure rolls back before edge writes", errorCode === "platform_graph_projection_node_readback_failed" &&
+    calls.join(",") === "begin,nodes,rollback,release");
+}
+
+{
+  const calls = [];
+  let errorCode = "";
+  try {
+    await writePlatformGraphProjectionAtomically({
+      pool: { async getConnection() { return atomicTestConnection(calls); } },
+      nodes: atomicNodes,
+      edges: atomicEdges,
+      upsertNodesFn: async () => { calls.push("nodes"); },
+      upsertEdgesFn: async () => { calls.push("edges"); const error = new Error("edge write failed"); error.code = "edge_write_failed"; throw error; },
+      findMissingIdsFn: async () => [],
+    });
+  } catch (error) {
+    errorCode = error.code;
+  }
+  assert("edge write failure rolls back the node batch", errorCode === "edge_write_failed" &&
+    calls.join(",") === "begin,nodes,edges,rollback,release");
+}
+
+{
+  const calls = [];
+  const result = await writePlatformGraphProjectionAtomically({
+    pool: { async getConnection() { return atomicTestConnection(calls); } },
+    nodes: atomicNodes,
+    edges: atomicEdges,
+    upsertNodesFn: async () => { calls.push("nodes"); },
+    upsertEdgesFn: async () => { calls.push("edges"); },
+    findMissingIdsFn: async () => [],
+  });
+  assert("successful graph projection commits after same-cycle readback", result.ok === true &&
+    result.same_cycle_readback_verified === true &&
+    calls.join(",") === "begin,nodes,edges,commit,release");
+}
 
 console.log(`\nResults: ${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
