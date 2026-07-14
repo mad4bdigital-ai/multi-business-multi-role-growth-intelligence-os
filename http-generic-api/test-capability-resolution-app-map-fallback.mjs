@@ -52,7 +52,7 @@ assert.equal(fallbackCalls.length, 2);
 assert.match(fallbackCalls[0].sql, /FROM v_app_integration_capability_map/);
 assert.match(fallbackCalls[1].sql, /FROM app_integrations ai/);
 assert.match(fallbackCalls[1].sql, /LEFT JOIN app_integration_action_bindings b/);
-assert.match(fallbackCalls[1].sql, /LEFT JOIN platform_endpoint_tool_exports/);
+assert.match(fallbackCalls[1].sql, /FROM platform_endpoint_tool_exports/);
 assert.deepEqual(fallbackCalls[1].params, ["platform_orchestration"]);
 assert.equal(fallbackRows[0].credential_source, "none");
 
