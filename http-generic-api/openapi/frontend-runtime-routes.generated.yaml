@@ -1229,6 +1229,121 @@ paths:
           - requireBackendApiKey
         configuration_dependencies:
           - BACKEND_API_KEY
+  /admin/sql/endpoint-registry/endpoints:
+    get:
+      operationId: getAdminSqlEndpointRegistryEndpoints16ee7289
+      summary: GET /admin/sql/endpoint-registry/endpoints (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/sqlEndpointRegistryRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+  /admin/sql/endpoint-registry/resolve:
+    get:
+      operationId: getAdminSqlEndpointRegistryResolve1e99cf61
+      summary: GET /admin/sql/endpoint-registry/resolve (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/sqlEndpointRegistryRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+  /admin/sql/endpoint-registry/resolve-action:
+    get:
+      operationId: getAdminSqlEndpointRegistryResolveAction472ce756
+      summary: GET /admin/sql/endpoint-registry/resolve-action (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/sqlEndpointRegistryRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+  /admin/sql/endpoint-registry/simulated-sheet-rows:
+    get:
+      operationId: getAdminSqlEndpointRegistrySimulatedSheetRows19a6583c
+      summary: GET /admin/sql/endpoint-registry/simulated-sheet-rows (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/sqlEndpointRegistryRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+  /admin/sql/endpoint-registry/source-status:
+    get:
+      operationId: getAdminSqlEndpointRegistrySourceStatusbbf1e116
+      summary: GET /admin/sql/endpoint-registry/source-status (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/sqlEndpointRegistryRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
   /agent-chain-events:
     get:
       operationId: getAgentChainEvents1f67ea09
