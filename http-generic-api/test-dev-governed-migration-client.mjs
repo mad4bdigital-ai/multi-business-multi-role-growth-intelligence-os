@@ -7,6 +7,7 @@ import {
   parseArgs,
   sanitizeResult,
   validateDevBaseUrl,
+  validateShellAliasInvocation,
 } from "./scripts/dev-governed-migration-client.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -48,6 +49,37 @@ assert.deepEqual(parseArgs([
   apply: true,
 });
 
+assert.deepEqual(
+  validateShellAliasInvocation("platform_outbox_worker", ["--action=status"]),
+  { mutation_requested: false, extra_args: ["--action=status"] }
+);
+assert.deepEqual(
+  validateShellAliasInvocation("platform_outbox_worker", [
+    "--action=dry-run",
+    "--consumer=prod_shadow_v1",
+    "--limit=100",
+  ]),
+  {
+    mutation_requested: false,
+    extra_args: ["--action=dry-run", "--consumer=prod_shadow_v1", "--limit=100"],
+  }
+);
+assert.deepEqual(
+  validateShellAliasInvocation("capability_resolution_envelope_create", []),
+  { mutation_requested: true, extra_args: [] }
+);
+for (const blockedArgs of [
+  ["--action=run-once"],
+  ["--action=loop"],
+  ["--action=status", "--apply"],
+  ["--action=status", "--limit=0"],
+  ["--action=status", "--limit=501"],
+  ["--action=status", "--consumer=bad consumer"],
+  ["--action=status", "--unknown=value"],
+]) {
+  assert.throws(() => validateShellAliasInvocation("platform_outbox_worker", blockedArgs));
+}
+
 assert.deepEqual(sanitizeResult({
   ok: true,
   nested: {
@@ -85,5 +117,13 @@ const packageJson = JSON.parse(await fs.readFile(path.join(root, "package.json")
 assert.equal(packageJson.scripts["dev:migration:probe"], "node scripts/dev-governed-migration-client.mjs --action=probe");
 assert.equal(packageJson.scripts["dev:migration:client"], "node scripts/dev-governed-migration-client.mjs");
 assert.equal(packageJson.scripts["dev:migration:status"], "node scripts/dev-governed-migration-client.mjs --action=status");
+assert.equal(
+  packageJson.scripts["dev:outbox:status"],
+  "node scripts/dev-governed-migration-client.mjs --action=shell-alias --alias=platform_outbox_worker --extra-args-base64=WyItLWFjdGlvbj1zdGF0dXMiXQ=="
+);
+assert.equal(
+  packageJson.scripts["dev:outbox:dry-run"],
+  "node scripts/dev-governed-migration-client.mjs --action=shell-alias --alias=platform_outbox_worker --extra-args-base64=WyItLWFjdGlvbj1kcnktcnVuIl0="
+);
 
-console.log("dev governed migration client contract tests passed");
+console.log("dev governed migration and outbox read-only client contract tests passed");

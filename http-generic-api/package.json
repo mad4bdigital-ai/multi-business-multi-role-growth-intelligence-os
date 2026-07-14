@@ -7,7 +7,7 @@
   "scripts": {
     "prestart": "node scripts/generate-deployment-manifest.mjs",
     "start": "node server.js",
-    "test": "node scripts/run-test-manifest.mjs",
+    "test": "node scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
     "test:list": "node scripts/run-test-manifest.mjs --list",
     "release:phase-rollup-check": "node scripts/phase-branch-rollup-check.mjs",
     "resources:openapi:generate": "node scripts/generate-resource-surface-openapi.mjs --write",
@@ -42,7 +42,9 @@
     "outbox:loop": "node scripts/platform-outbox-worker.mjs --action=loop --apply",
     "dev:migration:status": "node scripts/dev-governed-migration-client.mjs --action=status",
     "dev:migration:probe": "node scripts/dev-governed-migration-client.mjs --action=probe",
-    "dev:migration:client": "node scripts/dev-governed-migration-client.mjs"
+    "dev:migration:client": "node scripts/dev-governed-migration-client.mjs",
+    "dev:outbox:status": "node scripts/dev-governed-migration-client.mjs --action=shell-alias --alias=platform_outbox_worker --extra-args-base64=WyItLWFjdGlvbj1zdGF0dXMiXQ==",
+    "dev:outbox:dry-run": "node scripts/dev-governed-migration-client.mjs --action=shell-alias --alias=platform_outbox_worker --extra-args-base64=WyItLWFjdGlvbj1kcnktcnVuIl0="
   },
   "engines": {
     "node": ">=22 <23"
