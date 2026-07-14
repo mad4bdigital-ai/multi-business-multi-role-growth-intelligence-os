@@ -164,6 +164,7 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
     const tenantId = String(tenant.tenant_id);
     const platform = addUnique(containers,projectedContainerRow({ tenantId,type:"platform",key:"platform-root",subjectType:"platform_tenant_anchor",subjectRef:tenantId,displayName:"Platform",source:"tenants" }));
     const tenantContainer = addUnique(containers,projectedContainerRow({ tenantId,type:"tenant",key:`tenant:${tenantId}`,subjectType:"tenant",subjectRef:tenantId,displayName:tenant.display_name || tenantId,source:"tenants" }));
+    platformContainerByTenant.set(tenantId,platform);
     tenantContainerByTenant.set(tenantId,tenantContainer);
     const edge = relationshipRow({ tenantId,fromId:platform.container_id,toId:tenantContainer.container_id,source:"tenants" });
     relationships.set(edge.relationship_id,edge);
