@@ -15,6 +15,7 @@ import { readFileSync } from "node:fs";
 
 const { buildAuthRoutes } = await import("./routes/authRoutes.js");
 const { buildActivationHostGatewayRoutes } = await import("./routes/activationHostGatewayRoutes.js");
+await import("./test-tenant-gpt-oauth-live-smoke.mjs");
 
 const TENANT_SCOPE_LINKS = [
   "https://auth.mad4b.com/scopes/tenant.links",
