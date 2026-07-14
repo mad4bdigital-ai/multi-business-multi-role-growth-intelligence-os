@@ -50,7 +50,7 @@ components:
   schemas:
     AsyncDeployRequest:
       type: object
-      required: [target_id, expected_commit_sha, capability_envelope_id]
+      required: [target_id, expected_commit_sha]
       properties:
         gate_id: { type: string, format: uuid }
         target_id: { type: string, format: uuid }
