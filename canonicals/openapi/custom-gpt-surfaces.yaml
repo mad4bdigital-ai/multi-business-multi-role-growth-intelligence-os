@@ -103,6 +103,7 @@ surfaces:
         - readTenantActivationOperationalAttention
         - readTenantActivationAwareness
         - readTenantResolutionProblemCards
+        - listTenantResolutionCases
         - createTenantResolutionCase
         - readTenantActivationDynamicTabDetail
 
