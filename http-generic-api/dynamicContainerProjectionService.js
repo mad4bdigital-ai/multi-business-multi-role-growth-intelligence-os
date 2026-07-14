@@ -290,12 +290,16 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
   }
 
   for (const membership of source.memberships.filter(row => activeValue(row.status))) {
-    const tenantContainer = tenantContainerByTenant.get(String(membership.tenant_id));
-    if (!tenantContainer) continue;
+    const tenantId = String(membership.tenant_id);
+    const roleTemplateKey = roleTemplateFor(membership.role);
+    const assignmentContainer = roleTemplateKey === "platform_owner"
+      ? platformContainerByTenant.get(tenantId)
+      : tenantContainerByTenant.get(tenantId);
+    if (!assignmentContainer) continue;
     const assignmentId = stableUuid("container-role",membership.tenant_id,membership.user_id,"membership");
     roleAssignments.set(assignmentId,{
-      assignment_id:assignmentId,tenant_id:membership.tenant_id,container_id:tenantContainer.container_id,principal_type:"user",principal_id:membership.user_id,
-      role_template_key:roleTemplateFor(membership.role),inline_permissions_json:null,inheritance_mode:"inherit_down",valid_from:membership.granted_at || null,valid_until:null,
+      assignment_id:assignmentId,tenant_id:membership.tenant_id,container_id:assignmentContainer.container_id,principal_type:"user",principal_id:membership.user_id,
+      role_template_key:roleTemplateKey,inline_permissions_json:null,inheritance_mode:"inherit_down",valid_from:membership.granted_at || null,valid_until:null,
       status:"active",version:1,issued_by:"memberships",approved_by:null,metadata_json:JSON.stringify({ source_table:"memberships",source_role:membership.role })
     });
   }
