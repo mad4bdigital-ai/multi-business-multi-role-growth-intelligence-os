@@ -522,6 +522,14 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
+  router.post("/tenant/resolution/cases/:caseId/diagnostics", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantResolutionDiagnosticActionResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_resolution_diagnostic_action_failed");
+    }
+  });
+
   router.get("/tenant/activation/dynamic-tabs/detail", requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await detailResponse(req, false));
