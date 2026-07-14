@@ -332,6 +332,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? String(tenantSshCliExecutePayload.connection_id || "").trim()
         : isHostingerSshTargetProbeJob
         ? String(hostingerSshTargetProbePayload.target_id || "").trim()
+        : isHostingerAsyncDeployJob
+        ? String(hostingerAsyncDeployPayload.target_id || "").trim()
         : String(requestPayload.target_key || "").trim(),
     parent_action_key:
       normalizedJobType === "site_migration"
@@ -344,6 +346,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "tenant_ssh_cli_worker"
         : isHostingerSshTargetProbeJob
         ? "remote_runtime_hostinger_ssh_probe_worker"
+        : isHostingerAsyncDeployJob
+        ? "release_async_deploy_worker"
         : String(requestPayload.parent_action_key || "").trim(),
     endpoint_key:
       normalizedJobType === "site_migration"
@@ -356,6 +360,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "tenant_ssh_cli_allowlisted_execute"
         : isHostingerSshTargetProbeJob
         ? "remote_runtime_hostinger_ssh_probe"
+        : isHostingerAsyncDeployJob
+        ? "remote_runtime_hostinger_deploy_release"
         : String(requestPayload.endpoint_key || "").trim(),
     route_id:
       normalizedJobType === "site_migration"
@@ -368,6 +374,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "tenant_ssh_cli_dedicated_worker_runtime"
         : isHostingerSshTargetProbeJob
         ? "remote_runtime_hostinger_ssh_probe_queue_worker"
+        : isHostingerAsyncDeployJob
+        ? "release_async_deploy_queue_worker"
         : String(requestPayload.route_id || "").trim(),
     target_module:
       normalizedJobType === "site_migration"
@@ -380,6 +388,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "tenant_infrastructure"
         : isHostingerSshTargetProbeJob
         ? "remote_runtime"
+        : isHostingerAsyncDeployJob
+        ? "release_intelligence"
         : String(requestPayload.target_module || "").trim(),
     target_workflow:
       normalizedJobType === "site_migration"
@@ -392,6 +402,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "wf_tenant_ssh_cli_allowlisted_execute"
         : isHostingerSshTargetProbeJob
         ? "wf_hostinger_ssh_target_probe_queue_worker"
+        : isHostingerAsyncDeployJob
+        ? "wf_async_release_deploy"
         : String(requestPayload.target_workflow || "").trim(),
     brand_name:
       normalizedJobType === "site_migration"
