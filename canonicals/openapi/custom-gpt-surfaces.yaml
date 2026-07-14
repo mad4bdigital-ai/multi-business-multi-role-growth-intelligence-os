@@ -79,6 +79,8 @@ surfaces:
         - tenantPlatformPluginInstall
         - tenantPlatformPluginCredentialIntakeSessionCreate
         - tenantPlatformPluginResolve
+        - listTenantSkillApprovals
+        - decideTenantSkillApproval
         - writeSessionTurn
         - endSession
 
