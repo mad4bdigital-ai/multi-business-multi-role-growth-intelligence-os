@@ -26,8 +26,9 @@ assert(migration.includes("export_row.input_schema_json = endpoint_row.schema_js
 assert(migration.includes("endpoint_row.endpoint_id = 'ACT-GH-REST-044'"));
 assert(migration.includes("endpoint_row.endpoint_key = 'github_rerun_workflow_run'"));
 
+const executableSql = migration.replace(/^\s*--.*$/gm, "");
 for (const forbidden of [/\bDROP\b/i, /\bTRUNCATE\b/i, /\bDELETE\s+FROM\b/i, /\bCALL\b/i]) {
-  assert.equal(forbidden.test(migration), false);
+  assert.equal(forbidden.test(executableSql), false);
 }
 assert(migration.includes("no_provider_call=true"));
 assert(migration.includes("no_external_write=true"));
