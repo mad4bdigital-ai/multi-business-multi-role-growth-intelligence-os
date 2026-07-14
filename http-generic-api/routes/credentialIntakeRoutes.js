@@ -441,7 +441,7 @@ async function writeCredentialIntakeContinuationTask({ session, connectionId, me
     secrets_included: false,
   };
 
-  const title = continuation.title || `Credential intake completed for ${session.app_key}`;
+  const title = continuation.title || `Validate credential intake continuation for ${session.app_key}`;
   await getPool().query(
     `INSERT INTO platform_pending_tasks
        (task_id, task_key, title, description, brief, activation_prompt, task_type, priority, status,
