@@ -331,10 +331,8 @@ export async function listTenantSkillApprovals({
   const nowValue = now();
 
   return withConnection(effectivePool, async (connection) => {
-    const [grantRows, holdRows] = await Promise.all([
-      loadGrantRows(connection, subject.tenant_id),
-      loadApprovalHolds(connection, subject.tenant_id),
-    ]);
+    const grantRows = await loadGrantRows(connection, subject.tenant_id);
+    const holdRows = await loadApprovalHolds(connection, subject.tenant_id);
     const holds = latestHoldsByApprovalKey(holdRows);
     let items = groupGrantRows(grantRows, subject.tenant_id, nowValue)
       .map((group) => approvalItem(group, holds.get(group.approval_key), nowValue));
