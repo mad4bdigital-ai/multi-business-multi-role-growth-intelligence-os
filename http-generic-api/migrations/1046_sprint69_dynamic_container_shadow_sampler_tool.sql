@@ -1,3 +1,5 @@
+-- Migration execution safety: no_provider_call true; no_credential_payload_read true; no_raw_secrets true;
+-- no_external_send true; no_external_write true; secrets_included=false.
 -- Sprint 69: Governed Dynamic Container shadow sampler tool
 -- Safety:
 --   - Runs the internal resolver only in mode=shadow.
