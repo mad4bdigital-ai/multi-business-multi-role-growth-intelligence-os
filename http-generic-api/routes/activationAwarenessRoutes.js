@@ -23,6 +23,10 @@ import {
   transitionTenantResolutionCase,
 } from "../tenantResolutionCaseLifecycleService.js";
 import { runTenantResolutionDiagnosticAction } from "../tenantResolutionDiagnosticService.js";
+import {
+  listTenantSkillApprovals,
+  decideTenantSkillApproval,
+} from "../tenantSkillApprovalCenterService.js";
 import { acknowledgeActivationRun, readActivationRunArchive } from "../activationSessionLifecycleService.js";
 import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
 
