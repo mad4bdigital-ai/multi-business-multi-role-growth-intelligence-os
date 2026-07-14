@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "c734cfab028265db8ff55ce1e31364b08793dbe7",
-    "source_digest": "d8525d9da1863523a5ef4778c2e1d0cbddd76a8cf3c5022e25dbc1b50f1d5d27",
+    "source_digest": "d3fedbfa8acff2f96d856277a77b206c75d27e8eaae7af8bd4ee904647a1e4c5",
     "authority": [
       {
         "file": "frontend-surface-policy.json",
@@ -31,7 +31,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "e43cc3c2debe55ad229a5c621ae9445d56b6b680229e336ab9dff0735197e96d",
+        "sha256": "fee96712c61433fa6c132728977752e55390990152656d74496172615e0da6ee",
         "present": true
       },
       {
@@ -186,7 +186,7 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "bcdd06dc56245b7a8c89c3f05d52b9b47b1bb7d733e6a7caa7093c743a911bbd",
+        "sha256": "ab9ca8de9b1b0b7a68210be2e4cbb3b7bdce4daae02414da6681c9ff20a83077",
         "present": true
       },
       {
@@ -231,18 +231,18 @@
     "issues": []
   },
   "coverage": {
-    "mounted_family_count": 150,
-    "mounted_route_file_count": 125,
+    "mounted_family_count": 153,
+    "mounted_route_file_count": 126,
     "mixed_scope_route_file_count": 23,
-    "operation_count": 934,
-    "openapi_documented_count": 810,
+    "operation_count": 939,
+    "openapi_documented_count": 815,
     "openapi_canonical_documented_count": 511,
-    "openapi_generated_index_count": 299,
+    "openapi_generated_index_count": 304,
     "openapi_exemption_count": 24,
     "openapi_gap_count": 100,
-    "openapi_detail_gap_count": 299,
+    "openapi_detail_gap_count": 304,
     "auth_parity_counts": {
-      "equivalent": 471,
+      "equivalent": 476,
       "exempt": 24,
       "mismatch": 163,
       "missing_openapi": 100,
@@ -254,14 +254,14 @@
     "unresolved_operation_class_count": 563,
     "classified_mutation_count": 4,
     "governed_mutation_operation_count": 0,
-    "embedded_ui_family_count": 6,
-    "unresolved_surface_decision_count": 145,
+    "embedded_ui_family_count": 7,
+    "unresolved_surface_decision_count": 144,
     "test_owned_family_count": 1,
-    "untested_family_count": 149,
+    "untested_family_count": 152,
     "test_owned_operation_count": 7,
-    "untested_operation_count": 927,
+    "untested_operation_count": 932,
     "ready_task_count": 1,
-    "blocked_task_count": 149,
+    "blocked_task_count": 152,
     "coverage_complete": false
   },
   "waves": [
@@ -325,24 +325,379 @@
   ],
   "families": [
     {
-      "family_key": "activation-host-gateway",
-      "label": "activation host gateway",
-      "source_file": "routes/activationHostGatewayRoutes.js",
-      "source_digest": "34c3683b9fe6011e79ec2f74a17b73de62da38bf84126bbb6d9fd0309c35b91a",
+      "family_key": "sql-endpoint-registry",
+      "label": "sql endpoint registry",
+      "source_file": "routes/sqlEndpointRegistryRoutes.js",
+      "source_digest": "26769efe9d967b49a4c49d2a03e5c0f4e7de400a70947bebd63e4bfee41bad9f",
       "mount_prefix": "/",
-      "mount_order": 10970,
+      "mount_order": 10564,
       "split_from_mixed_scope_file": false,
-      "group": "activation",
-      "scope": "unresolved",
-      "operations": [],
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
+      "group": "operations",
+      "scope": "admin",
+      "operations": [
+        {
+          "method": "GET",
+          "path": "/admin/sql/endpoint-registry/source-status",
+          "signature": "GET /admin/sql/endpoint-registry/source-status",
+          "source_file": "routes/sqlEndpointRegistryRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": true,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/admin/sql/endpoint-registry/endpoints",
+          "signature": "GET /admin/sql/endpoint-registry/endpoints",
+          "source_file": "routes/sqlEndpointRegistryRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/admin/sql/endpoint-registry/simulated-sheet-rows",
+          "signature": "GET /admin/sql/endpoint-registry/simulated-sheet-rows",
+          "source_file": "routes/sqlEndpointRegistryRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/admin/sql/endpoint-registry/resolve",
+          "signature": "GET /admin/sql/endpoint-registry/resolve",
+          "source_file": "routes/sqlEndpointRegistryRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/admin/sql/endpoint-registry/resolve-action",
+          "signature": "GET /admin/sql/endpoint-registry/resolve-action",
+          "source_file": "routes/sqlEndpointRegistryRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        }
+      ],
       "openapi_gaps": [],
       "openapi_exemptions": [],
-      "openapi_detail_gaps": [],
+      "openapi_detail_gaps": [
+        "GET /admin/sql/endpoint-registry/source-status",
+        "GET /admin/sql/endpoint-registry/endpoints",
+        "GET /admin/sql/endpoint-registry/simulated-sheet-rows",
+        "GET /admin/sql/endpoint-registry/resolve",
+        "GET /admin/sql/endpoint-registry/resolve-action"
+      ],
       "auth_contract_gaps": [],
-      "evidence_routes": [],
+      "evidence_routes": [
+        "GET /admin/sql/endpoint-registry/source-status"
+      ],
       "tests": [],
       "untested_operations": [
-        "NO_DISCOVERED_OPERATIONS"
+        "GET /admin/sql/endpoint-registry/source-status",
+        "GET /admin/sql/endpoint-registry/endpoints",
+        "GET /admin/sql/endpoint-registry/simulated-sheet-rows",
+        "GET /admin/sql/endpoint-registry/resolve",
+        "GET /admin/sql/endpoint-registry/resolve-action"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -352,11 +707,12 @@
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
         "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
-        "routes/activationHostGatewayRoutes.js",
         "routes/index.js",
+        "routes/sqlEndpointRegistryRoutes.js",
         "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
@@ -366,10 +722,10 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 9,
+        "score": 10,
         "class": "critical"
       },
-      "wave": "F0-authority-resolution"
+      "wave": "F3-admin-workspaces"
     },
     {
       "family_key": "deployment-info",
@@ -379,6 +735,8 @@
       "mount_prefix": "/",
       "mount_order": 11017,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "infrastructure",
       "scope": "unresolved",
       "operations": [
@@ -484,6 +842,8 @@
       "mount_prefix": "/",
       "mount_order": 11057,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "infrastructure",
       "scope": "unresolved",
       "operations": [
@@ -585,6 +945,8 @@
       "mount_prefix": "/",
       "mount_order": 11101,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "operations",
       "scope": "admin",
       "operations": [
@@ -794,6 +1156,8 @@
       "mount_prefix": "/",
       "mount_order": 11173,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "admin",
       "operations": [
@@ -1296,6 +1660,8 @@
       "mount_prefix": "/",
       "mount_order": 11248,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "unresolved",
       "operations": [
@@ -1679,6 +2045,8 @@
       "mount_prefix": "/",
       "mount_order": 11460,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "/local-manager",
       "group": "local-manager",
       "scope": "admin",
       "operations": [
@@ -1808,13 +2176,15 @@
       "wave": "F3-admin-workspaces"
     },
     {
-      "family_key": "local-manager-beta.local_device",
-      "label": "local manager beta (local_device)",
+      "family_key": "local-manager-beta.local_device.default",
+      "label": "local manager beta (local_device) [default]",
       "source_file": "routes/localManagerBetaRoutes.js",
       "source_digest": "0a623a0f778feb56472a786103d88250eaec04589f3fdb73aa147a6161c8f32d",
       "mount_prefix": "/",
       "mount_order": 11460,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": true,
+      "surface_policy_partition": "default",
       "group": "local-manager",
       "scope": "local_device",
       "operations": [
@@ -2275,6 +2645,228 @@
           "mutation": false
         },
         {
+          "method": "GET",
+          "path": "/app/local-manager/admin",
+          "signature": "GET /app/local-manager/admin",
+          "source_file": "routes/localManagerBetaRoutes.js",
+          "scope": "local_device",
+          "runtime_auth": {
+            "state": "unresolved",
+            "profile": "no_explicit_auth_evidence",
+            "alternatives": null,
+            "principal": null,
+            "guard_chain": [],
+            "evidence": [],
+            "configuration_dependencies": []
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "unknown",
+            "reasons": [
+              "no_explicit_auth_evidence"
+            ]
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": true,
+          "embedded_ui_evidence": [
+            "response_content_type:text/html"
+          ],
+          "delivery_kind": "embedded_html",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        }
+      ],
+      "openapi_gaps": [
+        "GET /app/local-manager/download/windows",
+        "GET /app/local-manager/sign-in",
+        "GET /app/local-manager/sign-up",
+        "GET /app/local-manager/link-device",
+        "GET /app/local-manager/devices",
+        "GET /app/local-manager/routes",
+        "GET /app/local-manager/backups",
+        "GET /app/local-manager/settings"
+      ],
+      "openapi_exemptions": [],
+      "openapi_detail_gaps": [],
+      "auth_contract_gaps": [
+        {
+          "signature": "GET /app/local-manager",
+          "state": "unknown",
+          "reasons": [
+            "no_explicit_auth_evidence"
+          ]
+        },
+        {
+          "signature": "GET /app/local-manager/update/windows",
+          "state": "unknown",
+          "reasons": [
+            "no_explicit_auth_evidence"
+          ]
+        },
+        {
+          "signature": "GET /app/local-manager/download/windows",
+          "state": "missing_openapi",
+          "reasons": [
+            "operation_not_documented"
+          ]
+        },
+        {
+          "signature": "GET /app/local-manager/sign-in",
+          "state": "missing_openapi",
+          "reasons": [
+            "operation_not_documented"
+          ]
+        },
+        {
+          "signature": "GET /app/local-manager/sign-up",
+          "state": "missing_openapi",
+          "reasons": [
+            "operation_not_documented"
+          ]
+        },
+        {
+          "signature": "GET /app/local-manager/link-device",
+          "state": "missing_openapi",
+          "reasons": [
+            "operation_not_documented"
+          ]
+        },
+        {
+          "signature": "GET /app/local-manager/devices",
+          "state": "missing_openapi",
+          "reasons": [
+            "operation_not_documented"
+          ]
+        },
+        {
+          "signature": "GET /app/local-manager/routes",
+          "state": "missing_openapi",
+          "reasons": [
+            "operation_not_documented"
+          ]
+        },
+        {
+          "signature": "GET /app/local-manager/backups",
+          "state": "missing_openapi",
+          "reasons": [
+            "operation_not_documented"
+          ]
+        },
+        {
+          "signature": "GET /app/local-manager/settings",
+          "state": "missing_openapi",
+          "reasons": [
+            "operation_not_documented"
+          ]
+        },
+        {
+          "signature": "GET /app/local-manager/admin",
+          "state": "unknown",
+          "reasons": [
+            "no_explicit_auth_evidence"
+          ]
+        }
+      ],
+      "evidence_routes": [],
+      "tests": [],
+      "untested_operations": [
+        "GET /app/local-manager",
+        "GET /app/local-manager/update/windows",
+        "GET /app/local-manager/download/windows",
+        "GET /app/local-manager/sign-in",
+        "GET /app/local-manager/sign-up",
+        "GET /app/local-manager/link-device",
+        "GET /app/local-manager/devices",
+        "GET /app/local-manager/routes",
+        "GET /app/local-manager/backups",
+        "GET /app/local-manager/settings",
+        "GET /app/local-manager/admin"
+      ],
+      "resources": [],
+      "embedded_ui": true,
+      "embedded_ui_operations": [
+        "GET /app/local-manager",
+        "GET /app/local-manager/sign-in",
+        "GET /app/local-manager/sign-up",
+        "GET /app/local-manager/link-device",
+        "GET /app/local-manager/devices",
+        "GET /app/local-manager/routes",
+        "GET /app/local-manager/backups",
+        "GET /app/local-manager/settings",
+        "GET /app/local-manager/admin"
+      ],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "public/connect/app.jsx",
+        "public/connect/core.jsx",
+        "public/connect/evidence.jsx",
+        "public/connect/mad4b-logo-1080.png",
+        "public/connect/steps-1.jsx",
+        "public/connect/steps-2-hub.jsx",
+        "public/connect/steps-2.jsx",
+        "public/connect/steps-3.jsx",
+        "public/connect/steps-4.jsx",
+        "public/connect/tokens.css",
+        "public/connect/tweaks-panel.jsx",
+        "public/platform/index.html",
+        "public/platform/shell.css",
+        "public/platform/shell.js",
+        "public/platform/tokens.css",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/localManagerBetaRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "surface_decision": {
+        "decision": "requires_review",
+        "rationale": "No repository policy decision covers this route family.",
+        "owner": null
+      },
+      "operation_blockers": [],
+      "risk": {
+        "score": 12,
+        "class": "critical"
+      },
+      "wave": "F4-local-manager"
+    },
+    {
+      "family_key": "local-manager-beta.local_device.local-manager",
+      "label": "local manager beta (local_device) [local-manager]",
+      "source_file": "routes/localManagerBetaRoutes.js",
+      "source_digest": "0a623a0f778feb56472a786103d88250eaec04589f3fdb73aa147a6161c8f32d",
+      "mount_prefix": "/",
+      "mount_order": 11460,
+      "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": true,
+      "surface_policy_partition": "/local-manager",
+      "group": "local-manager",
+      "scope": "local_device",
+      "operations": [
+        {
           "method": "POST",
           "path": "/local-manager/device-link/start",
           "signature": "POST /local-manager/device-link/start",
@@ -2634,56 +3226,6 @@
         },
         {
           "method": "GET",
-          "path": "/app/local-manager/admin",
-          "signature": "GET /app/local-manager/admin",
-          "source_file": "routes/localManagerBetaRoutes.js",
-          "scope": "local_device",
-          "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
-          },
-          "openapi_auth": {
-            "source_file": "openapi.yaml",
-            "security_declared": true,
-            "security_alternatives": [],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": true,
-          "openapi_exempt": false,
-          "openapi_contract_level": "canonical",
-          "evidence_candidate": false,
-          "embedded_ui": true,
-          "embedded_ui_evidence": [
-            "response_content_type:text/html"
-          ],
-          "delivery_kind": "embedded_html",
-          "tests": [],
-          "governance": {
-            "classification": "read",
-            "classification_source": "http_method",
-            "mutation_candidate": false,
-            "governed": true,
-            "controls": null,
-            "blockers": [],
-            "rule_id": null
-          },
-          "mutation_candidate": false,
-          "mutation": false
-        },
-        {
-          "method": "GET",
           "path": "/local-manager/beta",
           "signature": "GET /local-manager/beta",
           "source_file": "routes/localManagerBetaRoutes.js",
@@ -2728,91 +3270,12 @@
           "mutation": false
         }
       ],
-      "openapi_gaps": [
-        "GET /app/local-manager/download/windows",
-        "GET /app/local-manager/sign-in",
-        "GET /app/local-manager/sign-up",
-        "GET /app/local-manager/link-device",
-        "GET /app/local-manager/devices",
-        "GET /app/local-manager/routes",
-        "GET /app/local-manager/backups",
-        "GET /app/local-manager/settings"
-      ],
+      "openapi_gaps": [],
       "openapi_exemptions": [
         "GET /local-manager/beta"
       ],
       "openapi_detail_gaps": [],
       "auth_contract_gaps": [
-        {
-          "signature": "GET /app/local-manager",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "GET /app/local-manager/update/windows",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "GET /app/local-manager/download/windows",
-          "state": "missing_openapi",
-          "reasons": [
-            "operation_not_documented"
-          ]
-        },
-        {
-          "signature": "GET /app/local-manager/sign-in",
-          "state": "missing_openapi",
-          "reasons": [
-            "operation_not_documented"
-          ]
-        },
-        {
-          "signature": "GET /app/local-manager/sign-up",
-          "state": "missing_openapi",
-          "reasons": [
-            "operation_not_documented"
-          ]
-        },
-        {
-          "signature": "GET /app/local-manager/link-device",
-          "state": "missing_openapi",
-          "reasons": [
-            "operation_not_documented"
-          ]
-        },
-        {
-          "signature": "GET /app/local-manager/devices",
-          "state": "missing_openapi",
-          "reasons": [
-            "operation_not_documented"
-          ]
-        },
-        {
-          "signature": "GET /app/local-manager/routes",
-          "state": "missing_openapi",
-          "reasons": [
-            "operation_not_documented"
-          ]
-        },
-        {
-          "signature": "GET /app/local-manager/backups",
-          "state": "missing_openapi",
-          "reasons": [
-            "operation_not_documented"
-          ]
-        },
-        {
-          "signature": "GET /app/local-manager/settings",
-          "state": "missing_openapi",
-          "reasons": [
-            "operation_not_documented"
-          ]
-        },
         {
           "signature": "POST /local-manager/device-link/start",
           "state": "unknown",
@@ -2861,13 +3324,6 @@
           "reasons": [
             "no_explicit_auth_evidence"
           ]
-        },
-        {
-          "signature": "GET /app/local-manager/admin",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
         }
       ],
       "evidence_routes": [
@@ -2875,16 +3331,6 @@
       ],
       "tests": [],
       "untested_operations": [
-        "GET /app/local-manager",
-        "GET /app/local-manager/update/windows",
-        "GET /app/local-manager/download/windows",
-        "GET /app/local-manager/sign-in",
-        "GET /app/local-manager/sign-up",
-        "GET /app/local-manager/link-device",
-        "GET /app/local-manager/devices",
-        "GET /app/local-manager/routes",
-        "GET /app/local-manager/backups",
-        "GET /app/local-manager/settings",
         "POST /local-manager/device-link/start",
         "GET /local-manager/device-link/preview",
         "POST /local-manager/device-link/poll",
@@ -2892,21 +3338,11 @@
         "GET /local-manager/device-link/devices",
         "GET /local-manager/device/session",
         "GET /local-manager/device/controls",
-        "GET /app/local-manager/admin",
         "GET /local-manager/beta"
       ],
       "resources": [],
       "embedded_ui": true,
       "embedded_ui_operations": [
-        "GET /app/local-manager",
-        "GET /app/local-manager/sign-in",
-        "GET /app/local-manager/sign-up",
-        "GET /app/local-manager/link-device",
-        "GET /app/local-manager/devices",
-        "GET /app/local-manager/routes",
-        "GET /app/local-manager/backups",
-        "GET /app/local-manager/settings",
-        "GET /app/local-manager/admin",
         "GET /local-manager/beta"
       ],
       "source_refs": [
@@ -2937,9 +3373,15 @@
         "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
-        "decision": "requires_review",
-        "rationale": "No repository policy decision covers this route family.",
-        "owner": null
+        "decision": "legacy_compatibility",
+        "rationale": "Existing Local Manager browser pages remain supported until wave F4 reaches verified parity.",
+        "owner": "local-manager",
+        "rule_id": "local-manager-compatibility",
+        "evidence_refs": [
+          "routes/localManagerBetaRoutes.js",
+          "routes/localManagerDesktopCommandRoutes.js",
+          "specs/010-unified-platform-frontend/plan.md"
+        ]
       },
       "operation_blockers": [
         {
@@ -2962,7 +3404,7 @@
         }
       ],
       "risk": {
-        "score": 14,
+        "score": 10,
         "class": "critical"
       },
       "wave": "F4-local-manager"
@@ -2975,6 +3417,8 @@
       "mount_prefix": "/",
       "mount_order": 11536,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "/local-manager",
       "group": "local-manager",
       "scope": "admin",
       "operations": [
@@ -3179,6 +3623,8 @@
       "mount_prefix": "/",
       "mount_order": 11536,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "/local-manager",
       "group": "local-manager",
       "scope": "local_device",
       "operations": [
@@ -3332,6 +3778,8 @@
       "mount_prefix": "/",
       "mount_order": 11622,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "admin",
       "operations": [
@@ -3755,6 +4203,8 @@
       "mount_prefix": "/",
       "mount_order": 11622,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "unresolved",
       "operations": [
@@ -3925,6 +4375,8 @@
       "mount_prefix": "/",
       "mount_order": 11897,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "connections",
       "scope": "admin",
       "operations": [
@@ -4048,6 +4500,8 @@
       "mount_prefix": "/",
       "mount_order": 11897,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "connections",
       "scope": "unresolved",
       "operations": [
@@ -4295,6 +4749,8 @@
       "mount_prefix": "/",
       "mount_order": 12095,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "admin",
       "operations": [
@@ -4501,6 +4957,8 @@
       "mount_prefix": "/",
       "mount_order": 12095,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "unresolved",
       "operations": [
@@ -4594,6 +5052,8 @@
       "mount_prefix": "/",
       "mount_order": 12172,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "governance",
       "scope": "unresolved",
       "operations": [
@@ -5002,6 +5462,8 @@
       "mount_prefix": "/",
       "mount_order": 12207,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "developer-evidence",
       "scope": "developer",
       "operations": [
@@ -5185,6 +5647,8 @@
       "mount_prefix": "/",
       "mount_order": 12207,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "unresolved",
       "operations": [
@@ -5271,13 +5735,15 @@
       "wave": "F0-authority-resolution"
     },
     {
-      "family_key": "connect.public",
-      "label": "connect (public)",
+      "family_key": "connect.public.connect-assets",
+      "label": "connect (public) [connect-assets]",
       "source_file": "routes/connectRoutes.js",
       "source_digest": "b37e1f25a1dc0a45aed95897ed6ebf0093a123a64623546ab6beba84673f454e",
       "mount_prefix": "/",
       "mount_order": 12246,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": true,
+      "surface_policy_partition": "/connect/assets",
       "group": "authentication",
       "scope": "public",
       "operations": [
@@ -5328,7 +5794,65 @@
           },
           "mutation_candidate": false,
           "mutation": false
-        },
+        }
+      ],
+      "openapi_gaps": [],
+      "openapi_exemptions": [],
+      "openapi_detail_gaps": [
+        "GET /connect/assets/{file}"
+      ],
+      "auth_contract_gaps": [],
+      "evidence_routes": [],
+      "tests": [],
+      "untested_operations": [
+        "GET /connect/assets/{file}"
+      ],
+      "resources": [],
+      "embedded_ui": false,
+      "embedded_ui_operations": [],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/connectRoutes.js",
+        "routes/index.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "surface_decision": {
+        "decision": "embedded_ui",
+        "rationale": "Existing Connect assets remain a compatibility surface while the unified shell is introduced.",
+        "owner": "frontend-platform",
+        "rule_id": "connect-assets-compatibility",
+        "evidence_refs": [
+          "public/connect",
+          "routes/connectRoutes.js"
+        ]
+      },
+      "operation_blockers": [],
+      "risk": {
+        "score": 3,
+        "class": "medium"
+      },
+      "wave": "F1-tenant-shell"
+    },
+    {
+      "family_key": "connect.public.default",
+      "label": "connect (public) [default]",
+      "source_file": "routes/connectRoutes.js",
+      "source_digest": "b37e1f25a1dc0a45aed95897ed6ebf0093a123a64623546ab6beba84673f454e",
+      "mount_prefix": "/",
+      "mount_order": 12246,
+      "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": true,
+      "surface_policy_partition": "default",
+      "group": "authentication",
+      "scope": "public",
+      "operations": [
         {
           "method": "GET",
           "path": "/connect",
@@ -5382,14 +5906,11 @@
       ],
       "openapi_gaps": [],
       "openapi_exemptions": [],
-      "openapi_detail_gaps": [
-        "GET /connect/assets/{file}"
-      ],
+      "openapi_detail_gaps": [],
       "auth_contract_gaps": [],
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
-        "GET /connect/assets/{file}",
         "GET /connect"
       ],
       "resources": [],
@@ -5402,7 +5923,6 @@
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
         "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
         "public/connect/app.jsx",
@@ -5432,7 +5952,7 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 5,
+        "score": 4,
         "class": "medium"
       },
       "wave": "F1-tenant-shell"
@@ -5445,6 +5965,8 @@
       "mount_prefix": "/",
       "mount_order": 12246,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "tenant",
       "operations": [
@@ -6283,6 +6805,8 @@
       "mount_prefix": "/",
       "mount_order": 12246,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "unresolved",
       "operations": [
@@ -6387,6 +6911,8 @@
       "mount_prefix": "/",
       "mount_order": 12283,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "public",
       "operations": [
@@ -6611,6 +7137,8 @@
       "mount_prefix": "/",
       "mount_order": 12483,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "tenant",
       "operations": [
@@ -7317,6 +7845,8 @@
       "mount_prefix": "/",
       "mount_order": 12523,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "admin",
       "operations": [
@@ -8090,6 +8620,8 @@
       "mount_prefix": "/",
       "mount_order": 12523,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "unresolved",
       "operations": [
@@ -8449,6 +8981,8 @@
       "mount_prefix": "/auth",
       "mount_order": 12564,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "admin",
       "operations": [
@@ -8586,6 +9120,8 @@
       "mount_prefix": "/auth",
       "mount_order": 12564,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "unresolved",
       "operations": [
@@ -9169,60 +9705,15 @@
       "wave": "F0-authority-resolution"
     },
     {
-      "family_key": "onboarding",
-      "label": "onboarding",
-      "source_file": "routes/onboardingRoutes.js",
-      "source_digest": "ee1c8078dca14c2b66b1efe5c0d3469ea2f2681e1069d2291abc4da78191a3aa",
-      "mount_prefix": "/",
-      "mount_order": 12607,
-      "split_from_mixed_scope_file": false,
-      "group": "authentication",
-      "scope": "unresolved",
-      "operations": [],
-      "openapi_gaps": [],
-      "openapi_exemptions": [],
-      "openapi_detail_gaps": [],
-      "auth_contract_gaps": [],
-      "evidence_routes": [],
-      "tests": [],
-      "untested_operations": [
-        "NO_DISCOVERED_OPERATIONS"
-      ],
-      "resources": [],
-      "embedded_ui": false,
-      "embedded_ui_operations": [],
-      "source_refs": [
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/onboardingRoutes.js",
-        "scripts/test-manifest.mjs"
-      ],
-      "surface_decision": {
-        "decision": "requires_review",
-        "rationale": "No repository policy decision covers this route family.",
-        "owner": null
-      },
-      "operation_blockers": [],
-      "risk": {
-        "score": 9,
-        "class": "critical"
-      },
-      "wave": "F0-authority-resolution"
-    },
-    {
-      "family_key": "status",
-      "label": "status",
+      "family_key": "status.unresolved.default",
+      "label": "status [default]",
       "source_file": "routes/statusRoutes.js",
       "source_digest": "a06c5fb467b9d8a024c8d6cc1786debce5c990ce3e77ab8d6830d64ae37366b3",
       "mount_prefix": "/",
       "mount_order": 12647,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": true,
+      "surface_policy_partition": "default",
       "group": "operations",
       "scope": "unresolved",
       "operations": [
@@ -9273,54 +9764,6 @@
         },
         {
           "method": "GET",
-          "path": "/status",
-          "signature": "GET /status",
-          "source_file": "routes/statusRoutes.js",
-          "scope": "unresolved",
-          "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
-          },
-          "openapi_auth": {
-            "source_file": "openapi.yaml",
-            "security_declared": false,
-            "security_alternatives": [],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": true,
-          "openapi_exempt": false,
-          "openapi_contract_level": "canonical",
-          "evidence_candidate": true,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "read",
-            "classification_source": "http_method",
-            "mutation_candidate": false,
-            "governed": true,
-            "controls": null,
-            "blockers": [],
-            "rule_id": null
-          },
-          "mutation_candidate": false,
-          "mutation": false
-        },
-        {
-          "method": "GET",
           "path": "/status.html",
           "signature": "GET /status.html",
           "source_file": "routes/statusRoutes.js",
@@ -9356,6 +9799,135 @@
             "response_content_type:text/html"
           ],
           "delivery_kind": "embedded_html",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        }
+      ],
+      "openapi_gaps": [],
+      "openapi_exemptions": [
+        "GET /"
+      ],
+      "openapi_detail_gaps": [],
+      "auth_contract_gaps": [
+        {
+          "signature": "GET /status.html",
+          "state": "unknown",
+          "reasons": [
+            "no_explicit_auth_evidence"
+          ]
+        }
+      ],
+      "evidence_routes": [
+        "GET /status.html"
+      ],
+      "tests": [],
+      "untested_operations": [
+        "GET /",
+        "GET /status.html"
+      ],
+      "resources": [],
+      "embedded_ui": true,
+      "embedded_ui_operations": [
+        "GET /",
+        "GET /status.html"
+      ],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "public/connect/app.jsx",
+        "public/connect/core.jsx",
+        "public/connect/evidence.jsx",
+        "public/connect/mad4b-logo-1080.png",
+        "public/connect/steps-1.jsx",
+        "public/connect/steps-2-hub.jsx",
+        "public/connect/steps-2.jsx",
+        "public/connect/steps-3.jsx",
+        "public/connect/steps-4.jsx",
+        "public/connect/tokens.css",
+        "public/connect/tweaks-panel.jsx",
+        "public/platform/index.html",
+        "public/platform/shell.css",
+        "public/platform/shell.js",
+        "public/platform/tokens.css",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/statusRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "surface_decision": {
+        "decision": "requires_review",
+        "rationale": "No repository policy decision covers this route family.",
+        "owner": null
+      },
+      "operation_blockers": [],
+      "risk": {
+        "score": 11,
+        "class": "critical"
+      },
+      "wave": "F0-authority-resolution"
+    },
+    {
+      "family_key": "status.unresolved.status",
+      "label": "status [status]",
+      "source_file": "routes/statusRoutes.js",
+      "source_digest": "a06c5fb467b9d8a024c8d6cc1786debce5c990ce3e77ab8d6830d64ae37366b3",
+      "mount_prefix": "/",
+      "mount_order": 12647,
+      "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": true,
+      "surface_policy_partition": "/status",
+      "group": "operations",
+      "scope": "unresolved",
+      "operations": [
+        {
+          "method": "GET",
+          "path": "/status",
+          "signature": "GET /status",
+          "source_file": "routes/statusRoutes.js",
+          "scope": "unresolved",
+          "runtime_auth": {
+            "state": "unresolved",
+            "profile": "no_explicit_auth_evidence",
+            "alternatives": null,
+            "principal": null,
+            "guard_chain": [],
+            "evidence": [],
+            "configuration_dependencies": []
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": false,
+            "security_alternatives": [],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "unknown",
+            "reasons": [
+              "no_explicit_auth_evidence"
+            ]
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": true,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
           "tests": [],
           "governance": {
             "classification": "read",
@@ -9419,20 +9991,11 @@
         }
       ],
       "openapi_gaps": [],
-      "openapi_exemptions": [
-        "GET /"
-      ],
+      "openapi_exemptions": [],
       "openapi_detail_gaps": [],
       "auth_contract_gaps": [
         {
           "signature": "GET /status",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "GET /status.html",
           "state": "unknown",
           "reasons": [
             "no_explicit_auth_evidence"
@@ -9448,22 +10011,16 @@
       ],
       "evidence_routes": [
         "GET /status",
-        "GET /status.html",
         "GET /status/incidents"
       ],
       "tests": [],
       "untested_operations": [
-        "GET /",
         "GET /status",
-        "GET /status.html",
         "GET /status/incidents"
       ],
       "resources": [],
-      "embedded_ui": true,
-      "embedded_ui_operations": [
-        "GET /",
-        "GET /status.html"
-      ],
+      "embedded_ui": false,
+      "embedded_ui_operations": [],
       "source_refs": [
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
@@ -9471,34 +10028,24 @@
         "openapi/container-authority.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
-        "public/connect/app.jsx",
-        "public/connect/core.jsx",
-        "public/connect/evidence.jsx",
-        "public/connect/mad4b-logo-1080.png",
-        "public/connect/steps-1.jsx",
-        "public/connect/steps-2-hub.jsx",
-        "public/connect/steps-2.jsx",
-        "public/connect/steps-3.jsx",
-        "public/connect/steps-4.jsx",
-        "public/connect/tokens.css",
-        "public/connect/tweaks-panel.jsx",
-        "public/platform/index.html",
-        "public/platform/shell.css",
-        "public/platform/shell.js",
-        "public/platform/tokens.css",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/statusRoutes.js",
         "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
-        "decision": "requires_review",
-        "rationale": "No repository policy decision covers this route family.",
-        "owner": null
+        "decision": "api_only",
+        "rationale": "Status contracts feed operational views but are not standalone navigation destinations.",
+        "owner": "runtime-operations",
+        "rule_id": "status-component-data",
+        "evidence_refs": [
+          "openapi.yaml",
+          "routes/statusRoutes.js"
+        ]
       },
       "operation_blockers": [],
       "risk": {
-        "score": 11,
+        "score": 9,
         "class": "critical"
       },
       "wave": "F0-authority-resolution"
@@ -9511,6 +10058,8 @@
       "mount_prefix": "/",
       "mount_order": 12683,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "activation",
       "scope": "unresolved",
       "operations": [
@@ -9629,6 +10178,8 @@
       "mount_prefix": "/",
       "mount_order": 12786,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "growth",
       "scope": "tenant",
       "operations": [
@@ -10176,6 +10727,8 @@
       "mount_prefix": "/",
       "mount_order": 12786,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "growth",
       "scope": "unresolved",
       "operations": [
@@ -10706,6 +11259,8 @@
       "mount_prefix": "/",
       "mount_order": 12893,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "unresolved",
       "operations": [
@@ -10876,6 +11431,8 @@
       "mount_prefix": "/",
       "mount_order": 13002,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "activation",
       "scope": "tenant",
       "operations": [
@@ -11823,6 +12380,8 @@
       "mount_prefix": "/",
       "mount_order": 13002,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "activation",
       "scope": "unresolved",
       "operations": [
@@ -12326,6 +12885,8 @@
       "mount_prefix": "/",
       "mount_order": 13107,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "activation",
       "scope": "admin",
       "operations": [
@@ -12814,6 +13375,8 @@
       "mount_prefix": "/",
       "mount_order": 13147,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "activation",
       "scope": "admin",
       "operations": [
@@ -12925,6 +13488,8 @@
       "mount_prefix": "/",
       "mount_order": 13147,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "activation",
       "scope": "tenant",
       "operations": [
@@ -13045,6 +13610,8 @@
       "mount_prefix": "/",
       "mount_order": 13225,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "developer-evidence",
       "scope": "developer",
       "operations": [
@@ -13158,6 +13725,8 @@
       "mount_prefix": "/",
       "mount_order": 13225,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "unresolved",
       "operations": [
@@ -13458,6 +14027,8 @@
       "mount_prefix": "/",
       "mount_order": 13304,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "release",
       "scope": "admin",
       "operations": [
@@ -13970,6 +14541,8 @@
       "mount_prefix": "/",
       "mount_order": 13380,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "release",
       "scope": "admin",
       "operations": [
@@ -14480,6 +15053,8 @@
       "mount_prefix": "/",
       "mount_order": 13458,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "release",
       "scope": "admin",
       "operations": [
@@ -14728,6 +15303,8 @@
       "mount_prefix": "/",
       "mount_order": 13536,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "operations",
       "scope": "developer",
       "operations": [
@@ -14841,6 +15418,8 @@
       "mount_prefix": "/",
       "mount_order": 13536,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "operations",
       "scope": "unresolved",
       "operations": [
@@ -14945,64 +15524,18 @@
       "wave": "F0-authority-resolution"
     },
     {
-      "family_key": "health",
-      "label": "health",
+      "family_key": "health.unresolved.default",
+      "label": "health [default]",
       "source_file": "routes/healthRoutes.js",
       "source_digest": "30a7fcc1d198fd03d39df1ed3eb016bad3c5cb963d7a1d9e66ea2f6916f87c3c",
       "mount_prefix": "/",
       "mount_order": 13614,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": true,
+      "surface_policy_partition": "default",
       "group": "operations",
       "scope": "unresolved",
       "operations": [
-        {
-          "method": "GET",
-          "path": "/health",
-          "signature": "GET /health",
-          "source_file": "routes/healthRoutes.js",
-          "scope": "unresolved",
-          "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
-          },
-          "openapi_auth": {
-            "source_file": "openapi/openapi.gpt-action.local-connector.yaml",
-            "security_declared": true,
-            "security_alternatives": [],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": true,
-          "openapi_exempt": false,
-          "openapi_contract_level": "canonical",
-          "evidence_candidate": true,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "read",
-            "classification_source": "http_method",
-            "mutation_candidate": false,
-            "governed": true,
-            "controls": null,
-            "blockers": [],
-            "rule_id": null
-          },
-          "mutation_candidate": false,
-          "mutation": false
-        },
         {
           "method": "GET",
           "path": "/deployment-manifest",
@@ -15098,13 +15631,6 @@
       "openapi_detail_gaps": [],
       "auth_contract_gaps": [
         {
-          "signature": "GET /health",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
           "signature": "GET /deployment-manifest",
           "state": "missing_openapi",
           "reasons": [
@@ -15119,12 +15645,9 @@
           ]
         }
       ],
-      "evidence_routes": [
-        "GET /health"
-      ],
+      "evidence_routes": [],
       "tests": [],
       "untested_operations": [
-        "GET /health",
         "GET /deployment-manifest",
         "GET /version"
       ],
@@ -15137,7 +15660,6 @@
         "openapi.yaml",
         "openapi/container-authority.yaml",
         "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.gpt-action.local-connector.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/healthRoutes.js",
@@ -15157,6 +15679,120 @@
       "wave": "F0-authority-resolution"
     },
     {
+      "family_key": "health.unresolved.health",
+      "label": "health [health]",
+      "source_file": "routes/healthRoutes.js",
+      "source_digest": "30a7fcc1d198fd03d39df1ed3eb016bad3c5cb963d7a1d9e66ea2f6916f87c3c",
+      "mount_prefix": "/",
+      "mount_order": 13614,
+      "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": true,
+      "surface_policy_partition": "/health",
+      "group": "operations",
+      "scope": "unresolved",
+      "operations": [
+        {
+          "method": "GET",
+          "path": "/health",
+          "signature": "GET /health",
+          "source_file": "routes/healthRoutes.js",
+          "scope": "unresolved",
+          "runtime_auth": {
+            "state": "unresolved",
+            "profile": "no_explicit_auth_evidence",
+            "alternatives": null,
+            "principal": null,
+            "guard_chain": [],
+            "evidence": [],
+            "configuration_dependencies": []
+          },
+          "openapi_auth": {
+            "source_file": "openapi/openapi.gpt-action.local-connector.yaml",
+            "security_declared": true,
+            "security_alternatives": [],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "unknown",
+            "reasons": [
+              "no_explicit_auth_evidence"
+            ]
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": true,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        }
+      ],
+      "openapi_gaps": [],
+      "openapi_exemptions": [],
+      "openapi_detail_gaps": [],
+      "auth_contract_gaps": [
+        {
+          "signature": "GET /health",
+          "state": "unknown",
+          "reasons": [
+            "no_explicit_auth_evidence"
+          ]
+        }
+      ],
+      "evidence_routes": [
+        "GET /health"
+      ],
+      "tests": [],
+      "untested_operations": [
+        "GET /health"
+      ],
+      "resources": [],
+      "embedded_ui": false,
+      "embedded_ui_operations": [],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.gpt-action.local-connector.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/healthRoutes.js",
+        "routes/index.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "surface_decision": {
+        "decision": "api_only",
+        "rationale": "Health contracts feed status components but are not standalone navigation destinations.",
+        "owner": "runtime-operations",
+        "rule_id": "health-component-data",
+        "evidence_refs": [
+          "openapi.yaml",
+          "routes/healthRoutes.js"
+        ]
+      },
+      "operation_blockers": [],
+      "risk": {
+        "score": 9,
+        "class": "critical"
+      },
+      "wave": "F0-authority-resolution"
+    },
+    {
       "family_key": "mcp",
       "label": "mcp",
       "source_file": "routes/mcpRoutes.js",
@@ -15164,6 +15800,8 @@
       "mount_prefix": "/",
       "mount_order": 13650,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "developer",
       "operations": [
@@ -15416,6 +16054,8 @@
       "mount_prefix": "/",
       "mount_order": 13683,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "governance",
       "scope": "admin",
       "operations": [
@@ -16040,6 +16680,8 @@
       "mount_prefix": "/",
       "mount_order": 13957,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "plugins",
       "scope": "tenant",
       "operations": [
@@ -16402,6 +17044,8 @@
       "mount_prefix": "/",
       "mount_order": 14003,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "tenant",
       "operations": [
@@ -16594,6 +17238,8 @@
       "mount_prefix": "/",
       "mount_order": 14039,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "tenant",
       "operations": [
@@ -17942,6 +18588,8 @@
       "mount_prefix": "/",
       "mount_order": 14080,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "tenant",
       "operations": [
@@ -18587,6 +19235,8 @@
       "mount_prefix": "/",
       "mount_order": 14126,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "admin",
       "operations": [
@@ -19529,6 +20179,8 @@
       "mount_prefix": "/",
       "mount_order": 14126,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "tenant",
       "operations": [
@@ -19736,6 +20388,8 @@
       "mount_prefix": "/",
       "mount_order": 14211,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "operations",
       "scope": "admin",
       "operations": [
@@ -19955,6 +20609,8 @@
       "mount_prefix": "/",
       "mount_order": 14290,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "governance",
       "scope": "admin",
       "operations": [
@@ -20172,6 +20828,8 @@
       "mount_prefix": "/",
       "mount_order": 14364,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -20523,6 +21181,8 @@
       "mount_prefix": "/",
       "mount_order": 14444,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -21044,6 +21704,8 @@
       "mount_prefix": "/",
       "mount_order": 14444,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "tenant",
       "operations": [
@@ -21334,6 +21996,8 @@
       "mount_prefix": "/",
       "mount_order": 14528,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "resources",
       "scope": "tenant",
       "operations": [
@@ -21771,6 +22435,8 @@
       "mount_prefix": "/",
       "mount_order": 14571,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "resources",
       "scope": "admin",
       "operations": [
@@ -22876,6 +23542,8 @@
       "mount_prefix": "/",
       "mount_order": 14571,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "resources",
       "scope": "tenant",
       "operations": [
@@ -23931,6 +24599,8 @@
       "mount_prefix": "/",
       "mount_order": 14571,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "resources",
       "scope": "unresolved",
       "operations": [
@@ -24435,6 +25105,8 @@
       "mount_prefix": "/",
       "mount_order": 14642,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "admin",
       "operations": [
@@ -24549,6 +25221,8 @@
       "mount_prefix": "/",
       "mount_order": 14724,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "support",
       "scope": "admin",
       "operations": [
@@ -29232,6 +29906,8 @@
       "mount_prefix": "/",
       "mount_order": 14724,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "support",
       "scope": "tenant",
       "operations": [
@@ -29546,6 +30222,8 @@
       "mount_prefix": "/",
       "mount_order": 14797,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "admin",
       "operations": [
@@ -29716,6 +30394,8 @@
       "mount_prefix": "/",
       "mount_order": 14880,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "tenant",
       "operations": [
@@ -30135,6 +30815,8 @@
       "mount_prefix": "/",
       "mount_order": 14921,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "tenant",
       "operations": [
@@ -31424,6 +32106,8 @@
       "mount_prefix": "/",
       "mount_order": 14971,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "tenant",
       "operations": [
@@ -31793,6 +32477,8 @@
       "mount_prefix": "/",
       "mount_order": 15013,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -32315,6 +33001,8 @@
       "mount_prefix": "/",
       "mount_order": 15053,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -32523,6 +33211,8 @@
       "mount_prefix": "/",
       "mount_order": 15091,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "developer-evidence",
       "scope": "unresolved",
       "operations": [
@@ -33067,6 +33757,8 @@
       "mount_prefix": "/",
       "mount_order": 15164,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "unresolved",
       "operations": [
@@ -33283,6 +33975,8 @@
       "mount_prefix": "/",
       "mount_order": 15203,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "activation",
       "scope": "admin",
       "operations": [
@@ -33918,6 +34612,8 @@
       "mount_prefix": "/",
       "mount_order": 15280,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -36048,6 +36744,8 @@
       "mount_prefix": "/",
       "mount_order": 15354,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -37217,6 +37915,8 @@
       "mount_prefix": "/",
       "mount_order": 15429,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -38212,6 +38912,8 @@
       "mount_prefix": "/",
       "mount_order": 15519,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "admin",
       "operations": [
@@ -38695,6 +39397,8 @@
       "mount_prefix": "/",
       "mount_order": 15597,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -38901,6 +39605,8 @@
       "mount_prefix": "/",
       "mount_order": 15686,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -39029,6 +39735,8 @@
       "mount_prefix": "/",
       "mount_order": 15783,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -39157,6 +39865,8 @@
       "mount_prefix": "/",
       "mount_order": 15878,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -39285,6 +39995,8 @@
       "mount_prefix": "/",
       "mount_order": 15982,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -39413,6 +40125,8 @@
       "mount_prefix": "/",
       "mount_order": 16080,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -39543,6 +40257,8 @@
       "mount_prefix": "/",
       "mount_order": 16177,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -39752,6 +40468,8 @@
       "mount_prefix": "/",
       "mount_order": 16271,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -39880,6 +40598,8 @@
       "mount_prefix": "/",
       "mount_order": 16370,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -40086,6 +40806,8 @@
       "mount_prefix": "/",
       "mount_order": 16466,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -40292,6 +41014,8 @@
       "mount_prefix": "/",
       "mount_order": 16569,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -40420,6 +41144,8 @@
       "mount_prefix": "/",
       "mount_order": 16678,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -40626,6 +41352,8 @@
       "mount_prefix": "/",
       "mount_order": 16784,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -40754,6 +41482,8 @@
       "mount_prefix": "/",
       "mount_order": 16896,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -40960,6 +41690,8 @@
       "mount_prefix": "/",
       "mount_order": 17010,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -41166,6 +41898,8 @@
       "mount_prefix": "/",
       "mount_order": 17115,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -41372,6 +42106,8 @@
       "mount_prefix": "/",
       "mount_order": 17215,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -41581,6 +42317,8 @@
       "mount_prefix": "/",
       "mount_order": 17323,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -41787,6 +42525,8 @@
       "mount_prefix": "/",
       "mount_order": 17435,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -41993,6 +42733,8 @@
       "mount_prefix": "/",
       "mount_order": 17533,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -42277,6 +43019,8 @@
       "mount_prefix": "/",
       "mount_order": 17625,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -42505,6 +43249,8 @@
       "mount_prefix": "/",
       "mount_order": 17718,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "plugins",
       "scope": "unresolved",
       "operations": [
@@ -45965,6 +46711,8 @@
       "mount_prefix": "/",
       "mount_order": 17792,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "unresolved",
       "operations": [
@@ -46753,6 +47501,8 @@
       "mount_prefix": "/",
       "mount_order": 17866,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -47254,6 +48004,8 @@
       "mount_prefix": "/",
       "mount_order": 17902,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "developer-evidence",
       "scope": "admin",
       "operations": [
@@ -47667,6 +48419,8 @@
       "mount_prefix": "/",
       "mount_order": 17965,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -47978,6 +48732,8 @@
       "mount_prefix": "/",
       "mount_order": 18042,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -48176,6 +48932,8 @@
       "mount_prefix": "/",
       "mount_order": 18082,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -48808,6 +49566,8 @@
       "mount_prefix": "/",
       "mount_order": 18119,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "growth",
       "scope": "unresolved",
       "operations": [
@@ -49357,6 +50117,8 @@
       "mount_prefix": "/",
       "mount_order": 18197,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -50485,6 +51247,8 @@
       "mount_prefix": "/",
       "mount_order": 18235,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "governance",
       "scope": "admin",
       "operations": [
@@ -50675,6 +51439,8 @@
       "mount_prefix": "/",
       "mount_order": 18271,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -52330,6 +53096,8 @@
       "mount_prefix": "/",
       "mount_order": 18309,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "admin",
       "operations": [
@@ -53402,6 +54170,8 @@
       "mount_prefix": "/",
       "mount_order": 18355,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -54272,6 +55042,8 @@
       "mount_prefix": "/",
       "mount_order": 18392,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -54900,6 +55672,8 @@
       "mount_prefix": "/",
       "mount_order": 18435,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -55518,6 +56292,8 @@
       "mount_prefix": "/",
       "mount_order": 18475,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "connections",
       "scope": "admin",
       "operations": [
@@ -56707,6 +57483,8 @@
       "mount_prefix": "/",
       "mount_order": 18475,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "resources",
       "scope": "tenant",
       "operations": [
@@ -56972,6 +57750,8 @@
       "mount_prefix": "/",
       "mount_order": 18519,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "connections",
       "scope": "admin",
       "operations": [
@@ -57539,6 +58319,8 @@
       "mount_prefix": "/",
       "mount_order": 18559,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -59836,6 +60618,8 @@
       "mount_prefix": "/",
       "mount_order": 18597,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "developer-evidence",
       "scope": "admin",
       "operations": [
@@ -60387,6 +61171,8 @@
       "mount_prefix": "/",
       "mount_order": 18639,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -61029,6 +61815,8 @@
       "mount_prefix": "/",
       "mount_order": 18675,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -61882,6 +62670,8 @@
       "mount_prefix": "/",
       "mount_order": 18715,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "agents",
       "scope": "admin",
       "operations": [
@@ -62882,6 +63672,8 @@
       "mount_prefix": "/",
       "mount_order": 18752,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "release",
       "scope": "admin",
       "operations": [
@@ -63217,6 +64009,8 @@
       "mount_prefix": "/",
       "mount_order": 18791,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -64153,6 +64947,8 @@
       "mount_prefix": "/",
       "mount_order": 18826,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "developer-evidence",
       "scope": "admin",
       "operations": [
@@ -64711,6 +65507,8 @@
       "mount_prefix": "/",
       "mount_order": 18877,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "developer-evidence",
       "scope": "admin",
       "operations": [
@@ -64993,6 +65791,8 @@
       "mount_prefix": "/",
       "mount_order": 18955,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -65974,6 +66774,8 @@
       "mount_prefix": "/",
       "mount_order": 18955,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "resources",
       "scope": "tenant",
       "operations": [
@@ -66236,6 +67038,8 @@
       "mount_prefix": "/",
       "mount_order": 18998,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "developer-evidence",
       "scope": "admin",
       "operations": [
@@ -66945,6 +67749,8 @@
       "mount_prefix": "/",
       "mount_order": 19036,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "developer-evidence",
       "scope": "admin",
       "operations": [
@@ -67812,6 +68618,8 @@
       "mount_prefix": "/",
       "mount_order": 19078,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "release",
       "scope": "admin",
       "operations": [
@@ -68713,6 +69521,8 @@
       "mount_prefix": "/",
       "mount_order": 19115,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "admin",
       "operations": [
@@ -68973,6 +69783,8 @@
       "mount_prefix": "/",
       "mount_order": 19154,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -69096,6 +69908,8 @@
       "mount_prefix": "/",
       "mount_order": 19189,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -69219,6 +70033,8 @@
       "mount_prefix": "/",
       "mount_order": 19226,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -69989,6 +70805,8 @@
       "mount_prefix": "/",
       "mount_order": 19272,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -70183,6 +71001,8 @@
       "mount_prefix": "/",
       "mount_order": 19310,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "admin",
       "operations": [
@@ -70545,6 +71365,8 @@
       "mount_prefix": "/",
       "mount_order": 19310,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "local_device",
       "operations": [
@@ -70659,6 +71481,8 @@
       "mount_prefix": "/",
       "mount_order": 19354,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "admin",
       "operations": [
@@ -72113,6 +72937,8 @@
       "mount_prefix": "/",
       "mount_order": 19354,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "/local-manager",
       "group": "authentication",
       "scope": "local_device",
       "operations": [
@@ -72236,6 +73062,8 @@
       "mount_prefix": "/",
       "mount_order": 19428,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "governance",
       "scope": "admin",
       "operations": [
@@ -72501,6 +73329,8 @@
       "mount_prefix": "/",
       "mount_order": 19428,
       "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "governance",
       "scope": "tenant",
       "operations": [
@@ -72615,6 +73445,8 @@
       "mount_prefix": "/",
       "mount_order": 19504,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "local-manager",
       "scope": "admin",
       "operations": [
@@ -72823,6 +73655,8 @@
       "mount_prefix": "/",
       "mount_order": 19545,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -73026,6 +73860,8 @@
       "mount_prefix": "/",
       "mount_order": 19592,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "local_device",
       "operations": [
@@ -73296,6 +74132,8 @@
       "mount_prefix": "/",
       "mount_order": 19647,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "authentication",
       "scope": "admin",
       "operations": [
@@ -73664,6 +74502,8 @@
       "mount_prefix": "/",
       "mount_order": 19824,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -73892,6 +74732,8 @@
       "mount_prefix": "/admin/cli",
       "mount_order": 20066,
       "split_from_mixed_scope_file": false,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
       "group": "platform-core",
       "scope": "admin",
       "operations": [
@@ -74925,43 +75767,6 @@
       ]
     },
     {
-      "task_key": "frontend.activation-host-gateway",
-      "title": "Resolve and deliver activation host gateway",
-      "wave": "F0-authority-resolution",
-      "state": "blocked",
-      "blockers": [
-        "scope_unresolved",
-        "test_ownership_gap",
-        "surface_policy_decision_required"
-      ],
-      "dependencies": [
-        "F0-source-baseline"
-      ],
-      "source_refs": [
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/activationHostGatewayRoutes.js",
-        "routes/index.js",
-        "scripts/test-manifest.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
-      ]
-    },
-    {
       "task_key": "frontend.auth.unresolved",
       "title": "Resolve and deliver auth (unresolved)",
       "wave": "F0-authority-resolution",
@@ -75314,8 +76119,8 @@
       ]
     },
     {
-      "task_key": "frontend.health",
-      "title": "Resolve and deliver health",
+      "task_key": "frontend.health.unresolved.default",
+      "title": "Resolve and deliver health [default]",
       "wave": "F0-authority-resolution",
       "state": "blocked",
       "blockers": [
@@ -75324,6 +76129,43 @@
         "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required"
+      ],
+      "dependencies": [
+        "F0-source-baseline"
+      ],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/healthRoutes.js",
+        "routes/index.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
+      "task_key": "frontend.health.unresolved.health",
+      "title": "Resolve and deliver health [health]",
+      "wave": "F0-authority-resolution",
+      "state": "blocked",
+      "blockers": [
+        "scope_unresolved",
+        "auth_contract_gap",
+        "test_ownership_gap"
       ],
       "dependencies": [
         "F0-source-baseline"
@@ -75455,43 +76297,6 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/memberGoogleOAuthRoutes.js",
-        "scripts/test-manifest.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
-      ]
-    },
-    {
-      "task_key": "frontend.onboarding",
-      "title": "Resolve and deliver onboarding",
-      "wave": "F0-authority-resolution",
-      "state": "blocked",
-      "blockers": [
-        "scope_unresolved",
-        "test_ownership_gap",
-        "surface_policy_decision_required"
-      ],
-      "dependencies": [
-        "F0-source-baseline"
-      ],
-      "source_refs": [
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/onboardingRoutes.js",
         "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
@@ -75745,8 +76550,8 @@
       ]
     },
     {
-      "task_key": "frontend.status",
-      "title": "Resolve and deliver status",
+      "task_key": "frontend.status.unresolved.default",
+      "title": "Resolve and deliver status [default]",
       "wave": "F0-authority-resolution",
       "state": "blocked",
       "blockers": [
@@ -75780,6 +76585,43 @@
         "public/platform/shell.css",
         "public/platform/shell.js",
         "public/platform/tokens.css",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/statusRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
+      "task_key": "frontend.status.unresolved.status",
+      "title": "Resolve and deliver status [status]",
+      "wave": "F0-authority-resolution",
+      "state": "blocked",
+      "blockers": [
+        "scope_unresolved",
+        "auth_contract_gap",
+        "test_ownership_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline"
+      ],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/statusRoutes.js",
@@ -76211,12 +77053,48 @@
       ]
     },
     {
-      "task_key": "frontend.connect.public",
-      "title": "Resolve and deliver connect (public)",
+      "task_key": "frontend.connect.public.connect-assets",
+      "title": "Resolve and deliver connect (public) [connect-assets]",
       "wave": "F1-tenant-shell",
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
+        "test_ownership_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline"
+      ],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/connectRoutes.js",
+        "routes/index.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
+      "task_key": "frontend.connect.public.default",
+      "title": "Resolve and deliver connect (public) [default]",
+      "wave": "F1-tenant-shell",
+      "state": "blocked",
+      "blockers": [
         "test_ownership_gap",
         "surface_policy_decision_required"
       ],
@@ -76228,7 +77106,6 @@
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
         "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
         "public/connect/app.jsx",
@@ -80430,6 +81307,45 @@
       ]
     },
     {
+      "task_key": "frontend.sql-endpoint-registry",
+      "title": "Resolve and deliver sql endpoint registry",
+      "wave": "F3-admin-workspaces",
+      "state": "blocked",
+      "blockers": [
+        "openapi_detail_contract_gap",
+        "test_ownership_gap",
+        "surface_policy_decision_required"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F2-admin-bff-session"
+      ],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/sqlEndpointRegistryRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
       "task_key": "frontend.support-ticket.admin",
       "title": "Resolve and deliver support ticket (admin)",
       "wave": "F3-admin-workspaces",
@@ -80804,15 +81720,68 @@
       ]
     },
     {
-      "task_key": "frontend.local-manager-beta.local_device",
-      "title": "Resolve and deliver local manager beta (local_device)",
+      "task_key": "frontend.local-manager-beta.local_device.default",
+      "title": "Resolve and deliver local manager beta (local_device) [default]",
       "wave": "F4-local-manager",
       "state": "blocked",
       "blockers": [
         "openapi_contract_gap",
         "auth_contract_gap",
         "test_ownership_gap",
-        "surface_policy_decision_required",
+        "surface_policy_decision_required"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context",
+        "F4-device-trust"
+      ],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "public/connect/app.jsx",
+        "public/connect/core.jsx",
+        "public/connect/evidence.jsx",
+        "public/connect/mad4b-logo-1080.png",
+        "public/connect/steps-1.jsx",
+        "public/connect/steps-2-hub.jsx",
+        "public/connect/steps-2.jsx",
+        "public/connect/steps-3.jsx",
+        "public/connect/steps-4.jsx",
+        "public/connect/tokens.css",
+        "public/connect/tweaks-panel.jsx",
+        "public/platform/index.html",
+        "public/platform/shell.css",
+        "public/platform/shell.js",
+        "public/platform/tokens.css",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/localManagerBetaRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
+      "task_key": "frontend.local-manager-beta.local_device.local-manager",
+      "title": "Resolve and deliver local manager beta (local_device) [local-manager]",
+      "wave": "F4-local-manager",
+      "state": "blocked",
+      "blockers": [
+        "auth_contract_gap",
+        "test_ownership_gap",
         "operation_classification_gap"
       ],
       "dependencies": [
