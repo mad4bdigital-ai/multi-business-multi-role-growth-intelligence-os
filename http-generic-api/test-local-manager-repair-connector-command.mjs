@@ -21,6 +21,8 @@ const repairCommandEnd = program.indexOf('string.Equals(action, "focus_local_man
 assert.ok(repairCommandStart >= 0 && repairCommandEnd > repairCommandStart);
 const repairCommandBlock = program.slice(repairCommandStart, repairCommandEnd);
 assert.doesNotMatch(repairCommandBlock, /OpenUrlAsync|Process\.Start|open_url/i);
+assert.doesNotMatch(repairCommandBlock, /CompleteDesktopCommandAsync\(client, token, commandId, true/);
+assert.match(repairCommandBlock, /CompleteDesktopCommandAsync\(client, token, commandId, repairVerified/);
 
 assert.ok(desktopRoutes.includes('"repair_connector"'));
 assert.ok(desktopRoutes.includes('const ALLOWED_ACTIONS = new Set'));
