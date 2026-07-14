@@ -183,6 +183,7 @@ export function registerRoutes(app, deps) {
   app.use(buildRuntimeVerificationRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildReleaseOperationRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildReleaseGateManagerRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildAsyncReleaseDeployRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildOperationalConsoleRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildHealthRoutes(deps));
   app.use(buildMcpRoutes(deps));
