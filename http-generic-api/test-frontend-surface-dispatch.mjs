@@ -223,6 +223,16 @@ paths:
 assert.deepEqual(securityContracts.get("GET /or").security_alternatives, [["A"], ["B"]]);
 assert.deepEqual(securityContracts.get("GET /and").security_alternatives, [["A", "B"]]);
 assert.equal(parseMountedRouteFiles(fs.readFileSync(path.join(apiRoot, "routes/index.js"), "utf8")).length, 4);
+assert.deepEqual(
+  parseMountedRouteFiles(`
+    function registerOptionalRoutes(app) {
+      import("./optionalRoutes.js").then(({ buildOptionalRoutes }) => {
+        app.use(buildOptionalRoutes());
+      });
+    }
+  `).map(({ builder, file, mount_prefix }) => ({ builder, file, mount_prefix })),
+  [{ builder: "buildOptionalRoutes", file: "routes/optionalRoutes.js", mount_prefix: "/" }],
+);
 
 const plan = buildDispatchPlan({ apiRoot, baselineRef: "fixture-sha" });
 assert.equal(plan.schema_version, "frontend-surface-dispatch-v1");
@@ -267,6 +277,37 @@ assert.equal(JSON.stringify(plan).includes("configuration_dependencies"), true);
 
 const policyPath = path.join(apiRoot, "frontend-surface-policy.json");
 const validPolicySource = fs.readFileSync(policyPath, "utf8");
+const partitionPolicy = JSON.parse(validPolicySource);
+partitionPolicy.rules = partitionPolicy.rules
+  .filter((rule) => rule.source_file !== "routes/mixedRoutes.js")
+  .concat([
+    { source_file: "routes/mixedRoutes.js", scope: "tenant", decision: "unified_ui", owner: "tenant-ui", rationale: "fixture" },
+    { source_file: "routes/mixedRoutes.js", scope: "admin", decision: "unified_ui", owner: "admin-ui", rationale: "fixture" },
+    {
+      source_file: "routes/mixedRoutes.js",
+      scope: "unresolved",
+      path_prefix: "/credential-intake/{token}/schema",
+      decision: "api_only",
+      owner: "support-ui",
+      rationale: "Schema data is consumed by the unified credential UI.",
+    },
+  ]);
+fs.writeFileSync(policyPath, JSON.stringify(partitionPolicy));
+const partitionPlan = buildDispatchPlan({ apiRoot, baselineRef: "fixture-sha" });
+const unresolvedMixedFamilies = partitionPlan.families.filter(
+  (family) => family.source_file === "routes/mixedRoutes.js" && family.scope === "unresolved",
+);
+assert.equal(unresolvedMixedFamilies.length, 2);
+assert.equal(
+  unresolvedMixedFamilies.find((family) => family.operations.some((operation) => operation.path.endsWith("/schema"))).surface_decision.decision,
+  "api_only",
+);
+assert.equal(
+  unresolvedMixedFamilies.find((family) => family.operations.some((operation) => !operation.path.endsWith("/schema"))).surface_decision.decision,
+  "requires_review",
+);
+fs.writeFileSync(policyPath, validPolicySource);
+
 const invalidPolicy = JSON.parse(validPolicySource);
 invalidPolicy.rules.find((rule) => rule.source_file === "routes/tenantRoutes.js").decision = "unrecognized_surface";
 fs.writeFileSync(policyPath, JSON.stringify(invalidPolicy));
