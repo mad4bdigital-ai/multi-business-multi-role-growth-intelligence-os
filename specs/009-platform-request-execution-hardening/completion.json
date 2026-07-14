@@ -27,7 +27,9 @@
       "routes": "http-generic-api/routes/operationOrchestratorRoutes.js",
       "tenant_run_ownership": "http-generic-api/operationRunOwnershipService.js",
       "runtime_guard": "http-generic-api/operationRuntimeGuard.js",
-      "resilience_controller": "http-generic-api/operationResilienceController.js"
+      "resilience_controller": "http-generic-api/operationResilienceController.js",
+      "typed_catalog_service": "http-generic-api/typedCatalogService.js",
+      "typed_catalog_routes": "http-generic-api/routes/typedCatalogRoutes.js"
     },
     "migration": {
       "status": "included_not_applied",
@@ -37,7 +39,9 @@
     },
     "tests": {
       "status": "passing",
-      "head_sha": "528f9af72ef0ca4635d8f019c15853edf197b2f3",
+      "head_sha": "aaa82bf75738ab0cabbd1b0574c4df54b1511498",
+      "base_sha": "76ec7f61304a9b65769b7ab320919a41eb605190",
+      "behind_by": 0,
       "required_checks": {
         "Syntax Check": "success",
         "Architecture Drift Detection": "success",
@@ -56,18 +60,29 @@
         "circuit_open",
         "half_open_probe",
         "circuit_recovery"
+      ],
+      "typed_catalogs": [
+        "admin_tenant_projection",
+        "active_tenant_membership",
+        "cursor_pagination",
+        "bounded_filter",
+        "catalog_allowlist",
+        "secret_field_exclusion",
+        "invalid_cursor"
       ]
     },
     "openapi": {
       "status": "synchronized",
-      "path": "specs/009-platform-request-execution-hardening/contracts/operation-orchestrator.openapi.yaml",
+      "operation_contract": "specs/009-platform-request-execution-hardening/contracts/operation-orchestrator.openapi.yaml",
+      "typed_catalog_contract": "http-generic-api/openapi/typed-catalogs.yaml",
       "version": "3.1.0",
-      "contract_version": "0.3.0",
       "documents": [
-        "429",
-        "Retry-After",
-        "rate_limit_headers",
-        "circuit_breaker_503"
+        "admin_tenant_auth",
+        "cursor_pagination",
+        "bounded_filtering",
+        "structured_errors",
+        "429_retry_after",
+        "503_circuit_and_dependency"
       ]
     },
     "release_readiness": {
@@ -77,7 +92,6 @@
         "automatic_capability_lifecycle",
         "generated_artifact_registry",
         "transparent_chunk_aggregation",
-        "typed_catalog_apis",
         "observability_dashboards",
         "shadow_and_pilot_rollout"
       ]
