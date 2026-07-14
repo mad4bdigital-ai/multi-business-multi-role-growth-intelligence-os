@@ -141,6 +141,7 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
   const roleAssignments = new Map();
   const resourceBindings = new Map();
   const issues = [];
+  const platformContainerByTenant = new Map();
   const tenantContainerByTenant = new Map();
   const workspaceContainerByWorkspace = new Map();
   const brandContainerByTenantAndTarget = new Map();
@@ -163,6 +164,7 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
     const tenantId = String(tenant.tenant_id);
     const platform = addUnique(containers,projectedContainerRow({ tenantId,type:"platform",key:"platform-root",subjectType:"platform_tenant_anchor",subjectRef:tenantId,displayName:"Platform",source:"tenants" }));
     const tenantContainer = addUnique(containers,projectedContainerRow({ tenantId,type:"tenant",key:`tenant:${tenantId}`,subjectType:"tenant",subjectRef:tenantId,displayName:tenant.display_name || tenantId,source:"tenants" }));
+    platformContainerByTenant.set(tenantId,platform);
     tenantContainerByTenant.set(tenantId,tenantContainer);
     const edge = relationshipRow({ tenantId,fromId:platform.container_id,toId:tenantContainer.container_id,source:"tenants" });
     relationships.set(edge.relationship_id,edge);
@@ -288,22 +290,30 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
   }
 
   for (const membership of source.memberships.filter(row => activeValue(row.status))) {
-    const tenantContainer = tenantContainerByTenant.get(String(membership.tenant_id));
-    if (!tenantContainer) continue;
+    const tenantId = String(membership.tenant_id);
+    const roleTemplateKey = roleTemplateFor(membership.role);
+    const assignmentContainer = roleTemplateKey === "platform_owner"
+      ? platformContainerByTenant.get(tenantId)
+      : tenantContainerByTenant.get(tenantId);
+    if (!assignmentContainer) continue;
     const assignmentId = stableUuid("container-role",membership.tenant_id,membership.user_id,"membership");
     roleAssignments.set(assignmentId,{
-      assignment_id:assignmentId,tenant_id:membership.tenant_id,container_id:tenantContainer.container_id,principal_type:"user",principal_id:membership.user_id,
-      role_template_key:roleTemplateFor(membership.role),inline_permissions_json:null,inheritance_mode:"inherit_down",valid_from:membership.granted_at || null,valid_until:null,
+      assignment_id:assignmentId,tenant_id:membership.tenant_id,container_id:assignmentContainer.container_id,principal_type:"user",principal_id:membership.user_id,
+      role_template_key:roleTemplateKey,inline_permissions_json:null,inheritance_mode:"inherit_down",valid_from:membership.granted_at || null,valid_until:null,
       status:"active",version:1,issued_by:"memberships",approved_by:null,metadata_json:JSON.stringify({ source_table:"memberships",source_role:membership.role })
     });
   }
   for (const assignment of source.roleAssignments.filter(row => activeValue(row.status))) {
-    const tenantContainer = tenantContainerByTenant.get(String(assignment.tenant_id));
-    if (!tenantContainer) continue;
+    const tenantId = String(assignment.tenant_id);
+    const roleTemplateKey = roleTemplateFor(assignment.role);
+    const assignmentContainer = roleTemplateKey === "platform_owner"
+      ? platformContainerByTenant.get(tenantId)
+      : tenantContainerByTenant.get(tenantId);
+    if (!assignmentContainer) continue;
     const assignmentId = stableUuid("container-role",assignment.tenant_id,assignment.user_id,"role_assignments",assignment.assignment_id || assignment.id);
     roleAssignments.set(assignmentId,{
-      assignment_id:assignmentId,tenant_id:assignment.tenant_id,container_id:tenantContainer.container_id,principal_type:"user",principal_id:assignment.user_id,
-      role_template_key:roleTemplateFor(assignment.role),inline_permissions_json:null,inheritance_mode:"inherit_down",valid_from:assignment.granted_at || null,valid_until:assignment.expires_at || null,
+      assignment_id:assignmentId,tenant_id:assignment.tenant_id,container_id:assignmentContainer.container_id,principal_type:"user",principal_id:assignment.user_id,
+      role_template_key:roleTemplateKey,inline_permissions_json:null,inheritance_mode:"inherit_down",valid_from:assignment.granted_at || null,valid_until:assignment.expires_at || null,
       status:"active",version:1,issued_by:assignment.granted_by || "role_assignments",approved_by:assignment.granted_by || null,metadata_json:JSON.stringify({ source_table:"role_assignments",source_pk:assignment.assignment_id,source_role:assignment.role })
     });
   }
