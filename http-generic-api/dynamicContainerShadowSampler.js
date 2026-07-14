@@ -5,7 +5,11 @@ import { resolveEffectiveContainerContext } from "./dynamicContainerAuthorityRes
 function samplerError(code, message, details = []) {
   const error = new Error(message);
   error.code = code;
-  error.status = code === "dynamic_container_shadow_samples_unavailable" ? 409 : 422;
+  error.status = code === "dynamic_container_shadow_samples_unavailable"
+    ? 409
+    : code === "dynamic_container_shadow_sampler_readback_failed"
+      ? 500
+      : 422;
   error.details = details;
   return error;
 }
