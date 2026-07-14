@@ -79,6 +79,8 @@ for (const signature of [
   "POST /gpt/sessions/{id}/turn writeSessionTurn non_consequential",
   "POST /gpt/sessions/{id}/end endSession non_consequential",
   "POST /tenant/platform/plugins/install tenantPlatformPluginInstall consequential",
+  "GET /tenant/resolution/skill-approvals listTenantSkillApprovals non_consequential",
+  "POST /tenant/resolution/skill-approvals/{approvalKey}/decision decideTenantSkillApproval consequential",
 ]) {
   assertHasOperation(tenantCoreOps, signature, "tenant core artifact");
 }

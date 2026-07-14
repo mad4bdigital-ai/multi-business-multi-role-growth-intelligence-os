@@ -31,6 +31,16 @@ assert.equal(transient503.status, "restart_in_progress");
 assert.equal(transient503.job_success, true);
 assert.equal(transient503.http_status, 202);
 
+const failedDryRun = classifyAsyncDeployOutcome({ result: {
+  ok: false,
+  dry_run: true,
+  http_status: 409,
+} });
+assert.equal(failedDryRun.status, "failed_preflight");
+assert.equal(failedDryRun.operation_status, "failed_preflight");
+assert.equal(failedDryRun.job_success, false);
+assert.equal(failedDryRun.http_status, 409);
+
 const pending = classifyAsyncDeployOutcome({ result: {
   ok: true,
   deployment_run_id: "hostinger_ssh_deploy_11111111-1111-4111-8111-111111111111",

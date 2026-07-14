@@ -95,15 +95,16 @@ export function classifyAsyncDeployOutcome({ result = null, error = null } = {})
   const reload = result?.reload_verification || result?.deploy?.reload_verification || {};
   const deploymentRunId = result?.deployment_run_id || result?.deploymentRunId || null;
   if (result?.dry_run === true) {
+    const dryRunPassed = result?.ok !== false;
     return {
-      status: "dry_run_complete",
-      operation_status: "ready_for_execution",
-      job_success: result?.ok !== false,
+      status: dryRunPassed ? "dry_run_complete" : "failed_preflight",
+      operation_status: dryRunPassed ? "ready_for_execution" : "failed_preflight",
+      job_success: dryRunPassed,
       terminal: true,
-      http_status: 200,
+      http_status: dryRunPassed ? 200 : Number(result?.http_status || 409),
       deployment_run_id: deploymentRunId,
       transient: false,
-      reason: result?.ok === false ? "dry_run_failed" : "dry_run_complete",
+      reason: dryRunPassed ? "dry_run_complete" : "dry_run_failed",
       secrets_included: false,
     };
   }
