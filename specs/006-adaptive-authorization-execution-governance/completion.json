@@ -4,7 +4,7 @@
   "title": "Adaptive Authorization and Execution Governance",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-09T23:55:00Z",
+  "last_updated_at": "2026-07-12T14:30:00Z",
   "delivery": {
     "implementation_prs": [
       {
@@ -64,19 +64,45 @@
         "merge_sha": "c06224f60179406ba65765c23de9c472be3a1231",
         "status": "merged",
         "branch_deleted_verified": false
+      },
+      {
+        "sequence": 9,
+        "role": "shadow_mismatch_classification_only",
+        "pull_request": 2460,
+        "merge_sha": "b5c8369c78ee87a19573554faf5083e8b4f7a5d4",
+        "status": "merged",
+        "branch_deleted_verified": false
+      },
+      {
+        "sequence": 10,
+        "role": "parity_threshold_approval_contract_only",
+        "pull_request": 2513,
+        "merge_sha": "1bebe286bd2ee97efd3e4c71ac13e155f4a580f8",
+        "status": "merged",
+        "branch_deleted_verified": false
+      },
+      {
+        "sequence": 11,
+        "role": "legacy_compatibility_wrapper_and_measured_deprecation_metadata",
+        "pull_request": 2531,
+        "merge_sha": "9c9c5ec0ad7cb4f8f3b6860a02ecadd993dc80d0",
+        "status": "merged",
+        "branch_deleted_verified": true
       }
     ],
     "remaining_task_loop": {
-      "status": "t041_next_mismatch_classification",
+      "status": "t050_next_verification_test_registration",
       "provider_mutation": false,
       "external_write": false,
       "migration_execution": "not_started",
-      "enforcement_change": false
+      "enforcement_change": false,
+      "canary_activation": false,
+      "route_removal": false
     },
     "next_pr": {
-      "sequence": 9,
-      "scope": "T041 classify all legacy adaptive mismatches from shadow pilot evidence",
-      "status": "ready_after_t040_ledger_closeout"
+      "sequence": 12,
+      "scope": "T050 register unit, integration, isolation, replay, stale-revision, ambiguity, and redaction tests",
+      "status": "ready_after_t043_ledger_closeout"
     }
   },
   "evidence": {
@@ -88,14 +114,19 @@
         "T022",
         "T023",
         "T030",
-        "T040"
+        "T040",
+        "T041",
+        "T042",
+        "T043"
       ],
-      "latest_task": "T040",
+      "latest_task": "T043",
       "provider_mutation_allowed": false,
       "external_write_allowed": false,
       "enforcement_cutover_allowed": false,
       "migration_execution_authorized": false,
-      "new_authority_tables_allowed": false
+      "new_authority_tables_allowed": false,
+      "canary_activation_allowed": false,
+      "route_removal_allowed": false
     },
     "implementation": {
       "status": "in_progress",
@@ -111,13 +142,13 @@
         "T022",
         "T023",
         "T030",
-        "T040"
-      ],
-      "next_task_scope": "T041 classify all legacy/adaptive mismatches",
-      "remaining_tasks": [
+        "T040",
         "T041",
         "T042",
-        "T043",
+        "T043"
+      ],
+      "next_task_scope": "T050 register unit, integration, isolation, replay, stale-revision, ambiguity, and redaction tests",
+      "remaining_tasks": [
         "T050",
         "T051",
         "T052",
@@ -126,15 +157,17 @@
         "T062",
         "D010"
       ],
-      "remaining_task_count": 10,
+      "remaining_task_count": 7,
       "provider_mutation_allowed": false,
       "external_write_allowed": false,
       "enforcement_change_allowed": false,
-      "new_authority_tables_allowed": false
+      "new_authority_tables_allowed": false,
+      "canary_activation_allowed": false,
+      "route_removal_allowed": false
     },
     "production_rollout": {
       "status": "pending",
-      "reason": "T041 through T053, mismatch approvals, compatibility wrappers, production verification, rollback rehearsal, and post-merge audit remain incomplete."
+      "reason": "T050 through T053 verification and rollout evidence, T061 through T062 closeout, and D010 final delivery closeout remain incomplete."
     }
   },
   "sensitive_values_included": false

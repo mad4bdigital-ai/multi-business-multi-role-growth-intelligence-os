@@ -34,7 +34,14 @@
     "validate": "node validate-architecture.mjs",
     "verify": "node verify-runtime.mjs",
     "activation-gateway:bundle:sync": "node scripts/sync-activation-gateway-runtime-bundle.mjs --write",
-    "activation-gateway:bundle:check": "node scripts/sync-activation-gateway-runtime-bundle.mjs --check"
+    "activation-gateway:bundle:check": "node scripts/sync-activation-gateway-runtime-bundle.mjs --check",
+    "outbox:status": "node scripts/platform-outbox-worker.mjs --action=status",
+    "outbox:dry-run": "node scripts/platform-outbox-worker.mjs --action=dry-run",
+    "outbox:run-once": "node scripts/platform-outbox-worker.mjs --action=run-once --apply",
+    "outbox:loop": "node scripts/platform-outbox-worker.mjs --action=loop --apply",
+    "dev:migration:status": "node scripts/dev-governed-migration-client.mjs --action=status",
+    "dev:migration:probe": "node scripts/dev-governed-migration-client.mjs --action=probe",
+    "dev:migration:client": "node scripts/dev-governed-migration-client.mjs"
   },
   "engines": {
     "node": ">=22 <23"

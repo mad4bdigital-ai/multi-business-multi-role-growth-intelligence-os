@@ -87,6 +87,9 @@ surfaces:
     output_file: openapi/openapi.tenant-gpt.activation.yaml
     server_url: https://activation.mad4b.com
     auth_profile: tenant_oauth
+    oauth_endpoints:
+      authorization_url: https://activation.mad4b.com/auth/oauth/authorize
+      token_url: https://activation.mad4b.com/auth/oauth/token
     hard_operation_limit: 10
     warning_operation_limit: 8
     gateway_policy: activation_gateway
@@ -98,8 +101,13 @@ surfaces:
       tenant_operation_ids:
         - activateSession
         - readTenantActivationOperationalAttention
-        - readTenantResolutionProblemCards
         - readTenantActivationAwareness
+        - readTenantResolutionProblemCards
+        - listTenantResolutionCases
+        - createTenantResolutionCase
+        - getTenantResolutionCase
+        - transitionTenantResolutionCase
+        - runTenantResolutionDiagnosticAction
         - readTenantActivationDynamicTabDetail
 
   local_connector_admin:
@@ -123,6 +131,40 @@ gateway_policies:
   activation_gateway:
     public_host: activation.mad4b.com
     upstream_origin: https://auth.mad4b.com
+    oauth_handoff_routes:
+      - method: GET
+        path: /auth/oauth/authorize
+        operation_id: tenantGptOAuthAuthorize
+        allowed_query_parameters:
+          - activation_mode
+          - auth_options
+          - client_id
+          - cloudflare_mode
+          - code_challenge
+          - code_challenge_method
+          - device_id
+          - google_auth_mode
+          - language
+          - login_hint
+          - mode
+          - n8n_activation_mode
+          - prompt
+          - redirect_uri
+          - response_type
+          - scope
+          - screen_hint
+          - sign_in_options
+          - state
+          - tenant_display_name
+          - workspace_name
+      - method: POST
+        path: /auth/oauth/code
+        operation_id: tenantGptOAuthCode
+        allowed_query_parameters: []
+      - method: POST
+        path: /auth/oauth/token
+        operation_id: tenantGptOAuthToken
+        allowed_query_parameters: []
     output_file: edge/activation-gateway/generated/route-policy.json
     request_body_limit_bytes: 1048576
     response_body_limit_bytes: 5242880

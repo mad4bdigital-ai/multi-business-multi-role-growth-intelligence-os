@@ -261,7 +261,7 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "231_sprint68_shared_reconciliation_continuation_policy.sql",
   "232_sprint68_chunked_tool_response_continuation_policy.sql",
   "233_sprint68_local_connector_tunnel_provisioning_continuation_policy.sql",
-  "235_sprint68_local_manager_chatgpt_url_capture_action.sql",
+  "235_sprint68_local_manager_chatgpt_url_capture_action.sql", "20260712_local_manager_repair_connector_action.sql", "20260713_local_manager_desktop_command_mutation_policy.sql",
   "245_sprint68_agent_governance_runtime.sql",
   "1004_sprint69_agent_governance_admin_tools.sql",
   "1005_sprint69_agent_skill_coverage_prompt_enrichment.sql",

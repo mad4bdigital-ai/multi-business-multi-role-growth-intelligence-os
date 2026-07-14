@@ -34,6 +34,7 @@ export function policyPayload(policy) {
     read_stale_grace_seconds: policy.read_stale_grace_seconds,
     source_registry: policy.source_registry,
     source_surfaces: policy.source_surfaces,
+    oauth_handoff_routes: policy.oauth_handoff_routes,
     routes: policy.routes,
   };
 }

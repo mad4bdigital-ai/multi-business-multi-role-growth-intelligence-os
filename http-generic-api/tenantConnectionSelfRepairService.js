@@ -1,4 +1,4 @@
-const SAFE_POINTER_KEYS = new Set(["credential_ref", "credential_role", "credential_scope", "credential_source", "connection_id", "binding_id", "grant_id", "evidence_ref"]);
+const SAFE_POINTER_KEYS = new Set(["credential_ref", "credential_role", "credential_scope", "credential_source", "connection_id", "binding_id", "grant_id", "evidence_ref", "secret_present", "secrets_included", "no_raw_secret_return"]);
 const SECRET_BEARING_KEY_PATTERN = /(?:password|secret|token|api[_-]?key|private[_-]?key|ciphertext|credential_value|refresh_token|access_token|authorization)/i;
 
 function compactString(value = "", max = 512) {
