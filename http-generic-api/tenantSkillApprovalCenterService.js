@@ -611,13 +611,15 @@ export async function decideTenantSkillApproval({
     const sameDecision = (normalized.decision === "approve" && latestStatus === "approved")
       || (normalized.decision === "reject" && latestStatus === "rejected")
       || (normalized.decision === "defer" && latestStatus === "deferred");
+    const currentItem = approvalItem(group, latestHold, nowValue);
+    const expectedIdempotentReadback = normalized.decision === "defer" ? "blocked" : "passed";
 
-    if (sameDecision) {
+    if (sameDecision && currentItem.readback.status === expectedIdempotentReadback) {
       return {
         ok: true,
         activation_layer: "tenant_skill_approval_center",
         changed: false,
-        approval: approvalItem(group, latestHold, nowValue),
+        approval: currentItem,
         idempotency: { existing_decision_returned: true },
         policy: {
           owner_only: true,
