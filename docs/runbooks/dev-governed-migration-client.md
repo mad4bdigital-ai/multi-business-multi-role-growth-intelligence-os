@@ -180,6 +180,35 @@ status=disabled
 - Ambiguous transport result: perform ledger and schema readback before any retry.
 - Partial schema evidence: classify as degraded and prepare a governed repair plan.
 
+## Dev outbox read-only verification
+
+After the outbox foundation migration has a successful ledger and schema readback, verify the worker without enabling delivery:
+
+```bash
+npm run dev:outbox:status
+npm run dev:outbox:dry-run
+```
+
+The dev client permits only `platform_outbox_worker --action=status` and `--action=dry-run`. It rejects `run-once`, `loop`, `--apply`, unknown arguments, consumer keys outside the bounded identifier pattern, and limits outside `1..500` before the request reaches the dev runtime.
+
+Expected status evidence:
+
+- target database name ends in `_dev`
+- consumer `prod_shadow_v1` exists
+- transport remains `noop`
+- consumer remains disabled
+- delivery feature flag is not enabled
+- no endpoint or credential reference is required for the disabled noop consumer
+
+Expected dry-run evidence:
+
+- readiness and masking policy are evaluated
+- no event claim, delivery state change, provider call, or external HTTP request occurs
+- output reports `mutation_requested=false`
+- output reports `secrets_included=false`
+
+Stop and classify the environment as degraded if status or dry-run reports an active consumer, non-noop transport, missing active mask policy, embedded credentials, secret query parameters, or an external request attempt.
+
 ## Production prohibition
 
 This client must never be changed to accept `auth.mad4b.com`, arbitrary base URLs, or a database without the `_dev` suffix.
