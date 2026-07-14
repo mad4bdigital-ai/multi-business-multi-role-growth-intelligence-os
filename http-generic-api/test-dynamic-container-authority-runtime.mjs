@@ -360,6 +360,107 @@ const namespaceMismatch=await buildLegacyContainerProjectionPlan({
 });
 assert(namespaceMismatch.issues.some(row => row.issue_code === "workspace_brand_key_namespace_mismatch" && row.status === "held"));
 
+const governedSandboxFixtureProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    workspaces:[{
+      ...projectionSources.workspaces[0],
+      workspace_id:"sandbox-fixture-workspace",
+      workspace_key:"activation-smoke-workspace",
+      workspace_type:"sandbox",
+      linked_brand_key:"activation_smoke_brand",
+      config_json:JSON.stringify({ fixture:"activation_authorized_access_tenant_smoke",secrets_included:false })
+    }]
+  }
+});
+assert.equal(governedSandboxFixtureProjection.summary.highRiskIssueCount,0);
+assert(governedSandboxFixtureProjection.issues.some(row =>
+  row.issue_code === "workspace_brand_fixture_excluded" &&
+  row.severity === "info" &&
+  row.status === "ignored"
+));
+assert(!governedSandboxFixtureProjection.containers.some(row =>
+  row.container_type_key === "brand" && row.canonical_subject_ref === "activation_smoke_brand"
+));
+
+const unknownSandboxFixtureProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    workspaces:[{
+      ...projectionSources.workspaces[0],
+      workspace_id:"unknown-sandbox-workspace",
+      workspace_type:"sandbox",
+      linked_brand_key:"unknown_sandbox_brand",
+      config_json:JSON.stringify({ fixture:"unknown_fixture" })
+    }]
+  }
+});
+assert.equal(unknownSandboxFixtureProjection.summary.highRiskIssueCount,1);
+assert(unknownSandboxFixtureProjection.issues.some(row =>
+  row.issue_code === "workspace_brand_target_missing" && row.severity === "high" && row.status === "held"
+));
+
+const nonSandboxFixtureProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    workspaces:[{
+      ...projectionSources.workspaces[0],
+      workspace_id:"production-fixture-name-workspace",
+      workspace_type:"production",
+      linked_brand_key:"activation_smoke_brand",
+      config_json:JSON.stringify({ fixture:"activation_authorized_access_tenant_smoke" })
+    }]
+  }
+});
+assert.equal(nonSandboxFixtureProjection.summary.highRiskIssueCount,1);
+assert(nonSandboxFixtureProjection.issues.some(row => row.issue_code === "workspace_brand_target_missing"));
+
+{
+  const queries=[];
+  await _testingDynamicContainerProjectionService.upsertProjectionRows({
+    async query(sql,params){ queries.push({ sql:String(sql),params }); return [{ affectedRows:1 }]; }
+  },{
+    containers:[],
+    relationships:[],
+    roleAssignments:[{
+      assignment_id:"assignment-1",
+      tenant_id:TENANT,
+      container_id:"canonical-container-id",
+      principal_type:"user",
+      principal_id:"user-1",
+      role_template_key:"container_admin",
+      inline_permissions_json:null,
+      inheritance_mode:"inherit_down",
+      valid_from:null,
+      valid_until:null,
+      status:"active",
+      version:1,
+      issued_by:"test-suite",
+      approved_by:null,
+      metadata_json:"{}"
+    }],
+    resourceBindings:[]
+  },TENANT);
+  assert.equal(queries.length,1);
+  assert.equal(queries[0].params[2],"canonical-container-id");
+  for (const fragment of [
+    "tenant_id=VALUES(tenant_id)",
+    "container_id=VALUES(container_id)",
+    "principal_type=VALUES(principal_type)",
+    "principal_id=VALUES(principal_id)",
+    "role_template_key=VALUES(role_template_key)",
+    "inline_permissions_json=VALUES(inline_permissions_json)",
+    "inheritance_mode=VALUES(inheritance_mode)",
+    "valid_from=VALUES(valid_from)",
+    "valid_until=VALUES(valid_until)",
+    "status=VALUES(status)",
+    "version=VALUES(version)",
+    "issued_by=VALUES(issued_by)",
+    "approved_by=VALUES(approved_by)",
+    "metadata_json=VALUES(metadata_json)"
+  ]) assert(queries[0].sql.includes(fragment),`role assignment upsert must include ${fragment}`);
+}
+
 const sequentialSourceExecutor={
   active:0,maxActive:0,calls:[],
   query:async sql => {
