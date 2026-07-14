@@ -248,14 +248,12 @@ function buildProposal(task, issues, proposedValues, row, previewId, nowIso) {
       from: safeString(task[field], 1000) || null,
       to: value,
     }));
-  const core = sanitizeValue({
-    preview_id: previewId,
+  const deterministic = sanitizeValue({
     case_id: row.case_id,
     task_identity: {
       task_id: task.task_id || null,
       task_key: task.task_key || null,
     },
-    generated_at: nowIso,
     issues,
     proposed_patch: proposedPatch,
     changes,
@@ -275,8 +273,10 @@ function buildProposal(task, issues, proposedValues, row, previewId, nowIso) {
     secrets_included: false,
   });
   return {
-    ...core,
-    preview_fingerprint_sha256: sha256Json(core),
+    preview_id: previewId,
+    generated_at: nowIso,
+    ...deterministic,
+    preview_fingerprint_sha256: sha256Json(deterministic),
   };
 }
 
