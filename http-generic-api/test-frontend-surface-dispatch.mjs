@@ -265,6 +265,21 @@ assert(plan.families.find((family) => family.source_file === "routes/dynamicTeam
 assert.equal(plan.safety.secrets_included, false);
 assert.equal(JSON.stringify(plan).includes("configuration_dependencies"), true);
 
+const policyPath = path.join(apiRoot, "frontend-surface-policy.json");
+const validPolicySource = fs.readFileSync(policyPath, "utf8");
+const invalidPolicy = JSON.parse(validPolicySource);
+invalidPolicy.rules.find((rule) => rule.source_file === "routes/tenantRoutes.js").decision = "unrecognized_surface";
+fs.writeFileSync(policyPath, JSON.stringify(invalidPolicy));
+const invalidPolicyPlan = buildDispatchPlan({ apiRoot, baselineRef: "fixture-sha" });
+const invalidPolicyFamily = invalidPolicyPlan.families.find((family) => family.source_file === "routes/tenantRoutes.js");
+assert.equal(invalidPolicyFamily.surface_decision.decision, "requires_review");
+assert.equal(invalidPolicyFamily.surface_decision.owner, null);
+assert.equal(
+  invalidPolicyPlan.tasks.find((task) => task.task_key === `frontend.${invalidPolicyFamily.family_key}`).state,
+  "blocked",
+);
+fs.writeFileSync(policyPath, validPolicySource);
+
 const writeResult = syncDispatchPlan({ apiRoot, mode: "write", baselineRef: "fixture-sha" });
 assert.equal(writeResult.ok, true);
 assert.equal(fs.existsSync(path.join(apiRoot, "frontend-surface-dispatch.generated.json")), true);
