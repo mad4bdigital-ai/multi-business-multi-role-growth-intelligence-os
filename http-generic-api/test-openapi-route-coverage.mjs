@@ -7,6 +7,10 @@ const allowlist = JSON.parse(readFileSync("openapi-route-coverage.allowlist.json
 
 assert(script.includes("openapi_route_coverage_failed"), "route coverage script must fail with a structured error code");
 assert(script.includes("openapi.yaml"), "route coverage script must compare against main OpenAPI");
+assert(
+  script.includes('name !== "frontend-runtime-routes.generated.yaml"'),
+  "generated runtime operation index must not satisfy canonical OpenAPI coverage",
+);
 assert(Array.isArray(allowlist.required_files), "allowlist must define required_files array");
 assert(allowlist.required_files.includes("routes/platformPluginRoutes.js"), "stage 1 coverage must include Platform Plugin routes");
 
