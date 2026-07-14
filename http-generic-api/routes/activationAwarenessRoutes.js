@@ -345,6 +345,39 @@ async function tenantResolutionDiagnosticActionResponse(req) {
   });
 }
 
+async function tenantSkillApprovalListResponse(req) {
+  return listTenantSkillApprovals({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      tenant_role: req.auth?.tenant_role || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    cursor: boundedInt(req.query.cursor, 0, 0, 1000000),
+    limit: boundedInt(req.query.limit, 25, 1, 100),
+    status: queryText(req.query.status, 32),
+    workspaceId: tenantWorkspaceScope(req),
+    q: queryText(req.query.q, 300),
+  });
+}
+
+async function tenantSkillApprovalDecisionResponse(req) {
+  return decideTenantSkillApproval({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      tenant_role: req.auth?.tenant_role || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    approvalKey: req.params.approvalKey,
+    input: req.body || {},
+  });
+}
+
 async function operationalAttentionSyncResponse(req, isAdmin) {
   return synchronizeOperationalAlerts({
     sessionContext: subjectContext(req, isAdmin),
