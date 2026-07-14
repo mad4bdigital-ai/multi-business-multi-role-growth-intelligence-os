@@ -10,12 +10,19 @@ assert.ok(program.includes('string.Equals(action, "repair_connector", StringComp
 assert.ok(program.includes('await RepairConnectorAsync();'));
 assert.ok(program.includes('app_managed_installer = true'));
 assert.ok(program.includes('browser_download = false'));
+assert.ok(program.includes('ClassifyRepairOutcome(repairStatus)'));
+assert.ok(program.includes('repair_stage = repairStage'));
+assert.ok(program.includes('repair_verified = repairVerified'));
+assert.ok(program.includes('connector_repair_not_verified'));
+assert.ok(program.includes('verification_completed'));
 assert.ok(program.includes('secrets_included = false'));
 const repairCommandStart = program.indexOf('string.Equals(action, "repair_connector"');
 const repairCommandEnd = program.indexOf('string.Equals(action, "focus_local_manager"', repairCommandStart);
 assert.ok(repairCommandStart >= 0 && repairCommandEnd > repairCommandStart);
 const repairCommandBlock = program.slice(repairCommandStart, repairCommandEnd);
 assert.doesNotMatch(repairCommandBlock, /OpenUrlAsync|Process\.Start|open_url/i);
+assert.doesNotMatch(repairCommandBlock, /CompleteDesktopCommandAsync\(client, token, commandId, true/);
+assert.match(repairCommandBlock, /CompleteDesktopCommandAsync\(client, token, commandId, repairVerified/);
 
 assert.ok(desktopRoutes.includes('"repair_connector"'));
 assert.ok(desktopRoutes.includes('const ALLOWED_ACTIONS = new Set'));
