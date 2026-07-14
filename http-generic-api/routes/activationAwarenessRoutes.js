@@ -556,4 +556,5 @@ export const _testingActivationAwarenessRoutes = {
   tenantResolutionCaseListResponse,
   tenantResolutionCaseDetailResponse,
   tenantResolutionCaseTransitionResponse,
+  tenantResolutionDiagnosticActionResponse,
 };
