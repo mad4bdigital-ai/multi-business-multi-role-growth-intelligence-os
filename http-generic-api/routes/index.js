@@ -110,6 +110,7 @@ import { buildSessionInsightTargetWriteReadbackRoutes } from "./sessionInsightTa
 import { buildRuntimeVerificationRoutes } from "./runtimeVerificationRoutes.js";
 import { buildReleaseOperationRoutes } from "./releaseOperationRoutes.js";
 import { buildReleaseGateManagerRoutes } from "./releaseGateManagerRoutes.js";
+import { buildAsyncReleaseDeployRoutes } from "./asyncReleaseDeployRoutes.js";
 import { buildOperationalConsoleRoutes } from "./operationalConsoleRoutes.js";
 import { buildActivationGuidanceRoutes } from "./activationGuidanceRoutes.js";
 import { buildGrowthIntelligenceRoutes } from "./growthIntelligenceRoutes.js";
