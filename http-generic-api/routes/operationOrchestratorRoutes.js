@@ -16,6 +16,10 @@ import {
   assertOperationRunAccess,
   recordOperationRunOwnership,
 } from "../operationRunOwnershipService.js";
+import {
+  listOperationGeneratedArtifacts,
+  recordOperationGeneratedArtifacts,
+} from "../operationGeneratedArtifactService.js";
 import { collectChunkedToolResponse } from "../repositoryAutomationControlPlane.js";
 import { dispatchToolForCaller, resolveCallerTypeForRequest } from "./gptToolsRoutes.js";
 
@@ -105,6 +109,32 @@ function isResumeOperation(input = {}) {
   return normalizeOperationKey(input.operation_key || input.operation || input.intent) === "operation.resume";
 }
 
+async function recordArtifactsSafely({ req, input, result, operationKey }) {
+  try {
+    return await recordOperationGeneratedArtifacts({
+      pool: getPool(),
+      auth: req.auth,
+      input,
+      result,
+      operationKey,
+    });
+  } catch (error) {
+    return {
+      recorded: false,
+      status: "unavailable",
+      run_id: result?.run_id || result?.operation_id || null,
+      artifact_count: 0,
+      error: {
+        code: error?.code || "OPERATION_ARTIFACT_REGISTRY_UNAVAILABLE",
+        message: error?.message || "Generated artifact registration is unavailable.",
+        details: error?.details || null,
+      },
+      retryable: Number(error?.status || 500) >= 500,
+      secrets_included: false,
+    };
+  }
+}
+
 function mountOperationRoutes(router, middleware = []) {
   router.get("/operations/contracts", ...middleware, async (req, res) => {
     try {
@@ -130,17 +160,25 @@ function mountOperationRoutes(router, middleware = []) {
       if (isTenant(req) && isResumeOperation(input)) {
         await assertOperationRunAccess({ pool: getPool(), auth: req.auth, runId: input.run_id });
       }
+      const operationKey = normalizeOperationKey(input.operation_key || input.operation || input.intent);
       const result = await executeOperation(input, depsFor(req));
       const ownership = await recordOperationRunOwnership({
         pool: getPool(),
         auth: req.auth,
         input,
         result,
-        operationKey: normalizeOperationKey(input.operation_key || input.operation || input.intent),
+        operationKey,
+      });
+      const artifactRegistry = await recordArtifactsSafely({
+        req,
+        input,
+        result,
+        operationKey,
       });
       return res.status(result?.status === "awaiting_input" ? 202 : result?.ok === false ? 409 : 200).json({
         ...result,
         ownership,
+        artifact_registry: artifactRegistry,
       });
     } catch (error) { return errorResponse(res, error, "OPERATION_EXECUTION_FAILED"); }
   });
@@ -151,6 +189,22 @@ function mountOperationRoutes(router, middleware = []) {
       await assertOperationRunAccess({ pool: getPool(), auth: req.auth, runId: input.run_id });
       return res.status(200).json(await getOperationStatus(input, depsFor(req)));
     } catch (error) { return errorResponse(res, error, "OPERATION_STATUS_FAILED"); }
+  });
+
+  router.get("/operations/artifacts", ...middleware, async (req, res) => {
+    try {
+      const input = {
+        run_id: req.query.run_id,
+        limit: req.query.limit,
+        cursor: req.query.cursor,
+        artifact_type: req.query.artifact_type,
+      };
+      await assertOperationRunAccess({ pool: getPool(), auth: req.auth, runId: input.run_id });
+      return res.status(200).json(await listOperationGeneratedArtifacts(input, {
+        pool: getPool(),
+        auth: req.auth,
+      }));
+    } catch (error) { return errorResponse(res, error, "OPERATION_ARTIFACT_LIST_FAILED"); }
   });
 
   router.post("/operations/ci-diagnose", ...middleware, async (req, res) => {
@@ -178,4 +232,5 @@ export const _testingOperationOrchestratorRoutes = {
   errorResponse,
   isResumeOperation,
   dispatchWithChunkCollection,
+  recordArtifactsSafely,
 };
