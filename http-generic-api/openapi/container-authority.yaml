@@ -195,6 +195,45 @@ schemas:
       credentialPayloadRead: { type: boolean, const: false }
       secretsIncluded: { type: boolean, const: false }
 
+  ShadowSamplerRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      sampleCount: { type: integer, minimum: 1, maximum: 100, default: 100 }
+      tenantId: { type: string, minLength: 1, maxLength: 36 }
+
+  ShadowSamplerResponse:
+    type: object
+    additionalProperties: false
+    required: [ok, runId, requestedSampleCount, completedSampleCount, distinctCandidateCount, repeatedRoundCount, evidence, providerCallMade, credentialPayloadRead, externalWriteMade, enforcementApplied, secretsIncluded]
+    properties:
+      ok: { type: boolean, const: true }
+      runId: { type: string, format: uuid }
+      requestedSampleCount: { type: integer, minimum: 1, maximum: 100 }
+      completedSampleCount: { type: integer, minimum: 1, maximum: 100 }
+      distinctCandidateCount: { type: integer, minimum: 1 }
+      repeatedRoundCount: { type: integer, minimum: 0 }
+      evidence:
+        type: object
+        additionalProperties: false
+        required: [comparisonCount, matchCount, mismatchCount, notComparableCount, performanceSampleCount, withinBudgetCount]
+        properties:
+          comparisonCount: { type: integer, minimum: 0 }
+          matchCount: { type: integer, minimum: 0 }
+          mismatchCount: { type: integer, minimum: 0 }
+          notComparableCount: { type: integer, minimum: 0 }
+          maxLatencyMs: { type: number, minimum: 0 }
+          avgLatencyMs: { type: number, minimum: 0 }
+          performanceSampleCount: { type: integer, minimum: 0 }
+          withinBudgetCount: { type: integer, minimum: 0 }
+          maxDurationMs: { type: number, minimum: 0 }
+          avgDurationMs: { type: number, minimum: 0 }
+      providerCallMade: { type: boolean, const: false }
+      credentialPayloadRead: { type: boolean, const: false }
+      externalWriteMade: { type: boolean, const: false }
+      enforcementApplied: { type: boolean, const: false }
+      secretsIncluded: { type: boolean, const: false }
+
   ListResponse:
     type: object
     additionalProperties: false
