@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import {
   isMissingAppCapabilityMapError,
+  isMissingWorkspaceGrantViewError,
   loadAppMap,
+  loadWorkspaceGrants,
 } from "./scripts/capability-resolution-dry-run.mjs";
 
 assert.equal(isMissingAppCapabilityMapError({
