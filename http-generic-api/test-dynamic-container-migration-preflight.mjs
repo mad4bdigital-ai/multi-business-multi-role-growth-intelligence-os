@@ -31,6 +31,11 @@ const migrations = [
       "v_container_audit_coverage",
       "v_container_rollout_readiness"
     ]
+  },
+  {
+    file:"1046_sprint69_dynamic_container_shadow_sampler_tool.sql",
+    statements:3,
+    requiredObjects:[]
   }
 ];
 
