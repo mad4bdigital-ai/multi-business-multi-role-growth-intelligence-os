@@ -40,6 +40,22 @@
         "status": "merged",
         "merge_sha": "aa476872ef84b46ccbf935b729dbf22495826e85",
         "summary": "Added the admin-only governed_migration_schema_readback tool, regression test, route registration, and test manifest entry to replace ad hoc admin_control + INFORMATION_SCHEMA migration readback."
+      },
+      {
+        "number": 2370,
+        "branch": "gpt/release-readiness-summary-first-v2-20260708",
+        "role": "release_readiness_transport_hardening",
+        "status": "merged",
+        "merge_sha": "6d1a942503b6296c8d9282b54ee089cc5afdc161",
+        "summary": "Made release readiness summary-first by default so production parity evidence can be read through bounded JSON without transport timeouts."
+      },
+      {
+        "number": 2393,
+        "branch": "gpt/007-record-production-parity-evidence-v3-20260708",
+        "role": "production_runtime_parity_evidence_record",
+        "status": "merged",
+        "merge_sha": "c3250d42bbf67dd59f54fafd5513de785487eec1",
+        "summary": "Recorded verified production runtime parity evidence, marked T226 complete, and kept dev/staging shadow, post-merge audit, residual debt, and final closeout pending."
       }
     ],
     "implementation_evidence": [
@@ -64,7 +80,7 @@
           "openapi_fingerprint_contract_reconciled_by_audit_pr": true,
           "migration_apply_verified": true,
           "migration_schema_readback_verified": true,
-          "production_runtime_parity_verified": false
+          "production_runtime_parity_verified": true
         }
       },
       {
@@ -102,6 +118,32 @@
           "freeform_sql_accepted": false,
           "secrets_included": false
         }
+      },
+      {
+        "role": "production_runtime_parity_readback",
+        "status": "verified",
+        "verified_at": "2026-07-08T16:53:45.305Z",
+        "main_commit_sha": "59d5c1e0991028dcd8ddc58e5a1294ec926662db",
+        "expected_commit_sha": "59d5c1e0991028dcd8ddc58e5a1294ec926662db",
+        "deployed_commit_sha": "59d5c1e0991028dcd8ddc58e5a1294ec926662db",
+        "production_parity": "verified",
+        "latest_run_id": "1c29d820-62f0-4277-a585-4b63c18ef203",
+        "release_readiness_run_id": "cb908bfc-b0df-41e1-9179-2118dbdc6254",
+        "release_readiness_overall": "pass",
+        "release_readiness_response_mode": "summary",
+        "bounded_projection": true,
+        "runtime_health_status": "pass",
+        "activation_summary_status": "pass",
+        "migration_status": "pass",
+        "blocking_gap_count": 0,
+        "safety": {
+          "deploy_executed": false,
+          "restart_executed": false,
+          "ssh_execution_executed": false,
+          "migration_apply_executed": false,
+          "provider_call_executed": false,
+          "secrets_included": false
+        }
       }
     ],
     "closeout_pr": {
@@ -137,8 +179,8 @@
       "runtime_behavior_changed": false
     },
     "implementation": {
-      "status": "partial_implementation_observed_pending_production_verification_and_post_merge_audit",
-      "next_pr_scope": "production_runtime_parity_and_post_merge_audit",
+      "status": "partial_implementation_observed_pending_dev_staging_shadow_canary_and_closeout",
+      "next_pr_scope": "dev_staging_shadow_canary_or_final_closeout",
       "provider_mutation_allowed": false,
       "enforcement_change_allowed": false,
       "automatic_tenant_export_allowed": false,
@@ -148,18 +190,25 @@
         "runtime_contract_status": "fingerprint_fields_reconciled_in_openapi_by_audit_pr",
         "migration_apply_status": "verified",
         "migration_schema_readback_status": "pass",
-        "production_verification_status": "pending",
-        "post_merge_audit_status": "pending"
+        "production_verification_status": "verified",
+        "post_merge_audit_status": "verified_with_tracked_residual_debt"
       }
     },
     "pull_request": {
-      "status": "implementation_prs_recorded_through_2343"
+      "status": "implementation_prs_recorded_through_2393"
     },
     "ci": {
-      "status": "pending_this_evidence_pr"
+      "status": "release_readiness_summary_transport_and_production_parity_ci_passed"
     },
     "release_readiness": {
-      "status": "pending_production_verification_and_post_merge_audit"
+      "status": "warn_post_merge_audit_completed_with_tracked_residual_debt",
+      "run_id": "fc43581c-d302-44e8-aafd-f76f4b56f075",
+      "overall": "warn",
+      "pass": 69,
+      "warn": 1,
+      "fail": 0,
+      "tracked_warning": "migration_drift",
+      "actionable_migration_artifact_gap_count": 4
     },
     "migration": {
       "status": "apply_and_schema_readback_verified",
@@ -171,10 +220,57 @@
       "schema_readback_pr": 2343
     },
     "production_verification": {
-      "status": "pending_runtime_parity_readback"
+      "status": "verified",
+      "main_commit_sha": "59d5c1e0991028dcd8ddc58e5a1294ec926662db",
+      "expected_commit_sha": "59d5c1e0991028dcd8ddc58e5a1294ec926662db",
+      "deployed_commit_sha": "59d5c1e0991028dcd8ddc58e5a1294ec926662db",
+      "production_parity": "verified",
+      "blocking_gap_count": 0,
+      "verified_at": "2026-07-08T16:49:35.000Z",
+      "readback_at": "2026-07-08T16:53:45.305Z",
+      "release_readiness_run_id": "cb908bfc-b0df-41e1-9179-2118dbdc6254"
     },
     "post_merge_audit": {
-      "status": "pending"
+      "status": "verified_with_tracked_residual_debt",
+      "verified_at": "2026-07-09T16:19:51.004Z",
+      "source_pr": {
+        "number": 2393,
+        "merged_at": "2026-07-09T15:16:09Z",
+        "merge_sha": "c3250d42bbf67dd59f54fafd5513de785487eec1"
+      },
+      "main_readback": {
+        "merge_commit_ancestor_of_main": true,
+        "main_followup_commit_scope": "docs_agent_only"
+      },
+      "release_readiness": {
+        "run_id": "fc43581c-d302-44e8-aafd-f76f4b56f075",
+        "overall": "warn",
+        "pass": 69,
+        "warn": 1,
+        "fail": 0,
+        "tracked_warning": "migration_drift",
+        "actionable_migration_artifact_gap_count": 4
+      },
+      "tool_binding_integrity": {
+        "status": "pass",
+        "binding_count": 36,
+        "healthy_count": 36,
+        "gap_count": 0
+      },
+      "residual_debt": [
+        "T225 dev/staging shadow and canary evidence remains pending",
+        "T228 final closeout PR and deprecation plan remains pending",
+        "T303-T304 completion governance remains pending",
+        "migration_drift warning remains tracked with 4 actionable migration artifact gaps"
+      ],
+      "safety": {
+        "deploy_executed": false,
+        "restart_executed": false,
+        "ssh_execution_executed": false,
+        "migration_apply_executed": false,
+        "provider_call_executed": false,
+        "secrets_included": false
+      }
     }
   },
   "sensitive_values_included": false

@@ -340,6 +340,15 @@ section("GPT Builder server host separation");
     tenantCore.servers?.[0]?.url === "https://auth.mad4b.com" &&
     tenantActivation.servers?.[0]?.url === "https://activation.mad4b.com" &&
     tenantCore.servers?.[0]?.url !== tenantActivation.servers?.[0]?.url);
+  assert("tenant Core OAuth remains on auth host",
+    tenantCore.components?.securitySchemes?.userBearerAuth?.flows?.authorizationCode?.authorizationUrl === "https://auth.mad4b.com/auth/oauth/authorize" &&
+    tenantCore.components?.securitySchemes?.userBearerAuth?.flows?.authorizationCode?.tokenUrl === "https://auth.mad4b.com/auth/oauth/token");
+  assert("tenant Activation OAuth uses activation-host gateway",
+    tenantActivation.components?.securitySchemes?.userBearerAuth?.flows?.authorizationCode?.authorizationUrl === "https://activation.mad4b.com/auth/oauth/authorize" &&
+    tenantActivation.components?.securitySchemes?.userBearerAuth?.flows?.authorizationCode?.tokenUrl === "https://activation.mad4b.com/auth/oauth/token");
+  assert("tenant Activation auth preset matches activation-host OAuth URLs",
+    tenantActivation["x-gpt-action-auth-preset"]?.authorization_url === "https://activation.mad4b.com/auth/oauth/authorize" &&
+    tenantActivation["x-gpt-action-auth-preset"]?.token_url === "https://activation.mad4b.com/auth/oauth/token");
   assert("admin Core and Activation schemas use distinct server URLs",
     adminCore.servers?.[0]?.url === "https://auth.mad4b.com" &&
     adminActivation.servers?.[0]?.url === "https://activation.mad4b.com" &&
@@ -407,6 +416,7 @@ section("dispatcher contracts");
   const tenantAllowedConsequentialOps = new Set([
     "tenantPlatformPluginInstall",
     "tenantPlatformPluginCredentialIntakeSessionCreate",
+    "decideTenantSkillApproval",
     "postMeWorkspacesTenantIdResourcesResourceKey",
     "postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore",
   ]);

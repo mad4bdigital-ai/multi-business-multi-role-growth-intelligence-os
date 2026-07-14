@@ -237,6 +237,9 @@ const platformState=makeState({
 const platformOwnerWithoutBinding = await resolveEffectiveContainerContext(request(),depsFor(platformState));
 assert.equal(platformOwnerWithoutBinding.decision,"deny");
 assert(platformOwnerWithoutBinding.blockingCodes.includes("resource_binding_missing"));
+assert(!platformOwnerWithoutBinding.blockingCodes.includes("role_assignment_invalid"));
+assert(!platformOwnerWithoutBinding.blockingCodes.includes("role_assignment_missing"));
+assert(!platformOwnerWithoutBinding.blockingCodes.includes("role_permission_insufficient"));
 
 await assert.rejects(() => resolveEffectiveContainerContext({ ...request(),mode:"enforce" },depsFor(makeState())),error => error.code === "effective_context_blocked");
 await assert.rejects(() => resolveEffectiveContainerContext({ ...request(),access_token:"forbidden" },depsFor(makeState())),error => error.code === "container_secret_field_forbidden");
@@ -279,7 +282,7 @@ assert.throws(() => _testingDynamicContainerOverrideService.requireExactValue("*
 function emptyProjectionSources() {
   return {
     tenants:[],workspaces:[],brands:[],brandPaths:[],activities:[],workflows:[],memberships:[],roleAssignments:[],
-    workspaceGrants:[],workspaceAppLinks:[],actionGrants:[],skillGrants:[],workspaceAssets:[]
+    workspaceGrants:[],workspaceAppLinks:[],actionGrants:[],skillGrants:[],workspaceAssets:[],existingContainers:[]
   };
 }
 const projectionSources={
@@ -290,20 +293,196 @@ const projectionSources={
   brandPaths:[{ brand_key:"brand-key-1",target_key:"brand-key-1",business_type_key:"business-type-1",status:"active",active:"active" }],
   activities:[{ business_activity_type_key:"activity-1",business_type_key:"business-type-1",label:"Activity One",supported_workflows:'["workflow-1"]',status:"active",active:"active" }],
   workflows:[{ workflow_key:"workflow-1",workflow_id:"workflow-1",workflow_name:"Workflow One",status:"active",active:"active" }],
-  memberships:[{ user_id:"user-1",tenant_id:TENANT,role:"admin",status:"active" }]
+  memberships:[{ user_id:"user-1",tenant_id:TENANT,role:"admin",status:"active" }],
+  workspaceAssets:[{
+    asset_id:"asset-1",tenant_id:TENANT,asset_type:"knowledge",asset_ref:"asset-ref-1",display_name:"Asset One",
+    brand_ref:null,site_ref:null,workflow_ref:null,visibility:"workspace",lifecycle_status:"active",metadata_json:"{}",created_by:"test"
+  }]
 };
 const projection=await buildLegacyContainerProjectionPlan({ sourceRows:projectionSources });
 assert.equal(projection.summary.highRiskIssueCount,0);
 assert.equal(projection.secretsIncluded,false);
+assert(projection.resourceBindings.some(row => row.source_table === "workspace_assets"));
 for (const type of ["platform","tenant","workspace","brand","activity","workflow"]) {
   assert(projection.containers.some(row => row.container_type_key === type),`projection must create ${type} container`);
 }
+const platformOwnerProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    memberships:[{ user_id:"platform-user-1",tenant_id:TENANT,role:"platform_owner",status:"active" }],
+    roleAssignments:[{
+      assignment_id:"legacy-platform-owner-assignment",
+      user_id:"platform-user-1",
+      tenant_id:TENANT,
+      role:"platform_owner",
+      status:"active"
+    }]
+  }
+});
+const projectedPlatformContainer=platformOwnerProjection.containers.find(row => row.container_type_key === "platform");
+const projectedTenantContainer=platformOwnerProjection.containers.find(row => row.container_type_key === "tenant");
+const projectedPlatformOwnerAssignments=platformOwnerProjection.roleAssignments.filter(row => row.role_template_key === "platform_owner");
+assert.equal(projectedPlatformOwnerAssignments.length,2);
+assert(projectedPlatformOwnerAssignments.every(row => row.container_id === projectedPlatformContainer.container_id));
+assert(projectedPlatformOwnerAssignments.every(row => row.inheritance_mode === "inherit_down"));
+assert(!projectedPlatformOwnerAssignments.some(row => row.container_id === projectedTenantContainer.container_id));
 const projectionAgain=await buildLegacyContainerProjectionPlan({ sourceRows:projectionSources });
 assert.deepEqual(projection.containers.map(row => row.container_id).sort(),projectionAgain.containers.map(row => row.container_id).sort());
+const existingTenantContainerId="legacy-tenant-container-id";
+const canonicalReuseProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    existingContainers:[{
+      container_id:existingTenantContainerId,
+      tenant_id:TENANT,
+      container_key:"platform:root",
+      container_type_key:"platform",
+      canonical_subject_type:"tenant",
+      canonical_subject_ref:TENANT,
+      status:"active"
+    }]
+  }
+});
+const reusedTenantContainer=canonicalReuseProjection.containers.find(row => row.canonical_subject_type === "tenant" && row.canonical_subject_ref === TENANT);
+assert.equal(reusedTenantContainer.container_id,existingTenantContainerId);
+assert.equal(reusedTenantContainer.container_type_key,"tenant");
+assert.equal(reusedTenantContainer.container_key,`tenant:${TENANT}`);
+assert(canonicalReuseProjection.relationships.some(row => row.to_container_id === existingTenantContainerId));
+assert(canonicalReuseProjection.roleAssignments.some(row => row.container_id === existingTenantContainerId));
+const rootActivityProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    brandPaths:[{ brand_key:"brand-key-1",target_key:"brand-key-1",business_type_key:"destination_or_travel_business",status:"active",active:"active" }],
+    activities:[
+      { business_activity_type_key:"travel",activity_key:"travel",business_type_key:"destination_or_travel_business",label:"Travel",parent_activity_type:null,supported_workflows:"content_generation_workflow; brand_marketing_workflow",status:"active",active:"active" },
+      { business_activity_type_key:"air_travel",activity_key:"air_travel",business_type_key:"destination_or_travel_business",label:"Air Travel",parent_activity_type:"travel",supported_workflows:"content_generation_workflow",status:"active",active:"active" }
+    ],
+    workflows:[
+      { workflow_key:"content_generation_workflow",workflow_id:"content_generation_workflow",workflow_name:"Content Generation Workflow",status:"active",active:"active" },
+      { workflow_key:"content_generation_workflow",workflow_id:"wf_content_table",workflow_name:"Generate Article Structure",status:"active",active:"active" },
+      { workflow_key:"brand_marketing_workflow",workflow_id:"brand_marketing_workflow",workflow_name:"Brand Marketing Workflow",status:"active",active:"active" }
+    ]
+  }
+});
+assert(!rootActivityProjection.issues.some(row => ["business_activity_context_ambiguous","business_activity_context_required","workflow_projection_ambiguous","workflow_projection_missing"].includes(row.issue_code)));
+assert(rootActivityProjection.containers.some(row => row.container_type_key === "activity" && row.canonical_subject_ref === "travel"));
+const projectedContentWorkflows=rootActivityProjection.containers.filter(row => row.container_type_key === "workflow" && row.canonical_subject_ref === "content_generation_workflow");
+assert.equal(projectedContentWorkflows.length,1);
+const directActivityKeyProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    brandPaths:[{ brand_key:"brand-key-1",target_key:"brand-key-1",business_type_key:"travel",status:"active",active:"active" }],
+    activities:[{ business_activity_type_key:"travel",activity_key:"travel",business_type_key:"destination_or_travel_business",label:"Travel",supported_workflows:"[]",status:"active",active:"active" }],
+    workflows:[]
+  }
+});
+assert.equal(directActivityKeyProjection.summary.highRiskIssueCount,0);
+assert(directActivityKeyProjection.containers.some(row => row.container_type_key === "activity" && row.canonical_subject_ref === "travel"));
 const namespaceMismatch=await buildLegacyContainerProjectionPlan({
   sourceRows:{ ...projectionSources,workspaces:[{ ...projectionSources.workspaces[0],linked_brand_key:"Brand One" }] }
 });
 assert(namespaceMismatch.issues.some(row => row.issue_code === "workspace_brand_key_namespace_mismatch" && row.status === "held"));
+
+const governedSandboxFixtureProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    workspaces:[{
+      ...projectionSources.workspaces[0],
+      workspace_id:"sandbox-fixture-workspace",
+      workspace_key:"activation-smoke-workspace",
+      workspace_type:"sandbox",
+      linked_brand_key:"activation_smoke_brand",
+      config_json:JSON.stringify({ fixture:"activation_authorized_access_tenant_smoke",secrets_included:false })
+    }]
+  }
+});
+assert.equal(governedSandboxFixtureProjection.summary.highRiskIssueCount,0);
+assert(governedSandboxFixtureProjection.issues.some(row =>
+  row.issue_code === "workspace_brand_fixture_excluded" &&
+  row.severity === "info" &&
+  row.status === "ignored"
+));
+assert(!governedSandboxFixtureProjection.containers.some(row =>
+  row.container_type_key === "brand" && row.canonical_subject_ref === "activation_smoke_brand"
+));
+
+const unknownSandboxFixtureProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    workspaces:[{
+      ...projectionSources.workspaces[0],
+      workspace_id:"unknown-sandbox-workspace",
+      workspace_type:"sandbox",
+      linked_brand_key:"unknown_sandbox_brand",
+      config_json:JSON.stringify({ fixture:"unknown_fixture" })
+    }]
+  }
+});
+assert.equal(unknownSandboxFixtureProjection.summary.highRiskIssueCount,1);
+assert(unknownSandboxFixtureProjection.issues.some(row =>
+  row.issue_code === "workspace_brand_target_missing" && row.severity === "high" && row.status === "held"
+));
+
+const nonSandboxFixtureProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    workspaces:[{
+      ...projectionSources.workspaces[0],
+      workspace_id:"production-fixture-name-workspace",
+      workspace_type:"production",
+      linked_brand_key:"activation_smoke_brand",
+      config_json:JSON.stringify({ fixture:"activation_authorized_access_tenant_smoke" })
+    }]
+  }
+});
+assert.equal(nonSandboxFixtureProjection.summary.highRiskIssueCount,1);
+assert(nonSandboxFixtureProjection.issues.some(row => row.issue_code === "workspace_brand_target_missing"));
+
+{
+  const queries=[];
+  await _testingDynamicContainerProjectionService.upsertProjectionRows({
+    async query(sql,params){ queries.push({ sql:String(sql),params }); return [{ affectedRows:1 }]; }
+  },{
+    containers:[],
+    relationships:[],
+    roleAssignments:[{
+      assignment_id:"assignment-1",
+      tenant_id:TENANT,
+      container_id:"canonical-container-id",
+      principal_type:"user",
+      principal_id:"user-1",
+      role_template_key:"container_admin",
+      inline_permissions_json:null,
+      inheritance_mode:"inherit_down",
+      valid_from:null,
+      valid_until:null,
+      status:"active",
+      version:1,
+      issued_by:"test-suite",
+      approved_by:null,
+      metadata_json:"{}"
+    }],
+    resourceBindings:[]
+  },TENANT);
+  assert.equal(queries.length,1);
+  assert.equal(queries[0].params[2],"canonical-container-id");
+  for (const fragment of [
+    "tenant_id=VALUES(tenant_id)",
+    "container_id=VALUES(container_id)",
+    "principal_type=VALUES(principal_type)",
+    "principal_id=VALUES(principal_id)",
+    "role_template_key=VALUES(role_template_key)",
+    "inline_permissions_json=VALUES(inline_permissions_json)",
+    "inheritance_mode=VALUES(inheritance_mode)",
+    "valid_from=VALUES(valid_from)",
+    "valid_until=VALUES(valid_until)",
+    "status=VALUES(status)",
+    "version=VALUES(version)",
+    "issued_by=VALUES(issued_by)",
+    "approved_by=VALUES(approved_by)",
+    "metadata_json=VALUES(metadata_json)"
+  ]) assert(queries[0].sql.includes(fragment),`role assignment upsert must include ${fragment}`);
+}
 
 const sequentialSourceExecutor={
   active:0,maxActive:0,calls:[],
@@ -317,11 +496,11 @@ const sequentialSourceExecutor={
   }
 };
 const sequentialSources=await _testingDynamicContainerProjectionService.loadProjectionSources(sequentialSourceExecutor);
-assert.equal(sequentialSourceExecutor.calls.length,13);
+assert.equal(sequentialSourceExecutor.calls.length,14);
 assert.equal(sequentialSourceExecutor.maxActive,1);
 assert.deepEqual(Object.keys(sequentialSources),[
   "tenants","workspaces","brands","brandPaths","activities","workflows","memberships","roleAssignments",
-  "workspaceGrants","workspaceAppLinks","actionGrants","skillGrants","workspaceAssets"
+  "workspaceGrants","workspaceAppLinks","actionGrants","skillGrants","workspaceAssets","existingContainers"
 ]);
 
 const failingSourceExecutor={

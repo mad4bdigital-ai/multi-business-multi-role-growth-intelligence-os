@@ -13,6 +13,7 @@ import {
   resolveTenantGptOAuthClientConfig,
   validateTenantGptOAuthClientCredentials,
 } from "../tenantGptOAuthClientConfig.js";
+import { recordTenantGptActivationContext } from "../tenantGptActivationContextStore.js";
 
 // Default fallback secret for development if missing.
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
@@ -134,6 +135,25 @@ function parseSignInOptions(value) {
   return unique.length ? unique : ["google", "email", "register"];
 }
 
+function cleanTenantGptRequestedScope(value) {
+  const requested = String(value || "")
+    .split(/\s+/)
+    .map((scope) => scope.trim())
+    .filter(Boolean);
+  const allowed = new Set(TENANT_GPT_SCOPE_LINKS);
+  const granted = [...new Set(requested.filter((scope) => allowed.has(scope)))];
+  return granted.length ? granted.join(" ") : "";
+}
+
+function safeOAuthScopeEvidence(value) {
+  const scopes = String(value || "").split(/\s+/).filter(Boolean);
+  return {
+    present: scopes.length > 0,
+    count: scopes.length,
+    sha256_prefix: scopes.length ? sha256(scopes.join(" ")).slice(0, 12) : null,
+  };
+}
+
 function parseActivationContext(query = {}) {
   const context = {
     purpose: "tenant_activation",
@@ -172,7 +192,7 @@ function cleanTtlSeconds(value) {
   return Math.min(Math.max(Math.floor(parsed), 60), PLATFORM_JWT_CLIENT_MAX_TTL_SECONDS);
 }
 
-function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT_ID } = {}) {
+function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT_ID, jwtid = randomUUID(), compact = false } = {}) {
   const userId = String(payload?.user_id || "").trim();
   if (!userId) {
     const err = new Error("Cannot issue tenant GPT token without user_id.");
@@ -183,23 +203,23 @@ function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT
   const tenantId = payload?.tenant_id ? String(payload.tenant_id).trim() : null;
   const email = payload?.email ? String(payload.email).trim() : null;
   const subject = tenantId ? `tenant:${tenantId}:user:${userId}` : `user:${userId}`;
+  const claims = {
+    iss: PLATFORM_JWT_ISSUER,
+    aud: TENANT_GPT_JWT_AUDIENCE,
+    sub: subject,
+    user_id: userId,
+    tenant_id: tenantId,
+    scope: TENANT_GPT_SCOPE,
+    purpose: "tenant_gpt_access",
+  };
 
-  return jwt.sign(
-    {
-      iss: PLATFORM_JWT_ISSUER,
-      aud: TENANT_GPT_JWT_AUDIENCE,
-      sub: subject,
-      user_id: userId,
-      email,
-      tenant_id: tenantId,
-      scope: TENANT_GPT_SCOPE,
-      scope_links: TENANT_GPT_SCOPE_LINKS,
-      purpose: "tenant_gpt_access",
-      client_id: String(clientId || TENANT_GPT_OAUTH_CLIENT_ID).trim() || TENANT_GPT_OAUTH_CLIENT_ID,
-    },
-    JWT_SECRET,
-    { expiresIn: USER_TOKEN_TTL_SECONDS, jwtid: randomUUID() }
-  );
+  if (!compact) {
+    claims.email = email;
+    claims.scope_links = TENANT_GPT_SCOPE_LINKS;
+    claims.client_id = String(clientId || TENANT_GPT_OAUTH_CLIENT_ID).trim() || TENANT_GPT_OAUTH_CLIENT_ID;
+  }
+
+  return jwt.sign(claims, JWT_SECRET, { expiresIn: USER_TOKEN_TTL_SECONDS, jwtid });
 }
 
 async function fetchActiveUserForJwtClient(pool, { user_id, email }) {
@@ -441,6 +461,8 @@ async function recordOAuthTokenDiagnostic(queryFn, event = {}) {
       code_redirect_uri: event.code_redirect_uri || null,
       client: event.client || null,
       access_token: event.access_token || null,
+      activation_context: event.activation_context || null,
+      requested_scope: event.requested_scope || null,
       client_validation_source: event.client_validation_source || null,
       code_jti_present: event.code_jti_present === true,
       user_id_present: event.user_id_present === true,
@@ -472,7 +494,7 @@ async function recordOAuthTokenDiagnostic(queryFn, event = {}) {
   }
 }
 
-function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationContext }) {
+function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationContext, requestedScope = "" }) {
   const signInOptions = Array.isArray(activationContext?.sign_in_options)
     ? activationContext.sign_in_options
     : ["google", "email", "register"];
@@ -541,11 +563,11 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
     </section>` : ''}
     <div id="error" class="error" role="alert"></div>
     <div class="links">
-      <a href="/connect" target="_blank" rel="noopener">Open setup page</a>
+      <a href="https://auth.mad4b.com/connect" target="_blank" rel="noopener">Open setup page</a>
       <span aria-hidden="true"> | </span>
-      <a href="/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a>
+      <a href="https://auth.mad4b.com/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a>
       <span aria-hidden="true"> | </span>
-      <a href="/terms-of-use" target="_blank" rel="noopener">Terms of Use</a>
+      <a href="https://auth.mad4b.com/terms-of-use" target="_blank" rel="noopener">Terms of Use</a>
     </div>
   </main>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -554,6 +576,7 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
     const REDIRECT_URI = ${JSON.stringify(String(redirectUri || ""))};
     const STATE = ${JSON.stringify(String(state || ""))};
     const ACTIVATION_CONTEXT = ${JSON.stringify(activationContext || {})};
+    const OAUTH_SCOPE = ${JSON.stringify(String(requestedScope || ""))};
     const INITIAL_PANEL = ${JSON.stringify(initialPanel)};
     const errorBox = document.getElementById("error");
     function showError(message){ errorBox.textContent = message || "Sign-in failed."; }
@@ -563,34 +586,27 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
     }
     document.querySelectorAll("nav button").forEach((button) => button.addEventListener("click", () => setPanel(button.dataset.panel)));
     setPanel(INITIAL_PANEL);
-    async function issueOAuthCode(token){
+    async function issueOAuthCode(credential){
       const codeRes = await fetch("/auth/oauth/code", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token, redirect_uri: REDIRECT_URI, state: STATE, activation_context: ACTIVATION_CONTEXT })
+        body: JSON.stringify({ credential, redirect_uri: REDIRECT_URI, state: STATE, scope: OAUTH_SCOPE, activation_context: ACTIVATION_CONTEXT })
       });
       const codeData = await codeRes.json();
       if (!codeRes.ok || !codeData.redirect_to) throw new Error(codeData?.error?.message || "Could not complete OAuth sign-in.");
       window.location.assign(codeData.redirect_to);
     }
-    async function submitCredentials(path, form){
+    async function submitCredentials(kind, form){
       const payload = Object.fromEntries(new FormData(form).entries());
-      const authRes = await fetch(path, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      const authData = await authRes.json();
-      if (!authRes.ok || !authData.token) throw new Error(authData?.error?.message || "Sign-in failed.");
-      await issueOAuthCode(authData.token);
+      await issueOAuthCode({ kind, ...payload });
     }
     document.getElementById("login-form")?.addEventListener("submit", async (event) => {
       event.preventDefault();
-      try { await submitCredentials("/auth/login", event.currentTarget); } catch (err) { showError(err.message); }
+      try { await submitCredentials("login", event.currentTarget); } catch (err) { showError(err.message); }
     });
     document.getElementById("register-form")?.addEventListener("submit", async (event) => {
       event.preventDefault();
-      try { await submitCredentials("/auth/register", event.currentTarget); } catch (err) { showError(err.message); }
+      try { await submitCredentials("register", event.currentTarget); } catch (err) { showError(err.message); }
     });
     function setup(){
       if (!document.getElementById("gsi-btn-container")) return;
@@ -601,14 +617,7 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
         client_id: GOOGLE_CLIENT_ID,
         callback: async (response) => {
           try {
-            const authRes = await fetch("/auth/google", {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({ id_token: response.credential })
-            });
-            const authData = await authRes.json();
-            if (!authRes.ok || !authData.token) throw new Error(authData?.error?.message || "Google sign-in failed.");
-            await issueOAuthCode(authData.token);
+            await issueOAuthCode({ kind: "google", id_token: response.credential });
           } catch (err) {
             showError(err.message);
           }
@@ -629,10 +638,244 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
 </html>`;
 }
 
+function authRouteFailure(status, code, message) {
+  const error = new Error(message);
+  error.auth_status = status;
+  error.auth_code = code;
+  return error;
+}
+
+function sendAuthRouteFailure(res, error, fallbackCode) {
+  if (Number.isInteger(error?.auth_status) && error?.auth_code) {
+    return res.status(error.auth_status).json({
+      ok: false,
+      error: { code: error.auth_code, message: error.message },
+    });
+  }
+  return res.status(500).json({
+    ok: false,
+    error: { code: fallbackCode, message: error?.message || "Authentication failed." },
+  });
+}
+
 export function buildAuthRoutes(deps) {
   const router = Router();
   const requireBackendApiKey = deps?.requireBackendApiKey;
   const resolvePool = typeof deps?.getPool === "function" ? deps.getPool : getPool;
+  const oauthGoogleClient = deps?.googleClient || googleClient;
+
+  async function registerUserCredential(input = {}) {
+    const { email, password, display_name, tenant_display_name } = input;
+    if (!email || !password || !display_name) {
+      throw authRouteFailure(400, "missing_fields", "email, password, and display_name are required.");
+    }
+
+    const user_id = randomUUID();
+    const tenant_id = randomUUID();
+    const password_hash = await bcrypt.hash(password, 10);
+    const tenantName = tenant_display_name || `${display_name}'s workspace`;
+    const connection = await resolvePool().getConnection();
+    try {
+      await connection.beginTransaction();
+      await connection.query(
+        `INSERT INTO \`users\` (user_id, email, display_name, status) VALUES (?, ?, ?, ?)`,
+        [user_id, email, display_name, "active"]
+      );
+      await connection.query(
+        `INSERT INTO \`user_credentials\` (user_id, auth_provider, password_hash) VALUES (?, ?, ?)`,
+        [user_id, "platform", password_hash]
+      );
+      await connection.query(
+        `INSERT INTO \`tenants\` (tenant_id, tenant_type, display_name, status, metadata_json)
+         VALUES (?, 'managed_client_account', ?, 'active', ?)`,
+        [tenant_id, tenantName, JSON.stringify({ source: "self_serve_signup" })]
+      );
+      await connection.query(
+        `INSERT INTO \`memberships\` (user_id, tenant_id, role, status) VALUES (?, ?, 'owner', 'active')`,
+        [user_id, tenant_id]
+      );
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      if (error?.code === "ER_DUP_ENTRY") {
+        throw authRouteFailure(409, "user_already_exists", "A user with this email already exists.");
+      }
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+    return {
+      user_id,
+      email,
+      display_name,
+      tenant_id,
+      memberships: [{ tenant_id, role: "owner", status: "active" }],
+    };
+  }
+
+  async function loginUserCredential(input = {}) {
+    const { email, password } = input;
+    if (!email || !password) {
+      throw authRouteFailure(400, "missing_fields", "email and password are required.");
+    }
+
+    const pool = resolvePool();
+    const [rows] = await pool.query(
+      `SELECT u.user_id, u.email, u.display_name, u.status, uc.password_hash
+       FROM \`users\` u
+       JOIN \`user_credentials\` uc ON u.user_id = uc.user_id
+       WHERE u.email = ? AND uc.auth_provider = 'platform' LIMIT 1`,
+      [email]
+    );
+    if (!rows.length) {
+      throw authRouteFailure(401, "invalid_credentials", "Invalid email or password.");
+    }
+
+    const user = rows[0];
+    if (user.status !== "active") {
+      throw authRouteFailure(403, "account_inactive", "Account is not active.");
+    }
+    if (!(await bcrypt.compare(password, user.password_hash))) {
+      throw authRouteFailure(401, "invalid_credentials", "Invalid email or password.");
+    }
+
+    const [memberships] = await pool.query(
+      `SELECT m.tenant_id, m.role, m.status, t.display_name AS tenant_display_name
+       FROM \`memberships\` m
+       LEFT JOIN \`tenants\` t ON t.tenant_id = m.tenant_id
+       WHERE m.user_id = ? AND m.status = 'active'
+       ORDER BY m.granted_at ASC`,
+      [user.user_id]
+    );
+    return {
+      user_id: user.user_id,
+      email: user.email,
+      display_name: user.display_name,
+      tenant_id: memberships[0]?.tenant_id || null,
+      memberships,
+    };
+  }
+
+  async function googleUserCredential(input = {}) {
+    const { id_token } = input;
+    if (!id_token) throw authRouteFailure(400, "missing_fields", "id_token is required.");
+
+    let payload;
+    try {
+      const ticket = await oauthGoogleClient.verifyIdToken({
+        idToken: id_token,
+        audience: GOOGLE_CLIENT_ID || undefined,
+      });
+      payload = ticket.getPayload();
+    } catch {
+      throw authRouteFailure(401, "invalid_token", "Invalid Google ID token.");
+    }
+
+    const { sub: provider_id, email, name: display_name } = payload || {};
+    if (!provider_id || !email) {
+      throw authRouteFailure(401, "invalid_token", "Google ID token is missing the required identity claims.");
+    }
+
+    const pool = resolvePool();
+    const connection = await pool.getConnection();
+    let user_id;
+    try {
+      await connection.beginTransaction();
+      const [credRows] = await connection.query(
+        `SELECT user_id FROM \`user_credentials\` WHERE auth_provider = 'google' AND provider_id = ? LIMIT 1`,
+        [provider_id]
+      );
+      if (credRows.length) {
+        user_id = credRows[0].user_id;
+      } else {
+        const [userRows] = await connection.query(
+          `SELECT user_id FROM \`users\` WHERE email = ? LIMIT 1`,
+          [email]
+        );
+        if (userRows.length) {
+          user_id = userRows[0].user_id;
+        } else {
+          user_id = randomUUID();
+          const newTenantId = randomUUID();
+          const tenantName = `${display_name || email}'s workspace`;
+          await connection.query(
+            `INSERT INTO \`users\` (user_id, email, display_name, status) VALUES (?, ?, ?, ?)`,
+            [user_id, email, display_name, "active"]
+          );
+          await connection.query(
+            `INSERT INTO \`tenants\` (tenant_id, tenant_type, display_name, status, metadata_json)
+             VALUES (?, 'managed_client_account', ?, 'active', ?)`,
+            [newTenantId, tenantName, JSON.stringify({ source: "google_signup" })]
+          );
+          await connection.query(
+            `INSERT INTO \`memberships\` (user_id, tenant_id, role, status) VALUES (?, ?, 'owner', 'active')`,
+            [user_id, newTenantId]
+          );
+        }
+        await connection.query(
+          `INSERT INTO \`user_credentials\` (user_id, auth_provider, provider_id) VALUES (?, ?, ?)`,
+          [user_id, "google", provider_id]
+        );
+      }
+
+      await ensureDefaultWorkspaceForUser(connection, {
+        userId: user_id,
+        email,
+        displayName: display_name,
+        source: "google_existing_user_workspace_repair",
+      });
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+    const [memberships] = await pool.query(
+      `SELECT m.tenant_id, m.role, m.status, t.display_name AS tenant_display_name
+       FROM \`memberships\` m
+       LEFT JOIN \`tenants\` t ON t.tenant_id = m.tenant_id
+       WHERE m.user_id = ? AND m.status = 'active'
+       ORDER BY m.granted_at ASC`,
+      [user_id]
+    );
+    return {
+      user_id,
+      email,
+      display_name,
+      tenant_id: memberships[0]?.tenant_id || null,
+      memberships,
+    };
+  }
+
+  async function resolveTenantGptOAuthCredential(credential) {
+    if (!credential || typeof credential !== "object" || Array.isArray(credential)) {
+      throw authRouteFailure(400, "missing_fields", "token or credential is required.");
+    }
+    if (typeof deps?.resolveTenantGptOAuthCredential === "function") {
+      const resolved = await deps.resolveTenantGptOAuthCredential(credential);
+      if (!resolved?.user_id) throw authRouteFailure(401, "invalid_credentials", "OAuth identity could not be resolved.");
+      return resolved;
+    }
+    if (credential.kind === "login") return loginUserCredential(credential);
+    if (credential.kind === "register") return registerUserCredential(credential);
+    if (credential.kind === "google") return googleUserCredential(credential);
+    throw authRouteFailure(400, "unsupported_credential", "OAuth credential kind is not supported.");
+  }
+
+  function legacyAuthResponse(identity) {
+    return {
+      ok: true,
+      ...identity,
+      token: jwt.sign(
+        { user_id: identity.user_id, email: identity.email, tenant_id: identity.tenant_id || null },
+        JWT_SECRET,
+        { expiresIn: "7d" }
+      ),
+    };
+  }
 
   if (typeof requireBackendApiKey === "function") {
     router.post("/platform-jwt/issue", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
@@ -713,9 +956,22 @@ export function buildAuthRoutes(deps) {
   }
 
   router.get("/oauth/authorize", async (req, res) => {
+    const oauthClientId = String(req.query.client_id || "");
+    const responseType = String(req.query.response_type || "");
     const redirectUri = String(req.query.redirect_uri || "");
     const state = String(req.query.state || "");
+    const requestedScope = cleanTenantGptRequestedScope(req.query.scope);
     const activationContext = parseActivationContext(req.query);
+
+    if (oauthClientId !== TENANT_GPT_OAUTH_CLIENT_ID) {
+      return res.status(400).type("text/plain").send("OAuth client_id is not allowed for the Tenant GPT client.");
+    }
+    if (responseType !== "code") {
+      return res.status(400).type("text/plain").send("OAuth response_type must be code for the Tenant GPT client.");
+    }
+    if (!state) {
+      return res.status(400).type("text/plain").send("OAuth state is required for the Tenant GPT client.");
+    }
 
     const query = (sql, params) => resolvePool().query(sql, params);
     if (!(await isAllowedTenantGptRedirectUri(redirectUri, query))) {
@@ -726,24 +982,30 @@ export function buildAuthRoutes(deps) {
     return res
       .status(200)
       .type("html")
-      .send(buildOAuthAuthorizeHtml({ clientId: GOOGLE_CLIENT_ID, redirectUri, state, activationContext }));
+      .send(buildOAuthAuthorizeHtml({ clientId: GOOGLE_CLIENT_ID, redirectUri, state, activationContext, requestedScope }));
   });
 
   router.post("/oauth/code", async (req, res) => {
     try {
-      const { token, redirect_uri, state } = req.body || {};
+      const { token, credential, redirect_uri, state } = req.body || {};
+      const requested_scope = cleanTenantGptRequestedScope(req.body?.scope);
       const activation_context = req.body?.activation_context && typeof req.body.activation_context === "object"
         ? parseActivationContext(req.body.activation_context)
         : {};
-      if (!token || !redirect_uri) {
-        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "token and redirect_uri are required." } });
+      if (!redirect_uri || (!token && !credential)) {
+        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "redirect_uri and either token or credential are required." } });
+      }
+      if (!state) {
+        return res.status(400).json({ ok: false, error: { code: "missing_state", message: "state is required." } });
       }
       const query = (sql, params) => resolvePool().query(sql, params);
       if (!(await isAllowedTenantGptRedirectUri(redirect_uri, query))) {
         return res.status(400).json({ ok: false, error: { code: "invalid_redirect_uri", message: "redirect_uri is not allowed for the Tenant GPT client." } });
       }
 
-      const payload = jwt.verify(token, JWT_SECRET);
+      const payload = token
+        ? jwt.verify(token, JWT_SECRET)
+        : await resolveTenantGptOAuthCredential(credential);
       if (!payload.user_id) {
         return res.status(400).json({ ok: false, error: { code: "invalid_token", message: "User token is missing user_id." } });
       }
@@ -754,6 +1016,7 @@ export function buildAuthRoutes(deps) {
           email: payload.email,
           tenant_id: payload.tenant_id || null,
           redirect_uri,
+          scope: requested_scope || null,
           activation_context,
         },
         JWT_SECRET,
@@ -767,7 +1030,13 @@ export function buildAuthRoutes(deps) {
         activation_context,
         redirect_to: appendOAuthParams(redirect_uri, { code, state }),
       });
-    } catch {
+    } catch (error) {
+      if (Number.isInteger(error?.auth_status) && error?.auth_code) {
+        return sendAuthRouteFailure(res, error, "oauth_identity_failed");
+      }
+      if (!req.body?.token) {
+        return res.status(500).json({ ok: false, error: { code: "oauth_identity_failed", message: "OAuth identity could not be resolved." } });
+      }
       return res.status(401).json({ ok: false, error: { code: "invalid_token", message: "User token is invalid or expired." } });
     }
   });
@@ -832,6 +1101,7 @@ export function buildAuthRoutes(deps) {
       tokenLogContext.code_jti_present = Boolean(codePayload.jti);
       tokenLogContext.user_id_present = Boolean(codePayload.user_id);
       tokenLogContext.tenant_id_present = Boolean(codePayload.tenant_id);
+      tokenLogContext.requested_scope = safeOAuthScopeEvidence(codePayload.scope);
       if (codePayload.purpose !== "custom_gpt_oauth_code" || !codePayload.user_id) {
         logTokenExchange("failed", "invalid_oauth_code_payload", 400);
         return res.status(400).json({ error: "invalid_grant", error_description: "Invalid OAuth code." });
@@ -861,24 +1131,43 @@ export function buildAuthRoutes(deps) {
         [codePayload.user_id]
       );
       const tenantId = codePayload.tenant_id || memRows[0]?.tenant_id || null;
+      const accessJti = randomUUID();
+      const accessExpiresAt = new Date(Date.now() + USER_TOKEN_TTL_SECONDS * 1000);
       const accessToken = issueTenantGptAccessToken(
         { user_id: tokenUser.user_id, email: tokenUser.email, tenant_id: tenantId },
-        { clientId: clientValidation.client_id }
+        { clientId: clientValidation.client_id, jwtid: accessJti, compact: true }
       );
+      const activationContextRecord = await recordTenantGptActivationContext({
+        query: tokenQuery,
+        access_jti: accessJti,
+        oauth_code_jti: codePayload.jti,
+        user_id: tokenUser.user_id,
+        tenant_id: tenantId,
+        client_id: clientValidation.client_id,
+        activation_context: codePayload.activation_context,
+        expires_at: accessExpiresAt,
+      });
 
       res.setHeader("Cache-Control", "no-store");
       res.setHeader("Pragma", "no-cache");
       logTokenExchange("success", null, 200, {
         access_token: {
-          token_type: "Bearer",
+          token_type: "bearer",
           length: accessToken.length,
         },
+        activation_context: {
+          stored: activationContextRecord.stored === true,
+          source: activationContextRecord.source || null,
+          reason: activationContextRecord.reason || null,
+        },
       });
-      return res.status(200).json({
+      const tokenResponse = {
         access_token: accessToken,
-        token_type: "Bearer",
+        token_type: "bearer",
         expires_in: USER_TOKEN_TTL_SECONDS,
-      });
+      };
+      if (codePayload.scope) tokenResponse.scope = codePayload.scope;
+      return res.status(200).json(tokenResponse);
     } catch (err) {
       logTokenExchange("failed", err?.name === "TokenExpiredError" ? "oauth_code_expired" : "oauth_code_invalid_or_exception", 400, {
         exception_name: err?.name || null,
@@ -890,124 +1179,18 @@ export function buildAuthRoutes(deps) {
   // ── POST /auth/register ─────────────────────────────────────────────────────
   router.post("/register", async (req, res) => {
     try {
-      const { email, password, display_name, tenant_display_name } = req.body || {};
-      if (!email || !password || !display_name) {
-        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "email, password, and display_name are required." } });
-      }
-
-      const user_id = randomUUID();
-      const tenant_id = randomUUID();
-      const password_hash = await bcrypt.hash(password, 10);
-      const tenantName = tenant_display_name || `${display_name}'s workspace`;
-
-      // Attempt to create user
-      const connection = await getPool().getConnection();
-      try {
-        await connection.beginTransaction();
-
-        await connection.query(
-          `INSERT INTO \`users\` (user_id, email, display_name, status) VALUES (?, ?, ?, ?)`,
-          [user_id, email, display_name, "active"]
-        );
-
-        await connection.query(
-          `INSERT INTO \`user_credentials\` (user_id, auth_provider, password_hash) VALUES (?, ?, ?)`,
-          [user_id, "platform", password_hash]
-        );
-
-        await connection.query(
-          `INSERT INTO \`tenants\` (tenant_id, tenant_type, display_name, status, metadata_json)
-           VALUES (?, 'managed_client_account', ?, 'active', ?)`,
-          [tenant_id, tenantName, JSON.stringify({ source: "self_serve_signup" })]
-        );
-
-        await connection.query(
-          `INSERT INTO \`memberships\` (user_id, tenant_id, role, status) VALUES (?, ?, 'owner', 'active')`,
-          [user_id, tenant_id]
-        );
-
-        await connection.commit();
-      } catch (err) {
-        await connection.rollback();
-        if (err.code === "ER_DUP_ENTRY") {
-          return res.status(409).json({ ok: false, error: { code: "user_already_exists", message: "A user with this email already exists." } });
-        }
-        throw err;
-      } finally {
-        connection.release();
-      }
-
-      // Generate token
-      const token = jwt.sign({ user_id, email, tenant_id }, JWT_SECRET, { expiresIn: "7d" });
-
-      return res.status(201).json({
-        ok: true,
-        user_id,
-        email,
-        display_name,
-        tenant_id,
-        memberships: [{ tenant_id, role: "owner", status: "active" }],
-        token
-      });
+      return res.status(201).json(legacyAuthResponse(await registerUserCredential(req.body || {})));
     } catch (err) {
-      return res.status(500).json({ ok: false, error: { code: "registration_failed", message: err.message } });
+      return sendAuthRouteFailure(res, err, "registration_failed");
     }
   });
 
   // ── POST /auth/login ────────────────────────────────────────────────────────
   router.post("/login", async (req, res) => {
     try {
-      const { email, password } = req.body || {};
-      if (!email || !password) {
-        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "email and password are required." } });
-      }
-
-      const [rows] = await getPool().query(
-        `SELECT u.user_id, u.email, u.display_name, u.status, uc.password_hash
-         FROM \`users\` u
-         JOIN \`user_credentials\` uc ON u.user_id = uc.user_id
-         WHERE u.email = ? AND uc.auth_provider = 'platform' LIMIT 1`,
-        [email]
-      );
-
-      if (!rows.length) {
-        return res.status(401).json({ ok: false, error: { code: "invalid_credentials", message: "Invalid email or password." } });
-      }
-
-      const user = rows[0];
-      if (user.status !== "active") {
-        return res.status(403).json({ ok: false, error: { code: "account_inactive", message: "Account is not active." } });
-      }
-
-      const match = await bcrypt.compare(password, user.password_hash);
-      if (!match) {
-        return res.status(401).json({ ok: false, error: { code: "invalid_credentials", message: "Invalid email or password." } });
-      }
-
-      const [memberships] = await getPool().query(
-        `SELECT m.tenant_id, m.role, m.status, t.display_name AS tenant_display_name
-           FROM \`memberships\` m
-           LEFT JOIN \`tenants\` t ON t.tenant_id = m.tenant_id
-          WHERE m.user_id = ? AND m.status = 'active'
-          ORDER BY m.granted_at ASC`,
-        [user.user_id]
-      );
-      const tenant_id = memberships[0]?.tenant_id || null;
-
-      // Generate token
-      const token = jwt.sign({ user_id: user.user_id, email: user.email, tenant_id }, JWT_SECRET, { expiresIn: "7d" });
-
-      return res.status(200).json({
-        ok: true,
-        user_id: user.user_id,
-        email: user.email,
-        display_name: user.display_name,
-        tenant_id,
-        memberships,
-        token
-      });
+      return res.status(200).json(legacyAuthResponse(await loginUserCredential(req.body || {})));
     } catch (err) {
-      return res.status(500).json({ ok: false, error: { code: "login_failed", message: err.message } });
+      return sendAuthRouteFailure(res, err, "login_failed");
     }
   });
 
@@ -1144,106 +1327,9 @@ export function buildAuthRoutes(deps) {
   // ── POST /auth/google ───────────────────────────────────────────────────────
   router.post("/google", async (req, res) => {
     try {
-      const { id_token } = req.body || {};
-      if (!id_token) {
-        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "id_token is required." } });
-      }
-
-      // Verify Google token
-      let payload;
-      try {
-        const ticket = await googleClient.verifyIdToken({
-          idToken: id_token,
-          audience: GOOGLE_CLIENT_ID ? GOOGLE_CLIENT_ID : undefined,
-        });
-        payload = ticket.getPayload();
-      } catch (verifyErr) {
-        return res.status(401).json({ ok: false, error: { code: "invalid_token", message: "Invalid Google ID token." } });
-      }
-
-      const { sub: provider_id, email, name: display_name } = payload;
-
-      const connection = await getPool().getConnection();
-      let user_id;
-
-      try {
-        await connection.beginTransaction();
-
-        // Check if user credentials already exist for this Google ID
-        const [credRows] = await connection.query(
-          `SELECT user_id FROM \`user_credentials\` WHERE auth_provider = 'google' AND provider_id = ? LIMIT 1`,
-          [provider_id]
-        );
-
-        if (credRows.length) {
-          user_id = credRows[0].user_id;
-        } else {
-          // Check if a user with this email already exists
-          const [userRows] = await connection.query(
-            `SELECT user_id FROM \`users\` WHERE email = ? LIMIT 1`,
-            [email]
-          );
-
-          if (userRows.length) {
-            user_id = userRows[0].user_id;
-          } else {
-            // Brand new user — create user, tenant, and owner membership in one transaction.
-            user_id = randomUUID();
-            const newTenantId = randomUUID();
-            const tenantName = `${display_name || email}'s workspace`;
-            await connection.query(
-              `INSERT INTO \`users\` (user_id, email, display_name, status) VALUES (?, ?, ?, ?)`,
-              [user_id, email, display_name, "active"]
-            );
-            await connection.query(
-              `INSERT INTO \`tenants\` (tenant_id, tenant_type, display_name, status, metadata_json)
-               VALUES (?, 'managed_client_account', ?, 'active', ?)`,
-              [newTenantId, tenantName, JSON.stringify({ source: "google_signup" })]
-            );
-            await connection.query(
-              `INSERT INTO \`memberships\` (user_id, tenant_id, role, status) VALUES (?, ?, 'owner', 'active')`,
-              [user_id, newTenantId]
-            );
-          }
-
-          // Link Google credential
-          await connection.query(
-            `INSERT INTO \`user_credentials\` (user_id, auth_provider, provider_id) VALUES (?, ?, ?)`,
-            [user_id, "google", provider_id]
-          );
-        }
-
-        await ensureDefaultWorkspaceForUser(connection, {
-          userId: user_id,
-          email,
-          displayName: display_name,
-          source: "google_existing_user_workspace_repair",
-        });
-
-        await connection.commit();
-      } catch (err) {
-        await connection.rollback();
-        throw err;
-      } finally {
-        connection.release();
-      }
-
-      const [memberships] = await getPool().query(
-        `SELECT m.tenant_id, m.role, m.status, t.display_name AS tenant_display_name
-           FROM \`memberships\` m
-           LEFT JOIN \`tenants\` t ON t.tenant_id = m.tenant_id
-          WHERE m.user_id = ? AND m.status = 'active'
-          ORDER BY m.granted_at ASC`,
-        [user_id]
-      );
-      const tenant_id = memberships[0]?.tenant_id || null;
-
-      // Generate JWT
-      const token = jwt.sign({ user_id, email, tenant_id }, JWT_SECRET, { expiresIn: "7d" });
-
-      return res.status(200).json({ ok: true, user_id, email, display_name, tenant_id, memberships, token });
+      return res.status(200).json(legacyAuthResponse(await googleUserCredential(req.body || {})));
     } catch (err) {
-      return res.status(500).json({ ok: false, error: { code: "google_auth_failed", message: err.message } });
+      return sendAuthRouteFailure(res, err, "google_auth_failed");
     }
   });
 

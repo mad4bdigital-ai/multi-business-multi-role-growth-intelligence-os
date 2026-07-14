@@ -19,6 +19,11 @@ const testCommit = "2".repeat(40);
 const migrationFile = "http-generic-api/migrations/245_sprint68_agent_governance_runtime.sql";
 const testFile = "http-generic-api/test-agent-governance-runtime.mjs";
 const generatedFile = "docs/auto-docs-agent/pr-1579.md";
+const legacyDashboardMigrationFile = "http-generic-api/migrations/1039_sprint69_capability_enablement_operational_dashboard.sql";
+const appliedDashboardMigrationFile = "http-generic-api/migrations/1040_sprint69_capability_enablement_operational_dashboard.sql";
+const appliedDashboardMigrationName = "1040_sprint69_capability_enablement_operational_dashboard.sql";
+const appliedDashboardMigrationChecksum = "2282274085d80d987d2117f22aa92cdb724209bf6a9c325d1ad16515f8897d77";
+const appliedDashboardCommit = "7".repeat(40);
 const policy = {
   allow_superseded_closed_pr_branch_delete: true,
   superseded_branch_delete_requires_closed_pr: true,
@@ -178,8 +183,9 @@ const highAheadExpired = await buildSupersededBranchCleanupEvidence(args, {
   fetchImpl: highAheadFetch,
   now: fixedNow,
 });
-assert.equal(highAheadExpired.ready, false);
-assert(highAheadExpired.blockers.includes("ahead_commit_limit_exceeded"));
+assert.equal(highAheadExpired.ready, true);
+assert(!highAheadExpired.blockers.includes("ahead_commit_limit_exceeded"));
+assert(highAheadExpired.advisories.includes("ahead_commit_limit_exceeded_resolved_by_file_coverage"));
 assert(highAheadExpired.policy_evidence.branch_limit.validation_failures.includes("override_expired_or_invalid"));
 
 const mismatchedShaOverride = {
@@ -197,8 +203,9 @@ const highAheadShaMismatch = await buildSupersededBranchCleanupEvidence(args, {
   fetchImpl: highAheadFetch,
   now: fixedNow,
 });
-assert.equal(highAheadShaMismatch.ready, false);
-assert(highAheadShaMismatch.blockers.includes("ahead_commit_limit_exceeded"));
+assert.equal(highAheadShaMismatch.ready, true);
+assert(!highAheadShaMismatch.blockers.includes("ahead_commit_limit_exceeded"));
+assert(highAheadShaMismatch.advisories.includes("ahead_commit_limit_exceeded_resolved_by_file_coverage"));
 assert(highAheadShaMismatch.policy_evidence.branch_limit.validation_failures.includes("override_branch_sha_mismatch"));
 
 await assert.rejects(
@@ -234,6 +241,64 @@ assert.equal(incompleteCoverage.ready, false);
 assert(incompleteCoverage.blockers.includes("changed_file_coverage_incomplete"));
 assert.deepEqual(incompleteCoverage.branch_evidence.uncovered_files, [testFile]);
 assert.equal(deleteCalls, 0);
+
+const supersededMigrationFetch = async (url, options = {}) => {
+  const apiPath = `${new URL(url).pathname}${new URL(url).search}`;
+  if (apiPath.includes(`/compare/main...${encodeURIComponent(branch)}`)) {
+    return response(200, {
+      status: "diverged",
+      ahead_by: 3,
+      behind_by: 70,
+      files: [{ filename: legacyDashboardMigrationFile }, { filename: testFile }, { filename: generatedFile }],
+    });
+  }
+  if (apiPath.includes(`/commits/${appliedDashboardCommit}`)) return response(200, { sha: appliedDashboardCommit, files: [{ filename: appliedDashboardMigrationFile }] });
+  if (apiPath.includes(`/compare/${appliedDashboardCommit}...main`)) return response(200, { status: "ahead", ahead_by: 1, behind_by: 0 });
+  return fetchImpl(url, options);
+};
+const supersededMigrationArgs = {
+  ...args,
+  superseding_commits: [appliedDashboardCommit, testCommit],
+  coverage_resolutions: [{
+    file: legacyDashboardMigrationFile,
+    resolution_type: "migration_superseded_by_applied_migration",
+    superseded_by_file: appliedDashboardMigrationFile,
+    superseded_by_commit: appliedDashboardCommit,
+    expected_migration_checksum_sha256: appliedDashboardMigrationChecksum,
+    expected_statement_count: 3,
+    reason: "Migration 1039 was intentionally not ported because migration 1040 superseded and applied the same operational dashboard intent.",
+  }],
+};
+const migrationLedger = {
+  [appliedDashboardMigrationName]: {
+    migration_file: appliedDashboardMigrationName,
+    mode: "apply",
+    migration_checksum_sha256: appliedDashboardMigrationChecksum,
+    statement_count: 3,
+    applied_at: "2026-07-07T20:58:00.000Z",
+  },
+};
+const supersededMigrationCovered = await buildSupersededBranchCleanupEvidence(supersededMigrationArgs, { ...deps, fetchImpl: supersededMigrationFetch, migrationLedger });
+assert.equal(supersededMigrationCovered.ready, true);
+assert.deepEqual(supersededMigrationCovered.blockers, []);
+assert.deepEqual(supersededMigrationCovered.branch_evidence.uncovered_files, []);
+assert.deepEqual(supersededMigrationCovered.branch_evidence.coverage_resolved_files, [legacyDashboardMigrationFile]);
+assert.equal(supersededMigrationCovered.branch_evidence.coverage_resolutions[0].superseded_by_file, appliedDashboardMigrationFile);
+assert.equal(supersededMigrationCovered.branch_evidence.coverage_resolutions[0].migration_ledger_evidence.ledger_readback_found, true);
+assert.deepEqual(supersededMigrationCovered.branch_evidence.rejected_coverage_resolutions, []);
+
+const rejectedSupersededMigration = await buildSupersededBranchCleanupEvidence({
+  ...supersededMigrationArgs,
+  coverage_resolutions: [{
+    ...supersededMigrationArgs.coverage_resolutions[0],
+    superseded_by_file: "http-generic-api/migrations/9999_missing.sql",
+  }],
+}, { ...deps, fetchImpl: supersededMigrationFetch, migrationLedger });
+assert.equal(rejectedSupersededMigration.ready, false);
+assert(rejectedSupersededMigration.blockers.includes("coverage_resolution_rejected"));
+assert(rejectedSupersededMigration.blockers.includes("changed_file_coverage_incomplete"));
+assert.deepEqual(rejectedSupersededMigration.branch_evidence.uncovered_files, [legacyDashboardMigrationFile]);
+assert.equal(rejectedSupersededMigration.branch_evidence.rejected_coverage_resolutions[0].failures[0], "replacement_file_not_in_replacement_commit");
 
 const orphanMigrationBlob = "3".repeat(40);
 const orphanTestBlob = "4".repeat(40);
@@ -354,6 +419,8 @@ assert.match(routes, /requireGithubSupersededBranchCleanupEnvelope/);
 assert.match(routes, /acceptedIntents: \["github_superseded_branch_cleanup", "github_branch_delete", "branch_cleanup", "repo_mutation"\]/);
 assert.match(routes, /runGithubSupersededBranchCleanup/);
 assert.match(routes, /allow_orphan_branch/);
+assert.match(routes, /coverage_resolutions/);
+assert.match(routes, /migration_superseded_by_applied_migration/);
 assert.match(migration, /allow_superseded_closed_pr_branch_delete/);
 assert.match(migration, /superseded_branch_delete_requires_changed_file_coverage/);
 assert.match(migration, /superseded_branch_delete_requires_same_cycle_readback/);

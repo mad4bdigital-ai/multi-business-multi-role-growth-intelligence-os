@@ -148,6 +148,9 @@ assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
   assert.equal(source.includes("NULL AS activation_prompt"), true);
   assert.equal(source.includes("NULL AS conversation_context_ref"), true);
   assert.equal(source.includes("resolvePlatformGraphMemory"), true);
+  assert.equal(source.includes("loadTenantGptActivationContext"), true);
+  assert.equal(source.includes("activation_context: activationContext"), true);
+  assert.equal(source.includes("accessJti = req.auth?.claims?.jti"), true);
 }
 
 {
@@ -206,12 +209,13 @@ assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
     if (sql.includes("FROM `connected_systems`")) return { ok: true, rows: [{ system_id: "system-1", tenant_id: "tenant-a", system_key: "wp", display_name: "WordPress", provider_family: "wordpress", connector_family: "wordpress_rest", auth_type: "oauth", service_mode: "managed", status: "active" }] };
     if (sql.includes("FROM `installations`")) return { ok: true, rows: [{ installation_id: "install-1", system_id: "system-1", tenant_id: "tenant-a", scope: "posts.read,posts.write", status: "active", expires_at: null }] };
     if (sql.includes("FROM `permission_grants`")) return { ok: true, rows: [{ permission_key: "wp_publish", tenant_id: "tenant-a", installation_id: "install-1", granted: 1 }] };
+    if (sql.includes("FROM `tenant_gpt_activation_contexts`")) return { ok: true, rows: [{ access_jti: "access-1", user_id: "user-a", tenant_id: "tenant-a", activation_context_json: JSON.stringify({ purpose: "tenant_activation", activation_mode: "managed", workspace_name: "Brand A Workspace", secrets_included: false }), created_at: "2026-07-09T00:00:00.000Z", updated_at: "2026-07-09T00:00:00.000Z", expires_at: "2026-07-16T00:00:00.000Z" }] };
     if (sql.includes("FROM `actions`")) return { ok: true, rows: [{ action_key: "wp_publish", action_title: "Publish", action_class: "content", connector_family: "wordpress_rest", runtime_capability_class: "cms_write", runtime_callable: "true", admin_only: "false", allowed_actor_roles: "owner,growth_operator", allowed_governance_levels: "tenant" }] };
     return { ok: false, rows: [], error: { code: "unexpected_query", message: sql } };
   };
 
   const access = await buildActivationAuthorizedAccess(
-    { auth: { mode: "user_jwt", is_admin: false, user_id: "user-a", tenant_id: "tenant-a" }, query: {} },
+    { auth: { mode: "user_jwt", is_admin: false, user_id: "user-a", tenant_id: "tenant-a", claims: { jti: "access-1" } }, query: {} },
     { is_admin: false, user_id: "user-a", tenant_id: "tenant-a" },
     { query }
   );
@@ -231,6 +235,9 @@ assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
   assert.equal(access.activation_policy.do_not_infer_access_from_global_counts, true);
   assert.equal(access.authorized.registered_surfaces.length, 1);
   assert.equal(access.authorized.registered_surfaces[0].surface_key, "workspace_registry");
+  assert.equal(access.authorized.activation_context.available, true);
+  assert.equal(access.authorized.activation_context.context.activation_mode, "managed");
+  assert.equal(access.authorized.activation_context.context.workspace_name, "Brand A Workspace");
   assert.equal(JSON.stringify(access.authorized.registered_surfaces).includes("credential_ref"), false);
   assert.equal(JSON.stringify(access.authorized.registered_surfaces).includes("config_json"), false);
   assert.equal(access.secrets_included, false);
@@ -246,6 +253,7 @@ assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
     if (sql.includes("FROM `permission_grants`")) return { ok: true, rows: [] };
     if (sql.includes("FROM `actions`")) return { ok: true, rows: [] };
     if (sql.includes("FROM `admin_platform_endpoint_tools`")) return { ok: true, rows: [{ tool_key: "release_readiness", display_name: "Release Readiness", http_method: "POST", http_path: "/gpt/tools/call", tags: "admin,readiness" }] };
+    if (sql.includes("FROM `tenant_gpt_activation_contexts`")) return { ok: true, rows: [] };
     return { ok: true, rows: [] };
   };
   const access = await buildActivationAuthorizedAccess(

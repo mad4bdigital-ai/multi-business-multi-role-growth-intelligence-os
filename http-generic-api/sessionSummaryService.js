@@ -115,6 +115,111 @@ function titleFromStatement(insightType, statement) {
   return boundedText(`${prefix}: ${clean}`, 180);
 }
 
+export const SESSION_SUMMARY_GRAPH_POLICY_SURFACE_KEY = "session_summary_graph_policy";
+
+const SESSION_SUMMARY_GRAPH_ALLOWED_SCOPES = Object.freeze(["conversation", "tenant", "user", "workspace", "brand"]);
+
+const DEFAULT_SESSION_SUMMARY_GRAPH_POLICY = Object.freeze({
+  enforcement_mode: "required",
+  graph_attachment_required: true,
+  require_graph_readback: true,
+  require_surface_execution: false,
+  raw_transcript_allowed: false,
+  promotion_allowed: false,
+  require_human_review_for_promotions: true,
+  allowed_scope_types: ["conversation", "tenant", "user", "workspace"],
+  max_summary_text_chars: 1600,
+  max_array_items: MAX_ARRAY_ITEMS,
+  policy_source: "default_required_graph_policy",
+  secrets_included: false,
+});
+
+function normalizeBooleanPreference(value, fallback) {
+  if (value === true || value === 1) return true;
+  if (value === false || value === 0) return false;
+  const token = String(value ?? "").trim().toLowerCase();
+  if (["true", "1", "yes", "enabled", "required", "strict"].includes(token)) return true;
+  if (["false", "0", "no", "disabled", "advisory"].includes(token)) return false;
+  return fallback;
+}
+
+function normalizeAllowedGraphScopes(value) {
+  const requested = normalizeArray(value).map((scope) => String(scope || "").trim().toLowerCase());
+  const allowed = requested.filter((scope) => SESSION_SUMMARY_GRAPH_ALLOWED_SCOPES.includes(scope));
+  return allowed.length ? [...new Set(allowed)] : [...DEFAULT_SESSION_SUMMARY_GRAPH_POLICY.allowed_scope_types];
+}
+
+function normalizeSessionSummaryGraphPolicy(preferences = {}, source = "default_required_graph_policy") {
+  const raw = preferences && typeof preferences === "object" ? preferences : {};
+  const requireSurfaceExecution = normalizeBooleanPreference(
+    raw.require_surface_execution ?? raw.requireSurfaceExecution,
+    DEFAULT_SESSION_SUMMARY_GRAPH_POLICY.require_surface_execution
+  );
+  const maxSummaryTextChars = Math.max(
+    200,
+    Math.min(Number(raw.max_summary_text_chars || raw.maxSummaryTextChars || DEFAULT_SESSION_SUMMARY_GRAPH_POLICY.max_summary_text_chars), 4000)
+  );
+  const maxArrayItems = Math.max(
+    1,
+    Math.min(Number(raw.max_array_items || raw.maxArrayItems || DEFAULT_SESSION_SUMMARY_GRAPH_POLICY.max_array_items), MAX_ARRAY_ITEMS)
+  );
+  return {
+    ...DEFAULT_SESSION_SUMMARY_GRAPH_POLICY,
+    require_surface_execution: requireSurfaceExecution,
+    allowed_scope_types: normalizeAllowedGraphScopes(raw.allowed_scope_types || raw.allowedScopeTypes),
+    max_summary_text_chars: maxSummaryTextChars,
+    max_array_items: maxArrayItems,
+    policy_source: source,
+    graph_attachment_required: true,
+    require_graph_readback: true,
+    raw_transcript_allowed: false,
+    promotion_allowed: false,
+    require_human_review_for_promotions: true,
+    secrets_included: false,
+  };
+}
+
+export async function resolveSessionSummaryGraphPolicy({ pool = getPool(), session = {} } = {}) {
+  const tenantId = session.tenant_id || PLATFORM_TENANT_ID;
+  const userId = session.user_id || null;
+  try {
+    const [rows] = await pool.query(
+      `SELECT preference_id, tenant_id, user_id, surface_key, preferences_json, updated_at
+         FROM \`user_agent_surface_preferences\`
+        WHERE surface_key = ?
+          AND status = 'active'
+          AND (tenant_id = ? OR tenant_id = ? OR tenant_id IS NULL OR tenant_id = '' OR tenant_id = '*')
+          AND (user_id = ? OR user_id IS NULL OR user_id = '' OR user_id = '*')
+        ORDER BY CASE
+          WHEN tenant_id = ? AND user_id = ? THEN 0
+          WHEN tenant_id = ? AND (user_id IS NULL OR user_id = '' OR user_id = '*') THEN 1
+          WHEN tenant_id = ? THEN 2
+          ELSE 3
+        END,
+        updated_at DESC
+        LIMIT 1`,
+      [
+        SESSION_SUMMARY_GRAPH_POLICY_SURFACE_KEY,
+        tenantId,
+        PLATFORM_TENANT_ID,
+        userId,
+        tenantId,
+        userId,
+        tenantId,
+        PLATFORM_TENANT_ID,
+      ]
+    );
+    const row = rows?.[0] || null;
+    if (!row) return normalizeSessionSummaryGraphPolicy({}, "default_required_graph_policy");
+    return normalizeSessionSummaryGraphPolicy(
+      safeJsonParse(row.preferences_json, {}),
+      `user_agent_surface_preferences:${row.preference_id || row.surface_key || SESSION_SUMMARY_GRAPH_POLICY_SURFACE_KEY}`
+    );
+  } catch {
+    return normalizeSessionSummaryGraphPolicy({}, "default_required_graph_policy_read_failed");
+  }
+}
+
 function suggestedScopesForSession(session = {}) {
   const tenantId = session.tenant_id || PLATFORM_TENANT_ID;
   return [
@@ -669,8 +774,20 @@ export async function verifySessionSummaryWrite({ pool = getPool(), session, sum
   const graphAssetNodePresent = nodeIds.has(assetNodeId);
   const graphEdgePresent = Boolean(edgeRows?.[0]);
   const graphTopologyPresent = graphConversationNodePresent && graphAssetNodePresent && graphEdgePresent;
+  const reason = !summaryRow
+    ? "summary_row_missing"
+    : !assetRow
+      ? "summary_graph_asset_missing"
+      : !graphConversationNodePresent
+        ? "summary_graph_conversation_node_missing"
+        : !graphAssetNodePresent
+          ? "summary_graph_asset_node_missing"
+          : !graphEdgePresent
+            ? "summary_graph_edge_missing"
+            : null;
   return {
     ok: Boolean(summaryRow) && graphTopologyPresent,
+    reason,
     summary_row_present: Boolean(summaryRow),
     graph_asset_present: Boolean(assetRow),
     graph_validation_status: assetRow?.validation_status || null,
@@ -1133,14 +1250,15 @@ async function existingSummary(pool, sessionId) {
 }
 
 async function attachSessionSummaryToGraph({ pool, session, summaryId, insight }) {
+  const graphPolicy = await resolveSessionSummaryGraphPolicy({ pool, session });
   const jsonAssetSurfaceAuthority = await assertSurfaceAuthority(
     SURFACE_KEYS.JSON_ASSET_REGISTRY,
-    { requireExecution: true },
+    { requireExecution: graphPolicy.require_surface_execution === true },
     { pool }
   );
   const platformGraphSurfaceAuthority = await assertSurfaceAuthority(
     SURFACE_KEYS.PLATFORM_GRAPH_MEMORY,
-    { requireExecution: true },
+    { requireExecution: graphPolicy.require_surface_execution === true },
     { pool }
   );
   const tenantId = session.tenant_id || PLATFORM_TENANT_ID;
@@ -1256,7 +1374,14 @@ async function attachSessionSummaryToGraph({ pool, session, summaryId, insight }
       brand_key: session.brand_key,
       role_key: null,
     } : null,
-  ].filter(Boolean);
+  ].filter(Boolean).filter((link) => graphPolicy.allowed_scope_types.includes(link.scope_type));
+
+  if (!memoryScopeLinks.some((link) => link.scope_type === "conversation")) {
+    const err = new Error("Session summary graph policy must allow conversation scope for mandatory graph attachment.");
+    err.status = 422;
+    err.code = "session_summary_graph_policy_scope_invalid";
+    throw err;
+  }
 
   for (const link of memoryScopeLinks) {
     await pool.query(
@@ -1393,7 +1518,7 @@ async function attachSessionSummaryToGraph({ pool, session, summaryId, insight }
   };
 }
 
-export async function writeSessionSummary({ pool = getPool(), session, insight, run_id = null }) {
+export async function writeSessionSummary({ pool = getPool(), session, insight, run_id = null, operation_log = [] }) {
   const summarySurfaceAuthority = await assertSurfaceAuthority(
     SURFACE_KEYS.SESSION_SUMMARY_MEMORY,
     { requireExecution: true },
@@ -1426,13 +1551,28 @@ export async function writeSessionSummary({ pool = getPool(), session, insight, 
   );
 
   let graphAttachment = null;
+  let graphAttachmentError = null;
   try {
     graphAttachment = await attachSessionSummaryToGraph({ pool, session, summaryId, insight });
+    recordOperation(operation_log, {
+      stage: "attach_session_summary_graph",
+      status: "succeeded",
+      summary_id: summaryId,
+      graph_asset_id: graphAttachment?.asset_id || null,
+      graph_edge_id: graphAttachment?.edge_id || null,
+    });
   } catch (err) {
+    graphAttachmentError = sanitizeModelError(err);
+    recordOperation(operation_log, {
+      stage: "attach_session_summary_graph",
+      status: "failed",
+      summary_id: summaryId,
+      error: graphAttachmentError,
+    });
     console.warn("[sessionSummary] graph attachment failed", {
       session_id: session.session_id,
       summary_id: summaryId,
-      message: err?.message || String(err),
+      message: graphAttachmentError,
     });
   }
 
@@ -1504,7 +1644,7 @@ export async function summarizeAndStoreSession({
   const summaryId = await withOperationStep(
     operation_log,
     "write_session_summary",
-    async () => writeSessionSummary({ pool, session: resolvedSession, insight, run_id }),
+    async () => writeSessionSummary({ pool, session: resolvedSession, insight, run_id, operation_log }),
     { run_id, session_id: resolvedSession.session_id }
   );
   const verification = await withOperationStep(

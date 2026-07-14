@@ -1,0 +1,7 @@
+{
+  "surface_key": "local_connector_recovery_plans",
+  "source_table": "local_connector_recovery_plans",
+  "reason": "Excluded because PR 2417 creates recovery plan preview persistence only. Tenant-visible activation cards, recovery APIs, and object-level authorization are intentionally deferred to later runtime PRs.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

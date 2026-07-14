@@ -79,6 +79,8 @@ for (const signature of [
   "POST /gpt/sessions/{id}/turn writeSessionTurn non_consequential",
   "POST /gpt/sessions/{id}/end endSession non_consequential",
   "POST /tenant/platform/plugins/install tenantPlatformPluginInstall consequential",
+  "GET /tenant/resolution/skill-approvals listTenantSkillApprovals non_consequential",
+  "POST /tenant/resolution/skill-approvals/{approvalKey}/decision decideTenantSkillApproval consequential",
 ]) {
   assertHasOperation(tenantCoreOps, signature, "tenant core artifact");
 }
@@ -87,6 +89,12 @@ for (const signature of [
   "GET /tenant/activation/session-context activateSession non_consequential",
   "GET /tenant/activation/awareness readTenantActivationAwareness non_consequential",
   "GET /tenant/activation/operational-attention readTenantActivationOperationalAttention non_consequential",
+  "GET /tenant/resolution/problem-cards readTenantResolutionProblemCards non_consequential",
+  "GET /tenant/resolution/cases listTenantResolutionCases non_consequential",
+  "POST /tenant/resolution/cases createTenantResolutionCase consequential",
+  "GET /tenant/resolution/cases/{caseId} getTenantResolutionCase non_consequential",
+  "POST /tenant/resolution/cases/{caseId}/transitions transitionTenantResolutionCase consequential",
+  "POST /tenant/resolution/cases/{caseId}/diagnostics runTenantResolutionDiagnosticAction consequential",
   "GET /tenant/activation/dynamic-tabs/detail readTenantActivationDynamicTabDetail non_consequential",
 ]) {
   assertHasOperation(tenantActivationOps, signature, "tenant Activation artifact");
@@ -95,7 +103,10 @@ for (const signature of [
 assert.equal([...adminCoreOps].some((signature) => signature.includes(" /activation/") || signature.includes(" /tenant/activation/")), false);
 assert.equal([...tenantCoreOps].some((signature) => signature.includes(" /activation/") || signature.includes(" /tenant/activation/")), false);
 assert.equal([...adminActivationOps].every((signature) => signature.includes(" /activation/")), true);
-assert.equal([...tenantActivationOps].every((signature) => signature.includes(" /tenant/activation/")), true);
+assert.equal(
+  [...tenantActivationOps].every((signature) => signature.includes(" /tenant/activation/") || signature.includes(" /tenant/resolution/")),
+  true,
+);
 
 for (const [label, doc, scheme] of [
   ["admin core", adminCore, "backendBearerAuth"],
@@ -110,6 +121,12 @@ assert.equal(adminCore.servers?.[0]?.url, "https://auth.mad4b.com");
 assert.equal(tenantCore.servers?.[0]?.url, "https://auth.mad4b.com");
 assert.equal(adminActivation.servers?.[0]?.url, "https://activation.mad4b.com");
 assert.equal(tenantActivation.servers?.[0]?.url, "https://activation.mad4b.com");
+assert.equal(tenantCore.components.securitySchemes.userBearerAuth.flows.authorizationCode.authorizationUrl, "https://auth.mad4b.com/auth/oauth/authorize");
+assert.equal(tenantCore.components.securitySchemes.userBearerAuth.flows.authorizationCode.tokenUrl, "https://auth.mad4b.com/auth/oauth/token");
+assert.equal(tenantActivation.components.securitySchemes.userBearerAuth.flows.authorizationCode.authorizationUrl, "https://activation.mad4b.com/auth/oauth/authorize");
+assert.equal(tenantActivation.components.securitySchemes.userBearerAuth.flows.authorizationCode.tokenUrl, "https://activation.mad4b.com/auth/oauth/token");
+assert.equal(tenantActivation["x-gpt-action-auth-preset"].authorization_url, "https://activation.mad4b.com/auth/oauth/authorize");
+assert.equal(tenantActivation["x-gpt-action-auth-preset"].token_url, "https://activation.mad4b.com/auth/oauth/token");
 
 assert(splitScript.includes("SURFACE_REGISTRY_FILE"));
 assert(splitScript.includes("selectOperations"));

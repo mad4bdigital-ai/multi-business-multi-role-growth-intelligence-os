@@ -171,6 +171,7 @@ try {
     const consequentialTenantOperations = new Set([
       "tenantPlatformPluginInstall",
       "tenantPlatformPluginCredentialIntakeSessionCreate",
+      "decideTenantSkillApproval",
       "postMeWorkspacesTenantIdResourcesResourceKey",
       "postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore",
     ]);
@@ -925,7 +926,8 @@ const doc = (() => {
       source.includes('router.post("/local-connector/install"') &&
       source.includes("provisionLocalConnectorInstall(req, req.body || {})") &&
       source.includes("shared provisioning helper"));
-    assert("local connector requires fresh Local Manager authorization for privileged repair installer links",
+    assert("admin installer link and redemption lookups are tenant scoped", source.includes("WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1") && source.includes("[principal.userId, principal.tenantId, device_id]") && source.includes("[payload.user_id, payload.tenant_id, payload.device_id]"));
+assert("local connector requires fresh Local Manager authorization for privileged repair installer links",
       source.includes('router.post("/local-connector/install/device-download-link"') &&
       source.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller(req)") &&
       source.includes("canonical_device_id") &&
@@ -933,7 +935,8 @@ const doc = (() => {
       source.includes("auth_context: device.auth_context") &&
       source.includes("reauth_required_for_stale_device_tokens: true") &&
       source.includes("secrets_included: false"));
-    assert("Local Manager privileged installer guard returns structured fresh-auth error context",
+    assert("local connector admin installer tenant selection is explicit and mismatch safe", source.includes("requestedTenantId") && source.includes("selectedTenantId") && source.includes("connector_config_tenant_mismatch"));
+assert("Local Manager privileged installer guard returns structured fresh-auth error context",
       deviceLinkSource.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller") &&
       deviceLinkSource.includes("fresh_local_manager_authorization_required") &&
       deviceLinkSource.includes("saved_device_token") &&
@@ -1029,7 +1032,7 @@ const doc = (() => {
       releaseMigrationSource.includes("Mad4B-Local-Manager-Setup.exe"));
     const deviceLinkSource = readFileSync("services/localManagerDeviceLinkService.js", "utf8");
     assert("local manager Windows default download redirects to public EXE release asset",
-      betaSource.includes("Mad4B-Local-Manager-Setup-0.2.17.exe") &&
+      betaSource.includes("Mad4B-Local-Manager-Setup-0.2.19.exe") &&
       betaSource.includes("releases/download/local-manager-windows-latest") &&
       !betaSource.includes("Mad4B-Local-Manager-Windows-Bootstrap.ps1") &&
       !betaSource.includes("connector_secret") &&
@@ -1102,7 +1105,8 @@ const doc = (() => {
     const routeSource = readFileSync("routes/localConnectorInstallRoutes.js", "utf8");
     const scriptSource = readFileSync("scripts/installer-reprovision-smoke.mjs", "utf8");
     const packageSource = readFileSync("package.json", "utf8");
-    assert("install status response is read-only and explicitly non-secret",
+    assert("installer reprovision rotates the existing tunnel and local credentials", routeSource.includes("rotateTunnelCredential(") && routeSource.includes("existing?.cf_tunnel_id && reprovision") && routeSource.includes("existing.cf_tunnel_name || tunnelName") && routeSource.includes("connectorLocalApiKey = reprovision") && routeSource.includes("/connections"));
+assert("install status response is read-only and explicitly non-secret",
       routeSource.includes("read_only: true") &&
       routeSource.includes("secrets_included: false") &&
       routeSource.includes("download_link_available") &&

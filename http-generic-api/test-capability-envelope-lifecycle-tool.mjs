@@ -87,4 +87,16 @@ assert.match(adminCliRoutes, /capability_resolution_envelope_lifecycle/);
 assert.match(adminCliRoutes, /scripts\/capability-resolution-envelope-lifecycle\.mjs/);
 assert.match(adminCliRoutes, /Transition capability resolution envelope lifecycle/);
 
+const gptToolsRoutes = readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
+assert.match(gptToolsRoutes, /CAPABILITY_ENVELOPE_LIFECYCLE_ACTIONS/);
+assert.match(gptToolsRoutes, /transitionCapabilityEnvelopeLifecycle/);
+assert.match(gptToolsRoutes, /name: "capability_resolution_envelope_lifecycle"/);
+assert.match(gptToolsRoutes, /internal:\/\/capability-resolution-envelope-lifecycle/);
+assert.match(gptToolsRoutes, /enum: CAPABILITY_ENVELOPE_LIFECYCLE_ACTIONS/);
+assert.match(gptToolsRoutes, /toolKey === "capability_resolution_envelope_lifecycle"/);
+assert.match(gptToolsRoutes, /envelopeId: String\(args\?\.envelope_id/);
+assert.match(gptToolsRoutes, /action: String\(args\?\.action/);
+assert.match(gptToolsRoutes, /executionRef: String\(args\?\.execution_ref/);
+assert.match(gptToolsRoutes, /"no_provider_call", "no_external_write", "no_secrets"/);
+
 console.log("Capability envelope lifecycle tool tests passed");

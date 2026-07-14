@@ -4,42 +4,66 @@
 **Runtime authority:** SQL primary  
 **Provider mutation:** none  
 **Migration execution:** none  
-**Enforcement cutover:** none
+**Enforcement cutover:** none  
+**Canary activation:** none  
+**Route removal:** none
 
-## Completed through T023
+## Completed through T043
 
-T010 through T015 are complete. PR #2290 merged the decision-plane resolver and shadow metadata. PR #2322 merged the dynamic shared enforcement kernel for T020. PR #2346 merged revision-bound execution envelopes for T021. PR #2365 merged scoped approval requests and append-only decisions for T022.
+T010 through T015 are complete.
 
-T023 adds stale-envelope invalidation, idempotency, and concurrency controls while remaining non-executing and non-persistent.
+PR #2322 merged T020 shared enforcement. PR #2346 merged T021 revision-bound envelopes. PR #2365 merged T022 scoped approvals. PR #2380 merged T023 stale-envelope, idempotency, and concurrency controls.
 
-## T023 concurrency evidence
+PR #2389 merged T030 adapter binding, certification, deterministic selection, readback, execution-evidence, and drift contracts. T030 remains contract-only and does not dispatch provider adapters or perform external writes.
 
-The kernel is implemented in `http-generic-api/platformExecutionConcurrencyKernel.js` with tests in `http-generic-api/test-platform-execution-concurrency-kernel.mjs`.
+PR #2440 merged T040 shadow parity for the three canonical pilots without provider mutation. PR #2460 merged T041 legacy/adaptive mismatch classification without threshold approval or canary activation.
 
-It binds execution readiness to execution envelope manifest hash, approval request manifest hash, approval decision log hash, idempotency key hash, stale guard hash, and concurrency token.
+PR #2513 merged T042 parity-threshold approval contracts. Passing evaluation means only `eligibleForCanaryEvaluation: true`; it preserves `canaryActivationAllowed: false`, `providerApplyAllowed: false`, `externalWriteAllowed: false`, `migrationExecutionAuthorized: false`, and `enforcementCutover: false`.
 
-Validation fails closed when the execution envelope is stale, the approval request is stale, the decision log is tampered with, the latest decision is not approved, idempotency was already seen, a concurrency token is active, or provider apply/mutation/cutover boundaries are attempted.
+PR #2531 merged T043 legacy capability compatibility wrappers and measured deprecation metadata. The legacy response remains unchanged, alias resolution reuses the existing capability authority, and the adaptive decision path runs once in shadow mode. Even complete deprecation evidence preserves `routeRemovalAllowed: false` and requires separate explicit route-removal authority.
+
+## T043 acceptance evidence
+
+The compatibility wrapper:
+
+- validates exact legacy selector and resolved alias binding;
+- accepts only active or deprecated aliases;
+- preserves the legacy response object unchanged;
+- invokes the injected adaptive resolver exactly once in shadow mode;
+- records bounded parity and usage increments;
+- records deprecation policy hash, observation minimum, parity minimum, window, active-consumer count, and rollback/readback evidence;
+- rejects sensitive credential, token, authorization, secret, prompt, cookie, password, and raw-payload fields;
+- never activates canary enforcement, dispatches providers, performs external writes, runs migrations, cuts over enforcement, or removes routes.
+
+The merged source branch `gpt/t043-legacy-compatibility-wrapper` was verified absent after merge with a GitHub reference `404`.
 
 ## Task loop classification
 
 | Task | Classification | Evidence | Notes |
 |---|---|---|---|
-| T010-T015 Decision plane | complete | resolver and shadow ledger evidence | no provider mutation |
-| T020 Shared enforcement kernel | complete | dynamic resolver-derived enforcement policy | no provider mutation and no cutover |
-| T021 Revision-bound envelopes | complete | platform execution envelope kernel and tests | no persistence or adapter execution yet |
-| T022 Scoped approvals | complete | scoped approval request and append-only decision kernel | no persistence or approval routes yet |
-| T023 Stale/idempotency/concurrency | complete | concurrency control kernel and tests | no persistence or adapter execution yet |
-| T030 Adapter bindings, certification and drift reconcilers | open | no provider adapter execution | future work |
-| T040-T043 Pilots and migration | open | no full three-pilot parity run or migration execution | future work |
-| T050-T053 Verification and rollout | open | closeout verification remains incomplete | future work |
-| T061-T062 Closeout | open | closeout cannot run while adapters, pilots, rollout and audit remain open | future work |
+| T010-T015 Decision plane | complete | resolver and shadow metadata | no provider mutation |
+| T020-T023 Enforcement contracts | complete | kernels, tests, and docs | no cutover |
+| T030 Adapter contracts | complete | PR #2389 | contract-only |
+| T040 Shadow pilots | complete | PR #2440 | shadow-only |
+| T041 Mismatch classification | complete | PR #2460 | classification-only |
+| T042 Threshold approval | complete | PR #2513 | eligibility only; no canary activation |
+| T043 Compatibility wrappers | complete | PR #2531 | legacy passthrough; no route removal |
+| T050-T053 Verification and rollout | open | incomplete | next work |
+| T061-T062 Closeout | open | incomplete | future work |
+| D010 Final delivery closeout | open | incomplete | future work |
 
 ## Safety boundaries retained
 
 - No provider mutation.
+- No external write.
+- No canary activation.
 - No enforcement cutover.
 - No migration execution.
+- No route or alias removal.
 - No new authority table.
-- No secrets selected or returned.
+- No credentials, secrets, raw payloads, or prompts in evidence.
 - Ambiguity remains fail-closed.
-- Adapter execution remains blocked until T030.
+
+## Current next scope
+
+The next implementation scope is T050: register unit, integration, isolation, replay, stale-revision, ambiguity, and redaction tests across the completed authorization and execution-governance surfaces. T050 is verification registration only and must not enable provider execution, canary activation, route removal, migration execution, external writes, or production enforcement cutover.

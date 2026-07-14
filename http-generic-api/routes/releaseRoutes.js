@@ -1,9 +1,13 @@
 import { Router } from "express";
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { getPool } from "../db.js";
 import { runReleaseReadiness } from "../releaseReadiness.js";
 import { runSessionArchiveSmoke } from "../sessionArchiveSmoke.js";
 import { backfillGptSessionArchiveFromJsonl } from "../sessionArchiveService.js";
 import { markCapabilityEnvelopeReferenced } from "../capabilityResolutionEnvelopeGuard.js";
+import { getRuntimeParity } from "../runtimeVerificationService.js";
 import {
   capabilityFamilyAuthorizationError,
   resolveToolCapabilityFamilyAuthorization,
@@ -11,6 +15,8 @@ import {
 
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 const PLATFORM_ADMIN_USER = "platform_admin";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DEPLOYMENT_MANIFEST_PATH = path.resolve(__dirname, "..", "deployment-manifest.json");
 
 export function buildReleaseRoutes(deps) {
   const { requireBackendApiKey } = deps;
@@ -19,6 +25,140 @@ export function buildReleaseRoutes(deps) {
   const getPoolFn = deps.getPool || getPool;
   const resolveCapabilityFamilyAuthorizationFn = deps.resolveToolCapabilityFamilyAuthorization || resolveToolCapabilityFamilyAuthorization;
   const markCapabilityEnvelopeReferencedFn = deps.markCapabilityEnvelopeReferenced || markCapabilityEnvelopeReferenced;
+
+  async function countRowsIfAvailable(pool, tableName) {
+    try {
+      const [[existsRow]] = await pool.query(
+        "SELECT COUNT(*) AS count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?",
+        [tableName]
+      );
+      if (Number(existsRow?.count || 0) === 0) return { exists: false, count: 0 };
+      const [[countRow]] = await pool.query(`SELECT COUNT(*) AS count FROM \`${tableName}\``);
+      return { exists: true, count: Number(countRow?.count || 0) };
+    } catch (err) {
+      return { exists: false, count: 0, error: err.message };
+    }
+  }
+
+  async function readDeploymentManifest() {
+    try {
+      const raw = await fs.readFile(DEPLOYMENT_MANIFEST_PATH, "utf8");
+      const parsed = JSON.parse(raw);
+      return {
+        present: true,
+        repository: parsed.repository || null,
+        branch: parsed.branch || null,
+        commit_sha: parsed.commit_sha || null,
+        commit_source: parsed.commit_source || null,
+        deployed_at: parsed.deployed_at || null,
+        service_version: parsed.service_version || null,
+        build_source: parsed.build_source || null,
+      };
+    } catch (err) {
+      return { present: false, error: err.message };
+    }
+  }
+
+  async function readLatestFullReadinessRun(pool) {
+    try {
+      const [rows] = await pool.query(
+        `SELECT run_id, MIN(checked_at) AS checked_at,
+                SUM(status = 'pass') AS pass_count,
+                SUM(status = 'fail') AS fail_count,
+                SUM(status = 'warn') AS warn_count,
+                COUNT(*) AS check_count
+           FROM release_readiness_log
+          GROUP BY run_id
+          ORDER BY checked_at DESC
+          LIMIT 1`
+      );
+      const row = rows?.[0];
+      if (!row) return null;
+      return {
+        run_id: row.run_id,
+        checked_at: row.checked_at,
+        pass_count: Number(row.pass_count || 0),
+        warn_count: Number(row.warn_count || 0),
+        fail_count: Number(row.fail_count || 0),
+        check_count: Number(row.check_count || 0),
+      };
+    } catch (err) {
+      return { error: err.message };
+    }
+  }
+
+  async function buildFastReadinessProjection() {
+    const pool = getPoolFn();
+    const checkedAt = new Date().toISOString();
+    let dbConnectivity = { status: "pass", detail: "Database reachable." };
+    try {
+      await pool.query("SELECT 1 AS ok");
+    } catch (err) {
+      dbConnectivity = { status: "fail", detail: err.message };
+    }
+
+    const [runtimeParity, deploymentManifest, latestFullReadinessRun, readinessLogCount, adminToolCount] = await Promise.all([
+      getRuntimeParity("production").catch((err) => ({ production_parity: "unknown", error: err.message, secrets_included: false })),
+      readDeploymentManifest(),
+      dbConnectivity.status === "pass" ? readLatestFullReadinessRun(pool) : null,
+      dbConnectivity.status === "pass" ? countRowsIfAvailable(pool, "release_readiness_log") : { exists: false, count: 0 },
+      dbConnectivity.status === "pass" ? countRowsIfAvailable(pool, "admin_platform_endpoint_tools") : { exists: false, count: 0 },
+    ]);
+
+    const degradedSurfaces = [];
+    if (dbConnectivity.status !== "pass") degradedSurfaces.push({ key: "db_connectivity", ...dbConnectivity });
+    if (runtimeParity?.production_parity && runtimeParity.production_parity !== "verified") {
+      degradedSurfaces.push({
+        key: "runtime_production_parity_gate",
+        status: "warn",
+        detail: runtimeParity.production_parity,
+      });
+    }
+    if (!deploymentManifest.present) {
+      degradedSurfaces.push({ key: "deployment_manifest", status: "warn", detail: deploymentManifest.error || "manifest missing" });
+    }
+
+    const overall = degradedSurfaces.some((surface) => surface.status === "fail")
+      ? "fail"
+      : degradedSurfaces.length ? "warn" : "pass";
+
+    return {
+      ok: overall !== "fail",
+      overall,
+      checked_at: checkedAt,
+      response_mode: "fast_summary",
+      full_response_available_with: "?full=true",
+      bounded_projection: true,
+      summary_source: "fast_release_readiness_projection",
+      summary: {
+        total: 4,
+        pass: Math.max(0, 4 - degradedSurfaces.length),
+        warn: degradedSurfaces.filter((surface) => surface.status === "warn").length,
+        fail: degradedSurfaces.filter((surface) => surface.status === "fail").length,
+      },
+      key_statuses: {
+        db_connectivity: dbConnectivity.status,
+        release_readiness_log: readinessLogCount.exists ? "pass" : "warn",
+        runtime_production_parity_gate: runtimeParity?.readiness_classification || runtimeParity?.production_parity || "unknown",
+        deployment_manifest: deploymentManifest.present ? "pass" : "warn",
+      },
+      latest_full_readiness_run: latestFullReadinessRun?.error ? null : latestFullReadinessRun,
+      runtime_parity: {
+        environment_key: runtimeParity?.environment_key || "production",
+        production_parity: runtimeParity?.production_parity || "unknown",
+        readiness_classification: runtimeParity?.readiness_classification || "unknown",
+        expected_commit_sha: runtimeParity?.expected_commit_sha || null,
+        deployed_commit_sha: runtimeParity?.deployed_commit_sha || null,
+        latest_run_id: runtimeParity?.latest_run_id || null,
+        blocking_gap_count: Number(runtimeParity?.blocking_gap_count || 0),
+        verified_at: runtimeParity?.verified_at || null,
+      },
+      deployment_manifest: deploymentManifest,
+      registry_counts: { release_readiness_log: readinessLogCount, admin_platform_endpoint_tools: adminToolCount },
+      degraded_surfaces: degradedSurfaces,
+      secrets_included: false,
+    };
+  }
 
   function compactReadinessProjection(report, mode = "summary") {
     const checks = Object.entries(report || {})
@@ -55,6 +195,11 @@ export function buildReleaseRoutes(deps) {
       const persist = req.query.persist === "true" || req.query.persist === "1";
       const explicitSummary = req.query.summary === "true" || req.query.summary === "1";
       const explicitFull = req.query.full === "true" || req.query.full === "1" || req.query.detail === "full";
+
+      if (!persist && !explicitFull) {
+        const fastProjection = await buildFastReadinessProjection();
+        return res.status(fastProjection.ok ? 200 : 503).json(fastProjection);
+      }
 
       const report = await runReleaseReadiness({ persist });
       const httpStatus = 200;

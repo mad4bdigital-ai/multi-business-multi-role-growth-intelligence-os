@@ -83,8 +83,8 @@
 - [ ] T223 Run CI, architecture drift, contract, resource coverage, and completion gates.
 - [x] T224 Apply authorized additive migrations with checksum and schema readback.
 - [ ] T225 Verify dev/staging shadow and canary evidence.
-- [ ] T226 Verify production commit/runtime parity and cohort status.
-- [ ] T227 Complete post-merge audit and record tracked residual debt.
+- [x] T226 Verify production commit/runtime parity and cohort status.
+- [x] T227 Complete post-merge audit and record tracked residual debt.
 - [ ] T228 Complete the final closeout PR and deprecation plan.
 
 ## Completion governance
@@ -101,4 +101,12 @@ T182-T184 are marked implementation-complete based on live `main` evidence in `o
 
 ### Migration apply/readback evidence note
 
-T224 is marked complete based on governed readback evidence for `20260704_operational_alert_lifecycle_fingerprints.sql`: checksum `c84ff288afd3b351c48c3da22c9b2bc4298ad42ed29792e0db7da902ae254488`, statement count `3`, ledger run `5b602672-bdab-4aa1-9e46-4cc3f6a21350`, and `governed_migration_schema_readback` status `pass`. The readback tool reported no missing tables, columns, indexes, or rule conditions and no provider call, external write, row-data read, freeform SQL, or secrets. This does not verify production runtime parity or final closeout.
+T224 is marked complete based on governed readback evidence for `20260704_operational_alert_lifecycle_fingerprints.sql`: checksum `c84ff288afd3b351c48c3da22c9b2bc4298ad42ed29792e0db7da902ae254488`, statement count `3`, ledger run `5b602672-bdab-4aa1-9e46-4cc3f6a21350`, and `governed_migration_schema_readback` status `pass`. The readback tool reported no missing tables, columns, indexes, or rule conditions and no provider call, external write, row-data read, freeform SQL, or secrets.
+
+### Production parity evidence note
+
+T226 is marked complete based on production parity readback for commit `59d5c1e0991028dcd8ddc58e5a1294ec926662db`: expected and deployed commit SHAs matched, `production_parity` was `verified`, `runtime_health_status`, `migration_status`, and `activation_summary_status` were `pass`, and `blocking_gap_count` was `0`. The evidence used the summary-first `release_readiness` response added by PR #2370 and did not execute deploy, restart, SSH, migration apply, provider calls, or secrets. This does not complete dev/staging shadow or canary evidence or final closeout.
+
+### Post-merge audit and residual debt note
+
+T227 is marked complete based on post-merge readback after PR #2393: GitHub REST confirmed the PR was merged at `2026-07-09T15:16:09Z` with merge commit `c3250d42bbf67dd59f54fafd5513de785487eec1`, compare readback confirmed the merge commit is an ancestor of `main`, `release_readiness` run `fc43581c-d302-44e8-aafd-f76f4b56f075` returned `overall: warn` with zero fails, and `platform_tool_binding_integrity_audit` returned `pass` with `36/36` healthy bindings and `0` gaps. The residual debt is tracked as: `migration_drift` warning with `4` actionable migration artifact gaps, T225 dev/staging shadow and canary evidence still pending, T228 final closeout and deprecation plan still pending, and T303-T304 completion governance still pending. No deploy, restart, SSH, migration apply, provider external write, or secrets were executed.
