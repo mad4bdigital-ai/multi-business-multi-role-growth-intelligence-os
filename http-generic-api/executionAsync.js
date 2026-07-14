@@ -305,6 +305,9 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
   const hostingerSshTargetProbePayload = isHostingerSshTargetProbeJob
     ? normalizeHostingerSshTargetProbeJobPayload(requestPayload)
     : null;
+  const hostingerAsyncDeployPayload = isHostingerAsyncDeployJob
+    ? normalizeHostingerAsyncDeployPayload(requestPayload)
+    : null;
 
   const job = {
     job_id: buildJobId(),
