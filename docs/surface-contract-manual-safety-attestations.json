@@ -1,7 +1,7 @@
 {
   "ok": true,
   "schema_version": "surface-contract-manual-safety-attestations-v1",
-  "item_count": 3,
+  "item_count": 4,
   "items": [
     {
       "migration_file": "1013_sprint69_approval_hold_identity_collation_alignment.sql",
@@ -245,6 +245,93 @@
       "migration_effects": {
         "internal_database_write": true,
         "schema_mutation": false,
+        "external_write": false,
+        "provider_call": false,
+        "credential_payload_read": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "1026_sprint69_repository_reconciliation_automation.sql",
+      "migration_sha256": "288babca148977b93d172e8a9cfe2681070a506fe3b7cf43b1d48ab498f609f2",
+      "checksum_canonicalization": "utf8_lf_v1",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_human_review",
+      "review_status": "approved_checksum_bound_internal_sql",
+      "reviewed_by": "platform_admin:f242960c-2857-4b4d-a504-ee50f8a278b4",
+      "reviewed_at": "2026-07-11T04:30:00Z",
+      "rationale": "Human review confirmed that the checksum-bound PREPARE and EXECUTE pairs can select only two idempotent internal ALTER statements for repository_mutation_runs_v6: adding the nullable idempotency_key column and adding its unique index when absent. The remaining SQL seeds a planned, fail-closed reconciliation recipe and blocking policy that forbid force push, protected-branch direct writes, blind retry, migration apply, automatic activation, secret return, and provider mutation without plan-bound approvals and same-cycle readback. This attestation grants no migration execution, deployment, provider-call, credential-read, external-write, or secret-return authority.",
+      "execution_authorized": false,
+      "queue_class_at_attestation": "critical_review",
+      "gap_severity_at_attestation": "high",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 14,
+      "accepted_preflight_risks": {},
+      "accepted_forbidden_patterns": [
+        "\\bPREPARE\\s+[A-Za-z0-9_]+\\s+FROM\\b",
+        "^\\s*EXECUTE\\s+[A-Za-z0-9_]+\\b"
+      ],
+      "required_sql_fragments": [
+        "SET @repo_mutation_idempotency_column_sql := IF(",
+        "PREPARE repo_mutation_idempotency_column_stmt FROM @repo_mutation_idempotency_column_sql;",
+        "EXECUTE repo_mutation_idempotency_column_stmt;",
+        "SET @repo_mutation_idempotency_index_sql := IF(",
+        "PREPARE repo_mutation_idempotency_index_stmt FROM @repo_mutation_idempotency_index_sql;",
+        "EXECUTE repo_mutation_idempotency_index_stmt;",
+        "'status','planned'",
+        "'force_push_allowed',FALSE",
+        "'protected_branch_direct_write_allowed',FALSE",
+        "'migration_apply_allowed',FALSE",
+        "'automatic_activation_allowed',FALSE",
+        "'recipe_status','planned'",
+        "'forbidden',JSON_ARRAY('force_push','protected_branch_direct_write','blind_retry_after_unknown_provider_outcome','migration_apply','automatic_recipe_activation','secret_return')"
+      ],
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 5,
+        "views": 0,
+        "policies": 1,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_policy_seed_readiness",
+          "targets": [
+            "repository_reconciliation_automation_v1"
+          ]
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "admin_branch_reconcile",
+            "github_branch_merge_commit_create",
+            "github_pr_ci_gate",
+            "github_pr_finalize",
+            "repo_patch_batch_apply"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      },
+      "migration_effects": {
+        "internal_database_write": true,
+        "schema_mutation": true,
         "external_write": false,
         "provider_call": false,
         "credential_payload_read": false,
