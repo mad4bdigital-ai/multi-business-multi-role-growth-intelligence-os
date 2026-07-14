@@ -61,7 +61,11 @@ function collectOpenApiOperationsFromText(source) {
 function collectOpenApiOperations() {
   const files = [
     OPENAPI_PATH,
-    ...(fs.existsSync(OPENAPI_DIR) ? fs.readdirSync(OPENAPI_DIR).filter((name) => /\.ya?ml$/i.test(name)).map((name) => path.join(OPENAPI_DIR, name)) : []),
+    ...(fs.existsSync(OPENAPI_DIR)
+      ? fs.readdirSync(OPENAPI_DIR)
+        .filter((name) => /\.ya?ml$/i.test(name) && name !== "frontend-runtime-routes.generated.yaml")
+        .map((name) => path.join(OPENAPI_DIR, name))
+      : []),
   ];
   const ops = new Set();
   for (const file of files) {
