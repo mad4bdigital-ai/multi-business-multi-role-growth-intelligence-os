@@ -13,6 +13,8 @@ assert.match(migration, /source_surface = 'credential_intake\.completed'/);
 assert.match(migration, /status = 'pending'/);
 assert.match(migration, /title = 'Credential intake completed for hostinger'/);
 assert.match(migration, /auto_promotion_status[^\n]*completed/);
+assert.match(migration, /COALESCE\(JSON_UNQUOTE\(JSON_EXTRACT\(context_json, '\$\.secrets_included'\)\), 'false'\) = 'false'/);
+assert.doesNotMatch(migration, /JSON_FALSE\s*\(/i);
 assert.match(migration, /Validate credential intake continuation for hostinger/);
 assert.doesNotMatch(migration, /SET\s+status\s*=/i);
 assert.doesNotMatch(migration, /DELETE\s+FROM|TRUNCATE\s+TABLE|DROP\s+TABLE/i);
