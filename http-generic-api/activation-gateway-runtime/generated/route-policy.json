@@ -1,5 +1,5 @@
 {
-  "content_hash_sha256": "9166fdcef27bd2abc7112afe48a95ad56178f7ae697ef40ee26ee935b84d6849",
+  "content_hash_sha256": "33ca3ccc5a7f00e5d3679955ebf9ee22e9fffa14b54a4966363139f0801e6a26",
   "deployment_signature_required": true,
   "manifest_version": 1,
   "mutation_stale_policy": "deny",
@@ -365,6 +365,31 @@
       "timeout_ms": 30000
     },
     {
+      "allowed_query_parameters": [
+        "cursor",
+        "limit",
+        "root_family",
+        "severity",
+        "status",
+        "workspace_id"
+      ],
+      "auth_profiles": [
+        "tenant_oauth"
+      ],
+      "method": "GET",
+      "mutation": false,
+      "operation_ids": [
+        "listTenantResolutionCases"
+      ],
+      "path": "/tenant/resolution/cases",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "tenant_activation"
+      ],
+      "timeout_ms": 30000
+    },
+    {
       "allowed_query_parameters": [],
       "auth_profiles": [
         "tenant_oauth"
@@ -375,6 +400,63 @@
         "createTenantResolutionCase"
       ],
       "path": "/tenant/resolution/cases",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "tenant_activation"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [
+        "event_limit",
+        "workspace_id"
+      ],
+      "auth_profiles": [
+        "tenant_oauth"
+      ],
+      "method": "GET",
+      "mutation": false,
+      "operation_ids": [
+        "getTenantResolutionCase"
+      ],
+      "path": "/tenant/resolution/cases/{caseId}",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "tenant_activation"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [],
+      "auth_profiles": [
+        "tenant_oauth"
+      ],
+      "method": "POST",
+      "mutation": true,
+      "operation_ids": [
+        "runTenantResolutionDiagnosticAction"
+      ],
+      "path": "/tenant/resolution/cases/{caseId}/diagnostics",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "tenant_activation"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [],
+      "auth_profiles": [
+        "tenant_oauth"
+      ],
+      "method": "POST",
+      "mutation": true,
+      "operation_ids": [
+        "transitionTenantResolutionCase"
+      ],
+      "path": "/tenant/resolution/cases/{caseId}/transitions",
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
