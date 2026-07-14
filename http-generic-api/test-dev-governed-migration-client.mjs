@@ -49,6 +49,37 @@ assert.deepEqual(parseArgs([
   apply: true,
 });
 
+assert.deepEqual(
+  validateShellAliasInvocation("platform_outbox_worker", ["--action=status"]),
+  { mutation_requested: false, extra_args: ["--action=status"] }
+);
+assert.deepEqual(
+  validateShellAliasInvocation("platform_outbox_worker", [
+    "--action=dry-run",
+    "--consumer=prod_shadow_v1",
+    "--limit=100",
+  ]),
+  {
+    mutation_requested: false,
+    extra_args: ["--action=dry-run", "--consumer=prod_shadow_v1", "--limit=100"],
+  }
+);
+assert.deepEqual(
+  validateShellAliasInvocation("capability_resolution_envelope_create", []),
+  { mutation_requested: true, extra_args: [] }
+);
+for (const blockedArgs of [
+  ["--action=run-once"],
+  ["--action=loop"],
+  ["--action=status", "--apply"],
+  ["--action=status", "--limit=0"],
+  ["--action=status", "--limit=501"],
+  ["--action=status", "--consumer=bad consumer"],
+  ["--action=status", "--unknown=value"],
+]) {
+  assert.throws(() => validateShellAliasInvocation("platform_outbox_worker", blockedArgs));
+}
+
 assert.deepEqual(sanitizeResult({
   ok: true,
   nested: {
