@@ -1,0 +1,19 @@
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+
+const root = fileURLToPath(new URL("../", import.meta.url));
+const scripts = [
+  "scripts/run-test-manifest.mjs",
+  "scripts/run-adaptive-authorization-verification-manifest.mjs",
+];
+
+for (const script of scripts) {
+  const completed = spawnSync(process.execPath, [script], {
+    cwd: root,
+    stdio: "inherit",
+    shell: false,
+  });
+
+  if (completed.error) throw completed.error;
+  if (completed.status !== 0) process.exit(completed.status ?? 1);
+}

@@ -5,8 +5,15 @@ import { testCommands } from "./scripts/test-manifest.mjs";
 
 const packageJson = JSON.parse(fs.readFileSync(new URL("./package.json", import.meta.url), "utf8"));
 const runnerSource = fs.readFileSync(new URL("./scripts/run-test-manifest.mjs", import.meta.url), "utf8");
+const suiteSource = fs.readFileSync(
+  new URL("./scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs", import.meta.url),
+  "utf8",
+);
 
-assert.equal(packageJson.scripts.test, "node scripts/run-test-manifest.mjs");
+assert.equal(
+  packageJson.scripts.test,
+  "node scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
+);
 assert.equal(packageJson.scripts["test:list"], "node scripts/run-test-manifest.mjs --list");
 assert.ok(!packageJson.scripts.test.includes("&&"), "package test script must not be a shell chain");
 
@@ -34,5 +41,11 @@ for (const requiredCommand of [
 assert.match(runnerSource, /spawnSync/);
 assert.match(runnerSource, /stdio:\s*"inherit"/);
 assert.match(runnerSource, /shell:\s*false/);
+
+assert.match(suiteSource, /spawnSync/);
+assert.match(suiteSource, /scripts\/run-test-manifest\.mjs/);
+assert.match(suiteSource, /scripts\/run-adaptive-authorization-verification-manifest\.mjs/);
+assert.match(suiteSource, /stdio:\s*"inherit"/);
+assert.match(suiteSource, /shell:\s*false/);
 
 console.log("test-manifest-runner checks passed");

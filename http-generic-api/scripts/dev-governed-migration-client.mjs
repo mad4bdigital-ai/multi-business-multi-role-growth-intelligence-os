@@ -22,7 +22,51 @@ const ALLOWED_TOOLS = new Set([
 const ALLOWED_SHELL_ALIASES = new Set([
   "capability_resolution_envelope_create",
   "capability_resolution_envelope_approve",
+  "platform_outbox_worker",
 ]);
+
+const READ_ONLY_OUTBOX_ACTIONS = new Set(["status", "dry-run"]);
+
+export function validateShellAliasInvocation(alias, extraArgs) {
+  if (!Array.isArray(extraArgs) || extraArgs.some((item) => typeof item !== "string")) {
+    throw new Error("extra_args must decode to an array of strings.");
+  }
+  if (alias !== "platform_outbox_worker") {
+    return { mutation_requested: true, extra_args: extraArgs };
+  }
+
+  let action = "";
+  let consumerSeen = false;
+  let limitSeen = false;
+  for (const arg of extraArgs) {
+    if (arg === "--apply") throw new Error("platform_outbox_worker read-only calls forbid --apply.");
+    if (arg.startsWith("--action=")) {
+      if (action) throw new Error("platform_outbox_worker accepts one --action value.");
+      action = arg.slice("--action=".length).trim().toLowerCase();
+      continue;
+    }
+    if (arg.startsWith("--consumer=")) {
+      if (consumerSeen) throw new Error("platform_outbox_worker accepts one --consumer value.");
+      const consumer = arg.slice("--consumer=".length).trim();
+      if (!/^[A-Za-z0-9._-]{1,120}$/.test(consumer)) throw new Error("Invalid outbox consumer key.");
+      consumerSeen = true;
+      continue;
+    }
+    if (arg.startsWith("--limit=")) {
+      if (limitSeen) throw new Error("platform_outbox_worker accepts one --limit value.");
+      const limit = Number.parseInt(arg.slice("--limit=".length), 10);
+      if (!Number.isInteger(limit) || limit < 1 || limit > 500) throw new Error("Outbox limit must be between 1 and 500.");
+      limitSeen = true;
+      continue;
+    }
+    throw new Error(`Unsupported platform_outbox_worker argument: ${arg}`);
+  }
+
+  if (!READ_ONLY_OUTBOX_ACTIONS.has(action)) {
+    throw new Error("platform_outbox_worker only permits --action=status or --action=dry-run.");
+  }
+  return { mutation_requested: false, extra_args: extraArgs };
+}
 
 const SENSITIVE_KEY_PATTERN = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
 
@@ -205,12 +249,10 @@ export async function runClient(args = parseArgs()) {
     target = String(args.alias || "").trim();
     if (!ALLOWED_SHELL_ALIASES.has(target)) throw new Error(`Shell alias is not allowlisted: ${target || "<empty>"}`);
     const extraArgs = decodeJson(args.extra_args_json, args.extra_args_base64, []);
-    if (!Array.isArray(extraArgs) || extraArgs.some((item) => typeof item !== "string")) {
-      throw new Error("extra_args must decode to an array of strings.");
-    }
-    mutationRequested = true;
-    requireApplyAuthorization(args, `Shell alias ${target}`);
-    response = await runShellAlias(base, apiKey, target, extraArgs);
+    const invocation = validateShellAliasInvocation(target, extraArgs);
+    mutationRequested = invocation.mutation_requested;
+    if (mutationRequested) requireApplyAuthorization(args, `Shell alias ${target}`);
+    response = await runShellAlias(base, apiKey, target, invocation.extra_args);
   } else {
     throw new Error("Unsupported action. Use status, probe, tool-call, or shell-alias.");
   }
