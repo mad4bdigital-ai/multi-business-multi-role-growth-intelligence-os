@@ -249,12 +249,10 @@ export async function runClient(args = parseArgs()) {
     target = String(args.alias || "").trim();
     if (!ALLOWED_SHELL_ALIASES.has(target)) throw new Error(`Shell alias is not allowlisted: ${target || "<empty>"}`);
     const extraArgs = decodeJson(args.extra_args_json, args.extra_args_base64, []);
-    if (!Array.isArray(extraArgs) || extraArgs.some((item) => typeof item !== "string")) {
-      throw new Error("extra_args must decode to an array of strings.");
-    }
-    mutationRequested = true;
-    requireApplyAuthorization(args, `Shell alias ${target}`);
-    response = await runShellAlias(base, apiKey, target, extraArgs);
+    const invocation = validateShellAliasInvocation(target, extraArgs);
+    mutationRequested = invocation.mutation_requested;
+    if (mutationRequested) requireApplyAuthorization(args, `Shell alias ${target}`);
+    response = await runShellAlias(base, apiKey, target, invocation.extra_args);
   } else {
     throw new Error("Unsupported action. Use status, probe, tool-call, or shell-alias.");
   }
