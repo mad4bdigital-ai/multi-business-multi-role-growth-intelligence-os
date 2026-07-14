@@ -117,4 +117,33 @@ await assert.rejects(
   (error) => error.code === "dynamic_container_shadow_samples_unavailable"
 );
 
+{
+  const routeSource = readFileSync(new URL("./routes/dynamicContainerAuthorityRoutes.js",import.meta.url),"utf8");
+  const openapiSource = readFileSync(new URL("./openapi/container-authority.yaml",import.meta.url),"utf8");
+  const migrationSource = readFileSync(new URL("./migrations/1046_sprint69_dynamic_container_shadow_sampler_tool.sql",import.meta.url),"utf8");
+
+  assert(routeSource.includes('router.post("/admin/container-authority/shadow-samples"'));
+  assert(routeSource.includes("runDynamicContainerShadowSampler"));
+  assert(routeSource.includes('new Set(["sampleCount","tenantId"])'));
+  assert(routeSource.includes("requireAdminPrincipal"));
+
+  assert(openapiSource.includes("adminContainerAuthorityShadowSamples:"));
+  assert(openapiSource.includes("operationId: createAdminContainerAuthorityShadowSamples"));
+  assert(openapiSource.includes("x-registry-tool-key: dynamic_container_shadow_sampler"));
+  assert(openapiSource.includes("x-openai-isConsequential: true"));
+  assert(openapiSource.includes("ShadowSamplerRequest:"));
+  assert(openapiSource.includes("ShadowSamplerResponse:"));
+
+  assert(migrationSource.includes("'dynamic_container_shadow_sampler'"));
+  assert(migrationSource.includes("'/admin/container-authority/shadow-samples'"));
+  assert(migrationSource.includes("'1046_sprint69_dynamic_container_shadow_sampler_tool.sql'"));
+  for (const marker of [
+    "no_provider_call",
+    "no_credential_payload_read",
+    "no_external_write",
+    "same_cycle_readback_required",
+    "secrets_included=false"
+  ]) assert(migrationSource.includes(marker),`shadow sampler migration must include ${marker}`);
+}
+
 console.log("dynamic container shadow sampler tests passed");
