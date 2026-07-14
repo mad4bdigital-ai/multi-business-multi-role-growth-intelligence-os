@@ -326,6 +326,21 @@ async function tenantResolutionCaseTransitionResponse(req) {
   });
 }
 
+async function tenantResolutionDiagnosticActionResponse(req) {
+  return runTenantResolutionDiagnosticAction({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    caseId: req.params.caseId,
+    workspaceId: tenantWorkspaceScope(req),
+    input: req.body || {},
+  });
+}
+
 async function operationalAttentionSyncResponse(req, isAdmin) {
   return synchronizeOperationalAlerts({
     sessionContext: subjectContext(req, isAdmin),
