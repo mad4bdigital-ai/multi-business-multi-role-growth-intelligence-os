@@ -591,6 +591,22 @@ internal static class Program
             }
         }
 
+        private static string ClassifyRepairOutcome(string status)
+        {
+            var text = status ?? "";
+            if (text.StartsWith("Repair link request failed:", StringComparison.OrdinalIgnoreCase)) return "link_request_failed";
+            if (text.Contains("blocked", StringComparison.OrdinalIgnoreCase)) return "privileged_action_blocked";
+            if (text.Contains("downloaded:", StringComparison.OrdinalIgnoreCase)
+                && text.Contains("Click the same button again", StringComparison.OrdinalIgnoreCase)) return "local_confirmation_cancelled";
+            if (text.Contains("UAC prompt was cancelled", StringComparison.OrdinalIgnoreCase)) return "uac_cancelled";
+            if (text.Contains("Windows did not return a process handle", StringComparison.OrdinalIgnoreCase)) return "process_handle_unavailable";
+            if (text.StartsWith("Connector repair failed:", StringComparison.OrdinalIgnoreCase)) return "repair_exception";
+            if (text.Contains("completed. Device controls were refreshed automatically.", StringComparison.OrdinalIgnoreCase)
+                || (text.StartsWith("Repair verification", StringComparison.OrdinalIgnoreCase)
+                    && text.EndsWith("verified.", StringComparison.OrdinalIgnoreCase))) return "verification_completed";
+            return "incomplete";
+        }
+
         private async Task RepairConnectorAsync()
         {
             var token = LoadDeviceToken();
