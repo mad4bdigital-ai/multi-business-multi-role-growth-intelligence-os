@@ -12,6 +12,11 @@ import {
   validateHostingerSshTargetProbeJobPayload,
 } from "./hostingerSshDeployExecutor.js";
 import {
+  HOSTINGER_ASYNC_DEPLOY_JOB_TYPE,
+  normalizeHostingerAsyncDeployPayload,
+  validateHostingerAsyncDeployPayload,
+} from "./asyncReleaseDeployContract.js";
+import {
   HOSTINGER_SSH_PROBE_RUNNER_MODES,
   describeHostingerSshProbeRunnerMode,
   normalizeHostingerSshProbeRunnerMode,
@@ -185,6 +190,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
       ? []
       : requestedJobType === HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE
       ? validateHostingerSshTargetProbeJobPayload(requestPayload)
+      : requestedJobType === HOSTINGER_ASYNC_DEPLOY_JOB_TYPE
+      ? validateHostingerAsyncDeployPayload(requestPayload)
       : validateAsyncJobRequest(requestPayload);
 
   if (body.max_attempts !== undefined) {
@@ -267,6 +274,7 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
   const isConnectedExecutionResumeActionJob = normalizedJobType === CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE;
   const isTenantSshCliExecuteJob = normalizedJobType === TENANT_SSH_CLI_EXECUTE_JOB_TYPE;
   const isHostingerSshTargetProbeJob = normalizedJobType === HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE;
+  const isHostingerAsyncDeployJob = normalizedJobType === HOSTINGER_ASYNC_DEPLOY_JOB_TYPE;
   const databaseLifecycleSnapshotPayload = isDatabaseLifecycleSnapshotJob
     ? {
         ...requestPayload,
@@ -297,6 +305,9 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
   const hostingerSshTargetProbePayload = isHostingerSshTargetProbeJob
     ? normalizeHostingerSshTargetProbeJobPayload(requestPayload)
     : null;
+  const hostingerAsyncDeployPayload = isHostingerAsyncDeployJob
+    ? normalizeHostingerAsyncDeployPayload(requestPayload)
+    : null;
 
   const job = {
     job_id: buildJobId(),
@@ -321,6 +332,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? String(tenantSshCliExecutePayload.connection_id || "").trim()
         : isHostingerSshTargetProbeJob
         ? String(hostingerSshTargetProbePayload.target_id || "").trim()
+        : isHostingerAsyncDeployJob
+        ? String(hostingerAsyncDeployPayload.target_id || "").trim()
         : String(requestPayload.target_key || "").trim(),
     parent_action_key:
       normalizedJobType === "site_migration"
@@ -333,6 +346,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "tenant_ssh_cli_worker"
         : isHostingerSshTargetProbeJob
         ? "remote_runtime_hostinger_ssh_probe_worker"
+        : isHostingerAsyncDeployJob
+        ? "release_async_deploy_worker"
         : String(requestPayload.parent_action_key || "").trim(),
     endpoint_key:
       normalizedJobType === "site_migration"
@@ -345,6 +360,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "tenant_ssh_cli_allowlisted_execute"
         : isHostingerSshTargetProbeJob
         ? "remote_runtime_hostinger_ssh_probe"
+        : isHostingerAsyncDeployJob
+        ? "remote_runtime_hostinger_deploy_release"
         : String(requestPayload.endpoint_key || "").trim(),
     route_id:
       normalizedJobType === "site_migration"
@@ -357,6 +374,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "tenant_ssh_cli_dedicated_worker_runtime"
         : isHostingerSshTargetProbeJob
         ? "remote_runtime_hostinger_ssh_probe_queue_worker"
+        : isHostingerAsyncDeployJob
+        ? "release_async_deploy_queue_worker"
         : String(requestPayload.route_id || "").trim(),
     target_module:
       normalizedJobType === "site_migration"
@@ -369,6 +388,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "tenant_infrastructure"
         : isHostingerSshTargetProbeJob
         ? "remote_runtime"
+        : isHostingerAsyncDeployJob
+        ? "release_intelligence"
         : String(requestPayload.target_module || "").trim(),
     target_workflow:
       normalizedJobType === "site_migration"
@@ -381,6 +402,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "wf_tenant_ssh_cli_allowlisted_execute"
         : isHostingerSshTargetProbeJob
         ? "wf_hostinger_ssh_target_probe_queue_worker"
+        : isHostingerAsyncDeployJob
+        ? "wf_async_release_deploy"
         : String(requestPayload.target_workflow || "").trim(),
     brand_name:
       normalizedJobType === "site_migration"
@@ -401,6 +424,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
       ? tenantSshCliExecutePayload
       : isHostingerSshTargetProbeJob
       ? hostingerSshTargetProbePayload
+      : isHostingerAsyncDeployJob
+      ? hostingerAsyncDeployPayload
       : requestPayload,
     runner_mode: isHostingerSshTargetProbeJob ? normalizeHostingerSshProbeRunnerMode(hostingerSshTargetProbePayload.runner_mode) : "",
     runner_mode_evidence: isHostingerSshTargetProbeJob ? describeHostingerSshProbeRunnerMode(hostingerSshTargetProbePayload.runner_mode) : null,
