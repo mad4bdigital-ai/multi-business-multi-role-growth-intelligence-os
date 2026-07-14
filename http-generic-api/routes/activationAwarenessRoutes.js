@@ -22,6 +22,7 @@ import {
   getTenantResolutionCase,
   transitionTenantResolutionCase,
 } from "../tenantResolutionCaseLifecycleService.js";
+import { runTenantResolutionDiagnosticAction } from "../tenantResolutionDiagnosticService.js";
 import { acknowledgeActivationRun, readActivationRunArchive } from "../activationSessionLifecycleService.js";
 import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
 
