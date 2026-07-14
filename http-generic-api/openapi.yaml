@@ -4684,52 +4684,6 @@ paths:
         '401': { description: Authentication required. }
         '403': { description: Not authorized to list sessions. }
 
-  /sessions:
-    get:
-      operationId: listSessions
-      summary: List customer sessions with optional session or turn-level context filters
-      tags: [session-archive]
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      parameters:
-        - name: tenant_id
-          in: query
-          required: true
-          schema: { type: string }
-        - name: user_id
-          in: query
-          schema: { type: string }
-        - name: originator
-          in: query
-          schema: { type: string }
-        - name: session_status
-          in: query
-          schema: { type: string }
-        - name: brand_key
-          in: query
-          schema: { type: string }
-          description: Optional brand context filter.
-        - name: workspace_key
-          in: query
-          schema: { type: string }
-          description: Optional workspace context filter.
-        - name: context_scope
-          in: query
-          schema:
-            type: string
-            enum: [session, turn, any]
-            default: session
-          description: Select whether brand_key and workspace_key filters apply to session defaults, turn-level context, or either surface.
-        - name: limit
-          in: query
-          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
-      responses:
-        '200': { description: Sessions matching the requested context scope. }
-        '400': { description: Invalid query or context_scope value. }
-        '401': { description: Authentication required. }
-        '403': { description: Not authorized to list sessions. }
-
   /gpt/sessions:
     get:
       operationId: getGptSessions
