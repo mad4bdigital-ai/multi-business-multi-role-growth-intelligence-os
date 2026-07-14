@@ -567,6 +567,22 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
+  router.get("/tenant/resolution/skill-approvals", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantSkillApprovalListResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_skill_approval_list_failed");
+    }
+  });
+
+  router.post("/tenant/resolution/skill-approvals/:approvalKey/decision", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantSkillApprovalDecisionResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_skill_approval_decision_failed");
+    }
+  });
+
   router.get("/tenant/activation/dynamic-tabs/detail", requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await detailResponse(req, false));
