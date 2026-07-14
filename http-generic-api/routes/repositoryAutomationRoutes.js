@@ -10,6 +10,7 @@ import { createOperationResilienceController } from "../operationResilienceContr
 import { createOperationRuntimeGuard } from "../operationRuntimeGuard.js";
 import { dispatchToolForCaller, resolveCallerTypeForRequest } from "./gptToolsRoutes.js";
 import { buildOperationOrchestratorRoutes } from "./operationOrchestratorRoutes.js";
+import { buildTypedCatalogRoutes } from "./typedCatalogRoutes.js";
 
 function bodyOf(req) {
   const body = req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {};
@@ -87,6 +88,7 @@ export function buildRepositoryAutomationRoutes({ requireBackendApiKey, requireA
   router.use(
     createOperationResilienceController(),
     createOperationRuntimeGuard(),
+    buildTypedCatalogRoutes({ requireBackendApiKey, requireAdminPrincipal }),
     buildOperationOrchestratorRoutes({ requireBackendApiKey, requireAdminPrincipal }),
   );
 
