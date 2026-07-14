@@ -173,7 +173,8 @@ status=disabled
 - Authentication failure: classify as `authorization_gated`; stop.
 - Dev database suffix failure: stop; do not retry with another target.
 - Tool unavailable: treat as deployment or registry drift; do not bypass with SQL.
-- If only `v_app_integration_capability_map` is absent, capability resolution may use the official read-only base-table projection. Permission errors, missing base tables, invalid schema, and all other database failures remain fail-closed.
+- If only `v_app_integration_capability_map` is absent, capability resolution may use the official read-only base-table projection.
+- If only `v_workspace_resource_grant_effective` is absent, capability resolution may use the official read-only `workspace_resource_grants` + active `memberships` projection. Permission errors, missing base tables, invalid schema, and all other database failures remain fail-closed.
 - Checksum or statement-count mismatch: stop and reconcile the committed migration.
 - Capability-envelope failure: stop; never reuse a stale or unrelated envelope.
 - Ambiguous transport result: perform ledger and schema readback before any retry.
