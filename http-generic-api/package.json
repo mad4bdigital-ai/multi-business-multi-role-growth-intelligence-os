@@ -42,7 +42,9 @@
     "outbox:loop": "node scripts/platform-outbox-worker.mjs --action=loop --apply",
     "dev:migration:status": "node scripts/dev-governed-migration-client.mjs --action=status",
     "dev:migration:probe": "node scripts/dev-governed-migration-client.mjs --action=probe",
-    "dev:migration:client": "node scripts/dev-governed-migration-client.mjs"
+    "dev:migration:client": "node scripts/dev-governed-migration-client.mjs",
+    "dev:outbox:status": "node scripts/dev-governed-migration-client.mjs --action=shell-alias --alias=platform_outbox_worker --extra-args-base64=WyItLWFjdGlvbj1zdGF0dXMiXQ==",
+    "dev:outbox:dry-run": "node scripts/dev-governed-migration-client.mjs --action=shell-alias --alias=platform_outbox_worker --extra-args-base64=WyItLWFjdGlvbj1kcnktcnVuIl0="
   },
   "engines": {
     "node": ">=22 <23"
