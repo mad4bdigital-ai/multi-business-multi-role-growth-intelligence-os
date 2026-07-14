@@ -530,7 +530,11 @@ async function applyGrantDecision(connection, { subject, group, normalized }) {
 async function updateApprovalHold(connection, { hold, subject, normalized, nowValue }) {
   const context = sanitizeValue({
     ...parseJsonValue(hold.execution_context_json, {}),
-    decision_state: normalized.decision === "defer" ? "deferred" : `${normalized.decision}d`,
+    decision_state: normalized.decision === "defer"
+      ? "deferred"
+      : normalized.decision === "approve"
+        ? "approved"
+        : "rejected",
     decision_by: subject.user_id,
     decision_note: normalized.decision_note,
     deferred_until: normalized.defer_until?.toISOString() || null,
