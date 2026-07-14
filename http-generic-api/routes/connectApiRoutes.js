@@ -19,6 +19,7 @@ import {
   createWordPressAccountClaim,
   toErrorEnvelope,
 } from "../cmsAccountClaimResolver.js";
+import { buildTenantConnectionSelfRepairRoutes } from "./tenantConnectionSelfRepairRoutes.js";
 
 function verifyUserJwt(authorization) {
   if (!authorization || !authorization.startsWith("Bearer ")) return null;
