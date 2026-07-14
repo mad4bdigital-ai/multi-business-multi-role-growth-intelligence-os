@@ -16,6 +16,7 @@ export const testCommands = [
   "node test-agent-delegation-opt-in.mjs",
   "node test-optional-manual-agent-delegation-tools.mjs",
   "node test-dynamic-capability-resolution-graph.mjs",
+  "node test-capability-resolution-app-map-fallback.mjs",
   "node test-capability-enablement-broker.mjs",
   "node test-capability-enablement-operationalization.mjs",
   "node test-dynamic-container-authority-foundation.mjs",
