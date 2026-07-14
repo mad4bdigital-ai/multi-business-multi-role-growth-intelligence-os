@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import "./test-operation-run-ownership.mjs";
 import "./test-operation-runtime-guard.mjs";
+import "./test-operation-resilience-controller.mjs";
 import {
   getOperationContract,
   listOperationContracts,
