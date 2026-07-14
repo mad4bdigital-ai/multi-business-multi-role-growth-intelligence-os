@@ -274,6 +274,7 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
   const isConnectedExecutionResumeActionJob = normalizedJobType === CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE;
   const isTenantSshCliExecuteJob = normalizedJobType === TENANT_SSH_CLI_EXECUTE_JOB_TYPE;
   const isHostingerSshTargetProbeJob = normalizedJobType === HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE;
+  const isHostingerAsyncDeployJob = normalizedJobType === HOSTINGER_ASYNC_DEPLOY_JOB_TYPE;
   const databaseLifecycleSnapshotPayload = isDatabaseLifecycleSnapshotJob
     ? {
         ...requestPayload,
