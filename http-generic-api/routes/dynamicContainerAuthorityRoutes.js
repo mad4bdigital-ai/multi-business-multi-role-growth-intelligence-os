@@ -18,6 +18,7 @@ import {
   buildLegacyContainerProjectionPlan
 } from "../dynamicContainerProjectionService.js";
 import { readContainerResolution } from "../dynamicContainerAuthorityRepository.js";
+import { runDynamicContainerShadowSampler } from "../dynamicContainerShadowSampler.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const previewRate = new Map();
@@ -236,6 +237,18 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
       const plan = await buildLegacyContainerProjectionPlan({ createdBy:actorId(req) });
       if (mode === "dry_run") return res.json({ ok:true,mode,projectionRunId:plan.projectionRunId,summary:plan.summary,issues:plan.issues,sourceSnapshotSha256:plan.sourceSnapshotSha256,willApply:false,secretsIncluded:false });
       const result = await applyLegacyContainerProjection(plan,{ createdBy:actorId(req) });
+      return res.status(201).json(result);
+    } catch (error) { return errorResponse(req,res,error); }
+  });
+
+  router.post("/admin/container-authority/shadow-samples",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
+    try {
+      assertAllowedKeys(req.body,new Set(["sampleCount","tenantId"]));
+      const result = await runDynamicContainerShadowSampler({
+        sampleCount:req.body?.sampleCount,
+        tenantId:req.body?.tenantId || null,
+        requestedBy:actorId(req)
+      });
       return res.status(201).json(result);
     } catch (error) { return errorResponse(req,res,error); }
   });
