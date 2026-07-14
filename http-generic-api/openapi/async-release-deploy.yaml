@@ -1,0 +1,107 @@
+openapi: 3.1.0
+info:
+  title: Async Release Deploy API
+  version: 1.0.0
+  description: Governed 202 acceptance and readback contract for Hostinger release deployments.
+servers:
+  - url: https://auth.mad4b.com
+security:
+  - backendApiKey: []
+tags:
+  - name: async-release-deploy
+paths:
+  /admin/release-operations/{operationId}/async-deploy:
+    post:
+      tags: [async-release-deploy]
+      operationId: acceptAsyncReleaseDeploy
+      summary: Accept a release deploy into the governed job queue
+      parameters: [{ $ref: '#/components/parameters/OperationId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AsyncDeployRequest' } } } }
+      responses:
+        '202': { description: Accepted, content: { application/json: { schema: { $ref: '#/components/schemas/AsyncDeployAccepted' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    get:
+      tags: [async-release-deploy]
+      operationId: getAsyncReleaseDeploy
+      summary: Read async deploy tracking and job status
+      parameters: [{ $ref: '#/components/parameters/OperationId' }]
+      responses:
+        '200': { description: Current status, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/release-operations/{operationId}/async-deploy/readback:
+    post:
+      tags: [async-release-deploy]
+      operationId: reconcileAsyncReleaseDeploy
+      summary: Reconcile deployment-run and runtime parity evidence
+      parameters: [{ $ref: '#/components/parameters/OperationId' }]
+      responses:
+        '200': { description: Reconciled status, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+components:
+  securitySchemes:
+    backendApiKey: { type: apiKey, in: header, name: x-api-key }
+  parameters:
+    OperationId: { in: path, name: operationId, required: true, schema: { type: string, format: uuid } }
+  schemas:
+    AsyncDeployRequest:
+      type: object
+      required: [target_id, expected_commit_sha, capability_envelope_id]
+      properties:
+        gate_id: { type: string, format: uuid }
+        target_id: { type: string, format: uuid }
+        app_key: { type: string, default: auth.mad4b.com }
+        app_path: { type: string }
+        branch: { type: string, enum: [main], default: main }
+        expected_commit_sha: { type: string, pattern: '^[0-9a-fA-F]{40}$' }
+        capability_envelope_id: { type: string, format: uuid }
+        approval_reason: { type: string, minLength: 20 }
+        force_clean: { type: boolean, default: false }
+        restart: { type: boolean, default: true }
+        dry_run: { type: boolean, default: false }
+        timeout_ms: { type: integer, minimum: 1000, maximum: 300000 }
+        ssh_auth_mode: { type: string }
+        ssh_transport_mode: { type: string }
+        idempotency_key: { type: string }
+      additionalProperties: false
+    AsyncDeployAccepted:
+      type: object
+      required: [ok, accepted, operation_id, async_deployment_id, async_status, status_url, readback_url, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        accepted: { type: boolean, const: true }
+        operation_id: { type: string, format: uuid }
+        async_deployment_id: { type: string, format: uuid }
+        job_id: { type: [string, 'null'] }
+        async_status: { type: string, const: queued }
+        status_url: { type: string }
+        job_status_url: { type: [string, 'null'] }
+        job_result_url: { type: [string, 'null'] }
+        readback_url: { type: string }
+        deduplicated: { type: boolean }
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: false
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: {}
+            requestId: { type: string }
+          additionalProperties: false
+      additionalProperties: false
+  responses:
+    BadRequest: { description: Invalid request, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Forbidden: { description: Approval or capability envelope required, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    NotFound: { description: Release operation, gate, or deployment not found, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Conflict: { description: Lifecycle conflict, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Unavailable: { description: Governed queue unavailable before acceptance, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
