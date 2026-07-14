@@ -117,5 +117,13 @@ const packageJson = JSON.parse(await fs.readFile(path.join(root, "package.json")
 assert.equal(packageJson.scripts["dev:migration:probe"], "node scripts/dev-governed-migration-client.mjs --action=probe");
 assert.equal(packageJson.scripts["dev:migration:client"], "node scripts/dev-governed-migration-client.mjs");
 assert.equal(packageJson.scripts["dev:migration:status"], "node scripts/dev-governed-migration-client.mjs --action=status");
+assert.equal(
+  packageJson.scripts["dev:outbox:status"],
+  "node scripts/dev-governed-migration-client.mjs --action=shell-alias --alias=platform_outbox_worker --extra-args-base64=WyItLWFjdGlvbj1zdGF0dXMiXQ=="
+);
+assert.equal(
+  packageJson.scripts["dev:outbox:dry-run"],
+  "node scripts/dev-governed-migration-client.mjs --action=shell-alias --alias=platform_outbox_worker --extra-args-base64=WyItLWFjdGlvbj1kcnktcnVuIl0="
+);
 
-console.log("dev governed migration client contract tests passed");
+console.log("dev governed migration and outbox read-only client contract tests passed");
