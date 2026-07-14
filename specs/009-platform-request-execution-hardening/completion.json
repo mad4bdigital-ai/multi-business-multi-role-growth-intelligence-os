@@ -26,7 +26,8 @@
       "orchestrator": "http-generic-api/operationOrchestrator.js",
       "routes": "http-generic-api/routes/operationOrchestratorRoutes.js",
       "tenant_run_ownership": "http-generic-api/operationRunOwnershipService.js",
-      "runtime_guard": "http-generic-api/operationRuntimeGuard.js"
+      "runtime_guard": "http-generic-api/operationRuntimeGuard.js",
+      "resilience_controller": "http-generic-api/operationResilienceController.js"
     },
     "migration": {
       "status": "included_not_applied",
@@ -35,36 +36,48 @@
       "backfill_required": false
     },
     "tests": {
-      "status": "pending_current_head_ci",
-      "head_sha": "1d19252679c1635244c18efbad5cfde92c6addda",
+      "status": "passing",
+      "head_sha": "528f9af72ef0ca4635d8f019c15853edf197b2f3",
       "required_checks": {
-        "Syntax Check": "blocked_invalid_completion_json",
-        "Architecture Drift Detection": "not_run",
-        "Execution Resolver Gate": "not_run",
-        "Unit & Integration Tests": "not_run"
+        "Syntax Check": "success",
+        "Architecture Drift Detection": "success",
+        "Execution Resolver Gate": "success",
+        "Unit & Integration Tests": "success"
       },
       "tenant_isolation": "Tenant A cannot read or resume Tenant B operation runs",
       "runtime_guard": [
         "timeout",
         "response_budget",
         "raw_503_normalization"
+      ],
+      "resilience": [
+        "rate_limit_429",
+        "retry_after",
+        "circuit_open",
+        "half_open_probe",
+        "circuit_recovery"
       ]
     },
     "openapi": {
       "status": "synchronized",
       "path": "specs/009-platform-request-execution-hardening/contracts/operation-orchestrator.openapi.yaml",
-      "version": "3.1.0"
+      "version": "3.1.0",
+      "contract_version": "0.3.0",
+      "documents": [
+        "429",
+        "Retry-After",
+        "rate_limit_headers",
+        "circuit_breaker_503"
+      ]
     },
     "release_readiness": {
       "status": "blocked_remaining_tasks",
       "remaining": [
         "managed_ephemeral_git_worker_lifecycle_evidence",
         "automatic_capability_lifecycle",
-        "circuit_breaker_enforcement",
         "generated_artifact_registry",
         "transparent_chunk_aggregation",
         "typed_catalog_apis",
-        "rate_limit_tests",
         "observability_dashboards",
         "shadow_and_pilot_rollout"
       ]
