@@ -101,6 +101,7 @@ export const testCommands = [
   "node test-credential-intake-ssh-password.mjs",
   "node test-credential-intake-webhook-outbox.mjs",
   "node test-platform-outbox-foundation.mjs",
+  "node test-dev-governed-migration-client.mjs",
   "node test-credential-intake-platform-secret-promotion.mjs",
   "node test-platform-secret-promotion-monitoring.mjs",
   "node test-local-connector-key-promotion.mjs",
