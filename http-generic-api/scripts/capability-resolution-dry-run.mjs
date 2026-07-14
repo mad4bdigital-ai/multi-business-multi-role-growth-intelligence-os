@@ -204,23 +204,62 @@ async function loadBrandCore(pool, brandKey) {
   return rows[0] || null;
 }
 
-async function loadWorkspaceGrants(pool, { tenantId, userId, workspaceId, workspaceKey, brandKey, appKey }) {
+export function isMissingWorkspaceGrantViewError(error) {
+  const code = String(error?.code || "");
+  const message = String(error?.message || "");
+  return ["ER_NO_SUCH_TABLE", "ER_VIEW_INVALID"].includes(code)
+    && /v_workspace_resource_grant_effective/i.test(message);
+}
+
+export async function loadWorkspaceGrants(pool, { tenantId, userId, workspaceId, workspaceKey, brandKey, appKey }) {
   if (!tenantId || !userId) return [];
   // Legacy membership backfills used tenant_id as the workspace resource_ref.
   // New grants use workspace_id; workspace_key remains a supported human-readable alias.
   const refs = unique([workspaceId, workspaceKey, tenantId, brandKey, appKey]);
   if (!refs.length) return [];
-  const [rows] = await pool.query(
-    `SELECT grant_id, tenant_id, grantee_user_id, resource_type, resource_ref, permission, grant_status, membership_role, membership_status, expires_at
-       FROM v_workspace_resource_grant_effective
-      WHERE tenant_id = ?
-        AND grantee_user_id = ?
-        AND grant_status = 'active'
-        AND membership_status = 'active'
-        AND resource_ref IN (${refs.map(() => "?").join(",")})`,
-    [tenantId, userId, ...refs]
-  );
-  return rows;
+  const params = [tenantId, userId, ...refs];
+  try {
+    const [rows] = await pool.query(
+      `SELECT grant_id, tenant_id, grantee_user_id, resource_type, resource_ref, permission, grant_status, membership_role, membership_status, expires_at
+         FROM v_workspace_resource_grant_effective
+        WHERE tenant_id = ?
+          AND grantee_user_id = ?
+          AND grant_status = 'active'
+          AND membership_status = 'active'
+          AND resource_ref IN (${refs.map(() => "?").join(",")})`,
+      params
+    );
+    return rows;
+  } catch (error) {
+    if (!isMissingWorkspaceGrantViewError(error)) throw error;
+    const [rows] = await pool.query(
+      `SELECT
+         g.grant_id,
+         g.tenant_id,
+         g.grantee_user_id,
+         g.resource_type,
+         g.resource_ref,
+         g.permission,
+         g.status AS grant_status,
+         m.role AS membership_role,
+         m.status AS membership_status,
+         g.expires_at
+       FROM workspace_resource_grants g
+       JOIN memberships m
+         ON m.tenant_id = g.tenant_id
+        AND m.user_id = g.grantee_user_id
+        AND m.status = 'active'
+       LEFT JOIN users u
+         ON u.user_id = g.grantee_user_id
+       WHERE g.tenant_id = ?
+         AND g.grantee_user_id = ?
+         AND g.status = 'active'
+         AND (g.expires_at IS NULL OR g.expires_at > NOW())
+         AND g.resource_ref IN (${refs.map(() => "?").join(",")})`,
+      params
+    );
+    return rows;
+  }
 }
 
 async function loadConnections(pool, { tenantId, userId, appKey }) {
