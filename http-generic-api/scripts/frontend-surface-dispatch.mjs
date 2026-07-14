@@ -625,6 +625,20 @@ function operationDeliveryEvidence(operation) {
   };
 }
 
+const SURFACE_DECISIONS = new Set([
+  "unified_ui",
+  "embedded_ui",
+  "legacy_compatibility",
+  "api_only",
+  "internal_only",
+  "deferred",
+  "requires_review",
+]);
+
+function normalizedSurfaceDecision(value) {
+  return SURFACE_DECISIONS.has(value) ? value : "requires_review";
+}
+
 function policyDecision(family, policy) {
   const rules = Array.isArray(policy?.rules) ? policy.rules : [];
   const matchingRules = rules.filter((candidate) => {
@@ -644,15 +658,22 @@ function policyDecision(family, policy) {
   }
   const rule = matchingRules[0];
   if (rule && rule.owner && rule.rationale) {
+    const decision = normalizedSurfaceDecision(rule.decision);
     return {
-      decision: rule.decision,
-      rationale: rule.rationale,
-      owner: rule.owner,
+      decision,
+      rationale: decision === rule.decision
+        ? rule.rationale
+        : `Invalid surface decision "${String(rule.decision)}" in policy rule ${rule.rule_id || "unnamed"}; explicit review is required.`,
+      owner: decision === rule.decision ? rule.owner : null,
       rule_id: rule.rule_id || null,
       evidence_refs: unique(rule.evidence_refs || []),
     };
   }
-  return { decision: policy?.default_decision || "requires_review", rationale: "No repository policy decision covers this route family.", owner: null };
+  return {
+    decision: normalizedSurfaceDecision(policy?.default_decision),
+    rationale: "No repository policy decision covers this route family.",
+    owner: null,
+  };
 }
 
 function matchingOperationRules(operation, policy) {
