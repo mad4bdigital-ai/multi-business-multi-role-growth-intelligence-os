@@ -171,6 +171,7 @@ try {
     const consequentialTenantOperations = new Set([
       "tenantPlatformPluginInstall",
       "tenantPlatformPluginCredentialIntakeSessionCreate",
+      "decideTenantSkillApproval",
       "postMeWorkspacesTenantIdResourcesResourceKey",
       "postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore",
     ]);
