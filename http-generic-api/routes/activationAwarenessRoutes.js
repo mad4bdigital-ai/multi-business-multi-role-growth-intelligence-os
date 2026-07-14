@@ -17,6 +17,12 @@ import {
 } from "../operationalAlertService.js";
 import { readTenantResolutionProblemCards } from "../tenantResolutionProjectionService.js";
 import { createTenantResolutionCase } from "../tenantResolutionCaseService.js";
+import {
+  listTenantResolutionCases,
+  getTenantResolutionCase,
+  transitionTenantResolutionCase,
+} from "../tenantResolutionCaseLifecycleService.js";
+import { runTenantResolutionDiagnosticAction } from "../tenantResolutionDiagnosticService.js";
 import { acknowledgeActivationRun, readActivationRunArchive } from "../activationSessionLifecycleService.js";
 import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
 
@@ -268,6 +274,73 @@ async function tenantResolutionCaseCreateResponse(req) {
   });
 }
 
+function tenantWorkspaceScope(req) {
+  return queryText(req.query?.workspace_id || req.body?.workspace_id || req.headers?.["x-workspace-id"], 64);
+}
+
+async function tenantResolutionCaseListResponse(req) {
+  return listTenantResolutionCases({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    cursor: boundedInt(req.query.cursor, 0, 0, 1000000),
+    limit: boundedInt(req.query.limit, 25, 1, 100),
+    workspaceId: tenantWorkspaceScope(req),
+    status: queryText(req.query.status, 64),
+    rootFamily: queryText(req.query.root_family, 128),
+    severity: queryText(req.query.severity, 32),
+  });
+}
+
+async function tenantResolutionCaseDetailResponse(req) {
+  return getTenantResolutionCase({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    caseId: req.params.caseId,
+    workspaceId: tenantWorkspaceScope(req),
+    eventLimit: boundedInt(req.query.event_limit, 50, 1, 100),
+  });
+}
+
+async function tenantResolutionCaseTransitionResponse(req) {
+  return transitionTenantResolutionCase({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    caseId: req.params.caseId,
+    workspaceId: tenantWorkspaceScope(req),
+    input: req.body || {},
+  });
+}
+
+async function tenantResolutionDiagnosticActionResponse(req) {
+  return runTenantResolutionDiagnosticAction({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    caseId: req.params.caseId,
+    workspaceId: tenantWorkspaceScope(req),
+    input: req.body || {},
+  });
+}
+
 async function operationalAttentionSyncResponse(req, isAdmin) {
   return synchronizeOperationalAlerts({
     sessionContext: subjectContext(req, isAdmin),
@@ -416,12 +489,44 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
+  router.get("/tenant/resolution/cases", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantResolutionCaseListResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_resolution_case_list_failed");
+    }
+  });
+
   router.post("/tenant/resolution/cases", requireTenantUserJwt, async (req, res) => {
     try {
       const result = await tenantResolutionCaseCreateResponse(req);
       return res.status(result.created ? 201 : 200).json(result);
     } catch (err) {
       return errorResponse(res, err, "tenant_resolution_case_create_failed");
+    }
+  });
+
+  router.get("/tenant/resolution/cases/:caseId", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantResolutionCaseDetailResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_resolution_case_read_failed");
+    }
+  });
+
+  router.post("/tenant/resolution/cases/:caseId/transitions", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantResolutionCaseTransitionResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_resolution_case_transition_failed");
+    }
+  });
+
+  router.post("/tenant/resolution/cases/:caseId/diagnostics", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantResolutionDiagnosticActionResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_resolution_diagnostic_action_failed");
     }
   });
 
@@ -447,4 +552,9 @@ export const _testingActivationAwarenessRoutes = {
   subjectContext,
   tenantProblemCardsResponse,
   tenantResolutionCaseCreateResponse,
+  tenantWorkspaceScope,
+  tenantResolutionCaseListResponse,
+  tenantResolutionCaseDetailResponse,
+  tenantResolutionCaseTransitionResponse,
+  tenantResolutionDiagnosticActionResponse,
 };
