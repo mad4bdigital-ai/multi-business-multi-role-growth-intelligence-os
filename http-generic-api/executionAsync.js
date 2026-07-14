@@ -12,6 +12,11 @@ import {
   validateHostingerSshTargetProbeJobPayload,
 } from "./hostingerSshDeployExecutor.js";
 import {
+  HOSTINGER_ASYNC_DEPLOY_JOB_TYPE,
+  normalizeHostingerAsyncDeployPayload,
+  validateHostingerAsyncDeployPayload,
+} from "./asyncReleaseDeployContract.js";
+import {
   HOSTINGER_SSH_PROBE_RUNNER_MODES,
   describeHostingerSshProbeRunnerMode,
   normalizeHostingerSshProbeRunnerMode,
