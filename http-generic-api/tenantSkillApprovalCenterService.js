@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 
-const OWNER_ROLES = new Set(["owner", "workspace_owner", "admin"]);
+const OWNER_ROLES = new Set(["owner", "tenant_owner", "workspace_owner", "admin"]);
 const DECISIONS = new Set(["approve", "reject", "defer"]);
 const STATUS_FILTERS = new Set(["pending", "approved", "rejected", "deferred", "expired"]);
 const SENSITIVE_KEY_PATTERN = /(secret|credential|token|password|private_key|cipher|api_key|authorization|cookie|set-cookie|payload_json|raw_prompt|system_prompt)/i;
