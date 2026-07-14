@@ -7,6 +7,7 @@ import {
   parseArgs,
   sanitizeResult,
   validateDevBaseUrl,
+  validateShellAliasInvocation,
 } from "./scripts/dev-governed-migration-client.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
