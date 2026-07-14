@@ -237,6 +237,9 @@ const platformState=makeState({
 const platformOwnerWithoutBinding = await resolveEffectiveContainerContext(request(),depsFor(platformState));
 assert.equal(platformOwnerWithoutBinding.decision,"deny");
 assert(platformOwnerWithoutBinding.blockingCodes.includes("resource_binding_missing"));
+assert(!platformOwnerWithoutBinding.blockingCodes.includes("role_assignment_invalid"));
+assert(!platformOwnerWithoutBinding.blockingCodes.includes("role_assignment_missing"));
+assert(!platformOwnerWithoutBinding.blockingCodes.includes("role_permission_insufficient"));
 
 await assert.rejects(() => resolveEffectiveContainerContext({ ...request(),mode:"enforce" },depsFor(makeState())),error => error.code === "effective_context_blocked");
 await assert.rejects(() => resolveEffectiveContainerContext({ ...request(),access_token:"forbidden" },depsFor(makeState())),error => error.code === "container_secret_field_forbidden");
