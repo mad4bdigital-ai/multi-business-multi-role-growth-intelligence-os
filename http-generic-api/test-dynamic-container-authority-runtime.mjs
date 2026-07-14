@@ -306,6 +306,26 @@ assert(projection.resourceBindings.some(row => row.source_table === "workspace_a
 for (const type of ["platform","tenant","workspace","brand","activity","workflow"]) {
   assert(projection.containers.some(row => row.container_type_key === type),`projection must create ${type} container`);
 }
+const platformOwnerProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    memberships:[{ user_id:"platform-user-1",tenant_id:TENANT,role:"platform_owner",status:"active" }],
+    roleAssignments:[{
+      assignment_id:"legacy-platform-owner-assignment",
+      user_id:"platform-user-1",
+      tenant_id:TENANT,
+      role:"platform_owner",
+      status:"active"
+    }]
+  }
+});
+const projectedPlatformContainer=platformOwnerProjection.containers.find(row => row.container_type_key === "platform");
+const projectedTenantContainer=platformOwnerProjection.containers.find(row => row.container_type_key === "tenant");
+const projectedPlatformOwnerAssignments=platformOwnerProjection.roleAssignments.filter(row => row.role_template_key === "platform_owner");
+assert.equal(projectedPlatformOwnerAssignments.length,2);
+assert(projectedPlatformOwnerAssignments.every(row => row.container_id === projectedPlatformContainer.container_id));
+assert(projectedPlatformOwnerAssignments.every(row => row.inheritance_mode === "inherit_down"));
+assert(!projectedPlatformOwnerAssignments.some(row => row.container_id === projectedTenantContainer.container_id));
 const projectionAgain=await buildLegacyContainerProjectionPlan({ sourceRows:projectionSources });
 assert.deepEqual(projection.containers.map(row => row.container_id).sort(),projectionAgain.containers.map(row => row.container_id).sort());
 const existingTenantContainerId="legacy-tenant-container-id";
