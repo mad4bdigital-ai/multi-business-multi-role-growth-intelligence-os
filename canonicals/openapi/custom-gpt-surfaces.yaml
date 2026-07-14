@@ -80,6 +80,8 @@ surfaces:
         - tenantPlatformPluginCredentialIntakeSessionCreate
         - tenantPlatformPluginResolve
         - listSessions
+        - listTenantSkillApprovals
+        - decideTenantSkillApproval
         - writeSessionTurn
         - writeGptSessionTurns
         - endSession
