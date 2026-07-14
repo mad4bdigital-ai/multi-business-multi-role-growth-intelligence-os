@@ -36,6 +36,10 @@ import {
   runHostingerSshTargetProbeJob,
 } from "./hostingerSshDeployExecutor.js";
 import {
+  HOSTINGER_ASYNC_DEPLOY_JOB_TYPE,
+  runHostingerAsyncDeployJob,
+} from "./asyncReleaseDeployWorker.js";
+import {
   runSequentialPlan,
   SEQUENTIAL_PLAN_RUN_JOB_TYPE,
 } from "./sequentialPlanOrchestrator.js";
@@ -507,6 +511,34 @@ export function configureJobRunner(
           success: false,
           statusCode: err?.status || 500,
           payload: { ok: false, error: { code: err?.code || "hostinger_ssh_target_probe_job_failed", message: err?.message || String(err), details: err?.details || null }, worker_job_id: job.job_id, secrets_included: false },
+        };
+      }
+    }
+    if (jobType === HOSTINGER_ASYNC_DEPLOY_JOB_TYPE) {
+      try {
+        const payload = await (deps.runHostingerAsyncDeployJob || runHostingerAsyncDeployJob)({
+          ...(job.request_payload || {}),
+          worker_job_id: job.job_id,
+        });
+        return {
+          success: payload?.ok === true || payload?.transient === true,
+          statusCode: payload?.transient === true ? 202 : payload?.ok === true ? 200 : 409,
+          payload: { ...payload, worker_job_id: job.job_id, secrets_included: false },
+        };
+      } catch (err) {
+        return {
+          success: false,
+          statusCode: err?.status || 500,
+          payload: {
+            ok: false,
+            error: {
+              code: err?.code || "hostinger_async_deploy_job_failed",
+              message: err?.message || String(err),
+              details: err?.details || null,
+            },
+            worker_job_id: job.job_id,
+            secrets_included: false,
+          },
         };
       }
     }

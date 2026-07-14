@@ -55,6 +55,7 @@ export function policyPayload(policy) {
     read_stale_grace_seconds: policy.read_stale_grace_seconds,
     source_registry: policy.source_registry,
     source_surfaces: policy.source_surfaces,
+    oauth_handoff_routes: policy.oauth_handoff_routes,
     routes: policy.routes,
   };
 }
@@ -213,6 +214,14 @@ function resolveRoute(indexes, method, pathname) {
   return { route, allowedMethods: new Set(matches.map((entry) => entry.route.method)) };
 }
 
+function buildOAuthHandoffIndex(policy) {
+  return new Map((policy.oauth_handoff_routes || []).map((route) => [routeKey(route.method, route.path), route]));
+}
+
+function resolveOAuthHandoff(index, method, pathname) {
+  return index.get(routeKey(method, pathname)) || null;
+}
+
 function forwardedRequestHeaders(request, policy, requestId) {
   const headers = new Headers();
   for (const [name, value] of request.headers.entries()) {
@@ -265,6 +274,7 @@ export function createActivationGateway({
 } = {}) {
   if (!policy || typeof policy !== "object") throw new Error("Activation gateway policy is required");
   const indexes = buildRouteIndexes(policy);
+  const oauthHandoffIndex = buildOAuthHandoffIndex(policy);
   let verificationCacheKey = "";
   let verificationCache = null;
 
@@ -346,6 +356,47 @@ export function createActivationGateway({
       if (unsafePath(url.pathname)) {
         status = 400;
         return jsonResponse(status, errorBody("GATEWAY_PATH_INVALID", "The request path is not canonical.", requestId), requestId);
+      }
+
+      const oauthHandoff = resolveOAuthHandoff(oauthHandoffIndex, request.method, url.pathname);
+      if (oauthHandoff) {
+        operationIds = oauthHandoff.operation_ids || [];
+        if (verification.stale) {
+          status = 503;
+          return jsonResponse(status, errorBody("GATEWAY_POLICY_STALE", "The Activation Gateway policy is stale.", requestId), requestId);
+        }
+        const allowedQuery = new Set(oauthHandoff.allowed_query_parameters || []);
+        const unsupported = [...new Set([...url.searchParams.keys()].filter((key) => !allowedQuery.has(key)))];
+        if (unsupported.length > 0) {
+          status = 400;
+          return jsonResponse(status, errorBody("GATEWAY_QUERY_PARAMETER_NOT_ALLOWED", "One or more query parameters are not documented for this route.", requestId, unsupported.map((field) => ({ field, issue: "unsupported" }))), requestId);
+        }
+        const body = ["GET", "HEAD"].includes(request.method.toUpperCase())
+          ? undefined
+          : await boundedBody(request.clone(), Number(oauthHandoff.request_body_limit_bytes));
+        const target = new URL(`${url.pathname}${url.search}`, policy.upstream_origin);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), Number(oauthHandoff.timeout_ms));
+        let upstream;
+        try {
+          upstream = await fetchImpl(target, {
+            method: request.method,
+            headers: forwardedRequestHeaders(request, policy, requestId),
+            body,
+            redirect: "manual",
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timer);
+        }
+        upstreamStatus = upstream.status;
+        if (upstream.status >= 300 && upstream.status < 400) {
+          status = 502;
+          return jsonResponse(status, errorBody("GATEWAY_UPSTREAM_REDIRECT_BLOCKED", "The upstream returned a redirect, which is blocked.", requestId), requestId);
+        }
+        const responseBody = await boundedResponseBody(upstream, Number(oauthHandoff.response_body_limit_bytes));
+        status = upstream.status;
+        return new Response(responseBody, { status, headers: filteredResponseHeaders(upstream, requestId, policy) });
       }
 
       const { route, allowedMethods } = resolveRoute(indexes, request.method, url.pathname);

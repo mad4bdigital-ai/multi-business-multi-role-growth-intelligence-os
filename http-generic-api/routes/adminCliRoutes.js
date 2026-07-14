@@ -1964,7 +1964,7 @@ function builtInShellAllowlist() {
       timeout_ms: 600000,
       built_in: true
     },
-    db_backup_export_cleanup: {
+    platform_outbox_worker: { command: process.execPath, args: ["http-generic-api/scripts/platform-outbox-worker.mjs"], display_name: "Transactional outbox shadow sync worker", allow_extra_args: true, max_extra_args: 8, timeout_ms: 600000, built_in: true }, db_backup_export_cleanup: {
       command: process.execPath,
       args: ["http-generic-api/scripts/db-backup-export-cleanup.mjs"],
       display_name: "Temporary DB backup export cleanup",
@@ -2066,7 +2066,7 @@ function builtInShellAllowlist() {
     webhook_delivery_dispatch: { command: process.execPath, args: ["http-generic-api/scripts/webhook-delivery-dispatcher.mjs"], display_name: "Webhook delivery dispatcher", allow_extra_args: true, max_extra_args: 2, timeout_ms: 180000, built_in: true },
     database_table_lifecycle_registry_upsert: { command: process.execPath, args: ["http-generic-api/scripts/database-table-lifecycle-registry-upsert.mjs"], display_name: "Database table lifecycle registry upsert", allow_extra_args: true, max_extra_args: 6, timeout_ms: 180000, built_in: true },
     openrouter_provider_smoke: { command: process.execPath, args: ["http-generic-api/scripts/openrouter-provider-smoke.mjs"], display_name: "OpenRouter provider live smoke", allow_extra_args: true, max_extra_args: 8, timeout_ms: 180000, built_in: true },
-    supervisor_causal_provider_certification: { command: process.execPath, args: ["http-generic-api/scripts/supervisor-causal-provider-certification.mjs"], display_name: "Supervisor causal provider certification", allow_extra_args: true, max_extra_args: 3, timeout_ms: 180000, built_in: true },
+    supervisor_causal_provider_certification: { command: process.execPath, args: ["http-generic-api/scripts/supervisor-causal-provider-certification.mjs"], display_name: "Supervisor causal provider certification", allow_extra_args: true, max_extra_args: 3, timeout_ms: 180000, built_in: true }, supervisor_runtime_readiness: { command: process.execPath, args: ["http-generic-api/scripts/supervisor-runtime-readiness.mjs"], display_name: "Supervisor runtime readiness", allow_extra_args: true, max_extra_args: 1, timeout_ms: 180000, built_in: true }, supervisor_behavioral_certification: { command: process.execPath, args: ["http-generic-api/scripts/supervisor-behavioral-certification.mjs"], display_name: "Supervisor behavioral certification", allow_extra_args: true, max_extra_args: 2, timeout_ms: 180000, built_in: true },
     openrouter_model_policy: { command: process.execPath, args: ["http-generic-api/scripts/openrouter-model-policy.mjs"], display_name: "OpenRouter model policy control", allow_extra_args: true, max_extra_args: 12, timeout_ms: 120000, built_in: true },
     capability_resolution_dry_run: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-dry-run.mjs"], display_name: "Dynamic capability resolution dry-run", allow_extra_args: true, max_extra_args: 28, timeout_ms: 120000, built_in: true },
     tool_bus_descriptor_dry_run: { command: process.execPath, args: ["http-generic-api/scripts/tool-bus-descriptor-dry-run.mjs"], display_name: "Tool Bus descriptor dry-run", allow_extra_args: true, max_extra_args: 6, timeout_ms: 120000, built_in: true },
@@ -2207,7 +2207,7 @@ function builtInShellAllowlist() {
       timeout_ms: 900000,
       built_in: true
     },
-    dev_db_status_client: { command: process.execPath, args: ["http-generic-api/scripts/dev-db-status-client.mjs"], display_name: "Dev database status client", allow_extra_args: true, max_extra_args: 2, timeout_ms: 120000, built_in: true }, backup_artifact_url_smoke: {
+    dev_governed_migration_client: { command: process.execPath, args: ["http-generic-api/scripts/dev-governed-migration-client.mjs"], display_name: "Dev-only governed migration client", allow_extra_args: true, max_extra_args: 40, timeout_ms: 300000, built_in: true }, dev_db_status_client: { command: process.execPath, args: ["http-generic-api/scripts/dev-db-status-client.mjs"], display_name: "Dev database status client", allow_extra_args: true, max_extra_args: 2, timeout_ms: 120000, built_in: true }, backup_artifact_url_smoke: {
       command: process.execPath,
       args: ["http-generic-api/scripts/backup-artifact-url-smoke.mjs"],
       display_name: "Backup artifact URL smoke diagnostic",

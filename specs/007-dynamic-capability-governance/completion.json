@@ -48,6 +48,14 @@
         "status": "merged",
         "merge_sha": "6d1a942503b6296c8d9282b54ee089cc5afdc161",
         "summary": "Made release readiness summary-first by default so production parity evidence can be read through bounded JSON without transport timeouts."
+      },
+      {
+        "number": 2393,
+        "branch": "gpt/007-record-production-parity-evidence-v3-20260708",
+        "role": "production_runtime_parity_evidence_record",
+        "status": "merged",
+        "merge_sha": "c3250d42bbf67dd59f54fafd5513de785487eec1",
+        "summary": "Recorded verified production runtime parity evidence, marked T226 complete, and kept dev/staging shadow, post-merge audit, residual debt, and final closeout pending."
       }
     ],
     "implementation_evidence": [
@@ -171,8 +179,8 @@
       "runtime_behavior_changed": false
     },
     "implementation": {
-      "status": "partial_implementation_observed_pending_post_merge_audit_and_closeout",
-      "next_pr_scope": "post_merge_audit_and_closeout",
+      "status": "partial_implementation_observed_pending_dev_staging_shadow_canary_and_closeout",
+      "next_pr_scope": "dev_staging_shadow_canary_or_final_closeout",
       "provider_mutation_allowed": false,
       "enforcement_change_allowed": false,
       "automatic_tenant_export_allowed": false,
@@ -183,17 +191,24 @@
         "migration_apply_status": "verified",
         "migration_schema_readback_status": "pass",
         "production_verification_status": "verified",
-        "post_merge_audit_status": "pending"
+        "post_merge_audit_status": "verified_with_tracked_residual_debt"
       }
     },
     "pull_request": {
-      "status": "implementation_prs_recorded_through_2370"
+      "status": "implementation_prs_recorded_through_2393"
     },
     "ci": {
       "status": "release_readiness_summary_transport_and_production_parity_ci_passed"
     },
     "release_readiness": {
-      "status": "pass_pending_post_merge_audit"
+      "status": "warn_post_merge_audit_completed_with_tracked_residual_debt",
+      "run_id": "fc43581c-d302-44e8-aafd-f76f4b56f075",
+      "overall": "warn",
+      "pass": 69,
+      "warn": 1,
+      "fail": 0,
+      "tracked_warning": "migration_drift",
+      "actionable_migration_artifact_gap_count": 4
     },
     "migration": {
       "status": "apply_and_schema_readback_verified",
@@ -216,7 +231,46 @@
       "release_readiness_run_id": "cb908bfc-b0df-41e1-9179-2118dbdc6254"
     },
     "post_merge_audit": {
-      "status": "pending"
+      "status": "verified_with_tracked_residual_debt",
+      "verified_at": "2026-07-09T16:19:51.004Z",
+      "source_pr": {
+        "number": 2393,
+        "merged_at": "2026-07-09T15:16:09Z",
+        "merge_sha": "c3250d42bbf67dd59f54fafd5513de785487eec1"
+      },
+      "main_readback": {
+        "merge_commit_ancestor_of_main": true,
+        "main_followup_commit_scope": "docs_agent_only"
+      },
+      "release_readiness": {
+        "run_id": "fc43581c-d302-44e8-aafd-f76f4b56f075",
+        "overall": "warn",
+        "pass": 69,
+        "warn": 1,
+        "fail": 0,
+        "tracked_warning": "migration_drift",
+        "actionable_migration_artifact_gap_count": 4
+      },
+      "tool_binding_integrity": {
+        "status": "pass",
+        "binding_count": 36,
+        "healthy_count": 36,
+        "gap_count": 0
+      },
+      "residual_debt": [
+        "T225 dev/staging shadow and canary evidence remains pending",
+        "T228 final closeout PR and deprecation plan remains pending",
+        "T303-T304 completion governance remains pending",
+        "migration_drift warning remains tracked with 4 actionable migration artifact gaps"
+      ],
+      "safety": {
+        "deploy_executed": false,
+        "restart_executed": false,
+        "ssh_execution_executed": false,
+        "migration_apply_executed": false,
+        "provider_call_executed": false,
+        "secrets_included": false
+      }
     }
   },
   "sensitive_values_included": false

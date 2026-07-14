@@ -383,6 +383,36 @@ async function provisionTunnel(accountId, tunnelName, cfToken = null) {
   return { tunnelId: tunnel.id, tunnelName: tunnel.name, token: tokenResult };
 }
 
+async function rotateTunnelCredential(accountId, tunnelId, tunnelName, cfToken = null) {
+  const tunnelSecret = Buffer.from(
+    randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, ""),
+    "hex",
+  ).toString("base64");
+  const updated = await cfRequest(
+    "PATCH",
+    `/accounts/${accountId}/cfd_tunnel/${tunnelId}`,
+    { name: tunnelName, tunnel_secret: tunnelSecret },
+    cfToken,
+  );
+  const token = updated?.token || await cfRequest(
+    "GET",
+    `/accounts/${accountId}/cfd_tunnel/${tunnelId}/token`,
+    null,
+    cfToken,
+  );
+  await cfRequest(
+    "DELETE",
+    `/accounts/${accountId}/cfd_tunnel/${tunnelId}/connections`,
+    null,
+    cfToken,
+  );
+  return {
+    tunnelId: updated?.id || tunnelId,
+    tunnelName: updated?.name || tunnelName,
+    token,
+  };
+}
+
 async function readTunnelIngress(accountId, tunnelId, cfToken = null) {
   try {
     const result = await cfRequest("GET", `/accounts/${accountId}/cfd_tunnel/${tunnelId}/configurations`, null, cfToken);
@@ -932,7 +962,7 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
   if (!tenant) throw httpError(404, "tenant_not_found", "Tenant not found.");
 
   const [[existing]] = await pool.query(
-    `SELECT config_id, cf_tunnel_id, cf_token, connector_secret, ${connectorLocalApiKeySelect}, tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url FROM \`local_connector_user_configs\` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1`,
+    `SELECT config_id, cf_tunnel_id, cf_tunnel_name, cf_token, connector_secret, ${connectorLocalApiKeySelect}, tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url FROM \`local_connector_user_configs\` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1`,
     [resolvedUserId, resolvedTenantId, device_id]
   );
 
@@ -951,12 +981,21 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
 
   if (!existing || reprovision) {
     const tunnelName = `${safeDnsLabel(resolvedUserId, "user")}-${safeDnsLabel(device_id, "device")}-connector`.slice(0, 128);
-    const provisioned = await provisionTunnel(accountId, tunnelName, provisioningCredentials.cloudflareToken);
+    const provisioned = existing?.cf_tunnel_id && reprovision
+          ? await rotateTunnelCredential(
+            accountId,
+            existing.cf_tunnel_id,
+            existing.cf_tunnel_name || tunnelName,
+            provisioningCredentials.cloudflareToken,
+          )
+          : await provisionTunnel(accountId, tunnelName, provisioningCredentials.cloudflareToken);
     tunnelId = provisioned.tunnelId;
     tunnelToken = provisioned.token;
     tunnelUrl = `https://${tunnelId}.cfargotunnel.com`;
     connectorSecret = randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
-    connectorLocalApiKey = connectorLocalApiKey || randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
+    connectorLocalApiKey = reprovision
+          ? randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "")
+          : connectorLocalApiKey || randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
 
     if (connectorLocalApiKeyColumnSupported) {
       await pool.query(
@@ -1141,6 +1180,10 @@ export function buildLocalConnectorInstallRoutes(deps) {
     try {
       const device = await requireFreshLocalManagerDeviceForPrivilegedInstaller(req);
       const format = String(req.body?.format || "bat").trim().toLowerCase();
+      const requestedTenantId = req.auth?.is_admin === true
+        ? String(req.body?.tenant_id || "").trim()
+        : "";
+      const selectedTenantId = requestedTenantId || device.tenant_id || "";
       const ttl = Math.max(5, Math.min(60, Number(req.body?.ttl_minutes || 30)));
       const permissionGrants = normalizePermissionGrants({ ...(req.body?.permission_grants || {}), capabilities: req.body?.capabilities || [] });
       const capabilities = permissionGrants.capabilities;
@@ -1165,9 +1208,19 @@ export function buildLocalConnectorInstallRoutes(deps) {
                    CASE WHEN c.tenant_id = ? THEN 0 WHEN c.tenant_id = '00000000-0000-0000-0000-000000000000' THEN 1 ELSE 2 END,
                    COALESCE(c.last_health_at, c.updated_at, c.created_at) DESC
           LIMIT 1`,
-        [device.user_id, device.device_id, device.device_id, device.user_id, device.device_id, device.tenant_id || ""]
+        [device.user_id, device.device_id, device.device_id, device.user_id, device.device_id, selectedTenantId]
       );
       const config = rows[0] || null;
+      if (requestedTenantId && config && String(config.tenant_id || "") !== requestedTenantId) {
+        return res.status(404).json({
+          ok: false,
+          error: {
+            code: "connector_config_tenant_mismatch",
+            message: "No active connector config was found for the requested tenant and linked device.",
+          },
+          secrets_included: false,
+        });
+      }
       if (!config) return res.status(404).json({ ok: false, error: { code: "connector_config_not_found", message: "No active connector config was found for this linked device." }, secrets_included: false });
       const token = signInstallerDownloadToken({
         user_id: device.user_id,
@@ -1217,8 +1270,8 @@ export function buildLocalConnectorInstallRoutes(deps) {
       if (!["ps1", "bat"].includes(format)) return res.status(400).json({ ok: false, error: { code: "unsupported_format", message: "format must be ps1 or bat." } });
       const principal = await resolveRequestedLocalPrincipal(req, { user_id, tenant_id });
       const [[config]] = await getPool().query(
-        "SELECT config_id, tenant_id FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
-        [principal.userId, device_id]
+        "SELECT config_id, tenant_id FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+        [principal.userId, principal.tenantId, device_id]
       );
       if (!config) return res.status(404).json({ ok: false, error: { code: "connector_config_not_found" } });
       const ttl = Math.max(5, Math.min(120, Number(ttl_minutes || 30)));
@@ -1262,8 +1315,8 @@ export function buildLocalConnectorInstallRoutes(deps) {
       const payload = verifyInstallerDownloadToken(req.query.token);
       if (!["ps1", "bat"].includes(payload.format)) throw httpError(400, "unsupported_format", "Only ps1 or bat installer downloads are supported.");
       const [[config]] = await getPool().query(
-        "SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url, connector_secret, cf_token FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
-        [payload.user_id, payload.device_id]
+        "SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url, connector_secret, cf_token FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+        [payload.user_id, payload.tenant_id, payload.device_id]
       );
       if (!config) throw httpError(404, "connector_config_not_found", "No active connector config was found for this download token.");
       if (!config.cf_token || !config.connector_secret) throw httpError(409, "connector_config_incomplete", "Connector config is missing recovery token or connector secret.");

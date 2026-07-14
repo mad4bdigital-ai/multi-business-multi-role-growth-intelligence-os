@@ -4,16 +4,19 @@
 
 ## Summary
 
-- Triaged items: 2
-- Gate candidates: 2
+- Triaged items: 5
+- Gate candidates: 5
 - New-gap gate: fail
-- Blocking new items: 1
+- Blocking new items: 5
 
 ## Class counts
 
-- new_surface_immediate_review: 2
+- new_surface_immediate_review: 5
 
 ## Immediate review candidates
 
-- `1031_sprint69_github_actions_diagnostics_endpoints_seed.sql` — critical_review, score 1071; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
-- `20260709_tenant_resolution_registry_schema.sql` — critical_review, score 817; next: add targeted patch-index, parity, and governance documentation
+- `20260714_validate_hostinger_connection_and_complete_continuation_task.sql` — critical_review, score 1079; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `20260714_async_release_deploy_contract.sql` — critical_review, score 790; next: add targeted patch-index, parity, and governance documentation
+- `20260714_supervisor_runtime_admin_tool_exports.sql` — critical_review, score 725; next: add targeted patch-index, parity, and governance documentation
+- `1046_sprint69_dynamic_container_shadow_sampler_tool.sql` — high_review, score 678; next: add targeted patch-index, parity, and governance documentation
+- `20260712_github_rerun_workflow_response_schema_alignment.sql` — high_review, score 535; next: add targeted patch-index, parity, and governance documentation

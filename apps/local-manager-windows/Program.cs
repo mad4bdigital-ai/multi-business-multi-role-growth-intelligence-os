@@ -591,6 +591,22 @@ internal static class Program
             }
         }
 
+        private static string ClassifyRepairOutcome(string status)
+        {
+            var text = status ?? "";
+            if (text.StartsWith("Repair link request failed:", StringComparison.OrdinalIgnoreCase)) return "link_request_failed";
+            if (text.Contains("blocked", StringComparison.OrdinalIgnoreCase)) return "privileged_action_blocked";
+            if (text.Contains("downloaded:", StringComparison.OrdinalIgnoreCase)
+                && text.Contains("Click the same button again", StringComparison.OrdinalIgnoreCase)) return "local_confirmation_cancelled";
+            if (text.Contains("UAC prompt was cancelled", StringComparison.OrdinalIgnoreCase)) return "uac_cancelled";
+            if (text.Contains("Windows did not return a process handle", StringComparison.OrdinalIgnoreCase)) return "process_handle_unavailable";
+            if (text.StartsWith("Connector repair failed:", StringComparison.OrdinalIgnoreCase)) return "repair_exception";
+            if (text.Contains("completed. Device controls were refreshed automatically.", StringComparison.OrdinalIgnoreCase)
+                || (text.StartsWith("Repair verification", StringComparison.OrdinalIgnoreCase)
+                    && text.EndsWith("verified.", StringComparison.OrdinalIgnoreCase))) return "verification_completed";
+            return "incomplete";
+        }
+
         private async Task RepairConnectorAsync()
         {
             var token = LoadDeviceToken();
@@ -1616,6 +1632,30 @@ internal static class Program
                     var message = JsonValue(payload, "message", "");
                     ShowTopMostMessage(title, message);
                     await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, shown = true, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false });
+                    return;
+                }
+                if (string.Equals(action, "repair_connector", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+                    Show();
+                    Activate();
+                    await RepairConnectorAsync();
+                    var repairStatus = _status.Text ?? "";
+                    var repairStage = ClassifyRepairOutcome(repairStatus);
+                    var repairVerified = string.Equals(repairStage, "verification_completed", StringComparison.Ordinal);
+                    await CompleteDesktopCommandAsync(client, token, commandId, repairVerified, new
+                    {
+                        action,
+                        source = "local_manager_windows",
+                        app_managed_installer = true,
+                        browser_download = false,
+                        visible_desktop = true,
+                        repair_stage = repairStage,
+                        repair_verified = repairVerified,
+                        status_message = repairStatus,
+                        current_version = CurrentSemVer(),
+                        secrets_included = false
+                    }, repairVerified ? null : "connector_repair_not_verified", repairVerified ? null : repairStatus);
                     return;
                 }
                 if (string.Equals(action, "focus_local_manager", StringComparison.OrdinalIgnoreCase))

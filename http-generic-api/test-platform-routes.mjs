@@ -164,6 +164,8 @@ section("GET /openapi*.yaml - public scoped schemas");
   const tenantActivationSchema = await getTextWithHost("/openapi.tenant-gpt.activation.yaml", "auth.mad4b.com");
   ok("auth host serves tenant Activation schema", tenantActivationSchema.status === 200, `got ${tenantActivationSchema.status}`);
   ok("tenant Activation schema targets activation host", tenantActivationSchema.text.includes("url: https://activation.mad4b.com"));
+  ok("tenant Activation schema authorizes through activation host", tenantActivationSchema.text.includes("authorizationUrl: https://activation.mad4b.com/auth/oauth/authorize"));
+  ok("tenant Activation schema exchanges tokens through activation host", tenantActivationSchema.text.includes("tokenUrl: https://activation.mad4b.com/auth/oauth/token"));
 
   const adminActivationSchema = await getTextWithHost("/openapi.custom-gpt.activation-admin.yaml", "auth.mad4b.com");
   ok("auth host serves admin Activation schema", adminActivationSchema.status === 200, `got ${adminActivationSchema.status}`);
@@ -190,8 +192,29 @@ section("activation host gateway boundary");
   ok("activation host root uses activation scope", root.body.scope === "activation", `got ${root.body.scope}`);
 
   const oauth = await getWithHost("/auth/oauth/authorize", "activation.mad4b.com");
-  ok("activation host rejects OAuth routes", oauth.status === 404, `got ${oauth.status}`);
-  ok("activation host OAuth rejection is explicit", oauth.body.error?.code === "ACTIVATION_HOST_OAUTH_NOT_ALLOWED", JSON.stringify(oauth.body));
+  ok("activation host lets OAuth handoff pass gateway boundary", oauth.body.error?.code !== "ACTIVATION_HOST_OAUTH_NOT_ALLOWED", JSON.stringify(oauth.body));
+  ok("activation host OAuth handoff reaches downstream router boundary in smoke app", oauth.status === 404, `got ${oauth.status}`);
+
+  for (const path of ["/auth/oauth/code", "/auth/oauth/token"]) {
+    const allowed = await postWithHost(path, "activation.mad4b.com", {});
+    ok(`activation host lets POST ${path} reach the shared auth router boundary`, allowed.status === 404, `got ${allowed.status}`);
+  }
+
+  for (const path of ["/auth/login", "/auth/register", "/auth/google", "/auth/platform-jwt/issue", "/auth/oauth/revoke"]) {
+    const blocked = await postWithHost(path, "activation.mad4b.com", {});
+    ok(`activation host rejects unrelated auth route ${path}`, blocked.status === 404, `got ${blocked.status}`);
+    ok(`activation host rejection is explicit for ${path}`, blocked.body.error?.code === "ACTIVATION_HOST_ROUTE_NOT_ALLOWED", JSON.stringify(blocked.body));
+  }
+
+  for (const path of ["/auth/oauth/code", "/auth/oauth/token"]) {
+    const blocked = await getWithHost(path, "activation.mad4b.com");
+    ok(`activation host rejects wrong method for ${path}`, blocked.status === 404, `got ${blocked.status}`);
+    ok(`wrong method rejection is explicit for ${path}`, blocked.body.error?.code === "ACTIVATION_HOST_ROUTE_NOT_ALLOWED", JSON.stringify(blocked.body));
+  }
+
+  const sensitiveAuthRoute = await postWithHost("/auth/platform-jwt/issue", "activation.mad4b.com", {});
+  ok("activation host rejects sensitive auth routes", sensitiveAuthRoute.status === 404, `got ${sensitiveAuthRoute.status}`);
+  ok("activation host sensitive auth rejection is explicit", sensitiveAuthRoute.body.error?.code === "ACTIVATION_HOST_ROUTE_NOT_ALLOWED", JSON.stringify(sensitiveAuthRoute.body));
 
   const coreRoute = await getWithHost("/system/tools", "activation.mad4b.com");
   ok("activation host rejects core routes", coreRoute.status === 404, `got ${coreRoute.status}`);

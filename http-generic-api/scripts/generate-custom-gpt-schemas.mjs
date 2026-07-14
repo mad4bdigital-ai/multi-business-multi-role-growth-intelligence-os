@@ -145,6 +145,33 @@ function generateGatewayPolicies(registry, schemaOutputDir, artifactOutputDir) {
       }))
       .sort((a, b) => `${a.path} ${a.method}`.localeCompare(`${b.path} ${b.method}`));
 
+    const oauthHandoffRoutes = (policy.oauth_handoff_routes || [])
+      .map((route) => {
+        const method = String(route?.method || "").toUpperCase();
+        const routePath = String(route?.path || "");
+        const operationId = String(route?.operation_id || "");
+        if (!["GET", "POST"].includes(method)) throw new Error(`${policyKey}: OAuth handoff method is not allowed: ${method || "missing"}`);
+        if (!routePath.startsWith("/auth/oauth/") || routePath.includes("{") || routePath.includes("*")) {
+          throw new Error(`${policyKey}: OAuth handoff path must be an exact /auth/oauth/* path: ${routePath || "missing"}`);
+        }
+        if (!operationId) throw new Error(`${policyKey}: OAuth handoff operation_id is required for ${method} ${routePath}`);
+        return {
+          method,
+          path: routePath,
+          operation_ids: [operationId],
+          allowed_query_parameters: [...new Set(route.allowed_query_parameters || [])].sort(),
+          request_body_limit_bytes: Number(policy.request_body_limit_bytes),
+          response_body_limit_bytes: Number(policy.response_body_limit_bytes),
+          timeout_ms: Number(policy.timeout_ms),
+        };
+      })
+      .sort((a, b) => `${a.path} ${a.method}`.localeCompare(`${b.path} ${b.method}`));
+
+    const oauthHandoffKeys = oauthHandoffRoutes.map((route) => `${route.method} ${route.path}`);
+    if (new Set(oauthHandoffKeys).size !== oauthHandoffKeys.length) {
+      throw new Error(`${policyKey}: duplicate OAuth handoff route`);
+    }
+
     const payload = {
       manifest_version: 1,
       surface_registry_version: Number(registry.version),
@@ -155,6 +182,7 @@ function generateGatewayPolicies(registry, schemaOutputDir, artifactOutputDir) {
       read_stale_grace_seconds: Number(policy.read_stale_grace_seconds || 0),
       source_registry: "canonicals/openapi/custom-gpt-surfaces.yaml",
       source_surfaces: members.map(({ surfaceKey }) => surfaceKey).sort(),
+      oauth_handoff_routes: oauthHandoffRoutes,
       routes,
     };
     const canonicalPayload = stableJson(payload);

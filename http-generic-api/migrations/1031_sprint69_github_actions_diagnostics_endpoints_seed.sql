@@ -1,6 +1,12 @@
 -- GitHub Actions diagnostics endpoint registry seed
 -- Purpose: make PR CI diagnostics durable after adding runtime endpoints for workflow jobs and pending deployments.
 -- Safety: endpoint definitions only; no provider execution, no secrets, no CI bypass.
+-- no_provider_call
+-- no_credential_payload_read
+-- no_raw_secrets
+-- no_external_send
+-- no_external_write
+-- secrets_included_false
 
 INSERT INTO endpoints (
   endpoint_id,

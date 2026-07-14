@@ -108,6 +108,9 @@ import { buildSessionInsightRemainingScopeCompletionRoutes } from "./sessionInsi
 import { buildSessionInsightBacklogTargetWriteRoutes } from "./sessionInsightBacklogTargetWriteRoutes.js";
 import { buildSessionInsightTargetWriteReadbackRoutes } from "./sessionInsightTargetWriteReadbackRoutes.js";
 import { buildRuntimeVerificationRoutes } from "./runtimeVerificationRoutes.js";
+import { buildReleaseOperationRoutes } from "./releaseOperationRoutes.js";
+import { buildReleaseGateManagerRoutes } from "./releaseGateManagerRoutes.js";
+import { buildAsyncReleaseDeployRoutes } from "./asyncReleaseDeployRoutes.js";
 import { buildOperationalConsoleRoutes } from "./operationalConsoleRoutes.js";
 import { buildActivationGuidanceRoutes } from "./activationGuidanceRoutes.js";
 import { buildGrowthIntelligenceRoutes } from "./growthIntelligenceRoutes.js";
@@ -118,6 +121,7 @@ import { buildOpenApiRegistrySyncRoutes } from "./openApiRegistrySyncRoutes.js";
 import { buildSqlCachePolicyRoutes } from "./sqlCachePolicyRoutes.js";
 import { buildRegistryDataManagementRoutes } from "./registryDataManagementRoutes.js";
 import { buildRepositoryAutomationRoutes } from "./repositoryAutomationRoutes.js";
+import { buildRepoConflictIntelligenceRoutes } from "./repoConflictIntelligenceRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
@@ -177,6 +181,9 @@ export function registerRoutes(app, deps) {
   app.use(buildActivationRoutes(deps));
   app.use(buildActivationGuidanceRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildRuntimeVerificationRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildReleaseOperationRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildReleaseGateManagerRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildAsyncReleaseDeployRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildOperationalConsoleRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildHealthRoutes(deps));
   app.use(buildMcpRoutes(deps));
@@ -192,6 +199,7 @@ export function registerRoutes(app, deps) {
   app.use(buildOpenApiRegistrySyncRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSqlCachePolicyRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildRepositoryAutomationRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildRepoConflictIntelligenceRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildWorkspaceResourceRoutes());
   app.use(buildResourceApiRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildResourceAuthorityGrantRoutes({ ...deps, requireAdminPrincipal }));

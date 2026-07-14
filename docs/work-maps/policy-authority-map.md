@@ -179,6 +179,8 @@ flowchart TD
 | `domain_generalization_before_provider_specific_policy_v1` | 1 |
 | `dr_isolated_restore_certification_policy_v1` | 1 |
 | `dynamic_capability_resolution_policy_v1` | 2 |
+| `dynamic_container_projection_apply_policy_v1` | 1 |
+| `dynamic_release_gate_manager_policy_v1` | 1 |
 | `execution_enablement_approval_flow_policy_v1` | 2 |
 | `execution_enablement_registry_policy_v1` | 2 |
 | `execution_log_full_context_evidence_policy_v1` | 1 |
@@ -239,6 +241,7 @@ flowchart TD
 | `provider_smoke_policy_v1` | 1 |
 | `recommendation_before_execution_policy_v1` | 3 |
 | `recovery_capability_taxonomy_policy_v1` | 2 |
+| `release_operation_internal_persistence_policy_v1` | 1 |
 | `release_readiness_orchestration_gate_policy_v1` | 1 |
 | `repo_conflict_policy_v1` | 1 |
 | `repository_close_superseded_positive_smoke_policy_v1` | 1 |
