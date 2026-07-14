@@ -247,6 +247,15 @@ export function parseMountedRouteFiles(indexSource = "") {
     }
   }
 
+  const dynamicImportRe = /import\(\s*["']\.\/([^"']+)["']\s*\)\s*\.then\(\s*\(\s*{([^}]+)}\s*\)\s*=>/g;
+  while ((match = dynamicImportRe.exec(indexSource)) !== null) {
+    const file = `routes/${match[1]}`.replace(/\\/g, "/");
+    for (const raw of match[2].split(",")) {
+      const symbol = raw.trim().split(/\s*:\s*|\s+as\s+/i).pop();
+      if (symbol) imports.set(symbol, file);
+    }
+  }
+
   const mounted = [];
   const useRe = /app\.use\(\s*(?:(["'`])([^"'`]+)\1\s*,\s*)?(build[A-Za-z0-9_]+)\s*\(/g;
   while ((match = useRe.exec(indexSource)) !== null) {
@@ -639,13 +648,31 @@ function normalizedSurfaceDecision(value) {
   return SURFACE_DECISIONS.has(value) ? value : "requires_review";
 }
 
+function pathMatchesPolicyPrefix(routePath, prefix) {
+  const normalizedPrefix = normalizeRoutePath(prefix);
+  return routePath === normalizedPrefix || routePath.startsWith(`${normalizedPrefix}/`);
+}
+
+function surfacePolicyPartitionKey(operation, policy) {
+  const prefixes = (Array.isArray(policy?.rules) ? policy.rules : [])
+    .filter((rule) => {
+      if (!rule.path_prefix || !pathMatchesPolicyPrefix(operation.path, rule.path_prefix)) return false;
+      if (rule.source_file && rule.source_file !== operation.source_file) return false;
+      if (rule.scope && rule.scope !== operation.scope) return false;
+      if (rule.group && rule.group !== groupFor(operation.path, operation.source_file)) return false;
+      return true;
+    })
+    .map((rule) => normalizeRoutePath(rule.path_prefix));
+  return unique(prefixes).sort().join("|") || "default";
+}
+
 function policyDecision(family, policy) {
   const rules = Array.isArray(policy?.rules) ? policy.rules : [];
   const matchingRules = rules.filter((candidate) => {
     if (candidate.family_key && candidate.family_key !== family.family_key) return false;
     if (candidate.source_file && candidate.source_file !== family.source_file) return false;
     if (candidate.scope && candidate.scope !== family.scope) return false;
-    if (candidate.path_prefix && (!family.operations.length || !family.operations.every((operation) => operation.path.startsWith(candidate.path_prefix)))) return false;
+    if (candidate.path_prefix && (!family.operations.length || !family.operations.every((operation) => pathMatchesPolicyPrefix(operation.path, candidate.path_prefix)))) return false;
     if (candidate.group && candidate.group !== family.group) return false;
     return true;
   });
@@ -1001,22 +1028,38 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
     }).map(({ declaration, source_index, route_guards, inherited_guards, ...operation }) => operation);
     const scopes = unique(operations.map((operation) => operation.scope));
     for (const scope of scopes.length ? scopes : ["unresolved"]) {
-      const scopedOperations = operations.filter((operation) => operation.scope === scope);
-      const baseKey = toKebab(path.basename(mount.file));
-      const split = scopes.length > 1;
-      const familyEmbeddedUi = scopedOperations.some((operation) => operation.embedded_ui);
+      const scopeOperations = operations.filter((operation) => operation.scope === scope);
+      const policyPartitions = new Map();
+      for (const operation of scopeOperations) {
+        const partitionKey = surfacePolicyPartitionKey(operation, policy);
+        if (!policyPartitions.has(partitionKey)) policyPartitions.set(partitionKey, []);
+        policyPartitions.get(partitionKey).push(operation);
+      }
+      for (const [policyPartition, scopedOperations] of policyPartitions) {
+        const baseKey = toKebab(path.basename(mount.file));
+        const splitScope = scopes.length > 1;
+        const splitPolicy = policyPartitions.size > 1;
+        const split = splitScope || splitPolicy;
+        const policyPartitionSuffix = policyPartition === "default"
+          ? "default"
+          : toKebab(policyPartition.replace(/[{}]/g, ""));
+        const familyEmbeddedUi = scopedOperations.some((operation) => operation.embedded_ui);
       const familyTests = unique(scopedOperations.flatMap((operation) => operation.tests));
       const untestedOperations = scopedOperations.length
         ? scopedOperations.filter((operation) => !operation.tests.length).map((operation) => operation.signature)
         : ["NO_DISCOVERED_OPERATIONS"];
       const family = {
-        family_key: split ? `${baseKey}.${scope}` : baseKey,
-        label: `${baseKey.replace(/-/g, " ")}${split ? ` (${scope})` : ""}`,
+        family_key: split
+          ? `${baseKey}.${scope}${splitPolicy ? `.${policyPartitionSuffix}` : ""}`
+          : baseKey,
+        label: `${baseKey.replace(/-/g, " ")}${splitScope ? ` (${scope})` : ""}${splitPolicy ? ` [${policyPartitionSuffix}]` : ""}`,
         source_file: mount.file,
         source_digest: digest(source),
         mount_prefix: mount.mount_prefix,
         mount_order: mount.mount_order,
-        split_from_mixed_scope_file: split,
+        split_from_mixed_scope_file: splitScope,
+        split_from_surface_policy: splitPolicy,
+        surface_policy_partition: policyPartition,
         group: groupFor(scopedOperations[0]?.path || mount.mount_prefix, mount.file),
         scope,
         operations: scopedOperations,
@@ -1046,6 +1089,7 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
       };
       family.surface_decision = policyDecision(family, policy);
       families.push(family);
+      }
     }
   }
 
