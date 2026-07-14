@@ -57,6 +57,10 @@ import {
   CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
   persistDynamicCapabilityGovernanceCompilation,
 } from "../dynamicCapabilityGovernancePersistence.js";
+import {
+  TENANT_CONNECTION_SHADOW_CONTRACT_BOOTSTRAP_CONFIRM,
+  bootstrapTenantConnectionShadowContracts,
+} from "../tenantConnectionShadowContractBootstrap.js";
 import { runGrowthIntelligencePilotAdmin } from "../growthIntelligenceAdminTool.js";
 import {
   approveRepositoryAdvisoryCommentApprovalHoldAdmin,
