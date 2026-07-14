@@ -29,18 +29,27 @@
       "runtime_guard": "http-generic-api/operationRuntimeGuard.js",
       "resilience_controller": "http-generic-api/operationResilienceController.js",
       "typed_catalog_service": "http-generic-api/typedCatalogService.js",
-      "typed_catalog_routes": "http-generic-api/routes/typedCatalogRoutes.js"
+      "chunk_aggregation": "http-generic-api/routes/operationOrchestratorRoutes.js",
+      "generated_artifact_service": "http-generic-api/operationGeneratedArtifactService.js"
     },
-    "migration": {
-      "status": "included_not_applied",
-      "path": "http-generic-api/migrations/20260713_operation_run_ownership.sql",
-      "destructive": false,
-      "backfill_required": false
-    },
+    "migrations": [
+      {
+        "status": "included_not_applied",
+        "path": "http-generic-api/migrations/20260713_operation_run_ownership.sql",
+        "destructive": false,
+        "backfill_required": false
+      },
+      {
+        "status": "included_not_applied",
+        "path": "http-generic-api/migrations/20260714_operation_generated_artifacts.sql",
+        "destructive": false,
+        "backfill_required": false
+      }
+    ],
     "tests": {
       "status": "passing",
-      "head_sha": "aaa82bf75738ab0cabbd1b0574c4df54b1511498",
-      "base_sha": "76ec7f61304a9b65769b7ab320919a41eb605190",
+      "head_sha": "edc01212994d1d940ca01849146423bdaabbcc79",
+      "base_sha": "98e6b1541bc8cac966c7300a68d3764fdb05bddf",
       "behind_by": 0,
       "required_checks": {
         "Syntax Check": "success",
@@ -69,29 +78,34 @@
         "catalog_allowlist",
         "secret_field_exclusion",
         "invalid_cursor"
+      ],
+      "chunk_aggregation": [
+        "direct_dispatch_collection",
+        "continuation_loop_bound",
+        "registered_regression_coverage"
+      ],
+      "generated_artifacts": [
+        "metadata_only",
+        "run_ownership",
+        "cursor_pagination",
+        "sha256_metadata",
+        "secret_content_exclusion",
+        "migration_safety",
+        "openapi_3_1"
       ]
     },
     "openapi": {
       "status": "synchronized",
       "operation_contract": "specs/009-platform-request-execution-hardening/contracts/operation-orchestrator.openapi.yaml",
       "typed_catalog_contract": "http-generic-api/openapi/typed-catalogs.yaml",
-      "version": "3.1.0",
-      "documents": [
-        "admin_tenant_auth",
-        "cursor_pagination",
-        "bounded_filtering",
-        "structured_errors",
-        "429_retry_after",
-        "503_circuit_and_dependency"
-      ]
+      "artifact_contract": "http-generic-api/openapi/operation-artifacts.yaml",
+      "version": "3.1.0"
     },
     "release_readiness": {
       "status": "blocked_remaining_tasks",
       "remaining": [
         "managed_ephemeral_git_worker_lifecycle_evidence",
         "automatic_capability_lifecycle",
-        "generated_artifact_registry",
-        "transparent_chunk_aggregation",
         "observability_dashboards",
         "shadow_and_pilot_rollout"
       ]

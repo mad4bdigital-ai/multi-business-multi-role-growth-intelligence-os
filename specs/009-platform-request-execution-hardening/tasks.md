@@ -40,9 +40,16 @@
     - `http-generic-api/routes/typedCatalogRoutes.js`
     - `http-generic-api/scripts/test-typed-catalog-service.mjs`
     - `http-generic-api/openapi/typed-catalogs.yaml`
-    - Admin/Tenant cursor pagination, bounded filtering, allowlisted fields, membership enforcement, and secret exclusion.
-- [x] Pass required CI on the typed catalog head.
-  - Evidence: head `aaa82bf75738ab0cabbd1b0574c4df54b1511498`; Syntax, Architecture Drift, Execution Resolver, and Unit & Integration all succeeded; `behind_by: 0`.
+- [x] Implement transparent response chunk aggregation for all direct operation dispatches.
+  - Evidence: `operationOrchestratorRoutes.js` wraps direct dispatch with `collectChunkedToolResponse`; registered regression coverage is in `test-gpt-tools-route-syntax-regression.mjs`.
+- [x] Implement generated-artifact registry.
+  - Evidence:
+    - `http-generic-api/operationGeneratedArtifactService.js`
+    - `http-generic-api/migrations/20260714_operation_generated_artifacts.sql`
+    - `http-generic-api/openapi/operation-artifacts.yaml`
+    - Admin/Tenant metadata reads, cursor pagination, run ownership enforcement, SHA-256 metadata, and secret/content exclusion.
+- [x] Pass required CI on the synchronized artifact-registry head.
+  - Evidence: head `edc01212994d1d940ca01849146423bdaabbcc79`; Syntax, Architecture Drift, Execution Resolver, and Unit & Integration all succeeded; `behind_by: 0`.
 
 ## Partially implemented
 
@@ -53,8 +60,6 @@
 
 ## Remaining
 
-- [ ] Implement generated-artifact registry.
-- [ ] Implement transparent response chunk aggregation for all direct operation dispatches.
 - [ ] Add latency, internal-call, discovery, retry, and failure dashboards.
 - [ ] Run shadow and pilot rollout.
 
