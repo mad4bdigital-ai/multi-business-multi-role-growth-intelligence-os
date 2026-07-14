@@ -23,6 +23,7 @@ import {
   transitionTenantResolutionCase,
 } from "../tenantResolutionCaseLifecycleService.js";
 import { runTenantResolutionDiagnosticAction } from "../tenantResolutionDiagnosticService.js";
+import { previewTenantTaskSourceRepair } from "../tenantTaskSourceRepairPreviewService.js";
 import {
   listTenantSkillApprovals,
   decideTenantSkillApproval,
