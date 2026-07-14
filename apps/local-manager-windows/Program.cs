@@ -1624,15 +1624,22 @@ internal static class Program
                     Show();
                     Activate();
                     await RepairConnectorAsync();
-                    await CompleteDesktopCommandAsync(client, token, commandId, true, new
+                    var repairStatus = _status.Text ?? "";
+                    var repairStage = ClassifyRepairOutcome(repairStatus);
+                    var repairVerified = string.Equals(repairStage, "verification_completed", StringComparison.Ordinal);
+                    await CompleteDesktopCommandAsync(client, token, commandId, repairVerified, new
                     {
                         action,
                         source = "local_manager_windows",
                         app_managed_installer = true,
                         browser_download = false,
                         visible_desktop = true,
+                        repair_stage = repairStage,
+                        repair_verified = repairVerified,
+                        status_message = repairStatus,
+                        current_version = CurrentSemVer(),
                         secrets_included = false
-                    });
+                    }, repairVerified ? null : "connector_repair_not_verified", repairVerified ? null : repairStatus);
                     return;
                 }
                 if (string.Equals(action, "focus_local_manager", StringComparison.OrdinalIgnoreCase))
