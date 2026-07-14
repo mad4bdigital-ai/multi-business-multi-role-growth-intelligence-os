@@ -1460,8 +1460,8 @@ paths:
                   type: string
                   maxLength: 191
       responses:
-        "200":
-          description: Existing active case returned idempotently.
+        "201":
+          description: Resolution case created.
           content:
             application/json:
               schema:
