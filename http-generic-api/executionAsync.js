@@ -424,6 +424,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
       ? tenantSshCliExecutePayload
       : isHostingerSshTargetProbeJob
       ? hostingerSshTargetProbePayload
+      : isHostingerAsyncDeployJob
+      ? hostingerAsyncDeployPayload
       : requestPayload,
     runner_mode: isHostingerSshTargetProbeJob ? normalizeHostingerSshProbeRunnerMode(hostingerSshTargetProbePayload.runner_mode) : "",
     runner_mode_evidence: isHostingerSshTargetProbeJob ? describeHostingerSshProbeRunnerMode(hostingerSshTargetProbePayload.runner_mode) : null,
