@@ -141,6 +141,7 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
   const roleAssignments = new Map();
   const resourceBindings = new Map();
   const issues = [];
+  const platformContainerByTenant = new Map();
   const tenantContainerByTenant = new Map();
   const workspaceContainerByWorkspace = new Map();
   const brandContainerByTenantAndTarget = new Map();
