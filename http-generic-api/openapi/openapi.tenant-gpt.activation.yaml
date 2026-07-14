@@ -1303,6 +1303,7 @@ paths:
             - https://auth.mad4b.com/scopes/tenant.install
             - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: listTenantResolutionCases
+      x-custom-gpt-exclude: false
       x-openai-isConsequential: false
       summary: List tenant resolution cases
       description: Returns tenant-scoped resolution cases with optional workspace and lifecycle filters. This operation never calls providers or applies repairs.
@@ -1370,7 +1371,70 @@ paths:
             application/json:
               schema:
                 type: object
-                additionalProperties: true
+                additionalProperties: false
+                required:
+                  - ok
+                  - activation_layer
+                  - items
+                  - page
+                  - filters
+                  - policy
+                  - secrets_included
+                properties:
+                  ok:
+                    type: boolean
+                  activation_layer:
+                    type: string
+                    enum:
+                      - tenant_resolution_case_lifecycle
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties: {}
+                  page:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - cursor
+                      - limit
+                      - returned_count
+                      - total_count
+                      - has_more
+                    properties:
+                      cursor:
+                        type: integer
+                        minimum: 0
+                      limit:
+                        type: integer
+                        minimum: 1
+                        maximum: 100
+                      returned_count:
+                        type: integer
+                        minimum: 0
+                      total_count:
+                        type: integer
+                        minimum: 0
+                      has_more:
+                        type: boolean
+                      next_cursor:
+                        type:
+                          - integer
+                          - "null"
+                        minimum: 0
+                  filters:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  policy:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  secrets_included:
+                    type: boolean
+                    enum:
+                      - false
         "400":
           description: Invalid filter.
           content:
@@ -1460,103 +1524,6 @@ paths:
                   type: string
                   maxLength: 191
       responses:
-        "201":
-          description: Resolution case created.
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-                properties:
-                  ok:
-                    type: boolean
-                  activation_layer:
-                    type: string
-                    enum:
-                      - tenant_resolution_case_create
-                  created:
-                    type: boolean
-                    enum:
-                      - true
-                  case:
-                    type: object
-                    additionalProperties: true
-                    properties:
-                      case_id:
-                        type: string
-                      tenant_id:
-                        type: string
-                      workspace_id:
-                        type:
-                          - string
-                          - "null"
-                      root_family:
-                        type: string
-                      playbook_key:
-                        type: string
-                      status:
-                        type: string
-                      severity:
-                        type: string
-                      root_fingerprint_sha256:
-                        type: string
-                        pattern: ^[a-f0-9]{64}$
-                      secrets_included:
-                        type: boolean
-                        enum:
-                          - false
-                  event:
-                    type: object
-                    additionalProperties: true
-                    properties:
-                      event_id:
-                        type: string
-                      event_type:
-                        type: string
-                        enum:
-                          - case_created
-                      secrets_included:
-                        type: boolean
-                        enum:
-                          - false
-                  idempotency:
-                    type: object
-                    additionalProperties: true
-                    properties:
-                      active_case_key:
-                        type: string
-                      existing_case_returned:
-                        type: boolean
-                        enum:
-                          - false
-                  policy:
-                    type: object
-                    additionalProperties: true
-                    properties:
-                      case_creation_only:
-                        type: boolean
-                        enum:
-                          - true
-                      provider_call_allowed:
-                        type: boolean
-                        enum:
-                          - false
-                      external_write_allowed:
-                        type: boolean
-                        enum:
-                          - false
-                      repair_apply_allowed:
-                        type: boolean
-                        enum:
-                          - false
-                      secrets_included:
-                        type: boolean
-                        enum:
-                          - false
-                  secrets_included:
-                    type: boolean
-                    enum:
-                      - false
         "200":
           description: Existing active case returned idempotently.
           content:
@@ -1564,82 +1531,15 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-                properties:
-                  ok:
-                    type: boolean
-                  activation_layer:
-                    type: string
-                    enum:
-                      - tenant_resolution_case_create
-                  created:
-                    type: boolean
-                    enum:
-                      - false
-                  case:
-                    type: object
-                    additionalProperties: true
-                    properties:
-                      case_id:
-                        type: string
-                      tenant_id:
-                        type: string
-                      workspace_id:
-                        type:
-                          - string
-                          - "null"
-                      root_family:
-                        type: string
-                      playbook_key:
-                        type: string
-                      status:
-                        type: string
-                      severity:
-                        type: string
-                      root_fingerprint_sha256:
-                        type: string
-                        pattern: ^[a-f0-9]{64}$
-                      secrets_included:
-                        type: boolean
-                        enum:
-                          - false
-                  idempotency:
-                    type: object
-                    additionalProperties: true
-                    properties:
-                      active_case_key:
-                        type: string
-                      existing_case_returned:
-                        type: boolean
-                        enum:
-                          - true
-                  policy:
-                    type: object
-                    additionalProperties: true
-                    properties:
-                      case_creation_only:
-                        type: boolean
-                        enum:
-                          - true
-                      provider_call_allowed:
-                        type: boolean
-                        enum:
-                          - false
-                      external_write_allowed:
-                        type: boolean
-                        enum:
-                          - false
-                      repair_apply_allowed:
-                        type: boolean
-                        enum:
-                          - false
-                      secrets_included:
-                        type: boolean
-                        enum:
-                          - false
-                  secrets_included:
-                    type: boolean
-                    enum:
-                      - false
+                properties: {}
+        "201":
+          description: Resolution case created.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
         "400":
           description: Invalid problem card payload.
           content:
@@ -1676,6 +1576,7 @@ paths:
             - https://auth.mad4b.com/scopes/tenant.install
             - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: getTenantResolutionCase
+      x-custom-gpt-exclude: false
       x-openai-isConsequential: false
       summary: Read one tenant resolution case
       description: Returns one tenant-scoped resolution case and its recent append-only events. Optional workspace scope is enforced when supplied.
@@ -1705,7 +1606,39 @@ paths:
             application/json:
               schema:
                 type: object
-                additionalProperties: true
+                additionalProperties: false
+                required:
+                  - ok
+                  - activation_layer
+                  - case
+                  - events
+                  - policy
+                  - secrets_included
+                properties:
+                  ok:
+                    type: boolean
+                  activation_layer:
+                    type: string
+                    enum:
+                      - tenant_resolution_case_lifecycle
+                  case:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  events:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties: {}
+                  policy:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  secrets_included:
+                    type: boolean
+                    enum:
+                      - false
         "400":
           description: Invalid case identifier.
           content:
@@ -1742,6 +1675,7 @@ paths:
             - https://auth.mad4b.com/scopes/tenant.install
             - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: transitionTenantResolutionCase
+      x-custom-gpt-exclude: false
       x-openai-isConsequential: true
       summary: Transition a tenant resolution case
       description: Appends a lifecycle event and changes case status within the tenant-safe diagnostic state graph. Applying, verifying, and resolved transitions are blocked in this phase.
@@ -1795,7 +1729,43 @@ paths:
             application/json:
               schema:
                 type: object
-                additionalProperties: true
+                additionalProperties: false
+                required:
+                  - ok
+                  - activation_layer
+                  - changed
+                  - case
+                  - policy
+                  - secrets_included
+                properties:
+                  ok:
+                    type: boolean
+                  activation_layer:
+                    type: string
+                    enum:
+                      - tenant_resolution_case_lifecycle
+                  changed:
+                    type: boolean
+                  case:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  event:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  idempotency:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  policy:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  secrets_included:
+                    type: boolean
+                    enum:
+                      - false
         "400":
           description: Invalid target status or request body.
           content:
@@ -1838,6 +1808,7 @@ paths:
             - https://auth.mad4b.com/scopes/tenant.install
             - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: runTenantResolutionDiagnosticAction
+      x-custom-gpt-exclude: false
       x-openai-isConsequential: true
       summary: Run a tenant resolution diagnostic action
       description: Runs one bounded internal action for a resolution case. Supported modes are diagnose, plan_preview, and escalate. No provider call, external write, repair apply, or resolved transition is allowed.
