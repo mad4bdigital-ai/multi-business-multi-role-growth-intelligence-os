@@ -11,8 +11,7 @@ on:
       - "http-generic-api/frontend-surface-policy.json"
       - "http-generic-api/scripts/frontend-surface-dispatch.mjs"
       - "http-generic-api/scripts/test-manifest.mjs"
-      - "http-generic-api/test-frontend-surface-dispatch.mjs"
-      - "http-generic-api/test-frontend-auth-openapi-parity.mjs"
+      - "http-generic-api/test-*.mjs"
       - "specs/010-unified-platform-frontend/**"
       - ".github/workflows/frontend-surface-dispatch.yml"
   workflow_dispatch:
@@ -45,6 +44,7 @@ jobs:
       - name: Enforce committed deterministic output
         run: |
           if [[ -n "$(git status --porcelain -- frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)" ]]; then
+            git diff --no-ext-diff --unified=1 -- frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml || true
             echo "::error::frontend dispatch/OpenAPI generated evidence is missing or stale; regenerate and commit it."
             exit 1
           fi
