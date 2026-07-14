@@ -304,12 +304,16 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
     });
   }
   for (const assignment of source.roleAssignments.filter(row => activeValue(row.status))) {
-    const tenantContainer = tenantContainerByTenant.get(String(assignment.tenant_id));
-    if (!tenantContainer) continue;
+    const tenantId = String(assignment.tenant_id);
+    const roleTemplateKey = roleTemplateFor(assignment.role);
+    const assignmentContainer = roleTemplateKey === "platform_owner"
+      ? platformContainerByTenant.get(tenantId)
+      : tenantContainerByTenant.get(tenantId);
+    if (!assignmentContainer) continue;
     const assignmentId = stableUuid("container-role",assignment.tenant_id,assignment.user_id,"role_assignments",assignment.assignment_id || assignment.id);
     roleAssignments.set(assignmentId,{
-      assignment_id:assignmentId,tenant_id:assignment.tenant_id,container_id:tenantContainer.container_id,principal_type:"user",principal_id:assignment.user_id,
-      role_template_key:roleTemplateFor(assignment.role),inline_permissions_json:null,inheritance_mode:"inherit_down",valid_from:assignment.granted_at || null,valid_until:assignment.expires_at || null,
+      assignment_id:assignmentId,tenant_id:assignment.tenant_id,container_id:assignmentContainer.container_id,principal_type:"user",principal_id:assignment.user_id,
+      role_template_key:roleTemplateKey,inline_permissions_json:null,inheritance_mode:"inherit_down",valid_from:assignment.granted_at || null,valid_until:assignment.expires_at || null,
       status:"active",version:1,issued_by:assignment.granted_by || "role_assignments",approved_by:assignment.granted_by || null,metadata_json:JSON.stringify({ source_table:"role_assignments",source_pk:assignment.assignment_id,source_role:assignment.role })
     });
   }
