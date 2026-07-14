@@ -14,7 +14,7 @@ const {
 } = _testingTenantSkillApprovalCenterService;
 
 const tenantId = "tenant_1";
-const ownerSubject = { tenant_id: tenantId, user_id: "user_owner", tenant_role: "owner" };
+const ownerSubject = { tenant_id: tenantId, user_id: "user_owner", tenant_role: "tenant_owner" };
 const memberSubject = { tenant_id: tenantId, user_id: "user_member", tenant_role: "member" };
 const nowValue = new Date("2026-07-14T12:00:00.000Z");
 
