@@ -416,6 +416,7 @@ section("dispatcher contracts");
   const tenantAllowedConsequentialOps = new Set([
     "tenantPlatformPluginInstall",
     "tenantPlatformPluginCredentialIntakeSessionCreate",
+    "decideTenantSkillApproval",
     "postMeWorkspacesTenantIdResourcesResourceKey",
     "postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore",
   ]);
