@@ -36,6 +36,10 @@ import {
   runHostingerSshTargetProbeJob,
 } from "./hostingerSshDeployExecutor.js";
 import {
+  HOSTINGER_ASYNC_DEPLOY_JOB_TYPE,
+  runHostingerAsyncDeployJob,
+} from "./asyncReleaseDeployWorker.js";
+import {
   runSequentialPlan,
   SEQUENTIAL_PLAN_RUN_JOB_TYPE,
 } from "./sequentialPlanOrchestrator.js";
