@@ -18,6 +18,17 @@ function activeValue(value) {
   return new Set(["active","ready","enabled","true","1","yes"]).has(String(value ?? "").trim().toLowerCase());
 }
 
+const GOVERNED_SANDBOX_FIXTURE_ALLOWLIST = new Set([
+  "activation_authorized_access_tenant_smoke",
+]);
+
+function governedSandboxFixture(workspace) {
+  if (String(workspace?.workspace_type || "").trim().toLowerCase() !== "sandbox") return null;
+  const config = parseJson(workspace?.config_json, {});
+  const fixture = String(config?.fixture || "").trim();
+  return GOVERNED_SANDBOX_FIXTURE_ALLOWLIST.has(fixture) ? fixture : null;
+}
+
 function roleTemplateFor(value) {
   const role = String(value || "").toLowerCase();
   if (["owner","platform_owner"].includes(role)) return role === "platform_owner" ? "platform_owner" : "container_admin";
@@ -194,6 +205,21 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
     }
     const exact = brandsByTarget.get(linkedBrandKey.toLowerCase()) || [];
     if (exact.length !== 1) {
+      const fixture = governedSandboxFixture(workspace);
+      if (exact.length === 0 && fixture) {
+        issues.push(issue(projectionRunId,{
+          tenant_id:tenantId,
+          workspace_id:workspace.workspace_id,
+          source_table:"workspace_registry",
+          source_ref:workspace.workspace_id,
+          issue_code:"workspace_brand_fixture_excluded",
+          severity:"info",
+          status:"ignored",
+          issue_detail:"Explicit allowlisted sandbox fixture was excluded from canonical brand authority projection.",
+          candidate_refs:[linkedBrandKey,fixture]
+        }));
+        continue;
+      }
       const nameCandidates = brandsByName.get(linkedBrandKey.toLowerCase()) || [];
       issues.push(issue(projectionRunId,{
         tenant_id:tenantId,workspace_id:workspace.workspace_id,source_table:"workspace_registry",source_ref:workspace.workspace_id,
@@ -414,7 +440,7 @@ async function upsertProjectionRows(connection, plan, tenantId) {
       `INSERT INTO container_role_assignments
         (assignment_id,tenant_id,container_id,principal_type,principal_id,role_template_key,inline_permissions_json,inheritance_mode,valid_from,valid_until,status,version,issued_by,approved_by,metadata_json)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-       ON DUPLICATE KEY UPDATE role_template_key=VALUES(role_template_key),inheritance_mode=VALUES(inheritance_mode),valid_until=VALUES(valid_until),status=VALUES(status),metadata_json=VALUES(metadata_json),updated_at=UTC_TIMESTAMP()`,
+       ON DUPLICATE KEY UPDATE tenant_id=VALUES(tenant_id),container_id=VALUES(container_id),principal_type=VALUES(principal_type),principal_id=VALUES(principal_id),role_template_key=VALUES(role_template_key),inline_permissions_json=VALUES(inline_permissions_json),inheritance_mode=VALUES(inheritance_mode),valid_from=VALUES(valid_from),valid_until=VALUES(valid_until),status=VALUES(status),version=VALUES(version),issued_by=VALUES(issued_by),approved_by=VALUES(approved_by),metadata_json=VALUES(metadata_json),updated_at=UTC_TIMESTAMP()`,
       [row.assignment_id,row.tenant_id,row.container_id,row.principal_type,row.principal_id,row.role_template_key,row.inline_permissions_json,row.inheritance_mode,row.valid_from,row.valid_until,row.status,row.version,row.issued_by,row.approved_by,row.metadata_json]
     );
   }
@@ -464,4 +490,4 @@ export async function applyLegacyContainerProjection(plan, { createdBy = "dynami
   }
 }
 
-export const _testingDynamicContainerProjectionService = { stableUuid,activeValue,roleTemplateFor,parseJson,loadProjectionSources };
+export const _testingDynamicContainerProjectionService = { stableUuid,activeValue,roleTemplateFor,parseJson,loadProjectionSources,upsertProjectionRows };
