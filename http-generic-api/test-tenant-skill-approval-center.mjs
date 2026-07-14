@@ -267,6 +267,23 @@ assert.equal(idempotent.changed, false);
 assert.equal(idempotent.idempotency.existing_decision_returned, true);
 assert.equal(idempotentConnection.insertedHolds.length, 0);
 
+const driftConnection = new FakeConnection({
+  grants: [{ ...tenantGrant, grant_status: "revoked" }],
+  holds: [existingApprovedHold],
+});
+const driftRepaired = await decideTenantSkillApproval({
+  explicitSubject: ownerSubject,
+  approvalKey: tenantApprovalKey,
+  input: { decision: "approve", decision_note: "Restore grant after readback drift." },
+  pool: new FakePool(driftConnection),
+  uuid: () => "55555555-5555-4555-8555-555555555555",
+  now: () => nowValue,
+});
+assert.equal(driftRepaired.changed, true);
+assert.equal(driftRepaired.approval.readback.status, "passed");
+assert.equal(driftRepaired.approval.readback.active_grant_count, 1);
+assert.equal(driftConnection.insertedHolds.length, 1);
+
 const rejectConnection = new FakeConnection({ grants: [tenantGrant] });
 const rejected = await decideTenantSkillApproval({
   explicitSubject: ownerSubject,
