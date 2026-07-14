@@ -26,4 +26,4 @@ WHERE task_id = 'adc3d06f-7f0b-11f1-9a4d-d342cf4a053c'
   AND status = 'pending'
   AND title = 'Credential intake completed for hostinger'
   AND JSON_UNQUOTE(JSON_EXTRACT(context_json, '$.auto_promotion_status')) = 'completed'
-  AND COALESCE(JSON_EXTRACT(context_json, '$.secrets_included'), JSON_FALSE()) = JSON_FALSE();
+  AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(context_json, '$.secrets_included')), 'false') = 'false';
