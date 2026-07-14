@@ -107,18 +107,88 @@ async function loadApp(pool, appKey) {
   return rows[0] || null;
 }
 
-async function loadAppMap(pool, appKey) {
+export function isMissingAppCapabilityMapError(error) {
+  const code = String(error?.code || "");
+  const message = String(error?.message || "");
+  return ["ER_NO_SUCH_TABLE", "ER_VIEW_INVALID"].includes(code)
+    && /v_app_integration_capability_map/i.test(message);
+}
+
+export async function loadAppMap(pool, appKey) {
   if (!appKey) return [];
-  const [rows] = await pool.query(
-    `SELECT app_key, app_display_name, app_category, app_auth_type, app_status, action_key, binding_role, credential_source,
-            exposure_default, binding_status, connector_family, runtime_capability_class, runtime_callable, primary_executor,
-            active_endpoints, active_tool_exports, active_tool_bindings, bound_tool_keys, active_user_connections
-       FROM v_app_integration_capability_map
-      WHERE app_key = ?
-      ORDER BY active_tool_exports DESC, active_user_connections DESC, action_key`,
-    [appKey]
-  );
-  return rows;
+  try {
+    const [rows] = await pool.query(
+      `SELECT app_key, app_display_name, app_category, app_auth_type, app_status, action_key, binding_role, credential_source,
+              exposure_default, binding_status, connector_family, runtime_capability_class, runtime_callable, primary_executor,
+              active_endpoints, active_tool_exports, active_tool_bindings, bound_tool_keys, active_user_connections
+         FROM v_app_integration_capability_map
+        WHERE app_key = ?
+        ORDER BY active_tool_exports DESC, active_user_connections DESC, action_key`,
+      [appKey]
+    );
+    return rows;
+  } catch (error) {
+    if (!isMissingAppCapabilityMapError(error)) throw error;
+    const [rows] = await pool.query(
+      `SELECT
+         ai.app_key,
+         ai.display_name AS app_display_name,
+         ai.category AS app_category,
+         ai.auth_type AS app_auth_type,
+         ai.status AS app_status,
+         b.action_key,
+         b.binding_role,
+         b.credential_source,
+         b.exposure_default,
+         b.status AS binding_status,
+         a.connector_family,
+         a.runtime_capability_class,
+         a.runtime_callable,
+         a.primary_executor,
+         COALESCE(ep.active_endpoints, 0) AS active_endpoints,
+         COALESCE(tx.active_tool_exports, 0) AS active_tool_exports,
+         COALESCE(tb.active_tool_bindings, 0) AS active_tool_bindings,
+         COALESCE(tb.bound_tool_keys, '') AS bound_tool_keys,
+         COALESCE(uc.active_connections, 0) AS active_user_connections
+       FROM app_integrations ai
+       LEFT JOIN app_integration_action_bindings b
+         ON CONVERT(b.app_key USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(ai.app_key USING utf8mb4) COLLATE utf8mb4_unicode_ci
+        AND b.status = 'active'
+       LEFT JOIN actions a
+         ON CONVERT(a.action_key USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(b.action_key USING utf8mb4) COLLATE utf8mb4_unicode_ci
+       LEFT JOIN (
+         SELECT parent_action_key, SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_endpoints
+         FROM endpoints
+         GROUP BY parent_action_key
+       ) ep
+         ON CONVERT(ep.parent_action_key USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(b.action_key USING utf8mb4) COLLATE utf8mb4_unicode_ci
+       LEFT JOIN (
+         SELECT parent_action_key, COUNT(*) AS active_tool_exports
+         FROM platform_endpoint_tool_exports
+         WHERE status = 'active'
+         GROUP BY parent_action_key
+       ) tx
+         ON CONVERT(tx.parent_action_key USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(b.action_key USING utf8mb4) COLLATE utf8mb4_unicode_ci
+       LEFT JOIN (
+         SELECT app_key, COUNT(*) AS active_tool_bindings, GROUP_CONCAT(tool_key ORDER BY tool_key SEPARATOR ', ') AS bound_tool_keys
+         FROM app_integration_tool_bindings
+         WHERE status = 'active'
+         GROUP BY app_key
+       ) tb
+         ON CONVERT(tb.app_key USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(ai.app_key USING utf8mb4) COLLATE utf8mb4_unicode_ci
+       LEFT JOIN (
+         SELECT app_key, COUNT(*) AS active_connections
+         FROM user_app_connections
+         WHERE status = 'active'
+         GROUP BY app_key
+       ) uc
+         ON CONVERT(uc.app_key USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(ai.app_key USING utf8mb4) COLLATE utf8mb4_unicode_ci
+       WHERE ai.app_key = ?
+       ORDER BY active_tool_exports DESC, active_user_connections DESC, action_key`,
+      [appKey]
+    );
+    return rows;
+  }
 }
 
 async function loadBrandCore(pool, brandKey) {
@@ -134,23 +204,62 @@ async function loadBrandCore(pool, brandKey) {
   return rows[0] || null;
 }
 
-async function loadWorkspaceGrants(pool, { tenantId, userId, workspaceId, workspaceKey, brandKey, appKey }) {
+export function isMissingWorkspaceGrantViewError(error) {
+  const code = String(error?.code || "");
+  const message = String(error?.message || "");
+  return ["ER_NO_SUCH_TABLE", "ER_VIEW_INVALID"].includes(code)
+    && /v_workspace_resource_grant_effective/i.test(message);
+}
+
+export async function loadWorkspaceGrants(pool, { tenantId, userId, workspaceId, workspaceKey, brandKey, appKey }) {
   if (!tenantId || !userId) return [];
   // Legacy membership backfills used tenant_id as the workspace resource_ref.
   // New grants use workspace_id; workspace_key remains a supported human-readable alias.
   const refs = unique([workspaceId, workspaceKey, tenantId, brandKey, appKey]);
   if (!refs.length) return [];
-  const [rows] = await pool.query(
-    `SELECT grant_id, tenant_id, grantee_user_id, resource_type, resource_ref, permission, grant_status, membership_role, membership_status, expires_at
-       FROM v_workspace_resource_grant_effective
-      WHERE tenant_id = ?
-        AND grantee_user_id = ?
-        AND grant_status = 'active'
-        AND membership_status = 'active'
-        AND resource_ref IN (${refs.map(() => "?").join(",")})`,
-    [tenantId, userId, ...refs]
-  );
-  return rows;
+  const params = [tenantId, userId, ...refs];
+  try {
+    const [rows] = await pool.query(
+      `SELECT grant_id, tenant_id, grantee_user_id, resource_type, resource_ref, permission, grant_status, membership_role, membership_status, expires_at
+         FROM v_workspace_resource_grant_effective
+        WHERE tenant_id = ?
+          AND grantee_user_id = ?
+          AND grant_status = 'active'
+          AND membership_status = 'active'
+          AND resource_ref IN (${refs.map(() => "?").join(",")})`,
+      params
+    );
+    return rows;
+  } catch (error) {
+    if (!isMissingWorkspaceGrantViewError(error)) throw error;
+    const [rows] = await pool.query(
+      `SELECT
+         g.grant_id,
+         g.tenant_id,
+         g.grantee_user_id,
+         g.resource_type,
+         g.resource_ref,
+         g.permission,
+         g.status AS grant_status,
+         m.role AS membership_role,
+         m.status AS membership_status,
+         g.expires_at
+       FROM workspace_resource_grants g
+       JOIN memberships m
+         ON m.tenant_id = g.tenant_id
+        AND m.user_id = g.grantee_user_id
+        AND m.status = 'active'
+       LEFT JOIN users u
+         ON u.user_id = g.grantee_user_id
+       WHERE g.tenant_id = ?
+         AND g.grantee_user_id = ?
+         AND g.status = 'active'
+         AND (g.expires_at IS NULL OR g.expires_at > NOW())
+         AND g.resource_ref IN (${refs.map(() => "?").join(",")})`,
+      params
+    );
+    return rows;
+  }
 }
 
 async function loadConnections(pool, { tenantId, userId, appKey }) {
