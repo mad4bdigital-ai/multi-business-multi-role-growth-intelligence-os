@@ -16,6 +16,7 @@ export const testCommands = [
   "node test-supervisor-chain-runtime-guards.mjs",
   "node test-supervisor-behavioral-certification.mjs",
   "node test-supervisor-causal-provider-certification.mjs",
+  "node test-supervisor-admin-tool-export-sync.mjs",
   "node test-agent-delegation-opt-in.mjs",
   "node test-optional-manual-agent-delegation-tools.mjs",
   "node test-dynamic-capability-resolution-graph.mjs",
