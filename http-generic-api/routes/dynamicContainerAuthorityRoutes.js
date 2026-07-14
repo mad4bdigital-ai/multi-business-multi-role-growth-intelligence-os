@@ -241,6 +241,18 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
     } catch (error) { return errorResponse(req,res,error); }
   });
 
+  router.post("/admin/container-authority/shadow-samples",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
+    try {
+      assertAllowedKeys(req.body,new Set(["sampleCount","tenantId"]));
+      const result = await runDynamicContainerShadowSampler({
+        sampleCount:req.body?.sampleCount,
+        tenantId:req.body?.tenantId || null,
+        requestedBy:actorId(req)
+      });
+      return res.status(201).json(result);
+    } catch (error) { return errorResponse(req,res,error); }
+  });
+
   router.get("/container-authority/shadow-summary",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
     try {
       const limit = Math.max(1,Math.min(200,Number(req.query.limit || 100)));
