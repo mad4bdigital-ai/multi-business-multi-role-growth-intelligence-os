@@ -16,6 +16,7 @@ import {
   assertOperationRunAccess,
   recordOperationRunOwnership,
 } from "../operationRunOwnershipService.js";
+import { collectChunkedToolResponse } from "../repositoryAutomationControlPlane.js";
 import { dispatchToolForCaller, resolveCallerTypeForRequest } from "./gptToolsRoutes.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
@@ -81,12 +82,18 @@ function errorResponse(res, error, fallbackCode) {
   });
 }
 
+async function dispatchWithChunkCollection(dispatch, toolKey, args) {
+  const initial = await dispatch(toolKey, args);
+  return collectChunkedToolResponse(initial, { dispatch });
+}
+
 function depsFor(req) {
   const callerType = resolveCallerTypeForRequest(req);
+  const dispatch = (toolKey, args) => dispatchToolForCaller(callerType, toolKey, args, req);
   return {
     pool: getPool(),
     auth: req.auth || {},
-    dispatch: (toolKey, args) => dispatchToolForCaller(callerType, toolKey, args, req),
+    dispatch: (toolKey, args) => dispatchWithChunkCollection(dispatch, toolKey, args),
   };
 }
 
@@ -170,4 +177,5 @@ export const _testingOperationOrchestratorRoutes = {
   verifyUserJwt,
   errorResponse,
   isResumeOperation,
+  dispatchWithChunkCollection,
 };
