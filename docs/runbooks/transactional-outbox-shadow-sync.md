@@ -141,6 +141,8 @@ Activation should be a separate plan-bound approval and migration/configuration 
 
 ## Receiver contract
 
+The normative batch, acknowledgement, replay, and idempotency rules are defined in `docs/specs/mad4b-platform-outbox-batch-v1.md`.
+
 The receiver must process a batch atomically where practical and use `event_id` as the idempotency key.
 
 Required behavior:
