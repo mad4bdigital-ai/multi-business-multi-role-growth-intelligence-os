@@ -210,6 +210,7 @@ export const testCommands = [
   "node test-tenant-resolution-problem-cards.mjs",
   "node test-tenant-resolution-case-create.mjs",
   "node test-tenant-resolution-case-lifecycle.mjs",
+  "node test-tenant-resolution-diagnostic-core.mjs",
   "node test-tenant-gpt-operating-guide.mjs",
   "node test-tenant-gpt-operating-guide-tools.mjs",
   "node test-hostinger-runtime-sync-runbook.mjs",
