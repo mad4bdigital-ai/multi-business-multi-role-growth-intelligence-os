@@ -63,7 +63,7 @@ VALUES
    JSON_ARRAY('tenant_id','user_id','workspace_id'),
    JSON_ARRAY('tenant_id','user_id','workspace_id','workspace_key','workspace_type','user_role','resource_uri','expected_commit_sha'),
    JSON_OBJECT('ttl_minutes',60,'context',JSON_OBJECT()), 120,
-   SHA2('github_pr_finalize_v1|1|github|github_pr_finalize|github_pr_finalize',256), 'active'),
+   SHA2('github_pr_finalize_v1|1|github|github_pr_finalize|github_pr_finalize|github_pr_finalize|platform_managed_fallback|required:tenant_id,user_id,workspace_id|allowed:tenant_id,user_id,workspace_id,workspace_key,workspace_type,user_role,resource_uri,expected_commit_sha|default_ttl:60|max_ttl:120',256), 'active'),
   (UUID(), 'github_superseded_branch_cleanup_v1', 1, 'GitHub Superseded Branch Cleanup', 'Template for evidence-bound cleanup of superseded branches.',
    'github', 'github_superseded_branch_cleanup', 'github_superseded_branch_cleanup', 'github_superseded_branch_cleanup', 'platform_managed_fallback',
    JSON_ARRAY('tenant_id','user_id','workspace_id'),
