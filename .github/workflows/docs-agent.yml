@@ -22,6 +22,7 @@ jobs:
     if: >-
       github.event_name == 'pull_request' &&
       !startsWith(github.event.pull_request.head.ref, 'gpt/no-docs-agent/') &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-docs-agent') &&
       github.actor != 'github-actions[bot]' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
@@ -44,7 +45,26 @@ jobs:
       - name: Generate dynamic text work maps
         run: node http-generic-api/scripts/platform-work-map-generator.mjs --write
 
+      - name: Upload generated documentation preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-agent-preview-pr-${{ github.event.pull_request.number }}
+          path: |
+            docs/auto-docs-agent
+            docs/work-maps
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Report non-mutating default
+        if: >-
+          !contains(github.event.pull_request.labels.*.name, 'docs-agent-write') &&
+          !contains(github.event.pull_request.labels.*.name, 'docs-agent-automerge')
+        run: echo "Docs Agent generated a preview artifact only. Add the docs-agent-write label to commit generated documentation to the PR branch."
+
       - name: Commit generated documentation to PR branch
+        if: >-
+          contains(github.event.pull_request.labels.*.name, 'docs-agent-write') ||
+          contains(github.event.pull_request.labels.*.name, 'docs-agent-automerge')
         run: |
           set -e
           if [ -z "$(git status --porcelain -- docs/auto-docs-agent docs/work-maps)" ]; then
