@@ -290,6 +290,7 @@ flowchart TD
 | `support_ticket_lifecycle_snapshot_record_gate_policy_v1` | 1 |
 | `system_layer_descriptor_auto_wiring_policy_v1` | 1 |
 | `tenant_codex_dual_mode_policy_v1` | 1 |
+| `tenant_connection_shadow_contract_bootstrap_policy_v1` | 1 |
 | `tenant_proactive_guidance_policy_v1` | 1 |
 | `tenant_repository_advisory_comment_v5_tool_wiring_policy_v1` | 2 |
 | `tenant_repository_intelligence_v3_v4_tool_wiring_policy_v1` | 1 |
