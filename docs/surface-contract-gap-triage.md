@@ -4,19 +4,21 @@
 
 ## Summary
 
-- Triaged items: 8
-- Gate candidates: 8
+- Triaged items: 10
+- Gate candidates: 10
 - New-gap gate: fail
-- Blocking new items: 8
+- Blocking new items: 10
 
 ## Class counts
 
-- new_surface_immediate_review: 8
+- new_surface_immediate_review: 10
 
 ## Immediate review candidates
 
-- `20260714_validate_hostinger_connection_and_complete_continuation_task.sql` — critical_review, score 1079; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `20260714_validate_hostinger_connection_and_complete_continuation_task.sql` — critical_review, score 1078; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `20260715_platform_capability_shadow_certification_issue.sql` — critical_review, score 985; next: add targeted patch-index, parity, and governance documentation
 - `20260714_tenant_connection_shadow_contract_bootstrap.sql` — critical_review, score 840; next: add targeted patch-index, parity, and governance documentation
+- `20260715_dynamic_container_canary_promotion_tool.sql` — critical_review, score 807; next: add targeted patch-index, parity, and governance documentation
 - `20260714_async_release_deploy_contract.sql` — critical_review, score 790; next: add targeted patch-index, parity, and governance documentation
 - `20260714_supervisor_runtime_admin_tool_exports.sql` — critical_review, score 724; next: add targeted patch-index, parity, and governance documentation
 - `1046_sprint69_dynamic_container_shadow_sampler_tool.sql` — high_review, score 678; next: add targeted patch-index, parity, and governance documentation
