@@ -9,6 +9,17 @@ servers:
     description: Mad4B governed development runtime
 components:
   securitySchemes:
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key
+      description: Backend API key supplied as a bearer token and accepted only when the runtime admin-principal guard also succeeds.
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: |
+        Admin/service Custom GPT-safe backend authentication header. Send x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
     backendBearerAuth:
       type: http
       scheme: bearer
@@ -129,7 +140,8 @@ paths:
       description: Authenticated read-only dev DB clone status. Does not restore or mutate data.
       x-openai-isConsequential: false
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
       responses:
         '200':
           description: Dev database status.
