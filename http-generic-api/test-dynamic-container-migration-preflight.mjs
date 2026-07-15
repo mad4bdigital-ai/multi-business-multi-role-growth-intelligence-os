@@ -36,6 +36,38 @@ const migrations = [
     file:"1046_sprint69_dynamic_container_shadow_sampler_tool.sql",
     statements:3,
     requiredObjects:[]
+  },
+  {
+    file:"20260715_dynamic_container_rollout_readiness_current_evidence.sql",
+    statements:5,
+    requiredObjects:[
+      "v_container_latest_shadow_run_summary",
+      "v_container_latest_shadow_performance_summary",
+      "v_container_latest_shadow_audit_coverage",
+      "v_container_rollout_readiness"
+    ],
+    requiredFragments:[
+      "legacy_evidence_ref LIKE 'dynamic-container-shadow-sampler:%'",
+      "r.status = 'active'",
+      "pr.mode = 'apply'",
+      "pr.status = 'completed'",
+      "i.projection_run_id = (",
+      "historical_evidence_preserved"
+    ]
+  },
+  {
+    file:"20260715_dynamic_container_canary_promotion_tool.sql",
+    statements:4,
+    requiredObjects:[],
+    requiredFragments:[
+      "dynamic_container_canary_promotion_policy_v1",
+      "read_only_canary_only",
+      "single_active_canary_required",
+      "transactional_envelope_consumption_required",
+      "dynamic_container_canary_promotion",
+      "/admin/container-authority/canary-promotions",
+      "no_global_enforcement"
+    ]
   }
 ];
 
@@ -53,6 +85,9 @@ for (const migration of migrations) {
   assert.equal(Number(preflight.counts?.statements),statements.length,`${migration.file} preflight statement count must match executable split`);
   for (const objectName of migration.requiredObjects) {
     assert(requirements.schema_objects.includes(objectName),`${migration.file} must expose ${objectName} as a readiness object`);
+  }
+  for (const fragment of migration.requiredFragments || []) {
+    assert(sql.includes(fragment),`${migration.file} must include ${fragment}`);
   }
   assert(runner.includes(`"${migration.file}"`),`${migration.file} must be bootstrap-authorized before self-authorization exists`);
   const escapedFile = migration.file.replaceAll(".","\\.");
