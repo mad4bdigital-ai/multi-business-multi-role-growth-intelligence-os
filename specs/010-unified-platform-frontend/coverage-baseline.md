@@ -1,6 +1,6 @@
 # Frontend Dispatch Coverage Baseline
 
-**Baseline ref**: `c114873223eae998ab9dad9c2b0bab313cfc1eb6`
+**Baseline ref**: `fd09d6f3b2ec875dde813d8f0cdb50b0748fcc63`
 **Generated contract**: `http-generic-api/frontend-surface-dispatch.generated.json`  
 **Policy**: fail closed; unresolved items are work, not exemptions.
 
