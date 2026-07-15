@@ -23,6 +23,7 @@ export function checkSupervisorAdminToolExportSync() {
   const errors = [];
   const seenToolKeys = new Set();
   const seenAliases = new Set();
+  let semanticCapabilitiesChecked = 0;
 
   if (!testManifest.includes(TEST_COMMAND)) {
     errors.push(`test manifest missing ${TEST_COMMAND}`);
@@ -66,12 +67,57 @@ export function checkSupervisorAdminToolExportSync() {
         errors.push(`${tool.tool_key}: script missing confirmation ${tool.apply_confirmation}`);
       }
     }
+
+    if (tool.capability_policy_migration) {
+      semanticCapabilitiesChecked += 1;
+      const requiredFields = [
+        "semantic_capability_key",
+        "apply_policy_key",
+        "app_key",
+        "operation_intent",
+        "runtime_surface",
+        "apply_confirmation",
+      ];
+      for (const field of requiredFields) {
+        if (!tool[field]) errors.push(`${tool.tool_key}: manifest missing ${field}`);
+      }
+
+      const capabilityMigrationPath = path.join(API_DIR, tool.capability_policy_migration);
+      if (!existsSync(capabilityMigrationPath)) {
+        errors.push(`${tool.tool_key}: capability policy migration missing ${tool.capability_policy_migration}`);
+      } else {
+        const capabilityMigration = readFileSync(capabilityMigrationPath, "utf8");
+        const markers = [
+          "platform_semantic_capabilities",
+          "capability_apply_authorization_policy_registry",
+          `'${tool.semantic_capability_key}'`,
+          `'${tool.apply_policy_key}'`,
+          `'${tool.app_key}'`,
+          `'${tool.operation_intent}'`,
+          `'${tool.runtime_surface}'`,
+          tool.apply_confirmation,
+          "requires_typed_confirmation",
+          "requires_same_cycle_dry_run",
+          "transaction_rollback_required",
+          "provider_call_forbidden",
+          "external_write_forbidden",
+          "credential_payload_read_forbidden",
+          "secrets_included=false",
+        ];
+        for (const marker of markers) {
+          if (!capabilityMigration.includes(marker)) {
+            errors.push(`${tool.tool_key}: capability policy migration missing ${marker}`);
+          }
+        }
+      }
+    }
   }
 
   return {
     ok: errors.length === 0,
     group: manifest.group,
     tools_checked: seenToolKeys.size,
+    semantic_capabilities_checked: semanticCapabilitiesChecked,
     errors,
     secrets_included: false,
   };
