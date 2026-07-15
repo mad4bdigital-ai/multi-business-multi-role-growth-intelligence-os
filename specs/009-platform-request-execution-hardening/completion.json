@@ -30,7 +30,8 @@
       "resilience_controller": "http-generic-api/operationResilienceController.js",
       "typed_catalog_service": "http-generic-api/typedCatalogService.js",
       "chunk_aggregation": "http-generic-api/routes/operationOrchestratorRoutes.js",
-      "generated_artifact_service": "http-generic-api/operationGeneratedArtifactService.js"
+      "generated_artifact_service": "http-generic-api/operationGeneratedArtifactService.js",
+      "capability_lifecycle_service": "http-generic-api/operationCapabilityLifecycleService.js"
     },
     "migrations": [
       {
@@ -48,8 +49,8 @@
     ],
     "tests": {
       "status": "passing",
-      "head_sha": "edc01212994d1d940ca01849146423bdaabbcc79",
-      "base_sha": "98e6b1541bc8cac966c7300a68d3764fdb05bddf",
+      "head_sha": "6036e8df729c40fc2dc209db25e0df60166a60b6",
+      "base_sha": "c734cfab028265db8ff55ce1e31364b08793dbe7",
       "behind_by": 0,
       "required_checks": {
         "Syntax Check": "success",
@@ -57,41 +58,15 @@
         "Execution Resolver Gate": "success",
         "Unit & Integration Tests": "success"
       },
-      "tenant_isolation": "Tenant A cannot read or resume Tenant B operation runs",
-      "runtime_guard": [
-        "timeout",
-        "response_budget",
-        "raw_503_normalization"
-      ],
-      "resilience": [
-        "rate_limit_429",
-        "retry_after",
-        "circuit_open",
-        "half_open_probe",
-        "circuit_recovery"
-      ],
-      "typed_catalogs": [
-        "admin_tenant_projection",
-        "active_tenant_membership",
-        "cursor_pagination",
-        "bounded_filter",
-        "catalog_allowlist",
-        "secret_field_exclusion",
-        "invalid_cursor"
-      ],
-      "chunk_aggregation": [
-        "direct_dispatch_collection",
-        "continuation_loop_bound",
-        "registered_regression_coverage"
-      ],
-      "generated_artifacts": [
-        "metadata_only",
-        "run_ownership",
-        "cursor_pagination",
-        "sha256_metadata",
-        "secret_content_exclusion",
-        "migration_safety",
-        "openapi_3_1"
+      "capability_lifecycle": [
+        "existing_ready_envelope",
+        "expired_envelope_transition",
+        "just_in_time_dry_run_envelope",
+        "explicit_approval_block",
+        "blocking_gap_stop",
+        "successful_consume",
+        "bounded_retry_retention",
+        "consume_readback"
       ]
     },
     "openapi": {
@@ -99,13 +74,13 @@
       "operation_contract": "specs/009-platform-request-execution-hardening/contracts/operation-orchestrator.openapi.yaml",
       "typed_catalog_contract": "http-generic-api/openapi/typed-catalogs.yaml",
       "artifact_contract": "http-generic-api/openapi/operation-artifacts.yaml",
+      "capability_lifecycle_contract": "http-generic-api/openapi/operation-capability-lifecycle.yaml",
       "version": "3.1.0"
     },
     "release_readiness": {
       "status": "blocked_remaining_tasks",
       "remaining": [
         "managed_ephemeral_git_worker_lifecycle_evidence",
-        "automatic_capability_lifecycle",
         "observability_dashboards",
         "shadow_and_pilot_rollout"
       ]

@@ -48,20 +48,25 @@
     - `http-generic-api/migrations/20260714_operation_generated_artifacts.sql`
     - `http-generic-api/openapi/operation-artifacts.yaml`
     - Admin/Tenant metadata reads, cursor pagination, run ownership enforcement, SHA-256 metadata, and secret/content exclusion.
-- [x] Pass required CI on the synchronized artifact-registry head.
-  - Evidence: head `edc01212994d1d940ca01849146423bdaabbcc79`; Syntax, Architecture Drift, Execution Resolver, and Unit & Integration all succeeded; `behind_by: 0`.
+- [x] Implement operation-scoped capability lifecycle.
+  - Evidence:
+    - `http-generic-api/operationCapabilityLifecycleService.js`
+    - `http-generic-api/routes/operationOrchestratorRoutes.js`
+    - `http-generic-api/openapi/operation-capability-lifecycle.yaml`
+    - `http-generic-api/test-gpt-tools-route-syntax-regression.mjs`
+    - Existing valid envelopes are reused; expired envelopes are marked expired; fresh envelopes are created from governed dry-run; approval is never granted automatically; successful mutations consume their envelope; bounded retries retain it.
+- [x] Pass required CI on the capability-lifecycle commit.
+  - Evidence: commit `6036e8df729c40fc2dc209db25e0df60166a60b6`; Syntax, Architecture Drift, Execution Resolver, and Unit & Integration all succeeded; the branch was current with base `c734cfab028265db8ff55ce1e31364b08793dbe7`.
 
 ## Partially implemented
 
 - [ ] Implement Managed Ephemeral Git Worker.
-  - Existing managed repository automation primitives are reused; explicit worker lifecycle evidence remains required.
-- [ ] Implement operation-scoped capability lifecycle.
-  - Capability envelopes are required by mutation contracts; automatic renewal and expiry handling remain.
+  - Existing managed repository automation primitives are reused; explicit checkout lease, isolation, lifecycle, cleanup, and readback evidence remain required.
 
 ## Remaining
 
 - [ ] Add latency, internal-call, discovery, retry, and failure dashboards.
-- [ ] Run shadow and pilot rollout.
+- [ ] Run shadow and Admin/Tenant pilot rollout.
 
 ## Merge gate
 
