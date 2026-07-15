@@ -583,6 +583,14 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
+  router.post("/tenant/resolution/cases/:caseId/task-source-repair/preview", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantTaskSourceRepairPreviewResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_task_source_repair_preview_failed");
+    }
+  });
+
   router.get("/tenant/resolution/skill-approvals", requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await tenantSkillApprovalListResponse(req));
