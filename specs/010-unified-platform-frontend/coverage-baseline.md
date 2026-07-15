@@ -1,6 +1,6 @@
 # Frontend Dispatch Coverage Baseline
 
-**Baseline ref**: `c734cfab028265db8ff55ce1e31364b08793dbe7`  
+**Baseline ref**: `c114873223eae998ab9dad9c2b0bab313cfc1eb6`
 **Generated contract**: `http-generic-api/frontend-surface-dispatch.generated.json`  
 **Policy**: fail closed; unresolved items are work, not exemptions.
 
@@ -11,26 +11,26 @@
 | Mounted route files | 126 |
 | Scope/policy-split surface families | 155 |
 | Mixed-scope route files | 22 |
-| HTTP operations | 938 |
-| Canonical OpenAPI operations | 532 |
+| HTTP operations | 939 |
+| Canonical OpenAPI operations | 533 |
 | Generated auth-backed operation index | 389 |
 | Explicit OpenAPI exemptions | 17 |
 | Remaining OpenAPI operation-presence gaps | 0 |
 | Generated operations still missing reviewed detail contracts | 389 |
 | Explicitly test-owned operations | 7 |
-| Operations without explicit test claims | 931 |
+| Operations without explicit test claims | 932 |
 | Fully test-owned families | 1 |
 | Families with test ownership gaps | 154 |
 | Ready tasks | 1 |
 | Blocked tasks | 154 |
 
-The inventory includes optional dynamically imported route builders, normalizes optional Express parameters, ignores commented legacy registrations, and splits route families at explicit surface-policy and auth boundaries. Generated Custom GPT projections and the runtime operation index are excluded from canonical detail coverage: they supply projection or presence/auth evidence only and never count as reviewed request/response contracts.
+The inventory includes optional dynamically imported route builders, expands optional Express parameters into both served path variants, ignores commented legacy registrations, and splits route families at explicit surface-policy and auth boundaries. Generated Custom GPT projections and the runtime operation index are excluded from canonical detail coverage: they supply projection or presence/auth evidence only and never count as reviewed request/response contracts.
 
 ## Auth and operation governance
 
 | Metric | Count |
 |---|---:|
-| Runtime/OpenAPI auth equivalent | 921 |
+| Runtime/OpenAPI auth equivalent | 922 |
 | Explicit auth exemptions | 17 |
 | Auth mismatches | 0 |
 | Missing OpenAPI for auth comparison | 0 |

@@ -2,7 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
-import { buildDispatchPlan, canonicalOpenApiAuthority, parseOpenApiContracts } from "./frontend-surface-dispatch.mjs";
+import { buildDispatchPlan, canonicalOpenApiAuthority, isDirectExecution, parseOpenApiContracts } from "./frontend-surface-dispatch.mjs";
 
 const API_ROOT = process.cwd();
 const OPENAPI_PATH = path.join(API_ROOT, "openapi.yaml");
@@ -75,7 +75,7 @@ function securityValue(alternatives) {
   return alternatives.map(([scheme]) => ({ [scheme]: [] }));
 }
 
-function serializedSecurity(source, node, alternatives) {
+export function serializedSecurity(source, node, alternatives) {
   const current = source.slice(node.range[0], node.range[2]);
   const newline = current.endsWith("\n") ? "\n" : "";
   if (alternatives.length === 0) return `[]${newline}`;
@@ -84,7 +84,11 @@ function serializedSecurity(source, node, alternatives) {
   }
   const lineStart = source.lastIndexOf("\n", node.range[0] - 1) + 1;
   const indent = source.slice(lineStart, node.range[0]);
-  return `${alternatives.map(([scheme], index) => `${index === 0 ? "" : indent}- ${scheme}: []`).join("\n")}${newline}`;
+  const items = alternatives.map(([scheme], index) => {
+    const item = `- ${scheme}: []`;
+    return index === 0 ? item : `${indent}${item}`;
+  });
+  return `${items.join("\n")}${newline}`;
 }
 
 function operationSecurityPath(operation) {
@@ -165,16 +169,18 @@ function report({ ok, drift, updated = 0 }) {
   }, null, 2)}\n`);
 }
 
-const primarySource = fs.readFileSync(OPENAPI_PATH, "utf8");
-const primaryDocument = YAML.parseDocument(primarySource, { keepSourceTokens: true, prettyErrors: true });
-if (primaryDocument.errors.length) throw primaryDocument.errors[0];
-const primarySchemes = primaryDocument.toJS()?.components?.securitySchemes || {};
-const initialPlan = buildDispatchPlan({ apiRoot: API_ROOT });
-const drift = canonicalAuthDrift(initialPlan);
-if (MODE === "check") {
-  report({ ok: drift.length === 0, drift });
-  if (drift.length) process.exit(1);
-} else {
+function main() {
+  const primarySource = fs.readFileSync(OPENAPI_PATH, "utf8");
+  const primaryDocument = YAML.parseDocument(primarySource, { keepSourceTokens: true, prettyErrors: true });
+  if (primaryDocument.errors.length) throw primaryDocument.errors[0];
+  const primarySchemes = primaryDocument.toJS()?.components?.securitySchemes || {};
+  const initialPlan = buildDispatchPlan({ apiRoot: API_ROOT });
+  const drift = canonicalAuthDrift(initialPlan);
+  if (MODE === "check") {
+    report({ ok: drift.length === 0, drift });
+    if (drift.length) process.exit(1);
+    return;
+  }
   const byContract = new Map();
   for (const operation of drift) {
     const contract = operation.openapi_auth.source_file;
@@ -193,3 +199,5 @@ if (MODE === "check") {
   report({ ok: remaining.length === 0, drift: remaining, updated: drift.length });
   if (remaining.length) process.exit(1);
 }
+
+if (isDirectExecution(import.meta.url, process.argv[1])) main();

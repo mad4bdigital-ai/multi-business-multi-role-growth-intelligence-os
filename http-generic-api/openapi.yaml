@@ -5178,6 +5178,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RuntimeVerificationEvidenceResponse'
+  /runtime/parity:
+    get:
+      tags: [runtime-verification]
+      operationId: getDefaultRuntimeParity
+      summary: Read default or query-selected production parity state
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: environment_key
+          in: query
+          required: false
+          schema: { type: string, default: production }
+      responses:
+        '200':
+          description: Runtime production parity status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuntimeParityResponse'
   /runtime/parity/{environmentKey}:
     get:
       tags: [runtime-verification]
@@ -5189,7 +5209,7 @@ paths:
       parameters:
         - name: environmentKey
           in: path
-          required: false
+          required: true
           schema: { type: string, default: production }
       responses:
         '200':

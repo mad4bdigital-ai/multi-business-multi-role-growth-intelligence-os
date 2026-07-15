@@ -41,7 +41,7 @@
       "canonical_auth_sync_all_occurrences": true,
       "runtime_openapi_auth_contract_gap_count": 0,
       "openapi_operation_presence_gap_count": 0,
-      "canonical_openapi_operation_count": 532,
+      "canonical_openapi_operation_count": 533,
       "operation_index_detail_gap_count": 389,
       "operation_level_mutation_governance": true,
       "classified_non_mutating_action_count": 9,

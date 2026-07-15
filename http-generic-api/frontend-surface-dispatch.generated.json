@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "c114873223eae998ab9dad9c2b0bab313cfc1eb6",
-    "source_digest": "6ace8831857f4b1aba561345fac766dd29c7b6b768f8a2564565647b1944a3ed",
+    "source_digest": "369eb57ca39e19a0a97a0a1b20822d067c535d3176ed57031a0fbc9cbb1b64b3",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -21,7 +21,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "c9d5aa77db039c846e14fee8c0fb6cb7d78a6beb44b7a2c44ce877a193c55879",
+        "sha256": "7be7710a3056995c77ab478e92262eb8506a4c98076ecb98d35a0b8ee4e14e4b",
         "present": true
       },
       {
@@ -801,7 +801,7 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "35659afe9c4b1b1250a516e233b996273e6065eeedc98537a5bee44bf962dd0a",
+        "sha256": "7a9625a95bd95373f8307432670a137d101435fd136bb5c3641d65a9a944e3c5",
         "present": true
       },
       {
@@ -849,15 +849,15 @@
     "mounted_family_count": 155,
     "mounted_route_file_count": 126,
     "mixed_scope_route_file_count": 22,
-    "operation_count": 938,
-    "openapi_documented_count": 921,
-    "openapi_canonical_documented_count": 532,
+    "operation_count": 939,
+    "openapi_documented_count": 922,
+    "openapi_canonical_documented_count": 533,
     "openapi_generated_index_count": 389,
     "openapi_exemption_count": 17,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 389,
     "auth_parity_counts": {
-      "equivalent": 921,
+      "equivalent": 922,
       "exempt": 17
     },
     "auth_contract_gap_count": 0,
@@ -871,7 +871,7 @@
     "test_owned_family_count": 1,
     "untested_family_count": 154,
     "test_owned_operation_count": 7,
-    "untested_operation_count": 931,
+    "untested_operation_count": 932,
     "ready_task_count": 1,
     "blocked_task_count": 154,
     "coverage_complete": false
@@ -14243,6 +14243,74 @@
         },
         {
           "method": "GET",
+          "path": "/runtime/parity",
+          "signature": "GET /runtime/parity",
+          "source_file": "routes/runtimeVerificationRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "GET",
           "path": "/runtime/parity/{environmentKey}",
           "signature": "GET /runtime/parity/{environmentKey}",
           "source_file": "routes/runtimeVerificationRoutes.js",
@@ -14392,6 +14460,7 @@
         "POST /runtime/verification-runs",
         "GET /runtime/verification-runs/{runId}",
         "GET /runtime/verification-runs/{runId}/evidence",
+        "GET /runtime/parity",
         "GET /runtime/parity/{environmentKey}",
         "GET /activation/hard-run/summary"
       ],

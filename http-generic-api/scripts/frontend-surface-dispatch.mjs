@@ -88,6 +88,25 @@ export function normalizeRoutePath(value = "") {
     .replace(/\/$/, "") || "/";
 }
 
+export function expandRoutePaths(value = "") {
+  const pending = [String(value || "")];
+  const expanded = [];
+  const optionalSegment = /\/:([A-Za-z0-9_]+)\?/;
+  while (pending.length) {
+    const route = pending.pop();
+    const match = route.match(optionalSegment);
+    if (!match || match.index === undefined) {
+      expanded.push(normalizeRoutePath(route));
+      continue;
+    }
+    const before = route.slice(0, match.index);
+    const after = route.slice(match.index + match[0].length);
+    pending.push(`${before}${after}`);
+    pending.push(`${before}/:${match[1]}${after}`);
+  }
+  return unique(expanded);
+}
+
 function joinRoutePath(prefix, route) {
   const left = normalizeRoutePath(prefix || "/");
   const right = normalizeRoutePath(route || "/");
@@ -664,18 +683,20 @@ function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver = "rout
     const expansions = staticTemplateExpansions(scanSource, match.index, match[3]);
     const routes = expansions.length ? expansions : [match[3]];
     for (const route of routes) {
-      const routePath = joinRoutePath(mountPrefix, route);
-      const inheritedGuards = activeRouterUseGuards(scanSource, match.index, routePath, aliases);
-      operations.push({
-        method,
-        path: routePath,
-        signature: `${method} ${routePath}`,
-        source_file: file,
-        source_index: match.index,
-        declaration,
-        route_guards: routeGuards,
-        inherited_guards: inheritedGuards,
-      });
+      for (const expandedRoute of expandRoutePaths(route)) {
+        const routePath = joinRoutePath(mountPrefix, expandedRoute);
+        const inheritedGuards = activeRouterUseGuards(scanSource, match.index, routePath, aliases);
+        operations.push({
+          method,
+          path: routePath,
+          signature: `${method} ${routePath}`,
+          source_file: file,
+          source_index: match.index,
+          declaration,
+          route_guards: routeGuards,
+          inherited_guards: inheritedGuards,
+        });
+      }
     }
   }
   return operations;

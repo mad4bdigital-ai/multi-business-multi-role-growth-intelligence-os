@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildDispatchPlan, isDirectExecution, normalizeRoutePath, parseMountedRouteFiles, parseOpenApiContracts, parseOpenApiOperations, syncDispatchPlan } from "./scripts/frontend-surface-dispatch.mjs";
+import YAML from "yaml";
+import { buildDispatchPlan, expandRoutePaths, isDirectExecution, normalizeRoutePath, parseMountedRouteFiles, parseOpenApiContracts, parseOpenApiOperations, syncDispatchPlan } from "./scripts/frontend-surface-dispatch.mjs";
+import { serializedSecurity } from "./scripts/openapi-runtime-auth-sync.mjs";
 
 function write(root, relative, content) {
   const target = path.join(root, relative);
@@ -32,6 +34,7 @@ export function buildTenantRoutes() {
   const router = Router();
   router.get("/me/workspaces/:tenant_id/dashboard", requireUserJwt, handler);
   router.post("/me/workspaces/:tenant_id/dashboard/preview", requireUserJwt, handler);
+  router.get("/me/workspaces/:tenant_id/insights/:view?", requireUserJwt, handler);
   return router;
 }
 `);
@@ -97,6 +100,14 @@ paths:
       responses: {}
   /me/workspaces/{tenant_id}/dashboard/preview:
     post:
+      security: [{ userBearerAuth: [] }]
+      responses: {}
+  /me/workspaces/{tenant_id}/insights:
+    get:
+      security: [{ userBearerAuth: [] }]
+      responses: {}
+  /me/workspaces/{tenant_id}/insights/{view}:
+    get:
       security: [{ userBearerAuth: [] }]
       responses: {}
   /admin/runtime/verification:
@@ -184,6 +195,8 @@ write(apiRoot, "scripts/test-manifest.mjs", `export const tests = ["node test-te
 write(apiRoot, "test-tenant-dashboard.mjs", `
 ${"//"} frontend-surface-operation: GET /me/workspaces/{tenant_id}/dashboard
 ${"//"} frontend-surface-operation: POST /me/workspaces/{tenant_id}/dashboard/preview
+${"//"} frontend-surface-operation: GET /me/workspaces/{tenant_id}/insights
+${"//"} frontend-surface-operation: GET /me/workspaces/{tenant_id}/insights/{view}
 `);
 write(apiRoot, "test-admin-runtime-verification.mjs", `
 ${"//"} frontend-surface-operation: GET /admin/runtime/verification
@@ -252,11 +265,19 @@ write(apiRoot, "frontend-surface-policy.json", JSON.stringify({
 
 assert.equal(isDirectExecution(new URL("./scripts/frontend-surface-dispatch.mjs", import.meta.url).href, process.argv[1]), false);
 assert.equal(normalizeRoutePath("/runtime/parity/:environmentKey?"), "/runtime/parity/{environmentKey}");
-assert.equal(parseOpenApiOperations(fs.readFileSync(path.join(apiRoot, "openapi.yaml"), "utf8")).size, 10);
+assert.deepEqual(expandRoutePaths("/runtime/parity/:environmentKey?"), ["/runtime/parity", "/runtime/parity/{environmentKey}"]);
+assert.equal(parseOpenApiOperations(fs.readFileSync(path.join(apiRoot, "openapi.yaml"), "utf8")).size, 12);
 assert.equal(parseOpenApiOperations(fs.readFileSync(path.join(apiRoot, "openapi.yaml"), "utf8"), {
   sourcePath: path.join(apiRoot, "openapi.yaml"),
   apiRoot,
-}).size, 18);
+}).size, 20);
+const blockSecuritySource = "security:\n  - adminBearerAuth: []\n  - backendApiKeyAuth: []\n";
+const blockSecurityDocument = YAML.parseDocument(blockSecuritySource, { keepSourceTokens: true });
+const blockSecurityNode = blockSecurityDocument.getIn(["security"], true);
+const blockSecurityReplacement = serializedSecurity(blockSecuritySource, blockSecurityNode, [["adminBearerAuth"], ["backendApiKeyAuth"]]);
+assert.equal(blockSecurityReplacement, "- adminBearerAuth: []\n  - backendApiKeyAuth: []\n");
+const blockSecurityOutput = `${blockSecuritySource.slice(0, blockSecurityNode.range[0])}${blockSecurityReplacement}${blockSecuritySource.slice(blockSecurityNode.range[2])}`;
+assert.deepEqual(YAML.parse(blockSecurityOutput).security, [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]);
 const securityContracts = parseOpenApiContracts(`
 openapi: 3.1.0
 security: []
@@ -294,7 +315,10 @@ assert.equal(plan.baseline.ref, "fixture-sha");
 assert.equal(plan.coverage.mounted_route_file_count, 5);
 assert.equal(plan.coverage.mounted_family_count, 7);
 assert.equal(plan.coverage.mixed_scope_route_file_count, 1);
-assert.equal(plan.coverage.operation_count, 18);
+assert.equal(plan.coverage.operation_count, 20);
+const tenantOperations = plan.families.find((family) => family.source_file === "routes/tenantRoutes.js").operations;
+assert(tenantOperations.some((entry) => entry.signature === "GET /me/workspaces/{tenant_id}/insights"));
+assert(tenantOperations.some((entry) => entry.signature === "GET /me/workspaces/{tenant_id}/insights/{view}"));
 assert(!plan.families.some((family) => family.operations.some((entry) => entry.signature === "DELETE /disabled/commented-route")), "commented legacy routes must not enter the runtime inventory");
 assert.equal(plan.coverage.openapi_gap_count, 0);
 assert.equal(plan.coverage.unresolved_surface_decision_count, 0);
