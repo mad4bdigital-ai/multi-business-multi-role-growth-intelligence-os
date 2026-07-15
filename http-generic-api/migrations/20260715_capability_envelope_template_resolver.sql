@@ -69,7 +69,7 @@ VALUES
    JSON_ARRAY('tenant_id','user_id','workspace_id'),
    JSON_ARRAY('tenant_id','user_id','workspace_id','workspace_key','workspace_type','user_role','resource_uri'),
    JSON_OBJECT('ttl_minutes',60,'context',JSON_OBJECT()), 120,
-   SHA2('github_superseded_branch_cleanup_v1|1|github|github_superseded_branch_cleanup',256), 'active'),
+   SHA2('github_superseded_branch_cleanup_v1|1|github|github_superseded_branch_cleanup|github_superseded_branch_cleanup|github_superseded_branch_cleanup|platform_managed_fallback|required:tenant_id,user_id,workspace_id|allowed:tenant_id,user_id,workspace_id,workspace_key,workspace_type,user_role,resource_uri|default_ttl:60|max_ttl:120',256), 'active'),
   (UUID(), 'governed_migration_execute_v1', 1, 'Governed Migration Execute', 'Template for checksum-bound internal migration execution envelopes.',
    'platform_orchestration', 'governed_migration_execute', 'governed_migration_execute', 'auth_host', 'platform_managed_fallback',
    JSON_ARRAY('tenant_id','user_id','workspace_id'),
