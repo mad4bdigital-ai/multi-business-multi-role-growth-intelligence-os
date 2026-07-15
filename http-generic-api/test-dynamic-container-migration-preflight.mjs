@@ -72,6 +72,9 @@ for (const migration of migrations) {
   for (const objectName of migration.requiredObjects) {
     assert(requirements.schema_objects.includes(objectName),`${migration.file} must expose ${objectName} as a readiness object`);
   }
+  for (const fragment of migration.requiredFragments || []) {
+    assert(sql.includes(fragment),`${migration.file} must include ${fragment}`);
+  }
   assert(runner.includes(`"${migration.file}"`),`${migration.file} must be bootstrap-authorized before self-authorization exists`);
   const escapedFile = migration.file.replaceAll(".","\\.");
   assert(new RegExp(`'${escapedFile}'\\s*,\\s*'authorized'\\s*,\\s*'migration_seed'`).test(sql),`${migration.file} must self-authorize future governed dry-run/apply`);
