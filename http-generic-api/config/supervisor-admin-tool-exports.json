@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "group": "supervisor_admin_shell_exports",
   "alias_file": "routes/adminCliRoutes.js",
   "package_file": "package.json",
@@ -22,6 +22,7 @@
       "alias_arg": "http-generic-api/scripts/supervisor-behavioral-certification.mjs",
       "migration": "migrations/20260714_supervisor_runtime_admin_tool_exports.sql",
       "capability_policy_migration": "migrations/20260715_supervisor_behavioral_certification_capability_policy.sql",
+      "capability_policy_patch_migration": "migrations/20260715_supervisor_behavioral_certification_policy_sensitive_field_fix.sql",
       "semantic_capability_key": "supervisor_behavioral_certification",
       "apply_policy_key": "supervisor_behavioral_certification_apply_v1",
       "app_key": "platform_orchestration",
