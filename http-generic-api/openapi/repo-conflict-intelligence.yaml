@@ -19,7 +19,7 @@ paths:
       tags: [repo-conflict-intelligence-admin]
       operationId: analyzeRepositoryConflict
       summary: Analyze repository conflict metadata
-      security: [{ backendApiKey: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       requestBody:
         required: true
         content:
@@ -35,7 +35,7 @@ paths:
       tags: [repo-conflict-intelligence-admin]
       operationId: planRepositoryConflictResolution
       summary: Build a typed conflict-resolution plan
-      security: [{ backendApiKey: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       requestBody:
         required: true
         content:
@@ -51,7 +51,7 @@ paths:
       tags: [repo-conflict-intelligence-admin]
       operationId: previewRepositorySemanticPatches
       summary: Preview idempotent semantic patches
-      security: [{ backendApiKey: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       requestBody:
         required: true
         content:
@@ -73,7 +73,7 @@ paths:
       tags: [repo-conflict-intelligence-admin]
       operationId: dryRunRepositoryConflictResolution
       summary: Produce a typed no-mutation resolution dry-run
-      security: [{ backendApiKey: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       requestBody:
         required: true
         content:
@@ -89,7 +89,7 @@ paths:
       tags: [repo-conflict-intelligence-admin]
       operationId: previewRepositoryConflictPrAutomation
       summary: Build a no-post advisory comment preview
-      security: [{ backendApiKey: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       requestBody:
         required: true
         content:
@@ -105,7 +105,7 @@ paths:
       tags: [repo-conflict-intelligence-admin]
       operationId: getRepositoryConflictCaseStudy
       summary: Read a bounded built-in conflict case study
-      security: [{ backendApiKey: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       parameters:
         - name: caseKey
           in: path
@@ -125,7 +125,7 @@ paths:
         Runs bounded tenant-safe projections and validates the three TENANT registry tools. The response
         reports authorization_gated when no real Tenant JWT transport probe has been performed. This
         diagnostic does not issue credentials, bypass authentication, mutate Git, or call providers.
-      security: [{ backendApiKey: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       requestBody:
         required: false
         content:
@@ -189,6 +189,17 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
 components:
   securitySchemes:
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key
+      description: Backend API key supplied as a bearer token and accepted only when the runtime admin-principal guard also succeeds.
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: |
+        Admin/service Custom GPT-safe backend authentication header. Send x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
     backendApiKey:
       type: apiKey
       in: header

@@ -107,7 +107,7 @@ openApiRegistrySyncStatus:
     description: Returns runtime config, latest run evidence, inventory counts, and the callable-count safety guard. No mutation, provider call, credential read, or secret output.
     x-registry-exposure: admin_tool
     x-registry-tool-key: openapi_endpoint_inventory_status
-    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
     responses:
       '200':
         description: Current synchronization and inventory state.
@@ -125,7 +125,7 @@ openApiRegistrySync:
     x-registry-exposure: admin_tool
     x-registry-tool-key: openapi_endpoint_inventory_sync
     x-openai-isConsequential: true
-    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
     requestBody:
       required: false
       content:

@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/frontend-surface-dispatch-v1.json",
+  "title": "MAD4B Frontend Surface Dispatch Plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "baseline", "policy", "coverage", "waves", "families", "tasks", "safety"],
+  "properties": {
+    "schema_version": { "const": "frontend-surface-dispatch-v1" },
+    "baseline": {
+      "type": "object",
+      "required": ["ref", "source_digest", "authority"],
+      "properties": {
+        "ref": { "type": "string", "minLength": 1 },
+        "source_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "authority": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["file", "sha256", "present"],
+            "properties": {
+              "file": { "type": "string" },
+              "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+              "present": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "required": ["key", "default_decision", "allowed_decisions", "issues"],
+      "properties": {
+        "key": { "type": "string" },
+        "default_decision": { "type": "string" },
+        "allowed_decisions": { "type": "array", "items": { "type": "string" } },
+        "issues": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "required": ["mounted_family_count", "operation_count", "openapi_canonical_documented_count", "openapi_generated_index_count", "openapi_exemption_count", "openapi_gap_count", "openapi_detail_gap_count", "auth_parity_counts", "auth_contract_gap_count", "operation_policy_issue_count", "non_get_candidate_count", "unresolved_operation_class_count", "classified_mutation_count", "governed_mutation_operation_count", "unresolved_surface_decision_count", "ready_task_count", "blocked_task_count", "coverage_complete"],
+      "properties": {
+        "mounted_family_count": { "type": "integer", "minimum": 0 },
+        "operation_count": { "type": "integer", "minimum": 0 },
+        "openapi_documented_count": { "type": "integer", "minimum": 0 },
+        "openapi_canonical_documented_count": { "type": "integer", "minimum": 0 },
+        "openapi_generated_index_count": { "type": "integer", "minimum": 0 },
+        "openapi_exemption_count": { "type": "integer", "minimum": 0 },
+        "openapi_gap_count": { "type": "integer", "minimum": 0 },
+        "openapi_detail_gap_count": { "type": "integer", "minimum": 0 },
+        "auth_parity_counts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "auth_contract_gap_count": { "type": "integer", "minimum": 0 },
+        "operation_policy_issue_count": { "type": "integer", "minimum": 0 },
+        "non_get_candidate_count": { "type": "integer", "minimum": 0 },
+        "unresolved_operation_class_count": { "type": "integer", "minimum": 0 },
+        "classified_mutation_count": { "type": "integer", "minimum": 0 },
+        "governed_mutation_operation_count": { "type": "integer", "minimum": 0 },
+        "embedded_ui_family_count": { "type": "integer", "minimum": 0 },
+        "unresolved_surface_decision_count": { "type": "integer", "minimum": 0 },
+        "test_owned_family_count": { "type": "integer", "minimum": 0 },
+        "untested_family_count": { "type": "integer", "minimum": 0 },
+        "test_owned_operation_count": { "type": "integer", "minimum": 0 },
+        "untested_operation_count": { "type": "integer", "minimum": 0 },
+        "ready_task_count": { "type": "integer", "minimum": 0 },
+        "blocked_task_count": { "type": "integer", "minimum": 0 },
+        "coverage_complete": { "type": "boolean" }
+      }
+    },
+    "waves": { "type": "array", "items": { "type": "object" } },
+    "families": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["family_key", "source_file", "source_digest", "scope", "operations", "openapi_gaps", "openapi_exemptions", "openapi_detail_gaps", "auth_contract_gaps", "operation_blockers", "tests", "untested_operations", "surface_decision", "risk", "wave"],
+        "properties": {
+          "operations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["method", "path", "signature", "source_file", "scope", "runtime_auth", "openapi_auth", "auth_parity", "openapi_documented", "openapi_canonical_documented", "openapi_exempt", "openapi_contract_level", "mutation_candidate", "mutation", "governance", "tests"],
+              "properties": {
+                "method": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+                "path": { "type": "string", "pattern": "^/" },
+                "signature": { "type": "string" },
+                "runtime_auth": { "type": "object" },
+                "openapi_auth": { "type": ["object", "null"] },
+                "auth_parity": {
+                  "type": "object",
+                  "required": ["state", "reasons"],
+                  "properties": {
+                    "state": { "enum": ["equivalent", "mismatch", "undefined_scheme", "missing_openapi", "unknown", "exempt"] },
+                    "reasons": { "type": "array", "items": { "type": "string" } }
+                  }
+                },
+                "openapi_documented": { "type": "boolean" },
+                "openapi_canonical_documented": { "type": "boolean" },
+                "openapi_exempt": { "type": "boolean" },
+                "openapi_contract_level": { "enum": ["canonical", "operation-index-only", "explicit_exemption", "missing"] },
+                "mutation_candidate": { "type": "boolean" },
+                "mutation": { "type": "boolean" },
+                "governance": {
+                  "type": "object",
+                  "required": ["classification", "classification_source", "mutation_candidate", "governed", "controls", "blockers", "rule_id"],
+                  "properties": {
+                    "classification": { "enum": ["read", "read_action", "preflight", "state_change", "external_effect", "disabled", "unresolved"] },
+                    "governed": { "type": "boolean" },
+                    "blockers": { "type": "array", "items": { "type": "string" } }
+                  }
+                },
+                "tests": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          },
+          "openapi_exemptions": { "type": "array", "items": { "type": "string" } },
+          "openapi_detail_gaps": { "type": "array", "items": { "type": "string" } },
+          "auth_contract_gaps": { "type": "array", "items": { "type": "object" } },
+          "operation_blockers": { "type": "array", "items": { "type": "object" } },
+          "tests": { "type": "array", "items": { "type": "string" } },
+          "untested_operations": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["task_key", "title", "wave", "state", "blockers", "dependencies", "source_refs", "acceptance_gates", "verification"],
+        "properties": {
+          "task_key": { "type": "string", "pattern": "^frontend\\." },
+          "title": { "type": "string" },
+          "wave": { "type": "string" },
+          "state": { "enum": ["blocked", "ready", "dispatched", "implemented", "verified", "released", "drifted"] },
+          "blockers": { "type": "array", "items": { "type": "string" } },
+          "dependencies": { "type": "array", "items": { "type": "string" } },
+          "source_refs": { "type": "array", "items": { "type": "string" } },
+          "acceptance_gates": { "type": "array", "items": { "type": "string" } },
+          "verification": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "required": ["executes_provider_calls", "writes_database", "deploys", "secrets_included", "browser_backend_api_key_allowed"],
+      "properties": {
+        "executes_provider_calls": { "const": false },
+        "writes_database": { "const": false },
+        "deploys": { "const": false },
+        "secrets_included": { "const": false },
+        "browser_backend_api_key_allowed": { "const": false }
+      }
+    }
+  }
+}
