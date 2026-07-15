@@ -343,6 +343,45 @@ schemas:
       enforcementApplied: { type: boolean, const: false }
       secretsIncluded: { type: boolean, const: false }
 
+  CanaryProbeSamplerRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      sampleCount: { type: integer, minimum: 1, maximum: 100, default: 100 }
+      targetCanaryKey:
+        type: string
+        enum: [container_authority_rollout_readiness_v1]
+        default: container_authority_rollout_readiness_v1
+
+  CanaryProbeSamplerResponse:
+    type: object
+    additionalProperties: false
+    required: [ok, runId, targetCanaryKey, capabilityKey, requestedSampleCount, completedSampleCount, evidence, providerCalls, credentialPayloadReads, externalWrites, enforcementApplied, secretsIncluded]
+    properties:
+      ok: { type: boolean, const: true }
+      runId: { type: string, format: uuid }
+      targetCanaryKey: { type: string, const: container_authority_rollout_readiness_v1 }
+      capabilityKey: { type: string, const: getContainerAuthorityRolloutReadiness }
+      requestedSampleCount: { type: integer, minimum: 1, maximum: 100 }
+      completedSampleCount: { type: integer, minimum: 1, maximum: 100 }
+      evidence:
+        type: object
+        additionalProperties: false
+        required: [observationCount, successCount, failureCount, averageLatencyMs, maximumLatencyMs, auditCoveragePercent, lastReadinessCode]
+        properties:
+          observationCount: { type: integer, minimum: 0 }
+          successCount: { type: integer, minimum: 0 }
+          failureCount: { type: integer, minimum: 0 }
+          averageLatencyMs: { type: number, minimum: 0 }
+          maximumLatencyMs: { type: number, minimum: 0 }
+          auditCoveragePercent: { type: number, minimum: 0, maximum: 100 }
+          lastReadinessCode: { type: [string, 'null'] }
+      providerCalls: { type: boolean, const: false }
+      credentialPayloadReads: { type: boolean, const: false }
+      externalWrites: { type: boolean, const: false }
+      enforcementApplied: { type: boolean, const: false }
+      secretsIncluded: { type: boolean, const: false }
+
   ListResponse:
     type: object
     additionalProperties: false
