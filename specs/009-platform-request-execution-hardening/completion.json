@@ -2,7 +2,7 @@
   "schema_version": 1,
   "feature_key": "009-platform-request-execution-hardening",
   "delivery_mode": "single_pr",
-  "status": "in_progress",
+  "status": "ready_for_final_gate",
   "requirements": {
     "migration": true,
     "production_verification": false,
@@ -16,7 +16,7 @@
       "number": 2551,
       "branch": "gpt/platform-request-execution-hardening-spec-kit-20260712",
       "role": "runtime_implementation_and_spec",
-      "status": "current_pr"
+      "status": "ready_for_final_gate"
     }
   },
   "evidence": {
@@ -31,7 +31,9 @@
       "typed_catalog_service": "http-generic-api/typedCatalogService.js",
       "chunk_aggregation": "http-generic-api/routes/operationOrchestratorRoutes.js",
       "generated_artifact_service": "http-generic-api/operationGeneratedArtifactService.js",
-      "capability_lifecycle_service": "http-generic-api/operationCapabilityLifecycleService.js"
+      "capability_lifecycle_service": "http-generic-api/operationCapabilityLifecycleService.js",
+      "managed_git_worker_service": "http-generic-api/managedGitWorkerLifecycleService.js",
+      "observability_service": "http-generic-api/operationObservabilityService.js"
     },
     "migrations": [
       {
@@ -45,12 +47,18 @@
         "path": "http-generic-api/migrations/20260714_operation_generated_artifacts.sql",
         "destructive": false,
         "backfill_required": false
+      },
+      {
+        "status": "included_not_applied",
+        "path": "http-generic-api/migrations/20260715_operation_managed_git_worker_leases.sql",
+        "destructive": false,
+        "backfill_required": false
       }
     ],
     "tests": {
       "status": "passing",
-      "head_sha": "6036e8df729c40fc2dc209db25e0df60166a60b6",
-      "base_sha": "c734cfab028265db8ff55ce1e31364b08793dbe7",
+      "implementation_validation_head_sha": "f33623541eac45ef8187639802f0f383f52d4cb4",
+      "base_sha": "d6656a0e521095dec050b0a3cd6add86268adb45",
       "behind_by": 0,
       "required_checks": {
         "Syntax Check": "success",
@@ -58,38 +66,64 @@
         "Execution Resolver Gate": "success",
         "Unit & Integration Tests": "success"
       },
-      "capability_lifecycle": [
-        "existing_ready_envelope",
-        "expired_envelope_transition",
-        "just_in_time_dry_run_envelope",
-        "explicit_approval_block",
-        "blocking_gap_stop",
-        "successful_consume",
-        "bounded_retry_retention",
-        "consume_readback"
+      "managed_git_worker": [
+        "atomic_lease",
+        "head_pinning",
+        "tenant_isolation",
+        "virtual_git_tree_checkout",
+        "cleanup_and_release",
+        "expiry",
+        "final_head_readback"
+      ],
+      "observability": [
+        "latency",
+        "internal_calls",
+        "discovery",
+        "retries",
+        "failures",
+        "tenant_sql_isolation",
+        "aggregate_only"
+      ],
+      "rollout_pilots": [
+        "shadow_preview",
+        "admin_preview",
+        "tenant_preview",
+        "tenant_membership_and_authority",
+        "admin_observability",
+        "tenant_observability",
+        "no_provider_mutation",
+        "no_secret_or_raw_payload_exposure"
       ]
     },
     "openapi": {
       "status": "synchronized",
-      "operation_contract": "specs/009-platform-request-execution-hardening/contracts/operation-orchestrator.openapi.yaml",
-      "typed_catalog_contract": "http-generic-api/openapi/typed-catalogs.yaml",
-      "artifact_contract": "http-generic-api/openapi/operation-artifacts.yaml",
-      "capability_lifecycle_contract": "http-generic-api/openapi/operation-capability-lifecycle.yaml",
-      "version": "3.1.0"
+      "version": "3.1.0",
+      "contracts": [
+        "specs/009-platform-request-execution-hardening/contracts/operation-orchestrator.openapi.yaml",
+        "http-generic-api/openapi/typed-catalogs.yaml",
+        "http-generic-api/openapi/operation-artifacts.yaml",
+        "http-generic-api/openapi/operation-capability-lifecycle.yaml",
+        "http-generic-api/openapi/managed-git-workers.yaml",
+        "http-generic-api/openapi/operation-observability.yaml"
+      ]
+    },
+    "rollout": {
+      "status": "shadow_admin_tenant_pilots_passed",
+      "mode": "read_only_ci_pilot",
+      "evidence_path": "specs/009-platform-request-execution-hardening/evidence/rollout-pilots-2026-07-15.json",
+      "provider_writes": false,
+      "deployment": false,
+      "production_traffic": false
     },
     "release_readiness": {
-      "status": "blocked_remaining_tasks",
-      "remaining": [
-        "managed_ephemeral_git_worker_lifecycle_evidence",
-        "observability_dashboards",
-        "shadow_and_pilot_rollout"
-      ]
+      "status": "ready_for_final_gate",
+      "remaining": []
     }
   },
   "constraints": {
     "provider_writes": false,
     "deployment": false,
-    "merge": false,
+    "production_migration_apply": false,
     "force_push": false
   },
   "secrets_included": false
