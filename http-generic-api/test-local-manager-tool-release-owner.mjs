@@ -43,16 +43,16 @@ assert(connectorAgent.includes('local_tool_release_owner: "mad4b-local-manager"'
 assert(localManager.includes('local release owner for platform tools'), 'public app page must explain Local Manager tool release ownership');
 assert(localManager.includes('manifest-driven local tool installation'), 'link flow must explain manifest-driven local tool installation');
 assert(localManager.includes('Mad4B Local Manager Admin Tools'), 'admin page must distinguish governed installer tools');
-assert(localManager.includes('LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.19"'), 'public Local Manager update route must advertise Windows 0.2.19');
-assert(localManager.includes('Mad4B-Local-Manager-Setup-0.2.19.exe'), 'public Local Manager download route must point at Windows 0.2.19 assets');
+assert(localManager.includes('LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.20"'), 'public Local Manager update route must advertise Windows 0.2.20');
+assert(localManager.includes('Mad4B-Local-Manager-Setup-0.2.20.exe'), 'public Local Manager download route must point at Windows 0.2.20 assets');
 assert(localManager.includes('code_fallback_newer_than_db'), 'Local Manager update route must ignore stale DB release rows when the code fallback advertises a newer semver');
 assert(localManager.includes('compareVersions(fallbackVersion, selectedVersion)'), 'Local Manager stale DB guard must use the defined version comparator');
 assert(!localManager.includes('compareSemver('), 'Local Manager stale DB guard must not call an undefined semver comparator');
 assert(localManager.includes('stale_db_version'), 'Local Manager update route must expose stale DB release evidence without secrets');
-assert(localManagerProject.includes('<Version>0.2.19</Version>'), 'Windows project Version must match advertised release');
-assert(localManagerProject.includes('<AssemblyVersion>0.2.19.0</AssemblyVersion>'), 'Windows project AssemblyVersion must match advertised release');
-assert(localManagerProject.includes('<FileVersion>0.2.19.0</FileVersion>'), 'Windows project FileVersion must match advertised release');
-assert(localManagerProject.includes('<InformationalVersion>0.2.19-verified-connector-repair-outcomes</InformationalVersion>'), 'Windows project InformationalVersion must identify the verified connector repair outcome build');
+assert(localManagerProject.includes('<Version>0.2.20</Version>'), 'Windows project Version must match advertised release');
+assert(localManagerProject.includes('<AssemblyVersion>0.2.20.0</AssemblyVersion>'), 'Windows project AssemblyVersion must match advertised release');
+assert(localManagerProject.includes('<FileVersion>0.2.20.0</FileVersion>'), 'Windows project FileVersion must match advertised release');
+assert(localManagerProject.includes('<InformationalVersion>0.2.20-authoritative-connector-runtime-verification</InformationalVersion>'), 'Windows project InformationalVersion must identify the authoritative connector runtime verification build');
 
 assert(installRoutes.includes('LOCAL_CONNECTOR_CAPABILITY_FLAGS'), 'installer route must define explicit capability flag mapping');
 assert(installRoutes.includes('powershell_admin: "CONNECTOR_POWERSHELL_ENABLED"'), 'PowerShell capability must map only through explicit opt-in');
@@ -97,6 +97,13 @@ assert(localManagerDeviceLinkService.includes('source: "saved_device_token"'), '
 assert(localManagerDeviceLinkService.includes('interactive_user_session_present: false'), 'Local Manager device session must distinguish saved token auth from an interactive user session');
 assert(localManagerDeviceLinkService.includes('fresh_local_manager_authorization_required'), 'Local Manager privileged installer guard must return a stable fresh-auth error code');
 assert(localManagerDeviceLinkService.includes('reauth_action: "forget_device_and_link_again"'), 'Local Manager privileged installer guard must return an actionable re-auth hint');
+assert(localManagerDeviceLinkService.includes('resolveConnectorRuntimeReadback'), 'repair controls must resolve authoritative connector runtime evidence');
+assert(localManagerDeviceLinkService.includes('runtime_readback: runtimeReadback'), 'repair controls must expose runtime readback to the Windows app');
+assert(localManagerDeviceLinkService.includes('healthAgeSeconds <= 600'), 'connector runtime verification must require a recent heartbeat');
+assert(localManagerDeviceLinkService.includes('registeredRouteCount > 0'), 'connector runtime verification must require at least one registered route');
+assert(localManagerDeviceLinkService.includes('aliasResolved'), 'connector runtime verification must require canonical alias resolution');
+assert(localManagerDeviceLinkService.includes('evidence_source: "mysql_primary_connector_registry"'), 'connector runtime readback must identify MySQL-primary authority');
+assert(localManagerDeviceLinkService.includes('secrets_included: false'), 'connector runtime readback must remain secret-safe');
 assert(installRoutes.includes('appManaged: payload.app_managed === true'), 'download route must pass app-managed mode into bootstrap BAT generation');
 assert(installRoutes.includes('const doneSuffix = appManaged ? "exit /b 0" : "pause"'), 'app-managed bootstrap BAT must exit instead of pausing');
 assert(installRoutes.includes('const failSuffix = appManaged ? "exit /b 1" : "pause & exit /b 1"'), 'app-managed bootstrap BAT failures must exit instead of pausing');
