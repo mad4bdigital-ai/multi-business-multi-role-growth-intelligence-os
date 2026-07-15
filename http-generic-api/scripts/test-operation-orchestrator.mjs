@@ -5,6 +5,7 @@ import "./test-operation-resilience-controller.mjs";
 import "./test-typed-catalog-service.mjs";
 import "./test-managed-git-worker-lifecycle.mjs";
 import "./test-operation-observability-service.mjs";
+import "./test-operation-rollout-pilots.mjs";
 import {
   getOperationContract,
   listOperationContracts,
