@@ -36,6 +36,24 @@ const migrations = [
     file:"1046_sprint69_dynamic_container_shadow_sampler_tool.sql",
     statements:3,
     requiredObjects:[]
+  },
+  {
+    file:"20260715_dynamic_container_rollout_readiness_current_evidence.sql",
+    statements:5,
+    requiredObjects:[
+      "v_container_latest_shadow_run_summary",
+      "v_container_latest_shadow_performance_summary",
+      "v_container_latest_shadow_audit_coverage",
+      "v_container_rollout_readiness"
+    ],
+    requiredFragments:[
+      "legacy_evidence_ref LIKE 'dynamic-container-shadow-sampler:%'",
+      "r.status = 'active'",
+      "pr.mode = 'apply'",
+      "pr.status = 'completed'",
+      "i.projection_run_id = (",
+      "historical_evidence_preserved"
+    ]
   }
 ];
 
