@@ -141,8 +141,13 @@ export function checkSupervisorAdminToolExportSync() {
             errors.push(`${tool.tool_key}: capability policy patch migration missing ${marker}`);
           }
         }
-        if (/JSON_SET[\s\S]*?\$\.confirmation_token/.test(policyPatch)) {
-          errors.push(`${tool.tool_key}: sensitive confirmation_token must not be written by JSON_SET`);
+        const removesSensitiveField = /JSON_REMOVE\s*\([\s\S]*?['"]\$\.confirmation_token['"]\s*\)/.test(policyPatch);
+        const writesRequiredConfirmation = /JSON_SET\s*\([\s\S]*?['"]\$\.required_confirmation['"]/.test(policyPatch);
+        if (!removesSensitiveField) {
+          errors.push(`${tool.tool_key}: capability policy patch must remove the sensitive confirmation_token field`);
+        }
+        if (!writesRequiredConfirmation) {
+          errors.push(`${tool.tool_key}: capability policy patch must write required_confirmation`);
         }
       }
     }
