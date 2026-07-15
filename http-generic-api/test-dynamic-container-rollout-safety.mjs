@@ -346,6 +346,169 @@ await assert.rejects(
 assert.equal(canaryLifecycleFailureExecutor.updateCount,1);
 assert.deepEqual(canaryLifecycleFailureExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","rollback"]);
 
+const rollbackCanaries=[
+  { canary_key:"rollout-readiness",capability_key:"getContainerAuthorityRolloutReadiness",operation_class:"read_only",rollout_mode:"read_only_canary",status:"active" },
+  { canary_key:"preview-resolution",capability_key:"createContainerContextResolution",operation_class:"read_only",rollout_mode:"shadow",status:"active" }
+];
+const rollbackPlan=buildContainerCanaryRollbackPlan({ canaries:rollbackCanaries,targetCanaryKey:"rollout-readiness",reason:"runtime_canary_not_observed" });
+assert.equal(rollbackPlan.targetMode,"shadow");
+assert.equal(rollbackPlan.currentMode,"read_only_canary");
+assert.equal(rollbackPlan.confirmation,"ROLLBACK_DYNAMIC_CONTAINER_CANARY_ROLLOUT_READINESS_TO_SHADOW");
+assert.equal(rollbackPlan.enforcementApplied,false);
+assert.throws(
+  () => buildContainerCanaryRollbackPlan({ canaries:rollbackCanaries,targetCanaryKey:"missing" }),
+  error => error.code === "container_canary_not_found" && error.status === 404
+);
+
+function canaryRollbackExecutor({ envelopePresent=true,applyAllowed=true,lifecycleAffectedRows=1 } = {}) {
+  let mode="read_only_canary";
+  let updateCount=0;
+  let envelopeUpdateCount=0;
+  let executionStatus="not_executed";
+  let dispatchAllowed=true;
+  let currentApplyAllowed=applyAllowed;
+  const calls=[];
+  const envelopeId="22222222-3333-4444-8555-666666666666";
+  const envelopeRow=() => ({
+    envelope_id:envelopeId,
+    tenant_id:null,
+    user_id:null,
+    workspace_id:null,
+    workspace_key:null,
+    brand_key:null,
+    app_key:"platform_orchestration",
+    capability_key:"dynamic_container_canary_rollback",
+    operation_intent:"dynamic_container_canary_rollback",
+    risk_class:"high",
+    selected_source_tier:"platform_managed_fallback",
+    selected_runtime_surface:"auth_host",
+    authority_status:"passed",
+    decision:"ready_for_dispatch",
+    envelope_status:"ready_for_dispatch",
+    dispatch_allowed:dispatchAllowed ? 1 : 0,
+    apply_allowed:currentApplyAllowed ? 1 : 0,
+    approval_required:0,
+    quota_required:1,
+    audit_required:1,
+    readback_required:1,
+    blocking_gap_count:0,
+    execution_status:executionStatus,
+    expires_at:"2999-01-01T00:00:00.000Z",
+    secrets_included:0,
+    envelope_sha256:"b".repeat(64),
+    envelope_json:"{}"
+  });
+  return {
+    calls,
+    envelopeId,
+    get updateCount() { return updateCount; },
+    get envelopeUpdateCount() { return envelopeUpdateCount; },
+    get executionStatus() { return executionStatus; },
+    beginTransaction:async () => calls.push("begin"),
+    commit:async () => calls.push("commit"),
+    rollback:async () => calls.push("rollback"),
+    query:async (sql,params=[]) => {
+      calls.push(sql);
+      if(sql.includes("FROM capability_resolution_envelope_ledger") && sql.includes("WHERE envelope_id = ?")) {
+        assert.equal(params[0],envelopeId);
+        return [envelopePresent ? [envelopeRow()] : []];
+      }
+      if(sql.includes("FROM container_shadow_canary_registry WHERE status='active'")) {
+        return [[{ ...rollbackCanaries[0],rollout_mode:mode },rollbackCanaries[1]]];
+      }
+      if(sql.startsWith("UPDATE container_shadow_canary_registry")) {
+        mode="shadow";
+        updateCount += 1;
+        return [{ affectedRows:1 }];
+      }
+      if(sql.includes("FROM container_shadow_canary_registry WHERE canary_key=?")) {
+        return [[{ ...rollbackCanaries[0],rollout_mode:mode,metadata_json:"{}" }]];
+      }
+      if(sql.startsWith("UPDATE capability_resolution_envelope_ledger")) {
+        envelopeUpdateCount += 1;
+        if(lifecycleAffectedRows === 1) {
+          executionStatus="executed";
+          dispatchAllowed=false;
+          currentApplyAllowed=false;
+        }
+        return [{ affectedRows:lifecycleAffectedRows }];
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    }
+  };
+}
+
+const canaryRollbackDryRunExecutor=canaryRollbackExecutor({ envelopePresent:false });
+const canaryRollbackDryRun=await runContainerCanaryRollback({
+  executor:canaryRollbackDryRunExecutor,
+  targetCanaryKey:"rollout-readiness",
+  reason:"runtime_canary_not_observed"
+});
+assert.equal(canaryRollbackDryRun.mode,"dry_run");
+assert.equal(canaryRollbackDryRun.plan.targetMode,"shadow");
+assert.equal(canaryRollbackDryRunExecutor.updateCount,0);
+assert(!canaryRollbackDryRunExecutor.calls.includes("begin"));
+
+const canaryRollbackMissingEnvelopeExecutor=canaryRollbackExecutor();
+await assert.rejects(
+  runContainerCanaryRollback({
+    executor:canaryRollbackMissingEnvelopeExecutor,
+    targetCanaryKey:"rollout-readiness",
+    apply:true,
+    confirm:"ROLLBACK_DYNAMIC_CONTAINER_CANARY_ROLLOUT_READINESS_TO_SHADOW"
+  }),
+  error => error.code === "capability_resolution_envelope_required" && error.status === 403
+);
+assert.deepEqual(canaryRollbackMissingEnvelopeExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","rollback"]);
+assert.equal(canaryRollbackMissingEnvelopeExecutor.updateCount,0);
+
+const canaryRollbackWrongConfirmExecutor=canaryRollbackExecutor();
+await assert.rejects(
+  runContainerCanaryRollback({
+    executor:canaryRollbackWrongConfirmExecutor,
+    targetCanaryKey:"rollout-readiness",
+    apply:true,
+    confirm:"WRONG",
+    capabilityEnvelopeId:canaryRollbackWrongConfirmExecutor.envelopeId
+  }),
+  error => error.code === "container_canary_rollback_confirmation_required" && error.status === 409
+);
+assert.equal(canaryRollbackWrongConfirmExecutor.updateCount,0);
+assert.equal(canaryRollbackWrongConfirmExecutor.envelopeUpdateCount,0);
+assert.deepEqual(canaryRollbackWrongConfirmExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","rollback"]);
+
+const canaryRollbackApplyExecutor=canaryRollbackExecutor();
+const canaryRollbackApplied=await runContainerCanaryRollback({
+  executor:canaryRollbackApplyExecutor,
+  targetCanaryKey:"rollout-readiness",
+  apply:true,
+  confirm:"ROLLBACK_DYNAMIC_CONTAINER_CANARY_ROLLOUT_READINESS_TO_SHADOW",
+  capabilityEnvelopeId:canaryRollbackApplyExecutor.envelopeId,
+  reason:"runtime_canary_not_observed",
+  actor:"test_admin"
+});
+assert.equal(canaryRollbackApplied.mode,"apply");
+assert.equal(canaryRollbackApplied.readback.rollout_mode,"shadow");
+assert.equal(canaryRollbackApplied.capabilityEnvelope.executionStatus,"executed");
+assert.equal(canaryRollbackApplied.enforcementApplied,false);
+assert.equal(canaryRollbackApplyExecutor.updateCount,1);
+assert.equal(canaryRollbackApplyExecutor.envelopeUpdateCount,1);
+assert.deepEqual(canaryRollbackApplyExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","commit"]);
+
+const canaryRollbackLifecycleFailureExecutor=canaryRollbackExecutor({ lifecycleAffectedRows:0 });
+await assert.rejects(
+  runContainerCanaryRollback({
+    executor:canaryRollbackLifecycleFailureExecutor,
+    targetCanaryKey:"rollout-readiness",
+    apply:true,
+    confirm:"ROLLBACK_DYNAMIC_CONTAINER_CANARY_ROLLOUT_READINESS_TO_SHADOW",
+    capabilityEnvelopeId:canaryRollbackLifecycleFailureExecutor.envelopeId
+  }),
+  error => error.code === "capability_resolution_envelope_lifecycle_transition_blocked" && error.status === 403
+);
+assert.equal(canaryRollbackLifecycleFailureExecutor.updateCount,1);
+assert.deepEqual(canaryRollbackLifecycleFailureExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","rollback"]);
+
 const enforcedReady={
   rolloutMode:"enforced",
   readinessCode:"ready_for_review",
