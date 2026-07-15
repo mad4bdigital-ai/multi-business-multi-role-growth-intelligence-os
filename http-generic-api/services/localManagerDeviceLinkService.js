@@ -944,6 +944,83 @@ async function loadLocalManagerControlTemplates() {
   }
 }
 
+async function resolveConnectorRuntimeReadback(device) {
+  const canonical = await resolveCanonicalConnectorConfig({
+    userId: device.user_id,
+    tenantId: device.tenant_id,
+    deviceId: device.device_id,
+    hostname: device.session?.hostname || device.device_id,
+  });
+  if (!canonical) {
+    return {
+      resolved: false,
+      connector_active: false,
+      health_recent: false,
+      alias_resolved: false,
+      registered_route_count: 0,
+      reason: "canonical_connector_config_not_found",
+      secrets_included: false,
+    };
+  }
+
+  const pool = getPool();
+  const [configRows] = await pool.query(
+    `SELECT config_id, device_id, last_health_at, last_repair_at, last_repair_status, last_error_code
+       FROM \`local_connector_user_configs\`
+      WHERE config_id = ? AND user_id = ?
+      LIMIT 1`,
+    [canonical.config_id, device.user_id]
+  );
+  const config = configRows[0] || {};
+  const [routeRows] = await pool.query(
+    `SELECT COUNT(*) AS registered_route_count, MAX(last_success_at) AS last_route_success_at
+       FROM \`local_connector_device_routes\`
+      WHERE config_id = ? AND is_enabled = 1`,
+    [canonical.config_id]
+  );
+
+  const aliasInputs = [...new Set([device.device_id, device.session?.hostname]
+    .map((value) => cleanId(value, { max: 128 }))
+    .filter(Boolean))];
+  let aliasResolved = aliasInputs.some((value) => value.toLowerCase() === String(canonical.device_id || "").toLowerCase());
+  if (!aliasResolved && aliasInputs.length) {
+    const placeholders = aliasInputs.map(() => "?").join(", ");
+    const [aliasRows] = await pool.query(
+      `SELECT COUNT(*) AS alias_count
+         FROM \`local_connector_device_aliases\`
+        WHERE canonical_config_id = ?
+          AND status = 'active'
+          AND alias_device_id IN (${placeholders})`,
+      [canonical.config_id, ...aliasInputs]
+    );
+    aliasResolved = Number(aliasRows[0]?.alias_count || 0) > 0;
+  }
+
+  const registeredRouteCount = Number(routeRows[0]?.registered_route_count || 0);
+  const lastHealthMs = config.last_health_at ? new Date(config.last_health_at).getTime() : 0;
+  const healthAgeSeconds = lastHealthMs > 0 ? Math.max(0, Math.floor((Date.now() - lastHealthMs) / 1000)) : null;
+  const healthRecent = healthAgeSeconds !== null && healthAgeSeconds <= 600;
+  const connectorActive = Boolean(healthRecent && registeredRouteCount > 0 && aliasResolved);
+
+  return {
+    resolved: true,
+    canonical_config_id: canonical.config_id,
+    canonical_device_id: canonical.device_id,
+    connector_active: connectorActive,
+    health_recent: healthRecent,
+    health_age_seconds: healthAgeSeconds,
+    alias_resolved: aliasResolved,
+    registered_route_count: registeredRouteCount,
+    last_health_at: config.last_health_at ? new Date(config.last_health_at).toISOString() : null,
+    last_route_success_at: routeRows[0]?.last_route_success_at ? new Date(routeRows[0].last_route_success_at).toISOString() : null,
+    last_repair_at: config.last_repair_at ? new Date(config.last_repair_at).toISOString() : null,
+    last_repair_status: cleanText(config.last_repair_status || "", 80) || null,
+    last_error_code: cleanText(config.last_error_code || "", 120) || null,
+    evidence_source: "mysql_primary_connector_registry",
+    secrets_included: false,
+  };
+}
+
 export async function getDeviceControls(req, res) {
   try {
     const device = await requireLocalManagerDevice(req);
@@ -1088,11 +1165,13 @@ export async function getDeviceControls(req, res) {
     }
 
     const n8nConnector = section === "n8n" ? await resolveOrCreateTenantN8nProfile(device) : null;
+    const runtimeReadback = section === "repairs" ? await resolveConnectorRuntimeReadback(device) : null;
     return res.status(200).json({
       ok: true,
       section,
       device,
       controls: baseControls[section],
+      runtime_readback: runtimeReadback,
       n8n_connector: n8nConnector,
       token_scope: "local_manager.device",
       secrets_included: false,
