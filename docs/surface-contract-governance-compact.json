@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 99.03,
+  "docs_completion_percent": 98.84,
   "docs_complete_count": 512,
-  "docs_gap_count": 5,
-  "queue_items": 5,
-  "blocking_new_item_count": 5,
+  "docs_gap_count": 6,
+  "queue_items": 6,
+  "blocking_new_item_count": 6,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -23,7 +23,7 @@
     {
       "migration_file": "20260714_supervisor_runtime_admin_tool_exports.sql",
       "queue_class": "critical_review",
-      "score": 725,
+      "score": 724,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
@@ -37,6 +37,12 @@
       "queue_class": "high_review",
       "score": 535,
       "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
+      "migration_file": "20260715_supervisor_behavioral_certification_capability_policy.sql",
+      "queue_class": "high_review",
+      "score": 519,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
   "openapi_missing_sql_route_count": 2,
@@ -47,8 +53,8 @@
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 5,
-    "warning_new_item_count": 5
+    "blocking_new_item_count": 6,
+    "warning_new_item_count": 6
   },
   "safety": {
     "executes_provider_calls": false,
