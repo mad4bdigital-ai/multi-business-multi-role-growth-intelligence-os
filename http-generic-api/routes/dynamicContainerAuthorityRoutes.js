@@ -299,6 +299,20 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
     finally { if(connection) connection.release(); }
   });
 
+  router.post("/admin/container-authority/canary-probes",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
+    let connection = null;
+    try {
+      assertAllowedKeys(req.body,new Set(["sampleCount","targetCanaryKey"]));
+      connection = await getPool().getConnection();
+      const result = await runDynamicContainerCanaryProbeSampler({
+        sampleCount:req.body?.sampleCount,
+        targetCanaryKey:req.body?.targetCanaryKey
+      },{ executor:connection });
+      return res.status(201).json(result);
+    } catch (error) { return errorResponse(req,res,error); }
+    finally { if(connection) connection.release(); }
+  });
+
   router.post("/admin/container-authority/shadow-samples",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
     try {
       assertAllowedKeys(req.body,new Set(["sampleCount","tenantId"]));
