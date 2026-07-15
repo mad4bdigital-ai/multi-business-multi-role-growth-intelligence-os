@@ -180,6 +180,7 @@ flowchart TD
 | `domain_generalization_before_provider_specific_policy_v1` | 1 |
 | `dr_isolated_restore_certification_policy_v1` | 1 |
 | `dynamic_capability_resolution_policy_v1` | 2 |
+| `dynamic_container_canary_promotion_policy_v1` | 1 |
 | `dynamic_container_projection_apply_policy_v1` | 1 |
 | `dynamic_release_gate_manager_policy_v1` | 1 |
 | `execution_enablement_approval_flow_policy_v1` | 2 |
@@ -225,6 +226,7 @@ flowchart TD
 | `orchestration_stage_graph_completeness_policy_v1` | 1 |
 | `orchestration_state_snapshot_required_policy_v1` | 1 |
 | `platform_capability_governance_compile_persist_policy_v1` | 1 |
+| `platform_capability_shadow_certification_issue_policy_v1` | 1 |
 | `platform_development_constitution_policy_v1` | 1 |
 | `platform_private_capability_vault_policy_v1` | 1 |
 | `platform_resource_api_coverage_policy_v1` | 2 |
