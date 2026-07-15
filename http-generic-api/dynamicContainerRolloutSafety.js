@@ -1,3 +1,9 @@
+import {
+  capabilityEnvelopeError,
+  resolveCapabilityExecutionEnvelope,
+  transitionCapabilityEnvelopeLifecycle
+} from "./capabilityResolutionEnvelopeGuard.js";
+
 function finiteNumber(value, fallback = 0) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
@@ -232,7 +238,9 @@ export async function runContainerCanaryPromotion({
   targetCanaryKey,
   policyKey = "dynamic_container_authority_v1",
   apply = false,
-  confirm = null
+  confirm = null,
+  capabilityEnvelopeId = null,
+  actor = "dynamic_container_canary_promotion"
 } = {}) {
   if(!executor?.query) throw Object.assign(new Error("A SQL executor is required."),{ code:"container_canary_executor_required",status:500 });
   let transactionStarted=false;
@@ -241,6 +249,28 @@ export async function runContainerCanaryPromotion({
       await executor.beginTransaction();
       transactionStarted=true;
     }
+
+    let envelope = null;
+    if(apply) {
+      envelope = await resolveCapabilityExecutionEnvelope({
+        pool:executor,
+        envelopeId:capabilityEnvelopeId,
+        acceptedAppKeys:["platform_orchestration"],
+        acceptedIntents:["dynamic_container_canary_promotion"],
+        acceptedCapabilityKeys:["dynamic_container_canary_promotion"],
+        allowReferenced:false
+      });
+      if(!envelope.ok) throw capabilityEnvelopeError(envelope,"A ready Dynamic Container canary promotion envelope is required.");
+      if(!envelope.apply_allowed) {
+        throw capabilityEnvelopeError({
+          status:"capability_resolution_envelope_apply_not_allowed",
+          envelope_id:envelope.envelope_id,
+          apply_allowed:false,
+          secrets_included:false
+        },"The capability envelope is not apply-authorized for canary promotion.");
+      }
+    }
+
     const [canaryRows]=await executor.query(
       `SELECT canary_key,capability_key,operation_class,rollout_mode,status
          FROM container_shadow_canary_registry WHERE status='active' ORDER BY canary_key${apply ? " FOR UPDATE" : ""}`
@@ -252,23 +282,40 @@ export async function runContainerCanaryPromotion({
     const readiness=readinessRows?.[0];
     if(!readiness) throw Object.assign(new Error("Rollout readiness row was not found."),{ code:"container_rollout_readiness_not_found",status:404 });
     const plan=buildContainerCanaryPromotionPlan({ canaries:canaryRows,targetCanaryKey,readiness });
-    if(!apply) return { ok:true,mode:"dry_run",plan,secretsIncluded:false };
+    if(!apply) return {
+      ok:true,
+      mode:"dry_run",
+      plan,
+      readback:null,
+      capabilityEnvelope:null,
+      providerCalls:false,
+      credentialPayloadReads:false,
+      externalWrites:false,
+      enforcementApplied:false,
+      secretsIncluded:false
+    };
     if(confirm !== plan.confirmation) {
       throw Object.assign(new Error(`Typed confirmation ${plan.confirmation} is required.`),{
         code:"container_canary_confirmation_required",status:409
       });
     }
     if(!plan.noOp) {
-      await executor.query(
+      const [updateResult] = await executor.query(
         `UPDATE container_shadow_canary_registry
             SET rollout_mode='read_only_canary',metadata_json=JSON_SET(COALESCE(metadata_json,JSON_OBJECT()),
-                '$.promoted_after_readiness',TRUE,'$.promotion_policy_key',?),updated_at=CURRENT_TIMESTAMP
+                '$.promoted_after_readiness',TRUE,'$.promotion_policy_key',?,
+                '$.promotion_actor',?,'$.capability_envelope_id',?),updated_at=CURRENT_TIMESTAMP
           WHERE canary_key=? AND status='active' AND operation_class='read_only' AND rollout_mode='shadow'`,
-        [policyKey,plan.canaryKey]
+        [policyKey,actor,envelope?.envelope_id || null,plan.canaryKey]
       );
+      if(Number(updateResult?.affectedRows || 0) !== 1) {
+        throw Object.assign(new Error("Canary promotion update did not affect the expected row."),{
+          code:"container_canary_update_conflict",status:409
+        });
+      }
     }
     const [readbackRows]=await executor.query(
-      "SELECT canary_key,capability_key,operation_class,rollout_mode,status FROM container_shadow_canary_registry WHERE canary_key=? LIMIT 1",
+      "SELECT canary_key,capability_key,operation_class,rollout_mode,status,metadata_json FROM container_shadow_canary_registry WHERE canary_key=? LIMIT 1",
       [plan.canaryKey]
     );
     const readback=readbackRows?.[0];
@@ -277,8 +324,36 @@ export async function runContainerCanaryPromotion({
         code:"container_canary_readback_failed",status:409
       });
     }
+
+    let envelopeLifecycle = null;
+    if(apply) {
+      envelopeLifecycle = await transitionCapabilityEnvelopeLifecycle({
+        pool:executor,
+        envelopeId:envelope.envelope_id,
+        action:"consume",
+        executionRef:`dynamic_container_canary_promotion:${plan.canaryKey}`
+      });
+      if(!envelopeLifecycle.ok) {
+        throw capabilityEnvelopeError(envelopeLifecycle,"Canary promotion envelope consumption failed.");
+      }
+    }
+
     if(transactionStarted && executor.commit) await executor.commit();
-    return { ok:true,mode:"apply",plan,readback,secretsIncluded:false };
+    return {
+      ok:true,
+      mode:"apply",
+      plan,
+      readback,
+      capabilityEnvelope:{
+        envelopeId:envelope?.envelope_id || null,
+        executionStatus:envelopeLifecycle?.after?.execution_status || null
+      },
+      providerCalls:false,
+      credentialPayloadReads:false,
+      externalWrites:false,
+      enforcementApplied:false,
+      secretsIncluded:false
+    };
   } catch(error) {
     if(transactionStarted && executor.rollback) await executor.rollback().catch(() => null);
     throw error;
