@@ -9,6 +9,8 @@ import {
   runContainerRollbackDrill,
   buildContainerCanaryPromotionPlan,
   runContainerCanaryPromotion,
+  buildContainerCanaryRollbackPlan,
+  runContainerCanaryRollback,
   evaluateContainerBypassRetirementReadiness
 } from "./dynamicContainerRolloutSafety.js";
 import { runContainerQueryPlanPreflight } from "./dynamicContainerQueryPlanPreflight.js";
