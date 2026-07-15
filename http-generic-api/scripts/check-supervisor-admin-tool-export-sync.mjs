@@ -24,6 +24,7 @@ export function checkSupervisorAdminToolExportSync() {
   const seenToolKeys = new Set();
   const seenAliases = new Set();
   let semanticCapabilitiesChecked = 0;
+  let policyPatchesChecked = 0;
 
   if (!testManifest.includes(TEST_COMMAND)) {
     errors.push(`test manifest missing ${TEST_COMMAND}`);
@@ -111,6 +112,40 @@ export function checkSupervisorAdminToolExportSync() {
         }
       }
     }
+
+    if (tool.capability_policy_patch_migration) {
+      policyPatchesChecked += 1;
+      const policyPatchPath = path.join(API_DIR, tool.capability_policy_patch_migration);
+      if (!existsSync(policyPatchPath)) {
+        errors.push(`${tool.tool_key}: capability policy patch migration missing ${tool.capability_policy_patch_migration}`);
+      } else {
+        const policyPatch = readFileSync(policyPatchPath, "utf8");
+        const markers = [
+          "capability_apply_authorization_policy_registry",
+          `'${tool.apply_policy_key}'`,
+          `'${tool.semantic_capability_key}'`,
+          `'${tool.app_key}'`,
+          `'${tool.operation_intent}'`,
+          `'${tool.runtime_surface}'`,
+          "JSON_REMOVE",
+          "$.confirmation_token",
+          "$.required_confirmation",
+          tool.apply_confirmation,
+          "no_provider_call=true",
+          "no_credential_payload_read=true",
+          "no_external_write=true",
+          "secrets_included=false",
+        ];
+        for (const marker of markers) {
+          if (!policyPatch.includes(marker)) {
+            errors.push(`${tool.tool_key}: capability policy patch migration missing ${marker}`);
+          }
+        }
+        if (/JSON_SET[\s\S]*?\$\.confirmation_token/.test(policyPatch)) {
+          errors.push(`${tool.tool_key}: sensitive confirmation_token must not be written by JSON_SET`);
+        }
+      }
+    }
   }
 
   return {
@@ -118,6 +153,7 @@ export function checkSupervisorAdminToolExportSync() {
     group: manifest.group,
     tools_checked: seenToolKeys.size,
     semantic_capabilities_checked: semanticCapabilitiesChecked,
+    policy_patches_checked: policyPatchesChecked,
     errors,
     secrets_included: false,
   };
