@@ -119,5 +119,6 @@ internal sealed class ConnectorCapabilityVerifier
 internal sealed record ConnectorCapabilityVerification(
     string Section,
     string Evidence,
+    bool RuntimeVerified,
     DateTimeOffset VerifiedAt,
     JsonElement ControlEnvelope);
