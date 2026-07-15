@@ -27,6 +27,21 @@ const AUTH_GUARDS = new Set([
   "requireMcpToken",
   "verifyInstallerDownloadToken",
 ]);
+const AUTH_SCHEME_ALIASES = new Map([
+  ["userBearerAuth", "userJwtAuth"],
+  ["userJwt", "userJwtAuth"],
+  ["backendApiKey", "backendApiKeyAuth"],
+]);
+const AUTH_PROFILES = {
+  public: { alternatives: [], principal: "anonymous", configuration_dependencies: [] },
+  user_jwt: { alternatives: [["userJwtAuth"]], principal: "tenant_user", configuration_dependencies: ["JWT_SECRET"] },
+  admin_backend: { alternatives: [["adminBearerAuth"], ["backendApiKeyAuth"]], principal: "admin", configuration_dependencies: ["BACKEND_API_KEY"] },
+  backend_or_user: { alternatives: [["backendBearerAuth"], ["backendApiKeyAuth"]], principal: "authenticated", configuration_dependencies: ["BACKEND_API_KEY", "JWT_SECRET"] },
+  connector_bearer: { alternatives: [["connectorBearerAuth"]], principal: "local_connector", configuration_dependencies: ["BACKEND_API_KEY"] },
+  local_manager: { alternatives: [["localManagerBearerAuth"]], principal: "local_manager", configuration_dependencies: ["JWT_SECRET"] },
+  mcp_query_token: { alternatives: [["mcpQueryTokenAuth"]], principal: "mcp_client", configuration_dependencies: ["MCP_QUERY_TOKEN"] },
+  signed_query_token: { alternatives: [["signedQueryTokenAuth"]], principal: "signed_link", configuration_dependencies: [] },
+};
 const OPERATION_CLASSIFICATIONS = new Set(["read", "read_action", "preflight", "state_change", "external_effect", "disabled", "unresolved"]);
 
 function canonicalText(value = "") {
@@ -66,6 +81,7 @@ export function normalizeRoutePath(value = "") {
   if (!route || route === "/") return "/";
   if (!route.startsWith("/")) route = `/${route}`;
   return route
+    .replace(/:([A-Za-z0-9_]+)\?/g, "{$1}")
     .replace(/:([A-Za-z0-9_]+)/g, "{$1}")
     .replace(/\$\{[^}]+\}/g, "{dynamic}")
     .replace(/\/{2,}/g, "/")
@@ -127,6 +143,40 @@ function openApiReferenceFiles(source = "", sourcePath, apiRoot) {
   }));
 }
 
+function openApiProjectionRegistry(apiRoot) {
+  const registryPath = path.resolve(apiRoot, "..", "canonicals", "openapi", "custom-gpt-surfaces.yaml");
+  if (!fs.existsSync(registryPath)) return { registryPath, projectedFiles: [] };
+  const registry = YAML.parse(readText(registryPath)) || {};
+  const root = path.resolve(apiRoot);
+  const projectedFiles = [];
+  for (const surface of Object.values(registry.surfaces || {})) {
+    if (surface?.mode !== "generated_from_openapi" || !surface.output_file) continue;
+    const target = path.resolve(apiRoot, surface.output_file);
+    if (target !== root && !target.startsWith(`${root}${path.sep}`)) {
+      throw new Error(`Generated OpenAPI projection escapes API root: ${surface.output_file}`);
+    }
+    projectedFiles.push(target);
+  }
+  return { registryPath, projectedFiles: unique(projectedFiles) };
+}
+
+export function canonicalOpenApiAuthority({
+  apiRoot = process.cwd(),
+  openapiPath = path.join(apiRoot, "openapi.yaml"),
+  runtimeOpenapiPath = path.join(apiRoot, DEFAULT_OPENAPI_INDEX),
+} = {}) {
+  const projectionRegistry = openApiProjectionRegistry(apiRoot);
+  const excluded = new Set([path.resolve(runtimeOpenapiPath), ...projectionRegistry.projectedFiles.map((file) => path.resolve(file))]);
+  const additionalFiles = filesUnder(path.join(apiRoot, "openapi"))
+    .filter((file) => /\.ya?ml$/i.test(file) && !excluded.has(path.resolve(file)))
+    .filter((file) => /^\s*openapi:/m.test(readText(file)) && /^\s*paths:/m.test(readText(file)));
+  return {
+    files: unique([path.resolve(openapiPath), ...additionalFiles]),
+    projection_registry_path: projectionRegistry.registryPath,
+    excluded_projection_files: projectionRegistry.projectedFiles,
+  };
+}
+
 export function parseOpenApiOperations(source = "", { sourcePath, apiRoot } = {}) {
   const operations = new Set();
   let currentPath = "";
@@ -179,7 +229,7 @@ function normalizeSecurityAlternatives(security) {
 
 function canonicalAlternativeList(alternatives) {
   return (alternatives || [])
-    .map((entry) => [...entry].sort())
+    .map((entry) => unique(entry.map((scheme) => AUTH_SCHEME_ALIASES.get(scheme) || scheme)))
     .sort((a, b) => a.join("+").localeCompare(b.join("+")));
 }
 
@@ -190,11 +240,14 @@ export function parseOpenApiContracts(source = "", { sourcePath, apiRoot } = {})
   for (const [routePath, rawPathItem] of Object.entries(document.paths || {})) {
     let pathItem = rawPathItem;
     let operationSource = sourcePath || "openapi.yaml";
+    let securityPathBase = ["paths", routePath];
     if (rawPathItem?.$ref) {
       const resolved = resolveOpenApiReference(rawPathItem.$ref, sourcePath, apiRoot);
       if (resolved?.value) {
         pathItem = resolved.value;
         operationSource = resolved.sourcePath;
+        const fragment = String(rawPathItem.$ref).split("#", 2)[1] || "";
+        if (fragment.startsWith("/")) securityPathBase = fragment.slice(1).split("/").map(decodeJsonPointerSegment);
       }
     }
     for (const [method, operation] of Object.entries(pathItem || {})) {
@@ -211,6 +264,7 @@ export function parseOpenApiContracts(source = "", { sourcePath, apiRoot } = {})
         unknown_security_schemes: usedSchemes.filter((scheme) => !knownSchemes.has(scheme)),
         operation_id: operation?.operationId || null,
         contract_level: operation?.["x-contract-completeness"] || "canonical",
+        security_path: [...securityPathBase, method, "security"],
       });
     }
   }
@@ -379,10 +433,79 @@ function splitTopLevelArguments(source = "") {
   return values;
 }
 
+function maskJavaScriptComments(source = "") {
+  const input = canonicalText(source);
+  const output = [...input];
+  let quote = "";
+  let escaped = false;
+  for (let index = 0; index < input.length; index += 1) {
+    const character = input[index];
+    const next = input[index + 1];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === quote) quote = "";
+      continue;
+    }
+    if (["\"", "'", "`"].includes(character)) {
+      quote = character;
+      continue;
+    }
+    if (character === "/" && next === "/") {
+      output[index] = " ";
+      output[index + 1] = " ";
+      index += 2;
+      while (index < input.length && input[index] !== "\n") {
+        output[index] = " ";
+        index += 1;
+      }
+      index -= 1;
+      continue;
+    }
+    if (character === "/" && next === "*") {
+      output[index] = " ";
+      output[index + 1] = " ";
+      index += 2;
+      while (index < input.length) {
+        if (input[index] === "*" && input[index + 1] === "/") {
+          output[index] = " ";
+          output[index + 1] = " ";
+          index += 1;
+          break;
+        }
+        if (input[index] !== "\n") output[index] = " ";
+        index += 1;
+      }
+    }
+  }
+  return output.join("");
+}
+
 function middlewareAliases(source = "") {
   const aliases = new Map();
-  for (const match of canonicalText(source).matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*\[([\s\S]*?)\]\s*;/g)) {
-    aliases.set(match[1], match[2]);
+  const text = maskJavaScriptComments(source);
+  for (const match of text.matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*\[([\s\S]*?)\]\s*(?:\.\s*filter\s*\(\s*Boolean\s*\))?\s*;/g)) {
+    const containsGuard = [...match[2].matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g)]
+      .some((entry) => AUTH_GUARDS.has(entry[1]) || aliases.has(entry[1]));
+    if (/^(?:require|verify|authenticate|authorize|auth)/i.test(match[1]) || containsGuard) aliases.set(match[1], match[2]);
+  }
+  const helperRe = /\bfunction\s+([A-Za-z0-9_$]+)\s*\([^)]*\)\s*\{/g;
+  let helper;
+  while ((helper = helperRe.exec(text)) !== null) {
+    const opening = text.indexOf("{", helper.index);
+    const closing = findMatchingBrace(text, opening);
+    if (closing < 0) continue;
+    const returnedArray = text.slice(opening + 1, closing).match(/\breturn\s*\[([\s\S]*?)\]\s*;?/);
+    if (returnedArray) {
+      const containsGuard = [...returnedArray[1].matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g)]
+        .some((entry) => AUTH_GUARDS.has(entry[1]) || aliases.has(entry[1]));
+      if (/^(?:require|verify|authenticate|authorize|auth)/i.test(helper[1]) || containsGuard) aliases.set(helper[1], returnedArray[1]);
+    }
+    helperRe.lastIndex = closing + 1;
+  }
+  for (const match of text.matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*([^;\n]+);/g)) {
+    if (aliases.has(match[1])) continue;
+    if (/^(?:require|verify|authenticate|authorize|auth)/i.test(match[1])) aliases.set(match[1], match[2]);
   }
   return aliases;
 }
@@ -424,38 +547,55 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
     ...inheritedGuards.map((guard) => `router.use:${guard}`),
     ...routeGuards.map((guard) => `route:${guard}`),
   ];
+  if (override?.profile && guardChain.length) {
+    const discovered = runtimeAuthProfile({ routePath, routeGuards, inheritedGuards, override: null });
+    if (discovered.state !== "resolved") {
+      return { ...discovered, evidence: unique([...(discovered.evidence || []), ...(override.evidence_refs || [])]) };
+    }
+    if (discovered.profile !== override.profile) {
+      return {
+        state: "unresolved",
+        profile: "auth_policy_conflicts_with_runtime_guard",
+        alternatives: null,
+        principal: null,
+        guard_chain: guardChain,
+        evidence: unique([...evidence, ...(override.evidence_refs || [])]),
+        configuration_dependencies: discovered.configuration_dependencies || [],
+      };
+    }
+    return { ...discovered, evidence: unique([...(discovered.evidence || []), ...(override.evidence_refs || [])]) };
+  }
   if (override?.profile) {
-    const profiles = {
-      public: { alternatives: [], principal: "anonymous" },
-      user_jwt: { alternatives: [["userJwtAuth"]], principal: "tenant_user" },
-      admin_backend: { alternatives: [["adminBearerAuth"], ["backendApiKeyAuth"]], principal: "admin" },
-      backend_or_user: { alternatives: [["backendBearerAuth"], ["backendApiKeyAuth"]], principal: "authenticated" },
-      local_manager: { alternatives: [["localManagerBearerAuth"]], principal: "local_manager" },
-      mcp_query_token: { alternatives: [["mcpQueryTokenAuth"]], principal: "mcp_client" },
-      signed_query_token: { alternatives: [["signedQueryTokenAuth"]], principal: "signed_link" },
-    };
-    const selected = profiles[override.profile];
-    if (selected) return { state: "resolved", profile: override.profile, ...selected, guard_chain: guardChain, evidence: unique([...evidence, ...(override.evidence_refs || [])]), configuration_dependencies: [] };
+    const selected = AUTH_PROFILES[override.profile];
+    if (selected) return { state: "resolved", profile: override.profile, ...selected, guard_chain: guardChain, evidence: unique([...evidence, ...(override.evidence_refs || [])]) };
   }
 
   const hasBackend = guardChain.includes("requireBackendApiKey");
   const hasAdmin = guardChain.includes("requireAdminPrincipal") || guardChain.includes("requireAdmin");
-  const hasUser = guardChain.some((guard) => ["requireUserJwt", "requireTenantUserJwt", "verifyUserJwt", "requireUser", "requireTenantPrincipal", "requireResolutionPrincipal", "requireActiveMembership", "requireWorkspaceOwner"].includes(guard));
+  const hasBackendOrUser = guardChain.includes("requireResolutionPrincipal");
+  const hasUser = guardChain.some((guard) => ["requireUserJwt", "requireTenantUserJwt", "verifyUserJwt", "requireUser", "requireTenantPrincipal", "requireActiveMembership", "requireWorkspaceOwner"].includes(guard));
   const hasLocal = guardChain.some((guard) => ["requireLocalManagerDevice", "requireLocalManagerUser", "requireFreshLocalManagerDeviceForPrivilegedInstaller"].includes(guard));
   const hasMcp = guardChain.includes("requireMcpToken");
   const hasSignedQuery = guardChain.includes("verifyInstallerDownloadToken");
-  const modes = [hasBackend || hasAdmin, hasUser, hasLocal, hasMcp, hasSignedQuery].filter(Boolean).length;
-  if (modes > 1 && !(hasBackend && hasAdmin && modes === 1)) {
+  const hasBackendAuthenticator = hasBackend || hasBackendOrUser;
+  const isolatedModes = [hasLocal, hasMcp, hasSignedQuery].filter(Boolean).length;
+  if (isolatedModes > 1 || (isolatedModes === 1 && (hasBackendAuthenticator || hasAdmin || hasUser))) {
     return { state: "unresolved", profile: "mixed_guard_chain", alternatives: null, principal: null, guard_chain: guardChain, evidence, configuration_dependencies: [] };
   }
-  if (hasAdmin && !hasBackend) {
-    return { state: "unresolved", profile: "authorizer_without_authenticator", alternatives: null, principal: "admin", guard_chain: guardChain, evidence, configuration_dependencies: [] };
-  }
-  if (hasBackend && hasAdmin) {
+  if (hasBackendAuthenticator && hasAdmin && !hasUser) {
     return { state: "resolved", profile: "admin_backend", alternatives: [["adminBearerAuth"], ["backendApiKeyAuth"]], principal: "admin", guard_chain: guardChain, evidence, configuration_dependencies: ["BACKEND_API_KEY"] };
   }
-  if (hasBackend) {
-    return { state: "resolved", profile: "backend_or_user", alternatives: [["backendBearerAuth"], ["backendApiKeyAuth"]], principal: "authenticated", guard_chain: guardChain, evidence, configuration_dependencies: ["BACKEND_API_KEY"] };
+  if (hasBackendAuthenticator && hasUser && !hasAdmin) {
+    return { state: "resolved", profile: "user_jwt", alternatives: [["userJwtAuth"]], principal: "tenant_user", guard_chain: guardChain, evidence, configuration_dependencies: ["BACKEND_API_KEY", "JWT_SECRET"] };
+  }
+  if (hasBackendAuthenticator && !hasAdmin && !hasUser) {
+    return { state: "resolved", profile: "backend_or_user", alternatives: [["backendBearerAuth"], ["backendApiKeyAuth"]], principal: "authenticated", guard_chain: guardChain, evidence, configuration_dependencies: ["BACKEND_API_KEY", "JWT_SECRET"] };
+  }
+  if (hasAdmin && !hasBackendAuthenticator && !hasUser) {
+    return { state: "unresolved", profile: "authorizer_without_authenticator", alternatives: null, principal: "admin", guard_chain: guardChain, evidence, configuration_dependencies: [] };
+  }
+  if (hasAdmin && hasUser) {
+    return { state: "unresolved", profile: "mixed_guard_chain", alternatives: null, principal: null, guard_chain: guardChain, evidence, configuration_dependencies: [] };
   }
   if (hasUser) return { state: "resolved", profile: "user_jwt", alternatives: [["userJwtAuth"]], principal: "tenant_user", guard_chain: guardChain, evidence, configuration_dependencies: ["JWT_SECRET"] };
   if (hasLocal) return { state: "resolved", profile: "local_manager", alternatives: [["localManagerBearerAuth"]], principal: "local_manager", guard_chain: guardChain, evidence, configuration_dependencies: [] };
@@ -504,24 +644,28 @@ function staticTemplateExpansions(source, sourceIndex, routeTemplate) {
 
 function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver = "router_or_app" } = {}) {
   const operations = [];
-  const aliases = middlewareAliases(source);
+  const scanSource = maskJavaScriptComments(source);
+  const aliases = middlewareAliases(scanSource);
   const receiverPattern = receiver === "app" ? "app" : "(?:router|app)";
   const routeRe = new RegExp(`${receiverPattern}\\.(get|post|put|patch|delete)\\s*\\(\\s*([\"'\\x60])([^\"'\\x60]+)\\2`, "gs");
   let match;
-  while ((match = routeRe.exec(source)) !== null) {
+  while ((match = routeRe.exec(scanSource)) !== null) {
     const method = match[1].toUpperCase();
     if (!HTTP_METHODS.has(method)) continue;
-    const opening = source.indexOf("(", match.index);
-    const closing = findMatchingDelimiter(source, opening, "(", ")");
+    const opening = scanSource.indexOf("(", match.index);
+    const closing = findMatchingDelimiter(scanSource, opening, "(", ")");
     if (closing < 0) continue;
-    const declaration = source.slice(match.index, closing + 1);
-    const args = splitTopLevelArguments(source.slice(opening + 1, closing));
-    const routeGuards = unique(args.slice(1, -1).flatMap((argument) => middlewareGuards(argument, aliases)));
-    const expansions = staticTemplateExpansions(source, match.index, match[3]);
+    const declaration = scanSource.slice(match.index, closing + 1);
+    const args = splitTopLevelArguments(scanSource.slice(opening + 1, closing));
+    // Authentication is sometimes enforced inside the final handler rather than
+    // as Express middleware (for example, signed installer download tokens).
+    // Inspect every post-path argument so those gates remain visible to parity.
+    const routeGuards = unique(args.slice(1).flatMap((argument) => middlewareGuards(argument, aliases)));
+    const expansions = staticTemplateExpansions(scanSource, match.index, match[3]);
     const routes = expansions.length ? expansions : [match[3]];
     for (const route of routes) {
       const routePath = joinRoutePath(mountPrefix, route);
-      const inheritedGuards = activeRouterUseGuards(source, match.index, routePath, aliases);
+      const inheritedGuards = activeRouterUseGuards(scanSource, match.index, routePath, aliases);
       operations.push({
         method,
         path: routePath,
@@ -711,6 +855,18 @@ function matchingOperationRules(operation, policy) {
   });
 }
 
+function authRuleOperations(rule = {}) {
+  return unique([rule.operation, ...(Array.isArray(rule.operations) ? rule.operations : [])]);
+}
+
+function matchingAuthRules(operation, policy) {
+  return (Array.isArray(policy?.auth_rules) ? policy.auth_rules : []).filter((rule) => {
+    if (!authRuleOperations(rule).includes(operation.signature)) return false;
+    if (rule.source_file && rule.source_file !== operation.source_file) return false;
+    return true;
+  });
+}
+
 function referencedOperations(control = {}) {
   return unique([control.operation, ...(Array.isArray(control.operations) ? control.operations : [])]);
 }
@@ -783,8 +939,11 @@ function mutationGovernance(operation, policy, discoveredSignatures) {
 }
 
 function operationAuthOverride(operation, policy) {
-  const rules = matchingOperationRules(operation, policy);
-  return rules.length === 1 ? rules[0].auth || null : null;
+  const authRules = matchingAuthRules(operation, policy);
+  if (authRules.length === 1) return authRules[0];
+  if (authRules.length > 1) return null;
+  const operationRules = matchingOperationRules(operation, policy);
+  return operationRules.length === 1 ? operationRules[0].auth || null : null;
 }
 
 function generatedOperationId(operation) {
@@ -862,6 +1021,7 @@ function runtimeOpenApiDocument(plan) {
         backendApiKeyAuth: { type: "apiKey", in: "header", name: "x-api-key" },
         userJwtAuth: { type: "http", scheme: "bearer", bearerFormat: "User JWT" },
         localManagerBearerAuth: { type: "http", scheme: "bearer", bearerFormat: "User JWT or Local Manager device token" },
+        connectorBearerAuth: { type: "http", scheme: "bearer", bearerFormat: "Connector secret or backend API key" },
         mcpQueryTokenAuth: { type: "apiKey", in: "query", name: "token" },
         signedQueryTokenAuth: { type: "apiKey", in: "query", name: "token" },
       },
@@ -959,10 +1119,8 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
   ]);
   const policy = readJson(policyPath, { schema_version: "frontend-surface-policy-v1", default_decision: "requires_review", rules: [] });
   const openapiReferencePaths = openApiReferenceFiles(openapiSource, openapiPath, apiRoot);
-  const additionalOpenApiPaths = filesUnder(path.join(apiRoot, "openapi"))
-    .filter((file) => /\.ya?ml$/i.test(file) && file !== runtimeOpenapiPath)
-    .filter((file) => /^\s*openapi:/m.test(readText(file)) && /^\s*paths:/m.test(readText(file)));
-  const canonicalOpenApiPaths = unique([openapiPath, ...additionalOpenApiPaths]);
+  const openApiAuthority = canonicalOpenApiAuthority({ apiRoot, openapiPath, runtimeOpenapiPath });
+  const canonicalOpenApiPaths = openApiAuthority.files;
   const canonicalOpenApiContracts = new Map();
   for (const file of canonicalOpenApiPaths) {
     for (const [signature, contract] of parseOpenApiContracts(readText(file), { sourcePath: file, apiRoot })) canonicalOpenApiContracts.set(signature, contract);
@@ -1117,6 +1275,7 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
     openapiAllowlistPath,
     ...canonicalOpenApiPaths,
     ...openapiReferencePaths,
+    openApiAuthority.projection_registry_path,
     ...frontendAssetPaths,
     resourcePath,
     testManifestPath,
@@ -1141,10 +1300,22 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
   const unusedOperationRules = operationRules.filter((rule) => !families.some((family) => family.operations.some((operation) => rule.operation === operation.signature && (!rule.source_file || rule.source_file === operation.source_file))));
   const operationRuleKeys = operationRules.map((rule) => `${rule.operation || ""}|${rule.source_file || "*"}`);
   const duplicateOperationRuleKeys = unique(operationRuleKeys.filter((key, index) => operationRuleKeys.indexOf(key) !== index));
+  const authRules = Array.isArray(policy.auth_rules) ? policy.auth_rules : [];
+  const expandedAuthRules = authRules.flatMap((rule) => authRuleOperations(rule).map((operation) => ({ rule, operation })));
+  const unusedAuthRules = expandedAuthRules.filter(({ rule, operation }) => !families.some((family) => family.operations.some((candidate) => (
+    operation === candidate.signature && (!rule.source_file || rule.source_file === candidate.source_file)
+  ))));
+  const authRuleKeys = expandedAuthRules.map(({ rule, operation }) => `${operation}|${rule.source_file || "*"}`);
+  const duplicateAuthRuleKeys = unique(authRuleKeys.filter((key, index) => authRuleKeys.indexOf(key) !== index));
   const policyIssues = [
     ...unusedOperationRules.map((rule) => ({ code: "unused_operation_rule", rule_id: rule.rule_id || null, operation: rule.operation || null })),
     ...duplicateOperationRuleKeys.map((key) => ({ code: "duplicate_operation_rule", key })),
     ...operationRules.filter((rule) => !OPERATION_CLASSIFICATIONS.has(rule.classification)).map((rule) => ({ code: "invalid_operation_classification", rule_id: rule.rule_id || null, operation: rule.operation || null })),
+    ...unusedAuthRules.map(({ rule, operation }) => ({ code: "unused_auth_rule", rule_id: rule.rule_id || null, operation })),
+    ...duplicateAuthRuleKeys.map((key) => ({ code: "duplicate_auth_rule", key })),
+    ...authRules.filter((rule) => !Object.hasOwn(AUTH_PROFILES, rule.profile)).map((rule) => ({ code: "invalid_auth_profile", rule_id: rule.rule_id || null, profile: rule.profile || null })),
+    ...authRules.filter((rule) => !rule.owner || !rule.rationale).map((rule) => ({ code: "auth_rule_attribution_gap", rule_id: rule.rule_id || null })),
+    ...authRules.filter((rule) => !(rule.evidence_refs || []).length).map((rule) => ({ code: "auth_rule_evidence_gap", rule_id: rule.rule_id || null })),
   ];
   const untestedOperationCount = families.reduce((sum, family) => sum + family.operations.filter((operation) => !operation.tests.length).length, 0);
   const unresolvedDecisions = families.filter((family) => family.surface_decision.decision === "requires_review").length;

@@ -8,7 +8,7 @@ At any state, authority drift moves the task to `drifted`; regeneration decides 
 
 ## Pipeline
 
-1. **Discover** mounted route builders, literal HTTP operations, route middleware arguments, inherited `router.use` guards, OpenAPI operations, resources, evidence candidates, browser assets, and registered tests.
+1. **Discover** mounted route builders, uncommented literal HTTP operations, route and handler authentication calls, inherited `router.use` guards, OpenAPI operations, resources, evidence candidates, browser assets, and registered tests.
 2. **Normalize** Express parameters and OpenAPI parameters into one method/path signature.
 3. **Classify** scope, runtime auth profile, OpenAPI auth profile, operation class, product group, current UI state, and evidence/readback availability.
 4. **Resolve policy** from explicit repository rules. Missing decisions fail closed as `requires_review`.
@@ -34,9 +34,9 @@ Every task contains:
 
 ## Authentication parity
 
-Authentication is compared per operation as normalized alternatives, preserving OpenAPI OR/AND semantics. Route middleware and applicable `router.use` guards are evidence; path names alone are not authentication evidence. The artifact records runtime and OpenAPI profiles plus one of `equivalent`, `mismatch`, `undefined_scheme`, `missing_openapi`, `unknown`, or `exempt`.
+Authentication is compared per operation as normalized alternatives, preserving OpenAPI OR/AND semantics. Route middleware, applicable `router.use` guards, and recognizable handler-level checks are evidence; path names alone are not authentication evidence. The artifact records runtime and OpenAPI profiles plus one of `equivalent`, `mismatch`, `undefined_scheme`, `missing_openapi`, `unknown`, or `exempt`.
 
-Handler-level signed links, OAuth state, MCP query tokens, aliases that cannot be resolved statically, and duplicate mounted signatures remain blocked until an exact operation override supplies owner, rationale, and source evidence. Configuration-dependent middleware such as `requireBackendApiKey` records its environment dependency and is never treated as public merely because production configuration is absent.
+`auth_rules` may group exact operation signatures that share a profile, but every rule supplies an owner, rationale, and source evidence; missing, invalid, unused, or duplicate rules are policy issues. A rule cannot weaken a discovered runtime guard: conflicting profiles become unresolved and fail closed. Handler-level signed links, OAuth state, connector bearers, MCP query tokens, and imported service handlers use these exact decisions only where static evidence is otherwise incomplete. Configuration-dependent middleware such as `requireBackendApiKey` records its environment dependency and is never treated as public merely because production configuration is absent.
 
 ## Operation and mutation governance
 
@@ -51,7 +51,7 @@ Missing, duplicate, invalid, or unused operation rules are policy issues. Inline
 - `explicit_exemption`: repository allowlist entry with reviewable evidence; it is counted separately and is not called documentation.
 - `missing`: neither canonical documentation, safe generated indexing, nor an approved exemption exists.
 
-The generated index never invents request bodies, response bodies, or success status codes. Routes with unresolved authentication or conflicting duplicate profiles stay missing.
+The generated index never invents request bodies, response bodies, or success status codes. Routes with unresolved authentication or conflicting duplicate profiles stay missing. Files declared as `generated_from_openapi` in the Custom GPT surface registry are projections and cannot satisfy canonical detail coverage.
 
 ## Wave selection
 

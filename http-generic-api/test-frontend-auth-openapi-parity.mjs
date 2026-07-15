@@ -36,14 +36,25 @@ for (const signature of userJwtOperations) {
 
 for (const signature of [
   "POST /platform/capability-vault/repo-ingestion-plan",
+  "POST /platform/capability-vault/mirror-plan",
+  "POST /platform/capability-vault/package-plan",
+  "POST /platform/capability-vault/reinstall-diff-plan",
+  "POST /platform/capability-vault/variant-plan",
   "POST /platform/capability-vault/install-request-plan",
   "POST /platform/capability-vault/variant-merge-plan",
+  "POST /platform/capability-vault/runtime-resolve",
+  "POST /platform/capability-vault/google-file-read/resolve",
 ]) {
   const entry = operation(signature);
   assert.equal(entry.runtime_auth.profile, "admin_backend");
   assert.equal(entry.auth_parity.state, "equivalent", `${signature} must not inherit anonymous OpenAPI security`);
   assert.equal(entry.governance.classification, "read_action", `${signature} is a non-mutating planning action`);
 }
+
+assert.equal(operation("GET /connector-agent/installer.ps1").runtime_auth.profile, "signed_query_token");
+assert.equal(operation("GET /connector-agent/installer.ps1").auth_parity.state, "equivalent");
+assert.equal(operation("POST /connector-agent/heartbeat").runtime_auth.profile, "connector_bearer");
+assert.equal(operation("POST /connector-agent/heartbeat").auth_parity.state, "equivalent");
 
 const resourceMutationSignatures = [
   "POST /me/workspaces/{tenant_id}/resources/{resourceKey}",
@@ -59,8 +70,10 @@ for (const signature of resourceMutationSignatures) {
 }
 
 assert.equal(plan.coverage.auth_parity_counts.undefined_scheme || 0, 0, "every referenced OpenAPI security scheme must be defined in its source document");
+assert.equal(plan.coverage.auth_contract_gap_count, 0, "runtime and canonical OpenAPI authentication must have complete parity");
+assert.equal(plan.coverage.operation_policy_issue_count, 0, "all exact auth and operation rules must resolve uniquely");
 assert(plan.coverage.openapi_generated_index_count > 0, "high-confidence runtime operations must be represented in the generated OpenAPI index");
-assert(plan.coverage.openapi_gap_count < 446, "the historical occurrence count must be replaced by repository-wide canonical/index/exemption accounting");
+assert.equal(plan.coverage.openapi_gap_count, 0, "every mounted runtime operation must have canonical, generated-index, or explicit exemption presence");
 assert(plan.coverage.openapi_detail_gap_count > 0, "operation indexing must not be misreported as reviewed request/response schema completion");
 
 console.log("frontend runtime auth, OpenAPI parity, and per-operation mutation governance tests passed");

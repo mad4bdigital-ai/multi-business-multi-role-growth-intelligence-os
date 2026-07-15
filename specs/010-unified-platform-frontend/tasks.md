@@ -23,6 +23,12 @@
   - [x] T018b Replace family-wide mutation/readback inference with exact operation classification and control contracts.
   - [x] T018c Account for canonical OpenAPI documents and explicit exemptions, and generate a conservative auth-backed operation index.
   - [ ] T018d Resolve remaining auth aliases/handler-level tokens, canonical detail contracts, operation classifications, and rollback/compensation gaps.
+    - [x] T018d.1 Resolve all runtime/canonical auth mismatches, missing comparisons, handler-level tokens, imported guards, and invalid/duplicate auth rules.
+    - [x] T018d.2 Close operation-presence gaps with reviewed canonical public entrypoint contracts while keeping generated projections non-canonical.
+    - [x] T018d.3 Classify the first nine proven non-mutating capability-vault planning/resolution actions.
+    - [ ] T018d.4 Replace 389 operation-index-only entries with reviewed request/response detail contracts.
+    - [ ] T018d.5 Classify 556 remaining non-GET candidates with exact evidence and controls where consequential.
+    - [ ] T018d.6 Add rollback/post-commit compensation for the four classified resource mutations.
 - [x] T019 Add generated-plan schema contract and changed-scope CI drift gate.
 
 ## F1 tenant shell

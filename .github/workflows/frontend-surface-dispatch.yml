@@ -16,8 +16,10 @@ on:
       - "http-generic-api/package-lock.json"
       - "http-generic-api/scripts/frontend-surface-dispatch.mjs"
       - "http-generic-api/scripts/openapi-route-coverage.mjs"
+      - "http-generic-api/scripts/openapi-runtime-auth-sync.mjs"
       - "http-generic-api/scripts/test-manifest.mjs"
       - "http-generic-api/test-*.mjs"
+      - "canonicals/openapi/custom-gpt-surfaces.yaml"
       - "specs/010-unified-platform-frontend/**"
       - ".github/workflows/frontend-surface-dispatch.yml"
   workflow_dispatch:
@@ -47,6 +49,7 @@ jobs:
           node test-frontend-surface-dispatch.mjs
           node test-frontend-auth-openapi-parity.mjs
           node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
       - name: Enforce committed deterministic output
         run: |
           if [[ -n "$(git status --porcelain -- frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)" ]]; then

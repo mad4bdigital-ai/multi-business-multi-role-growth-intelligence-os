@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
-import { buildDispatchPlan } from "./frontend-surface-dispatch.mjs";
+import { buildDispatchPlan, canonicalOpenApiAuthority } from "./frontend-surface-dispatch.mjs";
 
 const ROOT = process.cwd();
 const ROUTES_DIR = path.join(ROOT, "routes");
@@ -59,14 +59,11 @@ function collectOpenApiOperationsFromText(source) {
 }
 
 function collectOpenApiOperations() {
-  const files = [
-    OPENAPI_PATH,
-    ...(fs.existsSync(OPENAPI_DIR)
-      ? fs.readdirSync(OPENAPI_DIR)
-        .filter((name) => /\.ya?ml$/i.test(name) && name !== "frontend-runtime-routes.generated.yaml")
-        .map((name) => path.join(OPENAPI_DIR, name))
-      : []),
-  ];
+  const files = canonicalOpenApiAuthority({
+    apiRoot: ROOT,
+    openapiPath: OPENAPI_PATH,
+    runtimeOpenapiPath: path.join(OPENAPI_DIR, "frontend-runtime-routes.generated.yaml"),
+  }).files;
   const ops = new Set();
   for (const file of files) {
     const source = fs.readFileSync(file, "utf8");

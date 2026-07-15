@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildDispatchPlan, isDirectExecution, parseMountedRouteFiles, parseOpenApiContracts, parseOpenApiOperations, syncDispatchPlan } from "./scripts/frontend-surface-dispatch.mjs";
+import { buildDispatchPlan, isDirectExecution, normalizeRoutePath, parseMountedRouteFiles, parseOpenApiContracts, parseOpenApiOperations, syncDispatchPlan } from "./scripts/frontend-surface-dispatch.mjs";
 
 function write(root, relative, content) {
   const target = path.join(root, relative);
@@ -10,7 +10,9 @@ function write(root, relative, content) {
   fs.writeFileSync(target, content);
 }
 
-const apiRoot = fs.mkdtempSync(path.join(os.tmpdir(), "frontend-dispatch-"));
+const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "frontend-dispatch-"));
+const apiRoot = path.join(fixtureRoot, "http-generic-api");
+fs.mkdirSync(apiRoot, { recursive: true });
 write(apiRoot, "routes/index.js", `
 import { buildTenantRoutes } from "./tenantRoutes.js";
 import { buildAdminRoutes } from "./adminRoutes.js";
@@ -28,27 +30,38 @@ export function registerRoutes(app) {
 write(apiRoot, "routes/tenantRoutes.js", `
 export function buildTenantRoutes() {
   const router = Router();
-  router.get("/me/workspaces/:tenant_id/dashboard", handler);
-  router.post("/me/workspaces/:tenant_id/dashboard/preview", handler);
+  router.get("/me/workspaces/:tenant_id/dashboard", requireUserJwt, handler);
+  router.post("/me/workspaces/:tenant_id/dashboard/preview", requireUserJwt, handler);
   return router;
 }
 `);
 write(apiRoot, "routes/adminRoutes.js", `
-export function buildAdminRoutes({ requireAdminPrincipal }) {
+function requireAdminGuard(deps, requireAdminPrincipal) {
+  return [deps.requireBackendApiKey, requireAdminPrincipal];
+}
+export function buildAdminRoutes({ requireBackendApiKey, requireAdminPrincipal }) {
   const router = Router();
-  router.get("/admin/runtime/verification", requireAdminPrincipal, handler);
-  router.post("/admin/runtime/verification/run", requireAdminPrincipal, handler);
-  router.get("/admin/runtime/verification/readback", requireAdminPrincipal, handler);
+  const deps = { requireBackendApiKey };
+  const requireAdmin = [requireBackendApiKey, requireAdminPrincipal].filter(Boolean);
+  const requireBackend = requireBackendApiKey || passthrough;
+  const requireAdminAlias = requireAdminPrincipal || passthrough;
+  router.get("/admin/runtime/verification", ...requireAdmin, handler);
+  router.post("/admin/runtime/verification/run", ...requireAdminGuard(deps, requireAdminPrincipal), handler);
+  router.get("/admin/runtime/verification/readback", requireBackend, requireAdminAlias, handler);
   return router;
 }
 `);
 write(apiRoot, "routes/mixedRoutes.js", `
 export function buildMixedRoutes({ requireAdminPrincipal }) {
   const router = Router();
-  router.get("/me/support/tickets", handler);
+  router.get("/me/support/tickets", async (req, res) => {
+    await requireUserJwt(req);
+    return handler(req, res);
+  });
   router.get("/admin/support/tickets", requireAdminPrincipal, handler);
   router.get("/credential-intake/:token", (_req, res) => res.type("html").send("<!doctype html>"));
   router.get("/credential-intake/:token/schema", (_req, res) => res.json({ fields: [] }));
+  /* router.delete("/disabled/commented-route", requireAdminPrincipal, handler); */
   return router;
 }
 `);
@@ -68,12 +81,23 @@ export function buildDynamicTeamRoutes() {
 `);
 write(apiRoot, "openapi.yaml", `
 openapi: 3.1.0
+components:
+  securitySchemes:
+    userBearerAuth:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://example.test/authorize
+          tokenUrl: https://example.test/token
+          scopes: {}
 paths:
   /me/workspaces/{tenant_id}/dashboard:
     get:
+      security: [{ userBearerAuth: [] }]
       responses: {}
   /me/workspaces/{tenant_id}/dashboard/preview:
     post:
+      security: [{ userBearerAuth: [] }]
       responses: {}
   /admin/runtime/verification:
     get:
@@ -86,6 +110,7 @@ paths:
       responses: {}
   /me/support/tickets:
     get:
+      security: [{ userBearerAuth: [] }]
       responses: {}
   /admin/support/tickets:
     get:
@@ -136,6 +161,24 @@ brandTeamMemberById:
   delete:
     responses: {}
 `);
+write(apiRoot, "openapi/openapi.tenant-gpt.auth.yaml", `
+openapi: 3.1.0
+components:
+  securitySchemes:
+    backendBearerAuth: { type: http, scheme: bearer }
+paths:
+  /me/workspaces/{tenant_id}/dashboard:
+    get:
+      security: [{ backendBearerAuth: [] }]
+      responses: {}
+`);
+write(fixtureRoot, "canonicals/openapi/custom-gpt-surfaces.yaml", `
+version: 1
+surfaces:
+  tenant_core:
+    mode: generated_from_openapi
+    output_file: openapi/openapi.tenant-gpt.auth.yaml
+`);
 write(apiRoot, "resource-api-coverage.manifest.json", JSON.stringify({ resources: [] }));
 write(apiRoot, "scripts/test-manifest.mjs", `export const tests = ["node test-tenant-dashboard.mjs", "node test-admin-runtime-verification.mjs", "node test-mixed-support-routes.mjs", "node test-dynamic-team-routes.mjs"];`);
 write(apiRoot, "test-tenant-dashboard.mjs", `
@@ -173,6 +216,16 @@ write(apiRoot, "frontend-surface-policy.json", JSON.stringify({
     ,{ source_file: "routes/dynamicTeamRoutes.js", decision: "unified_ui", owner: "tenant-ui", rationale: "fixture" }
     ,{ source_file: "routes/index.js", decision: "internal_only", owner: "admin-runtime", rationale: "fixture" }
   ],
+  auth_rules: [
+    {
+      rule_id: "tenant-dashboard-auth",
+      operation: "GET /me/workspaces/{tenant_id}/dashboard",
+      profile: "user_jwt",
+      owner: "tenant-ui",
+      rationale: "Fixture auth decision.",
+      evidence_refs: ["fixture-auth-rule"]
+    }
+  ],
   operation_rules: [
     {
       rule_id: "tenant-preview-read-action",
@@ -198,6 +251,7 @@ write(apiRoot, "frontend-surface-policy.json", JSON.stringify({
 }));
 
 assert.equal(isDirectExecution(new URL("./scripts/frontend-surface-dispatch.mjs", import.meta.url).href, process.argv[1]), false);
+assert.equal(normalizeRoutePath("/runtime/parity/:environmentKey?"), "/runtime/parity/{environmentKey}");
 assert.equal(parseOpenApiOperations(fs.readFileSync(path.join(apiRoot, "openapi.yaml"), "utf8")).size, 10);
 assert.equal(parseOpenApiOperations(fs.readFileSync(path.join(apiRoot, "openapi.yaml"), "utf8"), {
   sourcePath: path.join(apiRoot, "openapi.yaml"),
@@ -241,9 +295,46 @@ assert.equal(plan.coverage.mounted_route_file_count, 5);
 assert.equal(plan.coverage.mounted_family_count, 7);
 assert.equal(plan.coverage.mixed_scope_route_file_count, 1);
 assert.equal(plan.coverage.operation_count, 18);
+assert(!plan.families.some((family) => family.operations.some((entry) => entry.signature === "DELETE /disabled/commented-route")), "commented legacy routes must not enter the runtime inventory");
 assert.equal(plan.coverage.openapi_gap_count, 0);
 assert.equal(plan.coverage.unresolved_surface_decision_count, 0);
+assert(
+  plan.families
+    .find((family) => family.source_file === "routes/tenantRoutes.js")
+    .operations
+    .every((entry) => entry.auth_parity.state === "equivalent"),
+  "tenant OAuth scheme aliases must compare as the runtime user-JWT principal",
+);
+assert(
+  plan.families
+    .find((family) => family.source_file === "routes/tenantRoutes.js")
+    .operations
+    .find((entry) => entry.signature === "GET /me/workspaces/{tenant_id}/dashboard")
+    .runtime_auth.evidence.includes("fixture-auth-rule"),
+  "exact auth policy rules must add auditable evidence",
+);
+const inlineHandlerAuth = plan.families
+  .find((family) => family.source_file === "routes/mixedRoutes.js" && family.scope === "tenant")
+  .operations
+  .find((entry) => entry.signature === "GET /me/support/tickets");
+assert.equal(inlineHandlerAuth.runtime_auth.profile, "user_jwt", "handler-internal auth calls must be discovered");
+assert.equal(inlineHandlerAuth.auth_parity.state, "equivalent");
+assert(
+  !plan.baseline.authority.some((entry) => entry.file === "openapi/openapi.tenant-gpt.auth.yaml"),
+  "generated audience projections must not satisfy canonical OpenAPI coverage",
+);
+assert(
+  plan.baseline.authority.some((entry) => entry.file === "../canonicals/openapi/custom-gpt-surfaces.yaml"),
+  "projection authority must participate in deterministic drift detection",
+);
 assert.equal(plan.families.find((family) => family.scope === "admin").wave, "F3-admin-workspaces");
+assert(
+  plan.families
+    .find((family) => family.source_file === "routes/adminRoutes.js")
+    .operations
+    .every((entry) => entry.runtime_auth.profile === "admin_backend"),
+  "filtered admin guard arrays must retain both authenticator and authorizer evidence",
+);
 assert.equal(plan.families.filter((family) => family.source_file === "routes/mixedRoutes.js").length, 3);
 assert.deepEqual(plan.families.filter((family) => family.source_file === "routes/mixedRoutes.js").map((family) => family.scope).sort(), ["admin", "tenant", "unresolved"]);
 assert.equal(plan.families.find((family) => family.source_file === "routes/mixedRoutes.js" && family.scope === "unresolved").embedded_ui, true);
@@ -266,7 +357,7 @@ assert.deepEqual(
 assert(plan.baseline.authority.some((entry) => entry.file === "openapi/team.yaml"));
 assert(plan.baseline.authority.some((entry) => entry.file.endsWith("/scripts/frontend-surface-dispatch.mjs") || entry.file === "scripts/frontend-surface-dispatch.mjs"));
 assert(plan.tasks.find((task) => task.wave === "F3-admin-workspaces").dependencies.includes("F2-admin-bff-session"));
-assert.equal(plan.tasks.filter((task) => task.state === "ready").length, 0, "auth and operation governance gaps must fail closed");
+assert.equal(plan.tasks.filter((task) => task.state === "ready").length, 2, "both fully governed tenant fixtures may become ready");
 assert.equal(plan.coverage.non_get_candidate_count, 9);
 assert.equal(plan.coverage.classified_mutation_count, 1);
 assert.equal(plan.coverage.governed_mutation_operation_count, 1);
@@ -277,6 +368,18 @@ assert.equal(JSON.stringify(plan).includes("configuration_dependencies"), true);
 
 const policyPath = path.join(apiRoot, "frontend-surface-policy.json");
 const validPolicySource = fs.readFileSync(policyPath, "utf8");
+const conflictingAuthPolicy = JSON.parse(validPolicySource);
+conflictingAuthPolicy.auth_rules[0].profile = "public";
+fs.writeFileSync(policyPath, JSON.stringify(conflictingAuthPolicy));
+const conflictingAuthPlan = buildDispatchPlan({ apiRoot, baselineRef: "fixture-sha" });
+const conflictingAuthOperation = conflictingAuthPlan.families
+  .find((family) => family.source_file === "routes/tenantRoutes.js")
+  .operations
+  .find((entry) => entry.signature === "GET /me/workspaces/{tenant_id}/dashboard");
+assert.equal(conflictingAuthOperation.runtime_auth.state, "unresolved");
+assert.equal(conflictingAuthOperation.runtime_auth.profile, "auth_policy_conflicts_with_runtime_guard", "manual auth policy must not weaken discovered runtime guards");
+fs.writeFileSync(policyPath, validPolicySource);
+
 const partitionPolicy = JSON.parse(validPolicySource);
 partitionPolicy.rules = partitionPolicy.rules
   .filter((rule) => rule.source_file !== "routes/mixedRoutes.js")

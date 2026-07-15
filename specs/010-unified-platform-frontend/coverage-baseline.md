@@ -9,58 +9,58 @@
 | Metric | Count |
 |---|---:|
 | Mounted route files | 126 |
-| Scope/policy-split surface families | 153 |
-| Mixed-scope route files | 23 |
-| HTTP operations | 939 |
-| Canonical OpenAPI operations | 511 |
-| Generated auth-backed operation index | 304 |
-| Explicit OpenAPI exemptions | 24 |
-| Remaining OpenAPI operation-presence gaps | 100 |
-| Generated operations still missing reviewed detail contracts | 304 |
+| Scope/policy-split surface families | 155 |
+| Mixed-scope route files | 22 |
+| HTTP operations | 938 |
+| Canonical OpenAPI operations | 532 |
+| Generated auth-backed operation index | 389 |
+| Explicit OpenAPI exemptions | 17 |
+| Remaining OpenAPI operation-presence gaps | 0 |
+| Generated operations still missing reviewed detail contracts | 389 |
 | Explicitly test-owned operations | 7 |
-| Operations without explicit test claims | 932 |
+| Operations without explicit test claims | 931 |
 | Fully test-owned families | 1 |
-| Families with test ownership gaps | 152 |
+| Families with test ownership gaps | 154 |
 | Ready tasks | 1 |
-| Blocked tasks | 152 |
+| Blocked tasks | 154 |
 
-The inventory now includes optional dynamically imported route builders and splits route families at explicit surface-policy subpath boundaries. The generated runtime operation index is excluded from canonical OpenAPI coverage: it supplies presence/auth evidence only and never counts as a reviewed request/response contract.
+The inventory includes optional dynamically imported route builders, normalizes optional Express parameters, ignores commented legacy registrations, and splits route families at explicit surface-policy and auth boundaries. Generated Custom GPT projections and the runtime operation index are excluded from canonical detail coverage: they supply projection or presence/auth evidence only and never count as reviewed request/response contracts.
 
 ## Auth and operation governance
 
 | Metric | Count |
 |---|---:|
-| Runtime/OpenAPI auth equivalent | 476 |
-| Explicit auth exemptions | 24 |
-| Auth mismatches | 163 |
-| Missing OpenAPI for auth comparison | 100 |
-| Runtime auth unresolved | 176 |
-| Non-GET operation candidates | 570 |
+| Runtime/OpenAPI auth equivalent | 921 |
+| Explicit auth exemptions | 17 |
+| Auth mismatches | 0 |
+| Missing OpenAPI for auth comparison | 0 |
+| Runtime auth unresolved | 0 |
+| Non-GET operation candidates | 569 |
 | Explicitly classified state changes | 4 |
-| Explicitly classified non-mutating actions | 3 |
-| Non-GET candidates awaiting classification | 563 |
+| Explicitly classified non-mutating actions | 9 |
+| Non-GET candidates awaiting classification | 556 |
 | Fully governed state changes | 0 |
 
-The four classified resource mutations have proven same-cycle repository readback. They remain blocked on failure rollback/post-commit compensation; the baseline does not convert readback evidence into a rollback claim.
+Exact auth rules now cover handler-level, imported-handler, public bootstrap, connector bearer, and signed-query-token cases. They cannot weaken a statically discovered guard: a conflicting rule fails closed. The four classified resource mutations have proven same-cycle repository readback, but remain blocked on failure rollback/post-commit compensation; the baseline does not convert readback evidence into a rollback claim.
 
 ## Scope distribution
 
 | Scope | Families |
 |---|---:|
-| Admin | 93 |
-| Tenant | 20 |
+| Admin | 98 |
+| Tenant | 19 |
 | Local device | 6 |
-| Developer | 4 |
-| Public | 3 |
-| Unresolved | 27 |
+| Developer | 5 |
+| Public | 14 |
+| Unresolved | 13 |
 
 ## Wave distribution
 
 | Wave | Families |
 |---|---:|
-| F0 authority resolution | 26 |
-| F1 tenant shell | 23 |
-| F3 admin workspaces | 93 |
+| F0 authority resolution | 13 |
+| F1 tenant shell | 33 |
+| F3 admin workspaces | 98 |
 | F4 Local Manager | 6 |
 | F5 developer/evidence | 5 |
 
@@ -70,14 +70,14 @@ F2 Admin BFF and F6 cutover are shared dependency work rather than route-family 
 
 | Blocker | Families |
 |---|---:|
-| Surface policy decision required | 144 |
-| Runtime/OpenAPI auth contract gap | 74 |
-| Operation classification gap | 124 |
-| OpenAPI operation-presence gap | 11 |
-| OpenAPI detail-contract gap | 66 |
+| Surface policy decision required | 145 |
+| Runtime/OpenAPI auth contract gap | 0 |
+| Operation classification gap | 125 |
+| OpenAPI operation-presence gap | 0 |
+| OpenAPI detail-contract gap | 73 |
 | Mutation rollback/compensation gap | 1 |
-| Scope unresolved | 27 |
-| Test ownership gap | 152 |
+| Scope unresolved | 13 |
+| Test ownership gap | 154 |
 
 Counts overlap because one family may have multiple blockers. Mutation controls and auth parity are operation-level even when the task view aggregates them by family. Test ownership requires an explicit `frontend-surface-operation` claim in a registered test. No blocker should be bulk-waived.
 
@@ -85,9 +85,9 @@ Counts overlap because one family may have multiple blockers. Mutation controls 
 
 | Risk | Families |
 |---|---:|
-| Critical | 127 |
-| High | 21 |
-| Medium | 4 |
-| Low | 1 |
+| Critical | 113 |
+| High | 23 |
+| Medium | 16 |
+| Low | 3 |
 
 Risk is conservative by design. Admin/local authority, mutations, unknown scope, missing contracts, missing tests, and missing product decisions add weight.

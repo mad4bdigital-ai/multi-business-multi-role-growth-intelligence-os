@@ -8,7 +8,7 @@ This map defines what the frontend planner may trust, how conflicts are resolved
 |---|---|---|---|---|
 | A0 | Constitutional and completion policy | `.specify/memory/constitution.md`, `.specify/spec-kit-governance.json` | tenant isolation, secret boundaries, completion rules | block all dispatch |
 | A1 | Mounted runtime topology | `http-generic-api/routes/index.js`, imported mounted route files | discover reachable route families and mount order | re-discover and invalidate affected tasks |
-| A2 | HTTP contract authority | `http-generic-api/openapi.yaml`, `openApiEndpointInventorySync.js`, `scripts/openapi-route-coverage.mjs` | method/path contracts and missing-contract gates | block affected family |
+| A2 | HTTP contract authority | repository canonical OpenAPI documents, `canonicals/openapi/custom-gpt-surfaces.yaml`, `scripts/openapi-route-coverage.mjs`, `scripts/openapi-runtime-auth-sync.mjs` | method/path/detail contracts, projection boundaries, auth parity, and missing-contract gates | block affected family |
 | A3 | Logical resource authority | `resource-api-coverage.manifest.json`, Resource API routes/audit | scope, operations, permissions, changes, revisions, readback | block resource UI or mutation |
 | A4 | Data and governed-surface authority | migrations, activation surface manifests, surface-contract discovery outputs | discover new tables/views/tools/policies and evidence requirements | add or reclassify work |
 | A5 | Runtime boundary and generated maps | `runtime_boundary_map.md`, `docs/folder-map.md`, `docs/work-maps/*` | ownership, dependencies, runtime boundaries | re-score dependency graph |
@@ -40,7 +40,7 @@ Before dispatch, the planner recomputes the authority digest. A changed digest m
 
 ## Manual input boundary
 
-`http-generic-api/frontend-surface-policy.json` is the only manual classification input. It may decide `unified_ui`, `api_only`, `internal_only`, `legacy_compatibility`, or `deferred`, with an owner and rationale. It cannot invent a route, weaken authentication, hide an OpenAPI gap, or mark an untested mutation complete.
+`http-generic-api/frontend-surface-policy.json` is the only manual classification input. Surface rules may decide `unified_ui`, `api_only`, `internal_only`, `legacy_compatibility`, or `deferred`; exact auth and operation rules may resolve otherwise-static gaps. Every decision needs an owner, rationale, and evidence. Policy cannot invent a route, weaken a discovered authentication guard, hide an OpenAPI gap, or mark an untested mutation complete.
 
 ## Coverage equation
 
