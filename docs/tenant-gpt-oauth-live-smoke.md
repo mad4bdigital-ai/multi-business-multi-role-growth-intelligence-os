@@ -6,6 +6,8 @@ It requires an active user UUID, an active membership tenant UUID, and the typed
 
 The smoke verifies absolute authorize links, OAuth state preservation, lowercase `token_type: bearer`, issuer and audience, user and tenant binding, rejection of code replay with `invalid_grant`, and cleanup of the transient `tenant_gpt_activation_contexts` row. Output is restricted to status codes, booleans, non-secret token metadata, and cleanup counts.
 
+Legacy `https://chat.openai.com/aip/g-.../oauth/callback` requests remain valid during authorization and token exchange, but authorization-code issuance redirects directly to the canonical `https://chatgpt.com/aip/g-.../oauth/callback` host to preserve the current ChatGPT login context.
+
 After CI, merge, and production deployment readback, expose the script through the governed `ADMIN_SHELL_ALLOWLIST` for the duration of the check and invoke it with:
 
 ```text
