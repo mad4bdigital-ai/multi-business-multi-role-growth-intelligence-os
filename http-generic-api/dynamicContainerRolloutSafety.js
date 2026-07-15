@@ -190,6 +190,149 @@ export async function runContainerRollbackDrill({
   }
 }
 
+export function buildContainerCanaryRollbackPlan({ canaries = [], targetCanaryKey, reason = "runtime_canary_not_observed" } = {}) {
+  const targetKey=String(targetCanaryKey || "").trim();
+  if(!targetKey) throw Object.assign(new Error("targetCanaryKey is required."),{ code:"container_canary_key_required",status:422 });
+  const active=(canaries || []).filter(row => String(row.status || "active") === "active");
+  const target=active.find(row => String(row.canaryKey ?? row.canary_key) === targetKey);
+  if(!target) throw Object.assign(new Error("Active canary candidate was not found."),{ code:"container_canary_not_found",status:404 });
+  const currentMode=String(target.rolloutMode ?? target.rollout_mode ?? "shadow");
+  const confirmation=`ROLLBACK_DYNAMIC_CONTAINER_CANARY_${targetKey.replace(/[^A-Za-z0-9]+/g,"_").toUpperCase()}_TO_SHADOW`;
+  return {
+    canaryKey:targetKey,
+    capabilityKey:String(target.capabilityKey ?? target.capability_key ?? ""),
+    currentMode,
+    targetMode:"shadow",
+    reason:String(reason || "runtime_canary_not_observed"),
+    noOp:currentMode === "shadow",
+    confirmation,
+    actions:["lock_active_canary_rows","rollback_exact_canary_to_shadow","read_back_exact_canary","preserve_canary_evidence"],
+    providerCalls:false,
+    credentialPayloadReads:false,
+    externalWrites:false,
+    enforcementApplied:false,
+    secretsIncluded:false
+  };
+}
+
+export async function runContainerCanaryRollback({
+  executor,
+  targetCanaryKey,
+  apply = false,
+  confirm = null,
+  capabilityEnvelopeId = null,
+  reason = "runtime_canary_not_observed",
+  actor = "dynamic_container_canary_rollback"
+} = {}) {
+  if(!executor?.query) throw Object.assign(new Error("A SQL executor is required."),{ code:"container_canary_executor_required",status:500 });
+  let transactionStarted=false;
+  try {
+    if(apply && executor.beginTransaction) {
+      await executor.beginTransaction();
+      transactionStarted=true;
+    }
+
+    let envelope = null;
+    if(apply) {
+      envelope = await resolveCapabilityExecutionEnvelope({
+        pool:executor,
+        envelopeId:capabilityEnvelopeId,
+        acceptedAppKeys:["platform_orchestration"],
+        acceptedIntents:["dynamic_container_canary_rollback"],
+        acceptedCapabilityKeys:["dynamic_container_canary_rollback"],
+        allowReferenced:false
+      });
+      if(!envelope.ok) throw capabilityEnvelopeError(envelope,"A ready Dynamic Container canary rollback envelope is required.");
+      if(!envelope.apply_allowed) {
+        throw capabilityEnvelopeError({
+          status:"capability_resolution_envelope_apply_not_allowed",
+          envelope_id:envelope.envelope_id,
+          apply_allowed:false,
+          secrets_included:false
+        },"The capability envelope is not apply-authorized for canary rollback.");
+      }
+    }
+
+    const [canaryRows]=await executor.query(
+      `SELECT canary_key,capability_key,operation_class,rollout_mode,status
+         FROM container_shadow_canary_registry WHERE status='active' ORDER BY canary_key${apply ? " FOR UPDATE" : ""}`
+    );
+    const plan=buildContainerCanaryRollbackPlan({ canaries:canaryRows,targetCanaryKey,reason });
+    if(!apply) return {
+      ok:true,
+      mode:"dry_run",
+      plan,
+      readback:null,
+      capabilityEnvelope:null,
+      providerCalls:false,
+      credentialPayloadReads:false,
+      externalWrites:false,
+      enforcementApplied:false,
+      secretsIncluded:false
+    };
+    if(confirm !== plan.confirmation) {
+      throw Object.assign(new Error(`Typed confirmation ${plan.confirmation} is required.`),{
+        code:"container_canary_rollback_confirmation_required",status:409
+      });
+    }
+    if(!plan.noOp) {
+      const [updateResult] = await executor.query(
+        `UPDATE container_shadow_canary_registry
+            SET rollout_mode='shadow',metadata_json=JSON_SET(COALESCE(metadata_json,JSON_OBJECT()),
+                '$.rollback_reason',?,'$.rollback_actor',?,'$.rollback_capability_envelope_id',?,
+                '$.rolled_back_from_unobserved_canary',TRUE),updated_at=CURRENT_TIMESTAMP
+          WHERE canary_key=? AND status='active' AND rollout_mode='read_only_canary'`,
+        [plan.reason,actor,envelope?.envelope_id || null,plan.canaryKey]
+      );
+      if(Number(updateResult?.affectedRows || 0) !== 1) {
+        throw Object.assign(new Error("Canary rollback update did not affect the expected row."),{
+          code:"container_canary_rollback_update_conflict",status:409
+        });
+      }
+    }
+    const [readbackRows]=await executor.query(
+      "SELECT canary_key,capability_key,operation_class,rollout_mode,status,metadata_json FROM container_shadow_canary_registry WHERE canary_key=? LIMIT 1",
+      [plan.canaryKey]
+    );
+    const readback=readbackRows?.[0];
+    if(!readback || String(readback.rollout_mode) !== "shadow") {
+      throw Object.assign(new Error("Canary rollback readback did not match shadow mode."),{
+        code:"container_canary_rollback_readback_failed",status:409
+      });
+    }
+
+    const envelopeLifecycle = await transitionCapabilityEnvelopeLifecycle({
+      pool:executor,
+      envelopeId:envelope.envelope_id,
+      action:"consume",
+      executionRef:`dynamic_container_canary_rollback:${plan.canaryKey}`
+    });
+    if(!envelopeLifecycle.ok) {
+      throw capabilityEnvelopeError(envelopeLifecycle,"Canary rollback envelope consumption failed.");
+    }
+
+    if(transactionStarted && executor.commit) await executor.commit();
+    return {
+      ok:true,
+      mode:"apply",
+      plan,
+      readback,
+      capabilityEnvelope:{
+        envelopeId:envelope.envelope_id,
+        executionStatus:envelopeLifecycle?.after?.execution_status || null
+      },
+      providerCalls:false,
+      credentialPayloadReads:false,
+      externalWrites:false,
+      enforcementApplied:false,
+      secretsIncluded:false
+    };
+  } catch(error) {
+    if(transactionStarted && executor.rollback) await executor.rollback().catch(() => null);
+    throw error;
+  }
+}
+
 export function buildContainerCanaryPromotionPlan({ canaries = [], targetCanaryKey, readiness } = {}) {
   const targetKey=String(targetCanaryKey || "").trim();
   if(!targetKey) throw Object.assign(new Error("targetCanaryKey is required."),{ code:"container_canary_key_required",status:422 });
