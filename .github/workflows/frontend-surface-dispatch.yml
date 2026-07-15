@@ -25,7 +25,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   dispatch-plan:
@@ -50,16 +50,6 @@ jobs:
           node test-frontend-auth-openapi-parity.mjs
           node test-openapi-route-coverage.mjs
           npm run openapi:auth:check
-      - name: Commit generated evidence for manual recovery dispatch
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          if [[ -n "$(git status --porcelain -- frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)" ]]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
-            git commit -m "chore(frontend): refresh generated dispatch evidence"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-          fi
       - name: Enforce committed deterministic output
         run: |
           if [[ -n "$(git status --porcelain -- frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)" ]]; then
