@@ -180,6 +180,7 @@ flowchart TD
 | `dr_isolated_restore_certification_policy_v1` | 1 |
 | `dynamic_capability_resolution_policy_v1` | 2 |
 | `dynamic_container_canary_promotion_policy_v1` | 1 |
+| `dynamic_container_canary_rollback_policy_v1` | 1 |
 | `dynamic_container_projection_apply_policy_v1` | 1 |
 | `dynamic_release_gate_manager_policy_v1` | 1 |
 | `execution_enablement_approval_flow_policy_v1` | 2 |
