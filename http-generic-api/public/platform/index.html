@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>MAD4B Platform</title>
+    <link rel="stylesheet" href="/platform/assets/tokens.css">
+    <link rel="stylesheet" href="/platform/assets/shell.css">
+    <script src="/platform/assets/shell.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="/platform" aria-label="MAD4B platform home">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span>MAD4B <b>Platform</b></span>
+        </a>
+        <div class="topbar-actions">
+          <span class="environment"><span aria-hidden="true"></span>Repository governed</span>
+          <label class="theme-field" for="theme-select">
+            <span class="sr-only">Color theme</span>
+            <select id="theme-select" aria-label="Color theme">
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+          <a class="button primary" href="/connect">Connect workspace</a>
+        </div>
+      </header>
+
+      <aside class="sidebar" aria-label="Platform navigation">
+        <nav>
+          <a class="nav-item active" href="/platform" aria-current="page"><span>◫</span>Overview</a>
+          <a class="nav-item" href="#surfaces"><span>◇</span>Surface catalog</a>
+          <a class="nav-item" href="/connect"><span>↗</span>Connect</a>
+        </nav>
+        <div class="sidebar-note">
+          <span class="eyebrow">Delivery state</span>
+          <strong>Foundation online</strong>
+          <p>Only repository-approved surfaces appear here. Locked items stay non-callable.</p>
+        </div>
+      </aside>
+
+      <main id="main-content" tabindex="-1">
+        <section class="hero" aria-labelledby="page-title">
+          <div>
+            <span class="eyebrow">Growth intelligence OS</span>
+            <h1 id="page-title">One governed surface.<br><em>Every business context.</em></h1>
+            <p>Navigate the platform through a catalog compiled directly from runtime routes, contracts, policy and verification evidence.</p>
+          </div>
+          <div class="hero-signal" aria-label="Platform catalog status">
+            <span class="signal-orbit" aria-hidden="true"><i></i></span>
+            <div><b id="surface-count">—</b><small>approved surfaces</small></div>
+          </div>
+        </section>
+
+        <section class="metrics" aria-label="Platform summary">
+          <article><span class="metric-icon coral">↗</span><div><b>Repository-first</b><small>Live authority map</small></div></article>
+          <article><span class="metric-icon cyan">◎</span><div><b>Fail-closed</b><small>Unsafe work stays locked</small></div></article>
+          <article><span class="metric-icon lime">◐</span><div><b>Adaptive</b><small>Light, dark and system</small></div></article>
+        </section>
+
+        <section id="surfaces" class="surface-section" aria-labelledby="surface-title">
+          <div class="section-heading">
+            <div><span class="eyebrow">Repository dispatch</span><h2 id="surface-title">Available experiences</h2></div>
+            <span id="catalog-state" class="status-pill" role="status" aria-live="polite">Loading catalog…</span>
+          </div>
+          <div id="surface-grid" class="surface-grid" aria-live="polite" aria-busy="true"></div>
+          <template id="surface-template">
+            <article class="surface-card">
+              <div class="card-top"><span class="surface-group"></span><span class="surface-state"></span></div>
+              <h3></h3><p></p>
+              <div class="card-footer"><span class="surface-scope"></span><a class="surface-link">Open <span aria-hidden="true">↗</span></a></div>
+            </article>
+          </template>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
