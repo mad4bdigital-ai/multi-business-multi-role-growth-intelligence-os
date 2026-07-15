@@ -499,7 +499,7 @@ adminContainerResolutionPreview:
     x-registry-exposure: admin_tool
     x-registry-tool-key: dynamic_container_resolution_preview
     x-openai-isConsequential: true
-    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
     requestBody:
       required: true
       content:
@@ -566,7 +566,7 @@ containerRelationships:
     operationId: createContainerRelationship
     summary: Create a governed containment, sharing, delegation, reference, or management edge
     description: Validates tenant equality, type compatibility, multi-parent policy, approval requirements, traversal limits, and transitive cycle absence before advancing the tenant authority epoch.
-    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
     parameters:
       - { $ref: '#/parameters/IdempotencyKey' }
       - { $ref: '#/parameters/IfMatch' }
@@ -589,7 +589,7 @@ containerRoleAssignments:
     operationId: createContainerRoleAssignment
     summary: Assign a composable role template or explicit inline role to a container
     description: Validates template composition, cycle absence, container-type eligibility, principal identity, and optimistic authority epoch.
-    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
     parameters:
       - { $ref: '#/parameters/IdempotencyKey' }
       - { $ref: '#/parameters/IfMatch' }
@@ -612,7 +612,7 @@ containerResourceBindings:
     operationId: createContainerResourceBinding
     summary: Bind an exact resource and operation policy to a container
     description: Wildcards are forbidden. Delegation requires explicit approval, a live delegation edge, and a delegator resolution proving every delegated operation.
-    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
     parameters:
       - { $ref: '#/parameters/IdempotencyKey' }
       - { $ref: '#/parameters/IfMatch' }
@@ -635,7 +635,7 @@ containerOverrides:
     operationId: createContainerOverride
     summary: Request an explicit, exact-scope platform-owner override
     description: Requires a prior blocked resolution and a ready capability envelope. Credentials, connection ownership, and Brand Core authority cannot be overridden.
-    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
     parameters:
       - { $ref: '#/parameters/IdempotencyKey' }
     requestBody:
@@ -656,7 +656,7 @@ containerOverrideById:
     tags: [container-authority]
     operationId: getContainerOverride
     summary: Read override readiness, approvals, expiry, and consumption status
-    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
     parameters:
       - { $ref: '#/parameters/OverrideId' }
     responses:
@@ -672,7 +672,7 @@ containerOverrideApprovals:
     operationId: createContainerOverrideApproval
     summary: Record a distinct override approval or rejection
     description: Noncritical overrides may be explicitly self-approved; critical overrides require an independent approver; destructive, credential-touching, and deployment-affecting overrides require two independent approvers.
-    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
     parameters:
       - { $ref: '#/parameters/OverrideId' }
     requestBody:
@@ -696,7 +696,7 @@ adminContainerProjectionPreview:
     description: Forces dry-run behavior at the route boundary. It reads registry sources and returns a projection plan and held issues without database mutation, provider calls, credential payload reads, external writes, or enforcement.
     x-registry-exposure: admin_tool
     x-registry-tool-key: dynamic_container_projection_dry_run
-    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
     requestBody:
       required: false
       content:
@@ -718,7 +718,7 @@ containerAuthorityProjections:
     operationId: createContainerAuthorityProjection
     summary: Dry-run or SQL-only apply the legacy identity projection
     description: Uses brands.target_key as canonical Brand identity and holds ambiguous workspace, Brand, Activity, or Workflow mappings instead of guessing. Apply remains provider-free and projects Platform Graph rows as context-only. Source-loading dependency failures return the shared `503 ServiceUnavailable` error response.
-    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
     requestBody:
       required: false
       content: { application/json: { schema: { $ref: '#/schemas/ProjectionRequest' } } }
@@ -764,7 +764,7 @@ containerAuthorityShadowSummary:
     x-registry-exposure: admin_tool
     x-registry-tool-key: dynamic_container_shadow_summary
     summary: List bounded shadow mismatch and latency summaries
-    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
     parameters:
       - name: limit
         in: query
@@ -783,7 +783,7 @@ containerAuthorityRolloutReadiness:
     x-registry-exposure: admin_tool
     x-registry-tool-key: dynamic_container_rollout_readiness
     summary: Read shadow sample, mismatch, performance, projection, and relationship rollout gates
-    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
     responses:
       '200': { description: Current rollout readiness evidence; this endpoint does not enable enforcement, content: { application/json: { schema: { $ref: '#/schemas/ListResponse' } } } }
       '401': { $ref: '#/responses/Unauthorized' }
