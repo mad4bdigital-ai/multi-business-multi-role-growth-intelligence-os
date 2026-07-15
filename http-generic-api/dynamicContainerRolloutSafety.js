@@ -251,7 +251,7 @@ export async function runContainerCanaryPromotion({
     }
 
     let envelope = null;
-    if(apply && requireCapabilityEnvelope) {
+    if(apply) {
       envelope = await resolveCapabilityExecutionEnvelope({
         pool:executor,
         envelopeId:capabilityEnvelopeId,
