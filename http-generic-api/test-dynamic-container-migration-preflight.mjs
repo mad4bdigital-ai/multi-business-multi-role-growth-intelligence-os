@@ -68,6 +68,24 @@ const migrations = [
       "/admin/container-authority/canary-promotions",
       "no_global_enforcement"
     ]
+  },
+  {
+    file:"20260715_dynamic_container_canary_runtime_observability.sql",
+    statements:6,
+    requiredObjects:[
+      "container_canary_observations",
+      "v_container_canary_monitoring_summary"
+    ],
+    requiredFragments:[
+      "dynamic_container_canary_rollback_policy_v1",
+      "rollback_to_shadow_only",
+      "transactional_envelope_consumption_required",
+      "dynamic_container_canary_rollback",
+      "dynamic_container_canary_monitoring",
+      "/admin/container-authority/canary-rollbacks",
+      "/container-authority/canary-monitoring",
+      "historical_evidence_preserved"
+    ]
   }
 ];
 
