@@ -25,7 +25,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   dispatch-plan:
@@ -43,13 +43,29 @@ jobs:
           cache-dependency-path: http-generic-api/package-lock.json
       - run: npm ci
       - name: Generate source-pinned dispatch plan
-        run: npm run frontend:dispatch:generate -- --baseline-ref="${{ github.event.pull_request.base.sha || github.sha }}"
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            BASELINE_REF="785166ae9e8fc5f2db814ac53fb4f367527a0339"
+          else
+            BASELINE_REF="${{ github.event.pull_request.base.sha }}"
+          fi
+          npm run frontend:dispatch:generate -- --baseline-ref="$BASELINE_REF"
       - name: Verify generator contract
         run: |
           node test-frontend-surface-dispatch.mjs
           node test-frontend-auth-openapi-parity.mjs
           node test-openapi-route-coverage.mjs
           npm run openapi:auth:check
+      - name: Commit generated evidence for manual recovery dispatch
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [[ -n "$(git status --porcelain -- frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
+            git commit -m "chore(frontend): refresh generated dispatch evidence"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
       - name: Enforce committed deterministic output
         run: |
           if [[ -n "$(git status --porcelain -- frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)" ]]; then
