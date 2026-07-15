@@ -38,6 +38,7 @@
       "dispatch_fixture_tests": true,
       "full_repo_generated_plan": true,
       "runtime_openapi_auth_parity_model": true,
+      "canonical_auth_sync_all_occurrences": true,
       "runtime_openapi_auth_contract_gap_count": 0,
       "openapi_operation_presence_gap_count": 0,
       "canonical_openapi_operation_count": 532,
