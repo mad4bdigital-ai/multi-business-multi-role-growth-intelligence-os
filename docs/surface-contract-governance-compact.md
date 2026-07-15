@@ -1,11 +1,11 @@
 # Surface Contract Governance Compact
 
 - Gate: fail
-- Blocking new items: 12
-- Docs completion: 512/524 (97.71%)
-- Queue items: 12
+- Blocking new items: 13
+- Docs completion: 512/525 (97.52%)
+- Queue items: 13
 - OpenAPI missing SQL routes: 2
-- OpenAPI-exempt SQL route-like literals: 650/671
+- OpenAPI-exempt SQL route-like literals: 651/672
 - Safety marker gap migrations: 0
 - Trend quality gate: fail
 
@@ -18,6 +18,6 @@
 - `20260715_capability_envelope_template_resolver.sql` — critical_review, score 818; add targeted patch-index, parity, and governance documentation
 - `20260715_dynamic_container_canary_promotion_tool.sql` — critical_review, score 807; add targeted patch-index, parity, and governance documentation
 - `20260714_async_release_deploy_contract.sql` — critical_review, score 790; add targeted patch-index, parity, and governance documentation
+- `20260715_dynamic_container_canary_probe_sampler_tool.sql` — critical_review, score 730; add targeted patch-index, parity, and governance documentation
 - `20260714_supervisor_runtime_admin_tool_exports.sql` — critical_review, score 724; add targeted patch-index, parity, and governance documentation
 - `1046_sprint69_dynamic_container_shadow_sampler_tool.sql` — high_review, score 677; add targeted patch-index, parity, and governance documentation
-- `20260715_dynamic_container_rollout_readiness_current_evidence.sql` — high_review, score 545; add targeted patch-index, parity, and governance documentation
