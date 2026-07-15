@@ -13,6 +13,10 @@ const verifier = readFileSync(
   new URL("../apps/local-manager-windows/ConnectorCapabilityVerifier.cs", import.meta.url),
   "utf8",
 );
+const deviceLink = readFileSync(
+  new URL("./services/localManagerDeviceLinkService.js", import.meta.url),
+  "utf8",
+);
 const dispatcher = readFileSync(
   new URL("../apps/local-manager-windows/SidecarReadOnlyDispatcher.cs", import.meta.url),
   "utf8",
