@@ -885,10 +885,10 @@ internal static class Program
             }
         }
 
-        private async Task RunElevatedInstallerAndVerifyAsync(SignedInstallerDownload download, string installerLabel, string dialogTitle, string explanation, Func<Task>? refreshAfterInstall)
+        private async Task RunElevatedInstallerAndVerifyAsync(SignedInstallerDownload download, string installerLabel, string dialogTitle, string explanation, Func<Task<bool>>? verifyAfterInstall)
         {
             var result = MessageBox.Show(
-                $"{installerLabel} is ready.\n\n{explanation}\n\nLocal Manager will launch the correct installer, wait for it to finish when Windows exposes the process handle, then refresh device controls automatically.",
+                $"{installerLabel} is ready.\n\n{explanation}\n\nLocal Manager will launch the correct installer, wait for it to finish when Windows exposes the process handle, then verify the post-install runtime state.",
                 dialogTitle,
                 MessageBoxButtons.OKCancel,
                 MessageBoxIcon.Warning);
@@ -934,26 +934,36 @@ internal static class Program
             _status.Text = $"{installerLabel} finished. Waiting for connector service to restart…";
             await Task.Delay(TimeSpan.FromSeconds(8));
 
-            if (refreshAfterInstall is not null)
+            var postInstallVerified = verifyAfterInstall is null || await verifyAfterInstall();
+            _progress.Value = 100;
+            if (!postInstallVerified)
             {
-                await refreshAfterInstall();
+                _status.Text = $"{installerLabel} completed, but post-install runtime verification did not pass.";
+                return;
             }
 
-            _progress.Value = 100;
-            _status.Text = $"{installerLabel} completed. Device controls were refreshed automatically.";
+            _status.Text = $"{installerLabel} completed. Post-install verification passed.";
         }
 
-        private async Task RefreshDeviceControlsAfterInstallerAsync(string section, string label)
+        private async Task<bool> RefreshDeviceControlsAfterInstallerAsync(string section, string label)
         {
             var token = LoadDeviceToken(false);
             if (string.IsNullOrWhiteSpace(token))
             {
                 _status.Text = label + ": no linked device token; use Device session after relinking.";
-                return;
+                return false;
             }
+
             var verification = await _connectorCapabilityVerifier.VerifyAsync(section, token);
-            _status.Text = label + " verified.";
             _output.Text = verification.ControlEnvelope.GetRawText();
+            if (!verification.RuntimeVerified)
+            {
+                _status.Text = label + ": installer completed but connector runtime is not active.";
+                return false;
+            }
+
+            _status.Text = label + " verified.";
+            return true;
         }
 
         private sealed record InstalledAppChoice(string DisplayName, string ExecutablePath)
