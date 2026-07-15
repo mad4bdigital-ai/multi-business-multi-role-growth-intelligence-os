@@ -355,6 +355,7 @@ assert.deepEqual(
   ].sort(),
 );
 assert(plan.baseline.authority.some((entry) => entry.file === "openapi/team.yaml"));
+assert(plan.baseline.authority.some((entry) => entry.file === "routes/tenantRoutes.js"), "mounted route implementations must participate in the baseline digest");
 assert(plan.baseline.authority.some((entry) => entry.file.endsWith("/scripts/frontend-surface-dispatch.mjs") || entry.file === "scripts/frontend-surface-dispatch.mjs"));
 assert(plan.tasks.find((task) => task.wave === "F3-admin-workspaces").dependencies.includes("F2-admin-bff-session"));
 assert.equal(plan.tasks.filter((task) => task.state === "ready").length, 2, "both fully governed tenant fixtures may become ready");
@@ -438,5 +439,6 @@ fs.appendFileSync(path.join(apiRoot, "routes/tenantRoutes.js"), "\nrouter.get('/
 const driftResult = syncDispatchPlan({ apiRoot, mode: "check", baselineRef: "fixture-sha" });
 assert.equal(driftResult.ok, false);
 assert.equal(driftResult.drift, true);
+assert.notEqual(driftResult.plan.baseline.source_digest, checkResult.plan.baseline.source_digest, "mounted route drift must invalidate the shared baseline digest");
 
 console.log("frontend surface discovery and dynamic dispatch tests passed");

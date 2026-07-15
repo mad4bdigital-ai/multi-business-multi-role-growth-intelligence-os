@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "c734cfab028265db8ff55ce1e31364b08793dbe7",
-    "source_digest": "9fffbfe5ab533445f4df7f0fcb6fe57a7016c88ac8f0d571dbffd816feff667c",
+    "source_digest": "ddbdcc6cfe295af31073b7d70f7a96fd70ca6c2f6dc57a17d7282f2e1002c075",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -170,13 +170,638 @@
         "present": true
       },
       {
+        "file": "routes/accessRoutes.js",
+        "sha256": "ac6cce82569a93a0cc7317b7efb36a71c8e090f65949263e5fa47339a5fe9ed4",
+        "present": true
+      },
+      {
+        "file": "routes/activationAwarenessRoutes.js",
+        "sha256": "fcbb07cdcc99d78a6341ae8f438bb26344f75d832cecc4fdec906eb589c55d63",
+        "present": true
+      },
+      {
+        "file": "routes/activationGuidanceRoutes.js",
+        "sha256": "9e5e9e2976fd55b3d2a9b9af1d9f2b029f4dbd9642d26f7ba37e27f0302c7bf4",
+        "present": true
+      },
+      {
+        "file": "routes/activationHardRunRoutes.js",
+        "sha256": "5b23201edb607b1bcd9ec56c45e079fa973a4a4204ef0baffbfbb89260348571",
+        "present": true
+      },
+      {
+        "file": "routes/activationHostGatewayRoutes.js",
+        "sha256": "34c3683b9fe6011e79ec2f74a17b73de62da38bf84126bbb6d9fd0309c35b91a",
+        "present": true
+      },
+      {
+        "file": "routes/activationRoutes.js",
+        "sha256": "c162b50497fa6bdefe090622e80f7fe93d0974c01b917f1b02a545a83d593b63",
+        "present": true
+      },
+      {
+        "file": "routes/adminCliRoutes.js",
+        "sha256": "193be2153c87232aa2479954bef0f14a3f46b259297d599b1b94538a0121c1c0",
+        "present": true
+      },
+      {
+        "file": "routes/adminOnboardingRoutes.js",
+        "sha256": "da6c375e42ba57f3fbdac752343731f79548b56f5b5c27f0e96cb41087cb1680",
+        "present": true
+      },
+      {
+        "file": "routes/adminScopeGrantsRoutes.js",
+        "sha256": "d1e89c9071b86c7856dfa25e80880b16d4cc2402a460091d133e564a57e1ed81",
+        "present": true
+      },
+      {
+        "file": "routes/adminWorkspaceAuthorityRoutes.js",
+        "sha256": "27f1254f2546dd3c1c78040d656402a07543a0db9b1a2e3dba86a49721dad3f3",
+        "present": true
+      },
+      {
+        "file": "routes/agentGovernanceRoutes.js",
+        "sha256": "974a1b4d5f8412a033c948180818ef36f79d9245181475a4049bb7207670d813",
+        "present": true
+      },
+      {
+        "file": "routes/agentIntelligenceRoutes.js",
+        "sha256": "6764a579a87415ddf946fa8aa7e8ba81b5248c6931e881af3cc85ad77cae14c0",
+        "present": true
+      },
+      {
+        "file": "routes/agentRegistryRoutes.js",
+        "sha256": "dbc50bd7911e663c911409055395a1ebf144f21831339207c61c49ae294dfcfb",
+        "present": true
+      },
+      {
+        "file": "routes/agentSkillRoutes.js",
+        "sha256": "382f5d9d3aeae31cd8b24f2ca92e13afff28a5de89bbf3bad44aeebc52fe81d6",
+        "present": true
+      },
+      {
+        "file": "routes/agentSurfaceRoutes.js",
+        "sha256": "44684258af8deb93ea49c08b6ff3a4118a204b887a3583e0a2847708e6227953",
+        "present": true
+      },
+      {
+        "file": "routes/aiResolverRoutes.js",
+        "sha256": "c1ab5a7340343cb494338209b3eb97f1d30958d4a7c33c8f98c7eb55acee2f89",
+        "present": true
+      },
+      {
+        "file": "routes/appIntegrationRoutes.js",
+        "sha256": "e445f6b8bea03bba0502a7b5d6b243653957f75da7672c673e3df137498f0c1a",
+        "present": true
+      },
+      {
+        "file": "routes/asyncReleaseDeployRoutes.js",
+        "sha256": "5b8e14ae1964b9da5dbd8ac1a8fa3a8e0534d52e539decd200f8d28aace73379",
+        "present": true
+      },
+      {
+        "file": "routes/authRoutes.js",
+        "sha256": "fe799c3e0e0d75b245e5bad36dfb486b0894adce9e9238132dc00b4d3b3a768c",
+        "present": true
+      },
+      {
+        "file": "routes/backupArtifactRoutes.js",
+        "sha256": "3eb979cbff1a3044fe96e83e5529e2e1f3bb8d8f48f85652251042e0240caf1f",
+        "present": true
+      },
+      {
+        "file": "routes/batchRoutes.js",
+        "sha256": "56e0a69e0978f72229751d781e1703f323ce31111c64c940b5820b84b6f50945",
+        "present": true
+      },
+      {
+        "file": "routes/bootstrapRoutes.js",
+        "sha256": "ab7d2dba11f0cfc5133463d2e0c0fb2d3f0f3b6c45b28961ed47cd753b0b1e97",
+        "present": true
+      },
+      {
+        "file": "routes/browserRuntimeRoutes.js",
+        "sha256": "96f209c4eff37d24754f7064b15e41ccf86e0f80cb8923dbaae3755f6daf1203",
+        "present": true
+      },
+      {
+        "file": "routes/connectApiRoutes.js",
+        "sha256": "f71b03c46246136b138e513e342f27a3427bd02e5db18a667456d32033a6ff9c",
+        "present": true
+      },
+      {
+        "file": "routes/connectRoutes.js",
+        "sha256": "b37e1f25a1dc0a45aed95897ed6ebf0093a123a64623546ab6beba84673f454e",
+        "present": true
+      },
+      {
+        "file": "routes/connectedExecutionRoutes.js",
+        "sha256": "544cf6f59eae97ea159cc876e7d10eadf820a2b29c0ed38a53611e8c6040aba5",
+        "present": true
+      },
+      {
+        "file": "routes/connectedSystemsRoutes.js",
+        "sha256": "c72a33fb60d46a67a5711dacde91f48375e8b33f1073ae0f5589e828b28c61e0",
+        "present": true
+      },
+      {
+        "file": "routes/connectorAgentRoutes.js",
+        "sha256": "6b743eff04ddfa1fb8bca5e3c4170ccce52ef6a8123bc415afd546aacffaefd3",
+        "present": true
+      },
+      {
+        "file": "routes/connectorProxyRoutes.js",
+        "sha256": "14c99a514426d4359f574793bdd2918bc4435a801522c7fb4c68052c9e8fac6e",
+        "present": true
+      },
+      {
+        "file": "routes/connectorRoutes.js",
+        "sha256": "7b3f3db5fe9037c4ba560ee87e1e4af0f2e856666a22eb5fdc253256f256b67f",
+        "present": true
+      },
+      {
+        "file": "routes/connectorTaxonomyRoutes.js",
+        "sha256": "98dd79181a82f1df6b99f5e7ec8ea791c2e527c1fe29383d8a18b42b08a966d7",
+        "present": true
+      },
+      {
+        "file": "routes/credentialIntakeRoutes.js",
+        "sha256": "55c4553554b72aeb79bb83994866df4aff47f68f0787f7187b15b80904764ea3",
+        "present": true
+      },
+      {
+        "file": "routes/credentialRoutes.js",
+        "sha256": "a99a4cdc8095573568d61d26fa7d157bb8c3786a4c2306e82f345ce753f6f15f",
+        "present": true
+      },
+      {
+        "file": "routes/customerRoutes.js",
+        "sha256": "eaef1b160e0c1e0163b81d9a2f385779b3b996d9635f77cd1cdb31422068a176",
+        "present": true
+      },
+      {
+        "file": "routes/deploymentInfoRoutes.js",
+        "sha256": "c6416193df9381f0f563fe38a3d3a7135e7925e5e070a0ff713950dd064ff391",
+        "present": true
+      },
+      {
+        "file": "routes/devAgentRoutes.js",
+        "sha256": "58c93ee45d25ccb3081b8beca00c5fae5473b29f25bb040ce4455db792999a19",
+        "present": true
+      },
+      {
+        "file": "routes/devDbRestoreRoutes.js",
+        "sha256": "432cfc22a347e760b888daf93f6933ab1056816692ad5cc028d1caecfedd9c01",
+        "present": true
+      },
+      {
+        "file": "routes/developerApiRoutes.js",
+        "sha256": "958199afb510ab4b81abe6f86660434f66b5b31225f0f618268241ad4ab24c25",
+        "present": true
+      },
+      {
+        "file": "routes/deviceToolsRoutes.js",
+        "sha256": "e0eea44c7c90e35c64c322068526b55341fcfecd64b2144719e740fd2b79db13",
+        "present": true
+      },
+      {
+        "file": "routes/dispatchRoutes.js",
+        "sha256": "9de68f68888e56fe6c4583da38a21e22572e7766a99030badf14c1361e3a1ec9",
+        "present": true
+      },
+      {
+        "file": "routes/dynamicContainerAuthorityRoutes.js",
+        "sha256": "97a27cd5cbd70253668583450df3d25188fc16f3f238265d9bca4cc00be4e292",
+        "present": true
+      },
+      {
+        "file": "routes/dynamicContainerTeamRoutes.js",
+        "sha256": "1be9e1113fa529402b71f2600cc758356801b9f1f7f5972d4c18f8d1a8b92941",
+        "present": true
+      },
+      {
+        "file": "routes/executeRoutes.js",
+        "sha256": "59d6334e7464204052fb5055793b896f2400c8e075fcfad5dac1089c1910b85a",
+        "present": true
+      },
+      {
+        "file": "routes/githubRoutes.js",
+        "sha256": "b91263371aa47236a614713098175d155c5a946e36a755bb4a553ce996563647",
+        "present": true
+      },
+      {
+        "file": "routes/governanceRoutes.js",
+        "sha256": "a089f38f71681449c5203068770536496732610e881a47ba4e591616b330c602",
+        "present": true
+      },
+      {
+        "file": "routes/gptSessionRoutes.js",
+        "sha256": "c27bde1848b0e7acdd6af6df6e1579eab12f56fc4748081257f1ab5a11ac29b1",
+        "present": true
+      },
+      {
+        "file": "routes/gptToolsRoutes.js",
+        "sha256": "c33db987d26eda39df0377e893540477ecb9d9f048957c2ff162ce2873a041fb",
+        "present": true
+      },
+      {
+        "file": "routes/growthIntelligenceRoutes.js",
+        "sha256": "9f3f40b9d501715ce0576c2c94b94cb11e2c964905280e1e0964e0729d8cbcb5",
+        "present": true
+      },
+      {
+        "file": "routes/healthRoutes.js",
+        "sha256": "30a7fcc1d198fd03d39df1ed3eb016bad3c5cb963d7a1d9e66ea2f6916f87c3c",
+        "present": true
+      },
+      {
+        "file": "routes/identityRoutes.js",
+        "sha256": "dff309646a3e305761d56b0bb42d801323164c0de2f20df092e04bafbecedc67",
+        "present": true
+      },
+      {
         "file": "routes/index.js",
         "sha256": "125982eba23ad914ba2b8eb04e4c8a03a0a77c2e92cbd5d86860edfc6485672a",
         "present": true
       },
       {
+        "file": "routes/jobRoutes.js",
+        "sha256": "c7e41224925bcef92d520e4d6390017b6c88949dc8a5f7fba9946fb7fd889606",
+        "present": true
+      },
+      {
+        "file": "routes/legalRoutes.js",
+        "sha256": "e2e1c1c09376b1fa23b4984cd94b8b924517f38dd07b9bc4cbefd74f6ca50b92",
+        "present": true
+      },
+      {
+        "file": "routes/localConnectorDeviceRouteRoutes.js",
+        "sha256": "6b84896f2ccbd611d2c580429017fbbbbf45f09a0ecadcd599f474f5351da048",
+        "present": true
+      },
+      {
+        "file": "routes/localConnectorInstallRoutes.js",
+        "sha256": "426cbd6afd9cbc4997c1eedb3c728ba60377ae79715ac3fe8ad7552604e72194",
+        "present": true
+      },
+      {
+        "file": "routes/localConnectorRoutes.js",
+        "sha256": "919ab2d23ef824996c1fa408bb2fbfd880108acbbe14b17830dc91d42e1ab0be",
+        "present": true
+      },
+      {
+        "file": "routes/localGatewayToolsRoutes.js",
+        "sha256": "dda55c32b77e18239f78b33e6f764856a7b5b2c2e399f9492ad070b8d70b17dd",
+        "present": true
+      },
+      {
+        "file": "routes/localManagerBetaRoutes.js",
+        "sha256": "0a623a0f778feb56472a786103d88250eaec04589f3fdb73aa147a6161c8f32d",
+        "present": true
+      },
+      {
+        "file": "routes/localManagerDesktopCommandRoutes.js",
+        "sha256": "e7f148fde3fb3b5cfa2504180c42be518629a864f0d1797925590a930a16fb5d",
+        "present": true
+      },
+      {
+        "file": "routes/logicRoutes.js",
+        "sha256": "bad1f74c68e49abe8b259bb8cf9dab2fd2f959e36dc8cfca2036d0c04af04fa4",
+        "present": true
+      },
+      {
+        "file": "routes/mcpRoutes.js",
+        "sha256": "db21d8e0908ab42c0caac836297fb31957cd376545e8857a25f0ea65ee2ff9b1",
+        "present": true
+      },
+      {
+        "file": "routes/memberGoogleOAuthRoutes.js",
+        "sha256": "86b8b87fc364f75f1af01780baa30c449631c21c5719fe521234871ba5dc93ab",
+        "present": true
+      },
+      {
+        "file": "routes/n8nWorkflowRuntimeRoutes.js",
+        "sha256": "3baa7448207f2fa513ea49e97d2c57f411e402c05917caf6e8e568a717cda7fc",
+        "present": true
+      },
+      {
+        "file": "routes/observabilityRoutes.js",
+        "sha256": "a3be5fe21c8d05dedcb916f8bc03e3f0effed26e754b1e0d9e83b68871ec3fb5",
+        "present": true
+      },
+      {
+        "file": "routes/onboardingRoutes.js",
+        "sha256": "ee1c8078dca14c2b66b1efe5c0d3469ea2f2681e1069d2291abc4da78191a3aa",
+        "present": true
+      },
+      {
+        "file": "routes/openApiRegistrySyncRoutes.js",
+        "sha256": "db00769801a1b903f69e0160820bc721a204e3b005098838d0a55d500d0bbb6c",
+        "present": true
+      },
+      {
+        "file": "routes/operationalConsoleRoutes.js",
+        "sha256": "4b4e5efd3b544e2899acb33aba5d995fd75dde5202d785e5e0c7e8c5a32d1905",
+        "present": true
+      },
+      {
+        "file": "routes/outputSinkRoutes.js",
+        "sha256": "26fddd79f9226a1cd9d9a415de060b5ec0834f45f8080d185a7381f802b3465a",
+        "present": true
+      },
+      {
+        "file": "routes/plannerRoutes.js",
+        "sha256": "43a0265eec0bc0b2fe5391706283f13fa06fece9f1e997f4e3d0e21f6395161e",
+        "present": true
+      },
+      {
+        "file": "routes/platformEngineRoutes.js",
+        "sha256": "582c29b0a34ce938b92de0003db7da1aa1693980309b1770e3dda949c35e5a0b",
+        "present": true
+      },
+      {
+        "file": "routes/platformEvolutionRoutes.js",
+        "sha256": "33b6c24446a116a85e5e6faa183380f25c4775efe959530a4239330dc464bbe5",
+        "present": true
+      },
+      {
+        "file": "routes/platformFrontendRoutes.js",
+        "sha256": "95c86af9e6a53e355868621eca5d53d72d25311653ae9cfd2727982b59cd9962",
+        "present": true
+      },
+      {
+        "file": "routes/platformGraphRoutes.js",
+        "sha256": "149ceb065f834fc1d4ce34e5bd3604e5c8ff4446960b5c2e0150f9d54adc8a6d",
+        "present": true
+      },
+      {
+        "file": "routes/platformPluginRoutes.js",
+        "sha256": "55c2efe7d971473777883c6b5f7e049640f78376ecc3b51272cd1d566dde8592",
+        "present": true
+      },
+      {
+        "file": "routes/platformPrivateCapabilityVaultRoutes.js",
+        "sha256": "a18efd7572280c78cd8a4ab6b427793289775773c422e8396861bbdd5f4dd209",
+        "present": true
+      },
+      {
+        "file": "routes/platformSmokeRoutes.js",
+        "sha256": "fa3f68180ef4aa6b234a40aaee9e0a5ef1758fd2e58fe6a167e8398547edab96",
+        "present": true
+      },
+      {
+        "file": "routes/releaseGateManagerRoutes.js",
+        "sha256": "02abf9425b930fad2ddee96169866c30e662aeb38103e23254d4d2a97990ebc3",
+        "present": true
+      },
+      {
+        "file": "routes/releaseOperationRoutes.js",
+        "sha256": "da08d80c910617352b0a6963dc5527dc9f123f82ca19b40ed2998d6e300c9e0f",
+        "present": true
+      },
+      {
+        "file": "routes/releaseRoutes.js",
+        "sha256": "7e67701cf8a545b3b8ff5c7bc37779b8ce949430e75640267fd170a11755e751",
+        "present": true
+      },
+      {
+        "file": "routes/repoConflictIntelligenceRoutes.js",
+        "sha256": "16a1d498ab405b94abe8e888cf8835d6ae74752ea8e06f9824043b90447b444d",
+        "present": true
+      },
+      {
+        "file": "routes/repositoryAutomationRoutes.js",
+        "sha256": "0ece60c2bd7cb5d1d557f41630e3a733b8ff3c02c398a39d70ff036eb2e70e36",
+        "present": true
+      },
+      {
+        "file": "routes/resourceApiRoutes.js",
+        "sha256": "920087ea6dfd85ad32c2371ecffc684527d23550cf238d9e3dc44e94fe31d9ee",
+        "present": true
+      },
+      {
+        "file": "routes/resourceAuthorityGrantRoutes.js",
+        "sha256": "1fa13a82f8d09ef0609e600010ae2b38ff44badcebe07b9206f1951cb2343f8d",
+        "present": true
+      },
+      {
+        "file": "routes/rootDiscoveryRoutes.js",
+        "sha256": "264e74feaac2c9bac8d0ed52514ec9369291bc99a32940bce4df5c3797045ad9",
+        "present": true
+      },
+      {
+        "file": "routes/runtimeVerificationRoutes.js",
+        "sha256": "50730c1d8bf5ea6b65f2d1f38351f5c0a04e3b07ecf4569a88a14b56598919b0",
+        "present": true
+      },
+      {
+        "file": "routes/schemaImportRoutes.js",
+        "sha256": "d05f9ec53fbb9ede5555d7627519c8cb6c69cd86d99d45c306fb26e4c4ac1652",
+        "present": true
+      },
+      {
+        "file": "routes/securityRoutes.js",
+        "sha256": "8ad21b5e3f4ff74ea235222aa203a2ee1b64d184ba0482a420a99d7c092abe53",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightAdapterApplyReadinessGateRoutes.js",
+        "sha256": "734ec0b8a04bff7f30220501b02b34fad43b7341d490adc7bb8c8698c833635a",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightBacklogTargetWriteRoutes.js",
+        "sha256": "8eff9ae8a9871d8c6068201f306ae7163bcc1b37b506910dc7423bd81dc8c250",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightCapabilityEnvelopeActualRequestPreflightRoutes.js",
+        "sha256": "9f4ee7f608454abffcc7afd3e153039d5fa8d2b459177b6bca2a5ac48bd12ac5",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightCapabilityEnvelopeActualRequestRoutes.js",
+        "sha256": "41850dd74db95a582e6b1f327d0ddbbec891aa14233567fbc66cd7670891be46",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightCapabilityEnvelopeAdapterExecutionGateRoutes.js",
+        "sha256": "3d93addd216f287acafad4cdb61d00200c002eaec274f92d1720502dbf04d134",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightCapabilityEnvelopeApprovalRoutes.js",
+        "sha256": "a3daf97833248e6a65f57b0d6c3a049baa1c08494d293c6d40e9aeb6da4a93d5",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightCapabilityEnvelopeDispatchDryRunReviewRoutes.js",
+        "sha256": "ce306774432583d775f51ae3739d213ea9c840c7ee0713f07a71827b391b5a8d",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightCapabilityEnvelopeDispatchDryRunRoutes.js",
+        "sha256": "8764b7c24cf6a20888b59276375271863bb378f494b1be5107173e5fd4894022",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightCapabilityEnvelopeDispatchReadbackRoutes.js",
+        "sha256": "102825f43f401c15d44f6897cdf182224855fa3052c585224420207d86ac51a9",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightCapabilityEnvelopePlanRoutes.js",
+        "sha256": "59ef7453d38d73768e70a05f150c7ba92fb9d5b9ba983378569652bcd582f8b6",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightCapabilityEnvelopeRequestGateReviewRoutes.js",
+        "sha256": "e214cdbc29157e6a02a24f4ebf7e994233ea8c33d3945d30d8c7b5bd0d0325e5",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightCapabilityEnvelopeRequestGateRoutes.js",
+        "sha256": "1969749f8b8020720f4ca87d22aac7f0d071cc9e5865a9ec22e29c79c2955a37",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightPayloadPreviewReviewRoutes.js",
+        "sha256": "34327d1a80be26e153366441e123e30e5ae7928a6ee5a9af1d4dbeb9e276c6cc",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightPromotionAdapterContractRoutes.js",
+        "sha256": "c444d9892996560de9c021aa3361c41559106e10084aec7b9707e66d8aed1a6c",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightPromotionApplyRequestRoutes.js",
+        "sha256": "cf520528a72818d44547738fdad6f2e3f096949227217733a7a8e910c3123947",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightPromotionDryRunExecutorRoutes.js",
+        "sha256": "401d7d33f6d624940285c3d943b203800c890a7e18778e589de55d8989cb8552",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightPromotionPayloadPreviewRoutes.js",
+        "sha256": "0816095e982315271a8de95878079a04f03ac1ea3b1426d8b8ff3f1ebafeff71",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightPromotionReviewRoutes.js",
+        "sha256": "90f25ea1fea348395c026fbb9ae454a4ba07d76ce0fa52a3e582369f0b5c1c3a",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightPromotionTargetAdapterRegistryRoutes.js",
+        "sha256": "cfe83290c864dc90d2a7bc18d968d25185a336bfc200c45598c758260b8a5279",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightRemainingScopeCompletionRoutes.js",
+        "sha256": "814a062cb88c2a318cf7c84ea55a6763cfa1d2e6016c7edac09920dd724e9f34",
+        "present": true
+      },
+      {
+        "file": "routes/sessionInsightTargetWriteReadbackRoutes.js",
+        "sha256": "6e841383080c5900f4e866d3e66e182ae026615b329adefbe7420bfdfd319e81",
+        "present": true
+      },
+      {
+        "file": "routes/sessionRoutes.js",
+        "sha256": "c1f9598ba99186c1358159ad596f1ad3451fb7e5f008c96950d727d81355bb66",
+        "present": true
+      },
+      {
+        "file": "routes/sqlCachePolicyRoutes.js",
+        "sha256": "62256d14103d0d45e2cd754bbf6ff32bf6aefdf3914f2597e9cfc5e9fbe97992",
+        "present": true
+      },
+      {
+        "file": "routes/sqlEndpointRegistryRoutes.js",
+        "sha256": "26769efe9d967b49a4c49d2a03e5c0f4e7de400a70947bebd63e4bfee41bad9f",
+        "present": true
+      },
+      {
+        "file": "routes/statusRoutes.js",
+        "sha256": "a06c5fb467b9d8a024c8d6cc1786debce5c990ce3e77ab8d6830d64ae37366b3",
+        "present": true
+      },
+      {
+        "file": "routes/supportTicketRoutes.js",
+        "sha256": "c88d1ffc000f5c58e3fdd6cdb6067a5e726eb12c56913fa342356350e25d20f3",
+        "present": true
+      },
+      {
+        "file": "routes/systemLayerRoutes.js",
+        "sha256": "0fd1ff143a820262d3b0e8ceb8f0d5adf34d5d0f5f690e1b87de3d7ea9dad31c",
+        "present": true
+      },
+      {
+        "file": "routes/tenantActivationOverlayRoutes.js",
+        "sha256": "d23a6ef955367f466b93cd944fa3988222f4904c14fa337c3bb15118f2f88719",
+        "present": true
+      },
+      {
+        "file": "routes/tenantCommercialRoutes.js",
+        "sha256": "491e0df58187d6c5e68bfbc2506c5753a4d1c084663f4cc3ca7bd9cac7463e15",
+        "present": true
+      },
+      {
+        "file": "routes/tenantDocsRoutes.js",
+        "sha256": "14a3eb55190fcca12bea748eaa373ec15069cd61681c8d88bcdf359084df9550",
+        "present": true
+      },
+      {
+        "file": "routes/tenantEvolutionRoutes.js",
+        "sha256": "d971780adb67452cfaa1797848881be622992bade1dcd787dd3539e8737f00bf",
+        "present": true
+      },
+      {
+        "file": "routes/tenantGrowthDashboardRoutes.js",
+        "sha256": "bbaa84dd9eefe5b512ba0fbb6046609bce2ddcccdf777d3e3da30bc4c55cae4e",
+        "present": true
+      },
+      {
+        "file": "routes/tenantInfrastructureRoutes.js",
+        "sha256": "9b3eb33af00f8d5fbd40533a309ce5998ebc271c22af72449512b47614f8c325",
+        "present": true
+      },
+      {
+        "file": "routes/tenantLifecycleRoutes.js",
+        "sha256": "c19b0a84299625ea9826adde57d77d2821813a7fec8a73bba6de7c0bf6472942",
+        "present": true
+      },
+      {
+        "file": "routes/tenantPlatformPluginRoutes.js",
+        "sha256": "4c4fef83927205da716193cb3a5895e85e9b4864bd2da38814ca578c129a1020",
+        "present": true
+      },
+      {
+        "file": "routes/tenantsRoutes.js",
+        "sha256": "5fe42b703b841fd2bdc6ab22150b6c68c6cc2d7519b361462f862649bf981fce",
+        "present": true
+      },
+      {
+        "file": "routes/uploadRoutes.js",
+        "sha256": "8c99a70764de5347c5b0a8ddcec8b7f07846fb2e621cf8a584149b4501e987af",
+        "present": true
+      },
+      {
+        "file": "routes/workflowOrchestrationRoutes.js",
+        "sha256": "41371defd77f6ada99be681d13f41fa63b0264674792b7690ffc01c76b215ed5",
+        "present": true
+      },
+      {
+        "file": "routes/workspaceResourceRoutes.js",
+        "sha256": "1c79777a9c5c51f40f0a1c7850cf9554e710f9eded155dae05eedb7adc433538",
+        "present": true
+      },
+      {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "43a5fd6ff916c51069b32b80364a414fe6a42cb04b76f83f5765fe5512895907",
+        "sha256": "35659afe9c4b1b1250a516e233b996273e6065eeedc98537a5bee44bf962dd0a",
         "present": true
       },
       {

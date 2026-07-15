@@ -1269,6 +1269,7 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
   const tasks = families.map(taskFor).sort((a, b) => a.wave.localeCompare(b.wave) || b.state.localeCompare(a.state) || a.task_key.localeCompare(b.task_key));
   const sourceAuthority = unique([
     indexPath,
+    ...mounted.map((mount) => path.resolve(apiRoot, mount.file)),
     generatorPath,
     openapiPath,
     runtimeOpenapiPath,
