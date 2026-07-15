@@ -75,7 +75,7 @@ VALUES
    JSON_ARRAY('tenant_id','user_id','workspace_id'),
    JSON_ARRAY('tenant_id','user_id','workspace_id','workspace_key','workspace_type','user_role','plan_id','plan_item_id','resource_uri','recipe_key','expected_commit_sha'),
    JSON_OBJECT('ttl_minutes',60,'context',JSON_OBJECT()), 120,
-   SHA2('governed_migration_execute_v1|1|platform_orchestration|governed_migration_execute|auth_host',256), 'active'),
+   SHA2('governed_migration_execute_v1|1|platform_orchestration|governed_migration_execute|governed_migration_execute|auth_host|platform_managed_fallback|required:tenant_id,user_id,workspace_id|allowed:tenant_id,user_id,workspace_id,workspace_key,workspace_type,user_role,plan_id,plan_item_id,resource_uri,recipe_key,expected_commit_sha|default_ttl:60|max_ttl:120',256), 'active'),
   (UUID(), 'hostinger_release_deploy_v1', 1, 'Hostinger Release Deploy', 'Template for target- and commit-bound Hostinger release deployment envelopes.',
    'hostinger', 'remote_runtime_hostinger_deploy_release', 'remote_runtime_hostinger_deploy_release', 'remote_runtime_hostinger_deploy_release', 'tenant_managed',
    JSON_ARRAY('tenant_id','user_id','workspace_id','expected_commit_sha'),
