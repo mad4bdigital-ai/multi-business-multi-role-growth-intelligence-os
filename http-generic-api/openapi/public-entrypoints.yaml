@@ -1,0 +1,554 @@
+openapi: 3.1.0
+info:
+  title: MAD4B Public Entry Points API
+  version: 1.0.0
+  description: >
+    Canonical request and response contracts for public identity entry points,
+    Local Manager browser shells, signed artifact downloads, and deployment metadata.
+servers:
+  - url: https://auth.mad4b.com
+security: []
+tags:
+  - name: identity
+    description: OAuth, password, registration, and login entry points.
+  - name: local-manager-public
+    description: Public Local Manager browser and installer bootstrap surfaces.
+  - name: runtime-public
+    description: Public deployment and version metadata.
+  - name: signed-artifacts
+    description: Token-gated artifact downloads.
+paths:
+  /backup-artifacts/export/{exportId}/{fileName}:
+    get:
+      operationId: downloadBackupExportArtifact
+      tags: [signed-artifacts]
+      summary: Download one file from a temporary backup export
+      description: Validates the export identifier, allowlisted file name, expiry, and hashed query token before streaming the file.
+      security:
+        - signedQueryTokenAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ExportId'
+        - $ref: '#/components/parameters/FileName'
+      responses:
+        '200':
+          description: Export artifact bytes.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '410': { $ref: '#/components/responses/Gone' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /app/local-manager/download/windows:
+    get:
+      operationId: redirectLocalManagerWindowsDownload
+      tags: [local-manager-public]
+      summary: Redirect to the current Local Manager Windows release
+      responses:
+        '302':
+          description: Redirect to the configured Windows executable release.
+          headers:
+            Location:
+              required: true
+              schema: { type: string, format: uri }
+
+  /app/local-manager/sign-in:
+    get:
+      operationId: renderLocalManagerSignIn
+      tags: [local-manager-public]
+      summary: Render the Local Manager sign-in guidance page
+      responses:
+        '200': { $ref: '#/components/responses/HtmlPage' }
+
+  /app/local-manager/sign-up:
+    get:
+      operationId: renderLocalManagerSignUp
+      tags: [local-manager-public]
+      summary: Render the Local Manager account-creation guidance page
+      responses:
+        '200': { $ref: '#/components/responses/HtmlPage' }
+
+  /app/local-manager/link-device:
+    get:
+      operationId: renderLocalManagerDeviceLink
+      tags: [local-manager-public]
+      summary: Render the device-code approval page
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema: { type: string, maxLength: 16 }
+          description: Optional pairing code prefilled by the Local Manager app.
+      responses:
+        '200': { $ref: '#/components/responses/HtmlPage' }
+
+  /app/local-manager/devices:
+    get:
+      operationId: renderLocalManagerDevices
+      tags: [local-manager-public]
+      summary: Render the linked-devices shell
+      responses:
+        '200': { $ref: '#/components/responses/HtmlPage' }
+
+  /app/local-manager/routes:
+    get:
+      operationId: renderLocalManagerRoutes
+      tags: [local-manager-public]
+      summary: Render the connector-routes shell
+      responses:
+        '200': { $ref: '#/components/responses/HtmlPage' }
+
+  /app/local-manager/backups:
+    get:
+      operationId: renderLocalManagerBackups
+      tags: [local-manager-public]
+      summary: Render the backup and disaster-recovery shell
+      responses:
+        '200': { $ref: '#/components/responses/HtmlPage' }
+
+  /app/local-manager/settings:
+    get:
+      operationId: renderLocalManagerSettings
+      tags: [local-manager-public]
+      summary: Render the Local Manager settings shell
+      responses:
+        '200': { $ref: '#/components/responses/HtmlPage' }
+
+  /local-connector/install/download:
+    get:
+      operationId: downloadSignedLocalConnectorInstaller
+      tags: [signed-artifacts, local-manager-public]
+      summary: Download a generated Local Connector installer
+      description: Validates a short-lived installer token, reloads the active connector configuration, and renders the requested PowerShell or batch installer.
+      security:
+        - signedQueryTokenAuth: []
+      responses:
+        '200':
+          description: Generated installer text.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+          content:
+            text/plain:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /auth/oauth/authorize:
+    get:
+      operationId: renderTenantGptOAuthAuthorization
+      tags: [identity]
+      summary: Render the tenant GPT OAuth authorization page
+      parameters:
+        - name: client_id
+          in: query
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: response_type
+          in: query
+          required: true
+          schema: { type: string, const: code }
+        - name: redirect_uri
+          in: query
+          required: true
+          schema: { type: string, format: uri }
+        - name: state
+          in: query
+          required: false
+          schema: { type: string, maxLength: 2048 }
+        - name: scope
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/HtmlPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /auth/oauth/code:
+    post:
+      operationId: issueTenantGptOAuthCode
+      tags: [identity]
+      summary: Exchange a Google credential or existing user token for a short-lived OAuth code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OAuthCodeRequest' }
+      responses:
+        '200':
+          description: Short-lived authorization code and redirect metadata.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OAuthCodeResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /auth/oauth/token:
+    post:
+      operationId: exchangeTenantGptOAuthCode
+      tags: [identity]
+      summary: Exchange a single-use authorization code for a tenant GPT access token
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema: { $ref: '#/components/schemas/OAuthTokenRequest' }
+      responses:
+        '200':
+          description: OAuth access-token response.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OAuthTokenResponse' }
+        '400':
+          description: OAuth invalid-request, invalid-client, or invalid-grant response.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OAuthError' }
+
+  /auth/register:
+    post:
+      operationId: registerPlatformUser
+      tags: [identity]
+      summary: Create a user account and default workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: Registered user and bearer token.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthSessionResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /auth/login:
+    post:
+      operationId: loginPlatformUser
+      tags: [identity]
+      summary: Authenticate an email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Authenticated user and bearer token.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthSessionResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /auth/password/forgot:
+    post:
+      operationId: requestPasswordReset
+      tags: [identity]
+      summary: Queue a password-reset message without revealing account existence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email]
+              properties:
+                email: { type: string, format: email, maxLength: 255 }
+                return_to: { type: string, maxLength: 512 }
+      responses:
+        '200':
+          description: Generic accepted response for existing and non-existing accounts.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /auth/password/reset:
+    get:
+      operationId: renderPasswordReset
+      tags: [identity]
+      summary: Render the password-reset form
+      parameters:
+        - name: token
+          in: query
+          required: false
+          schema: { type: string, maxLength: 512 }
+        - name: return_to
+          in: query
+          required: false
+          schema: { type: string, maxLength: 512 }
+      responses:
+        '200': { $ref: '#/components/responses/HtmlPage' }
+    post:
+      operationId: resetPlatformPassword
+      tags: [identity]
+      summary: Consume a reset token and replace the account password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [token, password]
+              properties:
+                token: { type: string, minLength: 1, maxLength: 512 }
+                password: { type: string, minLength: 8, maxLength: 1024, writeOnly: true }
+      responses:
+        '200':
+          description: Password changed and reset token consumed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '410': { $ref: '#/components/responses/Gone' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /deployment-manifest:
+    get:
+      operationId: getDeploymentManifest
+      tags: [runtime-public]
+      summary: Read the canonical deployment manifest
+      responses:
+        '200':
+          description: Manifest read result, including validation details when unavailable.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeploymentManifestResponse' }
+
+  /version:
+    get:
+      operationId: getServiceVersion
+      tags: [runtime-public]
+      summary: Read the service version and deployment identity
+      responses:
+        '200':
+          description: Current service and deployment version metadata.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VersionResponse' }
+
+components:
+  securitySchemes:
+    signedQueryTokenAuth:
+      type: apiKey
+      in: query
+      name: token
+      description: Short-lived signed or hashed artifact token validated before download.
+  parameters:
+    ExportId:
+      name: exportId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[A-Za-z0-9._-]+$' }
+    FileName:
+      name: fileName
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[A-Za-z0-9._-]+$' }
+  responses:
+    HtmlPage:
+      description: Server-rendered HTML page with no-store caching.
+      headers:
+        Cache-Control:
+          schema: { type: string }
+      content:
+        text/html:
+          schema: { type: string }
+    BadRequest:
+      description: Request parameters or body are invalid.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: Required credential or token is missing, invalid, or expired.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Forbidden:
+      description: The authenticated token cannot access this artifact.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Requested account, session, configuration, or artifact was not found.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Conflict:
+      description: Current resource state conflicts with the requested operation.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Gone:
+      description: The one-time or expiring token is no longer usable.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    InternalError:
+      description: The server could not complete the operation.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  schemas:
+    ErrorEnvelope:
+      type: object
+      additionalProperties: true
+      required: [ok, error]
+      properties:
+        ok: { type: boolean, const: false }
+        error:
+          type: object
+          additionalProperties: true
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+        secrets_included: { type: boolean, const: false }
+
+    OAuthCodeRequest:
+      type: object
+      additionalProperties: false
+      required: [redirect_uri]
+      anyOf:
+        - required: [credential]
+        - required: [token]
+      properties:
+        credential: { type: string, minLength: 1, writeOnly: true }
+        token: { type: string, minLength: 1, writeOnly: true }
+        redirect_uri: { type: string, format: uri }
+        state: { type: string, maxLength: 2048 }
+        scope: { type: string }
+        activation_context: { type: object, additionalProperties: true }
+
+    OAuthCodeResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, code]
+      properties:
+        ok: { type: boolean, const: true }
+        code: { type: string, minLength: 1, writeOnly: true }
+        state: { type: [string, 'null'] }
+        redirect_uri: { type: string, format: uri }
+
+    OAuthTokenRequest:
+      type: object
+      additionalProperties: false
+      required: [grant_type, code, redirect_uri]
+      properties:
+        grant_type: { type: string, const: authorization_code }
+        code: { type: string, minLength: 1, writeOnly: true }
+        redirect_uri: { type: string, format: uri }
+        client_id: { type: string }
+        client_secret: { type: string, writeOnly: true }
+
+    OAuthTokenResponse:
+      type: object
+      additionalProperties: true
+      required: [access_token, token_type, expires_in]
+      properties:
+        access_token: { type: string, minLength: 1, writeOnly: true }
+        token_type: { type: string, const: Bearer }
+        expires_in: { type: integer, minimum: 1 }
+        scope: { type: string }
+
+    OAuthError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error: { type: string }
+        error_description: { type: string }
+
+    RegisterRequest:
+      type: object
+      additionalProperties: true
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 255 }
+        password: { type: string, minLength: 8, maxLength: 1024, writeOnly: true }
+        display_name: { type: string, maxLength: 120 }
+
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 255 }
+        password: { type: string, minLength: 1, maxLength: 1024, writeOnly: true }
+
+    AuthSessionResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, token]
+      properties:
+        ok: { type: boolean, const: true }
+        token: { type: string, minLength: 1, writeOnly: true }
+        token_type: { type: string, const: Bearer }
+        user:
+          type: object
+          additionalProperties: true
+          required: [user_id, email]
+          properties:
+            user_id: { type: string }
+            email: { type: string, format: email }
+            display_name: { type: [string, 'null'] }
+        tenant_id: { type: [string, 'null'] }
+
+    MessageResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, message]
+      properties:
+        ok: { type: boolean, const: true }
+        message: { type: string }
+        secrets_included: { type: boolean, const: false }
+
+    DeploymentManifestResponse:
+      type: object
+      additionalProperties: true
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+        manifest:
+          type: [object, 'null']
+          additionalProperties: true
+          properties:
+            commit_sha: { type: string }
+            deployed_at: { type: string, format: date-time }
+            environment: { type: string }
+        error:
+          oneOf:
+            - { $ref: '#/components/schemas/ErrorEnvelope/properties/error' }
+            - { type: 'null' }
+
+    VersionResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, service, version]
+      properties:
+        ok: { type: boolean, const: true }
+        service: { type: string }
+        version: { type: string }
+        commit_sha: { type: [string, 'null'] }
+        deployed_at: { type: [string, 'null'], format: date-time }
+        environment: { type: [string, 'null'] }
+        secrets_included: { type: boolean, const: false }

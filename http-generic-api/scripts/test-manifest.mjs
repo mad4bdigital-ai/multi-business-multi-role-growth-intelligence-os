@@ -1,4 +1,7 @@
 export const testCommands = [
+  "node test-platform-frontend-routes.mjs",
+  "node test-frontend-surface-dispatch.mjs",
+  "node test-frontend-auth-openapi-parity.mjs",
   "node test-interruption-readiness.mjs",
   "node test-interruption-verification-recovery.mjs",
   "node test-hostinger-startup-imports.mjs",
@@ -104,6 +107,7 @@ export const testCommands = [
   "node test-credential-intake-ssh-password.mjs",
   "node test-credential-intake-webhook-outbox.mjs",
   "node test-platform-outbox-foundation.mjs",
+  "node test-outbox-receiver-contract-draft-event.mjs",
   "node test-dev-governed-migration-client.mjs",
   "node test-credential-intake-platform-secret-promotion.mjs",
   "node test-platform-secret-promotion-monitoring.mjs",
