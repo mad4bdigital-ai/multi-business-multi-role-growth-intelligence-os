@@ -319,8 +319,27 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
   });
 
   router.get("/container-authority/rollout-readiness",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
+    let connection = null;
     try {
-      const [rows] = await getPool().query("SELECT * FROM v_container_rollout_readiness ORDER BY policy_key");
+      connection = await getPool().getConnection();
+      const observed = await executeObservedReadOnlyCanary({
+        executor:connection,
+        canaryKey:"container_authority_rollout_readiness_v1",
+        capabilityKey:"getContainerAuthorityRolloutReadiness",
+        requestId:requestId(req),
+        execute:async () => {
+          const [rows] = await connection.query("SELECT * FROM v_container_rollout_readiness ORDER BY policy_key");
+          return { ok:true,items:rows,secretsIncluded:false };
+        }
+      });
+      return res.json(observed.response);
+    } catch (error) { return errorResponse(req,res,error); }
+    finally { if(connection) connection.release(); }
+  });
+
+  router.get("/container-authority/canary-monitoring",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
+    try {
+      const [rows] = await getPool().query("SELECT * FROM v_container_canary_monitoring_summary ORDER BY canary_key");
       return res.json({ ok:true,items:rows,secretsIncluded:false });
     } catch (error) { return errorResponse(req,res,error); }
   });
