@@ -226,10 +226,14 @@ export async function resolveCapabilityEnvelopeTemplate(input = {}, deps = {}) {
   );
   const dryRun = await runDryRun(buildDryRunInput(template, context, input.explain));
   const blockingGaps = Array.isArray(dryRun?.blocking_gaps) ? dryRun.blocking_gaps : [];
-  const createAllowed = blockingGaps.length === 0 && ["ready_for_dispatch", "ready_requires_approval"].includes(dryRun?.decision);
+  const sourceTierAlignment = !template.requested_source_tier
+    || template.requested_source_tier === dryRun?.selected_source?.selected_source_tier;
+  const createAllowed = sourceTierAlignment
+    && blockingGaps.length === 0
+    && ["ready_for_dispatch", "ready_requires_approval"].includes(dryRun?.decision);
   const passthrough = buildCapabilityEnvelopeTemplatePassthrough(template, context, { explain: input.explain });
   const resolutionHash = computeCapabilityEnvelopeTemplateResolutionHash({ template, context, ttlMinutes, dryRun });
-  return {
+  const result = {
     ok: true,
     mode: "preview",
     template,
@@ -237,13 +241,17 @@ export async function resolveCapabilityEnvelopeTemplate(input = {}, deps = {}) {
     ttl_minutes: ttlMinutes,
     dry_run: dryRun,
     create_allowed: createAllowed,
-    source_tier_alignment: !template.requested_source_tier
-      || template.requested_source_tier === dryRun?.selected_source?.selected_source_tier,
+    source_tier_alignment: sourceTierAlignment,
     passthrough_argument_names: passthrough.filter((_, index) => index % 2 === 0 || passthrough[index] === "--explain"),
     resolution_hash: resolutionHash,
     secrets_included: false,
-    _passthrough: passthrough,
   };
+  Object.defineProperty(result, "_passthrough", {
+    value: passthrough,
+    enumerable: false,
+    writable: false,
+  });
+  return result;
 }
 
 export async function createCapabilityEnvelopeFromTemplate(input = {}, deps = {}) {
