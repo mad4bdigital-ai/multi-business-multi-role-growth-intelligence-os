@@ -601,9 +601,8 @@ internal static class Program
             if (text.Contains("UAC prompt was cancelled", StringComparison.OrdinalIgnoreCase)) return "uac_cancelled";
             if (text.Contains("Windows did not return a process handle", StringComparison.OrdinalIgnoreCase)) return "process_handle_unavailable";
             if (text.StartsWith("Connector repair failed:", StringComparison.OrdinalIgnoreCase)) return "repair_exception";
-            if (text.Contains("completed. Device controls were refreshed automatically.", StringComparison.OrdinalIgnoreCase)
-                || (text.StartsWith("Repair verification", StringComparison.OrdinalIgnoreCase)
-                    && text.EndsWith("verified.", StringComparison.OrdinalIgnoreCase))) return "verification_completed";
+            if (text.Contains("completed, but post-install runtime verification did not pass.", StringComparison.OrdinalIgnoreCase)) return "installer_completed_runtime_unverified";
+            if (text.Contains("completed. Post-install verification passed.", StringComparison.OrdinalIgnoreCase)) return "verification_completed";
             return "incomplete";
         }
 
