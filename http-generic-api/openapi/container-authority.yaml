@@ -287,6 +287,62 @@ schemas:
       enforcementApplied: { type: boolean, const: false }
       secretsIncluded: { type: boolean, const: false }
 
+  CanaryRollbackRequest:
+    type: object
+    additionalProperties: false
+    required: [mode, targetCanaryKey]
+    properties:
+      mode: { type: string, enum: [dry_run, apply], default: dry_run }
+      targetCanaryKey: { type: string, minLength: 1, maxLength: 191 }
+      reason: { type: string, minLength: 3, maxLength: 512 }
+      confirm: { type: string, maxLength: 255 }
+      capabilityEnvelopeId: { type: string, format: uuid }
+    allOf:
+      - if:
+          properties: { mode: { const: apply } }
+        then:
+          required: [confirm, capabilityEnvelopeId]
+
+  CanaryRollbackResponse:
+    type: object
+    additionalProperties: false
+    required: [ok, mode, plan, providerCalls, credentialPayloadReads, externalWrites, enforcementApplied, secretsIncluded]
+    properties:
+      ok: { type: boolean, const: true }
+      mode: { type: string, enum: [dry_run, apply] }
+      plan:
+        type: object
+        additionalProperties: false
+        required: [canaryKey, capabilityKey, currentMode, targetMode, reason, noOp, confirmation, actions, providerCalls, credentialPayloadReads, externalWrites, enforcementApplied, secretsIncluded]
+        properties:
+          canaryKey: { type: string }
+          capabilityKey: { type: string }
+          currentMode: { type: string, enum: [shadow, read_only_canary] }
+          targetMode: { type: string, const: shadow }
+          reason: { type: string }
+          noOp: { type: boolean }
+          confirmation: { type: string }
+          actions: { type: array, items: { type: string } }
+          providerCalls: { type: boolean, const: false }
+          credentialPayloadReads: { type: boolean, const: false }
+          externalWrites: { type: boolean, const: false }
+          enforcementApplied: { type: boolean, const: false }
+          secretsIncluded: { type: boolean, const: false }
+      readback:
+        type: [object, 'null']
+        additionalProperties: true
+      capabilityEnvelope:
+        type: [object, 'null']
+        additionalProperties: false
+        properties:
+          envelopeId: { type: [string, 'null'], format: uuid }
+          executionStatus: { type: [string, 'null'] }
+      providerCalls: { type: boolean, const: false }
+      credentialPayloadReads: { type: boolean, const: false }
+      externalWrites: { type: boolean, const: false }
+      enforcementApplied: { type: boolean, const: false }
+      secretsIncluded: { type: boolean, const: false }
+
   ListResponse:
     type: object
     additionalProperties: false
