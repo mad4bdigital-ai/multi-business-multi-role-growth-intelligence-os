@@ -271,6 +271,7 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "1046_sprint69_dynamic_container_shadow_sampler_tool.sql",
   "20260715_dynamic_container_rollout_readiness_current_evidence.sql",
   "20260715_dynamic_container_canary_promotion_tool.sql",
+  "20260715_dynamic_container_canary_runtime_observability.sql",
   "20260630_dynamic_capability_governance_persistence.sql",
   "20260701_dynamic_capability_certification_readback.sql",
   "20260702_dynamic_capability_readback_source_link_fix.sql",
