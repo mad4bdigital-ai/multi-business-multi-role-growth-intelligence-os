@@ -108,6 +108,11 @@ components:
       description: >
         Send Authorization: Bearer <BACKEND_API_KEY> for admin/service access, or
         Authorization: Bearer <USER_JWT> after user sign-in.
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key
+      description: Backend API key supplied as a bearer token and accepted only when the runtime admin-principal guard also succeeds.
     backendApiKeyAuth:
       type: apiKey
       in: header
@@ -126,6 +131,24 @@ components:
       bearerFormat: User JWT or Local Manager device token
       description: >
         Bearer token minted by /auth/login, /auth/register, or approved device-link polling.
+    connectorBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Connector secret or backend API key
+      description: >
+        Bearer credential accepted by connector heartbeat and policy resolution. The
+        value must match the backend API key, connector secret, or registered local
+        connector API key for the selected connector configuration.
+    mcpQueryTokenAuth:
+      type: apiKey
+      in: query
+      name: token
+      description: Short-lived MCP query token validated before the operation is served.
+    signedQueryTokenAuth:
+      type: apiKey
+      in: query
+      name: token
+      description: Short-lived signed or hashed artifact token validated before download.
 
   schemas:
 
@@ -3859,6 +3882,46 @@ x-tenant-gpt-auth:
         - https://auth.mad4b.com/scopes/tenant.system-tools
 
 paths:
+  /platform:
+    get:
+      operationId: getPlatformFrontend
+      summary: Load the governed MAD4B platform shell
+      tags: [platform-frontend]
+      security: []
+      responses:
+        '200':
+          description: Dependency-light platform application shell
+          content:
+            text/html:
+              schema: { type: string }
+  /platform/assets/{file}:
+    get:
+      operationId: getPlatformFrontendAsset
+      summary: Load an allowlisted platform shell asset
+      tags: [platform-frontend]
+      security: []
+      parameters:
+        - name: file
+          in: path
+          required: true
+          schema: { type: string, enum: [tokens.css, shell.css, shell.js] }
+      responses:
+        '200': { description: Allowlisted browser asset }
+        '404': { description: Asset not found }
+  /platform/ui-surfaces:
+    get:
+      operationId: getPlatformUiSurfaces
+      summary: Read the browser-safe repository-governed UI surface catalog
+      tags: [platform-frontend]
+      security: []
+      responses:
+        '200':
+          description: Browser-safe UI surface catalog
+          content:
+            application/json:
+              schema:
+                $ref: '../specs/010-unified-platform-frontend/contracts/ui-surface-catalog.schema.json'
+        '503': { description: Dispatch artifact missing or invalid }
   # BEGIN RESOURCE API COVERAGE
   /admin/resource-types:
     get:
@@ -3866,7 +3929,7 @@ paths:
       summary: "GET /admin/resource-types"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
       responses:
@@ -3882,7 +3945,7 @@ paths:
       summary: "GET /admin/resource-types/{resourceKey}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -3902,7 +3965,7 @@ paths:
       summary: "GET /admin/resources/{resourceKey}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -3930,7 +3993,7 @@ paths:
       summary: "POST /admin/resources/{resourceKey}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -3956,7 +4019,7 @@ paths:
       summary: "GET /admin/resources/{resourceKey}/{resourceId}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -3988,7 +4051,7 @@ paths:
       summary: "PATCH /admin/resources/{resourceKey}/{resourceId}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -4016,7 +4079,7 @@ paths:
       summary: "DELETE /admin/resources/{resourceKey}/{resourceId}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -4040,7 +4103,7 @@ paths:
       summary: "POST /admin/resources/{resourceKey}/{resourceId}/restore"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -4069,7 +4132,7 @@ paths:
       summary: "POST /admin/resources/{resourceKey}/{resourceId}/purge"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -4098,7 +4161,7 @@ paths:
       summary: "GET /admin/resources/{resourceKey}/{resourceId}/permissions"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -4131,7 +4194,7 @@ paths:
       summary: "GET /admin/resources/{resourceKey}/{resourceId}/revisions"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -4164,7 +4227,7 @@ paths:
       summary: "GET /admin/resources/{resourceKey}/{resourceId}/changes"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -4197,7 +4260,7 @@ paths:
       summary: "GET /admin/resource-changes"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: pageSize
@@ -4222,7 +4285,7 @@ paths:
       summary: "GET /admin/resource-coverage/audit"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
       responses:
@@ -4238,7 +4301,7 @@ paths:
       summary: "GET /admin/operations/{operationId}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: operationId
@@ -4258,8 +4321,7 @@ paths:
       summary: "GET /me/workspaces/{tenant_id}/resources"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4287,8 +4349,7 @@ paths:
       summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4320,8 +4381,7 @@ paths:
       summary: "POST /me/workspaces/{tenant_id}/resources/{resourceKey}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4350,8 +4410,7 @@ paths:
       summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4386,8 +4445,7 @@ paths:
       summary: "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4418,8 +4476,7 @@ paths:
       summary: "DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4447,8 +4504,7 @@ paths:
       summary: "POST /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4480,8 +4536,7 @@ paths:
       summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/permissions"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4517,8 +4572,7 @@ paths:
       summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/revisions"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4554,8 +4608,7 @@ paths:
       summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/changes"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4591,8 +4644,7 @@ paths:
       summary: "GET /me/workspaces/{tenant_id}/resource-changes"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4620,8 +4672,7 @@ paths:
       summary: "GET /me/workspaces/{tenant_id}/operations/{operationId}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4844,6 +4895,12 @@ paths:
     $ref: './openapi/container-authority.yaml#/adminContainerResolutionPreview'
   /admin/container-authority/projection-preview:
     $ref: './openapi/container-authority.yaml#/adminContainerProjectionPreview'
+  /admin/container-authority/canary-promotions:
+    $ref: './openapi/container-authority.yaml#/adminContainerAuthorityCanaryPromotions'
+  /admin/container-authority/canary-rollbacks:
+    $ref: './openapi/container-authority.yaml#/adminContainerAuthorityCanaryRollbacks'
+  /container-authority/canary-monitoring:
+    $ref: './openapi/container-authority.yaml#/containerAuthorityCanaryMonitoring'
   /container-context-resolutions:
     $ref: './openapi/container-authority.yaml#/containerContextResolutions'
   /container-context-resolutions/{resolutionId}:
@@ -4889,7 +4946,7 @@ paths:
         Returns a tenant-safe proactive activation brief with account counts, permission semantics,
         capability groups, safe actions, blocked or limited capabilities, and next-best actions.
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: query
@@ -4926,7 +4983,7 @@ paths:
         Returns proactive admin guidance for workspace, tenant, brand, platform tool, permission,
         readiness, and next-best-action management. No secrets are returned.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: tenant_id
@@ -4969,7 +5026,7 @@ paths:
         activation summary, operational tiles, callbacks, attention rules, freshness policies,
         latest runtime verification run, remediation runbooks, and evidence manifest.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: environment_key
@@ -5002,7 +5059,7 @@ paths:
       summary: Read operational console evidence
       description: Returns paginated evidence for the latest runtime verification run referenced by the console.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: environment_key
@@ -5037,7 +5094,7 @@ paths:
         Returns a summary-first activation status and registry counts without loading the full hard activation evidence graph.
         Use this endpoint when tool/client response budgets cannot safely receive full activation evidence.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       responses:
         '200':
@@ -5058,7 +5115,7 @@ paths:
         evidence chunks, blocking gaps, and the production parity ledger. Output is
         summary-first and secret-safe; detailed evidence is read through the paginated evidence endpoint.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -5079,7 +5136,7 @@ paths:
       operationId: getRuntimeVerificationRun
       summary: Read runtime verification run
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: runId
@@ -5101,7 +5158,7 @@ paths:
       operationId: listRuntimeVerificationEvidence
       summary: List paginated runtime verification evidence
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: runId
@@ -5127,18 +5184,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RuntimeVerificationEvidenceResponse'
+  /runtime/parity:
+    get:
+      tags: [runtime-verification]
+      operationId: getDefaultRuntimeParity
+      summary: Read default or query-selected production parity state
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: environment_key
+          in: query
+          required: false
+          schema: { type: string, default: production }
+      responses:
+        '200':
+          description: Runtime production parity status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuntimeParityResponse'
   /runtime/parity/{environmentKey}:
     get:
       tags: [runtime-verification]
       operationId: getRuntimeParity
       summary: Read production parity state
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: environmentKey
           in: path
-          required: false
+          required: true
           schema: { type: string, default: production }
       responses:
         '200':
@@ -5152,7 +5229,7 @@ paths:
     post:
       tags: [admin-control]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: sessionInsightTargetWriteReadbackCreate
       x-custom-gpt-exclude: true
@@ -5213,7 +5290,7 @@ paths:
     post:
       tags: [admin-control]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: sessionInsightTargetWriteReadbackList
       x-custom-gpt-exclude: true
@@ -5286,7 +5363,7 @@ paths:
     post:
       tags: [tenant-infrastructure]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: tenantSshCliAllowlistedExecute
       summary: Execute tenant SSH allowlisted CLI command after approval
       description: Executes a fixed allowlisted SSH command for a tenant-owned SSH connection after a matching approval request is approved. Requires a typed command_key, rejects freeform commands and shell metacharacter argv drift, caps output, uses a bounded timeout, and never returns credentials.
@@ -5356,7 +5433,7 @@ paths:
     get:
       tags: [tenant-infrastructure]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: tenantSshCliExecuteJobResult
       summary: Read tenant SSH CLI execute job result
       description: Reads a tenant-scoped allowlisted SSH CLI execution job result. The job must belong to the requesting user and connection. Results are redacted and never include SSH credentials.
@@ -5383,7 +5460,7 @@ paths:
     get:
       tags: [tenant-infrastructure]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: tenantSshCliApprovalRequestStatus
       summary: Read tenant SSH CLI approval request status
       description: Reads a tenant-scoped SSH CLI approval request and linked approval hold state. Does not authenticate, open a network connection, execute commands, or return credentials.
@@ -5425,7 +5502,7 @@ paths:
     post:
       tags: [tenant-infrastructure]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: tenantSshCliApprovalRequestDecide
       summary: Approve or reject tenant SSH CLI approval request
       description: Approves or rejects a tenant-scoped SSH CLI approval request as a workspace owner. Updates approval state only; does not authenticate, open a network connection, execute commands, or enable execution.
@@ -5487,7 +5564,7 @@ paths:
     post:
       tags: [tenant-infrastructure]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: tenantSshCliApprovalRequestCreate
       summary: Create tenant SSH allowlisted CLI approval request
       description: Creates a reviewable approval request for future allowlisted SSH CLI execution. Validates a fixed command key and stores a no-secret plan. Does not authenticate, open a network connection, execute commands, or enable execution.
@@ -5551,7 +5628,7 @@ paths:
     post:
       tags: [tenant-infrastructure]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: tenantSshCliAllowlistedDryRun
       summary: Build tenant SSH allowlisted CLI dry-run plan
       description: Validates a tenant-owned SSH connection and an allowlisted command key, then returns a dry-run plan only. Does not decrypt credentials, authenticate, open a network connection, execute commands, or return credentials.
@@ -5609,7 +5686,7 @@ paths:
     post:
       tags: [tenant-infrastructure]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: tenantSshProbe
       summary: Probe tenant SSH TCP/banner reachability
       description: Performs a TCP/banner probe for a tenant-owned SSH connection. Does not authenticate, execute commands, use the private key for auth, or return credentials. Blocks private/local probe targets.
@@ -5675,7 +5752,7 @@ paths:
     post:
       tags: [tenant-infrastructure]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: tenantDatabaseQueryReadonly
       summary: Execute a guarded tenant remote database read-only query
       description: Executes a single SELECT-only query against a tenant-owned remote database connection. Rejects comments, semicolons, placeholders, DDL/DML/admin statements, SELECT *, secret-like field references, and caps returned rows. Does not return credentials.
@@ -5773,7 +5850,8 @@ paths:
     get:
       tags: [dev-diagnostics]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: getDevDbStatus
       summary: Read protected development database status
       description: Authenticated read-only status for the dev DB clone; never restores or mutates data.
@@ -5820,7 +5898,7 @@ paths:
     post:
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: readPlatformHealthScorecard
       summary: Read the DB-backed Platform Health Scorecard
@@ -5874,7 +5952,7 @@ paths:
     post:
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: recordPlatformHealthScorecardSnapshot
       summary: Record a Platform Health Scorecard snapshot
@@ -5900,7 +5978,7 @@ paths:
     post:
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: readPlatformHealthScorecardRemediationPlan
       summary: Read Platform Health Scorecard remediation plan
@@ -5924,7 +6002,7 @@ paths:
     post:
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: readPlatformHealthScorecardTenantRollout
       summary: Read tenant rollout readiness for the Platform Health Scorecard
@@ -5949,7 +6027,7 @@ paths:
     post:
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: readPlatformHealthScorecardLedgerHygiene
       summary: Read Platform Health Scorecard ledger hygiene report
@@ -5973,7 +6051,7 @@ paths:
     post:
       tags: [platform-graph]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: projectPlatformGraph
       summary: Project platform registry/source tables into the SQL-primary graph
@@ -5995,7 +6073,7 @@ paths:
     get:
       tags: [platform-graph]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: validatePlatformGraph
       summary: Validate platform graph integrity and secret-safety constraints
@@ -6017,7 +6095,7 @@ paths:
     post:
       tags: [platform-graph]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: resolvePlatformGraphContext
       summary: Resolve graph context for a subject, route, workflow, action, endpoint, device, user, tenant, or asset
@@ -6045,7 +6123,7 @@ paths:
     post:
       tags: [platform-graph]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: resolvePlatformGraphMemory
       summary: Resolve graph-relevant json_assets for a tenant, user, device, asset, route, workflow, action, endpoint, or business type
@@ -6067,7 +6145,7 @@ paths:
     get:
       tags: [platform-graph]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: getPlatformGraphNode
       summary: Read one graph node by node_id
@@ -6100,7 +6178,7 @@ paths:
     get:
       tags: [platform-graph]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: getPlatformGraphNeighborhood
       summary: Read graph neighborhood around one or more node IDs
@@ -6141,7 +6219,7 @@ paths:
     get:
       tags: [platform-graph]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: getPlatformGraphStatus
       summary: Get graph node/edge counts and latest projection/validation status
@@ -6665,7 +6743,7 @@ paths:
     get:
       tags: [local-manager]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: getLocalManagerBetaStatus
       summary: Admin-only read-only Local Manager beta device status
@@ -6748,7 +6826,7 @@ paths:
     get:
       tags: [activation]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getTenantActivationRunArchive
       x-openai-isConsequential: false
       summary: Resolve an activation run to the signed tenant user's archive
@@ -7410,7 +7488,7 @@ paths:
     get:
       tags: [growth-dashboard]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getTenantGrowthDashboard
       x-openai-isConsequential: false
       summary: Read the tenant growth cockpit
@@ -7452,7 +7530,7 @@ paths:
     get:
       tags: [growth-dashboard]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getTenantGrowthDashboardTab
       x-openai-isConsequential: false
       summary: Read one tenant dashboard tab
@@ -7492,7 +7570,7 @@ paths:
     get:
       tags: [growth-dashboard]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getTenantDashboardPreferences
       x-openai-isConsequential: false
       summary: Read tenant dashboard preferences
@@ -7522,7 +7600,7 @@ paths:
     put:
       tags: [growth-dashboard]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: updateTenantDashboardPreferences
       x-openai-isConsequential: true
       summary: Replace tenant dashboard preferences
@@ -7556,7 +7634,7 @@ paths:
     get:
       tags: [growth-dashboard]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getTenantGrowthDigest
       x-openai-isConsequential: false
       summary: Read a compact tenant growth digest
@@ -7604,7 +7682,7 @@ paths:
     get:
       tags: [growth-dashboard]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: previewTenantGrowthAction
       x-openai-isConsequential: false
       summary: Preview a governed growth action
@@ -7653,7 +7731,7 @@ paths:
     post:
       tags: [growth-dashboard]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: recordTenantGrowthRecommendationFeedback
       x-openai-isConsequential: false
       summary: Record recommendation feedback or outcome
@@ -7714,7 +7792,7 @@ paths:
     get:
       tags: [activation]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: readTenantActivationOperationalAttention
       x-custom-gpt-exclude: true
       x-openai-isConsequential: false
@@ -7759,7 +7837,7 @@ paths:
     get:
       tags: [activation]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: readTenantActivationAwareness
       x-openai-isConsequential: false
       summary: Read signed-in tenant activation awareness
@@ -7800,7 +7878,7 @@ paths:
     get:
       tags: [activation]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: readTenantResolutionProblemCards
       x-custom-gpt-exclude: false
       x-openai-isConsequential: false
@@ -7822,7 +7900,7 @@ paths:
     get:
       tags: [activation]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: listTenantResolutionCases
       x-custom-gpt-exclude: false
       x-openai-isConsequential: false
@@ -7868,7 +7946,7 @@ paths:
     post:
       tags: [activation]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: createTenantResolutionCase
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
@@ -7906,7 +7984,7 @@ paths:
     get:
       tags: [activation]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getTenantResolutionCase
       x-custom-gpt-exclude: false
       x-openai-isConsequential: false
@@ -7940,7 +8018,7 @@ paths:
     post:
       tags: [activation]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: transitionTenantResolutionCase
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
@@ -7991,7 +8069,7 @@ paths:
     post:
       tags: [activation]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: runTenantResolutionDiagnosticAction
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
@@ -8138,7 +8216,7 @@ paths:
     get:
       tags: [activation]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: readTenantActivationDynamicTabDetail
       x-openai-isConsequential: false
       summary: Read one tenant-authorized Dynamic Tab detail page
@@ -8418,8 +8496,8 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
       security:
-        - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.activation
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
 
   /activation/platform-access:
     get:
@@ -8843,7 +8921,7 @@ paths:
       x-openai-isConsequential: false
       tags: [ai, platform-intelligence]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: aiModelRunPlan
       summary: Build a canonical governed model-run plan
@@ -8879,7 +8957,7 @@ paths:
       x-openai-isConsequential: false
       tags: [ai, platform-intelligence]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: aiModelRunEvents
       summary: Read canonical model-run events
@@ -8900,7 +8978,7 @@ paths:
       x-openai-isConsequential: false
       tags: [ai, platform-intelligence]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: aiToolSearch
       summary: Search governed deferred tools
@@ -9009,7 +9087,7 @@ paths:
   /tenants/{tenant_id}/brands/{brand_key}/growth-intelligence/pilot:
     post:
       tags: [tenants]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: runGrowthIntelligencePilot
       summary: Run the read-only tenant and brand Growth Intelligence pilot
       description: >
@@ -9051,7 +9129,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports:
     get:
       tags: [tenants]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: listGrowthIntelligenceReports
       summary: List persisted Growth Intelligence reports
       parameters:
@@ -9065,7 +9143,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/metrics:
     get:
       tags: [tenants]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getGrowthIntelligenceMetrics
       summary: Read tenant-scoped Growth Intelligence product and safety metrics
       parameters:
@@ -9078,7 +9156,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports/{report_id}:
     get:
       tags: [tenants]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getGrowthIntelligenceReport
       summary: Read one persisted Growth Intelligence report with insights and actions
       parameters:
@@ -9092,7 +9170,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/actions/{action_id}/decision:
     post:
       tags: [tenants]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: decideGrowthIntelligenceAction
       summary: Approve or reject a Growth Intelligence action without executing it
       description: >
@@ -9123,7 +9201,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/insights/{insight_id}/decision:
     post:
       tags: [tenants]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: decideGrowthIntelligenceInsight
       summary: Accept, reject, or mark a Growth Intelligence insight stale
       description: Records a tenant-scoped insight lifecycle decision without dispatching execution.
@@ -9150,7 +9228,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/readiness-assessments:
     post:
       tags: [tenants]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: createGrowthIntelligenceReadinessAssessment
       summary: Record an immutable no-execution readiness assessment
       description: >
@@ -10812,7 +10890,7 @@ paths:
   /admin/system/connectors:
     get:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: listAdminSystemConnectors
       summary: List connector systems from the system registry
       description: Read-only admin facade over the connected_systems table. Use this before choosing connector-specific actions or MCP-style tool calls.
@@ -10853,7 +10931,7 @@ paths:
   /admin/system/connectors/{system_id}:
     get:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getAdminSystemConnector
       summary: Get one connector system from the system registry
       description: Returns one connected_systems row plus its installation summary. This is a governed alternative to raw DB inspection for connector inventory.
@@ -10880,7 +10958,7 @@ paths:
   /admin/system/tools:
     get:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: listAdminSystemTools
       summary: List MCP-style system layer tools
       description: Lists fixed OpenAPI-compatible tools available through the admin system layer. This behaves like a small MCP tools/list facade over governed platform registries. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read before fallback. Chunk payloads are persisted to governed MySQL storage before chunk_id is returned, and response_chunk_read can recover after in-process cache loss or process restart. Optional max_chars, chunk_ttl_ms, and chunk_ttl_minutes controls are backward compatible.
@@ -10904,7 +10982,7 @@ paths:
   /admin/system/tools/call:
     post:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: callAdminSystemTool
       x-openai-isConsequential: false
       summary: Call an MCP-style system layer tool
@@ -10948,7 +11026,7 @@ paths:
   /admin/apis-services/google-auth-platform:
     get:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getAdminGoogleAuthPlatformTabs
       summary: Read simulated Google Auth Platform tabs
       description: Returns governed DB-backed tab state for the platform-controlled Google Auth Platform and APIs & Services console simulation.
@@ -10982,7 +11060,7 @@ paths:
   /admin/apis-services/google-auth-platform/{tab}:
     get:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getAdminGoogleAuthPlatformTab
       summary: Read one simulated Google Auth Platform tab
       description: Returns one governed tab state, such as overview, branding, audience, clients, data_access, verification_center, settings, or api_credentials.
@@ -11005,7 +11083,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
     post:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: upsertAdminGoogleAuthPlatformTab
       summary: Upsert one simulated Google Auth Platform tab
       description: Writes governed DB-backed tab state for Google Auth Platform or APIs & Services console simulation.
@@ -11044,7 +11122,7 @@ paths:
   /admin/apis-services/credentials:
     get:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getAdminApisServicesCredentials
       summary: Read simulated APIs & Services Credentials tab
       description: Returns the governed APIs & Services Credentials tab and linked platform credential-client registry records.
@@ -11062,7 +11140,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
     post:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: upsertAdminApisServicesCredentials
       summary: Upsert simulated APIs & Services Credentials tab
       description: Writes governed APIs & Services Credentials tab state. Credential material must remain in credential-client secret references.
@@ -11373,7 +11451,7 @@ paths:
   /admin/control:
     post:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: executeAdminControl
       summary: Execute personal admin control operation
       x-runtime-governance:
@@ -11479,7 +11557,7 @@ paths:
   /admin/cli/hostinger:
     post:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: executeHostingerApiCall
       summary: Forward a call to the Hostinger REST API
       description: Proxies any Hostinger API call using server-stored API keys. Use cloud_plan key for VPS, DNS, domains, and billing. Use shared_manager key for shared hosting. Supply the path only, e.g. /v1/dns/zone/mad4b.com/records.
@@ -11539,7 +11617,7 @@ paths:
   /admin/cli/cloudflare:
     post:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: executeCloudflareApiCall
       summary: Forward a call to the Cloudflare REST API
       description: Proxies any Cloudflare API call using server-stored credentials. Supply the path only, e.g. /client/v4/zones or /client/v4/tunnels/{tunnel_id}.
@@ -11742,7 +11820,7 @@ paths:
   /admin/cli/local-connector/install-bundle:
     get:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getLocalConnectorInstallBundle
       summary: Resolve or download a local connector installer
       description: "Generate a pre-filled Windows .bat installer for the local connector stack (cloudflared + Node.js service via NSSM). Reads cf_token and connector_secret from local_connector_user_configs in DB for the given user_id + device_id. Falls back to server env only if no DB row exists. The default JSON mode returns metadata before credential lookup. The installer is generated only when format=bat is requested on the authenticated route and is never uploaded to shared or public storage. User saves the .bat and runs as Administrator â€” cloudflared and NSSM are installed automatically if missing. Both services auto-restart on failure and reboot."
@@ -11808,7 +11886,7 @@ paths:
   /admin/cli/local-connector/self-repair:
     post:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: repairLocalConnector
       x-openai-isConsequential: false
       summary: Diagnose local connector health and return a secure installer handoff
@@ -11899,7 +11977,7 @@ paths:
   /admin/cli/dns:
     get:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: listDnsRecords
       summary: List DNS records for a zone
       description: Lists all DNS records for the specified zone via Cloudflare API. Defaults to mad4b.com.
@@ -11938,7 +12016,7 @@ paths:
         "500": { description: DNS list failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
     post:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: upsertDnsRecord
       summary: Create or update a DNS record
       description: Creates a new DNS record or updates an existing one by name + type. Proxied is false by default.
@@ -11991,7 +12069,7 @@ paths:
         "500": { description: DNS upsert failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
     delete:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: deleteDnsRecord
       summary: Delete a DNS record by ID
       description: Deletes a DNS record from the specified zone using its Cloudflare record ID.
@@ -12029,7 +12107,7 @@ paths:
   /auth/platform-jwt/issue:
     post:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: issuePlatformJwtClientToken
       summary: Issue a short-lived tenant user JWT
       description: Admin-only platform JWT client. Mints a short-lived user JWT for an existing active user so governed tenant /connect/* calls can use user auth without relaxing tenant guards.
@@ -12083,7 +12161,7 @@ paths:
   /admin/session-continuity/link-user:
     post:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: linkSessionContinuityUser
       summary: Link unassigned request envelopes to a user
       description: Assigns user_id to unlinked request_envelopes rows and backfills tenant_id when null. Use this as a governed alternative to raw SQL for session continuity repair.
@@ -12136,7 +12214,7 @@ paths:
   /admin/schema-import/upload:
     post:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: importSchemaUpload
       summary: Upload a full OpenAPI schema file and split it into the registry
       description: Accepts a full OpenAPI 3.x schema string. Parses it, inlines $refs, splits per operation, upserts the parent action row and one endpoint row per operation with a compact dereferenced schema_json. Removed endpoints are deprecated. Returns a job record for audit and rollback.
@@ -12184,7 +12262,7 @@ paths:
   /admin/schema-import/repo:
     post:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: importSchemaFromRepo
       summary: Install an OpenAPI schema directly from a GitHub or GitLab repo URL
       description: >
@@ -12237,7 +12315,7 @@ paths:
   /admin/schema-import/rollback:
     post:
       tags: [admin-import]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: rollbackSchemaImport
       summary: Restore endpoint schemas to a previous import job's snapshot
       description: Restores endpoint schema_json values for the given action_key to the state captured in the target job's snapshots. Post-job endpoints are deprecated; removed endpoints restored to active. Creates a new rollback job row for audit - the original job is never mutated.
@@ -12278,7 +12356,7 @@ paths:
   /admin/schema-import/jobs:
     get:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: listSchemaImportJobs
       summary: List schema import jobs with optional action_key filter
       parameters:
@@ -12310,7 +12388,7 @@ paths:
   /admin/schema-import/jobs/{job_id}:
     get:
       tags: [admin-import]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getSchemaImportJob
       summary: Get a single schema import job including endpoint snapshots
       parameters:
@@ -13944,7 +14022,7 @@ paths:
   /admin/cli/data-source/census:
     get:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getPlatformDataSourceCensus
       summary: SQL data-source census across platform tables
       description: "Returns row counts and last-write timestamps for every SQL table mapped in the platform registry (brands, actions, endpoints, plugins, execution_log, etc.) plus the Sheets mirror configuration. Use to verify SQL is the runtime authority, find empty tables that may need seeding, and audit migration completeness."
@@ -13998,7 +14076,7 @@ paths:
     post:
       tags: [browser-runtime]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: postBrowserRuntimeInspectSiteRun
       summary: Run Browser4 site inspection through browser runtime policy
@@ -14716,7 +14794,7 @@ paths:
   /connect/status:
     get:
       tags: [tenant-connect]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: getConnectStatus
       summary: Tenant connection status for signed-in user
       description: "Returns the signed-in user, their active tenant membership, the tenant backend connection (mode, status, cloudflare_mode, google_auth_mode, n8n_activation_mode), and the user's configured devices. Requires user JWT."
@@ -14752,7 +14830,7 @@ paths:
   /connect/activate:
     post:
       tags: [tenant-connect]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: postConnectActivate
       summary: Activate tenant backend connection
       description: "Activates the tenant backend connection in managed or dedicated mode. Optionally records Cloudflare account context for dedicated mode (tokens are never stored). Upserts tenant_backend_connections and returns the resolved connection."
@@ -14805,7 +14883,7 @@ paths:
   /connect/device-install:
     post:
       tags: [tenant-connect]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: postConnectDeviceInstall
       summary: Provision a local connector device for the tenant
       description: "Provisions a Cloudflare tunnel and connector config for the named device. Uses managed or dedicated provisioning depending on the tenant connection's cloudflare_mode. Returns install bundle pointers and updates device_count."
@@ -14845,7 +14923,6 @@ paths:
       security:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
-        - userBearerAuth: []
       operationId: listLocalGatewayTools
       summary: List tenant-safe local gateway tools
       description: "Returns local gateway tool descriptors available to the authenticated caller. Caller and tenant context are derived from the validated credential; include_planned defaults to false."
@@ -14879,7 +14956,7 @@ paths:
   /local-connector/health:
     get:
       tags: [local-connector]
-      security: [backendBearerAuth: [], backendApiKeyAuth: [], userBearerAuth: []]
+      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getLocalConnectorHealth
       summary: Check tunnel reachability for a tenant device
       description: "Resolves the tenant device's tunnel_url and connector_secret, then probes the connector /health endpoint with a 10s timeout. Returns the agent's health payload on success, or a structured connector_unreachable error on failure (HTTP 200 either way for tenant ergonomics)."
@@ -14958,7 +15035,7 @@ paths:
     get:
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getConnectOnboardingState
       summary: Read Connect onboarding state for the signed-in user
       responses:
@@ -14969,7 +15046,7 @@ paths:
       x-openai-isConsequential: true
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: createConnectWorkspace
       summary: Create or select a workspace during Connect onboarding
       requestBody:
@@ -14985,7 +15062,7 @@ paths:
       x-openai-isConsequential: true
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: escalateConnectRequest
       summary: Escalate a Connect onboarding or access request
       requestBody:
@@ -15000,7 +15077,7 @@ paths:
     get:
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getCurrentConnectUser
       summary: Read the current user profile for Connect surfaces
       responses:
@@ -15010,7 +15087,7 @@ paths:
     get:
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: listCurrentWorkspaceBrands
       summary: List tenant-safe brands visible to the signed-in workspace member
       parameters:
@@ -15025,7 +15102,7 @@ paths:
     get:
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: listCurrentUserWorkspaces
       summary: List workspaces available to the current user
       responses:
@@ -15034,7 +15111,7 @@ paths:
       x-openai-isConsequential: true
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: createCurrentUserWorkspace
       summary: Create a workspace for the current user
       requestBody:
@@ -15049,7 +15126,7 @@ paths:
     get:
       tags: [agent-surfaces]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: listAgentSurfaceCatalog
       summary: List Hermes, OpenClaude, and OpenClaw capabilities and deployment modes
       responses:
@@ -15065,7 +15142,7 @@ paths:
     get:
       tags: [agent-surfaces]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getTenantAgentSurfaces
       summary: Read tenant deployments, current-user preferences, and readiness
       responses:
@@ -15081,7 +15158,7 @@ paths:
     get:
       tags: [agent-surfaces]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getTenantAgentSurfaceReadiness
       summary: Read platform-managed and dedicated-managed runtime readiness
       responses:
@@ -15097,7 +15174,7 @@ paths:
     put:
       tags: [agent-surfaces]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: replaceOwnAgentSurfacePreferences
       summary: Replace the authenticated user's preferences for one surface
       parameters:
@@ -15134,7 +15211,7 @@ paths:
     put:
       tags: [agent-surfaces]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: setTenantAgentSurfaceDeployment
       summary: Set platform-managed or dedicated-managed deployment for one tenant surface
       parameters:
@@ -15165,7 +15242,7 @@ paths:
     get:
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getCurrentUserCapabilities
       summary: Read current user capability flags
       responses:
@@ -15176,7 +15253,7 @@ paths:
       x-openai-isConsequential: true
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: updateConnectPreferences
       summary: Update Connect user preferences
       requestBody:
@@ -15192,7 +15269,7 @@ paths:
       x-openai-isConsequential: true
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: updateConnectProfile
       summary: Update Connect user profile metadata
       requestBody:
@@ -15224,7 +15301,7 @@ paths:
   /connector-agent/installer.ps1:
     get:
       tags: [local-connector]
-      security: []
+      security: [{ signedQueryTokenAuth: [] }]
       operationId: getConnectorAgentInstallerScript
       summary: Download connector agent PowerShell installer
       responses:
@@ -15245,7 +15322,7 @@ paths:
     post:
       x-openai-isConsequential: false
       tags: [local-connector]
-      security: []
+      security: [{ connectorBearerAuth: [] }]
       operationId: postConnectorAgentHeartbeat
       summary: Receive connector agent heartbeat
       requestBody:
@@ -15304,7 +15381,7 @@ paths:
   /app-integrations/{app_key}/callback:
     get:
       tags: [connected-systems]
-      security: []
+      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: callbackAppIntegration
       summary: Receive app integration authorization callback
       parameters:
@@ -15788,8 +15865,7 @@ paths:
       x-openai-isConsequential: false
       tags: [security]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       operationId: credentialIntakeConnectionStatus
       summary: Read secure credential intake completion status by connection ID
       description: >
@@ -15909,7 +15985,7 @@ paths:
     get:
       tags: [admin-control]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: connectorTaxonomySummary
       x-custom-gpt-exclude: true
@@ -15928,7 +16004,7 @@ paths:
     get:
       tags: [admin-control]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: connectorTaxonomyAppMap
       x-custom-gpt-exclude: true
@@ -15955,7 +16031,7 @@ paths:
     get:
       tags: [admin-control]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: connectorTaxonomyToolMap
       x-custom-gpt-exclude: true
@@ -15984,7 +16060,7 @@ paths:
     get:
       tags: [admin-control]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: connectorTaxonomyFamilyCoverage
       x-custom-gpt-exclude: true
@@ -16011,7 +16087,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: adsProviderGovernanceSnapshotRecord
       summary: Record Ads Provider Governance snapshot and recommendation behind a gate
@@ -16084,7 +16160,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: supportTicketExternalDeliveryCompletionCertify
       summary: Certify Support Ticket external delivery completion gates
@@ -16152,7 +16228,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: supportTicketLifecycleSnapshotRecord
       summary: Record Support Ticket lifecycle snapshot and recommendation candidates
@@ -16220,7 +16296,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: supportTicketLifecycleSnapshotPropose
       summary: Propose Support Ticket lifecycle snapshot and recommendation candidates
@@ -16282,7 +16358,7 @@ paths:
       x-openai-isConsequential: false
       tags: [admin, repository-automation]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: planRepositoryAutomation
       summary: Plan a governed repository automation workflow
@@ -16344,7 +16420,7 @@ paths:
       x-openai-isConsequential: true
       tags: [admin, repository-automation]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: runRepositoryAutomation
       summary: Run or resume a governed repository automation workflow
@@ -16425,7 +16501,7 @@ paths:
       x-openai-isConsequential: false
       tags: [admin, repository-automation]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: readRepositoryAutomationStatus
       summary: Read a repository automation run
@@ -16468,7 +16544,7 @@ paths:
       x-openai-isConsequential: false
       tags: [admin, repository-automation]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: scanRepositoryAutomationHygiene
       summary: Scan repository automation hygiene
@@ -16513,7 +16589,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: adsProviderGovernanceSnapshotPropose
       summary: Propose Ads Provider Governance snapshot and recommendation candidates
@@ -16570,7 +16646,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformOrchestrationReadback
       summary: Read orchestration graph, snapshot, and recommendation readiness
@@ -16632,7 +16708,7 @@ paths:
     get:
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginCatalog
       summary: Read Platform Plugin catalog
@@ -16731,7 +16807,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginResolve
       summary: Resolve Platform Plugin execution preview
@@ -16984,18 +17060,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
       security:
-        - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+        - userJwtAuth: []
   /platform/action-manifest/resolve:
     post:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: actionManifestResolve
       summary: Resolve Action Endpoint Tool authority manifest
@@ -17033,7 +17104,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: executionReadinessDryRun
       summary: Resolve full execution readiness dry-run
@@ -17079,7 +17150,7 @@ paths:
     post:
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: remoteRuntimeHostingerDeployRelease
       x-custom-gpt-exclude: true
@@ -17127,7 +17198,7 @@ paths:
     get:
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: remoteRuntimeHostingerDeployRunRead
       x-custom-gpt-exclude: true
@@ -17155,7 +17226,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: remoteRuntimeLocalReadonlyExecute
       summary: Execute allowlisted local_path read-only commands
@@ -17187,7 +17258,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: remoteRuntimeDispatchDryRun
       summary: Dry-run Remote Runtime allowlisted dispatch
@@ -17218,7 +17289,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeCertify
       summary: Certify Platform Plugin smoke execution
@@ -17257,7 +17328,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeCertificationStatus
       summary: Read Platform Plugin smoke certification status
@@ -17290,7 +17361,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeRecertificationPolicyResolve
       summary: Resolve Platform Plugin smoke recertification policy
@@ -17323,7 +17394,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeRecertificationPolicyList
       summary: List Platform Plugin smoke recertification policies
@@ -17356,7 +17427,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeRecertificationPolicyUpsert
       summary: Upsert Platform Plugin smoke recertification policy
@@ -17407,7 +17478,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeRecertificationPolicyHistory
       summary: Read smoke recertification policy audit history
@@ -17439,7 +17510,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeRecertificationPolicyRollbackPreview
       summary: Preview smoke recertification policy rollback
@@ -17471,7 +17542,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeRecertificationPolicyRollbackApply
       summary: Apply smoke recertification policy rollback
@@ -17511,7 +17582,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeRecertificationQueue
       summary: List Platform Plugin smoke recertification queue
@@ -17547,7 +17618,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeRecertificationBatch
       summary: Run bounded Platform Plugin smoke recertification batch
@@ -17592,7 +17663,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: remoteRuntimeTargetUpsert
       summary: Upsert Remote Runtime target
@@ -17637,7 +17708,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: remoteRuntimeTargetValidate
       summary: Validate Remote Runtime target metadata
@@ -17663,7 +17734,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: remoteRuntimeTargetCatalog
       summary: List Remote Runtime targets
@@ -17691,7 +17762,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: remoteRuntimeProbe
       summary: Probe Remote Runtime target readiness
@@ -17718,7 +17789,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginPolicyUpsert
       summary: Upsert Platform Plugin tenant policy overlay
@@ -17739,7 +17810,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginActionTemplateUpsert
       summary: Upsert Platform Plugin REST action template
@@ -17771,7 +17842,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginDispatchRest
       summary: Dispatch Platform Plugin REST action
@@ -17819,7 +17890,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginActionGrantUpsert
       summary: Upsert Platform Plugin action grant
@@ -17851,7 +17922,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginInstall
       summary: Install Platform Plugin for tenant
@@ -17871,7 +17942,7 @@ paths:
     get:
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginContributionList
       summary: List Platform Plugin contributions
@@ -17885,7 +17956,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginContributionCreate
       summary: Create Platform Plugin contribution
@@ -17905,7 +17976,7 @@ paths:
     get:
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginContributionGet
       summary: Get Platform Plugin contribution
@@ -17923,7 +17994,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginContributionCertify
       summary: Certify Platform Plugin contribution
@@ -17940,7 +18011,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginContributionPromote
       summary: Promote Platform Plugin contribution
@@ -17957,7 +18028,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginContributionPrivateActivate
       summary: Activate private Platform Plugin contribution runtime
@@ -17974,7 +18045,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginContributionPrivateResolve
       summary: Resolve private Platform Plugin contribution runtime
@@ -17991,7 +18062,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginContributionPrivateDispatchRest
       summary: Dispatch private Platform Plugin REST action
@@ -18012,7 +18083,7 @@ paths:
         Admin/service scoped read of allowed Platform Evolution scope switch options. This supports view-as/scope selection
         by user, email, tenant, or brand. It does not grant access and does not expose checkpoint writes.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: user_id
@@ -18052,7 +18123,7 @@ paths:
         Admin/service scoped read of the latest Platform Evolution activation card for a brand/tenant scope.
         Returns checkpoint summary, thread counts, linked tasks/signals, and blocker counts. No secrets are returned.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: scope_key
@@ -18088,7 +18159,7 @@ paths:
       description: >
         Admin/service scoped thread map with linked task, signal, and blocker counts for a Platform Evolution scope.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: scope_key
@@ -18136,7 +18207,7 @@ paths:
       description: >
         Admin/service scoped linked evidence for Platform Evolution threads, including pending tasks and summary development signals.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: scope_key
@@ -18187,7 +18258,7 @@ paths:
         creates or updates a tenant-owned WordPress credential binding pointer, and reads back effective credential
         status without returning tokens, decrypted credentials, or secret values.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18224,7 +18295,7 @@ paths:
         User JWT, calls tenant evolution switch-options, activation-card, and thread-map routes, and returns only sanitized
         result summaries. The JWT is never returned and tenant checkpoint write remains disabled.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18265,7 +18336,7 @@ paths:
         Admin/service scoped creation of an activation, operation, manual, rollup, or recovery checkpoint.
         Updates last_checkpoint_id for threads in the same scope. No secrets are accepted or returned.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18296,7 +18367,7 @@ paths:
         Admin/service scoped read of private capability packages. This route returns registry rows only and never
         imports source assets, installs packages, reads secrets, or executes package content.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: status
@@ -18315,6 +18386,7 @@ paths:
     post:
       x-openai-isConsequential: false
       tags: [platform-intelligence]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: platformCapabilityVaultRepoIngestionPlan
       summary: Plan repo-to-capability ingestion
       description: >
@@ -18361,7 +18433,7 @@ paths:
         requires explicit confirm_record_only=true. The operation is transactional, audited,
         idempotent for the same repository commit, and same-cycle readback verified.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18409,6 +18481,7 @@ paths:
     post:
       x-openai-isConsequential: false
       tags: [platform-intelligence]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: platformCapabilityVaultInstallRequestPlan
       summary: Plan tenant, brand, or user package install request
       description: >
@@ -18445,6 +18518,7 @@ paths:
     post:
       x-openai-isConsequential: false
       tags: [platform-intelligence]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: platformCapabilityVaultVariantMergePlan
       summary: Plan three-way merge of scoped variant patches
       description: >
@@ -18491,7 +18565,7 @@ paths:
         Builds a dry-run raw mirror plan for external repository evidence. The mirror is immutable, read-only, and
         never executed by runtime.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18521,7 +18595,7 @@ paths:
         Classifies source assets into safe runtime assets and blocked evidence-only assets. It never installs,
         executes, clones, or reads live external content.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18557,7 +18631,7 @@ paths:
         Builds a dry-run reinstall/upgrade plan. It preserves tenant overrides, brand bindings, agent grants,
         disabled skills, thresholds, and approval states; it never duplicates installs.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18592,7 +18666,7 @@ paths:
         Plans tenant, brand, business type, user, or platform variant patches. Lower layers can specialize or narrow
         policy, but cannot expand upper-layer permissions without approval and certification.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18624,7 +18698,7 @@ paths:
         Resolves the package base version, scoped variants, and task overlay into a dispatch readiness decision.
         It does not dispatch, install, or execute tools.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18656,7 +18730,7 @@ paths:
         It does not fetch browser URLs, perform live provider reads, or return file content. Drive metadata probes
         must use supportsAllDrives=true.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18688,7 +18762,7 @@ paths:
         Admin/service scoped read of registered policy-driven engines. This is registry inspection only and never
         executes engine tasks, tools, strategies, or model calls.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: status
@@ -18721,7 +18795,7 @@ paths:
         Read-only objective classification for the AI Intelligence Runtime. It returns candidate engine, task class,
         skill, resource classification, and rationale. It does not plan, apply, execute tools, or call models.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -18753,7 +18827,7 @@ paths:
         Builds a dry-run governed plan from SQL policy, rules, strategy registry, skill manifest, validators, and
         prior outcome evidence. It does not apply changes or execute dynamic code.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18798,7 +18872,7 @@ paths:
         Combines intent resolution, capability readiness, policy-driven planning, feedback-aware scoring, and
         apply-readiness blockers. Models may assist candidate scoring only; hard gates remain deterministic.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -18836,7 +18910,7 @@ paths:
         Reports the controls required before a separate governed apply route can execute: scope guard, approval,
         validators, audit, and readback. This route never mutates repositories, databases, or external systems.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18880,7 +18954,7 @@ paths:
         Readiness diagnostic for an engine and optional task class. Verifies active policy, rule, strategy, skill
         contract, and validator coverage without planning or applying.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18905,7 +18979,7 @@ paths:
       operationId: platformEngineRunHistory
       summary: List engine planning and audit runs
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: engine_key
@@ -18931,7 +19005,7 @@ paths:
       operationId: platformEngineFeedbackSummary
       summary: Summarize recent engine outcomes
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: engine_key
@@ -18960,7 +19034,7 @@ paths:
         Read-only live table census and classification using information_schema, data_migration_inventory, and
         lifecycle registry state. It never drops, archives, truncates, deletes, or mutates data.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -18985,7 +19059,7 @@ paths:
         Builds a dry-run plan to register lifecycle metadata for live tables. It does not write registry rows and
         does not perform archive, drop, truncate, or delete operations.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -19009,7 +19083,7 @@ paths:
       description: >
         Lists evidence-only database lifecycle report snapshots. This route is read-only and does not execute lifecycle cleanup.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: report_type
@@ -19032,7 +19106,7 @@ paths:
         Creates an evidence-only lifecycle report snapshot when confirmation-gated. It does not archive, delete, drop,
         truncate, compact, read secrets, or execute lifecycle cleanup.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -19065,7 +19139,7 @@ paths:
         Returns a bounded, read-only operational status for database lifecycle snapshots, schedules, and scheduler bindings.
         It does not enable scheduler jobs, write snapshots, archive, delete, drop, truncate, compact, or read secrets.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: report_type
@@ -19095,7 +19169,7 @@ paths:
         requires typed confirmation and creates at most one open operational incident for degraded lifecycle readiness.
         It does not enable scheduler jobs, write snapshots, archive, delete, drop, truncate, compact, or read secrets.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -19126,7 +19200,7 @@ paths:
         requires typed confirmation and writes only a lifecycle report snapshot after schedule, binding, and approval
         readback are all ready. It does not enable cron, archive, delete, drop, truncate, compact, or read secrets.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -19163,7 +19237,7 @@ paths:
         snapshot readiness/readback gate as the direct runner. Dry-run is default. Apply mode requires typed confirmation
         in the queued request payload and writes only a lifecycle report snapshot when all guards pass.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -19205,7 +19279,7 @@ paths:
         Lists planned database lifecycle report snapshot schedules. This route is read-only and does not run scheduler jobs
         or lifecycle cleanup.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: report_type
@@ -19234,7 +19308,7 @@ paths:
         Assesses whether snapshot schedules have approval, notification, and executor-policy metadata. This route is
         read-only and does not execute scheduled work.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -19261,7 +19335,7 @@ paths:
       description: >
         Lists planned lifecycle snapshot scheduler bindings. This route is read-only and does not enable or run scheduler work.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: schedule_key
@@ -19290,7 +19364,7 @@ paths:
         Assesses planned lifecycle snapshot scheduler bindings. This route is read-only and does not enable scheduler work
         or execute snapshots.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -19317,7 +19391,7 @@ paths:
         Plans or applies confirmation-gated schedule/binding approval metadata. This route does not enable scheduler jobs,
         write snapshots, or execute lifecycle cleanup.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -19355,7 +19429,7 @@ paths:
         Verifies schedule/binding approval metadata and its audit event after confirmation-gated metadata apply.
         This route is read-only and does not enable scheduler jobs, write snapshots, or execute lifecycle cleanup.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -19384,7 +19458,7 @@ paths:
         Tenant/user scoped read of allowed Platform Evolution scope switch options for the signed-in user.
         The returned scope_key values can be passed to tenant evolution read routes. No access is granted by this route.
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       parameters:
         - name: brand_key
           in: query
@@ -19422,7 +19496,7 @@ paths:
         scope, and a write-capable role. Tenant checkpoints cannot set platform commit/deploy authority fields and do not
         return tokens or secrets.
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       requestBody:
         required: true
         content:
@@ -19461,7 +19535,7 @@ paths:
         Tenant/user scoped read of a Platform Evolution activation card. Requires a user JWT, active tenant membership,
         and allowed scope in v_platform_evolution_scope_access. No secrets are returned.
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       parameters:
         - name: scope_key
           in: query
@@ -19497,7 +19571,7 @@ paths:
       description: >
         Tenant/user scoped thread map. Users can read only allowed scopes resolved from active membership and scope access.
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       parameters:
         - name: scope_key
           in: query
@@ -19545,7 +19619,7 @@ paths:
       description: >
         Tenant/user scoped linked evidence for Platform Evolution threads. Users can read only allowed scopes.
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       parameters:
         - name: scope_key
           in: query
@@ -19628,7 +19702,7 @@ paths:
       summary: Create or update a connected execution session
       description: Creates or updates DB-backed connected execution session metadata. Does not execute pending actions and does not enable background work.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -19659,7 +19733,7 @@ paths:
       summary: Read latest connected execution checkpoint
       description: Returns the latest checkpoint view for a connected execution session. Read-only and secret-free by contract.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: connected_session_id
@@ -19690,7 +19764,7 @@ paths:
       summary: Append connected execution evidence report
       description: Appends a sanitized evidence report to a connected execution session and advances its checkpoint cursor. Does not execute actions.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: connected_session_id
@@ -19731,7 +19805,7 @@ paths:
       summary: Enqueue connected execution resume action metadata
       description: Records a pending resume action for a connected execution session. This only stores metadata; it does not claim or execute the action.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: connected_session_id
@@ -19828,7 +19902,7 @@ paths:
       summary: Enqueue connected execution resume action for metadata-only worker processing
       description: Enqueues one pending analysis_step resume action or read-only tool_call preflight action for the connected execution worker bridge. The worker writes evidence/checkpoint metadata only. For tool_call actions it validates the read-only allowlist and records preflight evidence without executing tools, mutating repos, calling providers, calling local devices, or executing apply operations.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: connected_session_id
@@ -19883,7 +19957,7 @@ paths:
       summary: List tenant-safe live repository documents
       description: Returns the allowlisted tenant-facing documentation files available to the signed-in tenant user. Does not expose admin-only docs, migrations, or secrets.
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       responses:
         "200":
           description: Tenant-safe docs catalog.
@@ -19907,7 +19981,7 @@ paths:
       summary: Read one tenant-safe live repository document
       description: Reads a bounded allowlisted tenant-facing repository document by path. Blocks path traversal, absolute paths, non-allowlisted docs, admin-only guides, migrations, and schema dumps.
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       parameters:
         - name: path
           in: query
@@ -20023,7 +20097,7 @@ paths:
                   secrets_included: { type: boolean, enum: [false] }
         "401": { $ref: "#/components/responses/Unauthorized" }
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
 
   /tenant/platform/plugins/install:
     post:
@@ -20080,7 +20154,7 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
         "401": { $ref: "#/components/responses/Unauthorized" }
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
 
   /tenant/platform/plugins/resolve:
     post:
@@ -20195,12 +20269,12 @@ paths:
                   secrets_included: { type: boolean, enum: [false] }
         "401": { $ref: "#/components/responses/Unauthorized" }
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
   /tenant/resolution/skill-approvals:
     get:
       tags: [activation]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: listTenantSkillApprovals
       x-custom-gpt-exclude: false
       x-openai-isConsequential: false
@@ -20315,7 +20389,7 @@ paths:
     post:
       tags: [activation]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: decideTenantSkillApproval
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
@@ -20507,7 +20581,7 @@ paths:
   /connect/api/app-integrations:
     get:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: listConnectApiAppIntegrations
       summary: List active app integrations the user can connect
       responses:
@@ -20517,7 +20591,7 @@ paths:
   /connect/api/connections:
     get:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: listConnectApiConnections
       summary: List the signed-in user's app connections
       description: "Returns the caller's own user_app_connections rows. Does NOT include encrypted_credentials or any secret material."
@@ -20528,7 +20602,7 @@ paths:
   /connect/api/connections/{connection_id}:
     delete:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: deleteConnectApiConnection
       summary: Revoke a user connection and zero its credentials
       parameters:
@@ -20541,7 +20615,7 @@ paths:
   /connect/api/integration-policy:
     post:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: updateConnectIntegrationPolicy
       summary: Update per-app managed/dedicated integration source policy
       description: Keeps tenant activation mode canonical while allowing mixed per-app credential sources.
@@ -20590,7 +20664,7 @@ paths:
   /connect/api/credential-intake/sessions:
     post:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: createConnectCredentialIntakeSession
       summary: Create a user-scoped secure credential intake link
       description: Creates a short-lived URL where the signed-in tenant user can enter integration secrets outside GPT chat.
@@ -20653,7 +20727,7 @@ paths:
     get:
       tags: [connect]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: waitConnectCredentialIntakeSession
       summary: Wait for tenant credential intake completion
       description: Long-polls a tenant-scoped credential-intake session and returns completion metadata plus connection_id without exposing submitted secrets. Intended for automated post-intake verification flows and webhook-safe completion handling.
@@ -20705,7 +20779,7 @@ paths:
   /connect/api/cms/claims:
     get:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: listConnectApiCmsClaims
       summary: List the user's CMS account claims
       responses:
@@ -20713,7 +20787,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
     post:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: createConnectApiCmsClaim
       summary: Verify a user-supplied WordPress account and create a private claim
       description: "Calls /wp/v2/users/me on the supplied site with Basic auth (username + application_password), creates an encrypted user_app_connections row, a private credential_bindings row, and a cms_account_claims row. user_id is taken from the authenticated session and rejected if present in the body. Secrets are never returned."
@@ -20760,7 +20834,7 @@ paths:
   /connect/api/cms/claims/{claim_id}/approve:
     post:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: approveConnectApiCmsClaim
       summary: Approve a CMS claim for workspace/tenant sharing
       parameters:
@@ -20772,7 +20846,7 @@ paths:
   /connect/api/cms/claims/{claim_id}/reject:
     post:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: rejectConnectApiCmsClaim
       summary: Reject a CMS claim
       parameters:
@@ -20784,7 +20858,7 @@ paths:
   /platform/agent-governance/response-profile/resolve:
     post:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: resolveAgentGovernanceResponseProfile
       summary: Resolve a presentation-only response profile
       description: Resolves presentation preferences only and grants no tool, policy, approval, or execution authority.
@@ -20811,7 +20885,7 @@ paths:
   /platform/agent-governance/research-policy/resolve:
     post:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: resolveAgentGovernanceResearchPolicy
       summary: Resolve an internal-first research policy
       requestBody:
@@ -20836,7 +20910,7 @@ paths:
   /platform/agent-governance/research-executions:
     post:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: recordAgentGovernanceResearchExecution
       summary: Record secret-free research source evidence
       requestBody:
@@ -20867,7 +20941,7 @@ paths:
   /platform/agent-governance/research-plans:
     post:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: createGovernedResearchPlan
       summary: Create and compile an internal-first sequential research plan
       requestBody:
@@ -20897,7 +20971,7 @@ paths:
   /platform/agent-governance/research-plans/{plan_id}/run:
     post:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: runGovernedResearchPlan
       summary: Run a governed research plan through approved adapters
       parameters:
@@ -20925,7 +20999,7 @@ paths:
   /platform/agent-governance/handoffs:
     post:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: createAgentGovernanceHandoff
       summary: Create opaque expiring agent handoff state
       requestBody:
@@ -20956,7 +21030,7 @@ paths:
   /platform/agent-governance/handoffs/{state_id}:
     get:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: readAgentGovernanceHandoff
       summary: Read tenant- and actor-scoped governed handoff state
       parameters:
@@ -20971,7 +21045,7 @@ paths:
   /platform/agent-governance/handoffs/{state_id}/consume:
     post:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: consumeAgentGovernanceHandoff
       summary: Consume one-time or record access to reusable handoff state
       parameters:
@@ -20995,7 +21069,7 @@ paths:
   /platform/agent-governance/handoffs/{state_id}/revoke:
     post:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: revokeAgentGovernanceHandoff
       summary: Revoke governed handoff state without executing its allowed action
       parameters:
@@ -21018,7 +21092,7 @@ paths:
   /platform/agent-governance/external-prompts/classify:
     post:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: classifyExternalPromptArtifact
       summary: Quarantine and classify an external prompt-like artifact
       description: Stores only hash, findings, and a bounded summary. The artifact receives zero execution, tool, and policy authority.
@@ -21045,7 +21119,7 @@ paths:
   /platform/agent-governance/skill-coverage:
     get:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getAgentGovernanceSkillCoverage
       summary: Read type-aware Agent Skill runtime coverage
       parameters:
@@ -21062,7 +21136,7 @@ paths:
   /platform/agent-governance/readiness:
     get:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getAgentGovernanceReadiness
       summary: Read governance schema, policy, skill coverage, and source-adapter readiness
       responses:
@@ -21073,7 +21147,7 @@ paths:
   /platform/agent-governance/memory-scope/resolve:
     post:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: resolveAgentGovernanceMemoryScope
       summary: Resolve tenant-bound memory scopes and explicit cross-scope links
       requestBody:

@@ -1,0 +1,331 @@
+{
+  "schema_version": "frontend-surface-policy-v1",
+  "policy_key": "frontend_surface_policy_v1",
+  "default_decision": "requires_review",
+  "description": "Explicit exceptions and product decisions for repository-discovered frontend surface families. Discovery remains fail-closed; absence of a matching rule blocks dispatch.",
+  "rules": [
+    {
+      "rule_id": "platform-shell-public",
+      "family_key": "platform-frontend",
+      "scope": "public",
+      "decision": "unified_ui",
+      "owner": "frontend-platform",
+      "rationale": "The dependency-light public platform shell and browser-safe catalog are the governed entrypoint for the unified frontend.",
+      "evidence_refs": ["routes/platformFrontendRoutes.js", "public/platform", "test-platform-frontend-routes.mjs"]
+    },
+    {
+      "rule_id": "connect-assets-compatibility",
+      "path_prefix": "/connect/assets",
+      "decision": "embedded_ui",
+      "owner": "frontend-platform",
+      "rationale": "Existing Connect assets remain a compatibility surface while the unified shell is introduced.",
+      "evidence_refs": ["routes/connectRoutes.js", "public/connect"]
+    },
+    {
+      "rule_id": "local-manager-compatibility",
+      "path_prefix": "/local-manager",
+      "decision": "legacy_compatibility",
+      "owner": "local-manager",
+      "rationale": "Existing Local Manager browser pages remain supported until wave F4 reaches verified parity.",
+      "evidence_refs": ["routes/localManagerBetaRoutes.js", "routes/localManagerDesktopCommandRoutes.js", "specs/010-unified-platform-frontend/plan.md"]
+    },
+    {
+      "rule_id": "health-component-data",
+      "path_prefix": "/health",
+      "decision": "api_only",
+      "owner": "runtime-operations",
+      "rationale": "Health contracts feed status components but are not standalone navigation destinations.",
+      "evidence_refs": ["routes/healthRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "status-component-data",
+      "path_prefix": "/status",
+      "decision": "api_only",
+      "owner": "runtime-operations",
+      "rationale": "Status contracts feed operational views but are not standalone navigation destinations.",
+      "evidence_refs": ["routes/statusRoutes.js", "openapi.yaml"]
+    }
+  ],
+  "auth_rules": [
+    {
+      "rule_id": "public-runtime-metadata-auth",
+      "operations": [
+        "GET /deployment-info",
+        "GET /deployment-manifest",
+        "GET /version",
+        "GET /health"
+      ],
+      "profile": "public",
+      "owner": "runtime-operations",
+      "rationale": "Deployment identity, version, and aggregate health are intentionally unauthenticated readiness metadata and return no credentials.",
+      "evidence_refs": ["routes/deploymentInfoRoutes.js", "routes/healthRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "public-connector-artifacts-auth",
+      "operations": [
+        "GET /connector-agent/version",
+        "GET /connector-agent/manifest.json",
+        "GET /connector-agent/files/{fileName}"
+      ],
+      "profile": "public",
+      "owner": "local-connector",
+      "rationale": "The version, checksum manifest, and allowlisted agent release files are public bootstrap artifacts; credential-bearing installers use separate signed links.",
+      "evidence_refs": ["routes/connectorAgentRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "signed-artifact-download-auth",
+      "operations": [
+        "GET /connector-agent/installer.ps1",
+        "GET /local-connector/install/download",
+        "GET /backup-artifacts/export/{exportId}/{fileName}"
+      ],
+      "profile": "signed_query_token",
+      "owner": "runtime-operations",
+      "rationale": "Each download verifies a short-lived signed or hashed token from the token query parameter before returning credential-bearing or private artifacts.",
+      "evidence_refs": ["routes/connectorAgentRoutes.js", "routes/localConnectorInstallRoutes.js", "routes/backupArtifactRoutes.js"]
+    },
+    {
+      "rule_id": "connector-heartbeat-bearer-auth",
+      "operation": "POST /connector-agent/heartbeat",
+      "profile": "connector_bearer",
+      "owner": "local-connector",
+      "rationale": "Heartbeat resolution accepts the backend bearer value or the registered connector secret/local API key and rejects requests without a bearer token.",
+      "evidence_refs": ["routes/connectorAgentRoutes.js", "connectorSchemaCompatibility.js"]
+    },
+    {
+      "rule_id": "local-manager-public-shell-auth",
+      "operations": [
+        "GET /app/local-manager",
+        "GET /app/local-manager/update/windows",
+        "GET /app/local-manager/download/windows",
+        "GET /app/local-manager/sign-in",
+        "GET /app/local-manager/sign-up",
+        "GET /app/local-manager/link-device",
+        "GET /app/local-manager/devices",
+        "GET /app/local-manager/routes",
+        "GET /app/local-manager/backups",
+        "GET /app/local-manager/settings",
+        "GET /app/local-manager/admin"
+      ],
+      "profile": "public",
+      "owner": "local-manager",
+      "rationale": "These browser shell, bootstrap, and navigation documents are public entrypoints; their data calls enforce user or device authentication separately.",
+      "evidence_refs": ["routes/localManagerBetaRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "device-link-bootstrap-public-auth",
+      "operations": [
+        "POST /local-manager/device-link/start",
+        "GET /local-manager/device-link/preview",
+        "POST /local-manager/device-link/poll"
+      ],
+      "profile": "public",
+      "owner": "local-manager",
+      "rationale": "Pairing initiation is public by design; preview and polling require the short-lived device code and polling secret defined in their request contracts.",
+      "evidence_refs": ["services/localManagerDeviceLinkService.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "local-manager-bearer-auth",
+      "operations": [
+        "POST /local-manager/device-link/approve",
+        "GET /local-manager/device-link/devices",
+        "GET /local-manager/device/session",
+        "GET /local-manager/device/controls",
+        "POST /local-manager/device/agent-runtime",
+        "POST /local-connector/install/device-download-link"
+      ],
+      "profile": "local_manager",
+      "owner": "local-manager",
+      "rationale": "The imported service handlers validate either the signed-in Local Manager user JWT or a scoped Local Manager device bearer before accessing linked-device state.",
+      "evidence_refs": ["services/localManagerDeviceLinkService.js", "routes/connectorProxyRoutes.js", "routes/localConnectorInstallRoutes.js"]
+    },
+    {
+      "rule_id": "credential-intake-capability-auth",
+      "operations": [
+        "GET /credential-intake/{token}/schema",
+        "GET /credential-intake/{token}",
+        "POST /credential-intake/{token}"
+      ],
+      "profile": "public",
+      "owner": "connections-platform",
+      "rationale": "These transport-level public endpoints validate a short-lived, single-use capability token embedded in the path before reading or consuming an intake session.",
+      "evidence_refs": ["routes/credentialIntakeRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "public-connect-policy-auth",
+      "operation": "GET /policy",
+      "profile": "public",
+      "owner": "frontend-platform",
+      "rationale": "The Connect policy document is public browser bootstrap metadata and contains no credentials or tenant records.",
+      "evidence_refs": ["routes/connectRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "public-auth-flow-auth",
+      "operations": [
+        "GET /auth/oauth/authorize",
+        "POST /auth/oauth/code",
+        "POST /auth/oauth/token",
+        "POST /auth/register",
+        "POST /auth/login",
+        "POST /auth/password/forgot",
+        "GET /auth/password/reset",
+        "POST /auth/password/reset"
+      ],
+      "profile": "public",
+      "owner": "identity-platform",
+      "rationale": "Identity initiation and credential exchange must be reachable before a platform bearer exists; each operation validates its OAuth, password, reset-token, or client-credential inputs.",
+      "evidence_refs": ["routes/authRoutes.js"]
+    },
+    {
+      "rule_id": "public-status-auth",
+      "operations": [
+        "GET /status.html",
+        "GET /status",
+        "GET /status/incidents"
+      ],
+      "profile": "public",
+      "owner": "runtime-operations",
+      "rationale": "The status page and incident summary are deliberately public operational transparency surfaces.",
+      "evidence_refs": ["routes/statusRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "public-smoke-provider-auth",
+      "operations": [
+        "GET /platform/mock-providers",
+        "GET /platform/mock-providers/{provider}/{resource}",
+        "GET /platform/mock-crm/contacts"
+      ],
+      "profile": "public",
+      "owner": "frontend-platform",
+      "rationale": "The deterministic smoke-provider registry and fixtures are intentionally public, non-secret demo data used by the platform shell.",
+      "evidence_refs": ["routes/platformSmokeRoutes.js", "openapi.yaml"]
+    }
+  ],
+  "operation_rules": [
+    {
+      "rule_id": "tenant-resource-create-governance",
+      "operation": "POST /me/workspaces/{tenant_id}/resources/{resourceKey}",
+      "source_file": "routes/resourceApiRoutes.js",
+      "classification": "state_change",
+      "owner": "resource-platform",
+      "rationale": "Creates a tenant asset and returns a repository readback; failure rollback after insertion is not yet implemented and remains an explicit blocker.",
+      "preflight": { "mode": "inline_capability_check" },
+      "approval": { "mode": "runtime_authorization" },
+      "readback": { "mode": "inline_post_commit", "same_cycle": true },
+      "parameter_bindings": { "tenant_id": "path.tenant_id", "resource_key": "path.resourceKey", "resource_id": "response.id" },
+      "evidence_refs": ["src/application/resourceApi/resourceApiService.js", "test-resource-api-service.mjs"]
+    },
+    {
+      "rule_id": "tenant-resource-update-governance",
+      "operation": "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
+      "source_file": "routes/resourceApiRoutes.js",
+      "classification": "state_change",
+      "owner": "resource-platform",
+      "rationale": "Updates an owned tenant asset and returns same-cycle repository readback; before-snapshot compensation is still missing.",
+      "preflight": { "mode": "inline_capability_check" },
+      "approval": { "mode": "runtime_authorization" },
+      "readback": { "mode": "inline_post_commit", "same_cycle": true },
+      "parameter_bindings": { "tenant_id": "path.tenant_id", "resource_key": "path.resourceKey", "resource_id": "path.resourceId" },
+      "evidence_refs": ["src/application/resourceApi/resourceApiService.js", "test-resource-api-service.mjs"]
+    },
+    {
+      "rule_id": "tenant-resource-archive-governance",
+      "operation": "DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
+      "source_file": "routes/resourceApiRoutes.js",
+      "classification": "state_change",
+      "owner": "resource-platform",
+      "rationale": "Archives an owned tenant asset and returns lifecycle readback; automatic rollback when readback fails remains missing.",
+      "preflight": { "mode": "inline_capability_check" },
+      "approval": { "mode": "runtime_authorization" },
+      "readback": { "mode": "inline_post_commit", "same_cycle": true },
+      "parameter_bindings": { "tenant_id": "path.tenant_id", "resource_key": "path.resourceKey", "resource_id": "path.resourceId" },
+      "evidence_refs": ["src/application/resourceApi/resourceApiService.js", "test-resource-api-service.mjs"]
+    },
+    {
+      "rule_id": "tenant-resource-restore-governance",
+      "operation": "POST /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore",
+      "source_file": "routes/resourceApiRoutes.js",
+      "classification": "state_change",
+      "owner": "resource-platform",
+      "rationale": "Restores an owned tenant asset and returns lifecycle readback; automatic rollback when readback fails remains missing.",
+      "preflight": { "mode": "inline_capability_check" },
+      "approval": { "mode": "runtime_authorization" },
+      "readback": { "mode": "inline_post_commit", "same_cycle": true },
+      "parameter_bindings": { "tenant_id": "path.tenant_id", "resource_key": "path.resourceKey", "resource_id": "path.resourceId" },
+      "evidence_refs": ["src/application/resourceApi/resourceApiService.js", "test-resource-api-service.mjs"]
+    },
+    {
+      "rule_id": "capability-vault-repo-plan-read-action",
+      "operation": "POST /platform/capability-vault/repo-ingestion-plan",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint returns a pinned dry-run plan and does not install or execute repository content.",
+      "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "capability-vault-install-plan-read-action",
+      "operation": "POST /platform/capability-vault/install-request-plan",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint plans an install request without writing installation state or enabling dispatch.",
+      "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "capability-vault-merge-plan-read-action",
+      "operation": "POST /platform/capability-vault/variant-merge-plan",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint previews variant conflict handling without applying patches.",
+      "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "capability-vault-mirror-plan-read-action",
+      "operation": "POST /platform/capability-vault/mirror-plan",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint builds an immutable mirror plan in memory and neither clones nor writes repository content.",
+      "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "capability-vault-package-plan-read-action",
+      "operation": "POST /platform/capability-vault/package-plan",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint returns a sanitized package-intake plan without persisting or installing the package.",
+      "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "capability-vault-reinstall-diff-read-action",
+      "operation": "POST /platform/capability-vault/reinstall-diff-plan",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint calculates an idempotent reinstall or upgrade diff and does not apply filesystem changes.",
+      "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "capability-vault-variant-plan-read-action",
+      "operation": "POST /platform/capability-vault/variant-plan",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint calculates scoped variant patches without writing or merging them.",
+      "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "capability-vault-runtime-resolve-read-action",
+      "operation": "POST /platform/capability-vault/runtime-resolve",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint resolves the effective runtime layer from supplied inputs and performs no runtime activation.",
+      "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "capability-vault-google-file-resolve-read-action",
+      "operation": "POST /platform/capability-vault/google-file-read/resolve",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint returns a Google file-read strategy decision without contacting Google or mutating provider state.",
+      "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    }
+  ],
+  "secrets_included": false
+}

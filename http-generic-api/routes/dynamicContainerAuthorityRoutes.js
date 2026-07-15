@@ -19,6 +19,11 @@ import {
 } from "../dynamicContainerProjectionService.js";
 import { readContainerResolution } from "../dynamicContainerAuthorityRepository.js";
 import { runDynamicContainerShadowSampler } from "../dynamicContainerShadowSampler.js";
+import {
+  runContainerCanaryPromotion,
+  runContainerCanaryRollback
+} from "../dynamicContainerRolloutSafety.js";
+import { executeObservedReadOnlyCanary } from "../dynamicContainerCanaryRuntime.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const previewRate = new Map();
@@ -241,6 +246,58 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
     } catch (error) { return errorResponse(req,res,error); }
   });
 
+  router.post("/admin/container-authority/canary-promotions",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
+    let connection = null;
+    try {
+      assertAllowedKeys(req.body,new Set(["mode","targetCanaryKey","confirm","capabilityEnvelopeId"]));
+      const mode = String(req.body?.mode || "dry_run");
+      if(!new Set(["dry_run","apply"]).has(mode)) {
+        const error = new Error("mode must be dry_run or apply.");
+        error.status = 400;
+        error.code = "container_canary_mode_invalid";
+        throw error;
+      }
+      connection = await getPool().getConnection();
+      const result = await runContainerCanaryPromotion({
+        executor:connection,
+        targetCanaryKey:req.body?.targetCanaryKey,
+        apply:mode === "apply",
+        confirm:req.body?.confirm || null,
+        capabilityEnvelopeId:req.body?.capabilityEnvelopeId || null,
+        requireCapabilityEnvelope:mode === "apply",
+        actor:actorId(req)
+      });
+      return res.status(mode === "apply" ? 201 : 200).json(result);
+    } catch (error) { return errorResponse(req,res,error); }
+    finally { if(connection) connection.release(); }
+  });
+
+  router.post("/admin/container-authority/canary-rollbacks",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
+    let connection = null;
+    try {
+      assertAllowedKeys(req.body,new Set(["mode","targetCanaryKey","confirm","capabilityEnvelopeId","reason"]));
+      const mode = String(req.body?.mode || "dry_run");
+      if(!new Set(["dry_run","apply"]).has(mode)) {
+        const error = new Error("mode must be dry_run or apply.");
+        error.status = 400;
+        error.code = "container_canary_rollback_mode_invalid";
+        throw error;
+      }
+      connection = await getPool().getConnection();
+      const result = await runContainerCanaryRollback({
+        executor:connection,
+        targetCanaryKey:req.body?.targetCanaryKey,
+        apply:mode === "apply",
+        confirm:req.body?.confirm || null,
+        capabilityEnvelopeId:req.body?.capabilityEnvelopeId || null,
+        reason:req.body?.reason || "runtime_canary_not_observed",
+        actor:actorId(req)
+      });
+      return res.status(mode === "apply" ? 201 : 200).json(result);
+    } catch (error) { return errorResponse(req,res,error); }
+    finally { if(connection) connection.release(); }
+  });
+
   router.post("/admin/container-authority/shadow-samples",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
     try {
       assertAllowedKeys(req.body,new Set(["sampleCount","tenantId"]));
@@ -262,8 +319,27 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
   });
 
   router.get("/container-authority/rollout-readiness",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
+    let connection = null;
     try {
-      const [rows] = await getPool().query("SELECT * FROM v_container_rollout_readiness ORDER BY policy_key");
+      connection = await getPool().getConnection();
+      const observed = await executeObservedReadOnlyCanary({
+        executor:connection,
+        canaryKey:"container_authority_rollout_readiness_v1",
+        capabilityKey:"getContainerAuthorityRolloutReadiness",
+        requestId:requestId(req),
+        execute:async () => {
+          const [rows] = await connection.query("SELECT * FROM v_container_rollout_readiness ORDER BY policy_key");
+          return { ok:true,items:rows,secretsIncluded:false };
+        }
+      });
+      return res.json(observed.response);
+    } catch (error) { return errorResponse(req,res,error); }
+    finally { if(connection) connection.release(); }
+  });
+
+  router.get("/container-authority/canary-monitoring",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
+    try {
+      const [rows] = await getPool().query("SELECT * FROM v_container_canary_monitoring_summary ORDER BY canary_key");
       return res.json({ ok:true,items:rows,secretsIncluded:false });
     } catch (error) { return errorResponse(req,res,error); }
   });
