@@ -39,7 +39,11 @@ jobs:
         working-directory: http-generic-api
         run: npm run activation-gateway:bundle:sync
 
-      - name: Validate generated schemas and bundle
+      - name: Sync activation gateway runtime bundle
+        working-directory: http-generic-api
+        run: npm run activation-gateway:bundle:sync
+
+      - name: Validate generated schemas and parity
         working-directory: http-generic-api
         run: |
           npm run schemas:check
@@ -49,11 +53,11 @@ jobs:
       - name: Commit reviewed generated artifacts to helper branch
         shell: bash
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add --             http-generic-api/openapi/openapi.tenant-gpt.activation.yaml             edge/activation-gateway/generated/route-policy.json             http-generic-api/activation-gateway-runtime/generated/route-policy.json             http-generic-api/activation-gateway-runtime/bundle-manifest.json
-          if git diff --cached --quiet; then
-            echo "No generated artifact changes."
+          CHANGED_FILES="$(git diff --name-only --             http-generic-api/openapi.yaml             http-generic-api/openapi.*.yaml             canonicals/openapi/**/*.yaml             edge/activation-gateway/**             docs/**/*.md             canonicals/**/*.md             '*.md')"
+
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "auto_merge=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git commit -m "chore: generate T050 schema artifacts"
