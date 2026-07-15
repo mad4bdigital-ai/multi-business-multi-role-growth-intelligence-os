@@ -177,18 +177,59 @@ assert.throws(
   error => error.code === "container_canary_operation_not_read_only" && error.status === 422
 );
 
-function canaryExecutor() {
+function canaryExecutor({ envelopePresent=true,applyAllowed=true,lifecycleAffectedRows=1 } = {}) {
   let mode="shadow";
   let updateCount=0;
+  let envelopeUpdateCount=0;
+  let executionStatus="not_executed";
+  let dispatchAllowed=true;
+  let currentApplyAllowed=applyAllowed;
   const calls=[];
+  const envelopeId="11111111-2222-4333-8444-555555555555";
+  const envelopeRow=() => ({
+    envelope_id:envelopeId,
+    tenant_id:null,
+    user_id:null,
+    workspace_id:null,
+    workspace_key:null,
+    brand_key:null,
+    app_key:"platform_orchestration",
+    capability_key:"dynamic_container_canary_promotion",
+    operation_intent:"dynamic_container_canary_promotion",
+    risk_class:"high",
+    selected_source_tier:"platform_managed_fallback",
+    selected_runtime_surface:"auth_host",
+    authority_status:"passed",
+    decision:"ready_for_dispatch",
+    envelope_status:"ready_for_dispatch",
+    dispatch_allowed:dispatchAllowed ? 1 : 0,
+    apply_allowed:currentApplyAllowed ? 1 : 0,
+    approval_required:0,
+    quota_required:1,
+    audit_required:1,
+    readback_required:1,
+    blocking_gap_count:0,
+    execution_status:executionStatus,
+    expires_at:"2999-01-01T00:00:00.000Z",
+    secrets_included:0,
+    envelope_sha256:"a".repeat(64),
+    envelope_json:"{}"
+  });
   return {
     calls,
+    envelopeId,
     get updateCount() { return updateCount; },
+    get envelopeUpdateCount() { return envelopeUpdateCount; },
+    get executionStatus() { return executionStatus; },
     beginTransaction:async () => calls.push("begin"),
     commit:async () => calls.push("commit"),
     rollback:async () => calls.push("rollback"),
-    query:async (sql) => {
+    query:async (sql,params=[]) => {
       calls.push(sql);
+      if(sql.includes("FROM capability_resolution_envelope_ledger") && sql.includes("WHERE envelope_id = ?")) {
+        assert.equal(params[0],envelopeId);
+        return [envelopePresent ? [envelopeRow()] : []];
+      }
       if(sql.includes("FROM container_shadow_canary_registry WHERE status='active'")) {
         return [[{ ...canaries[0],rollout_mode:mode },canaries[1]]];
       }
@@ -199,38 +240,109 @@ function canaryExecutor() {
         return [{ affectedRows:1 }];
       }
       if(sql.includes("FROM container_shadow_canary_registry WHERE canary_key=?")) {
-        return [[{ ...canaries[0],rollout_mode:mode }]];
+        return [[{ ...canaries[0],rollout_mode:mode,metadata_json:"{}" }]];
+      }
+      if(sql.startsWith("UPDATE capability_resolution_envelope_ledger")) {
+        envelopeUpdateCount += 1;
+        if(lifecycleAffectedRows === 1) {
+          executionStatus="executed";
+          dispatchAllowed=false;
+          currentApplyAllowed=false;
+        }
+        return [{ affectedRows:lifecycleAffectedRows }];
       }
       throw new Error(`Unexpected SQL: ${sql}`);
     }
   };
 }
 
-const canaryDryRunExecutor=canaryExecutor();
+const canaryDryRunExecutor=canaryExecutor({ envelopePresent:false });
 const canaryDryRun=await runContainerCanaryPromotion({ executor:canaryDryRunExecutor,targetCanaryKey:"preview-resolution" });
 assert.equal(canaryDryRun.mode,"dry_run");
+assert.equal(canaryDryRun.enforcementApplied,false);
 assert.equal(canaryDryRunExecutor.updateCount,0);
+assert.equal(canaryDryRunExecutor.envelopeUpdateCount,0);
 assert(!canaryDryRunExecutor.calls.includes("begin"));
+
+const canaryMissingEnvelopeExecutor=canaryExecutor();
+await assert.rejects(
+  runContainerCanaryPromotion({
+    executor:canaryMissingEnvelopeExecutor,
+    targetCanaryKey:"preview-resolution",
+    apply:true,
+    confirm:"PROMOTE_DYNAMIC_CONTAINER_CANARY_PREVIEW_RESOLUTION",
+    requireCapabilityEnvelope:true
+  }),
+  error => error.code === "capability_resolution_envelope_required" && error.status === 403
+);
+assert.deepEqual(canaryMissingEnvelopeExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","rollback"]);
+assert.equal(canaryMissingEnvelopeExecutor.updateCount,0);
+
+const canaryApplyDisabledExecutor=canaryExecutor({ applyAllowed:false });
+await assert.rejects(
+  runContainerCanaryPromotion({
+    executor:canaryApplyDisabledExecutor,
+    targetCanaryKey:"preview-resolution",
+    apply:true,
+    confirm:"PROMOTE_DYNAMIC_CONTAINER_CANARY_PREVIEW_RESOLUTION",
+    capabilityEnvelopeId:canaryApplyDisabledExecutor.envelopeId,
+    requireCapabilityEnvelope:true
+  }),
+  error => error.code === "capability_resolution_envelope_apply_not_allowed" && error.status === 403
+);
+assert.deepEqual(canaryApplyDisabledExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","rollback"]);
+assert.equal(canaryApplyDisabledExecutor.updateCount,0);
 
 const canaryWrongConfirmExecutor=canaryExecutor();
 await assert.rejects(
-  runContainerCanaryPromotion({ executor:canaryWrongConfirmExecutor,targetCanaryKey:"preview-resolution",apply:true,confirm:"WRONG" }),
+  runContainerCanaryPromotion({
+    executor:canaryWrongConfirmExecutor,
+    targetCanaryKey:"preview-resolution",
+    apply:true,
+    confirm:"WRONG",
+    capabilityEnvelopeId:canaryWrongConfirmExecutor.envelopeId,
+    requireCapabilityEnvelope:true
+  }),
   error => error.code === "container_canary_confirmation_required" && error.status === 409
 );
 assert.deepEqual(canaryWrongConfirmExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","rollback"]);
 assert.equal(canaryWrongConfirmExecutor.updateCount,0);
+assert.equal(canaryWrongConfirmExecutor.envelopeUpdateCount,0);
 
 const canaryApplyExecutor=canaryExecutor();
 const canaryApplied=await runContainerCanaryPromotion({
   executor:canaryApplyExecutor,
   targetCanaryKey:"preview-resolution",
   apply:true,
-  confirm:"PROMOTE_DYNAMIC_CONTAINER_CANARY_PREVIEW_RESOLUTION"
+  confirm:"PROMOTE_DYNAMIC_CONTAINER_CANARY_PREVIEW_RESOLUTION",
+  capabilityEnvelopeId:canaryApplyExecutor.envelopeId,
+  requireCapabilityEnvelope:true,
+  actor:"test_admin"
 });
 assert.equal(canaryApplied.mode,"apply");
 assert.equal(canaryApplied.readback.rollout_mode,"read_only_canary");
+assert.equal(canaryApplied.capabilityEnvelope.envelopeId,canaryApplyExecutor.envelopeId);
+assert.equal(canaryApplied.capabilityEnvelope.executionStatus,"executed");
+assert.equal(canaryApplied.enforcementApplied,false);
 assert.equal(canaryApplyExecutor.updateCount,1);
+assert.equal(canaryApplyExecutor.envelopeUpdateCount,1);
+assert.equal(canaryApplyExecutor.executionStatus,"executed");
 assert.deepEqual(canaryApplyExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","commit"]);
+
+const canaryLifecycleFailureExecutor=canaryExecutor({ lifecycleAffectedRows:0 });
+await assert.rejects(
+  runContainerCanaryPromotion({
+    executor:canaryLifecycleFailureExecutor,
+    targetCanaryKey:"preview-resolution",
+    apply:true,
+    confirm:"PROMOTE_DYNAMIC_CONTAINER_CANARY_PREVIEW_RESOLUTION",
+    capabilityEnvelopeId:canaryLifecycleFailureExecutor.envelopeId,
+    requireCapabilityEnvelope:true
+  }),
+  error => error.code === "capability_resolution_envelope_lifecycle_transition_blocked" && error.status === 403
+);
+assert.equal(canaryLifecycleFailureExecutor.updateCount,1);
+assert.deepEqual(canaryLifecycleFailureExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","rollback"]);
 
 const enforcedReady={
   rolloutMode:"enforced",
