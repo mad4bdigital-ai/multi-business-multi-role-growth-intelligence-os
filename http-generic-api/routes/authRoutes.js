@@ -1015,7 +1015,7 @@ export function buildAuthRoutes(deps) {
           user_id: payload.user_id,
           email: payload.email,
           tenant_id: payload.tenant_id || null,
-          redirect_uri,
+          redirect_uri: canonicalizeTenantGptRedirectUri(redirect_uri) || redirect_uri,
           scope: requested_scope || null,
           activation_context,
         },
@@ -1028,7 +1028,7 @@ export function buildAuthRoutes(deps) {
         code,
         expires_in: OAUTH_CODE_TTL_SECONDS,
         activation_context,
-        redirect_to: appendOAuthParams(redirect_uri, { code, state }),
+        redirect_to: appendOAuthParams(canonicalizeTenantGptRedirectUri(redirect_uri) || redirect_uri, { code, state }),
       });
     } catch (error) {
       if (Number.isInteger(error?.auth_status) && error?.auth_code) {
