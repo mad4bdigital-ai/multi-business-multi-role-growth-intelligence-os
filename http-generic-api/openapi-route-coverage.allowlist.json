@@ -1,5 +1,5 @@
 {
-  "notes": "OpenAPI route coverage allowlist. Stage 1 checks critical platform/admin/tenant route families. Prefer documenting platform/admin/tenant routes in openapi.yaml instead of adding allowlist entries.",
+  "notes": "Explicit OpenAPI operation-presence exemptions. The staged guard still checks critical route files, while frontend-surface-dispatch reports full-repository canonical, generated-index, exemption, detail-gap, and auth-parity counts. Prefer reviewed canonical contracts; never use this file to hide unresolved authentication or schema detail debt.",
   "required_files": [
     "routes/platformPluginRoutes.js",
     "routes/tenantPlatformPluginRoutes.js",

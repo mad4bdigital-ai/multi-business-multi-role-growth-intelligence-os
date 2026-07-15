@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { createResourceApiService } from "./src/application/resourceApi/resourceApiService.js";
 
+// frontend-surface-operation: POST /me/workspaces/{tenant_id}/resources/{resourceKey}
+// frontend-surface-operation: PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}
+// frontend-surface-operation: DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}
+// frontend-surface-operation: POST /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore
+
 function createFakeRepository(overrides = {}) {
   const sessions = new Map([
     ["session-owned", { session_id: "session-owned", tenant_id: "tenant-1", user_id: "user-1", created_at: "2026-06-22T00:00:00Z" }],
@@ -14,7 +19,7 @@ function createFakeRepository(overrides = {}) {
   const repository = {
     async findMembership(userId, tenantId) {
       if (tenantId !== "tenant-1") return null;
-      return { user_id: userId, tenant_id: tenantId, role: "member", status: "active", tenant_status: "active" };
+      return { user_id: userId, tenant_id: tenantId, role: userId === "user-owner" ? "owner" : "member", status: "active", tenant_status: "active" };
     },
     async listResource(resourceKey) {
       if (resourceKey === "sessions") return { items: [...sessions.values()], count: sessions.size, nextPageToken: null };
@@ -75,6 +80,7 @@ function createFakeRepository(overrides = {}) {
 }
 
 const userAuth = { mode: "user_jwt", user_id: "user-1", tenant_id: "tenant-1" };
+const ownerAuth = { mode: "user_jwt", user_id: "user-owner", tenant_id: "tenant-1" };
 const adminAuth = { mode: "backend_api_key", is_admin: true };
 let auditInput = null;
 let summaryInput = null;
@@ -114,6 +120,28 @@ assert.equal(created.capabilities.canPurge, false);
 
 const tenantOwned = await service.tenantGetResource("tenant-1", "assets", "asset-owned", userAuth);
 assert.equal(tenantOwned.resource.capabilities.canUpdate, true);
+
+const tenantCreated = await service.tenantCreateResource(
+  "tenant-1",
+  "assets",
+  { asset_id: "asset-tenant-created", asset_type: "document", display_name: "Tenant asset" },
+  userAuth
+);
+assert.equal(tenantCreated.id, "asset-tenant-created", "create must return repository readback");
+
+const tenantUpdated = await service.tenantUpdateResource(
+  "tenant-1",
+  "assets",
+  "asset-owned",
+  { display_name: "Updated asset" },
+  userAuth
+);
+assert.equal(tenantUpdated.data.display_name, "Updated asset", "update must return same-cycle repository readback");
+
+const tenantArchived = await service.tenantSetResourceLifecycle("tenant-1", "assets", "asset-owned", "archived", ownerAuth);
+assert.equal(tenantArchived.data.lifecycle_status, "archived", "archive must return lifecycle readback");
+const tenantRestored = await service.tenantSetResourceLifecycle("tenant-1", "assets", "asset-owned", "active", ownerAuth);
+assert.equal(tenantRestored.data.lifecycle_status, "active", "restore must return lifecycle readback");
 
 await assert.rejects(
   () => service.tenantUpdateResource("tenant-1", "assets", "asset-other", { display_name: "blocked" }, userAuth),
