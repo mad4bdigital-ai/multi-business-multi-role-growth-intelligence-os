@@ -397,4 +397,25 @@ assert.match(projection,/runtime_role,runtime_enforced/);
 assert.match(projection,/'context_only',0/);
 assert.doesNotMatch(projection,/authority_status='authoritative'/);
 
-console.log("dynamic container rollout safety, rollback, query-index, and graph projection contracts passed");
+assert.match(routes,/router\.post\("\/admin\/container-authority\/canary-promotions"/);
+assert.match(routes,/runContainerCanaryPromotion/);
+assert.match(routes,/capabilityEnvelopeId:req\.body\?\.capabilityEnvelopeId/);
+assert.match(openapi,/adminContainerAuthorityCanaryPromotions:/);
+assert.match(openapi,/operationId: createAdminContainerAuthorityCanaryPromotion/);
+assert.match(openapi,/x-registry-tool-key: dynamic_container_canary_promotion/);
+assert.match(openapi,/x-openai-isConsequential: true/);
+assert.match(openapi,/CanaryPromotionRequest:/);
+assert.match(openapi,/CanaryPromotionResponse:/);
+assert.match(rootOpenapi,/\/admin\/container-authority\/canary-promotions:/);
+assert.match(rootOpenapi,/adminContainerAuthorityCanaryPromotions/);
+assert.match(canaryMigration,/dynamic_container_canary_promotion_policy_v1/);
+assert.match(canaryMigration,/transactional_envelope_consumption_required/);
+assert.match(canaryMigration,/read_only_canary_only/);
+assert.match(canaryMigration,/global_rollout_policy_change_forbidden/);
+assert.match(canaryMigration,/'dynamic_container_canary_promotion'/);
+assert.match(canaryMigration,/'\/admin\/container-authority\/canary-promotions'/);
+assert.match(canaryMigration,/no_provider_call/);
+assert.match(canaryMigration,/no_external_write/);
+assert.match(canaryMigration,/secrets_included=false/);
+
+console.log("dynamic container rollout safety, rollback, query-index, graph projection, and canary promotion contracts passed");
