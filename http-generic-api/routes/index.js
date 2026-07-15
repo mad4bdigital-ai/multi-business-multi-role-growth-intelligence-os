@@ -122,6 +122,7 @@ import { buildSqlCachePolicyRoutes } from "./sqlCachePolicyRoutes.js";
 import { buildRegistryDataManagementRoutes } from "./registryDataManagementRoutes.js";
 import { buildRepositoryAutomationRoutes } from "./repositoryAutomationRoutes.js";
 import { buildRepoConflictIntelligenceRoutes } from "./repoConflictIntelligenceRoutes.js";
+import { buildPlatformFrontendRoutes } from "./platformFrontendRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
@@ -167,6 +168,7 @@ export function registerRoutes(app, deps) {
   app.use(buildLegalRoutes(deps));
   app.use(buildRootDiscoveryRoutes());
   app.use(buildConnectRoutes(deps));
+  app.use(buildPlatformFrontendRoutes());
   // Tenant Connect API must mount before root-level admin/protected routers
   // so user JWT callers can create secure intake sessions and list app catalog.
   app.use(buildConnectApiRoutes(deps));

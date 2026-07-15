@@ -1,0 +1,69 @@
+name: Frontend surface dispatch
+
+on:
+  pull_request:
+    paths:
+      - "http-generic-api/routes/**"
+      - "http-generic-api/openapi.yaml"
+      - "http-generic-api/openapi/**"
+      - "http-generic-api/openapi-route-coverage.allowlist.json"
+      - "http-generic-api/resource-api-coverage.manifest.json"
+      - "http-generic-api/frontend-surface-policy.json"
+      - "http-generic-api/frontend-surface-dispatch.generated.json"
+      - "http-generic-api/public/connect/**"
+      - "http-generic-api/public/platform/**"
+      - "http-generic-api/package.json"
+      - "http-generic-api/package-lock.json"
+      - "http-generic-api/scripts/frontend-surface-dispatch.mjs"
+      - "http-generic-api/scripts/openapi-route-coverage.mjs"
+      - "http-generic-api/scripts/openapi-runtime-auth-sync.mjs"
+      - "http-generic-api/scripts/test-manifest.mjs"
+      - "http-generic-api/test-*.mjs"
+      - "canonicals/openapi/custom-gpt-surfaces.yaml"
+      - "specs/010-unified-platform-frontend/**"
+      - ".github/workflows/frontend-surface-dispatch.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch-plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: http-generic-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - run: npm ci
+      - name: Generate source-pinned dispatch plan
+        run: npm run frontend:dispatch:generate -- --baseline-ref="${{ github.event.pull_request.base.sha || github.sha }}"
+      - name: Verify generator contract
+        run: |
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+      - name: Enforce committed deterministic output
+        run: |
+          if [[ -n "$(git status --porcelain -- frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)" ]]; then
+            git diff --no-ext-diff --unified=1 -- frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml || true
+            echo "::error::frontend dispatch/OpenAPI generated evidence is missing or stale; regenerate and commit it."
+            exit 1
+          fi
+      - name: Upload dispatch evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-surface-dispatch
+          path: |
+            http-generic-api/frontend-surface-dispatch.generated.json
+            http-generic-api/openapi/frontend-runtime-routes.generated.yaml
+          if-no-files-found: error
+          retention-days: 14
