@@ -3,6 +3,7 @@ import "./test-operation-run-ownership.mjs";
 import "./test-operation-runtime-guard.mjs";
 import "./test-operation-resilience-controller.mjs";
 import "./test-typed-catalog-service.mjs";
+import "./test-managed-git-worker-lifecycle.mjs";
 import {
   getOperationContract,
   listOperationContracts,
@@ -21,24 +22,43 @@ assert.ok(tenantContracts.some((item) => item.operation_key === "repo.change.pre
 assert.ok(tenantContracts.every((item) => item.principal_scopes.includes("tenant")));
 
 assert.throws(
-  () => validateOperationInput(getOperationContract("repo.change.execute"), { owner: "o", repo: "r" }),
+  () => validateOperationInput(
+    getOperationContract("repo.change.execute"),
+    { owner: "o", repo: "r" },
+  ),
   (error) => error.code === "OPERATION_REQUIRED_FIELDS_MISSING",
 );
 
 assert.equal(
-  _testingOperationContextService.principalClass({ mode: "user_jwt", user_id: "u", tenant_id: "t" }),
+  _testingOperationContextService.principalClass({
+    mode: "user_jwt",
+    user_id: "u",
+    tenant_id: "t",
+  }),
   "tenant",
 );
 assert.equal(
-  _testingOperationContextService.principalClass({ mode: "backend_api", is_admin: true }),
+  _testingOperationContextService.principalClass({
+    mode: "backend_api",
+    is_admin: true,
+  }),
   "admin",
 );
 assert.equal(
-  _testingOperationContextService.repositoryUri({ owner: "mad4bdigital-ai", repo: "repo" }),
+  _testingOperationContextService.repositoryUri({
+    owner: "mad4bdigital-ai",
+    repo: "repo",
+  }),
   "github://mad4bdigital-ai/repo",
 );
-assert.equal(_testingOperationContextService.responseMode({ response_mode: "full" }), "full");
-assert.equal(_testingOperationContextService.responseMode({ response_mode: "invalid" }), "summary");
+assert.equal(
+  _testingOperationContextService.responseMode({ response_mode: "full" }),
+  "full",
+);
+assert.equal(
+  _testingOperationContextService.responseMode({ response_mode: "invalid" }),
+  "summary",
+);
 
 const automation = _testingOperationOrchestrator.automationInput({
   owner: "mad4bdigital-ai",
@@ -56,6 +76,9 @@ const diagnosis = _testingOperationOrchestrator.summarizeChecks({
   ],
 });
 assert.equal(diagnosis.status, "failed");
-assert.deepEqual(diagnosis.failing_checks.map((item) => item.name), ["Syntax Check"]);
+assert.deepEqual(
+  diagnosis.failing_checks.map((item) => item.name),
+  ["Syntax Check"],
+);
 
 console.log("operation orchestrator tests passed");

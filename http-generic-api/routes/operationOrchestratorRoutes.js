@@ -24,18 +24,30 @@ import {
   finalizeOperationCapabilityLifecycle,
   prepareOperationCapabilityLifecycle,
 } from "../operationCapabilityLifecycleService.js";
+import {
+  finalizeManagedGitWorkerLifecycle,
+  markManagedGitWorkerRunning,
+  prepareManagedGitWorkerLifecycle,
+  readManagedGitWorkerLease,
+} from "../managedGitWorkerLifecycleService.js";
 import { collectChunkedToolResponse } from "../repositoryAutomationControlPlane.js";
 import { dispatchToolForCaller, resolveCallerTypeForRequest } from "./gptToolsRoutes.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 
 function bodyOf(req) {
-  return req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {};
+  return req.body && typeof req.body === "object" && !Array.isArray(req.body)
+    ? req.body
+    : {};
 }
 
 function verifyUserJwt(authHeader) {
   if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  try { return jwt.verify(authHeader.slice(7), JWT_SECRET); } catch { return null; }
+  try {
+    return jwt.verify(authHeader.slice(7), JWT_SECRET);
+  } catch {
+    return null;
+  }
 }
 
 async function tenantMembership(userId, requestedTenantId = null) {
@@ -59,7 +71,9 @@ async function tenantMembership(userId, requestedTenantId = null) {
 }
 
 async function requireTenantOperationPrincipal(req, res, next) {
-  const payload = req.auth?.mode === "user_jwt" ? req.auth : verifyUserJwt(req.headers.authorization);
+  const payload = req.auth?.mode === "user_jwt"
+    ? req.auth
+    : verifyUserJwt(req.headers.authorization);
   if (!payload?.user_id) {
     return res.status(401).json({
       ok: false,
@@ -111,11 +125,13 @@ async function dispatchWithChunkCollection(dispatch, toolKey, args) {
 
 function depsFor(req) {
   const callerType = resolveCallerTypeForRequest(req);
-  const dispatch = (toolKey, args) => dispatchToolForCaller(callerType, toolKey, args, req);
+  const dispatch = (toolKey, args) =>
+    dispatchToolForCaller(callerType, toolKey, args, req);
   return {
     pool: getPool(),
     auth: req.auth || {},
-    dispatch: (toolKey, args) => dispatchWithChunkCollection(dispatch, toolKey, args),
+    dispatch: (toolKey, args) =>
+      dispatchWithChunkCollection(dispatch, toolKey, args),
   };
 }
 
@@ -124,7 +140,9 @@ function isTenant(req) {
 }
 
 function isResumeOperation(input = {}) {
-  return normalizeOperationKey(input.operation_key || input.operation || input.intent) === "operation.resume";
+  return normalizeOperationKey(
+    input.operation_key || input.operation || input.intent,
+  ) === "operation.resume";
 }
 
 async function recordArtifactsSafely({ req, input, result, operationKey }) {
@@ -144,7 +162,8 @@ async function recordArtifactsSafely({ req, input, result, operationKey }) {
       artifact_count: 0,
       error: {
         code: error?.code || "OPERATION_ARTIFACT_REGISTRY_UNAVAILABLE",
-        message: error?.message || "Generated artifact registration is unavailable.",
+        message:
+          error?.message || "Generated artifact registration is unavailable.",
         details: error?.details || null,
       },
       retryable: Number(error?.status || 500) >= 500,
@@ -167,7 +186,8 @@ async function finalizeCapabilitySafely({ lifecycle, result }) {
       envelope_id: lifecycle?.envelope_id || null,
       error: {
         code: error?.code || "OPERATION_CAPABILITY_CONSUME_FAILED",
-        message: error?.message || "Capability envelope consumption failed.",
+        message:
+          error?.message || "Capability envelope consumption failed.",
         details: error?.details || null,
       },
       readback_required: true,
@@ -177,10 +197,39 @@ async function finalizeCapabilitySafely({ lifecycle, result }) {
   }
 }
 
+async function finalizeWorkerSafely({ lifecycle, result, dispatch }) {
+  try {
+    return await finalizeManagedGitWorkerLifecycle({
+      pool: getPool(),
+      lifecycle,
+      result,
+      dispatch,
+    });
+  } catch (error) {
+    return {
+      required: lifecycle?.required === true,
+      status: "cleanup_failed",
+      worker_id: lifecycle?.worker_id || null,
+      workspace_released: false,
+      error: {
+        code: error?.code || "MANAGED_GIT_WORKER_CLEANUP_FAILED",
+        message: error?.message || "Managed Git worker cleanup failed.",
+        details: error?.details || null,
+      },
+      readback_required: true,
+      retryable: Number(error?.status || 500) >= 500,
+      secrets_included: false,
+    };
+  }
+}
+
 function mountOperationRoutes(router, middleware = []) {
   router.get("/operations/contracts", ...middleware, async (req, res) => {
     try {
-      const scope = req.auth?.is_admin || req.auth?.mode === "backend_api" ? "admin" : "tenant";
+      const scope =
+        req.auth?.is_admin || req.auth?.mode === "backend_api"
+          ? "admin"
+          : "tenant";
       return res.status(200).json({
         ok: true,
         items: listOperationContracts({ principalScope: scope }),
@@ -193,11 +242,13 @@ function mountOperationRoutes(router, middleware = []) {
 
   router.post("/operations/context", ...middleware, async (req, res) => {
     try {
-      return res.status(200).json(await buildOperationContext({
-        auth: req.auth,
-        input: bodyOf(req),
-        pool: getPool(),
-      }));
+      return res.status(200).json(
+        await buildOperationContext({
+          auth: req.auth,
+          input: bodyOf(req),
+          pool: getPool(),
+        }),
+      );
     } catch (error) {
       return errorResponse(res, error, "OPERATION_CONTEXT_FAILED");
     }
@@ -205,13 +256,17 @@ function mountOperationRoutes(router, middleware = []) {
 
   router.post("/operations/preview", ...middleware, async (req, res) => {
     try {
-      return res.status(200).json(await previewOperation(bodyOf(req), depsFor(req)));
+      return res
+        .status(200)
+        .json(await previewOperation(bodyOf(req), depsFor(req)));
     } catch (error) {
       return errorResponse(res, error, "OPERATION_PREVIEW_FAILED");
     }
   });
 
   router.post("/operations/execute", ...middleware, async (req, res) => {
+    let workerLifecycle = null;
+    let operationDeps = null;
     try {
       const requestedInput = bodyOf(req);
       if (isTenant(req) && isResumeOperation(requestedInput)) {
@@ -223,16 +278,36 @@ function mountOperationRoutes(router, middleware = []) {
       }
 
       const operationKey = normalizeOperationKey(
-        requestedInput.operation_key || requestedInput.operation || requestedInput.intent,
+        requestedInput.operation_key
+          || requestedInput.operation
+          || requestedInput.intent,
       );
+      operationDeps = depsFor(req);
       const capabilityLifecycle = await prepareOperationCapabilityLifecycle({
         pool: getPool(),
         auth: req.auth,
         input: requestedInput,
         operationKey,
       });
-      const input = capabilityLifecycle.input || requestedInput;
-      const result = await executeOperation(input, depsFor(req));
+      const capabilityInput = capabilityLifecycle.input || requestedInput;
+      workerLifecycle = await prepareManagedGitWorkerLifecycle({
+        pool: getPool(),
+        auth: req.auth,
+        input: capabilityInput,
+        operationKey,
+        dispatch: operationDeps.dispatch,
+      });
+      workerLifecycle = await markManagedGitWorkerRunning({
+        pool: getPool(),
+        lifecycle: workerLifecycle,
+      });
+      const input = workerLifecycle.input || capabilityInput;
+      const result = await executeOperation(input, operationDeps);
+      const workerResult = await finalizeWorkerSafely({
+        lifecycle: workerLifecycle,
+        result,
+        dispatch: operationDeps.dispatch,
+      });
       const lifecycleResult = await finalizeCapabilitySafely({
         lifecycle: capabilityLifecycle,
         result,
@@ -251,15 +326,42 @@ function mountOperationRoutes(router, middleware = []) {
         operationKey,
       });
 
-      return res.status(
-        result?.status === "awaiting_input" ? 202 : result?.ok === false ? 409 : 200,
-      ).json({
-        ...result,
-        capability_lifecycle: lifecycleResult,
-        ownership,
-        artifact_registry: artifactRegistry,
-      });
+      return res
+        .status(
+          result?.status === "awaiting_input"
+            ? 202
+            : result?.ok === false
+              ? 409
+              : 200,
+        )
+        .json({
+          ...result,
+          capability_lifecycle: lifecycleResult,
+          managed_worker: workerResult,
+          ownership,
+          artifact_registry: artifactRegistry,
+        });
     } catch (error) {
+      if (workerLifecycle?.required === true && operationDeps?.dispatch) {
+        const workerResult = await finalizeWorkerSafely({
+          lifecycle: workerLifecycle,
+          result: {
+            ok: false,
+            status: "failed",
+            error: {
+              code: error?.code || "OPERATION_EXECUTION_FAILED",
+              message: error?.message || "Operation execution failed.",
+            },
+          },
+          dispatch: operationDeps.dispatch,
+        });
+        error.details = {
+          ...(error?.details && typeof error.details === "object"
+            ? error.details
+            : {}),
+          managed_worker: workerResult,
+        };
+      }
       return errorResponse(res, error, "OPERATION_EXECUTION_FAILED");
     }
   });
@@ -272,11 +374,34 @@ function mountOperationRoutes(router, middleware = []) {
         auth: req.auth,
         runId: input.run_id,
       });
-      return res.status(200).json(await getOperationStatus(input, depsFor(req)));
+      return res
+        .status(200)
+        .json(await getOperationStatus(input, depsFor(req)));
     } catch (error) {
       return errorResponse(res, error, "OPERATION_STATUS_FAILED");
     }
   });
+
+  router.get(
+    "/operations/workers/:worker_id",
+    ...middleware,
+    async (req, res) => {
+      try {
+        return res.status(200).json(
+          await readManagedGitWorkerLease(
+            { worker_id: req.params.worker_id },
+            { pool: getPool(), auth: req.auth },
+          ),
+        );
+      } catch (error) {
+        return errorResponse(
+          res,
+          error,
+          "MANAGED_GIT_WORKER_READ_FAILED",
+        );
+      }
+    },
+  );
 
   router.get("/operations/artifacts", ...middleware, async (req, res) => {
     try {
@@ -291,10 +416,12 @@ function mountOperationRoutes(router, middleware = []) {
         auth: req.auth,
         runId: input.run_id,
       });
-      return res.status(200).json(await listOperationGeneratedArtifacts(input, {
-        pool: getPool(),
-        auth: req.auth,
-      }));
+      return res.status(200).json(
+        await listOperationGeneratedArtifacts(input, {
+          pool: getPool(),
+          auth: req.auth,
+        }),
+      );
     } catch (error) {
       return errorResponse(res, error, "OPERATION_ARTIFACT_LIST_FAILED");
     }
@@ -302,7 +429,9 @@ function mountOperationRoutes(router, middleware = []) {
 
   router.post("/operations/ci-diagnose", ...middleware, async (req, res) => {
     try {
-      return res.status(200).json(await diagnoseCi(bodyOf(req), depsFor(req)));
+      return res
+        .status(200)
+        .json(await diagnoseCi(bodyOf(req), depsFor(req)));
     } catch (error) {
       return errorResponse(res, error, "CI_DIAGNOSIS_FAILED");
     }
@@ -336,4 +465,5 @@ export const _testingOperationOrchestratorRoutes = {
   dispatchWithChunkCollection,
   recordArtifactsSafely,
   finalizeCapabilitySafely,
+  finalizeWorkerSafely,
 };

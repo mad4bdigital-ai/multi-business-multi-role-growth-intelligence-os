@@ -1,0 +1,174 @@
+openapi: 3.1.0
+info:
+  title: Managed Git Worker Leases
+  version: 1.0.0
+  description: |
+    Read-only lifecycle evidence for operation-scoped managed Git workers.
+    Repository mutations use an isolated virtual Git-tree checkout lease,
+    compare the branch head before execution, and release the lease after
+    final provider readback. Repository contents and provider credentials are
+    never stored in the worker ledger.
+servers:
+  - url: https://auth.mad4b.com
+paths:
+  /admin/operations/workers/{worker_id}:
+    get:
+      tags: [Admin Operations]
+      operationId: getAdminManagedGitWorker
+      summary: Read managed Git worker lifecycle evidence
+      security:
+        - BackendApiKey: []
+        - AdminBearer: []
+      parameters:
+        - $ref: '#/components/parameters/WorkerId'
+      responses:
+        '200': { $ref: '#/components/responses/WorkerResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /tenant/operations/workers/{worker_id}:
+    get:
+      tags: [Tenant Operations]
+      operationId: getTenantManagedGitWorker
+      summary: Read an owned managed Git worker lifecycle record
+      description: |
+        Requires active Tenant membership. Object-level authorization limits
+        the result to the Tenant and user that acquired the worker lease.
+      security:
+        - TenantBearer: []
+      parameters:
+        - $ref: '#/components/parameters/WorkerId'
+      responses:
+        '200': { $ref: '#/components/responses/WorkerResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+components:
+  securitySchemes:
+    BackendApiKey:
+      type: apiKey
+      in: header
+      name: x-api-key
+    AdminBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    TenantBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    WorkerId:
+      name: worker_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    WorkerResult:
+      description: Managed Git worker lifecycle and cleanup readback.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/WorkerEnvelope' }
+    Error:
+      description: Structured validation, authentication, authorization, or object error.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    RateLimited:
+      description: Operation-specific request limit exceeded.
+      headers:
+        Retry-After:
+          schema: { type: integer, minimum: 1 }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unavailable:
+      description: Managed worker ledger or branch-head readback is unavailable.
+      headers:
+        Retry-After:
+          schema: { type: integer, minimum: 1 }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  schemas:
+    WorkerEnvelope:
+      type: object
+      required: [ok, principal_scope, worker, secrets_included]
+      additionalProperties: false
+      properties:
+        ok: { type: boolean, const: true }
+        principal_scope:
+          type: string
+          enum: [admin, tenant]
+        worker: { $ref: '#/components/schemas/ManagedGitWorker' }
+        secrets_included: { type: boolean, const: false }
+    ManagedGitWorker:
+      type: object
+      required:
+        [worker_id, operation_key, owner, repo, branch, checkout_strategy,
+         status, workspace_released, secrets_included]
+      additionalProperties: false
+      properties:
+        worker_id: { type: string, format: uuid }
+        run_id: { type: [string, 'null'], format: uuid }
+        operation_key: { type: string }
+        owner: { type: string }
+        repo: { type: string }
+        branch: { type: string }
+        checkout_strategy: { type: string, const: virtual_git_tree }
+        status:
+          type: string
+          enum: [allocated, ready, running, cleaning, cleaned, failed, expired]
+        checkout_head_sha:
+          type: [string, 'null']
+          pattern: '^[a-f0-9]{40}$'
+        final_head_sha:
+          type: [string, 'null']
+          pattern: '^[a-f0-9]{40}$'
+        workspace_fingerprint:
+          type: [string, 'null']
+          pattern: '^[a-f0-9]{64}$'
+        lease_expires_at: { type: [string, 'null'], format: date-time }
+        allocated_at: { type: [string, 'null'], format: date-time }
+        ready_at: { type: [string, 'null'], format: date-time }
+        running_at: { type: [string, 'null'], format: date-time }
+        cleanup_started_at: { type: [string, 'null'], format: date-time }
+        released_at: { type: [string, 'null'], format: date-time }
+        workspace_released: { type: boolean }
+        readback: { type: [object, 'null'], additionalProperties: true }
+        error: { type: [object, 'null'], additionalProperties: true }
+        secrets_included: { type: boolean, const: false }
+    ErrorEnvelope:
+      type: object
+      required: [ok, error, secrets_included]
+      additionalProperties: false
+      properties:
+        ok: { type: boolean, const: false }
+        error:
+          type: object
+          required: [code, message]
+          additionalProperties: true
+          properties:
+            code:
+              type: string
+              enum:
+                - MANAGED_GIT_WORKER_ID_REQUIRED
+                - MANAGED_GIT_WORKER_NOT_FOUND
+                - MANAGED_GIT_WORKER_REPOSITORY_INVALID
+                - MANAGED_GIT_WORKER_BRANCH_INVALID
+                - MANAGED_GIT_WORKER_HEAD_MISMATCH
+                - MANAGED_GIT_WORKER_LEASE_CONFLICT
+                - MANAGED_GIT_WORKER_CHECKOUT_UNAVAILABLE
+                - MANAGED_GIT_WORKER_LEDGER_UNAVAILABLE
+            message: { type: string }
+            details: {}
+            requestId: { type: [string, 'null'] }
+        secrets_included: { type: boolean, const: false }
