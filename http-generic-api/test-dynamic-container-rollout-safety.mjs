@@ -537,6 +537,8 @@ const openapi = readFileSync(new URL("./openapi/container-authority.yaml",import
 const rootOpenapi = readFileSync(new URL("./openapi.yaml",import.meta.url),"utf8");
 const routes = readFileSync(new URL("./routes/dynamicContainerAuthorityRoutes.js",import.meta.url),"utf8");
 const canaryMigration = readFileSync(new URL("./migrations/20260715_dynamic_container_canary_promotion_tool.sql",import.meta.url),"utf8");
+const canaryObservabilityMigration = readFileSync(new URL("./migrations/20260715_dynamic_container_canary_runtime_observability.sql",import.meta.url),"utf8");
+const canaryRuntime = readFileSync(new URL("./dynamicContainerCanaryRuntime.js",import.meta.url),"utf8");
 const repository = readFileSync(new URL("./dynamicContainerAuthorityRepository.js",import.meta.url),"utf8");
 const projection = readFileSync(new URL("./dynamicContainerProjectionService.js",import.meta.url),"utf8");
 
