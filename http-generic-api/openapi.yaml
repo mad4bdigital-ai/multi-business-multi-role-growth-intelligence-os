@@ -4895,6 +4895,8 @@ paths:
     $ref: './openapi/container-authority.yaml#/adminContainerResolutionPreview'
   /admin/container-authority/projection-preview:
     $ref: './openapi/container-authority.yaml#/adminContainerProjectionPreview'
+  /admin/container-authority/canary-promotions:
+    $ref: './openapi/container-authority.yaml#/adminContainerAuthorityCanaryPromotions'
   /container-context-resolutions:
     $ref: './openapi/container-authority.yaml#/containerContextResolutions'
   /container-context-resolutions/{resolutionId}:
