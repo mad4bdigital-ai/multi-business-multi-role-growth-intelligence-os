@@ -91,7 +91,8 @@ for (const marker of [
 ]) {
   assert.ok(policyPatchMigration.includes(marker), `policy patch migration missing ${marker}`);
 }
-assert.doesNotMatch(policyPatchMigration, /JSON_SET[\s\S]*?\$\.confirmation_token/);
+assert.match(policyPatchMigration, /JSON_REMOVE\s*\([\s\S]*?['"]\$\.confirmation_token['"]\s*\)/);
+assert.match(policyPatchMigration, /JSON_SET\s*\([\s\S]*?['"]\$\.required_confirmation['"]/);
 assert.doesNotMatch(policyPatchMigration, /private_key|refresh_token|client_secret|access_token|value_ciphertext/i);
 
 const policyPatchPreflight = assessMigrationSqlPreflight(policyPatchMigrationName, policyPatchMigration);
