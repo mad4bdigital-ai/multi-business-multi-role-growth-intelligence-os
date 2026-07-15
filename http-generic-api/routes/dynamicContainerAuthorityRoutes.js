@@ -19,6 +19,7 @@ import {
 } from "../dynamicContainerProjectionService.js";
 import { readContainerResolution } from "../dynamicContainerAuthorityRepository.js";
 import { runDynamicContainerShadowSampler } from "../dynamicContainerShadowSampler.js";
+import { runDynamicContainerCanaryProbeSampler } from "../dynamicContainerCanaryProbeSampler.js";
 import {
   runContainerCanaryPromotion,
   runContainerCanaryRollback
