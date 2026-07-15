@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "feature_key": "010-unified-platform-frontend",
+  "title": "Repository-Driven Unified Platform Frontend",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "specification_pr": {
+      "number": 2579,
+      "branch": "gpt/repo-driven-frontend-dispatch-20260713",
+      "role": "specification_dispatch_and_f1_shell_foundation",
+      "status": "current_pr"
+    },
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": null,
+      "branch": null,
+      "role": "completion",
+      "status": "pending"
+    }
+  },
+  "evidence": {
+    "specification": {
+      "status": "complete",
+      "repo_authority_map": true,
+      "dynamic_dispatch_model": true,
+      "security_boundaries": true,
+      "delivery_dag": true
+    },
+    "implementation": {
+      "status": "f1_shell_foundation_in_current_pr",
+      "dispatch_generator": true,
+      "dispatch_fixture_tests": true,
+      "full_repo_generated_plan": true,
+      "runtime_openapi_auth_parity_model": true,
+      "canonical_auth_sync_all_occurrences": true,
+      "runtime_openapi_auth_contract_gap_count": 0,
+      "openapi_operation_presence_gap_count": 0,
+      "canonical_openapi_operation_count": 533,
+      "operation_index_detail_gap_count": 389,
+      "operation_level_mutation_governance": true,
+      "classified_non_mutating_action_count": 9,
+      "unresolved_non_get_operation_count": 556,
+      "generated_runtime_openapi_index": true,
+      "t018_status": "auth_and_presence_complete_detail_classification_and_compensation_remaining_fail_closed",
+      "platform_shell": true,
+      "browser_safe_surface_catalog": true,
+      "light_dark_system_theme": true,
+      "tenant_shell": false,
+      "admin_bff": false,
+      "admin_workspaces": false,
+      "local_manager_consolidation": false,
+      "developer_evidence": false,
+      "cutover": false
+    },
+    "ci": { "status": "required_for_each_pr_head" },
+    "migration": { "status": "pending_admin_ui_session_ledger" },
+    "production_verification": { "status": "pending" },
+    "post_merge_audit": { "status": "pending" }
+  },
+  "sensitive_values_included": false
+}

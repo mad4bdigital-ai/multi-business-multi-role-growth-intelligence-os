@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/ui-surface-catalog.schema.json",
+  "title": "MAD4B Browser-Safe UI Surface Catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ok", "version", "baseline_digest", "surfaces", "secrets_included"],
+  "properties": {
+    "ok": { "const": true },
+    "version": { "type": "string", "pattern": "^ui-surfaces-v[0-9]+$" },
+    "baseline_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "secrets_included": { "const": false },
+    "surfaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["surface_key", "label", "scope", "group", "status", "mutation_mode", "auth_mode", "owner", "source_refs"],
+        "properties": {
+          "surface_key": { "type": "string", "pattern": "^[a-z0-9._-]+$" },
+          "label": { "type": "string" },
+          "description": { "type": "string" },
+          "scope": { "enum": ["public", "tenant", "workspace_owner", "admin", "local_device", "developer"] },
+          "group": { "type": "string" },
+          "status": { "enum": ["live", "cataloged", "locked", "planned", "legacy_compatibility", "deferred"] },
+          "read_endpoint": { "type": ["string", "null"] },
+          "href": { "type": ["string", "null"] },
+          "render_mode": { "enum": ["overview", "cards", "table", "timeline", "graph", "json", "link", "locked"] },
+          "mutation_mode": { "enum": ["none", "preview_only", "explicit_approval", "tenant_admin_approval", "platform_admin_approval"] },
+          "auth_mode": { "enum": ["none", "user_jwt", "admin_bff_session", "device_trust", "explicit_grant"] },
+          "evidence_endpoint": { "type": ["string", "null"] },
+          "owner": { "type": "string", "minLength": 1 },
+          "source_refs": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+          "fallback": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}
