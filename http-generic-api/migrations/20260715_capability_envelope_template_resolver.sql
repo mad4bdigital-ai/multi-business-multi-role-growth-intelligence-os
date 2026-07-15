@@ -57,7 +57,7 @@ VALUES
    JSON_ARRAY('tenant_id','user_id','workspace_id'),
    JSON_ARRAY('tenant_id','user_id','workspace_id','workspace_key','workspace_type','user_role','plan_id','plan_item_id','resource_uri','recipe_key','expected_commit_sha'),
    JSON_OBJECT('ttl_minutes',120,'context',JSON_OBJECT()), 180,
-   SHA2('github_repo_patch_apply_v1|1|github|repo_patch_apply|repo_patch_batch_apply',256), 'active'),
+   SHA2('github_repo_patch_apply_v1|1|github|repo_patch_apply|repo_patch_apply|repo_patch_batch_apply|platform_managed_fallback|required:tenant_id,user_id,workspace_id|allowed:tenant_id,user_id,workspace_id,workspace_key,workspace_type,user_role,plan_id,plan_item_id,resource_uri,recipe_key,expected_commit_sha|default_ttl:120|max_ttl:180',256), 'active'),
   (UUID(), 'github_pr_finalize_v1', 1, 'GitHub Pull Request Finalize', 'Template for CI-gated pull request finalization envelopes.',
    'github', 'github_pr_finalize', 'github_pr_finalize', 'github_pr_finalize', 'platform_managed_fallback',
    JSON_ARRAY('tenant_id','user_id','workspace_id'),
