@@ -31,8 +31,19 @@ assert.match(verifier, /Connector capability verification returned an invalid or
 assert.match(verifier, /GetTrueBoolean\(root, "ok"\)/);
 assert.match(verifier, /GetString\(root, "section"\) != section/);
 assert.match(verifier, /GetTrueBoolean\(root, "secrets_included"\)/);
-assert.match(verifier, /"repairs" => RequireTrueBoolean\(controls, "elevation_required"\)/);
-assert.match(verifier, /"settings" => RequireObject\(controls, "capability_consent"\)/);
+assert.match(verifier, /VerifyRepairRuntimeReadback\(root, controls\)/);
+assert.match(verifier, /GetTrueBoolean\(runtime, "connector_active"\)/);
+assert.match(verifier, /GetTrueBoolean\(runtime, "health_recent"\)/);
+assert.match(verifier, /GetTrueBoolean\(runtime, "alias_resolved"\)/);
+assert.match(verifier, /registered_route_count/);
+assert.match(verifier, /RuntimeVerified/);
+assert.match(verifier, /"settings" => \(RequireObject\(controls, "capability_consent"\), true\)/);
+assert.match(deviceLink, /runtime_readback: runtimeReadback/);
+assert.match(deviceLink, /connector_active: connectorActive/);
+assert.match(deviceLink, /healthAgeSeconds <= 600/);
+assert.match(deviceLink, /registeredRouteCount > 0/);
+assert.match(deviceLink, /aliasResolved/);
+assert.match(deviceLink, /evidence_source: "mysql_primary_connector_registry"/);
 
 assert.match(dispatcher, /"device\.getStatus"/);
 assert.match(dispatcher, /"connector\.getControls"/);
