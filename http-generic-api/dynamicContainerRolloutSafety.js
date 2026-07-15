@@ -240,7 +240,6 @@ export async function runContainerCanaryPromotion({
   apply = false,
   confirm = null,
   capabilityEnvelopeId = null,
-  requireCapabilityEnvelope = false,
   actor = "dynamic_container_canary_promotion"
 } = {}) {
   if(!executor?.query) throw Object.assign(new Error("A SQL executor is required."),{ code:"container_canary_executor_required",status:500 });
