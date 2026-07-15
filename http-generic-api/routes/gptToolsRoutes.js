@@ -57,6 +57,10 @@ import {
   CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
   persistDynamicCapabilityGovernanceCompilation,
 } from "../dynamicCapabilityGovernancePersistence.js";
+import {
+  TENANT_CONNECTION_SHADOW_CONTRACT_BOOTSTRAP_CONFIRM,
+  bootstrapTenantConnectionShadowContracts,
+} from "../tenantConnectionShadowContractBootstrap.js";
 import { runGrowthIntelligencePilotAdmin } from "../growthIntelligenceAdminTool.js";
 import {
   approveRepositoryAdvisoryCommentApprovalHoldAdmin,
@@ -622,6 +626,24 @@ const VIRTUAL_ADMIN_TOOLS = [
         after_key: { type: "string", maxLength: 191 },
         limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
         gap_limit: { type: "integer", minimum: 1, maximum: 500, default: 200 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "tenant_connection_shadow_contract_bootstrap",
+    displayName: "Bootstrap Tenant Connection Shadow Contracts",
+    description: "Dry-run or apply one fixed internal bootstrap for a non-write-capable Tenant connection adapter and nine shadow readback contracts. Apply requires typed confirmation and an apply-authorized platform_orchestration capability envelope. It never enables Tenant tools, creates Tenant exports, issues certifications, calls providers, performs external writes, or returns secrets.",
+    method: "VIRTUAL",
+    path: "internal://tenant-connection-shadow-contract-bootstrap",
+    tags: ["admin", "capability", "tenant_connection", "adapter", "readback", "shadow", "state_changing", "dry_run_default", "typed_confirmation", "capability_envelope", "same_cycle_readback", "no_provider_call", "no_external_write", "no_tenant_authority_change", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
+        expected_plan_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        confirm: { type: "string", const: TENANT_CONNECTION_SHADOW_CONTRACT_BOOTSTRAP_CONFIRM },
+        capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
       },
       additionalProperties: false,
     },
@@ -2296,6 +2318,12 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       ...(args || {}),
       requested_by: req?.auth?.user_id || req?.auth?.email || "platform_admin",
     }, {
+      auth: req?.auth || {},
+    });
+    return { status: 200, body: { ok: true, name: toolKey, result } };
+  }
+  if (callerType === "admin" && toolKey === "tenant_connection_shadow_contract_bootstrap") {
+    const result = await bootstrapTenantConnectionShadowContracts(args || {}, {
       auth: req?.auth || {},
     });
     return { status: 200, body: { ok: true, name: toolKey, result } };
