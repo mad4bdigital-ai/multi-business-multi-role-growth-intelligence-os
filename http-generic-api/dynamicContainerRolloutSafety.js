@@ -326,7 +326,7 @@ export async function runContainerCanaryPromotion({
     }
 
     let envelopeLifecycle = null;
-    if(requireCapabilityEnvelope) {
+    if(apply) {
       envelopeLifecycle = await transitionCapabilityEnvelopeLifecycle({
         pool:executor,
         envelopeId:envelope.envelope_id,
