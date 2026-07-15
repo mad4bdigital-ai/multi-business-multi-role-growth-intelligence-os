@@ -283,7 +283,18 @@ export async function runContainerCanaryPromotion({
     const readiness=readinessRows?.[0];
     if(!readiness) throw Object.assign(new Error("Rollout readiness row was not found."),{ code:"container_rollout_readiness_not_found",status:404 });
     const plan=buildContainerCanaryPromotionPlan({ canaries:canaryRows,targetCanaryKey,readiness });
-    if(!apply) return { ok:true,mode:"dry_run",plan,secretsIncluded:false };
+    if(!apply) return {
+      ok:true,
+      mode:"dry_run",
+      plan,
+      readback:null,
+      capabilityEnvelope:null,
+      providerCalls:false,
+      credentialPayloadReads:false,
+      externalWrites:false,
+      enforcementApplied:false,
+      secretsIncluded:false
+    };
     if(confirm !== plan.confirmation) {
       throw Object.assign(new Error(`Typed confirmation ${plan.confirmation} is required.`),{
         code:"container_canary_confirmation_required",status:409
