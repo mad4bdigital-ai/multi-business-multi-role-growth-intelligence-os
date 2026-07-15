@@ -4,6 +4,7 @@ import "./test-operation-runtime-guard.mjs";
 import "./test-operation-resilience-controller.mjs";
 import "./test-typed-catalog-service.mjs";
 import "./test-managed-git-worker-lifecycle.mjs";
+import "./test-operation-observability-service.mjs";
 import {
   getOperationContract,
   listOperationContracts,

@@ -6,11 +6,8 @@ import {
   runRepositoryAutomation,
   scanRepositoryAutomationHygiene,
 } from "../repositoryAutomationControlPlane.js";
-import { createOperationResilienceController } from "../operationResilienceController.js";
-import { createOperationRuntimeGuard } from "../operationRuntimeGuard.js";
 import { dispatchToolForCaller, resolveCallerTypeForRequest } from "./gptToolsRoutes.js";
-import { buildOperationOrchestratorRoutes } from "./operationOrchestratorRoutes.js";
-import { buildTypedCatalogRoutes } from "./typedCatalogRoutes.js";
+import { buildOperationObservabilityRoutes } from "./operationObservabilityRoutes.js";
 
 function bodyOf(req) {
   const body = req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {};
@@ -48,6 +45,11 @@ export function buildRepositoryAutomationRoutes({ requireBackendApiKey, requireA
   const router = Router();
   const requireAdmin = [requireBackendApiKey, requireAdminPrincipal].filter(Boolean);
 
+  router.use(buildOperationObservabilityRoutes({
+    requireBackendApiKey,
+    requireAdminPrincipal,
+  }));
+
   router.post("/admin/repository-automation/plan", ...requireAdmin, async (req, res) => {
     try {
       const result = buildRepositoryAutomationPlan(bodyOf(req));
@@ -84,13 +86,6 @@ export function buildRepositoryAutomationRoutes({ requireBackendApiKey, requireA
       return errorResponse(res, error, "repository_automation_hygiene_scan_failed");
     }
   });
-
-  router.use(
-    createOperationResilienceController(),
-    createOperationRuntimeGuard(),
-    buildTypedCatalogRoutes({ requireBackendApiKey, requireAdminPrincipal }),
-    buildOperationOrchestratorRoutes({ requireBackendApiKey, requireAdminPrincipal }),
-  );
 
   return router;
 }
