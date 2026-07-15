@@ -19,7 +19,11 @@ import {
 } from "../dynamicContainerProjectionService.js";
 import { readContainerResolution } from "../dynamicContainerAuthorityRepository.js";
 import { runDynamicContainerShadowSampler } from "../dynamicContainerShadowSampler.js";
-import { runContainerCanaryPromotion } from "../dynamicContainerRolloutSafety.js";
+import {
+  runContainerCanaryPromotion,
+  runContainerCanaryRollback
+} from "../dynamicContainerRolloutSafety.js";
+import { executeObservedReadOnlyCanary } from "../dynamicContainerCanaryRuntime.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const previewRate = new Map();
