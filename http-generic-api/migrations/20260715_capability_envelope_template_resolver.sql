@@ -81,7 +81,7 @@ VALUES
    JSON_ARRAY('tenant_id','user_id','workspace_id','expected_commit_sha'),
    JSON_ARRAY('tenant_id','user_id','workspace_id','workspace_key','workspace_type','user_role','resource_uri','recipe_key','expected_commit_sha'),
    JSON_OBJECT('ttl_minutes',30,'context',JSON_OBJECT()), 60,
-   SHA2('hostinger_release_deploy_v1|1|hostinger|remote_runtime_hostinger_deploy_release',256), 'active')
+   SHA2('hostinger_release_deploy_v1|1|hostinger|remote_runtime_hostinger_deploy_release|remote_runtime_hostinger_deploy_release|remote_runtime_hostinger_deploy_release|tenant_managed|required:tenant_id,user_id,workspace_id,expected_commit_sha|allowed:tenant_id,user_id,workspace_id,workspace_key,workspace_type,user_role,resource_uri,recipe_key,expected_commit_sha|default_ttl:30|max_ttl:60',256), 'active')
 ON DUPLICATE KEY UPDATE
   display_name=VALUES(display_name), description=VALUES(description), app_key=VALUES(app_key),
   capability_key=VALUES(capability_key), operation_intent=VALUES(operation_intent),
