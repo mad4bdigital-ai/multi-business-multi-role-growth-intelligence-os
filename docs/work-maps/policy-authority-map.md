@@ -224,6 +224,7 @@ flowchart TD
 | `orchestration_stage_graph_completeness_policy_v1` | 1 |
 | `orchestration_state_snapshot_required_policy_v1` | 1 |
 | `platform_capability_governance_compile_persist_policy_v1` | 1 |
+| `platform_capability_shadow_certification_issue_policy_v1` | 1 |
 | `platform_development_constitution_policy_v1` | 1 |
 | `platform_private_capability_vault_policy_v1` | 1 |
 | `platform_resource_api_coverage_policy_v1` | 2 |
