@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 97.71,
+  "docs_completion_percent": 97.52,
   "docs_complete_count": 512,
-  "docs_gap_count": 12,
-  "queue_items": 12,
-  "blocking_new_item_count": 12,
+  "docs_gap_count": 13,
+  "queue_items": 13,
+  "blocking_new_item_count": 13,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -51,6 +51,12 @@
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
+      "migration_file": "20260715_dynamic_container_canary_probe_sampler_tool.sql",
+      "queue_class": "critical_review",
+      "score": 730,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
       "migration_file": "20260714_supervisor_runtime_admin_tool_exports.sql",
       "queue_class": "critical_review",
       "score": 724,
@@ -61,24 +67,18 @@
       "queue_class": "high_review",
       "score": 677,
       "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "20260715_dynamic_container_rollout_readiness_current_evidence.sql",
-      "queue_class": "high_review",
-      "score": 545,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
   "openapi_missing_sql_route_count": 2,
-  "openapi_exempt_sql_route_count": 650,
-  "total_sql_route_like_count": 671,
+  "openapi_exempt_sql_route_count": 651,
+  "total_sql_route_like_count": 672,
   "safety_marker_gap_migrations": 0,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 12,
-    "warning_new_item_count": 12
+    "blocking_new_item_count": 13,
+    "warning_new_item_count": 13
   },
   "safety": {
     "executes_provider_calls": false,

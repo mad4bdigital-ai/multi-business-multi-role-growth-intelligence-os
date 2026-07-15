@@ -4,14 +4,14 @@
 
 ## Summary
 
-- Triaged items: 12
-- Gate candidates: 12
+- Triaged items: 13
+- Gate candidates: 13
 - New-gap gate: fail
-- Blocking new items: 12
+- Blocking new items: 13
 
 ## Class counts
 
-- new_surface_immediate_review: 12
+- new_surface_immediate_review: 13
 
 ## Immediate review candidates
 
@@ -22,6 +22,7 @@
 - `20260715_capability_envelope_template_resolver.sql` — critical_review, score 818; next: add targeted patch-index, parity, and governance documentation
 - `20260715_dynamic_container_canary_promotion_tool.sql` — critical_review, score 807; next: add targeted patch-index, parity, and governance documentation
 - `20260714_async_release_deploy_contract.sql` — critical_review, score 790; next: add targeted patch-index, parity, and governance documentation
+- `20260715_dynamic_container_canary_probe_sampler_tool.sql` — critical_review, score 730; next: add targeted patch-index, parity, and governance documentation
 - `20260714_supervisor_runtime_admin_tool_exports.sql` — critical_review, score 724; next: add targeted patch-index, parity, and governance documentation
 - `1046_sprint69_dynamic_container_shadow_sampler_tool.sql` — high_review, score 677; next: add targeted patch-index, parity, and governance documentation
 - `20260715_dynamic_container_rollout_readiness_current_evidence.sql` — high_review, score 545; next: add targeted patch-index, parity, and governance documentation
