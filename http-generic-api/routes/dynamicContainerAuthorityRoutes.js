@@ -242,6 +242,32 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
     } catch (error) { return errorResponse(req,res,error); }
   });
 
+  router.post("/admin/container-authority/canary-promotions",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
+    let connection = null;
+    try {
+      assertAllowedKeys(req.body,new Set(["mode","targetCanaryKey","confirm","capabilityEnvelopeId"]));
+      const mode = String(req.body?.mode || "dry_run");
+      if(!new Set(["dry_run","apply"]).has(mode)) {
+        const error = new Error("mode must be dry_run or apply.");
+        error.status = 400;
+        error.code = "container_canary_mode_invalid";
+        throw error;
+      }
+      connection = await getPool().getConnection();
+      const result = await runContainerCanaryPromotion({
+        executor:connection,
+        targetCanaryKey:req.body?.targetCanaryKey,
+        apply:mode === "apply",
+        confirm:req.body?.confirm || null,
+        capabilityEnvelopeId:req.body?.capabilityEnvelopeId || null,
+        requireCapabilityEnvelope:mode === "apply",
+        actor:actorId(req)
+      });
+      return res.status(mode === "apply" ? 201 : 200).json(result);
+    } catch (error) { return errorResponse(req,res,error); }
+    finally { if(connection) connection.release(); }
+  });
+
   router.post("/admin/container-authority/shadow-samples",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
     try {
       assertAllowedKeys(req.body,new Set(["sampleCount","tenantId"]));
