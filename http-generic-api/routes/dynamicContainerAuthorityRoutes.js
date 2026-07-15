@@ -19,6 +19,7 @@ import {
 } from "../dynamicContainerProjectionService.js";
 import { readContainerResolution } from "../dynamicContainerAuthorityRepository.js";
 import { runDynamicContainerShadowSampler } from "../dynamicContainerShadowSampler.js";
+import { runDynamicContainerCanaryProbeSampler } from "../dynamicContainerCanaryProbeSampler.js";
 import {
   runContainerCanaryPromotion,
   runContainerCanaryRollback
@@ -294,6 +295,20 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
         actor:actorId(req)
       });
       return res.status(mode === "apply" ? 201 : 200).json(result);
+    } catch (error) { return errorResponse(req,res,error); }
+    finally { if(connection) connection.release(); }
+  });
+
+  router.post("/admin/container-authority/canary-probes",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
+    let connection = null;
+    try {
+      assertAllowedKeys(req.body,new Set(["sampleCount","targetCanaryKey"]));
+      connection = await getPool().getConnection();
+      const result = await runDynamicContainerCanaryProbeSampler({
+        sampleCount:req.body?.sampleCount,
+        targetCanaryKey:req.body?.targetCanaryKey
+      },{ executor:connection });
+      return res.status(201).json(result);
     } catch (error) { return errorResponse(req,res,error); }
     finally { if(connection) connection.release(); }
   });
