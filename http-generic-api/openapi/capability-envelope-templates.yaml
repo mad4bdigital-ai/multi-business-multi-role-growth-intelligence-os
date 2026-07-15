@@ -1,0 +1,175 @@
+openapi: 3.1.0
+info:
+  title: Capability Envelope Template API
+  version: 1.0.0
+  description: Versioned, no-secret templates for previewing and creating governed capability envelopes.
+servers:
+  - url: https://auth.mad4b.com
+security:
+  - backendApiKey: []
+tags:
+  - name: capability-envelope-templates
+paths:
+  /admin/capability-envelope-templates:
+    get:
+      tags: [capability-envelope-templates]
+      operationId: listCapabilityEnvelopeTemplates
+      summary: List active capability envelope templates
+      parameters:
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+        - { in: query, name: cursor, schema: { type: string } }
+      responses:
+        '200':
+          description: Active templates
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, items, page, secrets_included]
+                properties:
+                  ok: { type: boolean, const: true }
+                  items: { type: array, items: { $ref: '#/components/schemas/Template' } }
+                  page: { $ref: '#/components/schemas/Page' }
+                  secrets_included: { type: boolean, const: false }
+  /admin/capability-envelope-templates/{templateKey}:
+    get:
+      tags: [capability-envelope-templates]
+      operationId: getCapabilityEnvelopeTemplate
+      summary: Read one active template
+      parameters: [{ $ref: '#/components/parameters/TemplateKey' }]
+      responses:
+        '200':
+          description: Template
+          content: { application/json: { schema: { type: object, additionalProperties: true } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/capability-envelope-templates/{templateKey}/resolve:
+    post:
+      tags: [capability-envelope-templates]
+      operationId: resolveCapabilityEnvelopeTemplate
+      summary: Preview a template against current authority and binding evidence
+      parameters: [{ $ref: '#/components/parameters/TemplateKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResolveRequest' }
+      responses:
+        '200':
+          description: Resolution preview; no envelope is created
+          content: { application/json: { schema: { $ref: '#/components/schemas/Resolution' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/capability-envelope-templates/{templateKey}/envelopes:
+    post:
+      tags: [capability-envelope-templates]
+      operationId: createCapabilityEnvelopeFromTemplate
+      summary: Resolve a template and create one immutable capability envelope
+      parameters: [{ $ref: '#/components/parameters/TemplateKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResolveRequest' }
+      responses:
+        '201':
+          description: Envelope created with same-cycle resolution readback
+          content: { application/json: { schema: { type: object, additionalProperties: true } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+components:
+  securitySchemes:
+    backendApiKey: { type: apiKey, in: header, name: x-api-key }
+  parameters:
+    TemplateKey: { in: path, name: templateKey, required: true, schema: { type: string, maxLength: 191 } }
+  schemas:
+    TemplateContext:
+      type: object
+      properties:
+        tenant_id: { type: string, maxLength: 64 }
+        user_id: { type: string, maxLength: 64 }
+        workspace_id: { type: string, maxLength: 64 }
+        workspace_key: { type: string, maxLength: 191 }
+        workspace_type: { type: string, maxLength: 64 }
+        user_role: { type: string, maxLength: 64 }
+        brand_key: { type: string, maxLength: 191 }
+        business_activity_type: { type: string, maxLength: 191 }
+        plan_id: { type: string, maxLength: 64 }
+        plan_item_id: { type: string, maxLength: 64 }
+        resource_uri: { type: string, format: uri, maxLength: 512 }
+        recipe_key: { type: string, maxLength: 191 }
+        expected_commit_sha: { type: string, pattern: '^[0-9a-fA-F]{40}$' }
+      additionalProperties: false
+    ResolveRequest:
+      type: object
+      required: [context]
+      properties:
+        context: { $ref: '#/components/schemas/TemplateContext' }
+        ttl_minutes: { type: integer, minimum: 5, maximum: 1440 }
+        expected_template_hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        explain: { type: boolean, default: false }
+      additionalProperties: false
+    Template:
+      type: object
+      required: [template_key, template_version, app_key, capability_key, operation_intent, runtime_surface, template_hash, status, secrets_included]
+      properties:
+        template_id: { type: string, format: uuid }
+        template_key: { type: string }
+        template_version: { type: integer, minimum: 1 }
+        display_name: { type: string }
+        description: { type: [string, 'null'] }
+        app_key: { type: string }
+        capability_key: { type: string }
+        operation_intent: { type: string }
+        runtime_surface: { type: string }
+        requested_source_tier: { type: [string, 'null'] }
+        required_context: { type: array, items: { type: string } }
+        allowed_context: { type: array, items: { type: string } }
+        defaults: { type: object, additionalProperties: true }
+        max_ttl_minutes: { type: integer }
+        template_hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        status: { type: string, enum: [active, disabled, superseded] }
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: false
+    Resolution:
+      type: object
+      required: [ok, mode, template, context, ttl_minutes, dry_run, create_allowed, resolution_hash, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        mode: { type: string, const: preview }
+        template: { $ref: '#/components/schemas/Template' }
+        context: { $ref: '#/components/schemas/TemplateContext' }
+        ttl_minutes: { type: integer }
+        dry_run: { type: object, additionalProperties: true }
+        create_allowed: { type: boolean }
+        source_tier_alignment: { type: boolean }
+        passthrough_argument_names: { type: array, items: { type: string } }
+        resolution_hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: false
+    Page:
+      type: object
+      required: [next_cursor, has_more]
+      properties:
+        next_cursor: { type: [string, 'null'] }
+        has_more: { type: boolean }
+      additionalProperties: false
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: {}
+            requestId: { type: string }
+          additionalProperties: false
+      additionalProperties: false
+  responses:
+    BadRequest: { description: Invalid template context, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    NotFound: { description: Template not found, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Conflict: { description: Template hash changed or resolution is blocked, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
