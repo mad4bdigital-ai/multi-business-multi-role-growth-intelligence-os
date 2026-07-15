@@ -272,7 +272,10 @@ try {
   assert("code response includes code", typeof codeResult.body.code === "string" && codeResult.body.code.length > 40);
   assert("code response redirects with state", String(codeResult.body.redirect_to || "").includes(`state=${state}`), codeResult.body.redirect_to);
   assert("code response redirects with code", String(codeResult.body.redirect_to || "").includes("code="), codeResult.body.redirect_to);
-  assert("code response redirects to requested ChatGPT callback", String(codeResult.body.redirect_to || "").startsWith(redirectUri), codeResult.body.redirect_to);
+  const decodedAuthorizationCode = jwt.decode(codeResult.body.code);
+  assert("authorization code stores canonical ChatGPT callback", decodedAuthorizationCode?.redirect_uri === canonicalRedirectUri, JSON.stringify(decodedAuthorizationCode));
+  assert("code response redirects legacy callback directly to canonical ChatGPT host", String(codeResult.body.redirect_to || "").startsWith(canonicalRedirectUri), codeResult.body.redirect_to);
+  assert("code response does not redirect through legacy ChatGPT host", !String(codeResult.body.redirect_to || "").startsWith(redirectUri), codeResult.body.redirect_to);
   assert("code response preserves activation mode", codeResult.body.activation_context?.activation_mode === "dedicated", JSON.stringify(codeResult.body.activation_context));
   assert("code response preserves sign-in options", Array.isArray(codeResult.body.activation_context?.sign_in_options) && codeResult.body.activation_context.sign_in_options.includes("email"), JSON.stringify(codeResult.body.activation_context));
 
@@ -313,6 +316,7 @@ try {
     client_secret: "test-client-secret",
   }, { headers: { "x-forwarded-host": "activation.mad4b.com" } });
   assert("token endpoint exchanges authorization code", exchange.status === 200, `${exchange.status}`);
+  assert("token endpoint accepts legacy callback as equivalent to canonical code callback", exchange.status === 200, JSON.stringify(exchange.body));
   assert("token endpoint returns lowercase bearer token type", exchange.body.token_type === "bearer", JSON.stringify(exchange.body));
   assert("token endpoint mints a fresh access JWT", exchange.body.access_token !== userToken && typeof exchange.body.access_token === "string", JSON.stringify(exchange.body));
   assert("token endpoint returns standard OAuth scope", exchange.body.scope === TENANT_SCOPE, JSON.stringify(exchange.body));
