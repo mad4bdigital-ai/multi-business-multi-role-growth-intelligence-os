@@ -254,6 +254,20 @@ export async function resolveCapabilityEnvelopeTemplate(input = {}, deps = {}) {
   return result;
 }
 
+async function loadCapabilityEnvelopeTemplateResolutionByHash(pool, resolutionHash) {
+  const [rows] = await pool.query(
+    `SELECT r.resolution_id, r.template_key, r.template_version, r.template_hash,
+            r.resolution_hash, r.envelope_id, r.resolution_status, r.requested_by,
+            r.created_at, e.envelope_status, e.decision, e.dispatch_allowed,
+            e.apply_allowed, e.approval_required, e.blocking_gap_count, e.expires_at
+       FROM capability_envelope_template_resolutions r
+       JOIN capability_resolution_envelope_ledger e ON e.envelope_id = r.envelope_id
+      WHERE r.resolution_hash = ? LIMIT 1`,
+    [resolutionHash],
+  );
+  return rows[0] || null;
+}
+
 export async function createCapabilityEnvelopeFromTemplate(input = {}, deps = {}) {
   const pool = deps.pool || getPool();
   const createEnvelope = deps.createCapabilityResolutionEnvelopeLedger || createCapabilityResolutionEnvelopeLedger;
@@ -262,8 +276,28 @@ export async function createCapabilityEnvelopeFromTemplate(input = {}, deps = {}
     fail("capability_envelope_template_resolution_blocked", "Template resolution is blocked by current authority or binding gaps.", 409, {
       decision: resolved.dry_run?.decision,
       blocking_gaps: resolved.dry_run?.blocking_gaps || [],
+      source_tier_alignment: resolved.source_tier_alignment,
       resolution_hash: resolved.resolution_hash,
     });
+  }
+  const existing = await loadCapabilityEnvelopeTemplateResolutionByHash(pool, resolved.resolution_hash);
+  if (existing) {
+    return {
+      ok: true,
+      mode: "created",
+      deduplicated: true,
+      template: resolved.template,
+      resolution: existing,
+      envelope: {
+        ok: true,
+        envelope_id: existing.envelope_id,
+        envelope_status: existing.envelope_status,
+        decision: existing.decision,
+        secrets_included: false,
+      },
+      resolution_hash: resolved.resolution_hash,
+      secrets_included: false,
+    };
   }
   const requestedBy = safeText(input.requested_by || input.requestedBy || "gpt_admin", 191) || "gpt_admin";
   const envelope = await createEnvelope({
@@ -300,21 +334,13 @@ export async function createCapabilityEnvelopeFromTemplate(input = {}, deps = {}
       requestedBy,
     ],
   );
-  const [rows] = await pool.query(
-    `SELECT r.resolution_id, r.template_key, r.template_version, r.template_hash,
-            r.resolution_hash, r.envelope_id, r.resolution_status, r.requested_by,
-            r.created_at, e.envelope_status, e.decision, e.dispatch_allowed,
-            e.apply_allowed, e.approval_required, e.blocking_gap_count, e.expires_at
-       FROM capability_envelope_template_resolutions r
-       JOIN capability_resolution_envelope_ledger e ON e.envelope_id = r.envelope_id
-      WHERE r.resolution_id = ? LIMIT 1`,
-    [resolutionId],
-  );
+  const resolution = await loadCapabilityEnvelopeTemplateResolutionByHash(pool, resolved.resolution_hash);
   return {
     ok: true,
     mode: "created",
+    deduplicated: false,
     template: resolved.template,
-    resolution: rows[0] || { resolution_id: resolutionId, envelope_id: envelope.envelope_id },
+    resolution: resolution || { resolution_id: resolutionId, envelope_id: envelope.envelope_id },
     envelope,
     resolution_hash: resolved.resolution_hash,
     secrets_included: false,
