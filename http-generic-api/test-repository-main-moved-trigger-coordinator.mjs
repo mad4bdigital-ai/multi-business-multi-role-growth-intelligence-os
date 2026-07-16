@@ -133,9 +133,13 @@ assert.match(openapi, /operationId: getRepositoryMainMovedEvent/);
 assert.match(openapi, /\/admin\/repository-main-moved-events/);
 assert.match(openapi, /execution_allowed: \{ type: boolean, const: false \}/);
 
-const activation = fs.readFileSync(path.join(__dirname, "activation-surfaces", "repository_main_moved_trigger_events.json"), "utf8");
-assert.match(activation, /repository_main_moved_trigger_events/);
-assert.doesNotMatch(activation, /summary_json|error_message/);
+const activation = JSON.parse(fs.readFileSync(
+  path.join(__dirname, "activation-surfaces", "repository_main_moved_trigger_events.json"),
+  "utf8",
+));
+assert.equal(activation.source_table, "repository_main_moved_trigger_events");
+assert.equal(activation.result_columns.includes("summary_json"), false);
+assert.equal(activation.result_columns.includes("error_message"), false);
 
 const route = fs.readFileSync(path.join(__dirname, "routes", "repositoryMainMovedTriggerRoutes.js"), "utf8");
 assert.match(route, /POST|post/);
