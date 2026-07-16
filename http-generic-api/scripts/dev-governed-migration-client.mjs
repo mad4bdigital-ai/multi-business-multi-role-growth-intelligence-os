@@ -19,6 +19,15 @@ const ALLOWED_TOOLS = new Set([
   "governed_migration_execute",
 ]);
 
+const PERSISTED_ENVELOPE_GATED_TOOLS = new Set([
+  "governed_migration_authorization_bootstrap",
+  "governed_migration_apply_policy_bootstrap",
+  "capability_resolution_envelope_apply_authorize",
+  "governed_migration_execute",
+]);
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 const ALLOWED_SHELL_ALIASES = new Set([
   "capability_resolution_envelope_create",
   "capability_resolution_envelope_approve",
