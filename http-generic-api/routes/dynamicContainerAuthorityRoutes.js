@@ -129,6 +129,10 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
         requestId:effectiveRequestId
       };
       connection = await getPool().getConnection();
+      if(input.mode !== "preview") {
+        const result=await resolveContainerContextWithExecutor(input,connection);
+        return res.status(201).json(result);
+      }
       const observed = await executeObservedReadOnlyCanary({
         executor:connection,
         canaryKey:"container_authority_preview_resolution_v1",
