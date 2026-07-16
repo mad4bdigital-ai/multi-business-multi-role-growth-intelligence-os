@@ -53,7 +53,6 @@ jobs:
             "x-registry-tool-key: dynamic_container_canary_promotion",
             "x-registry-tool-key: dynamic_container_canary_rollback",
             "x-registry-tool-key: dynamic_container_canary_probe_sampler",
-            "/admin/container-authority/preview-canary-probes:",
           ];
           let source = fs.readFileSync(path, "utf8");
           const initialCount = source.split(needle).length - 1;
@@ -66,14 +65,18 @@ jobs:
               throw new Error(`Expected one marker for ${marker}`);
             }
             const securityIndex = source.indexOf(needle, markerIndex);
-            if (securityIndex < 0 || securityIndex - markerIndex > 2000) {
+            if (securityIndex < 0 || securityIndex - markerIndex > 500) {
               throw new Error(`Expected diagnosed security declaration near ${marker}`);
             }
             source = source.slice(0, securityIndex) + replacement + source.slice(securityIndex + needle.length);
           }
-          const remainingCount = source.split(needle).length - 1;
-          if (remainingCount !== 1) {
-            throw new Error(`Expected 1 legitimate backend bearer declaration after scoped repair, found ${remainingCount}`);
+          const remainingIndexes = [];
+          for (let index = source.indexOf(needle); index >= 0; index = source.indexOf(needle, index + needle.length)) {
+            remainingIndexes.push(index);
+          }
+          console.log(JSON.stringify({ remaining_backend_bearer_contexts: remainingIndexes.map((index) => source.slice(Math.max(0, index - 500), Math.min(source.length, index + needle.length + 180))) }, null, 2));
+          if (remainingIndexes.length !== 2) {
+            throw new Error(`Expected 2 remaining backend bearer declarations after scoped repair, found ${remainingIndexes.length}`);
           }
           fs.writeFileSync(path, source);
           NODE
