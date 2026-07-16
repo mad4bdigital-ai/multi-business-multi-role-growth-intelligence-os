@@ -110,4 +110,9 @@ for (const marker of [
 assert.doesNotMatch(migration, /UPDATE\s+`?tenant_platform_endpoint_tools`?\s+SET\s+`?is_enabled`?\s*=\s*1/i);
 assert.doesNotMatch(migration, /INSERT\s+INTO\s+`?platform_capability_certifications`?/i);
 
-console.log("platform capability shadow certification issue core tests passed");
+const routeSource = fs.readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
+assert(routeSource.includes("name: \"platform_capability_shadow_certification_issue\""));
+assert(routeSource.includes("toolKey === \"platform_capability_shadow_certification_issue\""));
+assert(routeSource.includes("issuePlatformCapabilityShadowCertification"));
+
+console.log("platform capability shadow certification issue tests passed");
