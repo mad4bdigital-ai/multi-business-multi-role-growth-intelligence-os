@@ -114,6 +114,13 @@ assert.match(migration, /'repository\.main_moved'/);
 assert.match(migration, /repository_main_moved_event_create/);
 assert.match(migration, /repository_main_moved_event_get/);
 assert.match(migration, /repository_main_moved_trigger_policy_v1/);
+for (const marker of [
+  "mutation_policy_required",
+  "capability_envelope",
+  "approval_required",
+  "readback",
+  "same_cycle_readback",
+]) assert.match(migration, new RegExp(marker));
 assert.match(migration, /transactional_outbox_required',true/);
 assert.match(migration, /release_operation_creation_forbidden',true/);
 assert.match(migration, /job_enqueue_forbidden',true/);
