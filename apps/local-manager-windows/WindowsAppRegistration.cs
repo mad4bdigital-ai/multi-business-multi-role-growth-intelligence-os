@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using System.Windows.Forms;
 
