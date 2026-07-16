@@ -134,4 +134,11 @@ const route = fs.readFileSync(path.join(__dirname, "routes", "repositoryMainMove
 assert.match(route, /POST|post/);
 assert.match(route, /repository-main-moved-events/);
 
+const routesIndex = fs.readFileSync(path.join(__dirname, "routes", "index.js"), "utf8");
+assert.match(routesIndex, /buildRepositoryMainMovedTriggerRoutes/);
+assert.match(routesIndex, /app\.use\(buildRepositoryMainMovedTriggerRoutes/);
+
+const testManifest = fs.readFileSync(path.join(__dirname, "scripts", "test-manifest.mjs"), "utf8");
+assert.match(testManifest, /test-repository-main-moved-trigger-coordinator\.mjs/);
+
 console.log("repository main moved trigger coordinator tests passed");
