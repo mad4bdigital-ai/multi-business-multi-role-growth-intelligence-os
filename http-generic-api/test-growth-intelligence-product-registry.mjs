@@ -133,11 +133,10 @@ const eventMetadata = JSON.parse(eventInsert.params[8]);
 assert.deepEqual(Object.keys(eventMetadata).sort(), [
   "correlation_id",
   "producer_key",
-  "secrets_included",
   "workflow_key",
 ].sort());
 assert.equal(eventMetadata.producer_key, "growth_intelligence_registry");
-assert.equal(eventMetadata.secrets_included, false);
+assert.equal(Object.hasOwn(eventMetadata, "secrets_included"), false);
 
 const nonDevQueries = [];
 const nonDevConnection = {
