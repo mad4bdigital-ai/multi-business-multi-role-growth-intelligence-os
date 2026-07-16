@@ -142,6 +142,7 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
   });
 
   router.post("/admin/container-authority/resolution-preview",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
+    let connection = null;
     try {
       assertAllowedKeys(req.body,new Set(["principal","tenantId","targetContainerId","dimensionRequests","expectedAuthorityEpoch","expectedRegistrySnapshotHash","legacyDecision","legacyEvidenceRef","requestId","idempotencyKey"]));
       const idempotencyKey = String(req.body?.idempotencyKey || "").trim();
@@ -156,16 +157,29 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
         isAdmin:true
       };
       enforcePreviewRate(req);
-      const result = await resolveEffectiveContainerContext({
+      const effectiveRequestId=req.body?.requestId || requestId(req);
+      const input={
         ...req.body,
         principal:req.body?.principal || req.containerPrincipal.principal,
         tenantId:req.containerPrincipal.tenantId,
         mode:"preview",
         idempotencyKey,
-        requestId:req.body?.requestId || requestId(req)
+        requestId:effectiveRequestId
+      };
+      connection = await getPool().getConnection();
+      const observed = await executeObservedReadOnlyCanary({
+        executor:connection,
+        canaryKey:"container_authority_preview_resolution_v1",
+        capabilityKey:"createContainerContextResolution",
+        requestId:effectiveRequestId,
+        execute:async () => {
+          const result=await resolveContainerContextWithExecutor(input,connection);
+          return { ...result, enforced:false, providerCallMade:false, credentialPayloadRead:false, secretsIncluded:false };
+        }
       });
-      return res.status(201).json({ ...result, enforced:false, providerCallMade:false, credentialPayloadRead:false, secretsIncluded:false });
+      return res.status(201).json(observed.response);
     } catch (error) { return errorResponse(req,res,error); }
+    finally { if(connection) connection.release(); }
   });
 
   router.get("/container-context-resolutions/:resolutionId",requireResolutionPrincipal(deps),async (req,res) => {
