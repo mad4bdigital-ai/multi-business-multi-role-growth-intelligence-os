@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { assertNoSecretBearingFields } from "./capabilityEnvelopeSecretPolicy.js";
+import { redactDangerousKeys } from "./scripts/capability-resolution-envelope-create.mjs";
 import { generateDeploymentManifest, isDirectExecution } from "./scripts/generate-deployment-manifest.mjs";
 
 const activationSource = readFileSync(new URL("./routes/activationRoutes.js", import.meta.url), "utf8");
