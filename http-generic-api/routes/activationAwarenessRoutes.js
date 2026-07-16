@@ -23,6 +23,7 @@ import {
   transitionTenantResolutionCase,
 } from "../tenantResolutionCaseLifecycleService.js";
 import { runTenantResolutionDiagnosticAction } from "../tenantResolutionDiagnosticService.js";
+import { previewTenantTaskSourceRepair } from "../tenantTaskSourceRepairPreviewService.js";
 import {
   listTenantSkillApprovals,
   decideTenantSkillApproval,
@@ -345,6 +346,21 @@ async function tenantResolutionDiagnosticActionResponse(req) {
   });
 }
 
+async function tenantTaskSourceRepairPreviewResponse(req) {
+  return previewTenantTaskSourceRepair({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    caseId: req.params.caseId,
+    workspaceId: tenantWorkspaceScope(req),
+    input: req.body || {},
+  });
+}
+
 async function tenantSkillApprovalListResponse(req) {
   return listTenantSkillApprovals({
     sessionContext: subjectContext(req, false),
@@ -564,6 +580,14 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
       return res.status(200).json(await tenantResolutionDiagnosticActionResponse(req));
     } catch (err) {
       return errorResponse(res, err, "tenant_resolution_diagnostic_action_failed");
+    }
+  });
+
+  router.post("/tenant/resolution/cases/:caseId/task-source-repair/preview", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantTaskSourceRepairPreviewResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_task_source_repair_preview_failed");
     }
   });
 
