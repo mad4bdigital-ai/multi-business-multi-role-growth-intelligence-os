@@ -53,6 +53,7 @@ jobs:
             "x-registry-tool-key: dynamic_container_canary_promotion",
             "x-registry-tool-key: dynamic_container_canary_rollback",
             "x-registry-tool-key: dynamic_container_canary_probe_sampler",
+            "x-registry-tool-key: dynamic_container_preview_canary_probe_sampler",
           ];
           let source = fs.readFileSync(path, "utf8");
           const initialCount = source.split(needle).length - 1;
@@ -74,9 +75,12 @@ jobs:
           for (let index = source.indexOf(needle); index >= 0; index = source.indexOf(needle, index + needle.length)) {
             remainingIndexes.push(index);
           }
-          console.log(JSON.stringify({ remaining_backend_bearer_contexts: remainingIndexes.map((index) => source.slice(Math.max(0, index - 500), Math.min(source.length, index + needle.length + 180))) }, null, 2));
-          if (remainingIndexes.length !== 2) {
-            throw new Error(`Expected 2 remaining backend bearer declarations after scoped repair, found ${remainingIndexes.length}`);
+          if (remainingIndexes.length !== 1) {
+            throw new Error(`Expected only the legitimate shadow sampler declaration to remain, found ${remainingIndexes.length}`);
+          }
+          const remainingContext = source.slice(Math.max(0, remainingIndexes[0] - 500), Math.min(source.length, remainingIndexes[0] + needle.length + 180));
+          if (!remainingContext.includes("x-registry-tool-key: dynamic_container_shadow_sampler")) {
+            throw new Error("The remaining backend bearer declaration is not the expected shadow sampler declaration");
           }
           fs.writeFileSync(path, source);
           NODE
