@@ -245,7 +245,6 @@ export async function createRepositoryMainMovedTriggerEvent(rawInput = {}, actor
         producer_key: "repository_main_moved_trigger_coordinator",
         source_event_id: event.source_event_id,
         execution_allowed: false,
-        secrets_included: false,
       },
       sourceEnvironment: event.environment_key,
       occurredAt: event.occurred_at,
