@@ -910,7 +910,7 @@ function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey
     "Start-Service $CfService",
     "$cfSvc.WaitForStatus('Running', [TimeSpan]::FromSeconds(20))",
     "$cfSvc.Refresh()",
-    "if ($cfSvc.Status -ne 'Running') { throw 'cloudflared service did not reach Running state.' }"
+    "if ($cfSvc.Status -ne 'Running') { throw 'cloudflared service did not reach Running state.' }",
     "",
     "# 4. Part B — Node connector as Windows service (NSSM)",
     "if (-not (Get-Command nssm -ErrorAction SilentlyContinue)) {",
