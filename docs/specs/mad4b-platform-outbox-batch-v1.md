@@ -205,7 +205,7 @@ Rules:
 2. Apply the additive draft registration to development through the governed migration runner.
 3. Verify the event type is `draft` and no events or deliveries are created.
 4. Add deterministic producer tests using a caller-owned transaction.
-5. Promote the event type to `active` through a separate governed migration.
+5. Promote the event type to `active` through `20260716_activate_growth_intelligence_report_persisted_outbox_event.sql` only when readback proves schema version `1`, producer `growth_intelligence_registry`, classification `internal`, `contains_pii=false`, and current status `draft`. After apply, read back `status=active` and confirm event/delivery counts remain zero before producer wiring.
 6. Wire `persistGrowthIntelligencePilot` to enqueue one event before commit.
 7. Verify report persistence and outbox insertion commit or roll back together.
 8. Confirm the disabled/noop consumer produces zero deliveries.
