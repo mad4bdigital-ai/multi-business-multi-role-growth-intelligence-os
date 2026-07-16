@@ -49,31 +49,31 @@ jobs:
           const path = "openapi/container-authority.yaml";
           const needle = "security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]";
           const replacement = "security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]";
-          const toolKeys = [
-            "dynamic_container_canary_promotion",
-            "dynamic_container_canary_rollback",
-            "dynamic_container_canary_probe_sampler",
+          const markers = [
+            "x-registry-tool-key: dynamic_container_canary_promotion",
+            "x-registry-tool-key: dynamic_container_canary_rollback",
+            "x-registry-tool-key: dynamic_container_canary_probe_sampler",
+            "/admin/container-authority/preview-canary-probes:",
           ];
           let source = fs.readFileSync(path, "utf8");
           const initialCount = source.split(needle).length - 1;
           if (initialCount !== 5) {
             throw new Error(`Expected 5 total backend bearer declarations before scoped repair, found ${initialCount}`);
           }
-          for (const toolKey of toolKeys) {
-            const marker = `x-registry-tool-key: ${toolKey}`;
+          for (const marker of markers) {
             const markerIndex = source.indexOf(marker);
             if (markerIndex < 0 || source.indexOf(marker, markerIndex + 1) >= 0) {
-              throw new Error(`Expected one marker for ${toolKey}`);
+              throw new Error(`Expected one marker for ${marker}`);
             }
             const securityIndex = source.indexOf(needle, markerIndex);
-            if (securityIndex < 0 || securityIndex - markerIndex > 500) {
-              throw new Error(`Expected diagnosed security declaration near ${toolKey}`);
+            if (securityIndex < 0 || securityIndex - markerIndex > 2000) {
+              throw new Error(`Expected diagnosed security declaration near ${marker}`);
             }
             source = source.slice(0, securityIndex) + replacement + source.slice(securityIndex + needle.length);
           }
           const remainingCount = source.split(needle).length - 1;
-          if (remainingCount !== 2) {
-            throw new Error(`Expected 2 legitimate backend bearer declarations after scoped repair, found ${remainingCount}`);
+          if (remainingCount !== 1) {
+            throw new Error(`Expected 1 legitimate backend bearer declaration after scoped repair, found ${remainingCount}`);
           }
           fs.writeFileSync(path, source);
           NODE
