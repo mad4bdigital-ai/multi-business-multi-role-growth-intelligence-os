@@ -273,7 +273,14 @@ export async function runClient(args = parseArgs()) {
     const toolArgs = decodeJson(args.tool_args_json, args.tool_args_base64, {});
     if (!toolArgs || typeof toolArgs !== "object" || Array.isArray(toolArgs)) throw new Error("tool_args must decode to a JSON object.");
     mutationRequested = isToolMutation(target, toolArgs);
-    if (mutationRequested) requireApplyAuthorization(args, `Tool ${target}`);
+    if (mutationRequested) {
+      applyAuthoritySource = requireApplyAuthorization({
+        args,
+        action,
+        target,
+        payload: toolArgs,
+      }, `Tool ${target}`);
+    }
     response = await callTool(base, apiKey, target, toolArgs);
   } else if (action === "shell-alias") {
     target = String(args.alias || "").trim();
