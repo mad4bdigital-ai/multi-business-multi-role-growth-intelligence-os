@@ -222,6 +222,7 @@ export async function runGrowthIntelligencePilotAdmin(args = {}, dependencies = 
   const tenantId = text(args.tenant_id);
   const brandKey = text(args.brand_key);
   const activityKey = text(args.business_activity_type_key, DEFAULT_ACTIVITY_KEY);
+  const outboxMode = text(args.outbox_mode, "disabled");
   const requestedBy = text(args.requested_by, "gpt_admin_growth_intelligence_pilot");
 
   const context = await resolveGrowthIntelligencePilotAdminContext({
