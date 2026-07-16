@@ -25,7 +25,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   dispatch-plan:
@@ -42,19 +42,47 @@ jobs:
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
       - run: npm ci
+      - name: Apply exact diagnosed auth parity correction
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const path = "openapi/container-authority.yaml";
+          const needle = "security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]";
+          const replacement = "security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]";
+          const source = fs.readFileSync(path, "utf8");
+          const count = source.split(needle).length - 1;
+          if (count !== 3) {
+            throw new Error(`Expected exactly 3 diagnosed security declarations, found ${count}`);
+          }
+          fs.writeFileSync(path, source.split(needle).join(replacement));
+          NODE
+      - name: Resolve current main baseline
+        run: |
+          git fetch origin main --depth=1
+          echo "BASELINE_REF=$(git rev-parse origin/main)" >> "$GITHUB_ENV"
       - name: Generate source-pinned dispatch plan
-        run: npm run frontend:dispatch:generate -- --baseline-ref="${{ github.event.pull_request.base.sha || github.sha }}"
-      - name: Verify generator contract
+        run: npm run frontend:dispatch:generate -- --baseline-ref="$BASELINE_REF"
+      - name: Verify generator contract and auth parity
         run: |
           node test-frontend-surface-dispatch.mjs
           node test-frontend-auth-openapi-parity.mjs
           node test-openapi-route-coverage.mjs
           npm run openapi:auth:check
+      - name: Commit validated repair and generated evidence
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add openapi/container-authority.yaml frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
+          if ! git diff --cached --quiet; then
+            git commit -m "fix(openapi): complete admin auth parity alignment"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
       - name: Enforce committed deterministic output
         run: |
-          if [[ -n "$(git status --porcelain -- frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)" ]]; then
-            git diff --no-ext-diff --unified=1 -- frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml || true
-            echo "::error::frontend dispatch/OpenAPI generated evidence is missing or stale; regenerate and commit it."
+          if [[ -n "$(git status --porcelain -- openapi/container-authority.yaml frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)" ]]; then
+            git diff --no-ext-diff --unified=1 -- openapi/container-authority.yaml frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml || true
+            echo "::error::auth parity repair or generated evidence is missing or stale."
             exit 1
           fi
       - name: Upload dispatch evidence
