@@ -19,6 +19,15 @@ const ALLOWED_TOOLS = new Set([
   "governed_migration_execute",
 ]);
 
+const PERSISTED_ENVELOPE_GATED_TOOLS = new Set([
+  "governed_migration_authorization_bootstrap",
+  "governed_migration_apply_policy_bootstrap",
+  "capability_resolution_envelope_apply_authorize",
+  "governed_migration_execute",
+]);
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 const ALLOWED_SHELL_ALIASES = new Set([
   "capability_resolution_envelope_create",
   "capability_resolution_envelope_approve",
@@ -130,11 +139,31 @@ function decodeJson(value, base64Value, fallback) {
   return fallback;
 }
 
-function requireApplyAuthorization(args, reason) {
-  if (args.apply !== true) throw new Error(`${reason} requires --apply.`);
-  if (process.env.DEV_MIGRATION_APPLY_ENABLED !== "true") {
-    const error = new Error("DEV_MIGRATION_APPLY_ENABLED=true is required for state-changing dev operations.");
-    error.code = "dev_migration_apply_feature_flag_disabled";
+function persistedEnvelopeIdForTool(tool, toolArgs) {
+  if (!PERSISTED_ENVELOPE_GATED_TOOLS.has(tool)) return "";
+  const candidate = tool === "capability_resolution_envelope_apply_authorize"
+    ? toolArgs?.envelope_id
+    : toolArgs?.capability_envelope_id;
+  const value = String(candidate || "").trim();
+  return UUID_PATTERN.test(value) ? value : "";
+}
+
+export function resolveApplyAuthoritySource({ args, action, target, payload, env = process.env }) {
+  if (args?.apply !== true) throw new Error(`${target || action || "State-changing dev operation"} requires --apply.`);
+  if (env?.DEV_MIGRATION_APPLY_ENABLED === "true") return "environment_flag";
+  if (action === "tool-call" && persistedEnvelopeIdForTool(target, payload)) return "capability_envelope";
+  const error = new Error("State-changing dev operations require DEV_MIGRATION_APPLY_ENABLED=true or a valid persisted capability envelope identifier for an allowlisted tool call.");
+  error.code = "dev_migration_apply_authority_required";
+  throw error;
+}
+
+function requireApplyAuthorization(context, reason) {
+  try {
+    return resolveApplyAuthoritySource(context);
+  } catch (error) {
+    if (error?.message?.includes("requires --apply")) {
+      error.message = `${reason} requires --apply.`;
+    }
     throw error;
   }
 }
@@ -218,6 +247,7 @@ export async function runClient(args = parseArgs()) {
   let response;
   let target = null;
   let mutationRequested = false;
+  let applyAuthoritySource = null;
 
   if (action === "status") {
     return {
@@ -243,7 +273,14 @@ export async function runClient(args = parseArgs()) {
     const toolArgs = decodeJson(args.tool_args_json, args.tool_args_base64, {});
     if (!toolArgs || typeof toolArgs !== "object" || Array.isArray(toolArgs)) throw new Error("tool_args must decode to a JSON object.");
     mutationRequested = isToolMutation(target, toolArgs);
-    if (mutationRequested) requireApplyAuthorization(args, `Tool ${target}`);
+    if (mutationRequested) {
+      applyAuthoritySource = requireApplyAuthorization({
+        args,
+        action,
+        target,
+        payload: toolArgs,
+      }, `Tool ${target}`);
+    }
     response = await callTool(base, apiKey, target, toolArgs);
   } else if (action === "shell-alias") {
     target = String(args.alias || "").trim();
@@ -251,7 +288,14 @@ export async function runClient(args = parseArgs()) {
     const extraArgs = decodeJson(args.extra_args_json, args.extra_args_base64, []);
     const invocation = validateShellAliasInvocation(target, extraArgs);
     mutationRequested = invocation.mutation_requested;
-    if (mutationRequested) requireApplyAuthorization(args, `Shell alias ${target}`);
+    if (mutationRequested) {
+      applyAuthoritySource = requireApplyAuthorization({
+        args,
+        action,
+        target,
+        payload: null,
+      }, `Shell alias ${target}`);
+    }
     response = await runShellAlias(base, apiKey, target, invocation.extra_args);
   } else {
     throw new Error("Unsupported action. Use status, probe, tool-call, or shell-alias.");
@@ -272,6 +316,7 @@ export async function runClient(args = parseArgs()) {
     },
     status_after: statusAfter,
     mutation_requested: mutationRequested,
+    apply_authority_source: applyAuthoritySource,
     apply_flag_present: args.apply === true,
     apply_feature_flag_enabled: process.env.DEV_MIGRATION_APPLY_ENABLED === "true",
     secrets_included: false,
