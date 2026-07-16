@@ -96,8 +96,9 @@ const result = await runGrowthIntelligencePilotAdmin({
   outbox_mode: "dev_transactional",
 }, {
   pool: fakePool(),
-  async persistPilot(pilot) {
+  async persistPilot(pilot, options) {
     persistedPilot = pilot;
+    persistedOptions = options;
     return {
       persistence_mode: "internal_registry",
       report_id: pilot.report.report_id,
