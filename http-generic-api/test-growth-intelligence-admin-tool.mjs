@@ -87,6 +87,7 @@ assert.throws(
 );
 
 let persistedPilot = null;
+let persistedOptions = null;
 const result = await runGrowthIntelligencePilotAdmin({
   tenant_id: tenant.tenant_id,
   brand_key: "arab_cooling",
