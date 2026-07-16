@@ -1,0 +1,468 @@
+{
+  "schemaVersion": 1,
+  "contract": "authorization-execution.openapi.yaml",
+  "generatedFrom": {
+    "openapi": "3.1.0",
+    "infoVersion": "0.1.0-draft"
+  },
+  "operations": {
+    "POST /authorization/decisions": {
+      "operationId": "createAuthorizationDecision",
+      "requiredParameters": [],
+      "requestBodyRequired": true,
+      "requiredRequestProperties": [
+        "action",
+        "resource",
+        "subject"
+      ],
+      "successResponses": {
+        "200": {
+          "schemaRef": "#/components/schemas/AuthorizationDecision",
+          "requiredProperties": [
+            "blockingGaps",
+            "decision",
+            "decisionId",
+            "expiresAt",
+            "obligations",
+            "revisions",
+            "sensitiveValuesIncluded",
+            "states"
+          ]
+        }
+      }
+    },
+    "POST /execution-envelopes": {
+      "operationId": "createExecutionEnvelope",
+      "requiredParameters": [
+        "header:Idempotency-Key"
+      ],
+      "requestBodyRequired": true,
+      "requiredRequestProperties": [
+        "decisionId",
+        "request"
+      ],
+      "successResponses": {
+        "201": {
+          "schemaRef": "#/components/schemas/ExecutionEnvelope",
+          "requiredProperties": [
+            "decisionId",
+            "envelopeId",
+            "expiresAt",
+            "requestHash",
+            "sensitiveValuesIncluded",
+            "singleUse",
+            "state"
+          ]
+        }
+      }
+    },
+    "GET /execution-envelopes/{envelopeId}": {
+      "operationId": "getExecutionEnvelope",
+      "requiredParameters": [
+        "path:envelopeId"
+      ],
+      "requestBodyRequired": false,
+      "requiredRequestProperties": [],
+      "successResponses": {
+        "200": {
+          "schemaRef": "#/components/schemas/ExecutionEnvelope",
+          "requiredProperties": [
+            "decisionId",
+            "envelopeId",
+            "expiresAt",
+            "requestHash",
+            "sensitiveValuesIncluded",
+            "singleUse",
+            "state"
+          ]
+        }
+      }
+    },
+    "POST /execution-envelopes/{envelopeId}/approval-decisions": {
+      "operationId": "createApprovalDecision",
+      "requiredParameters": [
+        "header:Idempotency-Key",
+        "path:envelopeId"
+      ],
+      "requestBodyRequired": true,
+      "requiredRequestProperties": [
+        "decision"
+      ],
+      "successResponses": {
+        "201": {
+          "schemaRef": "#/components/schemas/ApprovalDecision",
+          "requiredProperties": [
+            "approvalDecisionId",
+            "envelopeId",
+            "sensitiveValuesIncluded",
+            "state"
+          ]
+        }
+      }
+    },
+    "POST /executions": {
+      "operationId": "createGovernedExecution",
+      "requiredParameters": [
+        "header:Idempotency-Key"
+      ],
+      "requestBodyRequired": true,
+      "requiredRequestProperties": [
+        "envelopeId"
+      ],
+      "successResponses": {
+        "202": {
+          "schemaRef": "#/components/schemas/Execution",
+          "requiredProperties": [
+            "envelopeId",
+            "executionId",
+            "sensitiveValuesIncluded",
+            "state",
+            "verificationState"
+          ]
+        }
+      }
+    },
+    "GET /executions/{executionId}/evidence": {
+      "operationId": "listExecutionEvidence",
+      "requiredParameters": [
+        "path:executionId"
+      ],
+      "requestBodyRequired": false,
+      "requiredRequestProperties": [],
+      "successResponses": {
+        "200": {
+          "schemaRef": null,
+          "requiredProperties": [
+            "items",
+            "page",
+            "sensitiveValuesIncluded"
+          ]
+        }
+      }
+    }
+  },
+  "components": {
+    "Subject": {
+      "required": [
+        "id",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "enum": []
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "\"agent\"",
+            "\"service\"",
+            "\"user\""
+          ]
+        }
+      }
+    },
+    "Action": {
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": []
+        }
+      }
+    },
+    "Resource": {
+      "required": [
+        "id",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "enum": []
+        },
+        "revision": {
+          "type": "null|string",
+          "enum": []
+        },
+        "type": {
+          "type": "string",
+          "enum": []
+        }
+      }
+    },
+    "AuthorizationDecisionRequest": {
+      "required": [
+        "action",
+        "resource",
+        "subject"
+      ],
+      "properties": {
+        "action": {
+          "type": "ref:#/components/schemas/Action",
+          "enum": []
+        },
+        "context": {
+          "type": "object",
+          "enum": []
+        },
+        "explain": {
+          "type": "boolean",
+          "enum": []
+        },
+        "resource": {
+          "type": "ref:#/components/schemas/Resource",
+          "enum": []
+        },
+        "subject": {
+          "type": "ref:#/components/schemas/Subject",
+          "enum": []
+        }
+      }
+    },
+    "AuthorizationDecision": {
+      "required": [
+        "blockingGaps",
+        "decision",
+        "decisionId",
+        "expiresAt",
+        "obligations",
+        "revisions",
+        "sensitiveValuesIncluded",
+        "states"
+      ],
+      "properties": {
+        "blockingGaps": {
+          "type": "array",
+          "enum": []
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "\"allowed\"",
+            "\"conditional\"",
+            "\"denied\""
+          ]
+        },
+        "decisionId": {
+          "type": "string",
+          "enum": []
+        },
+        "expiresAt": {
+          "type": "string",
+          "enum": []
+        },
+        "obligations": {
+          "type": "array",
+          "enum": []
+        },
+        "revisions": {
+          "type": "object",
+          "enum": []
+        },
+        "sensitiveValuesIncluded": {
+          "type": "boolean",
+          "enum": []
+        },
+        "states": {
+          "type": "object",
+          "enum": []
+        }
+      }
+    },
+    "ExecutionEnvelope": {
+      "required": [
+        "decisionId",
+        "envelopeId",
+        "expiresAt",
+        "requestHash",
+        "sensitiveValuesIncluded",
+        "singleUse",
+        "state"
+      ],
+      "properties": {
+        "decisionId": {
+          "type": "string",
+          "enum": []
+        },
+        "envelopeId": {
+          "type": "string",
+          "enum": []
+        },
+        "expiresAt": {
+          "type": "string",
+          "enum": []
+        },
+        "requestHash": {
+          "type": "string",
+          "enum": []
+        },
+        "sensitiveValuesIncluded": {
+          "type": "boolean",
+          "enum": []
+        },
+        "singleUse": {
+          "type": "boolean",
+          "enum": []
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "\"blocked\"",
+            "\"consumed\"",
+            "\"expired\"",
+            "\"ready_for_dispatch\"",
+            "\"ready_requires_approval\"",
+            "\"revoked\"",
+            "\"stale\""
+          ]
+        }
+      }
+    },
+    "ApprovalDecision": {
+      "required": [
+        "approvalDecisionId",
+        "envelopeId",
+        "sensitiveValuesIncluded",
+        "state"
+      ],
+      "properties": {
+        "approvalDecisionId": {
+          "type": "string",
+          "enum": []
+        },
+        "envelopeId": {
+          "type": "string",
+          "enum": []
+        },
+        "expiresAt": {
+          "type": "null|string",
+          "enum": []
+        },
+        "sensitiveValuesIncluded": {
+          "type": "boolean",
+          "enum": []
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "\"approved\"",
+            "\"rejected\""
+          ]
+        }
+      }
+    },
+    "Execution": {
+      "required": [
+        "envelopeId",
+        "executionId",
+        "sensitiveValuesIncluded",
+        "state",
+        "verificationState"
+      ],
+      "properties": {
+        "envelopeId": {
+          "type": "string",
+          "enum": []
+        },
+        "executionId": {
+          "type": "string",
+          "enum": []
+        },
+        "sensitiveValuesIncluded": {
+          "type": "boolean",
+          "enum": []
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "\"compensated\"",
+            "\"failed\"",
+            "\"not_started\"",
+            "\"queued\"",
+            "\"running\"",
+            "\"succeeded\""
+          ]
+        },
+        "verificationState": {
+          "type": "string",
+          "enum": [
+            "\"acknowledged\"",
+            "\"incomplete\"",
+            "\"mismatched\"",
+            "\"not_applicable\"",
+            "\"observed\"",
+            "\"verified\""
+          ]
+        }
+      }
+    },
+    "ExecutionEvidence": {
+      "required": [
+        "evidenceHash",
+        "evidenceId",
+        "observedAt",
+        "sensitiveValuesIncluded",
+        "type"
+      ],
+      "properties": {
+        "evidenceHash": {
+          "type": "string",
+          "enum": []
+        },
+        "evidenceId": {
+          "type": "string",
+          "enum": []
+        },
+        "observedAt": {
+          "type": "string",
+          "enum": []
+        },
+        "sensitiveValuesIncluded": {
+          "type": "boolean",
+          "enum": []
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "\"acknowledged\"",
+            "\"compensated\"",
+            "\"effect_verified\"",
+            "\"incomplete\"",
+            "\"mismatched\"",
+            "\"resource_observed\"",
+            "\"state_verified\""
+          ]
+        }
+      }
+    },
+    "CursorPage": {
+      "required": [
+        "hasMore"
+      ],
+      "properties": {
+        "hasMore": {
+          "type": "boolean",
+          "enum": []
+        },
+        "nextCursor": {
+          "type": "null|string",
+          "enum": []
+        }
+      }
+    },
+    "ErrorEnvelope": {
+      "required": [
+        "error"
+      ],
+      "properties": {
+        "error": {
+          "type": "object",
+          "enum": []
+        }
+      }
+    }
+  }
+}
