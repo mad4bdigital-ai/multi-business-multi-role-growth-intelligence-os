@@ -110,6 +110,7 @@ surfaces:
         - getTenantResolutionCase
         - transitionTenantResolutionCase
         - runTenantResolutionDiagnosticAction
+        - previewTenantTaskSourceRepair
         - readTenantActivationDynamicTabDetail
 
   local_connector_admin:
