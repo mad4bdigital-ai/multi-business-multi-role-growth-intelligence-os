@@ -20,6 +20,8 @@ import {
 import { readContainerResolution } from "../dynamicContainerAuthorityRepository.js";
 import { runDynamicContainerShadowSampler } from "../dynamicContainerShadowSampler.js";
 import { runDynamicContainerCanaryProbeSampler } from "../dynamicContainerCanaryProbeSampler.js";
+import { runDynamicContainerPreviewCanaryProbeSampler } from "../dynamicContainerPreviewCanaryProbeSampler.js";
+import { resolveContainerContextWithExecutor } from "../dynamicContainerResolverExecutor.js";
 import {
   runContainerCanaryPromotion,
   runContainerCanaryRollback
