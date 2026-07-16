@@ -1132,6 +1132,13 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     [resolvedUserId, resolvedTenantId, device_id]
   );
   const finalConfigId = cfgRow.config_id;
+  await reconcileConnectorDeviceAliases(pool, {
+    userId: resolvedUserId,
+    tenantId: resolvedTenantId,
+    configId: finalConfigId,
+    canonicalDeviceId: device_id,
+    aliasDeviceIds: [device_id, hostname],
+  });
 
   const runtimeUrl = deviceRuntimeUrl || buildDeviceRuntimeUrl(finalConfigId);
   const runtimeHost = new URL(runtimeUrl).hostname;
