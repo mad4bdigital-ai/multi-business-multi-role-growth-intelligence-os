@@ -50,7 +50,13 @@ assert.match(outboxSource, /"X-MAD4B-Batch-SHA256": sha256\(payloadText\)/);
 assert.match(outboxSource, /redirect: "error"/);
 assert.match(outboxSource, /secrets_included: false/);
 
-assert.doesNotMatch(producerSource, /enqueuePlatformOutboxEvent/);
-assert.doesNotMatch(producerSource, /growth_intelligence\.report_persisted/);
+assert.match(producerSource, /enqueuePlatformOutboxEvent/);
+assert.match(producerSource, /growth_intelligence\.report_persisted/);
+assert.match(producerSource, /outboxMode = "disabled"/);
+assert.match(producerSource, /dev_transactional/);
+assert.match(producerSource, /SELECT DATABASE\(\) AS db_name/);
+assert.match(producerSource, /endsWith\("_dev"\)/);
+assert.match(producerSource, /outboxEvent = await enqueuePlatformOutboxEvent/);
+assert.match(producerSource, /outbox_event_id: outboxEvent\?\.event_id \|\| null/);
 
 console.log("outbox receiver contract and draft event registration tests passed");
