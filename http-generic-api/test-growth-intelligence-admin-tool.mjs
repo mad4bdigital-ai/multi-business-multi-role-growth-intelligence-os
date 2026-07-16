@@ -65,6 +65,14 @@ async function expectCode(promise, code) {
 }
 
 assert.doesNotThrow(() => assertGrowthIntelligencePilotAdminSafety({ persistence_mode: "internal_registry" }));
+assert.doesNotThrow(() => assertGrowthIntelligencePilotAdminSafety({
+  persistence_mode: "internal_registry",
+  outbox_mode: "dev_transactional",
+}));
+assert.throws(
+  () => assertGrowthIntelligencePilotAdminSafety({ outbox_mode: "production" }),
+  (error) => error?.code === "growth_pilot_admin_outbox_mode_invalid"
+);
 assert.throws(
   () => assertGrowthIntelligencePilotAdminSafety({ persistence_mode: "none" }),
   (error) => error?.code === "growth_pilot_admin_persistence_mode_invalid"
