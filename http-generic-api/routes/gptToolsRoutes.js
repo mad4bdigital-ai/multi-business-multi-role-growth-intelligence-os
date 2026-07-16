@@ -2344,6 +2344,12 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     });
     return { status: 200, body: { ok: true, name: toolKey, result } };
   }
+  if (callerType === "admin" && toolKey === "platform_capability_shadow_certification_issue") {
+    const result = await issuePlatformCapabilityShadowCertification(args || {}, {
+      auth: req?.auth || {},
+    });
+    return { status: 200, body: { ok: true, name: toolKey, result } };
+  }
   if (callerType === "admin" && toolKey === "tenant_connection_shadow_contract_bootstrap") {
     const result = await bootstrapTenantConnectionShadowContracts(args || {}, {
       auth: req?.auth || {},
