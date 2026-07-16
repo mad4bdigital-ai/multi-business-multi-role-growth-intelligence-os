@@ -953,6 +953,46 @@ function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
+async function reconcileConnectorDeviceAliases(pool, {
+  userId,
+  tenantId,
+  configId,
+  canonicalDeviceId,
+  aliasDeviceIds = [],
+}) {
+  await pool.query(
+    `UPDATE \`local_connector_device_aliases\` a
+       LEFT JOIN \`local_connector_user_configs\` c
+         ON c.config_id = a.canonical_config_id
+        AND c.user_id = a.user_id
+        AND c.tenant_id = a.tenant_id
+        SET a.status = 'archived',
+            a.reason = 'canonical_config_missing_archived_by_provisioning'
+     WHERE a.user_id = ?
+       AND a.tenant_id = ?
+       AND a.status = 'active'
+       AND (a.canonical_config_id IS NULL OR c.config_id IS NULL)`,
+    [userId, tenantId]
+  );
+
+  const aliases = [...new Set(aliasDeviceIds
+    .map((value) => String(value || "").trim())
+    .filter(Boolean))];
+  for (const aliasDeviceId of aliases) {
+    await pool.query(
+      `INSERT INTO \`local_connector_device_aliases\`
+         (alias_device_id, canonical_device_id, canonical_config_id, user_id, tenant_id, reason, status)
+       VALUES (?, ?, ?, ?, ?, 'installer_provisioning_canonical_reconciliation', 'active')
+       ON DUPLICATE KEY UPDATE
+         canonical_device_id = VALUES(canonical_device_id),
+         canonical_config_id = VALUES(canonical_config_id),
+         reason = VALUES(reason),
+         status = 'active'`,
+      [aliasDeviceId, canonicalDeviceId, configId, userId, tenantId]
+    );
+  }
+}
+
 export async function provisionLocalConnectorInstall(req, body = {}) {
   const {
     user_id, tenant_id, device_id,
