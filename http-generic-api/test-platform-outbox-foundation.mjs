@@ -109,6 +109,70 @@ assert.equal(batch.events[0].payload.email, "[masked]");
 assert.equal(batch.events[0].payload.display_name, "Visible");
 assert.equal(Object.hasOwn(batch.events[0].metadata, "authorization"), false);
 
+const statusQueries = [];
+const statusResponses = [
+  [[{ event_count: 0, latest_event_at: null }]],
+  [[]],
+  [[{ oldest_pending_age_seconds: null }]],
+  [[{
+    consumer_key: "prod_shadow_v1",
+    display_name: "Production shadow synchronization v1",
+    target_environment: "shadow",
+    transport_key: "noop",
+    status: "disabled",
+    endpoint_configured: 0,
+    credential_reference_configured: 0,
+    mask_policy_key: "default_shadow_mask_v1",
+    batch_size: 100,
+    timeout_ms: 10000,
+    max_attempts: 8,
+    last_success_at: null,
+    last_failure_at: null,
+    last_error_code: null,
+    updated_at: null,
+  }]],
+  [[{
+    event_type: "growth_intelligence.report_persisted",
+    current_schema_version: 1,
+    producer_key: "growth_intelligence_registry",
+    payload_classification: "internal",
+    contains_pii: 0,
+    status: "draft",
+    created_at: null,
+    updated_at: null,
+  }]],
+];
+const status = await getPlatformOutboxStatus({
+  pool: {
+    async query(sql) {
+      statusQueries.push(sql);
+      return statusResponses.shift();
+    },
+  },
+});
+assert.equal(status.event_count, 0);
+assert.deepEqual(status.delivery_counts, {});
+assert.equal(status.consumers[0].status, "disabled");
+assert.equal(status.consumers[0].transport_key, "noop");
+assert.deepEqual(status.event_types, [{
+  event_type: "growth_intelligence.report_persisted",
+  current_schema_version: 1,
+  producer_key: "growth_intelligence_registry",
+  payload_classification: "internal",
+  contains_pii: false,
+  status: "draft",
+  created_at: null,
+  updated_at: null,
+}]);
+assert.equal(Object.hasOwn(status.event_types[0], "payload_json"), false);
+assert.equal(Object.hasOwn(status.event_types[0], "metadata_json"), false);
+assert.equal(Object.hasOwn(status.event_types[0], "endpoint_url"), false);
+assert.equal(Object.hasOwn(status.event_types[0], "credential_ref"), false);
+assert.equal(status.secrets_included, false);
+assert.equal(statusQueries.length, 5);
+assert.match(statusQueries[4], /FROM platform_outbox_event_types/);
+assert.doesNotMatch(statusQueries[4], /payload_json|metadata_json|endpoint_url|credential_ref/i);
+
 const migration = await fs.readFile(
   path.join(root, "migrations", "20260711_transactional_outbox_shadow_sync_foundation.sql"),
   "utf8"
