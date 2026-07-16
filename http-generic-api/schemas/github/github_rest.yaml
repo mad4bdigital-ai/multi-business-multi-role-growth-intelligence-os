@@ -990,7 +990,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Issue'
+                type: array
+                items:
+                  $ref: '#/components/schemas/Issue'
         default:
           $ref: '#/components/responses/defaultError'
       parameters:
