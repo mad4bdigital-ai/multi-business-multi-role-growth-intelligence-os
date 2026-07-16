@@ -2,7 +2,6 @@ import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
-import { resolveEffectiveContainerContext } from "../dynamicContainerAuthorityResolver.js";
 import {
   createContainerRelationship,
   createContainerResourceBinding,
