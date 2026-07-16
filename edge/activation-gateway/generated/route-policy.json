@@ -454,6 +454,24 @@
       "method": "POST",
       "mutation": true,
       "operation_ids": [
+        "previewTenantTaskSourceRepair"
+      ],
+      "path": "/tenant/resolution/cases/{caseId}/task-source-repair/preview",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "tenant_activation"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [],
+      "auth_profiles": [
+        "tenant_oauth"
+      ],
+      "method": "POST",
+      "mutation": true,
+      "operation_ids": [
         "transitionTenantResolutionCase"
       ],
       "path": "/tenant/resolution/cases/{caseId}/transitions",
