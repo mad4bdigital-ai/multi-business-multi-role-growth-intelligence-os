@@ -251,7 +251,6 @@ export async function persistGrowthIntelligencePilot(result, {
           producer_key: "growth_intelligence_registry",
           workflow_key: WORKFLOW_KEY,
           correlation_id: correlationId,
-          secrets_included: false,
         },
         secretsIncluded: false,
       });
