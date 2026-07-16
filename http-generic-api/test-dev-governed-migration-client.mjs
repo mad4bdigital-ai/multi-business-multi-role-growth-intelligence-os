@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import {
   assertDevDbStatus,
   parseArgs,
+  resolveApplyAuthoritySource,
   sanitizeResult,
   validateDevBaseUrl,
   validateShellAliasInvocation,
