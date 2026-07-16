@@ -1,6 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
+import { enqueuePlatformOutboxEvent } from "./platformOutbox.js";
 
 const WORKFLOW_KEY = "tenant_brand_growth_intelligence_pilot_v1";
+const OUTBOX_EVENT_TYPE = "growth_intelligence.report_persisted";
+const OUTBOX_MODES = new Set(["disabled", "dev_transactional"]);
 
 function json(value) {
   return JSON.stringify(value ?? null);
