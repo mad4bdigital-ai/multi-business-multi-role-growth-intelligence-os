@@ -316,6 +316,7 @@ export async function runClient(args = parseArgs()) {
     },
     status_after: statusAfter,
     mutation_requested: mutationRequested,
+    apply_authority_source: applyAuthoritySource,
     apply_flag_present: args.apply === true,
     apply_feature_flag_enabled: process.env.DEV_MIGRATION_APPLY_ENABLED === "true",
     secrets_included: false,
