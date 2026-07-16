@@ -83,6 +83,22 @@ jobs:
           echo "BASELINE_REF=$(git rev-parse origin/main)" >> "$GITHUB_ENV"
       - name: Generate source-pinned dispatch plan
         run: npm run frontend:dispatch:generate -- --baseline-ref="$BASELINE_REF"
+      - name: Print remaining auth parity mismatches
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const report = JSON.parse(fs.readFileSync("frontend-surface-dispatch.generated.json", "utf8"));
+          const mismatches = [];
+          for (const family of report.families || []) {
+            for (const operation of family.operations || []) {
+              const state = operation?.auth_parity?.state;
+              if (state && !["equivalent", "exempt"].includes(state)) {
+                mismatches.push({ family_key: family.family_key, signature: operation.signature, state, reasons: operation.auth_parity?.reasons || [], runtime_auth: operation.runtime_auth, openapi_auth: operation.openapi_auth });
+              }
+            }
+          }
+          console.log(JSON.stringify({ mismatch_count: mismatches.length, mismatches }, null, 2));
+          NODE
       - name: Verify generator contract and auth parity
         run: |
           node test-frontend-surface-dispatch.mjs
