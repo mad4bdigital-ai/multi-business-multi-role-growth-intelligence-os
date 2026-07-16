@@ -247,6 +247,7 @@ export async function runClient(args = parseArgs()) {
   let response;
   let target = null;
   let mutationRequested = false;
+  let applyAuthoritySource = null;
 
   if (action === "status") {
     return {
