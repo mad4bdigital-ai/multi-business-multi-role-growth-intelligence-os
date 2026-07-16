@@ -100,7 +100,11 @@ async function withTransaction(pool, operation) {
   }
 }
 
-export async function persistGrowthIntelligencePilot(result, { pool, requestedBy = null } = {}) {
+export async function persistGrowthIntelligencePilot(result, {
+  pool,
+  requestedBy = null,
+  outboxMode = "disabled",
+} = {}) {
   if (!pool || typeof pool.query !== "function") throw new Error("A database pool is required.");
   if (!result?.ok || !result?.report?.report_id) throw new Error("A completed Growth Intelligence pilot result is required.");
   if (result.readback?.provider_writes !== 0 || result.readback?.external_sends !== 0 || result.secrets_included !== false) {
@@ -108,8 +112,10 @@ export async function persistGrowthIntelligencePilot(result, { pool, requestedBy
     error.code = "growth_pilot_persistence_boundary_failed";
     throw error;
   }
+  const normalizedOutboxMode = normalizeOutboxMode(outboxMode);
 
   return withTransaction(pool, async (connection) => {
+    if (normalizedOutboxMode === "dev_transactional") await assertDevOutboxDatabase(connection);
     const report = result.report;
     const quality = qualityMetrics(report);
     const qualityStatus = quality.evidence_coverage >= 0.8 && quality.assumption_count === 0 ? "pass" : quality.evidence_coverage >= 0.5 ? "warn" : "fail";
