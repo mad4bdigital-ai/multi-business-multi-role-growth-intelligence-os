@@ -478,6 +478,12 @@ export async function getPlatformOutboxStatus({ pool = getPool() } = {}) {
        FROM platform_outbox_consumers
       ORDER BY consumer_key`
   );
+  const [eventTypes] = await pool.query(
+    `SELECT event_type, current_schema_version, producer_key, payload_classification,
+            contains_pii, status, created_at, updated_at
+       FROM platform_outbox_event_types
+      ORDER BY event_type`
+  );
   return {
     ok: true,
     event_count: Number(eventRows?.[0]?.event_count || 0),
@@ -487,6 +493,16 @@ export async function getPlatformOutboxStatus({ pool = getPool() } = {}) {
       ? null
       : Number(lagRows?.[0]?.oldest_pending_age_seconds || 0),
     consumers,
+    event_types: (eventTypes || []).map((row) => ({
+      event_type: row.event_type,
+      current_schema_version: Number(row.current_schema_version || 1),
+      producer_key: row.producer_key,
+      payload_classification: row.payload_classification,
+      contains_pii: Boolean(row.contains_pii),
+      status: row.status,
+      created_at: row.created_at || null,
+      updated_at: row.updated_at || null,
+    })),
     delivery_feature_flag_enabled: process.env.OUTBOX_DELIVERY_ENABLED === "true",
     allowed_host_count: allowedHostsFromEnvironment().size,
     secrets_included: false,
