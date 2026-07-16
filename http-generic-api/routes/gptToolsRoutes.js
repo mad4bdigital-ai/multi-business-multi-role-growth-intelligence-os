@@ -635,6 +635,24 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "platform_capability_shadow_certification_issue",
+    displayName: "Issue Fixed Platform Capability Shadow Certification",
+    description: "Dry-run or apply one fixed shadow certification for tenant_connection_effective_credential_plan_view. Apply requires typed confirmation and an apply-authorized platform_orchestration capability envelope. It keeps the Tenant tool disabled, keeps the readback contract status shadow, never writes runtime dispatch certification, creates no active Tenant export, calls no provider, and returns no secrets.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-shadow-certification-issue",
+    tags: ["admin", "capability", "tenant_connection", "certification", "shadow", "read_only", "state_changing", "dry_run_default", "typed_confirmation", "capability_envelope", "same_cycle_readback", "no_provider_call", "no_external_write", "no_tenant_authority_change", "no_runtime_dispatch_change", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
+        expected_plan_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        confirm: { type: "string", const: PLATFORM_CAPABILITY_SHADOW_CERTIFICATION_CONFIRM },
+        capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "tenant_connection_shadow_contract_bootstrap",
     displayName: "Bootstrap Tenant Connection Shadow Contracts",
     description: "Dry-run or apply one fixed internal bootstrap for a non-write-capable Tenant connection adapter and nine shadow readback contracts. Apply requires typed confirmation and an apply-authorized platform_orchestration capability envelope. It never enables Tenant tools, creates Tenant exports, issues certifications, calls providers, performs external writes, or returns secrets.",
