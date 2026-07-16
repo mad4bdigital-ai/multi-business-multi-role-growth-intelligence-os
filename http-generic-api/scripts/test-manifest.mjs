@@ -530,6 +530,7 @@ export const testCommands = [
   "node test-github-ref-dispatch-catalog-persistence.mjs",
   "node test-github-actions-runs-read-dispatch.mjs",
   "node test-github-create-blob-201-contract-reconciliation.mjs",
+  "node test-github-list-repository-issues-array-contract.mjs",
   "node test-github-create-reference-201-contract-reconciliation.mjs",
   "node test-github-issue-label-response-schema-alignment.mjs",
   "node test-platform-endpoint-export-schema-parity.mjs",
