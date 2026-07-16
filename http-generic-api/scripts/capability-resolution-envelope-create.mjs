@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import crypto, { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
+import { SAFE_FALSE_SECRET_METADATA_KEYS } from "../capabilityEnvelopeSecretPolicy.js";
 import { runCapabilityResolutionDryRun } from "./capability-resolution-dry-run.mjs";
 
 function parseArgs(argv = process.argv.slice(2)) {
@@ -25,12 +26,13 @@ function safeText(value = "", max = 191) {
   return String(value || "").trim().slice(0, max);
 }
 
-function redactDangerousKeys(value) {
+export function redactDangerousKeys(value) {
   if (Array.isArray(value)) return value.map(redactDangerousKeys);
   if (!value || typeof value !== "object") return value;
   const out = {};
   for (const [key, raw] of Object.entries(value)) {
-    if (/secret|token|api[_-]?key|private[_-]?key|ciphertext|credential_value|password/i.test(key) && key !== "secrets_included") {
+    const safeFalseMetadata = SAFE_FALSE_SECRET_METADATA_KEYS.has(key) && raw === false;
+    if (/secret|token|api[_-]?key|private[_-]?key|ciphertext|credential_value|password/i.test(key) && !safeFalseMetadata) {
       out[key] = "[redacted_by_capability_envelope_ledger]";
     } else {
       out[key] = redactDangerousKeys(raw);
