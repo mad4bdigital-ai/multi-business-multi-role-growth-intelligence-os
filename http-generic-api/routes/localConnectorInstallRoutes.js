@@ -1290,6 +1290,13 @@ export function buildLocalConnectorInstallRoutes(deps) {
         });
       }
       if (!config) return res.status(404).json({ ok: false, error: { code: "connector_config_not_found", message: "No active connector config was found for this linked device." }, secrets_included: false });
+      await reconcileConnectorDeviceAliases(getPool(), {
+        userId: device.user_id,
+        tenantId: config.tenant_id || device.tenant_id,
+        configId: config.config_id,
+        canonicalDeviceId: config.device_id,
+        aliasDeviceIds: [device.device_id, device.session?.hostname, config.device_id],
+      });
       const token = signInstallerDownloadToken({
         user_id: device.user_id,
         tenant_id: config.tenant_id || device.tenant_id,
