@@ -93,6 +93,7 @@ const result = await runGrowthIntelligencePilotAdmin({
   brand_key: "arab_cooling",
   business_activity_type_key: "business_and_industrial_products",
   persistence_mode: "internal_registry",
+  outbox_mode: "dev_transactional",
 }, {
   pool: fakePool(),
   async persistPilot(pilot) {
