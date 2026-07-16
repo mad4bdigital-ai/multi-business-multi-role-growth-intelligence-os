@@ -1188,6 +1188,7 @@ const VIRTUAL_ADMIN_TOOLS = [
         brand_key: { type: "string", minLength: 1, maxLength: 128 },
         business_activity_type_key: { type: "string", default: "business_and_industrial_products" },
         persistence_mode: { type: "string", enum: ["internal_registry"], default: "internal_registry" },
+        outbox_mode: { type: "string", enum: ["disabled", "dev_transactional"], default: "disabled", description: "Optional dev-only transactional outbox producer. dev_transactional is rejected unless the active database name ends in _dev." },
         evidence_limit: { type: "integer", minimum: 1, maximum: 50, default: 20 },
         report_id: { type: "string", maxLength: 64 },
         requested_by: { type: "string", maxLength: 128 },
