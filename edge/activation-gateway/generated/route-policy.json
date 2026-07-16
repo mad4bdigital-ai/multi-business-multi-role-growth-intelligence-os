@@ -1,5 +1,5 @@
 {
-  "content_hash_sha256": "33ca3ccc5a7f00e5d3679955ebf9ee22e9fffa14b54a4966363139f0801e6a26",
+  "content_hash_sha256": "bef83669b0e0ec66ed56652f4ad0d5ed3ad75dbef6c571d729f0fcf8b8b15c3d",
   "deployment_signature_required": true,
   "manifest_version": 1,
   "mutation_stale_policy": "deny",
