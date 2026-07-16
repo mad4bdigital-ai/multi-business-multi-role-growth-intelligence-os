@@ -288,7 +288,14 @@ export async function runClient(args = parseArgs()) {
     const extraArgs = decodeJson(args.extra_args_json, args.extra_args_base64, []);
     const invocation = validateShellAliasInvocation(target, extraArgs);
     mutationRequested = invocation.mutation_requested;
-    if (mutationRequested) requireApplyAuthorization(args, `Shell alias ${target}`);
+    if (mutationRequested) {
+      applyAuthoritySource = requireApplyAuthorization({
+        args,
+        action,
+        target,
+        payload: null,
+      }, `Shell alias ${target}`);
+    }
     response = await runShellAlias(base, apiKey, target, invocation.extra_args);
   } else {
     throw new Error("Unsupported action. Use status, probe, tool-call, or shell-alias.");
