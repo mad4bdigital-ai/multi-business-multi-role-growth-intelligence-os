@@ -61,6 +61,144 @@ for (const table of [
 }
 assert.equal(queries[0].sql, "BEGIN");
 assert.equal(queries.at(-1).sql, "COMMIT");
+assert.equal(registry.outbox_mode, "disabled");
+assert.equal(registry.outbox_event_id, null);
+assert.equal(queries.some(({ sql }) => sql.includes("platform_outbox_events")), false);
+
+const devQueries = [];
+const devConnection = {
+  async beginTransaction() { devQueries.push({ sql: "BEGIN", params: [] }); },
+  async commit() { devQueries.push({ sql: "COMMIT", params: [] }); },
+  async rollback() { devQueries.push({ sql: "ROLLBACK", params: [] }); },
+  release() {},
+  async query(sql, params = []) {
+    const statement = String(sql);
+    devQueries.push({ sql: statement, params });
+    if (statement.includes("SELECT DATABASE()")) return [[{ db_name: "u338416126_growthOS_dev" }]];
+    if (statement.includes("FROM platform_outbox_event_types")) {
+      return [[{
+        event_type: "growth_intelligence.report_persisted",
+        current_schema_version: 1,
+        payload_classification: "internal",
+        contains_pii: 0,
+        status: "active",
+      }]];
+    }
+    if (statement.includes("SELECT insight_record_id")) return [[]];
+    return [{ affectedRows: 1 }];
+  },
+};
+const devRegistry = await persistGrowthIntelligencePilot(pilot, {
+  pool: { async getConnection() { return devConnection; }, query: devConnection.query.bind(devConnection) },
+  requestedBy: "operator-1",
+  outboxMode: "dev_transactional",
+});
+assert.equal(devRegistry.outbox_mode, "dev_transactional");
+assert.match(devRegistry.outbox_event_id, /^[0-9a-f-]{36}$/i);
+const eventInsertIndex = devQueries.findIndex(({ sql }) => sql.includes("INSERT INTO platform_outbox_events"));
+const deliveryInsertIndex = devQueries.findIndex(({ sql }) => sql.includes("INSERT IGNORE INTO platform_outbox_deliveries"));
+const commitIndex = devQueries.findIndex(({ sql }) => sql === "COMMIT");
+assert(eventInsertIndex > 0);
+assert(deliveryInsertIndex > eventInsertIndex);
+assert(commitIndex > deliveryInsertIndex);
+const eventInsert = devQueries[eventInsertIndex];
+assert.equal(eventInsert.params[1], pilot.report.tenant_id);
+assert.equal(eventInsert.params[3], "growth_intelligence_report");
+assert.equal(eventInsert.params[4], pilot.report.report_id);
+assert.equal(eventInsert.params[5], "growth_intelligence.report_persisted");
+assert.equal(eventInsert.params[6], 1);
+const eventPayload = JSON.parse(eventInsert.params[7]);
+assert.deepEqual(Object.keys(eventPayload).sort(), [
+  "action_count",
+  "approval_hold_count",
+  "brand_key",
+  "business_activity_type_key",
+  "insight_count",
+  "quality_status",
+  "report_id",
+  "report_schema_version",
+  "report_type",
+  "status",
+  "workflow_run_id",
+].sort());
+assert.equal(eventPayload.business_activity_type_key, "saas");
+assert.equal(eventPayload.status, "approval_pending");
+assert.equal(eventPayload.insight_count, pilot.report.growth_opportunities.length);
+assert.equal(eventPayload.action_count, pilot.report.prioritized_backlog.length);
+assert.equal(eventPayload.approval_hold_count, pilot.report.approval_queue_view.length);
+assert.equal(JSON.stringify(eventPayload).includes("executive_summary"), false);
+assert.equal(JSON.stringify(eventPayload).includes("rationale"), false);
+assert.equal(JSON.stringify(eventPayload).includes("title"), false);
+const eventMetadata = JSON.parse(eventInsert.params[8]);
+assert.deepEqual(Object.keys(eventMetadata).sort(), [
+  "correlation_id",
+  "producer_key",
+  "secrets_included",
+  "workflow_key",
+].sort());
+assert.equal(eventMetadata.producer_key, "growth_intelligence_registry");
+assert.equal(eventMetadata.secrets_included, false);
+
+const nonDevQueries = [];
+const nonDevConnection = {
+  async beginTransaction() { nonDevQueries.push({ sql: "BEGIN" }); },
+  async commit() { nonDevQueries.push({ sql: "COMMIT" }); },
+  async rollback() { nonDevQueries.push({ sql: "ROLLBACK" }); },
+  release() {},
+  async query(sql) {
+    nonDevQueries.push({ sql: String(sql) });
+    if (String(sql).includes("SELECT DATABASE()")) return [[{ db_name: "u338416126_growthOS" }]];
+    throw new Error(`Unexpected non-dev SQL: ${sql}`);
+  },
+};
+await assert.rejects(
+  () => persistGrowthIntelligencePilot(pilot, {
+    pool: { async getConnection() { return nonDevConnection; }, query: nonDevConnection.query.bind(nonDevConnection) },
+    outboxMode: "dev_transactional",
+  }),
+  (error) => error?.code === "growth_pilot_outbox_dev_database_required"
+);
+assert.deepEqual(nonDevQueries.map(({ sql }) => sql), ["BEGIN", "SELECT DATABASE() AS db_name", "ROLLBACK"]);
+
+const rollbackQueries = [];
+const rollbackConnection = {
+  async beginTransaction() { rollbackQueries.push({ sql: "BEGIN", params: [] }); },
+  async commit() { rollbackQueries.push({ sql: "COMMIT", params: [] }); },
+  async rollback() { rollbackQueries.push({ sql: "ROLLBACK", params: [] }); },
+  release() {},
+  async query(sql, params = []) {
+    const statement = String(sql);
+    rollbackQueries.push({ sql: statement, params });
+    if (statement.includes("SELECT DATABASE()")) return [[{ db_name: "u338416126_growthOS_dev" }]];
+    if (statement.includes("FROM platform_outbox_event_types")) {
+      return [[{
+        event_type: "growth_intelligence.report_persisted",
+        current_schema_version: 1,
+        payload_classification: "internal",
+        contains_pii: 0,
+        status: "active",
+      }]];
+    }
+    if (statement.includes("SELECT insight_record_id")) return [[]];
+    if (statement.includes("INSERT INTO platform_outbox_events")) {
+      const error = new Error("synthetic outbox insert failure");
+      error.code = "synthetic_outbox_insert_failure";
+      throw error;
+    }
+    return [{ affectedRows: 1 }];
+  },
+};
+await assert.rejects(
+  () => persistGrowthIntelligencePilot(pilot, {
+    pool: { async getConnection() { return rollbackConnection; }, query: rollbackConnection.query.bind(rollbackConnection) },
+    outboxMode: "dev_transactional",
+  }),
+  (error) => error?.code === "synthetic_outbox_insert_failure"
+);
+assert.equal(rollbackQueries.some(({ sql }) => sql === "COMMIT"), false);
+assert.equal(rollbackQueries.at(-1).sql, "ROLLBACK");
+assert(rollbackQueries.some(({ sql }) => sql.includes("INSERT INTO growth_intelligence_reports")));
+assert(rollbackQueries.some(({ sql }) => sql.includes("INSERT INTO platform_outbox_events")));
 
 const unsafe = structuredClone(pilot);
 unsafe.readback.provider_writes = 1;
