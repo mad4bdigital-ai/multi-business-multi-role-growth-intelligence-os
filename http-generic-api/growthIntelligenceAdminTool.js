@@ -49,6 +49,13 @@ export function assertGrowthIntelligencePilotAdminSafety(args = {}) {
       "The governed admin pilot only supports persistence_mode=internal_registry."
     );
   }
+  const outboxMode = text(args.outbox_mode, "disabled");
+  if (!["disabled", "dev_transactional"].includes(outboxMode)) {
+    throw fail(
+      "growth_pilot_admin_outbox_mode_invalid",
+      "outbox_mode must be disabled or dev_transactional."
+    );
+  }
   if (
     args.apply === true
     || args.live_execution === true
