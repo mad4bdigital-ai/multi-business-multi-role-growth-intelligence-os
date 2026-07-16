@@ -382,6 +382,46 @@ schemas:
       enforcementApplied: { type: boolean, const: false }
       secretsIncluded: { type: boolean, const: false }
 
+  PreviewCanaryProbeSamplerRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      sampleCount: { type: integer, minimum: 1, maximum: 100, default: 100 }
+
+  PreviewCanaryProbeSamplerResponse:
+    type: object
+    additionalProperties: false
+    required: [ok, runId, targetCanaryKey, capabilityKey, requestedSampleCount, completedSampleCount, distinctCaseCount, evidence, providerCalls, credentialPayloadReads, externalWrites, enforcementApplied, secretsIncluded]
+    properties:
+      ok: { type: boolean, const: true }
+      runId: { type: string, format: uuid }
+      targetCanaryKey: { type: string, const: container_authority_preview_resolution_v1 }
+      capabilityKey: { type: string, const: createContainerContextResolution }
+      requestedSampleCount: { type: integer, minimum: 1, maximum: 100 }
+      completedSampleCount: { type: integer, minimum: 1, maximum: 100 }
+      distinctCaseCount: { type: integer, minimum: 1 }
+      evidence:
+        type: object
+        additionalProperties: false
+        required: [observationCount, successCount, failureCount, resolutionCount, allowCount, denyCount, restrictCount, ambiguousCount, averageLatencyMs, maximumLatencyMs, auditCoveragePercent]
+        properties:
+          observationCount: { type: integer, minimum: 0 }
+          successCount: { type: integer, minimum: 0 }
+          failureCount: { type: integer, minimum: 0 }
+          resolutionCount: { type: integer, minimum: 0 }
+          allowCount: { type: integer, minimum: 0 }
+          denyCount: { type: integer, minimum: 0 }
+          restrictCount: { type: integer, minimum: 0 }
+          ambiguousCount: { type: integer, minimum: 0 }
+          averageLatencyMs: { type: number, minimum: 0 }
+          maximumLatencyMs: { type: number, minimum: 0 }
+          auditCoveragePercent: { type: number, minimum: 0, maximum: 100 }
+      providerCalls: { type: boolean, const: false }
+      credentialPayloadReads: { type: boolean, const: false }
+      externalWrites: { type: boolean, const: false }
+      enforcementApplied: { type: boolean, const: false }
+      secretsIncluded: { type: boolean, const: false }
+
   ListResponse:
     type: object
     additionalProperties: false
