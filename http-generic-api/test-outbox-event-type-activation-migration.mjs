@@ -31,7 +31,11 @@ assert.doesNotMatch(migration, /DELETE\s+FROM/i);
 assert.doesNotMatch(migration, /DROP\s+/i);
 assert.doesNotMatch(migration, /ALTER\s+/i);
 
-assert.doesNotMatch(producerSource, /enqueuePlatformOutboxEvent/);
-assert.doesNotMatch(producerSource, /growth_intelligence\.report_persisted/);
+assert.match(producerSource, /enqueuePlatformOutboxEvent/);
+assert.match(producerSource, /growth_intelligence\.report_persisted/);
+assert.match(producerSource, /outboxMode = "disabled"/);
+assert.match(producerSource, /dev_transactional/);
+assert.match(producerSource, /Growth Intelligence outbox producer mode is restricted to a _dev database/);
+assert.match(producerSource, /outboxEvent = await enqueuePlatformOutboxEvent/);
 
 console.log("guarded outbox event-type activation migration tests passed");
