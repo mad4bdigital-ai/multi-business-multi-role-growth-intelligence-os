@@ -2,7 +2,6 @@ import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
-import { resolveEffectiveContainerContext } from "../dynamicContainerAuthorityResolver.js";
 import {
   createContainerRelationship,
   createContainerResourceBinding,
@@ -19,6 +18,9 @@ import {
 } from "../dynamicContainerProjectionService.js";
 import { readContainerResolution } from "../dynamicContainerAuthorityRepository.js";
 import { runDynamicContainerShadowSampler } from "../dynamicContainerShadowSampler.js";
+import { runDynamicContainerCanaryProbeSampler } from "../dynamicContainerCanaryProbeSampler.js";
+import { runDynamicContainerPreviewCanaryProbeSampler } from "../dynamicContainerPreviewCanaryProbeSampler.js";
+import { resolveContainerContextWithExecutor } from "../dynamicContainerResolverExecutor.js";
 import {
   runContainerCanaryPromotion,
   runContainerCanaryRollback
@@ -106,6 +108,7 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
   const deps = { requireBackendApiKey };
 
   router.post("/container-context-resolutions",requireResolutionPrincipal(deps),async (req,res) => {
+    let connection = null;
     try {
       assertAllowedKeys(req.body,new Set(["principal","tenantId","targetContainerId","dimensionRequests","mode","expectedAuthorityEpoch","expectedRegistrySnapshotHash","legacyDecision","legacyEvidenceRef","requestId"]));
       enforcePreviewRate(req);
@@ -115,20 +118,34 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
         error.status = 400; error.code = "idempotency_key_invalid"; throw error;
       }
       const principalContext = req.containerPrincipal;
+      const effectiveRequestId=req.body?.requestId || requestId(req);
       const input = {
         ...req.body,
         principal:principalContext.isAdmin ? (req.body?.principal || principalContext.principal) : principalContext.principal,
         tenantId:principalContext.isAdmin ? String(req.body?.tenantId || "") : principalContext.tenantId,
         mode:principalContext.isAdmin ? String(req.body?.mode || "preview") : "preview",
         idempotencyKey,
-        requestId:req.body?.requestId || requestId(req)
+        requestId:effectiveRequestId
       };
-      const result = await resolveEffectiveContainerContext(input);
-      return res.status(201).json(result);
+      connection = await getPool().getConnection();
+      if(input.mode !== "preview") {
+        const result=await resolveContainerContextWithExecutor(input,connection);
+        return res.status(201).json(result);
+      }
+      const observed = await executeObservedReadOnlyCanary({
+        executor:connection,
+        canaryKey:"container_authority_preview_resolution_v1",
+        capabilityKey:"createContainerContextResolution",
+        requestId:effectiveRequestId,
+        execute:() => resolveContainerContextWithExecutor(input,connection)
+      });
+      return res.status(201).json(observed.response);
     } catch (error) { return errorResponse(req,res,error); }
+    finally { if(connection) connection.release(); }
   });
 
   router.post("/admin/container-authority/resolution-preview",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
+    let connection = null;
     try {
       assertAllowedKeys(req.body,new Set(["principal","tenantId","targetContainerId","dimensionRequests","expectedAuthorityEpoch","expectedRegistrySnapshotHash","legacyDecision","legacyEvidenceRef","requestId","idempotencyKey"]));
       const idempotencyKey = String(req.body?.idempotencyKey || "").trim();
@@ -143,16 +160,29 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
         isAdmin:true
       };
       enforcePreviewRate(req);
-      const result = await resolveEffectiveContainerContext({
+      const effectiveRequestId=req.body?.requestId || requestId(req);
+      const input={
         ...req.body,
         principal:req.body?.principal || req.containerPrincipal.principal,
         tenantId:req.containerPrincipal.tenantId,
         mode:"preview",
         idempotencyKey,
-        requestId:req.body?.requestId || requestId(req)
+        requestId:effectiveRequestId
+      };
+      connection = await getPool().getConnection();
+      const observed = await executeObservedReadOnlyCanary({
+        executor:connection,
+        canaryKey:"container_authority_preview_resolution_v1",
+        capabilityKey:"createContainerContextResolution",
+        requestId:effectiveRequestId,
+        execute:async () => {
+          const result=await resolveContainerContextWithExecutor(input,connection);
+          return { ...result, enforced:false, providerCallMade:false, credentialPayloadRead:false, secretsIncluded:false };
+        }
       });
-      return res.status(201).json({ ...result, enforced:false, providerCallMade:false, credentialPayloadRead:false, secretsIncluded:false });
+      return res.status(201).json(observed.response);
     } catch (error) { return errorResponse(req,res,error); }
+    finally { if(connection) connection.release(); }
   });
 
   router.get("/container-context-resolutions/:resolutionId",requireResolutionPrincipal(deps),async (req,res) => {
@@ -294,6 +324,33 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
         actor:actorId(req)
       });
       return res.status(mode === "apply" ? 201 : 200).json(result);
+    } catch (error) { return errorResponse(req,res,error); }
+    finally { if(connection) connection.release(); }
+  });
+
+  router.post("/admin/container-authority/canary-probes",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
+    let connection = null;
+    try {
+      assertAllowedKeys(req.body,new Set(["sampleCount","targetCanaryKey"]));
+      connection = await getPool().getConnection();
+      const result = await runDynamicContainerCanaryProbeSampler({
+        sampleCount:req.body?.sampleCount,
+        targetCanaryKey:req.body?.targetCanaryKey
+      },{ executor:connection });
+      return res.status(201).json(result);
+    } catch (error) { return errorResponse(req,res,error); }
+    finally { if(connection) connection.release(); }
+  });
+
+  router.post("/admin/container-authority/preview-canary-probes",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
+    let connection = null;
+    try {
+      assertAllowedKeys(req.body,new Set(["sampleCount"]));
+      connection = await getPool().getConnection();
+      const result = await runDynamicContainerPreviewCanaryProbeSampler({
+        sampleCount:req.body?.sampleCount
+      },{ executor:connection });
+      return res.status(201).json(result);
     } catch (error) { return errorResponse(req,res,error); }
     finally { if(connection) connection.release(); }
   });

@@ -86,6 +86,30 @@ const migrations = [
       "/container-authority/canary-monitoring",
       "historical_evidence_preserved"
     ]
+  },
+  {
+    file:"20260715_dynamic_container_canary_probe_sampler_tool.sql",
+    statements:3,
+    requiredObjects:[],
+    requiredFragments:[
+      "dynamic_container_canary_probe_sampler",
+      "/admin/container-authority/canary-probes",
+      "maximum_probe_count",
+      "same_cycle_observation_readback_required",
+      "no_rollout_change"
+    ]
+  },
+  {
+    file:"20260716_dynamic_container_preview_canary_probe_sampler_tool.sql",
+    statements:3,
+    requiredObjects:[],
+    requiredFragments:[
+      "dynamic_container_preview_canary_probe_sampler",
+      "/admin/container-authority/preview-canary-probes",
+      "maximum_probe_count",
+      "same_cycle_observation_readback_required",
+      "resolution_ledger_parity_required"
+    ]
   }
 ];
 

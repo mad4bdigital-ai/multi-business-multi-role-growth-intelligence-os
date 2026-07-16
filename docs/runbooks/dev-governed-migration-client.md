@@ -14,7 +14,10 @@ The client is a transport adapter. It does not contain SQL, replace the governed
 - HTTP, alternate hosts, redirects, embedded credentials, URL query strings, and URL fragments are rejected.
 - The client exposes only an explicit migration and capability-envelope allowlist.
 - Free-form database commands and restore operations are not supported.
-- State-changing requests require both `--apply` and `DEV_MIGRATION_APPLY_ENABLED=true`.
+- State-changing requests always require `--apply`.
+- Mutating shell aliases remain gated by `DEV_MIGRATION_APPLY_ENABLED=true`.
+- An allowlisted mutating tool call may use either that environment flag or a syntactically valid persisted capability-envelope UUID carried in the tool arguments. The dev runtime remains authoritative and must validate envelope status, scope, expiry, approval, and apply authorization before mutation.
+- The client reports `apply_authority_source` as `environment_flag` or `capability_envelope` for audit readback.
 - The underlying dev runtime still enforces migration authorization, checksums, typed confirmation, capability envelopes, execution ledger, and schema readback.
 - Credentials are read from the caller environment and are never printed.
 
@@ -126,15 +129,27 @@ The exact tool arguments must come from current tool schemas and dry-run evidenc
 8. Read schema state in the same cycle.
 9. Run outbox status and dry-run checks.
 
-Enable caller-side mutation only for the approved apply call:
+For governed remote execution, prefer the fixed process-local apply alias:
 
-```bash
-export DEV_MIGRATION_APPLY_ENABLED=true
+```text
+dev_governed_migration_client_apply
 ```
 
-State-changing tool calls also require `--apply`:
+The wrapper launches the same client with `DEV_MIGRATION_APPLY_ENABLED=true` only inside that child process. It does not persist or mutate the server environment, and it still requires `--apply`, resource authority, allowlisted actions, and all server-side migration and capability-envelope checks.
+
+Example tool call arguments passed to the alias:
 
 ```bash
+--action=tool-call \
+--tool=governed_migration_execute \
+--tool-args-base64='<base64 encoded approved apply arguments>' \
+--apply
+```
+
+For local execution where one shell owns both the environment and child process, the direct client remains supported:
+
+```bash
+DEV_MIGRATION_APPLY_ENABLED=true \
 node scripts/dev-governed-migration-client.mjs \
   --action=tool-call \
   --tool=governed_migration_execute \
@@ -142,11 +157,7 @@ node scripts/dev-governed-migration-client.mjs \
   --apply
 ```
 
-Clear the feature flag immediately after the operation:
-
-```bash
-unset DEV_MIGRATION_APPLY_ENABLED
-```
+Do not rely on a separate remote `env set` request to remain visible to a later process or runtime instance. After the child process exits, readback should show no persistent apply flag.
 
 ## Post-apply verification
 
