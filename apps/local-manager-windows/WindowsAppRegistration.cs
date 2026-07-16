@@ -9,8 +9,10 @@ namespace Mad4B.LocalManager.Windows;
 internal static class WindowsAppRegistration
 {
     private const string UninstallRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\Mad4B.LocalManager.Windows";
+    private const string AppPathsRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\App Paths\Mad4B-Local-Manager.exe";
     private const string ProductName = "Mad4B Local Manager";
     private const string Publisher = "Mad4B Digital";
+    private const string ShortcutFileName = "Mad4B Local Manager.lnk";
 
     internal static bool TryHandleCommandLine(string[] args, string executablePath)
     {
