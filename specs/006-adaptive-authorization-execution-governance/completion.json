@@ -4,7 +4,7 @@
   "title": "Adaptive Authorization and Execution Governance",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-12T14:30:00Z",
+  "last_updated_at": "2026-07-14T22:00:20Z",
   "delivery": {
     "implementation_prs": [
       {
@@ -88,10 +88,18 @@
         "merge_sha": "9c9c5ec0ad7cb4f8f3b6860a02ecadd993dc80d0",
         "status": "merged",
         "branch_deleted_verified": true
+      },
+      {
+        "sequence": 12,
+        "role": "verification_test_registration_and_contract_metadata",
+        "pull_request": 2581,
+        "merge_sha": "5f96be1cd83a90e3b8e8f23f40afaac6d8fa1342",
+        "status": "merged",
+        "branch_deleted_verified": false
       }
     ],
     "remaining_task_loop": {
-      "status": "t050_next_verification_test_registration",
+      "status": "t051_next_openapi_lint_and_compatibility_checks",
       "provider_mutation": false,
       "external_write": false,
       "migration_execution": "not_started",
@@ -100,9 +108,9 @@
       "route_removal": false
     },
     "next_pr": {
-      "sequence": 12,
-      "scope": "T050 register unit, integration, isolation, replay, stale-revision, ambiguity, and redaction tests",
-      "status": "ready_after_t043_ledger_closeout"
+      "sequence": 13,
+      "scope": "T051 add OpenAPI lint and compatibility checks",
+      "status": "ready_after_t050_ledger_closeout"
     }
   },
   "evidence": {
@@ -117,9 +125,10 @@
         "T040",
         "T041",
         "T042",
-        "T043"
+        "T043",
+        "T050"
       ],
-      "latest_task": "T043",
+      "latest_task": "T050",
       "provider_mutation_allowed": false,
       "external_write_allowed": false,
       "enforcement_cutover_allowed": false,
@@ -145,11 +154,11 @@
         "T040",
         "T041",
         "T042",
-        "T043"
+        "T043",
+        "T050"
       ],
-      "next_task_scope": "T050 register unit, integration, isolation, replay, stale-revision, ambiguity, and redaction tests",
+      "next_task_scope": "T051 add OpenAPI lint and compatibility checks",
       "remaining_tasks": [
-        "T050",
         "T051",
         "T052",
         "T053",
@@ -157,7 +166,7 @@
         "T062",
         "D010"
       ],
-      "remaining_task_count": 7,
+      "remaining_task_count": 6,
       "provider_mutation_allowed": false,
       "external_write_allowed": false,
       "enforcement_change_allowed": false,
@@ -167,7 +176,7 @@
     },
     "production_rollout": {
       "status": "pending",
-      "reason": "T050 through T053 verification and rollout evidence, T061 through T062 closeout, and D010 final delivery closeout remain incomplete."
+      "reason": "T051 through T053 verification and rollout evidence, T061 through T062 closeout, and D010 final delivery closeout remain incomplete."
     }
   },
   "sensitive_values_included": false
