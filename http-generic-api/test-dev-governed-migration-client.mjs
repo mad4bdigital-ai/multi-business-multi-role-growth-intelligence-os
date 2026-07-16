@@ -154,9 +154,19 @@ assert.doesNotMatch(source, /restore-from-backup/);
 assert.doesNotMatch(source, /tool:\s*["']db["']/);
 assert.doesNotMatch(source, /\bsql\s*:/i);
 
+const applyWrapper = await fs.readFile(path.join(root, "scripts", "dev-governed-migration-client-apply.mjs"), "utf8");
+assert.match(applyWrapper, /DEV_MIGRATION_APPLY_ENABLED:\s*"true"/);
+assert.match(applyWrapper, /spawn\(process\.execPath/);
+assert.match(applyWrapper, /shell:\s*false/);
+assert.match(applyWrapper, /stdio:\s*"inherit"/);
+assert.match(applyWrapper, /dev-governed-migration-client\.mjs/);
+assert.doesNotMatch(applyWrapper, /exec\(|execSync\(|shell:\s*true/);
+
 const adminCli = await fs.readFile(path.join(root, "routes", "adminCliRoutes.js"), "utf8");
 assert.match(adminCli, /dev_governed_migration_client/);
 assert.match(adminCli, /dev-governed-migration-client\.mjs/);
+assert.match(adminCli, /dev_governed_migration_client_apply/);
+assert.match(adminCli, /dev-governed-migration-client-apply\.mjs/);
 
 const packageJson = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
 assert.equal(packageJson.scripts["dev:migration:probe"], "node scripts/dev-governed-migration-client.mjs --action=probe");
