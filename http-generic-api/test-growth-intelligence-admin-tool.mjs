@@ -139,6 +139,7 @@ assert.equal(result.brand_key, "arab_cooling");
 assert.equal(result.business_activity_type_key, "business_and_industrial_products");
 assert.equal(result.resolution.brand_core_asset_count, 2);
 assert.equal(result.registry.approval_holds.length, 3);
+assert.equal(persistedOptions.outboxMode, "dev_transactional");
 assert.equal(result.readback.persisted_report_found, true);
 assert.equal(result.readback.persisted_insight_count, 3);
 assert.equal(result.readback.persisted_action_count, 3);
