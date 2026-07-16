@@ -277,7 +277,7 @@ export async function runGrowthIntelligencePilotAdmin(args = {}, dependencies = 
       delete stage.reason;
     }
   }
-  result.registry = await persistPilot(result, { pool, requestedBy });
+  result.registry = await persistPilot(result, { pool, requestedBy, outboxMode });
   const approvalStage = result.workflow?.stages?.find((stage) => stage.stage === "approval_hold");
   if (approvalStage) {
     approvalStage.status = "pass";
