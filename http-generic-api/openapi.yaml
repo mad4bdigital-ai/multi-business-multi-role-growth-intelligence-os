@@ -4901,6 +4901,8 @@ paths:
     $ref: './openapi/container-authority.yaml#/adminContainerAuthorityCanaryRollbacks'
   /admin/container-authority/canary-probes:
     $ref: './openapi/container-authority.yaml#/adminContainerAuthorityCanaryProbes'
+  /admin/container-authority/preview-canary-probes:
+    $ref: './openapi/container-authority.yaml#/adminContainerAuthorityPreviewCanaryProbes'
   /container-authority/canary-monitoring:
     $ref: './openapi/container-authority.yaml#/containerAuthorityCanaryMonitoring'
   /container-context-resolutions:

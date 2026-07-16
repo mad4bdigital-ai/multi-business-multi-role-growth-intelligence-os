@@ -98,6 +98,18 @@ const migrations = [
       "same_cycle_observation_readback_required",
       "no_rollout_change"
     ]
+  },
+  {
+    file:"20260716_dynamic_container_preview_canary_probe_sampler_tool.sql",
+    statements:3,
+    requiredObjects:[],
+    requiredFragments:[
+      "dynamic_container_preview_canary_probe_sampler",
+      "/admin/container-authority/preview-canary-probes",
+      "maximum_probe_count",
+      "same_cycle_observation_readback_required",
+      "resolution_ledger_parity_required"
+    ]
   }
 ];
 
