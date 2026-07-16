@@ -228,8 +228,39 @@ export async function persistGrowthIntelligencePilot(result, {
       );
     }
 
+    let outboxEvent = null;
+    if (normalizedOutboxMode === "dev_transactional") {
+      outboxEvent = await enqueuePlatformOutboxEvent({
+        connection,
+        eventType: OUTBOX_EVENT_TYPE,
+        schemaVersion: 1,
+        aggregateType: "growth_intelligence_report",
+        aggregateId: report.report_id,
+        tenantId: report.tenant_id,
+        workspaceId: null,
+        sourceEnvironment: "development",
+        occurredAt: new Date(report.generated_at),
+        payload: growthIntelligenceOutboxPayload({
+          report,
+          runId,
+          quality,
+          qualityStatus,
+          approvalHoldCount: holds.length,
+        }),
+        metadata: {
+          producer_key: "growth_intelligence_registry",
+          workflow_key: WORKFLOW_KEY,
+          correlation_id: correlationId,
+          secrets_included: false,
+        },
+        secretsIncluded: false,
+      });
+    }
+
     return {
       persistence_mode: "internal_registry",
+      outbox_mode: normalizedOutboxMode,
+      outbox_event_id: outboxEvent?.event_id || null,
       report_id: report.report_id,
       workflow_run_id: runId,
       insight_count: report.growth_opportunities.length,
