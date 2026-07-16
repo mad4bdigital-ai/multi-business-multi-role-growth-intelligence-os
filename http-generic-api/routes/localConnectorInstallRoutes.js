@@ -732,10 +732,17 @@ function buildInstallScript({ cfToken, connectorSecret, connectorLocalApiKey = '
     "set CONNECTOR_DIR=%~dp0",
     "set SERVER_MJS=%~dp0server.mjs",
     "",
-    "REM ── 1. Install cloudflared ──",
+    "REM ── 1. Install or rebind cloudflared ──",
     "where cloudflared >nul 2>&1 || (winget install Cloudflare.cloudflared -e --silent)",
-    "sc query %CF_SERVICE% >nul 2>&1 || (cloudflared service install " + cfToken + ")",
-    "sc query %CF_SERVICE% >nul 2>&1 && net start %CF_SERVICE% >nul 2>&1",
+    "sc query %CF_SERVICE% >nul 2>&1 && net stop %CF_SERVICE% >nul 2>&1",
+    "sc query %CF_SERVICE% >nul 2>&1 && cloudflared service uninstall >nul 2>&1",
+    "timeout /t 2 /nobreak >nul",
+    "sc query %CF_SERVICE% >nul 2>&1 && sc delete %CF_SERVICE% >nul 2>&1",
+    "timeout /t 2 /nobreak >nul",
+    "cloudflared service install " + cfToken,
+    "if %ERRORLEVEL% neq 0 (echo ERROR: cloudflared service install failed. & exit /b 1)",
+    "net start %CF_SERVICE% >nul 2>&1",
+    "if %ERRORLEVEL% neq 0 (echo ERROR: cloudflared service did not start. & exit /b 1)",
     "",
     "REM ── 2. Write .env ──",
     ...envEchoLines,
@@ -886,10 +893,24 @@ function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey
     "  winget install Cloudflare.cloudflared -e --silent",
     "}",
     "$cfSvc = Get-Service -Name $CfService -ErrorAction SilentlyContinue",
-    "if (-not $cfSvc) {",
-    `  cloudflared service install ${cfToken}`,
+    "if ($cfSvc) {",
+    "  Stop-Service $CfService -Force -ErrorAction SilentlyContinue",
+    "  & cloudflared service uninstall 2>$null",
+    "  Start-Sleep -Seconds 2",
+    "  $cfSvc = Get-Service -Name $CfService -ErrorAction SilentlyContinue",
+    "  if ($cfSvc) {",
+    "    & sc.exe delete $CfService | Out-Null",
+    "    Start-Sleep -Seconds 2",
+    "  }",
     "}",
-    "Start-Service $CfService -ErrorAction SilentlyContinue",
+    `& cloudflared service install ${cfToken}`,
+    "if ($LASTEXITCODE -ne 0) { throw \"cloudflared service install failed with exit code $LASTEXITCODE.\" }",
+    "$cfSvc = Get-Service -Name $CfService -ErrorAction SilentlyContinue",
+    "if (-not $cfSvc) { throw 'cloudflared service was not created.' }",
+    "Start-Service $CfService",
+    "$cfSvc.WaitForStatus('Running', [TimeSpan]::FromSeconds(20))",
+    "$cfSvc.Refresh()",
+    "if ($cfSvc.Status -ne 'Running') { throw 'cloudflared service did not reach Running state.' }",
     "",
     "# 4. Part B — Node connector as Windows service (NSSM)",
     "if (-not (Get-Command nssm -ErrorAction SilentlyContinue)) {",
@@ -931,6 +952,46 @@ function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey
 }
 
 // ── Routes ────────────────────────────────────────────────────────────────────
+
+async function reconcileConnectorDeviceAliases(pool, {
+  userId,
+  tenantId,
+  configId,
+  canonicalDeviceId,
+  aliasDeviceIds = [],
+}) {
+  await pool.query(
+    `UPDATE \`local_connector_device_aliases\` a
+       LEFT JOIN \`local_connector_user_configs\` c
+         ON c.config_id = a.canonical_config_id
+        AND c.user_id = a.user_id
+        AND c.tenant_id = a.tenant_id
+        SET a.status = 'archived',
+            a.reason = 'canonical_config_missing_archived_by_provisioning'
+     WHERE a.user_id = ?
+       AND a.tenant_id = ?
+       AND a.status = 'active'
+       AND (a.canonical_config_id IS NULL OR c.config_id IS NULL)`,
+    [userId, tenantId]
+  );
+
+  const aliases = [...new Set(aliasDeviceIds
+    .map((value) => String(value || "").trim())
+    .filter(Boolean))];
+  for (const aliasDeviceId of aliases) {
+    await pool.query(
+      `INSERT INTO \`local_connector_device_aliases\`
+         (alias_device_id, canonical_device_id, canonical_config_id, user_id, tenant_id, reason, status)
+       VALUES (?, ?, ?, ?, ?, 'installer_provisioning_canonical_reconciliation', 'active')
+       ON DUPLICATE KEY UPDATE
+         canonical_device_id = VALUES(canonical_device_id),
+         canonical_config_id = VALUES(canonical_config_id),
+         reason = VALUES(reason),
+         status = 'active'`,
+      [aliasDeviceId, canonicalDeviceId, configId, userId, tenantId]
+    );
+  }
+}
 
 export async function provisionLocalConnectorInstall(req, body = {}) {
   const {
@@ -1071,6 +1132,13 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     [resolvedUserId, resolvedTenantId, device_id]
   );
   const finalConfigId = cfgRow.config_id;
+  await reconcileConnectorDeviceAliases(pool, {
+    userId: resolvedUserId,
+    tenantId: resolvedTenantId,
+    configId: finalConfigId,
+    canonicalDeviceId: device_id,
+    aliasDeviceIds: [device_id, hostname],
+  });
 
   const runtimeUrl = deviceRuntimeUrl || buildDeviceRuntimeUrl(finalConfigId);
   const runtimeHost = new URL(runtimeUrl).hostname;
@@ -1222,6 +1290,13 @@ export function buildLocalConnectorInstallRoutes(deps) {
         });
       }
       if (!config) return res.status(404).json({ ok: false, error: { code: "connector_config_not_found", message: "No active connector config was found for this linked device." }, secrets_included: false });
+      await reconcileConnectorDeviceAliases(getPool(), {
+        userId: device.user_id,
+        tenantId: config.tenant_id || device.tenant_id,
+        configId: config.config_id,
+        canonicalDeviceId: config.device_id,
+        aliasDeviceIds: [device.device_id, device.session?.hostname, config.device_id],
+      });
       const token = signInstallerDownloadToken({
         user_id: device.user_id,
         tenant_id: config.tenant_id || device.tenant_id,
