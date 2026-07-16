@@ -139,11 +139,31 @@ function decodeJson(value, base64Value, fallback) {
   return fallback;
 }
 
-function requireApplyAuthorization(args, reason) {
-  if (args.apply !== true) throw new Error(`${reason} requires --apply.`);
-  if (process.env.DEV_MIGRATION_APPLY_ENABLED !== "true") {
-    const error = new Error("DEV_MIGRATION_APPLY_ENABLED=true is required for state-changing dev operations.");
-    error.code = "dev_migration_apply_feature_flag_disabled";
+function persistedEnvelopeIdForTool(tool, toolArgs) {
+  if (!PERSISTED_ENVELOPE_GATED_TOOLS.has(tool)) return "";
+  const candidate = tool === "capability_resolution_envelope_apply_authorize"
+    ? toolArgs?.envelope_id
+    : toolArgs?.capability_envelope_id;
+  const value = String(candidate || "").trim();
+  return UUID_PATTERN.test(value) ? value : "";
+}
+
+export function resolveApplyAuthoritySource({ args, action, target, payload, env = process.env }) {
+  if (args?.apply !== true) throw new Error(`${target || action || "State-changing dev operation"} requires --apply.`);
+  if (env?.DEV_MIGRATION_APPLY_ENABLED === "true") return "environment_flag";
+  if (action === "tool-call" && persistedEnvelopeIdForTool(target, payload)) return "capability_envelope";
+  const error = new Error("State-changing dev operations require DEV_MIGRATION_APPLY_ENABLED=true or a valid persisted capability envelope identifier for an allowlisted tool call.");
+  error.code = "dev_migration_apply_authority_required";
+  throw error;
+}
+
+function requireApplyAuthorization(context, reason) {
+  try {
+    return resolveApplyAuthoritySource(context);
+  } catch (error) {
+    if (error?.message?.includes("requires --apply")) {
+      error.message = `${reason} requires --apply.`;
+    }
     throw error;
   }
 }
