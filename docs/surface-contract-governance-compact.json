@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 97.34,
+  "docs_completion_percent": 97.15,
   "docs_complete_count": 512,
-  "docs_gap_count": 14,
-  "queue_items": 14,
-  "blocking_new_item_count": 14,
+  "docs_gap_count": 15,
+  "queue_items": 15,
+  "blocking_new_item_count": 15,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -41,7 +41,7 @@
     {
       "migration_file": "20260715_dynamic_container_canary_promotion_tool.sql",
       "queue_class": "critical_review",
-      "score": 807,
+      "score": 806,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
@@ -59,26 +59,26 @@
     {
       "migration_file": "20260714_supervisor_runtime_admin_tool_exports.sql",
       "queue_class": "critical_review",
-      "score": 724,
+      "score": 723,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
-      "migration_file": "1046_sprint69_dynamic_container_shadow_sampler_tool.sql",
-      "queue_class": "high_review",
-      "score": 677,
+      "migration_file": "20260716_dynamic_container_preview_canary_probe_sampler_tool.sql",
+      "queue_class": "critical_review",
+      "score": 713,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
   "openapi_missing_sql_route_count": 2,
-  "openapi_exempt_sql_route_count": 651,
-  "total_sql_route_like_count": 672,
+  "openapi_exempt_sql_route_count": 652,
+  "total_sql_route_like_count": 673,
   "safety_marker_gap_migrations": 0,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 14,
-    "warning_new_item_count": 14
+    "blocking_new_item_count": 15,
+    "warning_new_item_count": 15
   },
   "safety": {
     "executes_provider_calls": false,

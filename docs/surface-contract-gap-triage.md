@@ -4,14 +4,14 @@
 
 ## Summary
 
-- Triaged items: 14
-- Gate candidates: 14
+- Triaged items: 15
+- Gate candidates: 15
 - New-gap gate: fail
-- Blocking new items: 14
+- Blocking new items: 15
 
 ## Class counts
 
-- new_surface_immediate_review: 14
+- new_surface_immediate_review: 15
 
 ## Immediate review candidates
 
@@ -20,10 +20,11 @@
 - `20260715_dynamic_container_canary_runtime_observability.sql` — critical_review, score 889; next: add targeted patch-index, parity, and governance documentation
 - `20260714_tenant_connection_shadow_contract_bootstrap.sql` — critical_review, score 840; next: add targeted patch-index, parity, and governance documentation
 - `20260715_capability_envelope_template_resolver.sql` — critical_review, score 818; next: add targeted patch-index, parity, and governance documentation
-- `20260715_dynamic_container_canary_promotion_tool.sql` — critical_review, score 807; next: add targeted patch-index, parity, and governance documentation
+- `20260715_dynamic_container_canary_promotion_tool.sql` — critical_review, score 806; next: add targeted patch-index, parity, and governance documentation
 - `20260714_async_release_deploy_contract.sql` — critical_review, score 789; next: add targeted patch-index, parity, and governance documentation
 - `20260715_dynamic_container_canary_probe_sampler_tool.sql` — critical_review, score 730; next: add targeted patch-index, parity, and governance documentation
-- `20260714_supervisor_runtime_admin_tool_exports.sql` — critical_review, score 724; next: add targeted patch-index, parity, and governance documentation
+- `20260714_supervisor_runtime_admin_tool_exports.sql` — critical_review, score 723; next: add targeted patch-index, parity, and governance documentation
+- `20260716_dynamic_container_preview_canary_probe_sampler_tool.sql` — critical_review, score 713; next: add targeted patch-index, parity, and governance documentation
 - `1046_sprint69_dynamic_container_shadow_sampler_tool.sql` — high_review, score 677; next: add targeted patch-index, parity, and governance documentation
 - `20260715_dynamic_container_rollout_readiness_current_evidence.sql` — high_review, score 545; next: add targeted patch-index, parity, and governance documentation
 - `20260716_github_list_repository_issues_array_contract.sql` — high_review, score 538; next: add targeted patch-index, parity, and governance documentation
