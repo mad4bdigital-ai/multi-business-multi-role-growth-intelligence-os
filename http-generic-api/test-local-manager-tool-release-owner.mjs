@@ -104,6 +104,13 @@ assert(localManagerDeviceLinkService.includes('registeredRouteCount > 0'), 'conn
 assert(localManagerDeviceLinkService.includes('aliasResolved'), 'connector runtime verification must require canonical alias resolution');
 assert(localManagerDeviceLinkService.includes('evidence_source: "mysql_primary_connector_registry"'), 'connector runtime readback must identify MySQL-primary authority');
 assert(localManagerDeviceLinkService.includes('secrets_included: false'), 'connector runtime readback must remain secret-safe');
+assert(installRoutes.includes('cloudflared service uninstall'), 'connector installer must uninstall an existing cloudflared service before rebinding it');
+assert(installRoutes.includes('sc delete %CF_SERVICE%'), 'connector BAT installer must delete a stale cloudflared service when uninstall leaves it behind');
+assert(installRoutes.includes("WaitForStatus('Running'"), 'connector PowerShell installer must wait for cloudflared to reach Running');
+assert(installRoutes.includes('cloudflared service did not reach Running state'), 'connector PowerShell installer must fail when cloudflared does not reach Running');
+assert(installRoutes.includes('reconcileConnectorDeviceAliases'), 'connector provisioning must reconcile linked-device aliases');
+assert(installRoutes.includes('canonical_config_missing_archived_by_provisioning'), 'connector provisioning must archive aliases whose canonical config no longer exists');
+assert(installRoutes.includes('installer_provisioning_canonical_reconciliation'), 'connector provisioning must bind aliases to the active canonical config');
 assert(installRoutes.includes('appManaged: payload.app_managed === true'), 'download route must pass app-managed mode into bootstrap BAT generation');
 assert(installRoutes.includes('const doneSuffix = appManaged ? "exit /b 0" : "pause"'), 'app-managed bootstrap BAT must exit instead of pausing');
 assert(installRoutes.includes('const failSuffix = appManaged ? "exit /b 1" : "pause & exit /b 1"'), 'app-managed bootstrap BAT failures must exit instead of pausing');
