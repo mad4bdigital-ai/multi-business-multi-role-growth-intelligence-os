@@ -136,6 +136,12 @@ assert(localManagerAutopilot.includes('connector_tunnel_unavailable'), 'autopilo
 assert(localManagerAutopilot.includes('platform_origin_unavailable'), 'autopilot must classify 502/503/504 platform origin failures');
 assert(localManagerAutopilot.includes('sc.exe'), 'autopilot must query the required Windows service footprint');
 assert(windowsAppRegistration.includes('CurrentVersion\\Uninstall\\Mad4B.LocalManager.Windows'), 'Windows app registration must use the per-user uninstall registry');
+assert(windowsAppRegistration.includes('CurrentVersion\\App Paths\\Mad4B-Local-Manager.exe'), 'Windows app registration must publish an App Paths entry for shell discovery');
+assert(windowsAppRegistration.includes('Environment.SpecialFolder.Programs'), 'Windows app registration must create a Start Menu shortcut');
+assert(windowsAppRegistration.includes('Environment.SpecialFolder.Startup'), 'Windows app registration must start Local Manager after Windows sign-in');
+assert(windowsAppRegistration.includes('WScript.Shell'), 'Windows app registration must create native Windows shortcut files');
+assert(windowsAppRegistration.includes('DeleteShortcut(Environment.SpecialFolder.Programs)'), 'Windows uninstall must remove the Start Menu shortcut');
+assert(windowsAppRegistration.includes('DeleteShortcut(Environment.SpecialFolder.Startup)'), 'Windows uninstall must remove the Startup shortcut');
 assert(windowsAppRegistration.includes('QuietUninstallString'), 'Windows app registration must publish a quiet uninstall command');
 assert(windowsAppRegistration.includes('--uninstall'), 'Windows app must support removal from Installed Apps');
 assert(signedInstallerCoordinator.includes('tempTarget = target + ".download"'), 'Windows signed installer download must use an atomic temporary file');
