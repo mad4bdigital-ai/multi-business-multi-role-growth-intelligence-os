@@ -120,4 +120,20 @@ assert.match(openapi, /operationId: createReleaseAdvisorRun/);
 assert.match(openapi, /operationId: getReleaseAdvisorRun/);
 assert.match(openapi, /execution_allowed: \{ type: boolean, const: false \}/);
 
+const mutationPolicyMigration = fs.readFileSync(
+  path.join(__dirname, "migrations", "20260716_self_healing_release_advisor_mutation_policy.sql"),
+  "utf8",
+);
+assert.match(mutationPolicyMigration, /WHERE tool_key = 'release_advisor_run_create'/);
+for (const marker of [
+  "mutation_policy_required",
+  "capability_envelope",
+  "approval_required",
+  "readback",
+  "same_cycle_readback",
+]) {
+  assert.match(mutationPolicyMigration, new RegExp(marker));
+}
+assert.doesNotMatch(mutationPolicyMigration, /\b(?:DROP|TRUNCATE|DELETE)\b/i);
+
 console.log("self-healing release advisor tests passed");

@@ -14,7 +14,10 @@ The client is a transport adapter. It does not contain SQL, replace the governed
 - HTTP, alternate hosts, redirects, embedded credentials, URL query strings, and URL fragments are rejected.
 - The client exposes only an explicit migration and capability-envelope allowlist.
 - Free-form database commands and restore operations are not supported.
-- State-changing requests require both `--apply` and `DEV_MIGRATION_APPLY_ENABLED=true`.
+- State-changing requests always require `--apply`.
+- Mutating shell aliases remain gated by `DEV_MIGRATION_APPLY_ENABLED=true`.
+- An allowlisted mutating tool call may use either that environment flag or a syntactically valid persisted capability-envelope UUID carried in the tool arguments. The dev runtime remains authoritative and must validate envelope status, scope, expiry, approval, and apply authorization before mutation.
+- The client reports `apply_authority_source` as `environment_flag` or `capability_envelope` for audit readback.
 - The underlying dev runtime still enforces migration authorization, checksums, typed confirmation, capability envelopes, execution ledger, and schema readback.
 - Credentials are read from the caller environment and are never printed.
 
