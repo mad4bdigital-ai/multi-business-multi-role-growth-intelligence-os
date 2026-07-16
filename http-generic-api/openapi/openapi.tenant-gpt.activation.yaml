@@ -2153,9 +2153,10 @@ paths:
             - https://auth.mad4b.com/scopes/tenant.install
             - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: previewTenantTaskSourceRepair
+      x-custom-gpt-exclude: false
       x-openai-isConsequential: true
       summary: Preview a tenant task source repair
-      description: Builds and persists a tenant-scoped repair preflight for a malformed pending task without changing the task registry, calling providers, applying a repair, dispatching execution, or resolving the case.
+      description: Builds and persists a tenant-scoped repair preflight without changing the task registry, calling providers, applying a repair, dispatching execution, or resolving the case.
       parameters:
         - in: path
           name: caseId
@@ -2300,11 +2301,6 @@ paths:
                         type:
                           - string
                           - "null"
-                      context_summary:
-                        type:
-                          - object
-                          - "null"
-                        additionalProperties: true
                       secrets_included:
                         type: boolean
                         enum:
@@ -2320,15 +2316,7 @@ paths:
                         format: date-time
                       preview_fingerprint_sha256:
                         type: string
-                        pattern: "^[a-f0-9]{64}$"
-                      malformed_row_count_before:
-                        type: integer
-                        minimum: 0
-                        maximum: 1
-                      expected_malformed_row_count_after_apply:
-                        type: integer
-                        minimum: 0
-                        maximum: 1
+                        pattern: ^[a-f0-9]{64}$
                       ready_for_apply_gate:
                         type: boolean
                       approval_required:
@@ -2363,45 +2351,23 @@ paths:
                         type: boolean
                         enum:
                           - false
-                  idempotency:
-                    type: object
-                    additionalProperties: false
-                    properties:
-                      existing_preview_returned:
-                        type: boolean
-                        enum:
-                          - true
                   policy:
                     type: object
-                    additionalProperties: false
+                    additionalProperties: true
                     properties:
                       tenant_scoped:
                         type: boolean
                         enum:
                           - true
-                      workspace_scope_enforced_when_provided:
-                        type: boolean
                       internal_registry_read_only:
                         type: boolean
                         enum:
                           - true
-                      provider_call_allowed:
-                        type: boolean
-                        enum:
-                          - false
-                      external_write_allowed:
-                        type: boolean
-                        enum:
-                          - false
                       task_registry_write_allowed:
                         type: boolean
                         enum:
                           - false
                       repair_apply_allowed:
-                        type: boolean
-                        enum:
-                          - false
-                      execution_dispatched:
                         type: boolean
                         enum:
                           - false
@@ -2418,7 +2384,7 @@ paths:
                     enum:
                       - false
         "400":
-          description: Invalid case binding, lookup, or proposed values.
+          description: Invalid lookup or proposed values.
           content:
             application/json:
               schema:
@@ -2436,13 +2402,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "404":
-          description: Case or pending task not found within tenant scope.
+          description: Case or task not found within tenant scope.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "409":
-          description: Incompatible case, binding mismatch, or concurrent update.
+          description: Incompatible case
+          binding mismatch: null
+          or concurrent update.: null
           content:
             application/json:
               schema:
