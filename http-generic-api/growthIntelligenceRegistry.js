@@ -45,6 +45,45 @@ function qualityMetrics(report) {
   };
 }
 
+function normalizeOutboxMode(value = "disabled") {
+  const mode = String(value || "disabled").trim().toLowerCase();
+  if (!OUTBOX_MODES.has(mode)) {
+    const error = new Error("outboxMode must be disabled or dev_transactional.");
+    error.code = "growth_pilot_outbox_mode_invalid";
+    throw error;
+  }
+  return mode;
+}
+
+async function assertDevOutboxDatabase(connection) {
+  const [rows] = await connection.query("SELECT DATABASE() AS db_name");
+  const dbName = String(rows?.[0]?.db_name || "").trim();
+  if (!dbName.endsWith("_dev")) {
+    const error = new Error("Growth Intelligence outbox producer mode is restricted to a _dev database.");
+    error.code = "growth_pilot_outbox_dev_database_required";
+    throw error;
+  }
+  return dbName;
+}
+
+function growthIntelligenceOutboxPayload({ report, runId, quality, qualityStatus, approvalHoldCount }) {
+  const payload = {
+    report_id: report.report_id,
+    workflow_run_id: runId,
+    brand_key: report.brand_key,
+    report_type: report.report_type,
+    report_schema_version: report.schema_version,
+    status: "approval_pending",
+    quality_status: qualityStatus,
+    insight_count: quality.insight_count,
+    action_count: quality.action_count,
+    approval_hold_count: approvalHoldCount,
+  };
+  const activityKey = String(report.activity_intelligence?.businessActivityTypeKey || "").trim();
+  if (activityKey) payload.business_activity_type_key = activityKey;
+  return payload;
+}
+
 async function withTransaction(pool, operation) {
   if (typeof pool.getConnection !== "function") return operation(pool);
   const connection = await pool.getConnection();
