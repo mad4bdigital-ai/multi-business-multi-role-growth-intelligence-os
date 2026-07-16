@@ -61,6 +61,10 @@ import {
   TENANT_CONNECTION_SHADOW_CONTRACT_BOOTSTRAP_CONFIRM,
   bootstrapTenantConnectionShadowContracts,
 } from "../tenantConnectionShadowContractBootstrap.js";
+import {
+  PLATFORM_CAPABILITY_SHADOW_CERTIFICATION_CONFIRM,
+  issuePlatformCapabilityShadowCertification,
+} from "../platformCapabilityShadowCertificationIssuer.js";
 import { runGrowthIntelligencePilotAdmin } from "../growthIntelligenceAdminTool.js";
 import {
   approveRepositoryAdvisoryCommentApprovalHoldAdmin,
