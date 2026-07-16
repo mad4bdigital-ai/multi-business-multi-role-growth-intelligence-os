@@ -109,6 +109,7 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
   const deps = { requireBackendApiKey };
 
   router.post("/container-context-resolutions",requireResolutionPrincipal(deps),async (req,res) => {
+    let connection = null;
     try {
       assertAllowedKeys(req.body,new Set(["principal","tenantId","targetContainerId","dimensionRequests","mode","expectedAuthorityEpoch","expectedRegistrySnapshotHash","legacyDecision","legacyEvidenceRef","requestId"]));
       enforcePreviewRate(req);
@@ -118,17 +119,26 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
         error.status = 400; error.code = "idempotency_key_invalid"; throw error;
       }
       const principalContext = req.containerPrincipal;
+      const effectiveRequestId=req.body?.requestId || requestId(req);
       const input = {
         ...req.body,
         principal:principalContext.isAdmin ? (req.body?.principal || principalContext.principal) : principalContext.principal,
         tenantId:principalContext.isAdmin ? String(req.body?.tenantId || "") : principalContext.tenantId,
         mode:principalContext.isAdmin ? String(req.body?.mode || "preview") : "preview",
         idempotencyKey,
-        requestId:req.body?.requestId || requestId(req)
+        requestId:effectiveRequestId
       };
-      const result = await resolveEffectiveContainerContext(input);
-      return res.status(201).json(result);
+      connection = await getPool().getConnection();
+      const observed = await executeObservedReadOnlyCanary({
+        executor:connection,
+        canaryKey:"container_authority_preview_resolution_v1",
+        capabilityKey:"createContainerContextResolution",
+        requestId:effectiveRequestId,
+        execute:() => resolveContainerContextWithExecutor(input,connection)
+      });
+      return res.status(201).json(observed.response);
     } catch (error) { return errorResponse(req,res,error); }
+    finally { if(connection) connection.release(); }
   });
 
   router.post("/admin/container-authority/resolution-preview",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
