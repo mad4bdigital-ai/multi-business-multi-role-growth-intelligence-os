@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import {
   buildOutboxBatch,
   findSensitivePayloadPaths,
+  getPlatformOutboxStatus,
   sanitizeOutboxPayload,
   stableStringify,
   validateConsumerReadiness,
