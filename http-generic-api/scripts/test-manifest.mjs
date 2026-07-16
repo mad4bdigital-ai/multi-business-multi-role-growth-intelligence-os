@@ -581,6 +581,7 @@ export const testCommands = [
   "node test-async-release-deploy-contract.mjs",
   "node test-capability-envelope-template-resolver.mjs",
   "node test-self-healing-release-advisor.mjs",
+  "node test-repository-main-moved-trigger-coordinator.mjs",
   "node test-policy-only-target-rule-migration.mjs",
   "node test-safe-additive-repair-policy-literal.mjs",
   "node test-execution-job-tick-admin.mjs",
