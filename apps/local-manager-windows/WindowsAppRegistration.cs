@@ -21,6 +21,9 @@ internal static class WindowsAppRegistration
         try
         {
             Registry.CurrentUser.DeleteSubKeyTree(UninstallRegistryPath, throwOnMissingSubKey: false);
+            Registry.CurrentUser.DeleteSubKeyTree(AppPathsRegistryPath, throwOnMissingSubKey: false);
+            DeleteShortcut(Environment.SpecialFolder.Programs);
+            DeleteShortcut(Environment.SpecialFolder.Startup);
             QueueSelfRemoval(executablePath);
             if (!quiet)
             {
