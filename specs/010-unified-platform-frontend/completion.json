@@ -14,7 +14,8 @@
       "number": 2579,
       "branch": "gpt/repo-driven-frontend-dispatch-20260713",
       "role": "specification_dispatch_and_f1_shell_foundation",
-      "status": "current_pr"
+      "status": "merged",
+      "merge_sha": "d1648852ae375f81fa9cba07af96af978df10a1d"
     },
     "implementation_prs": [],
     "closeout_pr": {
@@ -41,11 +42,11 @@
       "canonical_auth_sync_all_occurrences": true,
       "runtime_openapi_auth_contract_gap_count": 0,
       "openapi_operation_presence_gap_count": 0,
-      "canonical_openapi_operation_count": 533,
-      "operation_index_detail_gap_count": 389,
+      "canonical_openapi_operation_count": 547,
+      "operation_index_detail_gap_count": 395,
       "operation_level_mutation_governance": true,
-      "classified_non_mutating_action_count": 9,
-      "unresolved_non_get_operation_count": 556,
+      "classified_non_mutating_action_count": 13,
+      "unresolved_non_get_operation_count": 565,
       "generated_runtime_openapi_index": true,
       "t018_status": "auth_and_presence_complete_detail_classification_and_compensation_remaining_fail_closed",
       "platform_shell": true,
