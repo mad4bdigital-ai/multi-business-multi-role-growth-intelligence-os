@@ -284,7 +284,8 @@ const readOnlyPool = {
         mock_resource: "contacts",
         certification_status: "certified",
         certification_expires_at: "2099-01-01 00:00:00",
-        metadata_json: JSON.stringify({ smoke_read_only: true, secrets_included: false }),
+        notes: "Bearer should-never-leave-the-ledger",
+        metadata_json: JSON.stringify({ access_token: "should-never-leave-the-ledger" }),
         secrets_included: 0,
       }]];
     }
@@ -304,8 +305,8 @@ const readOnlyPool = {
         allowed_expected_origin: "https://auth.mad4b.com",
         status: "active",
         priority: 100,
-        notes: null,
-        metadata_json: JSON.stringify({ secrets_included: false }),
+        notes: "api_key=should-never-leave-the-registry",
+        metadata_json: JSON.stringify({ access_token: "should-never-leave-the-registry" }),
       }]];
     }
     throw new Error(`Unexpected SQL in read-action test: ${compactSql}`);
@@ -317,16 +318,22 @@ assert.equal(smokeStatus.ok, true);
 assert.equal(smokeStatus.count, 1);
 assert.equal(smokeStatus.certifications[0].expired, false);
 assert.equal(smokeStatus.certifications[0].secrets_included, false);
+assert.equal(Object.hasOwn(smokeStatus.certifications[0], "notes"), false);
+assert.equal(Object.hasOwn(smokeStatus.certifications[0], "metadata_json"), false);
 
 const resolvedPolicy = await resolvePlatformPluginSmokeRecertificationPolicy({ plugin_key: "crm" }, { pool: readOnlyPool });
 assert.equal(resolvedPolicy.ok, true);
 assert.equal(resolvedPolicy.resolved_from_registry, true);
 assert.equal(resolvedPolicy.policy.policy_id, "smoke_recert_policy_1");
+assert.equal(Object.hasOwn(resolvedPolicy.policy, "notes"), false);
+assert.equal(Object.hasOwn(resolvedPolicy.policy, "metadata_json"), false);
 
 const listedPolicies = await listPlatformPluginSmokeRecertificationPolicies({ plugin_key: "crm", limit: 5 }, { pool: readOnlyPool });
 assert.equal(listedPolicies.ok, true);
 assert.equal(listedPolicies.count, 1);
 assert.equal(listedPolicies.policies[0].secrets_included, false);
+assert.equal(Object.hasOwn(listedPolicies.policies[0], "notes"), false);
+assert.equal(Object.hasOwn(listedPolicies.policies[0], "metadata_json"), false);
 assert.equal(
   readOnlyCalls.every(({ sql }) => sql.startsWith("SELECT")),
   true,

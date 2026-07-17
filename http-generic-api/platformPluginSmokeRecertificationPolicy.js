@@ -147,6 +147,11 @@ function normalizePolicy(row = null) {
   };
 }
 
+function sanitizePolicyForRead(policy = {}) {
+  const { notes: _notes, metadata_json: _metadataJson, ...safePolicy } = policy;
+  return { ...safePolicy, secrets_included: false };
+}
+
 export async function resolvePlatformPluginSmokeRecertificationPolicy(input = {}, deps = {}) {
   const pool = deps.pool || getPool();
   const tenantId = nullable(input.tenant_id || input.tenantId, 64);
@@ -158,7 +163,7 @@ export async function resolvePlatformPluginSmokeRecertificationPolicy(input = {}
     `SELECT policy_id, tenant_id, plugin_key, action_key, mock_provider, mock_resource,
             certification_ttl_days, expires_soon_days, max_batch_size,
             auto_recertification_enabled, provider_smoke_required, allowed_expected_origin,
-            status, priority, notes, metadata_json
+            status, priority
        FROM platform_plugin_smoke_recertification_policies
       WHERE status = 'active'
         AND (tenant_id = ? OR tenant_id IS NULL)
@@ -176,7 +181,7 @@ export async function resolvePlatformPluginSmokeRecertificationPolicy(input = {}
       LIMIT 1`,
     [tenantId, pluginKey, actionKey, mockProvider, mockResource, tenantId, pluginKey, actionKey, mockProvider, mockResource]
   );
-  const policy = normalizePolicy(rows[0] || null);
+  const policy = sanitizePolicyForRead(normalizePolicy(rows[0] || null));
   return {
     ok: true,
     policy,
@@ -205,7 +210,7 @@ export async function listPlatformPluginSmokeRecertificationPolicies(input = {},
     `SELECT policy_id, tenant_id, plugin_key, action_key, mock_provider, mock_resource,
             certification_ttl_days, expires_soon_days, max_batch_size,
             auto_recertification_enabled, provider_smoke_required, allowed_expected_origin,
-            status, priority, notes, metadata_json, created_at, updated_at
+            status, priority, created_at, updated_at
        FROM platform_plugin_smoke_recertification_policies
       WHERE ${where.join(" AND ")}
       ORDER BY status ASC, priority ASC, plugin_key ASC, action_key ASC
@@ -215,7 +220,7 @@ export async function listPlatformPluginSmokeRecertificationPolicies(input = {},
   return {
     ok: true,
     count: rows.length,
-    policies: rows.map(normalizePolicy),
+    policies: rows.map((row) => sanitizePolicyForRead(normalizePolicy(row))),
     secrets_included: false,
   };
 }

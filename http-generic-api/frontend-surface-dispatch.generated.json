@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "7b71b014412102552326e78ca44e1143f977b6de",
-    "source_digest": "5282b8e83735a1a750301f970f04b65ccebfb5e7cb5e4df0e1248d4f734cb047",
+    "source_digest": "27f4ddc9e994f96afd8e0f35a212bc90dd6ea7a12e8434143210d8ea59e10659",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "f0d9f782385de2c4b32e1342e5f6787c67c0ce5c0c50146c26522e3fc7a950e4",
+        "sha256": "7a1323e86a8d1f2a99e1bc5fc353551dd1b33401b93acbbbb10793fe53d38cbf",
         "present": true
       },
       {
@@ -851,7 +851,7 @@
       },
       {
         "file": "test-platform-plugin-public-rest-dispatch.mjs",
-        "sha256": "a64d2ac9a85ff7c6c2234f3ac7ee8c30554e23446684d6f912cf9229ef449d1b",
+        "sha256": "608de995411ec3bf744e4684a14f28819718c45bdc2b487291477cc1f0d52102",
         "present": true
       },
       {
@@ -46480,7 +46480,7 @@
             "blockers": [],
             "rule_id": "platform-plugin-smoke-certification-status-read-action",
             "owner": "platform-plugins",
-            "rationale": "The endpoint executes one bounded SELECT over the smoke-certification ledger, filters secrets_included = 0 in SQL, and returns safe metadata; it cannot certify a smoke run, recertify a plugin, update policy, or dispatch a provider request.",
+            "rationale": "The endpoint executes one bounded SELECT over the smoke-certification ledger, filters secrets_included = 0 in SQL, and omits free-form notes and metadata_json from its safe projection; it cannot certify a smoke run, recertify a plugin, update policy, or dispatch a provider request.",
             "evidence_refs": [
               "openapi.yaml",
               "platformPluginSmokeCertification.js",
@@ -46560,7 +46560,7 @@
             "blockers": [],
             "rule_id": "platform-plugin-smoke-recertification-policy-resolve-read-action",
             "owner": "platform-plugins",
-            "rationale": "The endpoint executes one bounded SELECT to resolve the most specific active smoke-recertification policy, falling back in memory to a static default; it cannot upsert, roll back, or audit a policy.",
+            "rationale": "The endpoint executes one bounded SELECT to resolve the most specific active smoke-recertification policy, omits free-form notes and metadata_json, and falls back in memory to a static default; it cannot upsert, roll back, or audit a policy.",
             "evidence_refs": [
               "openapi.yaml",
               "platformPluginSmokeRecertificationPolicy.js",
@@ -46640,7 +46640,7 @@
             "blockers": [],
             "rule_id": "platform-plugin-smoke-recertification-policy-list-read-action",
             "owner": "platform-plugins",
-            "rationale": "The endpoint executes one bounded SELECT over the smoke-recertification policy registry and returns normalized safe metadata; it cannot upsert, roll back, or audit a policy.",
+            "rationale": "The endpoint executes one bounded SELECT over the smoke-recertification policy registry and omits free-form notes and metadata_json from its normalized safe projection; it cannot upsert, roll back, or audit a policy.",
             "evidence_refs": [
               "openapi.yaml",
               "platformPluginSmokeRecertificationPolicy.js",

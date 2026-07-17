@@ -545,7 +545,7 @@
       "source_file": "routes/platformPluginRoutes.js",
       "classification": "read_action",
       "owner": "platform-plugins",
-      "rationale": "The endpoint executes one bounded SELECT over the smoke-certification ledger, filters secrets_included = 0 in SQL, and returns safe metadata; it cannot certify a smoke run, recertify a plugin, update policy, or dispatch a provider request.",
+      "rationale": "The endpoint executes one bounded SELECT over the smoke-certification ledger, filters secrets_included = 0 in SQL, and omits free-form notes and metadata_json from its safe projection; it cannot certify a smoke run, recertify a plugin, update policy, or dispatch a provider request.",
       "evidence_refs": ["platformPluginSmokeCertification.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
     },
     {
@@ -554,7 +554,7 @@
       "source_file": "routes/platformPluginRoutes.js",
       "classification": "read_action",
       "owner": "platform-plugins",
-      "rationale": "The endpoint executes one bounded SELECT to resolve the most specific active smoke-recertification policy, falling back in memory to a static default; it cannot upsert, roll back, or audit a policy.",
+      "rationale": "The endpoint executes one bounded SELECT to resolve the most specific active smoke-recertification policy, omits free-form notes and metadata_json, and falls back in memory to a static default; it cannot upsert, roll back, or audit a policy.",
       "evidence_refs": ["platformPluginSmokeRecertificationPolicy.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
     },
     {
@@ -563,7 +563,7 @@
       "source_file": "routes/platformPluginRoutes.js",
       "classification": "read_action",
       "owner": "platform-plugins",
-      "rationale": "The endpoint executes one bounded SELECT over the smoke-recertification policy registry and returns normalized safe metadata; it cannot upsert, roll back, or audit a policy.",
+      "rationale": "The endpoint executes one bounded SELECT over the smoke-recertification policy registry and omits free-form notes and metadata_json from its normalized safe projection; it cannot upsert, roll back, or audit a policy.",
       "evidence_refs": ["platformPluginSmokeRecertificationPolicy.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
     }
   ],
