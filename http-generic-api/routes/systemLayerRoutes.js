@@ -1588,6 +1588,7 @@ async function activationGithubValidate(args = {}, bootstrapRow = {}, deps = {})
     const executionResult = await executeGovernedHttp({
       parent_action_key: parentActionKey,
       endpoint_key: endpointKey,
+      credential_scope: "platform",
       path_params: {
         owner: target.owner,
         repo: target.repo,
