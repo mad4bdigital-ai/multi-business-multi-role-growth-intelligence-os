@@ -52,6 +52,7 @@ async function ensureGoogleCredentialBinding(pool, userId, providerId) {
 
 export async function recoverGoogleJitIdentityAfterDuplicate({
   pool,
+  connection: providedConnection = null,
   provider_id,
   email,
   display_name,
