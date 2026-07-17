@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 const projection = readFileSync(new URL("./migrations/20260717_virtual_tool_capability_projection.sql", import.meta.url), "utf8");
 const readback = readFileSync(new URL("./migrations/20260717_virtual_tool_readback_readiness.sql", import.meta.url), "utf8");
 const bindingMigration = readFileSync(new URL("./migrations/311_sprint69_platform_tool_dispatch_binding_integrity.sql", import.meta.url), "utf8");
+const virtualReconciler = readFileSync(new URL("./platformVirtualToolCapabilityReconciler.js", import.meta.url), "utf8");
 
 for (const view of [
   "v_platform_virtual_tool_bindings_classified",
@@ -41,6 +42,17 @@ for (const marker of [
   "CREATE OR REPLACE VIEW v_platform_capability_readiness_vector",
   "'pending','shadow'",
 ]) assert.match(readback, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+
+for (const marker of [
+  "VIRTUAL_TOOL_RECONCILIATION_SQL",
+  "v_platform_virtual_tool_capabilities_current",
+  "v_platform_virtual_tool_bindings_current",
+  "v_platform_virtual_tool_exports_current",
+  "v_platform_virtual_tool_capability_gaps",
+  "platform_capability_readback_contracts",
+  "apply_allowed=LEAST",
+  "external_writes_made: 0",
+]) assert.match(virtualReconciler, new RegExp(marker));
 
 for (const migration of [projection, readback]) {
   assert.doesNotMatch(migration, /\bDROP\s+(TABLE|DATABASE)|\bTRUNCATE\s+TABLE|\bDELETE\s+FROM/i);
