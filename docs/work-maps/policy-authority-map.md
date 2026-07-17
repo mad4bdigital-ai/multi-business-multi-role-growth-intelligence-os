@@ -300,5 +300,6 @@ flowchart TD
 | `tenant_proactive_guidance_policy_v1` | 1 |
 | `tenant_repository_advisory_comment_v5_tool_wiring_policy_v1` | 2 |
 | `tenant_repository_intelligence_v3_v4_tool_wiring_policy_v1` | 1 |
+| `tenant_task_source_repair_apply_policy_v1` | 1 |
 | `tool_bus_gated_read_only_dispatch_policy_v1` | 1 |
 | `validation_semantics_policy_v1` | 1 |
