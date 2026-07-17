@@ -26,14 +26,16 @@
     - [x] T018d.1 Resolve all runtime/canonical auth mismatches, missing comparisons, handler-level tokens, imported guards, and invalid/duplicate auth rules.
     - [x] T018d.2 Close operation-presence gaps with reviewed canonical public entrypoint contracts while keeping generated projections non-canonical.
     - [x] T018d.3 Classify thirteen proven non-mutating actions: nine capability-vault planning/resolution operations and four `router.all` root-discovery variants.
-    - [ ] T018d.4 Replace 386 remaining operation-index-only entries with reviewed request/response detail contracts.
+    - [ ] T018d.4 Replace 383 remaining operation-index-only entries with reviewed request/response detail contracts.
       - [x] T018d.4a Replace the first three entries with canonical adapter-contract, target-adapter, and apply-readiness read-model contracts.
       - [x] T018d.4b Replace three additional entries with canonical promotion-review, payload-preview-review, and capability-envelope-plan read-model contracts.
       - [x] T018d.4c Replace three capability-envelope lifecycle entries with canonical request-gate, dispatch-dry-run, and actual-request-preflight read-model contracts.
-    - [ ] T018d.5 Classify 556 remaining non-GET candidates with exact evidence and controls where consequential.
+      - [x] T018d.4d Replace three capability-envelope request, approval, and dispatch-readback entries with canonical read-model contracts.
+    - [ ] T018d.5 Classify 553 remaining non-GET candidates with exact evidence and controls where consequential.
       - [x] T018d.5a Classify the three SELECT-only session-insight adapter read models and register explicit test ownership.
       - [x] T018d.5b Classify the three SELECT-only promotion review and capability planning read models and register explicit test ownership.
       - [x] T018d.5c Classify the three SELECT-only capability-envelope lifecycle read models and register explicit test ownership.
+      - [x] T018d.5d Classify the three SELECT-only capability-envelope request, approval, and dispatch-readback read models and register explicit test ownership.
     - [ ] T018d.6 Add rollback/post-commit compensation for the four classified resource mutations.
 - [x] T019 Add generated-plan schema contract and changed-scope CI drift gate.
 
