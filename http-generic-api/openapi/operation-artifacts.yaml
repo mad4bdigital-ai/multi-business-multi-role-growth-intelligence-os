@@ -35,7 +35,7 @@ paths:
       summary: List generated artifact metadata owned by the Tenant principal
       description: Requires active tenant membership and operation-run ownership.
       security:
-        - TenantBearer: []
+        - userJwtAuth: []
       parameters:
         - $ref: '#/components/parameters/RunId'
         - $ref: '#/components/parameters/Limit'
