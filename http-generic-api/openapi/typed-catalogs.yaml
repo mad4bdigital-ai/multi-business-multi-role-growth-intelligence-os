@@ -17,8 +17,8 @@ paths:
       operationId: listAdminOperationCatalogs
       summary: List catalog definitions or query one typed Admin catalog
       security:
-        - BackendApiKey: []
-        - AdminBearer: []
+        - backendApiKeyAuth: []
+        - adminBearerAuth: []
       parameters:
         - $ref: '#/components/parameters/CatalogKey'
         - $ref: '#/components/parameters/Limit'
