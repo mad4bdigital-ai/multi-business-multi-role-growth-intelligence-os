@@ -315,3 +315,296 @@ export async function transitionCapabilityEnvelopeLifecycle({
     secrets_included: false,
   };
 }
+
+export const CAPABILITY_ENVELOPE_BATCH_EXPIRE_MODES = Object.freeze(["dry_run", "apply"]);
+export const CAPABILITY_ENVELOPE_BATCH_EXPIRE_POLICY_VERSION = "capability-envelope-batch-expire-v1";
+
+function batchExpireError(code, message, status = 400, details = undefined) {
+  const error = new Error(message);
+  error.code = code;
+  error.status = status;
+  if (details !== undefined) error.details = details;
+  return error;
+}
+
+function normalizeExpiredBefore(value) {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) {
+    throw batchExpireError("capability_envelope_batch_expire_timestamp_invalid", "expired_before must be a valid ISO 8601 timestamp.", 400);
+  }
+  if (date.getTime() > Date.now() + 60_000) {
+    throw batchExpireError("capability_envelope_batch_expire_future_cutoff_blocked", "expired_before cannot be in the future.", 400);
+  }
+  return date;
+}
+
+function normalizeBatchExpireMaxItems(value) {
+  const parsed = Number(value ?? 50);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 100) {
+    throw batchExpireError("capability_envelope_batch_expire_limit_invalid", "max_items must be an integer from 1 to 100.", 400);
+  }
+  return parsed;
+}
+
+function batchExpireCandidatePublicRow(row = {}) {
+  return {
+    envelope_id: row.envelope_id,
+    capability_key: row.capability_key || null,
+    operation_intent: row.operation_intent || null,
+    envelope_status: row.envelope_status,
+    execution_status: row.execution_status,
+    expires_at: row.expires_at || null,
+    created_at: row.created_at || null,
+    secrets_included: false,
+  };
+}
+
+function batchExpireFingerprint({ requestedBy, expiredBeforeIso, candidateIds }) {
+  return createHash("sha256")
+    .update(JSON.stringify({
+      policy_version: CAPABILITY_ENVELOPE_BATCH_EXPIRE_POLICY_VERSION,
+      requested_by: requestedBy,
+      expired_before: expiredBeforeIso,
+      candidate_ids: candidateIds,
+    }))
+    .digest("hex");
+}
+
+async function loadBatchExpireCandidates(db, { requestedBy, expiredBefore, maxItems, lockRows = false }) {
+  const whereSql = `requested_by = ?
+        AND expires_at IS NOT NULL
+        AND expires_at < ?
+        AND envelope_status IN ('dry_run','ready_requires_approval','ready_for_dispatch')
+        AND execution_status = 'not_executed'
+        AND execution_ref IS NULL
+        AND secrets_included = 0`;
+  const params = [requestedBy, expiredBefore];
+  const [[countRow]] = await db.query(
+    `SELECT COUNT(*) AS total
+       FROM capability_resolution_envelope_ledger
+      WHERE ${whereSql}`,
+    params,
+  );
+  const total = Number(countRow?.total || 0);
+  const [rows] = await db.query(
+    `SELECT envelope_id, capability_key, operation_intent, envelope_status,
+            execution_status, expires_at, created_at
+       FROM capability_resolution_envelope_ledger
+      WHERE ${whereSql}
+      ORDER BY expires_at ASC, envelope_id ASC
+      LIMIT ?${lockRows ? " FOR UPDATE" : ""}`,
+    [...params, maxItems],
+  );
+  return { total, rows: rows || [] };
+}
+
+export async function planCapabilityEnvelopeBatchExpire({
+  pool = null,
+  requestedBy = "gpt_admin",
+  expiredBefore = null,
+  maxItems = 50,
+  lockRows = false,
+} = {}) {
+  const db = pool || getPool();
+  const normalizedRequestedBy = compact(requestedBy, 191);
+  if (!normalizedRequestedBy) {
+    throw batchExpireError("capability_envelope_batch_expire_requested_by_required", "requested_by is required.", 400);
+  }
+  const cutoff = normalizeExpiredBefore(expiredBefore);
+  const limit = normalizeBatchExpireMaxItems(maxItems);
+  const { total, rows } = await loadBatchExpireCandidates(db, {
+    requestedBy: normalizedRequestedBy,
+    expiredBefore: cutoff,
+    maxItems: limit,
+    lockRows,
+  });
+  const candidates = rows.map(batchExpireCandidatePublicRow);
+  const candidateIds = candidates.map((row) => row.envelope_id);
+  const expiredBeforeIso = cutoff.toISOString();
+  const planSha256 = batchExpireFingerprint({
+    requestedBy: normalizedRequestedBy,
+    expiredBeforeIso,
+    candidateIds,
+  });
+  const truncated = total > candidates.length;
+  const applyAllowed = total > 0 && !truncated;
+  return {
+    policy_version: CAPABILITY_ENVELOPE_BATCH_EXPIRE_POLICY_VERSION,
+    requested_by: normalizedRequestedBy,
+    expired_before: expiredBeforeIso,
+    max_items: limit,
+    total_candidate_count: total,
+    selected_candidate_count: candidates.length,
+    truncated,
+    apply_allowed: applyAllowed,
+    blocking_reason: total === 0 ? "no_expired_candidates" : truncated ? "candidate_limit_exceeded" : null,
+    plan_sha256: planSha256,
+    confirm: `EXPIRE_CAPABILITY_ENVELOPES_${planSha256.slice(0, 12).toUpperCase()}`,
+    candidates,
+    execution_allowed: false,
+    provider_write: false,
+    external_write: false,
+    secrets_included: false,
+  };
+}
+
+export async function runCapabilityEnvelopeBatchExpire({
+  pool = null,
+  mode = "dry_run",
+  requestedBy = "gpt_admin",
+  expiredBefore = null,
+  maxItems = 50,
+  expectedPlanSha256 = "",
+  confirm = "",
+  capabilityEnvelopeId = "",
+  reason = "",
+} = {}) {
+  const normalizedMode = compact(mode, 32).toLowerCase() || "dry_run";
+  if (!CAPABILITY_ENVELOPE_BATCH_EXPIRE_MODES.includes(normalizedMode)) {
+    throw batchExpireError("capability_envelope_batch_expire_mode_invalid", "mode must be dry_run or apply.", 400);
+  }
+  const db = pool || getPool();
+  if (normalizedMode === "dry_run") {
+    const plan = await planCapabilityEnvelopeBatchExpire({ pool: db, requestedBy, expiredBefore, maxItems });
+    return {
+      ok: true,
+      mode: "dry_run",
+      status: plan.total_candidate_count === 0 ? "capability_envelope_batch_expire_no_action" : "capability_envelope_batch_expire_planned",
+      plan,
+      execution_allowed: false,
+      provider_write: false,
+      external_write: false,
+      secrets_included: false,
+    };
+  }
+
+  const normalizedReason = compact(reason, 512);
+  if (normalizedReason.length < 20) {
+    throw batchExpireError("capability_envelope_batch_expire_reason_required", "reason must contain at least 20 characters for apply.", 400);
+  }
+  const expectedHash = compact(expectedPlanSha256, 64).toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(expectedHash)) {
+    throw batchExpireError("capability_envelope_batch_expire_plan_hash_invalid", "expected_plan_sha256 must be a SHA-256 value.", 400);
+  }
+  const governanceEnvelopeId = compact(capabilityEnvelopeId, 64);
+  if (!governanceEnvelopeId) {
+    throw batchExpireError("capability_envelope_batch_expire_governance_envelope_required", "capability_envelope_id is required for apply.", 400);
+  }
+
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+    const governance = await resolveCapabilityExecutionEnvelope({
+      pool: connection,
+      envelopeId: governanceEnvelopeId,
+      acceptedAppKeys: ["platform_orchestration"],
+      acceptedCapabilityKeys: ["capability_resolution_envelope_batch_expire"],
+      acceptedIntents: ["capability_resolution_envelope_batch_expire"],
+      allowReferenced: false,
+    });
+    if (!governance.ok) throw capabilityEnvelopeError(governance);
+
+    const plan = await planCapabilityEnvelopeBatchExpire({
+      pool: connection,
+      requestedBy,
+      expiredBefore,
+      maxItems,
+      lockRows: true,
+    });
+    if (!plan.apply_allowed) {
+      throw batchExpireError("capability_envelope_batch_expire_apply_blocked", "The current batch plan is not eligible for apply.", 409, {
+        blocking_reason: plan.blocking_reason,
+        total_candidate_count: plan.total_candidate_count,
+        max_items: plan.max_items,
+      });
+    }
+    if (plan.plan_sha256 !== expectedHash) {
+      throw batchExpireError("capability_envelope_batch_expire_plan_changed", "The batch plan changed after review.", 409, {
+        expected_plan_sha256: expectedHash,
+        actual_plan_sha256: plan.plan_sha256,
+      });
+    }
+    if (compact(confirm, 128) !== plan.confirm) {
+      throw batchExpireError("capability_envelope_batch_expire_confirmation_invalid", "Typed confirmation does not match the reviewed plan.", 403, {
+        expected_confirmation: plan.confirm,
+      });
+    }
+
+    const ids = plan.candidates.map((row) => row.envelope_id);
+    const placeholders = ids.map(() => "?").join(",");
+    const [updateResult] = await connection.query(
+      `UPDATE capability_resolution_envelope_ledger
+          SET envelope_status = 'expired',
+              dispatch_allowed = 0,
+              apply_allowed = 0,
+              updated_at = NOW()
+        WHERE envelope_id IN (${placeholders})
+          AND requested_by = ?
+          AND expires_at IS NOT NULL
+          AND expires_at < ?
+          AND envelope_status IN ('dry_run','ready_requires_approval','ready_for_dispatch')
+          AND execution_status = 'not_executed'
+          AND execution_ref IS NULL
+          AND secrets_included = 0`,
+      [...ids, plan.requested_by, new Date(plan.expired_before)],
+    );
+    if (Number(updateResult?.affectedRows || 0) !== ids.length) {
+      throw batchExpireError("capability_envelope_batch_expire_apply_count_mismatch", "The expired row count did not match the reviewed plan.", 409, {
+        expected_count: ids.length,
+        affected_rows: Number(updateResult?.affectedRows || 0),
+      });
+    }
+
+    const [readbackRows] = await connection.query(
+      `SELECT envelope_id, envelope_status, execution_status, dispatch_allowed,
+              apply_allowed, execution_ref, secrets_included
+         FROM capability_resolution_envelope_ledger
+        WHERE envelope_id IN (${placeholders})
+        ORDER BY envelope_id ASC`,
+      ids,
+    );
+    const readbackOk = readbackRows.length === ids.length && readbackRows.every((row) =>
+      row.envelope_status === "expired" &&
+      row.execution_status === "not_executed" &&
+      !boolNumber(row.dispatch_allowed) &&
+      !boolNumber(row.apply_allowed) &&
+      !row.execution_ref &&
+      !boolNumber(row.secrets_included)
+    );
+    if (!readbackOk) {
+      throw batchExpireError("capability_envelope_batch_expire_readback_failed", "Same-cycle readback did not confirm every expired envelope.", 500);
+    }
+
+    const consumed = await transitionCapabilityEnvelopeLifecycle({
+      pool: connection,
+      envelopeId: governanceEnvelopeId,
+      action: "consume",
+      executionRef: `capability_envelope_batch_expire:${plan.plan_sha256.slice(0, 24)}`,
+      reason: normalizedReason,
+    });
+    if (!consumed.ok) throw capabilityEnvelopeError(consumed, "The governance envelope could not be consumed after batch expiration.");
+
+    await connection.commit();
+    return {
+      ok: true,
+      mode: "apply",
+      status: "capability_envelope_batch_expire_applied",
+      plan_sha256: plan.plan_sha256,
+      expired_count: ids.length,
+      envelope_ids: ids,
+      governance_envelope_id: governanceEnvelopeId,
+      governance_envelope_status: consumed.after?.envelope_status || null,
+      governance_execution_status: consumed.after?.execution_status || null,
+      same_cycle_readback: true,
+      execution_allowed: false,
+      provider_write: false,
+      external_write: false,
+      secrets_included: false,
+    };
+  } catch (error) {
+    await connection.rollback().catch(() => {});
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
