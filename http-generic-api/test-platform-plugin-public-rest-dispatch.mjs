@@ -271,6 +271,11 @@ const readOnlyPool = {
     const compactSql = String(sql).replace(/\s+/g, " ").trim();
     readOnlyCalls.push({ sql: compactSql, params });
     if (compactSql.startsWith("SELECT certification_id")) {
+      assert.match(
+        compactSql,
+        /WHERE secrets_included = 0(?: AND| ORDER BY)/,
+        "smoke certification status must exclude secret-flagged rows in SQL"
+      );
       return [[{
         certification_id: "smoke_cert_1",
         plugin_key: "crm",
@@ -311,6 +316,7 @@ const smokeStatus = await getPlatformPluginSmokeCertification({ plugin_key: "crm
 assert.equal(smokeStatus.ok, true);
 assert.equal(smokeStatus.count, 1);
 assert.equal(smokeStatus.certifications[0].expired, false);
+assert.equal(smokeStatus.certifications[0].secrets_included, false);
 
 const resolvedPolicy = await resolvePlatformPluginSmokeRecertificationPolicy({ plugin_key: "crm" }, { pool: readOnlyPool });
 assert.equal(resolvedPolicy.ok, true);

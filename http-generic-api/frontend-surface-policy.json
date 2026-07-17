@@ -545,7 +545,7 @@
       "source_file": "routes/platformPluginRoutes.js",
       "classification": "read_action",
       "owner": "platform-plugins",
-      "rationale": "The endpoint executes one bounded SELECT over the smoke-certification ledger and returns safe metadata; it cannot certify a smoke run, recertify a plugin, update policy, or dispatch a provider request.",
+      "rationale": "The endpoint executes one bounded SELECT over the smoke-certification ledger, filters secrets_included = 0 in SQL, and returns safe metadata; it cannot certify a smoke run, recertify a plugin, update policy, or dispatch a provider request.",
       "evidence_refs": ["platformPluginSmokeCertification.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
     },
     {
