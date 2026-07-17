@@ -203,7 +203,7 @@ async function insertEventAndDeliveries(executor, event) {
 }
 
 export async function enqueuePlatformOutboxEvent({
-  pool = getPool(),
+  pool = null,
   connection = null,
   eventId = randomUUID(),
   eventType,
@@ -231,7 +231,8 @@ export async function enqueuePlatformOutboxEvent({
     throw error;
   }
 
-  const queryExecutor = connection || pool;
+  const resolvedPool = connection ? null : (pool || getPool());
+  const queryExecutor = connection || resolvedPool;
   const [eventTypes] = await queryExecutor.query(
     `SELECT event_type, current_schema_version, payload_classification, contains_pii, status
        FROM platform_outbox_event_types
@@ -293,7 +294,7 @@ export async function enqueuePlatformOutboxEvent({
     return { ok: true, event_id: event.eventId, transaction_owner: "caller", secrets_included: false };
   }
 
-  const conn = await pool.getConnection();
+  const conn = await resolvedPool.getConnection();
   try {
     await conn.beginTransaction();
     await insertEventAndDeliveries(conn, event);
