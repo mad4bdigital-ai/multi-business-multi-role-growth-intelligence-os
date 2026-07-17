@@ -42,7 +42,7 @@ paths:
         Requires an active Tenant membership. SQL reads are restricted to the
         authenticated tenant_id and user_id.
       security:
-        - TenantBearer: []
+        - userJwtAuth: []
       parameters:
         - $ref: '#/components/parameters/Hours'
         - $ref: '#/components/parameters/SampleLimit'
