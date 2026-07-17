@@ -929,7 +929,7 @@ adminContainerAuthorityCanaryPromotions:
     x-registry-exposure: admin_tool
     x-registry-tool-key: dynamic_container_canary_promotion
     x-openai-isConsequential: true
-    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
     requestBody:
       required: true
       content:
@@ -958,7 +958,7 @@ adminContainerAuthorityCanaryRollbacks:
     x-registry-exposure: admin_tool
     x-registry-tool-key: dynamic_container_canary_rollback
     x-openai-isConsequential: true
-    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
     requestBody:
       required: true
       content:
@@ -1003,7 +1003,7 @@ adminContainerAuthorityPreviewCanaryProbes:
     x-registry-exposure: admin_tool
     x-registry-tool-key: dynamic_container_preview_canary_probe_sampler
     x-openai-isConsequential: true
-    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
     requestBody:
       required: false
       content:
@@ -1029,7 +1029,7 @@ adminContainerAuthorityCanaryProbes:
     x-registry-exposure: admin_tool
     x-registry-tool-key: dynamic_container_canary_probe_sampler
     x-openai-isConsequential: true
-    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
     requestBody:
       required: false
       content:
