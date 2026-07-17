@@ -35,10 +35,12 @@ import {
 import { buildActivationGatewayRolloutPlan, runActivationGatewayDarkDeploy } from "../activationGatewayRolloutTool.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import {
+  CAPABILITY_ENVELOPE_BATCH_EXPIRE_MODES,
   CAPABILITY_ENVELOPE_LIFECYCLE_ACTIONS,
   capabilityEnvelopeError,
   markCapabilityEnvelopeReferenced,
   resolveCapabilityExecutionEnvelope,
+  runCapabilityEnvelopeBatchExpire,
   transitionCapabilityEnvelopeLifecycle,
 } from "../capabilityResolutionEnvelopeGuard.js";
 import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBranchFastForwardToBase, runGithubBranchMergeCommitCreate } from "../adminBranchReconciliationAdapter.js";
