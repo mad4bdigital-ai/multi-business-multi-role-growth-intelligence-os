@@ -26,6 +26,7 @@ const AUTH_GUARDS = new Set([
   "requireFreshLocalManagerDeviceForPrivilegedInstaller",
   "requireMcpToken",
   "verifyInstallerDownloadToken",
+  "requireGitHubWebhookSignature",
 ]);
 const AUTH_SCHEME_ALIASES = new Map([
   ["userBearerAuth", "userJwtAuth"],
