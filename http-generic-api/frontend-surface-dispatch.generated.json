@@ -1,8 +1,8 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": "6ea87be48d656e138a8862c0edebf773d5bbef37",
-    "source_digest": "3e512440931499c8fe9734c21e0221d857889f6f87f909dc8462aa38a2be5b29",
+    "ref": "7b71b014412102552326e78ca44e1143f977b6de",
+    "source_digest": "71c9520f346a920575a2317b9cc89dc96c6709373decfd238102f92f730f4bc1",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "3e9338c594d25122e825be047b69c0a70c098874a95ae922115512629bdd8964",
+        "sha256": "8b04575e61afb5b3ea24893a473c123cae7b573452f9adeb377338cea1ed85de",
         "present": true
       },
       {
@@ -41,7 +41,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "9331120f6bf83879b49cef9f5a00ad9641e5ccfb29e2b79b550db3cd7270a898",
+        "sha256": "7ca06ef914d3bee9cd0551ede36809144895e169ed93fd4304a2915f23a3f62b",
         "present": true
       },
       {
@@ -101,7 +101,7 @@
       },
       {
         "file": "openapi/session-insight-promotion-read-models.yaml",
-        "sha256": "f8f629bcca64eb66b87c6a2ea55993f797ba4e4f26dd5489d45fba7e83cd1f43",
+        "sha256": "5ed861f969dd4467f1023964d389029f480459d426d7cec49116dd37d6736968",
         "present": true
       },
       {
@@ -850,6 +850,11 @@
         "present": true
       },
       {
+        "file": "test-platform-plugin-public-rest-dispatch.mjs",
+        "sha256": "1961acfbcea314dc817fc1b516f9509c64e7c2623b2fc9b58acf395213362866",
+        "present": true
+      },
+      {
         "file": "test-platform-routes.mjs",
         "sha256": "1e3da1eea7ec8e55d96478f10a0d36ad62802309fe6bb24db3ee9ba98ee52347",
         "present": true
@@ -925,6 +930,11 @@
         "present": true
       },
       {
+        "file": "test-session-insight-remaining-scope-completion-service.mjs",
+        "sha256": "b3e6f6b2c0f20921d6ebc00053ffa2b0f09f0d2ae1ae3e473d41ae44f19808ad",
+        "present": true
+      },
+      {
         "file": "test-session-insight-target-adapter-registry-service.mjs",
         "sha256": "36eb05de37818b49823a1217ba10cdd0883db0706978f3350b1ddfd6ce0f142f",
         "present": true
@@ -966,11 +976,11 @@
     "mixed_scope_route_file_count": 21,
     "operation_count": 958,
     "openapi_documented_count": 942,
-    "openapi_canonical_documented_count": 561,
-    "openapi_generated_index_count": 381,
+    "openapi_canonical_documented_count": 562,
+    "openapi_generated_index_count": 380,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 381,
+    "openapi_detail_gap_count": 380,
     "auth_parity_counts": {
       "equivalent": 942,
       "exempt": 16
@@ -978,15 +988,15 @@
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 582,
-    "unresolved_operation_class_count": 550,
+    "unresolved_operation_class_count": 546,
     "classified_mutation_count": 4,
     "governed_mutation_operation_count": 0,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 147,
     "test_owned_family_count": 4,
     "untested_family_count": 154,
-    "test_owned_operation_count": 26,
-    "untested_operation_count": 932,
+    "test_owned_operation_count": 30,
+    "untested_operation_count": 928,
     "ready_task_count": 1,
     "blocked_task_count": 157,
     "coverage_complete": false
@@ -44710,8 +44720,8 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
+            "source_file": "openapi/session-insight-promotion-read-models.yaml",
+            "security_declared": false,
             "security_alternatives": [
               [
                 "adminBearerAuth"
@@ -44727,24 +44737,32 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-remaining-scope-completion-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "session-insight-remaining-scope-completion-list-read-action",
+            "owner": "platform-intelligence",
+            "rationale": "The endpoint reads remaining-scope completion rows, aggregates, and issue views with SELECT queries only; it cannot create a completion, request or execute an adapter apply, enable promotion, or write a target surface.",
+            "evidence_refs": [
+              "openapi/session-insight-promotion-read-models.yaml",
+              "sessionInsightRemainingScopeCompletionService.js",
+              "test-session-insight-remaining-scope-completion-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -44753,15 +44771,15 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
-        "POST /platform/session-insight-promotions/remaining-scope-completions/create",
-        "POST /platform/session-insight-promotions/remaining-scope-completions/list"
+        "POST /platform/session-insight-promotions/remaining-scope-completions/create"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
+      "tests": [
+        "test-session-insight-remaining-scope-completion-service.mjs"
+      ],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/remaining-scope-completions/create",
-        "POST /platform/session-insight-promotions/remaining-scope-completions/list"
+        "POST /platform/session-insight-promotions/remaining-scope-completions/create"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -44773,11 +44791,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightRemainingScopeCompletionRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-remaining-scope-completion-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -44787,12 +44807,6 @@
       "operation_blockers": [
         {
           "signature": "POST /platform/session-insight-promotions/remaining-scope-completions/create",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/session-insight-promotions/remaining-scope-completions/list",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -46453,17 +46467,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-plugin-smoke-certification-status-read-action",
+            "owner": "platform-plugins",
+            "rationale": "The endpoint executes one bounded SELECT over the smoke-certification ledger and returns safe metadata; it cannot certify a smoke run, recertify a plugin, update policy, or dispatch a provider request.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformPluginSmokeCertification.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46525,17 +46547,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-plugin-smoke-recertification-policy-resolve-read-action",
+            "owner": "platform-plugins",
+            "rationale": "The endpoint executes one bounded SELECT to resolve the most specific active smoke-recertification policy, falling back in memory to a static default; it cannot upsert, roll back, or audit a policy.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformPluginSmokeRecertificationPolicy.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46597,17 +46627,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-plugin-smoke-recertification-policy-list-read-action",
+            "owner": "platform-plugins",
+            "rationale": "The endpoint executes one bounded SELECT over the smoke-recertification policy registry and returns normalized safe metadata; it cannot upsert, roll back, or audit a policy.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformPluginSmokeRecertificationPolicy.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -48640,7 +48678,9 @@
         "POST /platform/plugins/smoke-certifications/policies/history",
         "POST /platform/plugins/smoke-certifications/policies/rollback-preview"
       ],
-      "tests": [],
+      "tests": [
+        "test-platform-plugin-public-rest-dispatch.mjs"
+      ],
       "untested_operations": [
         "GET /platform/plugins/catalog",
         "POST /platform/plugins/resolve",
@@ -48657,9 +48697,6 @@
         "POST /platform/orchestration/support-ticket/snapshot-propose",
         "POST /platform/orchestration/support-ticket/snapshot-record",
         "POST /platform/plugins/smoke-certifications/certify",
-        "POST /platform/plugins/smoke-certifications/status",
-        "POST /platform/plugins/smoke-certifications/policies/resolve",
-        "POST /platform/plugins/smoke-certifications/policies/list",
         "POST /platform/plugins/smoke-certifications/policies/upsert",
         "POST /platform/plugins/smoke-certifications/policies/history",
         "POST /platform/plugins/smoke-certifications/policies/rollback-preview",
@@ -48703,7 +48740,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/platformPluginRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-platform-plugin-public-rest-dispatch.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -48791,24 +48829,6 @@
         },
         {
           "signature": "POST /platform/plugins/smoke-certifications/certify",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/plugins/smoke-certifications/status",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/plugins/smoke-certifications/policies/resolve",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/plugins/smoke-certifications/policies/list",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -82440,7 +82460,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/platformPluginRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-platform-plugin-public-rest-dispatch.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -82452,7 +82473,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-platform-plugin-public-rest-dispatch.mjs"
       ]
     },
     {
@@ -83881,11 +83903,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightRemainingScopeCompletionRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-remaining-scope-completion-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -83897,7 +83921,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-remaining-scope-completion-service.mjs"
       ]
     },
     {

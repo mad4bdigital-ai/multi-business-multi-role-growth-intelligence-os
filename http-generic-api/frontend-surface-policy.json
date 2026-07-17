@@ -529,6 +529,42 @@
       "owner": "platform-intelligence",
       "rationale": "The endpoint reads target-write readback evidence and issue views with SELECT queries only; it cannot create readback evidence, modify a target item, execute rollback, call a provider, or perform an external write.",
       "evidence_refs": ["sessionInsightTargetWriteReadbackService.js", "test-session-insight-target-write-readback-service.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "session-insight-remaining-scope-completion-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/remaining-scope-completions/list",
+      "source_file": "routes/sessionInsightRemainingScopeCompletionRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads remaining-scope completion rows, aggregates, and issue views with SELECT queries only; it cannot create a completion, request or execute an adapter apply, enable promotion, or write a target surface.",
+      "evidence_refs": ["sessionInsightRemainingScopeCompletionService.js", "test-session-insight-remaining-scope-completion-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "platform-plugin-smoke-certification-status-read-action",
+      "operation": "POST /platform/plugins/smoke-certifications/status",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-plugins",
+      "rationale": "The endpoint executes one bounded SELECT over the smoke-certification ledger and returns safe metadata; it cannot certify a smoke run, recertify a plugin, update policy, or dispatch a provider request.",
+      "evidence_refs": ["platformPluginSmokeCertification.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-plugin-smoke-recertification-policy-resolve-read-action",
+      "operation": "POST /platform/plugins/smoke-certifications/policies/resolve",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-plugins",
+      "rationale": "The endpoint executes one bounded SELECT to resolve the most specific active smoke-recertification policy, falling back in memory to a static default; it cannot upsert, roll back, or audit a policy.",
+      "evidence_refs": ["platformPluginSmokeRecertificationPolicy.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-plugin-smoke-recertification-policy-list-read-action",
+      "operation": "POST /platform/plugins/smoke-certifications/policies/list",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-plugins",
+      "rationale": "The endpoint executes one bounded SELECT over the smoke-recertification policy registry and returns normalized safe metadata; it cannot upsert, roll back, or audit a policy.",
+      "evidence_refs": ["platformPluginSmokeRecertificationPolicy.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
     }
   ],
   "secrets_included": false
