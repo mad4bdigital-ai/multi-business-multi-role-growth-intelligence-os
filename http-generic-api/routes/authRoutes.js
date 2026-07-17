@@ -14,6 +14,7 @@ import {
   validateTenantGptOAuthClientCredentials,
 } from "../tenantGptOAuthClientConfig.js";
 import { recordTenantGptActivationContext } from "../tenantGptActivationContextStore.js";
+import { hasVerifiedGoogleIdentity, normalizeAuthEmail } from "../authIdentityNormalization.js";
 
 // Default fallback secret for development if missing.
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
