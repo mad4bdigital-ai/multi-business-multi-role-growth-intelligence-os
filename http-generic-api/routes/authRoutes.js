@@ -106,22 +106,6 @@ async function ensurePasswordResetTables() {
   `);
 }
 
-// Single-use OAuth code tracking: jti → expiry ms. Lazily cleaned.
-const _usedOAuthCodeJtis = new Map();
-function _markOAuthCodeUsed(jti, expSecs) {
-  _usedOAuthCodeJtis.set(jti, expSecs * 1000);
-  if (_usedOAuthCodeJtis.size > 1000) {
-    const now = Date.now();
-    for (const [k, e] of _usedOAuthCodeJtis) {
-      if (e <= now) _usedOAuthCodeJtis.delete(k);
-    }
-  }
-}
-function _isOAuthCodeUsed(jti) {
-  const exp = _usedOAuthCodeJtis.get(jti);
-  return exp !== undefined && exp > Date.now();
-}
-
 function cleanOption(value, allowed, fallback = null) {
   const normalized = String(value || "").trim().toLowerCase();
   return allowed.has(normalized) ? normalized : fallback;
