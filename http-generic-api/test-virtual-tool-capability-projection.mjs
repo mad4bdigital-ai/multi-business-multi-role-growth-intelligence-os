@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const migration = readFileSync(new URL("./migrations/20260717_virtual_tool_capability_projection.sql", import.meta.url), "utf8");
+const projection = readFileSync(new URL("./migrations/20260717_virtual_tool_capability_projection.sql", import.meta.url), "utf8");
+const readback = readFileSync(new URL("./migrations/20260717_virtual_tool_readback_readiness.sql", import.meta.url), "utf8");
 const bindingMigration = readFileSync(new URL("./migrations/311_sprint69_platform_tool_dispatch_binding_integrity.sql", import.meta.url), "utf8");
 
 for (const view of [
@@ -14,7 +15,7 @@ for (const view of [
   "v_platform_governed_bindings_current",
   "v_platform_governed_exports_current",
   "v_platform_virtual_tool_capability_gaps",
-]) assert.match(migration, new RegExp(`CREATE OR REPLACE VIEW ${view}`));
+]) assert.match(projection, new RegExp(`CREATE OR REPLACE VIEW ${view}`));
 
 for (const marker of [
   "no_provider_call=true",
@@ -31,10 +32,20 @@ for (const marker of [
   "TENANT_TO_ADMIN_SURFACE_BLOCKED",
   "CANONICAL_SOURCE_COLLISION_REVIEW_REQUIRED",
   "apply_allowed,0",
-]) assert.match(migration, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+]) assert.match(projection, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 
-assert.doesNotMatch(migration, /\bDROP\s+(TABLE|DATABASE)|\bTRUNCATE\s+TABLE|\bDELETE\s+FROM/i);
-assert.doesNotMatch(migration, /WHERE\s+[^;]*tool_key\s*=\s*['\"]repo_patch_batch_apply['\"]/i);
+for (const marker of [
+  "platform_capability_readback_contracts",
+  "v_platform_capability_readback_readiness",
+  "readiness_state IN ('ready','shadow_only')",
+  "CREATE OR REPLACE VIEW v_platform_capability_readiness_vector",
+  "'pending','shadow'",
+]) assert.match(readback, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+
+for (const migration of [projection, readback]) {
+  assert.doesNotMatch(migration, /\bDROP\s+(TABLE|DATABASE)|\bTRUNCATE\s+TABLE|\bDELETE\s+FROM/i);
+}
+assert.doesNotMatch(projection, /WHERE\s+[^;]*tool_key\s*=\s*['\"]repo_patch_batch_apply['\"]/i);
 assert.match(bindingMigration, /'repo_patch_batch_apply'/);
 assert.match(bindingMigration, /'github_file_patch_apply'/);
 assert.match(bindingMigration, /'github_change_set_branch_head_v1'/);
