@@ -615,6 +615,10 @@ For example, `/activation/session-context` is a runtime/admin-and-customer activ
 
 API contracts must follow OpenAPI 3.1. Public and Custom GPT schemas should use stable structured error envelopes, normally `ErrorResponse` with nested `ErrorObject` carrying machine-readable `code`, human-readable `message`, optional HTTP `status`, and optional bounded `details`.
 
+Checked-in contracts must pass deterministic lint and any applicable checked-in compatibility baseline before merge. Compatibility checks must fail closed for removed operations or success responses, changed `operationId` values, newly required parameters or request properties, removed required response properties, incompatible schema-reference or property-type changes, removed component properties, and removed enum values. Additive optional properties, operations, success responses, descriptions, examples, and enum values remain compatible unless a stricter contract policy applies.
+
+For Feature 006, the authoritative contract is `specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.yaml` and its reviewed baseline is `specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.baseline.json`. Run `npm run openapi:lint:compat` and `npm run test:openapi:lint:compat` from `http-generic-api`; both remain included in `npm run schemas:guard`. Baseline regeneration requires explicit confirmation after lint passes, and must never be used solely to silence CI. Approved breaking changes require a documented migration or deprecation plan before the baseline is accepted.
+
 When implementing layered application code, preserve folder boundaries:
 
 - `src/api`: transport adapters, request/response mapping, route/controller wiring, OpenAPI-facing contracts
