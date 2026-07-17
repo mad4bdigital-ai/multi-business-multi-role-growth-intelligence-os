@@ -17,6 +17,7 @@ const { buildAuthRoutes } = await import("./routes/authRoutes.js");
 const { buildActivationHostGatewayRoutes } = await import("./routes/activationHostGatewayRoutes.js");
 const { hasVerifiedGoogleIdentity, normalizeAuthEmail } = await import("./authIdentityNormalization.js");
 await import("./test-tenant-gpt-oauth-live-smoke.mjs");
+await import("./test-tenant-gpt-oauth-authorization-code-store.mjs");
 
 const TENANT_SCOPE_LINKS = [
   "https://auth.mad4b.com/scopes/tenant.links",
