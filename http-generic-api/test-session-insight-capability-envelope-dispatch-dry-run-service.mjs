@@ -4,6 +4,8 @@ import {
   listSessionInsightCapabilityEnvelopeDispatchDryRuns,
 } from "./sessionInsightCapabilityEnvelopeDispatchDryRunService.js";
 
+// frontend-surface-operation: POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/list
+
 function makePool() {
   const state = {
     calls: [],
@@ -143,6 +145,7 @@ function makePool() {
 {
   const pool = makePool();
   await createSessionInsightCapabilityEnvelopeDispatchDryRun({ pool, input: { request_gate_id: "capability_request_gate_1" } });
+  const listCallStart = pool.state.calls.length;
   const result = await listSessionInsightCapabilityEnvelopeDispatchDryRuns({ pool, filters: { limit: 5 } });
   assert.equal(result.ok, true);
   assert.equal(result.count, 1);
@@ -153,6 +156,11 @@ function makePool() {
   assert.equal(result.issues.length, 0);
   assert.equal(result.dispatch_dry_run_policy.dry_run_only, true);
   assert.equal(result.dispatch_dry_run_policy.secrets_included, false);
+  assert.equal(
+    pool.state.calls.slice(listCallStart).every(({ sql }) => String(sql).trimStart().startsWith("SELECT")),
+    true,
+    "dispatch dry-run list read action must execute SELECT statements only"
+  );
 }
 
 {
