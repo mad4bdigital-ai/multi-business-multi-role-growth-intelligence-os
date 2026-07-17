@@ -15,8 +15,8 @@ paths:
       operationId: getAdminOperationObservability
       summary: Read the aggregate Admin operation dashboard
       security:
-        - BackendApiKey: []
-        - AdminBearer: []
+        - backendApiKeyAuth: []
+        - adminBearerAuth: []
       parameters:
         - $ref: '#/components/parameters/Hours'
         - $ref: '#/components/parameters/SampleLimit'
