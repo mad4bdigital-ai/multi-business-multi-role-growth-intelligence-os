@@ -36,6 +36,8 @@ import {
   listSessionInsightCapabilityEnvelopeActualRequests,
 } from "./sessionInsightCapabilityEnvelopeActualRequestService.js";
 
+// frontend-surface-operation: POST /platform/session-insight-promotions/capability-envelope-actual-requests/list
+
 const REQUIRED_TYPED_CONFIRM = "REQUEST_ACTUAL_CAPABILITY_ENVELOPE_NO_EXECUTION";
 
 function makePool() {
@@ -252,6 +254,7 @@ const mockEnvelopeCreator = async ({ requestedBy, ttlMinutes, passthrough }) => 
     capabilityEnvelopeCreator: mockEnvelopeCreator,
     input: { actual_request_preflight_id: "capability_actual_request_preflight_1", typed_confirm: REQUIRED_TYPED_CONFIRM, created_by: "gpt_admin" },
   });
+  const listCallStart = pool.state.calls.length;
   const result = await listSessionInsightCapabilityEnvelopeActualRequests({ pool, filters: { limit: 5 } });
   assert.equal(result.ok, true);
   assert.equal(result.count, 1);
@@ -263,6 +266,11 @@ const mockEnvelopeCreator = async ({ requestedBy, ttlMinutes, passthrough }) => 
   assert.equal(result.actual_request_policy.requires_typed_confirm, REQUIRED_TYPED_CONFIRM);
   assert.equal(result.actual_request_policy.creates_approval_hold, false);
   assert.equal(result.actual_request_policy.secrets_included, false);
+  assert.equal(
+    pool.state.calls.slice(listCallStart).every(({ sql }) => String(sql).trimStart().startsWith("SELECT")),
+    true,
+    "actual-request list read action must execute SELECT statements only"
+  );
 }
 
 {
