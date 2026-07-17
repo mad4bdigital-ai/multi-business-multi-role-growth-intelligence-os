@@ -1001,19 +1001,31 @@ export function buildAuthRoutes(deps) {
       if (!payload.user_id) {
         return res.status(400).json({ ok: false, error: { code: "invalid_token", message: "User token is missing user_id." } });
       }
+      const codeJti = randomUUID();
+      const canonicalRedirectUri = canonicalizeTenantGptRedirectUri(redirect_uri) || redirect_uri;
+      const codeExpiresAt = new Date(Date.now() + OAUTH_CODE_TTL_SECONDS * 1000);
       const code = jwt.sign(
         {
           purpose: "custom_gpt_oauth_code",
           user_id: payload.user_id,
           email: payload.email,
           tenant_id: payload.tenant_id || null,
-          redirect_uri: canonicalizeTenantGptRedirectUri(redirect_uri) || redirect_uri,
+          redirect_uri: canonicalRedirectUri,
           scope: requested_scope || null,
           activation_context,
         },
         JWT_SECRET,
-        { expiresIn: OAUTH_CODE_TTL_SECONDS, jwtid: randomUUID() }
+        { expiresIn: OAUTH_CODE_TTL_SECONDS, jwtid: codeJti }
       );
+      await persistTenantGptOAuthAuthorizationCode({
+        query,
+        jti: codeJti,
+        user_id: payload.user_id,
+        tenant_id: payload.tenant_id || null,
+        client_id: TENANT_GPT_OAUTH_CLIENT_ID,
+        redirect_uri: canonicalRedirectUri,
+        expires_at: codeExpiresAt,
+      });
 
       return res.status(200).json({
         ok: true,
