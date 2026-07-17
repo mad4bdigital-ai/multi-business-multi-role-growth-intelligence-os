@@ -24,6 +24,7 @@ import {
 } from "../tenantResolutionCaseLifecycleService.js";
 import { runTenantResolutionDiagnosticAction } from "../tenantResolutionDiagnosticService.js";
 import { previewTenantTaskSourceRepair } from "../tenantTaskSourceRepairPreviewService.js";
+import { applyTenantTaskSourceRepair } from "../tenantTaskSourceRepairApplyService.js";
 import {
   listTenantSkillApprovals,
   decideTenantSkillApproval,
@@ -348,6 +349,21 @@ async function tenantResolutionDiagnosticActionResponse(req) {
 
 async function tenantTaskSourceRepairPreviewResponse(req) {
   return previewTenantTaskSourceRepair({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    caseId: req.params.caseId,
+    workspaceId: tenantWorkspaceScope(req),
+    input: req.body || {},
+  });
+}
+
+async function tenantTaskSourceRepairApplyResponse(req) {
+  return applyTenantTaskSourceRepair({
     sessionContext: subjectContext(req, false),
     explicitSubject: {
       is_admin: false,

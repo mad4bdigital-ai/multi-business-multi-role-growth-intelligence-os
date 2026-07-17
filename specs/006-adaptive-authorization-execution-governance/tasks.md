@@ -37,7 +37,7 @@
 
 - [x] T050 Register unit, integration, isolation, replay, stale-revision, ambiguity, and redaction tests.
 - [x] T051 Add OpenAPI lint and compatibility checks.
-- [ ] T052 Update canonicals and `AI_Agent_Knowledge_Guide.md` during implementation.
+- [x] T052 Update canonicals and `AI_Agent_Knowledge_Guide.md` during implementation.
 - [ ] T053 Run CI, dev verification, release readiness, rollback rehearsal, production parity, and post-merge audit.
 - [x] T060 Select `multi_pr` delivery.
 - [ ] T061 Record implementation, migration, rollout, and closeout PR evidence.
