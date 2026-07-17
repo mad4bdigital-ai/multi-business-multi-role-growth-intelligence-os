@@ -46,7 +46,7 @@ paths:
         Requires a valid user JWT and an active tenant membership. Tenant
         projections exclude Admin-only catalogs and sensitive action fields.
       security:
-        - TenantBearer: []
+        - userJwtAuth: []
       parameters:
         - $ref: '#/components/parameters/CatalogKey'
         - $ref: '#/components/parameters/Limit'
