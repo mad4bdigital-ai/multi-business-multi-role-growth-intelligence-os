@@ -257,14 +257,24 @@ async function fetchJwtClientMembership(pool, userId, requestedTenantId) {
 
 async function ensureDefaultWorkspaceForUser(connection, { userId, email, displayName, source }) {
   const [memberships] = await connection.query(
-    `SELECT m.tenant_id
+    `SELECT m.tenant_id,
+            m.status AS membership_status,
+            t.status AS tenant_status
        FROM \`memberships\` m
-      WHERE m.user_id = ? AND m.status = 'active'
-      ORDER BY m.granted_at ASC
-      LIMIT 1`,
+       LEFT JOIN \`tenants\` t ON t.tenant_id = m.tenant_id
+      WHERE m.user_id = ?
+      ORDER BY m.granted_at ASC`,
     [userId]
   );
-  if (memberships.length) return { created: false, tenant_id: memberships[0].tenant_id };
+
+  const activeMembership = memberships.find((row) => row.membership_status === "active" && row.tenant_status === "active");
+  if (activeMembership) return { created: false, tenant_id: activeMembership.tenant_id };
+  if (memberships.some((row) => row.membership_status !== "active")) {
+    throw authRouteFailure(403, "membership_revoked", "The existing workspace membership is not active.");
+  }
+  if (memberships.some((row) => row.tenant_status !== "active")) {
+    throw authRouteFailure(403, "tenant_suspended", "The existing workspace is not active.");
+  }
 
   const tenantId = randomUUID();
   const tenantName = `${displayName || email || "User"}'s workspace`;
