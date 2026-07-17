@@ -17,8 +17,8 @@ paths:
       operationId: getAdminManagedGitWorker
       summary: Read managed Git worker lifecycle evidence
       security:
-        - BackendApiKey: []
-        - AdminBearer: []
+        - backendApiKeyAuth: []
+        - adminBearerAuth: []
       parameters:
         - $ref: '#/components/parameters/WorkerId'
       responses:
