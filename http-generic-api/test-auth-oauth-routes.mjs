@@ -44,6 +44,13 @@ function section(name) {
   console.log(`\n== ${name}`);
 }
 
+section("identity normalization");
+assert("email normalization trims and lowercases", normalizeAuthEmail("  User@Example.COM  ") === "user@example.com");
+assert("verified Google identity is accepted", hasVerifiedGoogleIdentity({ sub: "google-sub", email: "User@Example.COM", email_verified: true }));
+assert("unverified Google identity is rejected", !hasVerifiedGoogleIdentity({ sub: "google-sub", email: "user@example.com", email_verified: false }));
+assert("missing Google verification claim is rejected", !hasVerifiedGoogleIdentity({ sub: "google-sub", email: "user@example.com" }));
+assert("missing Google subject is rejected", !hasVerifiedGoogleIdentity({ email: "user@example.com", email_verified: true }));
+
 function startServer(app) {
   return new Promise((resolve) => {
     const server = app.listen(0, () => {
