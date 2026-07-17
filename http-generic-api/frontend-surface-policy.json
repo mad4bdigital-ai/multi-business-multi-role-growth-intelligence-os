@@ -475,6 +475,60 @@
       "owner": "platform-intelligence",
       "rationale": "The endpoint reads actual-request preflight rows, aggregates, and issue views with SELECT queries only; it cannot create a preflight, call capability resolution, request an envelope, execute an adapter, or enable target writes.",
       "evidence_refs": ["sessionInsightCapabilityEnvelopeActualRequestPreflightService.js", "test-session-insight-capability-envelope-actual-request-preflight-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-actual-request-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-actual-requests/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeActualRequestRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads actual capability-envelope request rows, aggregates, and issue views with SELECT queries only; it cannot request an envelope, create an approval hold, execute an adapter, or enable target writes.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeActualRequestService.js", "test-session-insight-capability-envelope-actual-request-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-approval-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-approvals/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeApprovalRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads capability-envelope approval decisions, aggregates, and issue views with SELECT queries only; it cannot approve an envelope, create an approval hold, execute an adapter, or enable target writes.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeApprovalService.js", "test-session-insight-capability-envelope-approval-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-dispatch-readback-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeDispatchReadbackRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads capability-envelope dispatch readbacks, aggregates, and issue views with SELECT queries only; it cannot create a readback or execution gate, dispatch an envelope, execute an adapter, or enable target writes.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeDispatchReadbackService.js", "test-session-insight-capability-envelope-dispatch-readback-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-adapter-execution-gate-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeAdapterExecutionGateRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads capability-envelope adapter execution gates, aggregates, and issue views with SELECT queries only; it cannot create a gate, request or execute an adapter apply, enable execution or promotion, or write a target surface.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeAdapterExecutionGateService.js", "test-session-insight-capability-envelope-adapter-execution-gate-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-backlog-target-write-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/backlog-target-writes/list",
+      "source_file": "routes/sessionInsightBacklogTargetWriteRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads the internal SQL backlog target-write ledger and issue view with SELECT queries only; execute and rollback are separate operations, so this endpoint cannot create, modify, roll back, or externally dispatch a target write.",
+      "evidence_refs": ["sessionInsightBacklogTargetWriteService.js", "test-session-insight-backlog-target-write-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-target-write-readback-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/target-write-readbacks/list",
+      "source_file": "routes/sessionInsightTargetWriteReadbackRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads target-write readback evidence and issue views with SELECT queries only; it cannot create readback evidence, modify a target item, execute rollback, call a provider, or perform an external write.",
+      "evidence_refs": ["sessionInsightTargetWriteReadbackService.js", "test-session-insight-target-write-readback-service.mjs", "openapi.yaml"]
     }
   ],
   "secrets_included": false
