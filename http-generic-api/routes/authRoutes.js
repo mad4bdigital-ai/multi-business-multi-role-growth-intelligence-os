@@ -225,11 +225,12 @@ function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT
 
 async function fetchActiveUserForJwtClient(pool, { user_id, email }) {
   const hasUserId = typeof user_id === "string" && user_id.trim();
-  const hasEmail = typeof email === "string" && email.trim();
+  const normalizedEmail = normalizeAuthEmail(email);
+  const hasEmail = Boolean(normalizedEmail);
   if (!hasUserId && !hasEmail) return null;
 
   const where = hasUserId ? "u.user_id = ?" : "u.email = ?";
-  const param = hasUserId ? user_id.trim() : email.trim();
+  const param = hasUserId ? user_id.trim() : normalizedEmail;
   const [rows] = await pool.query(
     `SELECT u.user_id, u.email, u.display_name, u.status
        FROM \`users\` u
