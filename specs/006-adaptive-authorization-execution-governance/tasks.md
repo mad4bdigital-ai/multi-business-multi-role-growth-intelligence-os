@@ -38,10 +38,10 @@
 - [x] T050 Register unit, integration, isolation, replay, stale-revision, ambiguity, and redaction tests.
 - [x] T051 Add OpenAPI lint and compatibility checks.
 - [x] T052 Update canonicals and `AI_Agent_Knowledge_Guide.md` during implementation.
-- [ ] T053 Run CI, dev verification, release readiness, rollback rehearsal, production parity, and post-merge audit.
+- [x] T053 Run CI, dev verification, release readiness, rollback rehearsal, production parity, and post-merge audit.
 - [x] T060 Select `multi_pr` delivery.
-- [ ] T061 Record implementation, migration, rollout, and closeout PR evidence.
-- [ ] T062 Resolve all checklists and run `spec-kit-completion-gate.mjs --changed` before closeout.
+- [x] T061 Record implementation, migration, rollout, and closeout PR evidence.
+- [x] T062 Resolve all checklists and run `spec-kit-completion-gate.mjs --changed` before closeout.
 
 ## Delivery evidence and handoff
 
@@ -54,6 +54,6 @@
 - [x] D007 Complete the governed terminology review and SQL authority map.
 - [x] D008 Start the remaining-task loop after explicit instruction and record live PR2-adjacent resolver evidence.
 - [x] D009 Close the remaining decision-plane tasks T011 through T014 with implementation, tests, CI, and live readiness smoke.
-- [ ] D010 Close enforcement, adapter, pilot, migration, verification, rollout, and closeout tasks.
+- [x] D010 Close enforcement, adapter, pilot, migration, verification, rollout, and closeout tasks.
 
 See `terminology-review-2026-06-29.md`, `sql-authority-map-2026-06-29.md`, `handoff-report-2026-06-29.md`, `remaining-task-loop-2026-07-07.md`, `docs/tenant-capability-enforcement-kernel.md`, `docs/platform-execution-envelope-kernel.md`, `docs/platform-scoped-approval-kernel.md`, `docs/platform-execution-concurrency-kernel.md`, `docs/platform-adapter-contract-kernel.md`, `docs/platform-shadow-pilot-parity-kernel.md`, `docs/platform-shadow-mismatch-classification-kernel.md`, and `docs/platform-parity-threshold-approval-kernel.md`, and `docs/platform-legacy-capability-compatibility-wrapper.md`, and `docs/platform-adaptive-authorization-verification-manifest.md`.
