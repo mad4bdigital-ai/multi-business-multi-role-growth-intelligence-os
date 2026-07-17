@@ -14,8 +14,8 @@ paths:
       operationId: listAdminOperationGeneratedArtifacts
       summary: List generated artifact metadata for an operation run
       security:
-        - BackendApiKey: []
-        - AdminBearer: []
+        - backendApiKeyAuth: []
+        - adminBearerAuth: []
       parameters:
         - $ref: '#/components/parameters/RunId'
         - $ref: '#/components/parameters/Limit'
