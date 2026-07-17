@@ -15,6 +15,7 @@ import { readFileSync } from "node:fs";
 
 const { buildAuthRoutes } = await import("./routes/authRoutes.js");
 const { buildActivationHostGatewayRoutes } = await import("./routes/activationHostGatewayRoutes.js");
+const { hasVerifiedGoogleIdentity, normalizeAuthEmail } = await import("./authIdentityNormalization.js");
 await import("./test-tenant-gpt-oauth-live-smoke.mjs");
 
 const TENANT_SCOPE_LINKS = [
