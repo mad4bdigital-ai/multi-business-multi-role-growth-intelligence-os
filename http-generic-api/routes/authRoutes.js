@@ -774,10 +774,12 @@ export function buildAuthRoutes(deps) {
       throw authRouteFailure(401, "invalid_token", "Invalid Google ID token.");
     }
 
-    const { sub: provider_id, email, name: display_name } = payload || {};
-    if (!provider_id || !email) {
-      throw authRouteFailure(401, "invalid_token", "Google ID token is missing the required identity claims.");
+    if (!hasVerifiedGoogleIdentity(payload)) {
+      throw authRouteFailure(401, "google_identity_not_verified", "Google ID token must include a verified email identity.");
     }
+    const provider_id = String(payload.sub).trim();
+    const email = normalizeAuthEmail(payload.email);
+    const display_name = cleanText(payload.name || email, 120);
 
     const pool = resolvePool();
     const connection = await pool.getConnection();
