@@ -353,7 +353,15 @@ function requireEnv(name) {
 
 
 const app = express();
-app.use(express.json({ limit: JSON_BODY_LIMIT }));
+app.use(express.json({
+  limit: JSON_BODY_LIMIT,
+  verify: (req, _res, buffer) => {
+    const requestPath = String(req.originalUrl || req.url || "").split("?", 1)[0];
+    if (req.method === "POST" && requestPath === "/webhooks/github/repository-main-moved") {
+      req.rawBody = Buffer.from(buffer);
+    }
+  },
+}));
 
 
 
