@@ -26,8 +26,10 @@
     - [x] T018d.1 Resolve all runtime/canonical auth mismatches, missing comparisons, handler-level tokens, imported guards, and invalid/duplicate auth rules.
     - [x] T018d.2 Close operation-presence gaps with reviewed canonical public entrypoint contracts while keeping generated projections non-canonical.
     - [x] T018d.3 Classify thirteen proven non-mutating actions: nine capability-vault planning/resolution operations and four `router.all` root-discovery variants.
-    - [ ] T018d.4 Replace 395 operation-index-only entries with reviewed request/response detail contracts.
-    - [ ] T018d.5 Classify 565 remaining non-GET candidates with exact evidence and controls where consequential.
+    - [ ] T018d.4 Replace 392 remaining operation-index-only entries with reviewed request/response detail contracts.
+      - [x] T018d.4a Replace the first three entries with canonical adapter-contract, target-adapter, and apply-readiness read-model contracts.
+    - [ ] T018d.5 Classify 562 remaining non-GET candidates with exact evidence and controls where consequential.
+      - [x] T018d.5a Classify the three SELECT-only session-insight adapter read models and register explicit test ownership.
     - [ ] T018d.6 Add rollback/post-commit compensation for the four classified resource mutations.
 - [x] T019 Add generated-plan schema contract and changed-scope CI drift gate.
 

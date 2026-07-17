@@ -394,6 +394,33 @@
       "owner": "platform-intelligence",
       "rationale": "The endpoint returns a Google file-read strategy decision without contacting Google or mutating provider state.",
       "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "session-insight-adapter-contract-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/adapter-contracts/list",
+      "source_file": "routes/sessionInsightPromotionAdapterContractRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint runs two secret-filtered SELECT queries to return dry-run adapter contracts and apply-request mappings; it performs no insert, update, provider call, or external write.",
+      "evidence_refs": ["sessionInsightPromotionAdapterContractService.js", "test-session-insight-adapter-contract-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-target-adapter-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/target-adapters/list",
+      "source_file": "routes/sessionInsightPromotionTargetAdapterRegistryRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint runs two secret-filtered SELECT queries to return the skeleton adapter registry and apply-request mappings; it performs no insert, update, provider call, or external write.",
+      "evidence_refs": ["sessionInsightPromotionTargetAdapterRegistryService.js", "test-session-insight-target-adapter-registry-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-adapter-readiness-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/adapter-apply-readiness/list",
+      "source_file": "routes/sessionInsightAdapterApplyReadinessGateRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads readiness, summary, and issue views with SELECT queries only and cannot approve, execute, or write an adapter operation.",
+      "evidence_refs": ["sessionInsightAdapterApplyReadinessGateService.js", "test-session-insight-adapter-apply-readiness-gate-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
     }
   ],
   "secrets_included": false

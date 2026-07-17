@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readSessionInsightTargetAdapterRegistry } from "./sessionInsightPromotionTargetAdapterRegistryService.js";
 
+// frontend-surface-operation: POST /platform/session-insight-promotions/target-adapters/list
+
 function makePool() {
   const state = { calls: [] };
   return {
@@ -95,6 +97,11 @@ function makePool() {
   assert.equal(result.registry_policy.apply_supported_default, false);
   assert.equal(result.registry_policy.execution_allowed, false);
   assert.equal(result.registry_policy.secrets_included, false);
+  assert.equal(
+    pool.state.calls.every(({ sql }) => String(sql).trimStart().startsWith("SELECT")),
+    true,
+    "target adapter registry read action must execute SELECT statements only"
+  );
 }
 
 console.log("session insight target adapter registry service tests passed");

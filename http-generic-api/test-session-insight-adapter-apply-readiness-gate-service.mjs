@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { listSessionInsightAdapterApplyReadinessGate } from "./sessionInsightAdapterApplyReadinessGateService.js";
 
+// frontend-surface-operation: POST /platform/session-insight-promotions/adapter-apply-readiness/list
+
 function makePool() {
   const state = { calls: [] };
   return {
@@ -96,6 +98,11 @@ function makePool() {
   assert.equal(result.gate_policy.approval_sets_execution_allowed, false);
   assert.equal(result.gate_policy.approval_sets_target_write_allowed, false);
   assert.equal(result.gate_policy.secrets_included, false);
+  assert.equal(
+    pool.state.calls.every(({ sql }) => String(sql).trimStart().startsWith("SELECT")),
+    true,
+    "adapter readiness read action must execute SELECT statements only"
+  );
 }
 
 console.log("session insight adapter apply readiness gate service tests passed");
