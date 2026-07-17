@@ -14,6 +14,15 @@
       "evidence_refs": ["routes/platformFrontendRoutes.js", "public/platform", "test-platform-frontend-routes.mjs"]
     },
     {
+      "rule_id": "root-discovery-public-metadata",
+      "source_file": "routes/rootDiscoveryRoutes.js",
+      "scope": "public",
+      "decision": "api_only",
+      "owner": "runtime-operations",
+      "rationale": "The host-scoped root handler returns public discovery metadata for every registered method and is consumed as API bootstrap data, not as a standalone product surface.",
+      "evidence_refs": ["routes/rootDiscoveryRoutes.js", "test-platform-routes.mjs"]
+    },
+    {
       "rule_id": "connect-assets-compatibility",
       "path_prefix": "/connect/assets",
       "decision": "embedded_ui",
@@ -47,6 +56,30 @@
     }
   ],
   "auth_rules": [
+    {
+      "rule_id": "public-root-discovery-auth",
+      "operations": [
+        "GET /",
+        "POST /",
+        "PUT /",
+        "PATCH /",
+        "DELETE /"
+      ],
+      "source_file": "routes/rootDiscoveryRoutes.js",
+      "profile": "public",
+      "owner": "runtime-operations",
+      "rationale": "The root discovery handler has no authentication middleware and returns only host-scoped route metadata for every Express router.all method.",
+      "evidence_refs": ["routes/rootDiscoveryRoutes.js", "test-platform-routes.mjs"]
+    },
+    {
+      "rule_id": "public-status-root-auth",
+      "operation": "GET /",
+      "source_file": "routes/statusRoutes.js",
+      "profile": "public",
+      "owner": "runtime-operations",
+      "rationale": "The legacy status root handler is mounted without authentication and returns public service metadata.",
+      "evidence_refs": ["routes/statusRoutes.js"]
+    },
     {
       "rule_id": "public-runtime-metadata-auth",
       "operations": [
@@ -203,6 +236,42 @@
   ],
   "operation_rules": [
     {
+      "rule_id": "root-discovery-post-read-action",
+      "operation": "POST /",
+      "source_file": "routes/rootDiscoveryRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "Express router.all returns the same host-scoped discovery JSON for POST and performs no state or external write.",
+      "evidence_refs": ["routes/rootDiscoveryRoutes.js", "test-platform-routes.mjs"]
+    },
+    {
+      "rule_id": "root-discovery-put-read-action",
+      "operation": "PUT /",
+      "source_file": "routes/rootDiscoveryRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "Express router.all returns the same host-scoped discovery JSON for PUT and performs no state or external write.",
+      "evidence_refs": ["routes/rootDiscoveryRoutes.js", "test-platform-routes.mjs"]
+    },
+    {
+      "rule_id": "root-discovery-patch-read-action",
+      "operation": "PATCH /",
+      "source_file": "routes/rootDiscoveryRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "Express router.all returns the same host-scoped discovery JSON for PATCH and performs no state or external write.",
+      "evidence_refs": ["routes/rootDiscoveryRoutes.js", "test-platform-routes.mjs"]
+    },
+    {
+      "rule_id": "root-discovery-delete-read-action",
+      "operation": "DELETE /",
+      "source_file": "routes/rootDiscoveryRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "Express router.all returns the same host-scoped discovery JSON for DELETE and performs no state or external write.",
+      "evidence_refs": ["routes/rootDiscoveryRoutes.js", "test-platform-routes.mjs"]
+    },
+    {
       "rule_id": "tenant-resource-create-governance",
       "operation": "POST /me/workspaces/{tenant_id}/resources/{resourceKey}",
       "source_file": "routes/resourceApiRoutes.js",
@@ -325,6 +394,141 @@
       "owner": "platform-intelligence",
       "rationale": "The endpoint returns a Google file-read strategy decision without contacting Google or mutating provider state.",
       "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "session-insight-adapter-contract-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/adapter-contracts/list",
+      "source_file": "routes/sessionInsightPromotionAdapterContractRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint runs two secret-filtered SELECT queries to return dry-run adapter contracts and apply-request mappings; it performs no insert, update, provider call, or external write.",
+      "evidence_refs": ["sessionInsightPromotionAdapterContractService.js", "test-session-insight-adapter-contract-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-target-adapter-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/target-adapters/list",
+      "source_file": "routes/sessionInsightPromotionTargetAdapterRegistryRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint runs two secret-filtered SELECT queries to return the skeleton adapter registry and apply-request mappings; it performs no insert, update, provider call, or external write.",
+      "evidence_refs": ["sessionInsightPromotionTargetAdapterRegistryService.js", "test-session-insight-target-adapter-registry-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-adapter-readiness-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/adapter-apply-readiness/list",
+      "source_file": "routes/sessionInsightAdapterApplyReadinessGateRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads readiness, summary, and issue views with SELECT queries only and cannot approve, execute, or write an adapter operation.",
+      "evidence_refs": ["sessionInsightAdapterApplyReadinessGateService.js", "test-session-insight-adapter-apply-readiness-gate-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-promotion-review-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/review/list",
+      "source_file": "routes/sessionInsightPromotionReviewRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint runs two secret-filtered SELECT queries to return promotion proposals and aggregate review status; it cannot approve, reject, promote, or assign an executor.",
+      "evidence_refs": ["sessionInsightPromotionReviewService.js", "test-session-insight-promotion-review-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-payload-preview-review-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/payload-preview/review/list",
+      "source_file": "routes/sessionInsightPayloadPreviewReviewRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint runs two secret-filtered SELECT queries to return payload-preview review rows and aggregates; it cannot decide a review, enable execution, or write a target surface.",
+      "evidence_refs": ["sessionInsightPayloadPreviewReviewService.js", "test-session-insight-payload-preview-review-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-plan-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-plans/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopePlanRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads capability-envelope plan rows, aggregates, and issue views with SELECT queries only; it cannot create or request an envelope, execute an adapter, or enable target writes.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopePlanService.js", "test-session-insight-capability-envelope-plan-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-request-gate-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-request-gates/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeRequestGateRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads request-gate rows, review-state aggregates, and issue views with SELECT queries only; it cannot create or review a gate, request an envelope, create an approval hold, execute an adapter, or enable target writes.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeRequestGateService.js", "test-session-insight-capability-envelope-request-gate-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-dispatch-dry-run-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeDispatchDryRunRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads dispatch dry-run rows, aggregates, and issue views with SELECT queries only; it cannot generate or review a dry-run, call capability resolution, request an envelope, execute an adapter, or write a target surface.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeDispatchDryRunService.js", "test-session-insight-capability-envelope-dispatch-dry-run-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-actual-request-preflight-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeActualRequestPreflightRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads actual-request preflight rows, aggregates, and issue views with SELECT queries only; it cannot create a preflight, call capability resolution, request an envelope, execute an adapter, or enable target writes.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeActualRequestPreflightService.js", "test-session-insight-capability-envelope-actual-request-preflight-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-actual-request-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-actual-requests/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeActualRequestRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads actual capability-envelope request rows, aggregates, and issue views with SELECT queries only; it cannot request an envelope, create an approval hold, execute an adapter, or enable target writes.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeActualRequestService.js", "test-session-insight-capability-envelope-actual-request-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-approval-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-approvals/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeApprovalRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads capability-envelope approval decisions, aggregates, and issue views with SELECT queries only; it cannot approve an envelope, create an approval hold, execute an adapter, or enable target writes.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeApprovalService.js", "test-session-insight-capability-envelope-approval-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-dispatch-readback-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeDispatchReadbackRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads capability-envelope dispatch readbacks, aggregates, and issue views with SELECT queries only; it cannot create a readback or execution gate, dispatch an envelope, execute an adapter, or enable target writes.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeDispatchReadbackService.js", "test-session-insight-capability-envelope-dispatch-readback-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-adapter-execution-gate-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeAdapterExecutionGateRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads capability-envelope adapter execution gates, aggregates, and issue views with SELECT queries only; it cannot create a gate, request or execute an adapter apply, enable execution or promotion, or write a target surface.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeAdapterExecutionGateService.js", "test-session-insight-capability-envelope-adapter-execution-gate-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-backlog-target-write-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/backlog-target-writes/list",
+      "source_file": "routes/sessionInsightBacklogTargetWriteRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads the internal SQL backlog target-write ledger and issue view with SELECT queries only; execute and rollback are separate operations, so this endpoint cannot create, modify, roll back, or externally dispatch a target write.",
+      "evidence_refs": ["sessionInsightBacklogTargetWriteService.js", "test-session-insight-backlog-target-write-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-target-write-readback-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/target-write-readbacks/list",
+      "source_file": "routes/sessionInsightTargetWriteReadbackRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads target-write readback evidence and issue views with SELECT queries only; it cannot create readback evidence, modify a target item, execute rollback, call a provider, or perform an external write.",
+      "evidence_refs": ["sessionInsightTargetWriteReadbackService.js", "test-session-insight-target-write-readback-service.mjs", "openapi.yaml"]
     }
   ],
   "secrets_included": false

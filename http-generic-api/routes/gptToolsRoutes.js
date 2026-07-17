@@ -35,10 +35,12 @@ import {
 import { buildActivationGatewayRolloutPlan, runActivationGatewayDarkDeploy } from "../activationGatewayRolloutTool.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import {
+  CAPABILITY_ENVELOPE_BATCH_EXPIRE_MODES,
   CAPABILITY_ENVELOPE_LIFECYCLE_ACTIONS,
   capabilityEnvelopeError,
   markCapabilityEnvelopeReferenced,
   resolveCapabilityExecutionEnvelope,
+  runCapabilityEnvelopeBatchExpire,
   transitionCapabilityEnvelopeLifecycle,
 } from "../capabilityResolutionEnvelopeGuard.js";
 import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBranchFastForwardToBase, runGithubBranchMergeCommitCreate } from "../adminBranchReconciliationAdapter.js";
@@ -794,6 +796,28 @@ const VIRTUAL_ADMIN_TOOLS = [
         authorized_by: { type: "string", minLength: 1, maxLength: 64 },
         decision_note: { type: "string", minLength: 20, maxLength: 512 },
         ttl_minutes: { type: "integer", minimum: 5, maximum: 240, default: 60 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "capability_resolution_envelope_batch_expire",
+    displayName: "Expire Capability Resolution Envelopes in a Bounded Batch",
+    description: "Dry-run or apply a bounded expiration batch for envelopes that are already past expires_at, were requested by one actor, remain not_executed, have no execution_ref, contain no secrets, and are still in a pre-execution lifecycle state. Apply requires an exact reviewed plan hash, typed confirmation, a dedicated capability envelope, transactional row locking, same-cycle readback, and governance-envelope consumption. No provider call, external write, deploy, restart, gate mutation, or unrelated envelope transition.",
+    method: "VIRTUAL",
+    path: "internal://capability-resolution-envelope-batch-expire",
+    tags: ["admin", "capability_resolution", "lifecycle", "batch", "mutation", "dry_run_default", "typed_confirmation", "capability_envelope", "same_cycle_readback", "internal_sql_only", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: CAPABILITY_ENVELOPE_BATCH_EXPIRE_MODES, default: "dry_run" },
+        requested_by: { type: "string", minLength: 1, maxLength: 191, default: "gpt_admin" },
+        expired_before: { type: "string", format: "date-time" },
+        max_items: { type: "integer", minimum: 1, maximum: 100, default: 50 },
+        expected_plan_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        confirm: { type: "string", pattern: "^EXPIRE_CAPABILITY_ENVELOPES_[0-9A-F]{12}$" },
+        capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+        reason: { type: "string", minLength: 20, maxLength: 512 },
       },
       additionalProperties: false,
     },
@@ -2479,6 +2503,39 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
         };
       } catch (err) {
         return { status: err?.status || 500, body: { ok: false, error: { code: err?.code || "admin_control_db_mutation_serialization_smoke_failed", message: err?.message }, secrets_included: false } };
+      }
+    }
+
+    if (callerType === "admin" && toolKey === "capability_resolution_envelope_batch_expire") {
+      try {
+        const result = await runCapabilityEnvelopeBatchExpire({
+          pool: getPool(),
+          mode: String(args?.mode || "dry_run").trim(),
+          requestedBy: String(args?.requested_by || "gpt_admin").trim(),
+          expiredBefore: args?.expired_before || null,
+          maxItems: args?.max_items ?? 50,
+          expectedPlanSha256: String(args?.expected_plan_sha256 || "").trim(),
+          confirm: String(args?.confirm || "").trim(),
+          capabilityEnvelopeId: String(args?.capability_envelope_id || "").trim(),
+          reason: String(args?.reason || "").trim(),
+        });
+        return { status: 200, body: result };
+      } catch (err) {
+        return {
+          status: Number(err?.status) || 500,
+          body: {
+            ok: false,
+            error: {
+              code: err?.code || "capability_envelope_batch_expire_failed",
+              message: err?.message || "Capability envelope batch expiration failed.",
+              details: err?.details || undefined,
+            },
+            execution_allowed: false,
+            provider_write: false,
+            external_write: false,
+            secrets_included: false,
+          },
+        };
       }
     }
 

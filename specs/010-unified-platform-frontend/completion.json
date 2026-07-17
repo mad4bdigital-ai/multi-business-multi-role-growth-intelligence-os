@@ -14,9 +14,46 @@
       "number": 2579,
       "branch": "gpt/repo-driven-frontend-dispatch-20260713",
       "role": "specification_dispatch_and_f1_shell_foundation",
-      "status": "current_pr"
+      "status": "merged",
+      "merge_sha": "d1648852ae375f81fa9cba07af96af978df10a1d"
     },
-    "implementation_prs": [],
+    "implementation_prs": [
+      {
+        "number": 2735,
+        "branch": "gpt/frontend-dispatch-router-all-20260717",
+        "role": "router_all_discovery_auth_sync_and_governed_root_methods",
+        "status": "merged",
+        "merge_sha": "87901f8ec94d488a9fbb8c27441eb4366d19148e"
+      },
+      {
+        "number": 2738,
+        "branch": "gpt/frontend-dispatch-t018d-contracts-20260717",
+        "role": "session_insight_adapter_read_model_contracts_and_classification",
+        "status": "merged",
+        "merge_sha": "eaed12936e12bd1852e4303c0eb78cdf86a03e65"
+      },
+      {
+        "number": 2740,
+        "branch": "gpt/frontend-dispatch-t018d-read-models-wave2-20260717",
+        "role": "session_insight_review_planning_read_model_contracts_auth_error_alignment_and_classification",
+        "status": "merged",
+        "merge_sha": "0cb8960dbcb57985b10ac9b221ec32ed759b875f"
+      },
+      {
+        "number": 2743,
+        "branch": "gpt/frontend-dispatch-t018d-read-models-wave3-20260717",
+        "role": "session_insight_capability_envelope_lifecycle_read_model_contracts_and_classification",
+        "status": "merged",
+        "merge_sha": "bcfb1e73add75869755f80e5b04cb677163459b0"
+      },
+      {
+        "number": 2749,
+        "branch": "gpt/frontend-dispatch-t018d-read-models-wave4-20260717",
+        "role": "session_insight_capability_envelope_request_approval_dispatch_readback_contracts_and_classification",
+        "status": "merged",
+        "merge_sha": "6ea87be48d656e138a8862c0edebf773d5bbef37"
+      }
+    ],
     "closeout_pr": {
       "number": null,
       "branch": null,
@@ -33,21 +70,23 @@
       "delivery_dag": true
     },
     "implementation": {
-      "status": "f1_shell_foundation_in_current_pr",
+      "status": "t018d_in_progress",
       "dispatch_generator": true,
       "dispatch_fixture_tests": true,
       "full_repo_generated_plan": true,
       "runtime_openapi_auth_parity_model": true,
       "canonical_auth_sync_all_occurrences": true,
+      "canonical_runtime_auth_error_envelope_alignment": true,
       "runtime_openapi_auth_contract_gap_count": 0,
       "openapi_operation_presence_gap_count": 0,
-      "canonical_openapi_operation_count": 533,
-      "operation_index_detail_gap_count": 389,
+      "canonical_openapi_operation_count": 561,
+      "operation_index_detail_gap_count": 381,
+      "canonical_session_insight_read_model_count": 14,
       "operation_level_mutation_governance": true,
-      "classified_non_mutating_action_count": 9,
-      "unresolved_non_get_operation_count": 556,
+      "classified_non_mutating_action_count": 28,
+      "unresolved_non_get_operation_count": 550,
       "generated_runtime_openapi_index": true,
-      "t018_status": "auth_and_presence_complete_detail_classification_and_compensation_remaining_fail_closed",
+      "t018_status": "auth_and_presence_complete_first_fourteen_session_insight_read_models_canonical_lifecycle_enums_migration_aligned_and_next_three_select_only_actions_classified_remaining_detail_classification_and_compensation_fail_closed",
       "platform_shell": true,
       "browser_safe_surface_catalog": true,
       "light_dark_system_theme": true,

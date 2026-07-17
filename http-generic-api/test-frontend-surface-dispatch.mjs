@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import YAML from "yaml";
-import { buildDispatchPlan, expandRoutePaths, isDirectExecution, normalizeRoutePath, parseMountedRouteFiles, parseOpenApiContracts, parseOpenApiOperations, syncDispatchPlan } from "./scripts/frontend-surface-dispatch.mjs";
+import { buildDispatchPlan, expandRoutePaths, isDirectExecution, normalizeRoutePath, parseMountedRouteFiles, parseOpenApiContracts, parseOpenApiOperations, parseRoutesFromFile, parseTestEvidenceClaims, syncDispatchPlan } from "./scripts/frontend-surface-dispatch.mjs";
 import { serializedSecurity } from "./scripts/openapi-runtime-auth-sync.mjs";
 
 function write(root, relative, content) {
@@ -266,6 +266,17 @@ write(apiRoot, "frontend-surface-policy.json", JSON.stringify({
 assert.equal(isDirectExecution(new URL("./scripts/frontend-surface-dispatch.mjs", import.meta.url).href, process.argv[1]), false);
 assert.equal(normalizeRoutePath("/runtime/parity/:environmentKey?"), "/runtime/parity/{environmentKey}");
 assert.deepEqual(expandRoutePaths("/runtime/parity/:environmentKey?"), ["/runtime/parity", "/runtime/parity/{environmentKey}"]);
+assert.deepEqual(
+  parseRoutesFromFile('router.all("/root", requireUserJwt, handler);', "routes/rootRoutes.js")
+    .map((operation) => operation.signature),
+  ["GET /root", "POST /root", "PUT /root", "PATCH /root", "DELETE /root"],
+  "router.all registrations must expand into every governed HTTP method",
+);
+assert.deepEqual(
+  parseTestEvidenceClaims("// frontend-surface-operation: POST /\n// frontend-surface-operation: GET /nested\n"),
+  ["GET /nested", "POST /"],
+  "registered evidence must support the root path as well as nested paths",
+);
 assert.equal(parseOpenApiOperations(fs.readFileSync(path.join(apiRoot, "openapi.yaml"), "utf8")).size, 12);
 assert.equal(parseOpenApiOperations(fs.readFileSync(path.join(apiRoot, "openapi.yaml"), "utf8"), {
   sourcePath: path.join(apiRoot, "openapi.yaml"),

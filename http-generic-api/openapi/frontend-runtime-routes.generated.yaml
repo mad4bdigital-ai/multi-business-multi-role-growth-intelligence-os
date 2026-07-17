@@ -9,6 +9,92 @@ tags:
   - name: runtime-route-index
     description: Fail-closed generated inventory of runtime operations with explicit authentication evidence.
 paths:
+  /:
+    delete:
+      operationId: deleted81d1ce6
+      summary: DELETE / (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/rootDiscoveryRoutes.js
+      x-mad4b-runtime-auth:
+        profile: public
+        principal: anonymous
+        guard_chain: []
+        configuration_dependencies: &a1 []
+    get:
+      operationId: getc767025d
+      summary: GET / (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/rootDiscoveryRoutes.js
+      x-mad4b-runtime-auth:
+        profile: public
+        principal: anonymous
+        guard_chain: []
+        configuration_dependencies: *a1
+    patch:
+      operationId: patche11ce362
+      summary: PATCH / (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/rootDiscoveryRoutes.js
+      x-mad4b-runtime-auth:
+        profile: public
+        principal: anonymous
+        guard_chain: []
+        configuration_dependencies: *a1
+    post:
+      operationId: post7571cce8
+      summary: POST / (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/rootDiscoveryRoutes.js
+      x-mad4b-runtime-auth:
+        profile: public
+        principal: anonymous
+        guard_chain: []
+        configuration_dependencies: *a1
+    put:
+      operationId: put1e71fdac
+      summary: PUT / (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/rootDiscoveryRoutes.js
+      x-mad4b-runtime-auth:
+        profile: public
+        principal: anonymous
+        guard_chain: []
+        configuration_dependencies: *a1
   /agents/{id}/skills/{skill_id}:
     delete:
       operationId: deleteAgentsByIdSkillsBySkillId51649c3c
@@ -9051,52 +9137,6 @@ paths:
           - requireBackendApiKey
         configuration_dependencies:
           - BACKEND_API_KEY
-  /platform/session-insight-promotions/adapter-apply-readiness/list:
-    post:
-      operationId: postPlatformSessionInsightPromotionsAdapterApplyReadinessList3506d3e1
-      summary: POST /platform/session-insight-promotions/adapter-apply-readiness/list (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - adminBearerAuth: []
-        - backendApiKeyAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/sessionInsightAdapterApplyReadinessGateRoutes.js
-      x-mad4b-runtime-auth:
-        profile: admin_backend
-        principal: admin
-        guard_chain:
-          - requireAdminPrincipal
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
-  /platform/session-insight-promotions/adapter-contracts/list:
-    post:
-      operationId: postPlatformSessionInsightPromotionsAdapterContractsList60df8ba0
-      summary: POST /platform/session-insight-promotions/adapter-contracts/list (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - adminBearerAuth: []
-        - backendApiKeyAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/sessionInsightPromotionAdapterContractRoutes.js
-      x-mad4b-runtime-auth:
-        profile: admin_backend
-        principal: admin
-        guard_chain:
-          - requireAdminPrincipal
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
   /platform/session-insight-promotions/apply/request:
     post:
       operationId: postPlatformSessionInsightPromotionsApplyRequestbdc29859
@@ -9124,29 +9164,6 @@ paths:
     post:
       operationId: postPlatformSessionInsightPromotionsBacklogTargetWritesExecute1acbbe43
       summary: POST /platform/session-insight-promotions/backlog-target-writes/execute (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - adminBearerAuth: []
-        - backendApiKeyAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/sessionInsightBacklogTargetWriteRoutes.js
-      x-mad4b-runtime-auth:
-        profile: admin_backend
-        principal: admin
-        guard_chain:
-          - requireAdminPrincipal
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
-  /platform/session-insight-promotions/backlog-target-writes/list:
-    post:
-      operationId: postPlatformSessionInsightPromotionsBacklogTargetWritesList9ebb4a66
-      summary: POST /platform/session-insight-promotions/backlog-target-writes/list (runtime operation index)
       description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
       tags:
         - runtime-route-index
@@ -9212,56 +9229,10 @@ paths:
           - requireBackendApiKey
         configuration_dependencies:
           - BACKEND_API_KEY
-  /platform/session-insight-promotions/capability-envelope-actual-requests/list:
-    post:
-      operationId: postPlatformSessionInsightPromotionsCapabilityEnvelopeActualRequestsList59b536fd
-      summary: POST /platform/session-insight-promotions/capability-envelope-actual-requests/list (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - adminBearerAuth: []
-        - backendApiKeyAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/sessionInsightCapabilityEnvelopeActualRequestRoutes.js
-      x-mad4b-runtime-auth:
-        profile: admin_backend
-        principal: admin
-        guard_chain:
-          - requireAdminPrincipal
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
   /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/create:
     post:
       operationId: postPlatformSessionInsightPromotionsCapabilityEnvelopeActualRequestsPreflightsCreate9a829ad2
       summary: POST /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/create (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - adminBearerAuth: []
-        - backendApiKeyAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/sessionInsightCapabilityEnvelopeActualRequestPreflightRoutes.js
-      x-mad4b-runtime-auth:
-        profile: admin_backend
-        principal: admin
-        guard_chain:
-          - requireAdminPrincipal
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
-  /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/list:
-    post:
-      operationId: postPlatformSessionInsightPromotionsCapabilityEnvelopeActualRequestsPreflightsList79a1422a
-      summary: POST /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/list (runtime operation index)
       description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
       tags:
         - runtime-route-index
@@ -9304,29 +9275,6 @@ paths:
           - requireBackendApiKey
         configuration_dependencies:
           - BACKEND_API_KEY
-  /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/list:
-    post:
-      operationId: postPlatformSessionInsightPromotionsCapabilityEnvelopeAdapterExecutionGatesList8400efd2
-      summary: POST /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/list (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - adminBearerAuth: []
-        - backendApiKeyAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/sessionInsightCapabilityEnvelopeAdapterExecutionGateRoutes.js
-      x-mad4b-runtime-auth:
-        profile: admin_backend
-        principal: admin
-        guard_chain:
-          - requireAdminPrincipal
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
   /platform/session-insight-promotions/capability-envelope-approvals/decision:
     post:
       operationId: postPlatformSessionInsightPromotionsCapabilityEnvelopeApprovalsDecision69a4c0b7
@@ -9350,56 +9298,10 @@ paths:
           - requireBackendApiKey
         configuration_dependencies:
           - BACKEND_API_KEY
-  /platform/session-insight-promotions/capability-envelope-approvals/list:
-    post:
-      operationId: postPlatformSessionInsightPromotionsCapabilityEnvelopeApprovalsList7cba3ed6
-      summary: POST /platform/session-insight-promotions/capability-envelope-approvals/list (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - adminBearerAuth: []
-        - backendApiKeyAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/sessionInsightCapabilityEnvelopeApprovalRoutes.js
-      x-mad4b-runtime-auth:
-        profile: admin_backend
-        principal: admin
-        guard_chain:
-          - requireAdminPrincipal
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
   /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create:
     post:
       operationId: postPlatformSessionInsightPromotionsCapabilityEnvelopeDispatchDryRunsCreatebe459705
       summary: POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - adminBearerAuth: []
-        - backendApiKeyAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/sessionInsightCapabilityEnvelopeDispatchDryRunRoutes.js
-      x-mad4b-runtime-auth:
-        profile: admin_backend
-        principal: admin
-        guard_chain:
-          - requireAdminPrincipal
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
-  /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/list:
-    post:
-      operationId: postPlatformSessionInsightPromotionsCapabilityEnvelopeDispatchDryRunsList37cb45db
-      summary: POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/list (runtime operation index)
       description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
       tags:
         - runtime-route-index
@@ -9465,29 +9367,6 @@ paths:
           - requireBackendApiKey
         configuration_dependencies:
           - BACKEND_API_KEY
-  /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/list:
-    post:
-      operationId: postPlatformSessionInsightPromotionsCapabilityEnvelopeDispatchReadbacksListdce7cd2f
-      summary: POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/list (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - adminBearerAuth: []
-        - backendApiKeyAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/sessionInsightCapabilityEnvelopeDispatchReadbackRoutes.js
-      x-mad4b-runtime-auth:
-        profile: admin_backend
-        principal: admin
-        guard_chain:
-          - requireAdminPrincipal
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
   /platform/session-insight-promotions/capability-envelope-plans/create:
     post:
       operationId: postPlatformSessionInsightPromotionsCapabilityEnvelopePlansCreateba05d86c
@@ -9511,56 +9390,10 @@ paths:
           - requireBackendApiKey
         configuration_dependencies:
           - BACKEND_API_KEY
-  /platform/session-insight-promotions/capability-envelope-plans/list:
-    post:
-      operationId: postPlatformSessionInsightPromotionsCapabilityEnvelopePlansList5da2b662
-      summary: POST /platform/session-insight-promotions/capability-envelope-plans/list (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - adminBearerAuth: []
-        - backendApiKeyAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/sessionInsightCapabilityEnvelopePlanRoutes.js
-      x-mad4b-runtime-auth:
-        profile: admin_backend
-        principal: admin
-        guard_chain:
-          - requireAdminPrincipal
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
   /platform/session-insight-promotions/capability-envelope-request-gates/create:
     post:
       operationId: postPlatformSessionInsightPromotionsCapabilityEnvelopeRequestGatesCreate57dd541b
       summary: POST /platform/session-insight-promotions/capability-envelope-request-gates/create (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - adminBearerAuth: []
-        - backendApiKeyAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/sessionInsightCapabilityEnvelopeRequestGateRoutes.js
-      x-mad4b-runtime-auth:
-        profile: admin_backend
-        principal: admin
-        guard_chain:
-          - requireAdminPrincipal
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
-  /platform/session-insight-promotions/capability-envelope-request-gates/list:
-    post:
-      operationId: postPlatformSessionInsightPromotionsCapabilityEnvelopeRequestGatesList90d7f9db
-      summary: POST /platform/session-insight-promotions/capability-envelope-request-gates/list (runtime operation index)
       description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
       tags:
         - runtime-route-index
@@ -9672,29 +9505,6 @@ paths:
           - requireBackendApiKey
         configuration_dependencies:
           - BACKEND_API_KEY
-  /platform/session-insight-promotions/payload-preview/review/list:
-    post:
-      operationId: postPlatformSessionInsightPromotionsPayloadPreviewReviewList4302b1e8
-      summary: POST /platform/session-insight-promotions/payload-preview/review/list (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - adminBearerAuth: []
-        - backendApiKeyAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/sessionInsightPayloadPreviewReviewRoutes.js
-      x-mad4b-runtime-auth:
-        profile: admin_backend
-        principal: admin
-        guard_chain:
-          - requireAdminPrincipal
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
   /platform/session-insight-promotions/remaining-scope-completions/create:
     post:
       operationId: postPlatformSessionInsightPromotionsRemainingScopeCompletionsCreate9798d42d
@@ -9756,52 +9566,6 @@ paths:
           description: Runtime response shape is not yet captured by a reviewed canonical schema.
       x-contract-completeness: operation-index-only
       x-source-file: routes/sessionInsightPromotionReviewRoutes.js
-      x-mad4b-runtime-auth:
-        profile: admin_backend
-        principal: admin
-        guard_chain:
-          - requireAdminPrincipal
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
-  /platform/session-insight-promotions/review/list:
-    post:
-      operationId: postPlatformSessionInsightPromotionsReviewListcd8944ba
-      summary: POST /platform/session-insight-promotions/review/list (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - adminBearerAuth: []
-        - backendApiKeyAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/sessionInsightPromotionReviewRoutes.js
-      x-mad4b-runtime-auth:
-        profile: admin_backend
-        principal: admin
-        guard_chain:
-          - requireAdminPrincipal
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
-  /platform/session-insight-promotions/target-adapters/list:
-    post:
-      operationId: postPlatformSessionInsightPromotionsTargetAdaptersListc0575da4
-      summary: POST /platform/session-insight-promotions/target-adapters/list (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - adminBearerAuth: []
-        - backendApiKeyAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/sessionInsightPromotionTargetAdapterRegistryRoutes.js
       x-mad4b-runtime-auth:
         profile: admin_backend
         principal: admin
