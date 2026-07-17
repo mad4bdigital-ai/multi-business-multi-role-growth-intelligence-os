@@ -165,7 +165,7 @@
       "route_removal_allowed": false
     },
     "implementation": {
-      "status": "in_progress",
+      "status": "complete",
       "completed_tasks": [
         "T010",
         "T011",
@@ -184,16 +184,15 @@
         "T043",
         "T050",
         "T051",
-        "T052"
-      ],
-      "next_task_scope": "T053 run CI, dev verification, release readiness, rollback rehearsal, production parity, and post-merge audit",
-      "remaining_tasks": [
+        "T052",
         "T053",
         "T061",
         "T062",
         "D010"
       ],
-      "remaining_task_count": 4,
+      "next_task_scope": null,
+      "remaining_tasks": [],
+      "remaining_task_count": 0,
       "provider_mutation_allowed": false,
       "external_write_allowed": false,
       "enforcement_change_allowed": false,
