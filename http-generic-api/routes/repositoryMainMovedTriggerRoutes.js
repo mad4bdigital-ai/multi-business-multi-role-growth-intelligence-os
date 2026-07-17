@@ -27,6 +27,20 @@ function sendError(res, error) {
   });
 }
 
+export function createGitHubRepositoryMainMovedWebhookSignatureGuard(deps = {}) {
+  return async function requireGitHubWebhookSignature(req, res, next) {
+    try {
+      req.githubWebhookSignatureVerification = await verifyGitHubRepositoryMainMovedWebhookRequest({
+        headers: req.headers || {},
+        rawBody: req.rawBody,
+      }, deps);
+      return next();
+    } catch (error) {
+      return sendError(res, error);
+    }
+  };
+}
+
 export function buildRepositoryMainMovedTriggerRoutes({
   requireBackendApiKey,
   requireAdminPrincipal,
