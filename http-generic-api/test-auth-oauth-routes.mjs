@@ -51,6 +51,12 @@ assert("unverified Google identity is rejected", !hasVerifiedGoogleIdentity({ su
 assert("missing Google verification claim is rejected", !hasVerifiedGoogleIdentity({ sub: "google-sub", email: "user@example.com" }));
 assert("missing Google subject is rejected", !hasVerifiedGoogleIdentity({ email: "user@example.com", email_verified: true }));
 
+const identityHardeningMigration = readFileSync(new URL("./migrations/20260717_tenant_gpt_jit_identity_hardening.sql", import.meta.url), "utf8");
+assert("identity migration fails closed on duplicate subjects", identityHardeningMigration.includes("SIGNAL SQLSTATE ''45000''"));
+assert("identity migration ignores empty provider subjects", identityHardeningMigration.includes("TRIM(provider_id) <> ''"));
+assert("identity migration adds provider subject uniqueness", identityHardeningMigration.includes("UNIQUE KEY uq_user_credentials_provider_subject (auth_provider, provider_id)"));
+assert("identity migration is idempotent", identityHardeningMigration.includes("information_schema.statistics"));
+
 function startServer(app) {
   return new Promise((resolve) => {
     const server = app.listen(0, () => {
