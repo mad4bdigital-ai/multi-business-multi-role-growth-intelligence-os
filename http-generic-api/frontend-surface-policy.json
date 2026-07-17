@@ -14,6 +14,15 @@
       "evidence_refs": ["routes/platformFrontendRoutes.js", "public/platform", "test-platform-frontend-routes.mjs"]
     },
     {
+      "rule_id": "root-discovery-public-metadata",
+      "source_file": "routes/rootDiscoveryRoutes.js",
+      "scope": "public",
+      "decision": "api_only",
+      "owner": "runtime-operations",
+      "rationale": "The host-scoped root handler returns public discovery metadata for every registered method and is consumed as API bootstrap data, not as a standalone product surface.",
+      "evidence_refs": ["routes/rootDiscoveryRoutes.js", "test-platform-routes.mjs"]
+    },
+    {
       "rule_id": "connect-assets-compatibility",
       "path_prefix": "/connect/assets",
       "decision": "embedded_ui",
@@ -47,6 +56,30 @@
     }
   ],
   "auth_rules": [
+    {
+      "rule_id": "public-root-discovery-auth",
+      "operations": [
+        "GET /",
+        "POST /",
+        "PUT /",
+        "PATCH /",
+        "DELETE /"
+      ],
+      "source_file": "routes/rootDiscoveryRoutes.js",
+      "profile": "public",
+      "owner": "runtime-operations",
+      "rationale": "The root discovery handler has no authentication middleware and returns only host-scoped route metadata for every Express router.all method.",
+      "evidence_refs": ["routes/rootDiscoveryRoutes.js", "test-platform-routes.mjs"]
+    },
+    {
+      "rule_id": "public-status-root-auth",
+      "operation": "GET /",
+      "source_file": "routes/statusRoutes.js",
+      "profile": "public",
+      "owner": "runtime-operations",
+      "rationale": "The legacy status root handler is mounted without authentication and returns public service metadata.",
+      "evidence_refs": ["routes/statusRoutes.js"]
+    },
     {
       "rule_id": "public-runtime-metadata-auth",
       "operations": [
@@ -203,6 +236,42 @@
   ],
   "operation_rules": [
     {
+      "rule_id": "root-discovery-post-read-action",
+      "operation": "POST /",
+      "source_file": "routes/rootDiscoveryRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "Express router.all returns the same host-scoped discovery JSON for POST and performs no state or external write.",
+      "evidence_refs": ["routes/rootDiscoveryRoutes.js", "test-platform-routes.mjs"]
+    },
+    {
+      "rule_id": "root-discovery-put-read-action",
+      "operation": "PUT /",
+      "source_file": "routes/rootDiscoveryRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "Express router.all returns the same host-scoped discovery JSON for PUT and performs no state or external write.",
+      "evidence_refs": ["routes/rootDiscoveryRoutes.js", "test-platform-routes.mjs"]
+    },
+    {
+      "rule_id": "root-discovery-patch-read-action",
+      "operation": "PATCH /",
+      "source_file": "routes/rootDiscoveryRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "Express router.all returns the same host-scoped discovery JSON for PATCH and performs no state or external write.",
+      "evidence_refs": ["routes/rootDiscoveryRoutes.js", "test-platform-routes.mjs"]
+    },
+    {
+      "rule_id": "root-discovery-delete-read-action",
+      "operation": "DELETE /",
+      "source_file": "routes/rootDiscoveryRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "Express router.all returns the same host-scoped discovery JSON for DELETE and performs no state or external write.",
+      "evidence_refs": ["routes/rootDiscoveryRoutes.js", "test-platform-routes.mjs"]
+    },
+    {
       "rule_id": "tenant-resource-create-governance",
       "operation": "POST /me/workspaces/{tenant_id}/resources/{resourceKey}",
       "source_file": "routes/resourceApiRoutes.js",
@@ -325,6 +394,33 @@
       "owner": "platform-intelligence",
       "rationale": "The endpoint returns a Google file-read strategy decision without contacting Google or mutating provider state.",
       "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "session-insight-adapter-contract-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/adapter-contracts/list",
+      "source_file": "routes/sessionInsightPromotionAdapterContractRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint runs two secret-filtered SELECT queries to return dry-run adapter contracts and apply-request mappings; it performs no insert, update, provider call, or external write.",
+      "evidence_refs": ["sessionInsightPromotionAdapterContractService.js", "test-session-insight-adapter-contract-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-target-adapter-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/target-adapters/list",
+      "source_file": "routes/sessionInsightPromotionTargetAdapterRegistryRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint runs two secret-filtered SELECT queries to return the skeleton adapter registry and apply-request mappings; it performs no insert, update, provider call, or external write.",
+      "evidence_refs": ["sessionInsightPromotionTargetAdapterRegistryService.js", "test-session-insight-target-adapter-registry-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-adapter-readiness-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/adapter-apply-readiness/list",
+      "source_file": "routes/sessionInsightAdapterApplyReadinessGateRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads readiness, summary, and issue views with SELECT queries only and cannot approve, execute, or write an adapter operation.",
+      "evidence_refs": ["sessionInsightAdapterApplyReadinessGateService.js", "test-session-insight-adapter-apply-readiness-gate-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
     }
   ],
   "secrets_included": false

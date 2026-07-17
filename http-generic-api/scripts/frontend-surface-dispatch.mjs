@@ -661,16 +661,17 @@ function staticTemplateExpansions(source, sourceIndex, routeTemplate) {
   return unique(expanded);
 }
 
-function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver = "router_or_app" } = {}) {
+export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver = "router_or_app" } = {}) {
   const operations = [];
   const scanSource = maskJavaScriptComments(source);
   const aliases = middlewareAliases(scanSource);
   const receiverPattern = receiver === "app" ? "app" : "(?:router|app)";
-  const routeRe = new RegExp(`${receiverPattern}\\.(get|post|put|patch|delete)\\s*\\(\\s*([\"'\\x60])([^\"'\\x60]+)\\2`, "gs");
+  const routeRe = new RegExp(`${receiverPattern}\\.(get|post|put|patch|delete|all)\\s*\\(\\s*([\"'\\x60])([^\"'\\x60]+)\\2`, "gs");
   let match;
   while ((match = routeRe.exec(scanSource)) !== null) {
-    const method = match[1].toUpperCase();
-    if (!HTTP_METHODS.has(method)) continue;
+    const registrationMethod = match[1].toUpperCase();
+    const methods = registrationMethod === "ALL" ? [...HTTP_METHODS] : [registrationMethod];
+    if (methods.some((method) => !HTTP_METHODS.has(method))) continue;
     const opening = scanSource.indexOf("(", match.index);
     const closing = findMatchingDelimiter(scanSource, opening, "(", ")");
     if (closing < 0) continue;
@@ -686,16 +687,18 @@ function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver = "rout
       for (const expandedRoute of expandRoutePaths(route)) {
         const routePath = joinRoutePath(mountPrefix, expandedRoute);
         const inheritedGuards = activeRouterUseGuards(scanSource, match.index, routePath, aliases);
-        operations.push({
-          method,
-          path: routePath,
-          signature: `${method} ${routePath}`,
-          source_file: file,
-          source_index: match.index,
-          declaration,
-          route_guards: routeGuards,
-          inherited_guards: inheritedGuards,
-        });
+        for (const method of methods) {
+          operations.push({
+            method,
+            path: routePath,
+            signature: `${method} ${routePath}`,
+            source_file: file,
+            source_index: match.index,
+            declaration,
+            route_guards: routeGuards,
+            inherited_guards: inheritedGuards,
+          });
+        }
       }
     }
   }
@@ -752,6 +755,11 @@ function testFilesFromManifest(source = "") {
   return unique([...canonicalText(source).matchAll(/\bnode\s+((?:[A-Za-z0-9_.-]+\/)*test-[A-Za-z0-9_.-]+\.mjs)\b/g)].map((match) => match[1]));
 }
 
+export function parseTestEvidenceClaims(source = "") {
+  return unique([...canonicalText(source).matchAll(/^\s*\/\/\s*frontend-surface-operation:\s*(get|post|put|patch|delete)\s+(\/\S*)\s*$/gim)]
+    .map((match) => `${match[1].toUpperCase()} ${normalizeRoutePath(match[2])}`));
+}
+
 function loadRegisteredTestEvidence(apiRoot, testFiles) {
   const root = path.resolve(apiRoot);
   const bySignature = new Map();
@@ -761,8 +769,7 @@ function loadRegisteredTestEvidence(apiRoot, testFiles) {
     if (target !== root && !target.startsWith(`${root}${path.sep}`)) continue;
     const source = readText(target);
     let claimed = false;
-    for (const match of canonicalText(source).matchAll(/^\s*\/\/\s*frontend-surface-operation:\s*(get|post|put|patch|delete)\s+(\/\S+)\s*$/gim)) {
-      const signature = `${match[1].toUpperCase()} ${normalizeRoutePath(match[2])}`;
+    for (const signature of parseTestEvidenceClaims(source)) {
       if (!bySignature.has(signature)) bySignature.set(signature, []);
       bySignature.get(signature).push(testFile);
       claimed = true;

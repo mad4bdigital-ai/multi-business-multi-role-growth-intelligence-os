@@ -1,0 +1,386 @@
+openapi: 3.1.0
+info:
+  title: Session Insight Promotion Read Models API
+  version: 1.0.0
+  description: Canonical, secret-free contracts for administrative adapter and readiness read models. The POST methods accept bounded filter documents but execute SELECT-only read actions.
+servers:
+  - url: https://auth.mad4b.com
+security:
+  - adminBearerAuth: []
+  - backendApiKeyAuth: []
+tags:
+  - name: session-insight-promotion-read-models
+paths:
+  /platform/session-insight-promotions/adapter-contracts/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightPromotionAdapterContracts
+      summary: List dry-run adapter contracts and their apply-request mappings
+      description: Runs secret-filtered SELECT queries only. It does not create a preview, approve an apply request, invoke a provider, or write internal or external state.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdapterContractListRequest' }
+      responses:
+        '200':
+          description: Bounded adapter contracts and apply-request mapping readback.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdapterContractListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /platform/session-insight-promotions/target-adapters/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightPromotionTargetAdapters
+      summary: List skeleton target adapters and their apply-request mappings
+      description: Runs secret-filtered SELECT queries only. Registry rows explicitly keep apply and execution disabled until a capability envelope and implemented target adapter exist.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TargetAdapterListRequest' }
+      responses:
+        '200':
+          description: Bounded target-adapter registry and apply-request mapping readback.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TargetAdapterListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /platform/session-insight-promotions/adapter-apply-readiness/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightPromotionAdapterApplyReadiness
+      summary: Read adapter apply-readiness gates, summaries, and issues
+      description: Reads readiness views and aggregates with SELECT queries only. The operation cannot approve, execute, or write an adapter action and always reports secret-free evidence.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdapterApplyReadinessListRequest' }
+      responses:
+        '200':
+          description: Bounded readiness gates with aggregate status and issue counts.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdapterApplyReadinessListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+components:
+  securitySchemes:
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key
+      description: Backend API key supplied as a bearer token and accepted only when the runtime admin-principal guard also succeeds.
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: Administrative backend API key accepted by the runtime backend-key guard.
+  schemas:
+    AdapterContractListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        contract_key: { type: string, minLength: 1, maxLength: 255 }
+        adapter_key: { type: string, minLength: 1, maxLength: 255 }
+        promotion_type: { type: string, minLength: 1, maxLength: 128 }
+        target_surface: { type: string, minLength: 1, maxLength: 128 }
+        contract_status: { type: string, minLength: 1, maxLength: 64 }
+        status: { type: string, minLength: 1, maxLength: 64 }
+        q: { type: string, maxLength: 255 }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    TargetAdapterListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        adapter_key: { type: string, minLength: 1, maxLength: 255 }
+        promotion_type: { type: string, minLength: 1, maxLength: 128 }
+        target_surface: { type: string, minLength: 1, maxLength: 128 }
+        adapter_family: { type: string, minLength: 1, maxLength: 128 }
+        implementation_status: { type: string, minLength: 1, maxLength: 64 }
+        status: { type: string, minLength: 1, maxLength: 64 }
+        q: { type: string, maxLength: 255 }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    AdapterApplyReadinessListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        payload_preview_id: { type: string, minLength: 1, maxLength: 255 }
+        apply_request_id: { type: string, minLength: 1, maxLength: 255 }
+        promotion_id: { type: string, minLength: 1, maxLength: 255 }
+        promotion_type: { type: string, minLength: 1, maxLength: 128 }
+        target_surface: { type: string, minLength: 1, maxLength: 128 }
+        adapter_key: { type: string, minLength: 1, maxLength: 255 }
+        contract_key: { type: string, minLength: 1, maxLength: 255 }
+        gate_status: { type: string, minLength: 1, maxLength: 128 }
+        q: { type: string, maxLength: 255 }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    AdapterContractListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, contract_count, contracts, apply_request_mapping_count, apply_request_mappings, contract_policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        contract_count: { type: integer, minimum: 0 }
+        contracts:
+          type: array
+          items: { $ref: '#/components/schemas/AdapterContract' }
+        apply_request_mapping_count: { type: integer, minimum: 0 }
+        apply_request_mappings:
+          type: array
+          items: { $ref: '#/components/schemas/AdapterContractMapping' }
+        contract_policy: { $ref: '#/components/schemas/AdapterContractPolicy' }
+        secrets_included: { type: boolean, const: false }
+    AdapterContract:
+      type: object
+      additionalProperties: false
+      required: [contract_key, adapter_key, promotion_type, target_surface, contract_version, contract_status, contract_mode, payload_schema, required_fields, forbidden_fields, sample_payload, validator_rules, safety_contract, apply_supported, execution_allowed, status, secrets_included]
+      properties:
+        contract_key: { type: string }
+        adapter_key: { type: string }
+        promotion_type: { type: string }
+        target_surface: { type: string }
+        contract_version: { type: string }
+        contract_status: { type: string }
+        contract_mode: { type: string, enum: [dry_run_contract] }
+        payload_schema: { type: [object, 'null'], additionalProperties: true }
+        required_fields: { type: array, items: { type: string } }
+        forbidden_fields: { type: array, items: { type: string } }
+        sample_payload: { type: [object, 'null'], additionalProperties: true }
+        validator_rules: { type: array, items: { type: string } }
+        safety_contract: { type: [object, 'null'], additionalProperties: true }
+        apply_supported: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        status: { type: string }
+        secrets_included: { type: boolean, const: false }
+    AdapterContractMapping:
+      type: object
+      additionalProperties: false
+      required: [apply_request_id, preview_id, promotion_id, promotion_type, target_surface, adapter_key, contract_key, contract_status, contract_mode, request_status, adapter_readiness_status, contract_readiness_status, execution_allowed, apply_supported, blockers, secrets_included]
+      properties:
+        apply_request_id: { type: string }
+        preview_id: { type: string }
+        promotion_id: { type: string }
+        promotion_type: { type: string }
+        target_surface: { type: string }
+        adapter_key: { type: [string, 'null'] }
+        contract_key: { type: [string, 'null'] }
+        contract_status: { type: [string, 'null'] }
+        contract_mode: { type: [string, 'null'] }
+        request_status: { type: string }
+        adapter_readiness_status: { type: string }
+        contract_readiness_status: { type: string }
+        execution_allowed: { type: boolean, const: false }
+        apply_supported: { type: boolean, const: false }
+        blockers: { type: array, items: { type: string } }
+        secrets_included: { type: boolean, const: false }
+    AdapterContractPolicy:
+      type: object
+      additionalProperties: false
+      required: [dry_run_contract_only, apply_supported_default, execution_allowed, payload_schema_readback_only, capability_envelope_required_for_apply, target_adapter_implementation_required_for_apply, raw_transcript_included, secrets_included]
+      properties:
+        dry_run_contract_only: { type: boolean, const: true }
+        apply_supported_default: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        payload_schema_readback_only: { type: boolean, const: true }
+        capability_envelope_required_for_apply: { type: boolean, const: true }
+        target_adapter_implementation_required_for_apply: { type: boolean, const: true }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    TargetAdapterListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, adapter_count, adapters, apply_request_mapping_count, apply_request_mappings, registry_policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        adapter_count: { type: integer, minimum: 0 }
+        adapters:
+          type: array
+          items: { $ref: '#/components/schemas/TargetAdapter' }
+        apply_request_mapping_count: { type: integer, minimum: 0 }
+        apply_request_mappings:
+          type: array
+          items: { $ref: '#/components/schemas/TargetAdapterMapping' }
+        registry_policy: { $ref: '#/components/schemas/TargetAdapterRegistryPolicy' }
+        secrets_included: { type: boolean, const: false }
+    TargetAdapter:
+      type: object
+      additionalProperties: false
+      required: [adapter_key, display_name, promotion_type, target_surface, target_operation, adapter_family, implementation_status, execution_mode, apply_supported, capability_key_required, capability_envelope_required, dry_run_tool_key, apply_tool_key, policy_key, validator_commands, safety_contract, status, created_at, updated_at, secrets_included]
+      properties:
+        adapter_key: { type: string }
+        display_name: { type: string }
+        promotion_type: { type: string }
+        target_surface: { type: string }
+        target_operation: { type: string }
+        adapter_family: { type: string }
+        implementation_status: { type: string, enum: [skeleton, implemented, deprecated] }
+        execution_mode: { type: string, enum: [registry_only, dry_run, apply] }
+        apply_supported: { type: boolean, const: false }
+        capability_key_required: { type: [string, 'null'] }
+        capability_envelope_required: { type: boolean }
+        dry_run_tool_key: { type: [string, 'null'] }
+        apply_tool_key: { type: [string, 'null'] }
+        policy_key: { type: [string, 'null'] }
+        validator_commands: { type: array, items: { type: string } }
+        safety_contract: { type: [object, 'null'], additionalProperties: true }
+        status: { type: string }
+        created_at: { type: [string, 'null'] }
+        updated_at: { type: [string, 'null'] }
+        secrets_included: { type: boolean, const: false }
+    TargetAdapterMapping:
+      type: object
+      additionalProperties: false
+      required: [apply_request_id, preview_id, promotion_id, promotion_type, target_surface, requested_operation, request_status, execution_allowed, execution_status, adapter_key, adapter_status, adapter_apply_supported, capability_key_required, mapping_status, blockers, secrets_included]
+      properties:
+        apply_request_id: { type: string }
+        preview_id: { type: string }
+        promotion_id: { type: string }
+        promotion_type: { type: string }
+        target_surface: { type: string }
+        requested_operation: { type: string }
+        request_status: { type: string }
+        execution_allowed: { type: boolean, const: false }
+        execution_status: { type: string }
+        adapter_key: { type: [string, 'null'] }
+        adapter_status: { type: [string, 'null'] }
+        adapter_apply_supported: { type: boolean, const: false }
+        capability_key_required: { type: [string, 'null'] }
+        mapping_status: { type: string }
+        blockers: { type: array, items: { type: string } }
+        secrets_included: { type: boolean, const: false }
+    TargetAdapterRegistryPolicy:
+      type: object
+      additionalProperties: false
+      required: [registry_only, apply_supported_default, adapters_are_skeletons, capability_envelope_required, target_adapter_implementation_required_for_apply, execution_allowed, raw_transcript_included, secrets_included]
+      properties:
+        registry_only: { type: boolean, const: true }
+        apply_supported_default: { type: boolean, const: false }
+        adapters_are_skeletons: { type: boolean, const: true }
+        capability_envelope_required: { type: boolean, const: true }
+        target_adapter_implementation_required_for_apply: { type: boolean, const: true }
+        execution_allowed: { type: boolean, const: false }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    AdapterApplyReadinessListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, count, gates, summary, issues, gate_policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        count: { type: integer, minimum: 0 }
+        gates:
+          type: array
+          items: { $ref: '#/components/schemas/AdapterApplyReadinessGate' }
+        summary:
+          type: array
+          items: { $ref: '#/components/schemas/AdapterApplyReadinessSummary' }
+        issues:
+          type: array
+          items: { $ref: '#/components/schemas/AdapterApplyReadinessIssue' }
+        gate_policy: { $ref: '#/components/schemas/AdapterApplyReadinessPolicy' }
+        secrets_included: { type: boolean, const: false }
+    AdapterApplyReadinessGate:
+      type: object
+      additionalProperties: false
+      required: [payload_preview_id, apply_request_id, promotion_id, insight_id, promotion_type, target_surface, adapter_key, contract_key, promotion_approval_status, promotion_status, payload_review_status, payload_decision_status, request_status, adapter_implementation_status, capability_envelope_required, capability_envelope_id, target_adapter_key, promotion_allowed, execution_allowed, target_write_allowed, adapter_apply_supported, contract_apply_supported, contract_execution_allowed, valid_for_dry_run_contract, gate_status, blockers, readiness_evidence, secrets_included]
+      properties:
+        payload_preview_id: { type: string }
+        apply_request_id: { type: string }
+        promotion_id: { type: string }
+        insight_id: { type: string }
+        promotion_type: { type: string }
+        target_surface: { type: string }
+        adapter_key: { type: [string, 'null'] }
+        contract_key: { type: [string, 'null'] }
+        promotion_approval_status: { type: [string, 'null'] }
+        promotion_status: { type: [string, 'null'] }
+        payload_review_status: { type: [string, 'null'] }
+        payload_decision_status: { type: [string, 'null'] }
+        request_status: { type: [string, 'null'] }
+        adapter_implementation_status: { type: [string, 'null'] }
+        capability_envelope_required: { type: boolean }
+        capability_envelope_id: { type: [string, 'null'] }
+        target_adapter_key: { type: [string, 'null'] }
+        promotion_allowed: { type: boolean }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        adapter_apply_supported: { type: boolean, const: false }
+        contract_apply_supported: { type: boolean, const: false }
+        contract_execution_allowed: { type: boolean, const: false }
+        valid_for_dry_run_contract: { type: boolean }
+        gate_status: { type: string }
+        blockers: { type: array, items: { type: string } }
+        readiness_evidence: { type: [object, 'null'], additionalProperties: true }
+        secrets_included: { type: boolean, const: false }
+    AdapterApplyReadinessSummary:
+      type: object
+      additionalProperties: false
+      required: [gate_status, target_surface, count]
+      properties:
+        gate_status: { type: string }
+        target_surface: { type: string }
+        count: { type: integer, minimum: 0 }
+    AdapterApplyReadinessIssue:
+      type: object
+      additionalProperties: false
+      required: [issue_code, severity, count]
+      properties:
+        issue_code: { type: string }
+        severity: { type: string }
+        count: { type: integer, minimum: 0 }
+    AdapterApplyReadinessPolicy:
+      type: object
+      additionalProperties: false
+      required: [read_only_gate, adapter_apply_executed, approval_sets_execution_allowed, approval_sets_target_write_allowed, promotion_allowed_must_remain_false_in_gate, target_adapter_implementation_required, capability_envelope_required, raw_transcript_included, secrets_included]
+      properties:
+        read_only_gate: { type: boolean, const: true }
+        adapter_apply_executed: { type: boolean, const: false }
+        approval_sets_execution_allowed: { type: boolean, const: false }
+        approval_sets_target_write_allowed: { type: boolean, const: false }
+        promotion_allowed_must_remain_false_in_gate: { type: boolean, const: true }
+        target_adapter_implementation_required: { type: boolean, const: true }
+        capability_envelope_required: { type: boolean, const: true }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [ok, error, secrets_included]
+      properties:
+        ok: { type: boolean, const: false }
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: {}
+        secrets_included: { type: boolean, const: false }
+  responses:
+    Unauthorized:
+      description: Administrative backend authentication is missing or invalid.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Forbidden:
+      description: The authenticated principal lacks administrative authority.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    InternalError:
+      description: The read model query failed without exposing stack traces or secrets.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }

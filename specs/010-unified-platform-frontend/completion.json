@@ -14,9 +14,18 @@
       "number": 2579,
       "branch": "gpt/repo-driven-frontend-dispatch-20260713",
       "role": "specification_dispatch_and_f1_shell_foundation",
-      "status": "current_pr"
+      "status": "merged",
+      "merge_sha": "d1648852ae375f81fa9cba07af96af978df10a1d"
     },
-    "implementation_prs": [],
+    "implementation_prs": [
+      {
+        "number": 2735,
+        "branch": "gpt/frontend-dispatch-router-all-20260717",
+        "role": "router_all_discovery_auth_sync_and_governed_root_methods",
+        "status": "merged",
+        "merge_sha": "87901f8ec94d488a9fbb8c27441eb4366d19148e"
+      }
+    ],
     "closeout_pr": {
       "number": null,
       "branch": null,
@@ -33,7 +42,7 @@
       "delivery_dag": true
     },
     "implementation": {
-      "status": "f1_shell_foundation_in_current_pr",
+      "status": "t018d_in_progress",
       "dispatch_generator": true,
       "dispatch_fixture_tests": true,
       "full_repo_generated_plan": true,
@@ -41,13 +50,14 @@
       "canonical_auth_sync_all_occurrences": true,
       "runtime_openapi_auth_contract_gap_count": 0,
       "openapi_operation_presence_gap_count": 0,
-      "canonical_openapi_operation_count": 533,
-      "operation_index_detail_gap_count": 389,
+      "canonical_openapi_operation_count": 550,
+      "operation_index_detail_gap_count": 392,
+      "canonical_session_insight_read_model_count": 3,
       "operation_level_mutation_governance": true,
-      "classified_non_mutating_action_count": 9,
-      "unresolved_non_get_operation_count": 556,
+      "classified_non_mutating_action_count": 16,
+      "unresolved_non_get_operation_count": 562,
       "generated_runtime_openapi_index": true,
-      "t018_status": "auth_and_presence_complete_detail_classification_and_compensation_remaining_fail_closed",
+      "t018_status": "auth_and_presence_complete_first_three_read_models_canonical_and_classified_remaining_detail_classification_and_compensation_fail_closed",
       "platform_shell": true,
       "browser_safe_surface_catalog": true,
       "light_dark_system_theme": true,

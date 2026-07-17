@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readSessionInsightAdapterDryRunContracts } from "./sessionInsightPromotionAdapterContractService.js";
 
+// frontend-surface-operation: POST /platform/session-insight-promotions/adapter-contracts/list
+
 function makePool() {
   const state = { calls: [] };
   return {
@@ -89,6 +91,11 @@ function makePool() {
   assert.equal(result.contract_policy.dry_run_contract_only, true);
   assert.equal(result.contract_policy.execution_allowed, false);
   assert.equal(result.contract_policy.secrets_included, false);
+  assert.equal(
+    pool.state.calls.every(({ sql }) => String(sql).trimStart().startsWith("SELECT")),
+    true,
+    "adapter contract read action must execute SELECT statements only"
+  );
 }
 
 console.log("session insight adapter dry-run contract service tests passed");
