@@ -369,8 +369,20 @@ function testRepositoryContracts() {
   assert.doesNotMatch(contextIndexMigration, /idx_gst_session_context_lookup/);
 
   assert.ok(openapi.includes("/sessions:"), "OpenAPI must include /sessions");
-  assert.match(openapi, /context_scope:/);
-  assert.match(openapi, /enum: \[session, turn, any\]/);
+  const openapiDocument = YAML.parse(openapi);
+  const listSessionsOperation = openapiDocument.paths?.["/sessions"]?.get;
+  assert.ok(listSessionsOperation, "OpenAPI must include GET /sessions");
+  const contextScopeParameter = (listSessionsOperation.parameters || []).find(
+    (parameter) =>
+      parameter?.in === "query" &&
+      parameter?.name === "context_scope"
+  );
+  assert.ok(
+    contextScopeParameter,
+    "GET /sessions must include context_scope as a query parameter"
+  );
+  assert.deepEqual(contextScopeParameter.schema?.enum, ["session", "turn", "any"]);
+  assert.equal(contextScopeParameter.schema?.default, "session");
   assert.ok(openapi.includes("/gpt/sessions/{id}/turn:"), "OpenAPI must include single GPT turn writer");
   assert.ok(openapi.includes("/gpt/sessions/{id}/turns:"), "OpenAPI must include GPT turns collection");
   assert.match(openapi, /operationId: writeGptSessionTurn/);
