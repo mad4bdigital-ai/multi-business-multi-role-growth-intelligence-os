@@ -8,8 +8,10 @@ import {
   GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET_REF,
   handleGitHubRepositoryMainMovedWebhook,
   normalizeGitHubRepositoryMainMovedWebhook,
+  verifyGitHubRepositoryMainMovedWebhookRequest,
   verifyGitHubWebhookSignature,
 } from "./githubRepositoryMainMovedWebhookService.js";
+import { createGitHubRepositoryMainMovedWebhookSignatureGuard } from "./routes/repositoryMainMovedTriggerRoutes.js";
 import { normalizeRepositoryMainMovedEvent } from "./repositoryMainMovedTriggerService.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
