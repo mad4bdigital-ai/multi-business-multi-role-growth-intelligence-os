@@ -266,4 +266,59 @@ assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
   assert.equal(access.authorized.admin_tools[0].tool_key, "release_readiness");
 }
 
+{
+  const runConnectedAppAuthGapCase = async (connectedAppRows) => {
+    const query = async (sql) => {
+      if (sql.includes("FROM `activation_authorized_surface_registry`")) {
+        return {
+          ok: true,
+          rows: [{
+            surface_key: "connected_app_connections",
+            display_name: "Connected App Connections",
+            source_table: "v_activation_connected_app_connections",
+            result_key_column: "app_key",
+            result_label_column: "app_key",
+            tenant_column: "tenant_id",
+            user_column: null,
+            status_column: "connection_status",
+            active_status_values_json: JSON.stringify(["active"]),
+            result_columns_json: JSON.stringify(["tenant_id", "app_key", "connection_status"]),
+            include_for_admin: 1,
+            include_for_tenant: 1,
+            max_rows: 5,
+            sort_order: 10,
+            status: "active"
+          }]
+        };
+      }
+      if (sql.includes("FROM `v_activation_connected_app_connections`")) return { ok: true, rows: connectedAppRows };
+      if (sql.includes("FROM `memberships`")) return { ok: true, rows: [{ tenant_id: "tenant-a", role: "owner", status: "active" }] };
+      if (sql.includes("FROM `role_assignments`")) return { ok: true, rows: [] };
+      if (sql.includes("FROM `workspace_registry`")) return { ok: true, rows: [{ workspace_id: "workspace-1", tenant_id: "tenant-a", workspace_key: "tenant-a", display_name: "Tenant A", workspace_type: "tenant", bootstrap_status: "ready" }] };
+      if (sql.includes("FROM `connected_systems`")) return { ok: true, rows: [] };
+      if (sql.includes("FROM `installations`")) return { ok: true, rows: [] };
+      if (sql.includes("FROM `permission_grants`")) return { ok: true, rows: [{ permission_key: "tenant_status", tenant_id: "tenant-a", installation_id: null, granted: 1 }] };
+      if (sql.includes("FROM `actions`")) return { ok: true, rows: [{ action_key: "tenant_status", action_title: "Tenant Status", action_class: "read", connector_family: null, runtime_capability_class: "tenant_read", runtime_callable: "true", admin_only: "false", allowed_actor_roles: "owner", allowed_governance_levels: "tenant" }] };
+      if (sql.includes("FROM `tenant_gpt_activation_contexts`")) return { ok: true, rows: [] };
+      return { ok: true, rows: [] };
+    };
+
+    return buildActivationAuthorizedAccess(
+      { auth: { mode: "user_jwt", is_admin: false, user_id: "user-a", tenant_id: "tenant-a" }, query: {} },
+      { is_admin: false, user_id: "user-a", tenant_id: "tenant-a" },
+      { query }
+    );
+  };
+
+  const withConnectedApp = await runConnectedAppAuthGapCase([
+    { tenant_id: "tenant-a", app_key: "tenant_gpt", connection_status: "active" }
+  ]);
+  assert.equal(withConnectedApp.counts.connected_systems, 0);
+  assert.equal(withConnectedApp.auth_gaps.includes("no_visible_connected_systems"), false);
+  assert.equal(withConnectedApp.authorized.registered_surfaces[0].surface_key, "connected_app_connections");
+
+  const withoutAnyConnection = await runConnectedAppAuthGapCase([]);
+  assert.equal(withoutAnyConnection.auth_gaps.includes("no_visible_connected_systems"), true);
+}
+
 console.log("activation session context tests passed");

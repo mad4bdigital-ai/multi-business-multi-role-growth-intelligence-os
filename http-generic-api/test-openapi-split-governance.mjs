@@ -127,4 +127,40 @@ assert(orchestrator.includes("generateGatewayPolicies"), "orchestrator must gene
 assert(orchestrator.includes("materializeCanonicalCopies"), "orchestrator must materialize canonical-copy surfaces");
 assert(!splitScript.includes("YAML.parse(fs.readFileSync(tenantPath"), "generated tenant artifacts must never become source-of-truth");
 
+const promotionReadModels = loadYaml("session-insight-promotion-read-models.yaml");
+
+function migrationEnumValues(file, column) {
+  const sql = readFileSync(`migrations/${file}`, "utf8");
+  const match = sql.match(new RegExp(`\`${column}\`\\s+ENUM\\(([^)]+)\\)`, "i"));
+  assert(match, `migration enum must exist: ${file}#${column}`);
+  return [...match[1].matchAll(/'([^']+)'/g)].map((entry) => entry[1]);
+}
+
+for (const contract of [
+  ["279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql", "actual_request_status", "CapabilityEnvelopeActualRequest", "actual_request_status"],
+  ["279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql", "actual_request_policy_status", "CapabilityEnvelopeActualRequest", "actual_request_policy_status"],
+  ["279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql", "actual_request_status", "CapabilityEnvelopeActualRequestSummary", "actual_request_status"],
+  ["279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql", "actual_request_policy_status", "CapabilityEnvelopeActualRequestSummary", "actual_request_policy_status"],
+  ["280_sprint68_session_insight_capability_envelope_approval_gate.sql", "approval_decision_status", "CapabilityEnvelopeApprovalDecision", "approval_decision_status"],
+  ["280_sprint68_session_insight_capability_envelope_approval_gate.sql", "approval_policy_status", "CapabilityEnvelopeApprovalDecision", "approval_policy_status"],
+  ["280_sprint68_session_insight_capability_envelope_approval_gate.sql", "approval_decision_status", "CapabilityEnvelopeApprovalSummary", "approval_decision_status"],
+  ["280_sprint68_session_insight_capability_envelope_approval_gate.sql", "approval_policy_status", "CapabilityEnvelopeApprovalSummary", "approval_policy_status"],
+  ["281_sprint68_session_insight_capability_envelope_dispatch_readback.sql", "dispatch_readback_status", "CapabilityEnvelopeDispatchReadback", "dispatch_readback_status"],
+  ["281_sprint68_session_insight_capability_envelope_dispatch_readback.sql", "dispatch_readback_policy_status", "CapabilityEnvelopeDispatchReadback", "dispatch_readback_policy_status"],
+  ["281_sprint68_session_insight_capability_envelope_dispatch_readback.sql", "dispatch_readback_status", "CapabilityEnvelopeDispatchReadbackSummary", "dispatch_readback_status"],
+  ["281_sprint68_session_insight_capability_envelope_dispatch_readback.sql", "dispatch_readback_policy_status", "CapabilityEnvelopeDispatchReadbackSummary", "dispatch_readback_policy_status"],
+  ["282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql", "adapter_execution_gate_status", "CapabilityEnvelopeAdapterExecutionGate", "adapter_execution_gate_status"],
+  ["282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql", "adapter_execution_policy_status", "CapabilityEnvelopeAdapterExecutionGate", "adapter_execution_policy_status"],
+  ["282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql", "adapter_execution_gate_status", "CapabilityEnvelopeAdapterExecutionGateSummary", "adapter_execution_gate_status"],
+  ["282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql", "adapter_execution_policy_status", "CapabilityEnvelopeAdapterExecutionGateSummary", "adapter_execution_policy_status"],
+  ["284_sprint68_session_insight_backlog_target_write_executor.sql", "target_write_status", "BacklogTargetWrite", "target_write_status"],
+]) {
+  const [migrationFile, migrationColumn, schemaName, propertyName] = contract;
+  assert.deepEqual(
+    promotionReadModels.components.schemas[schemaName].properties[propertyName].enum,
+    migrationEnumValues(migrationFile, migrationColumn),
+    `${schemaName}.${propertyName} must accept every persisted migration enum value`,
+  );
+}
+
 console.log("OpenAPI surface registry governance tests passed.");

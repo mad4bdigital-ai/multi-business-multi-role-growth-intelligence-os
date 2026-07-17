@@ -4,6 +4,8 @@ import {
   listSessionInsightPayloadPreviewReviews,
 } from "./sessionInsightPayloadPreviewReviewService.js";
 
+// frontend-surface-operation: POST /platform/session-insight-promotions/payload-preview/review/list
+
 function makePool() {
   const state = {
     calls: [],
@@ -110,6 +112,11 @@ function makePool() {
   assert.equal(result.payload_previews[0].payload.title, "Draft");
   assert.equal(result.review_policy.approval_sets_execution_allowed, false);
   assert.equal(result.review_policy.approval_sets_target_write_allowed, false);
+  assert.equal(
+    pool.state.calls.every(({ sql }) => String(sql).trimStart().startsWith("SELECT")),
+    true,
+    "payload preview review list read action must execute SELECT statements only"
+  );
 }
 
 {

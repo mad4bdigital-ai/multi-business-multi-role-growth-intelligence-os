@@ -647,7 +647,10 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
   if (!isAdmin && !tenantId) authGaps.push("missing_tenant_id");
   if (!isAdmin && !userId) authGaps.push("missing_user_id");
   if (!isAdmin && rowsOrEmpty(memberships).length === 0) authGaps.push("no_active_membership_for_subject");
-  if (rowsOrEmpty(systems).length === 0) authGaps.push("no_visible_connected_systems");
+  const hasVisibleConnectedAppConnections = (registeredSurfaces.surfaces || []).some(
+    (surface) => surface.surface_key === "connected_app_connections" && Number(surface.row_count || 0) > 0
+  );
+  if (rowsOrEmpty(systems).length === 0 && !hasVisibleConnectedAppConnections) authGaps.push("no_visible_connected_systems");
   if (!isAdmin && rowsOrEmpty(grants).length === 0) authGaps.push("no_active_permission_grants");
 
   return {
