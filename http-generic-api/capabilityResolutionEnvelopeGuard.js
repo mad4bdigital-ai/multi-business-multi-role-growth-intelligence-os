@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { getPool } from "./db.js";
 
 function compact(value = "", max = 255) {
