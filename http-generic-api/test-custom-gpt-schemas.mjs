@@ -47,12 +47,13 @@ const ACTIVE_SCHEMAS = {
   "openapi.tenant-gpt.activation.yaml": {
     serverUrl: "https://activation.mad4b.com",
     securityScheme: "userBearerAuth",
-    maxOperations: 10,
+    maxOperations: 30,
     requiredOperations: [
       "activateSession",
       "readTenantActivationOperationalAttention",
       "readTenantActivationAwareness",
       "readTenantActivationDynamicTabDetail",
+      "previewTenantTaskSourceRepair",
     ],
   },
   "openapi.gpt-action.dev-dispatcher.yaml": {

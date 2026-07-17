@@ -4,14 +4,14 @@
 
 ## Summary
 
-- Triaged items: 17
-- Gate candidates: 17
+- Triaged items: 18
+- Gate candidates: 18
 - New-gap gate: fail
-- Blocking new items: 17
+- Blocking new items: 18
 
 ## Class counts
 
-- new_surface_immediate_review: 17
+- new_surface_immediate_review: 18
 
 ## Immediate review candidates
 
@@ -23,12 +23,13 @@
 - `20260715_dynamic_container_canary_promotion_tool.sql` — critical_review, score 806; next: add targeted patch-index, parity, and governance documentation
 - `20260714_async_release_deploy_contract.sql` — critical_review, score 789; next: add targeted patch-index, parity, and governance documentation
 - `20260716_self_healing_release_advisor.sql` — critical_review, score 784; next: add targeted patch-index, parity, and governance documentation
+- `20260716_repository_main_moved_trigger_coordinator.sql` — critical_review, score 783; next: add targeted patch-index, parity, and governance documentation
 - `20260715_dynamic_container_canary_probe_sampler_tool.sql` — critical_review, score 730; next: add targeted patch-index, parity, and governance documentation
 - `20260714_supervisor_runtime_admin_tool_exports.sql` — critical_review, score 723; next: add targeted patch-index, parity, and governance documentation
 - `20260716_dynamic_container_preview_canary_probe_sampler_tool.sql` — critical_review, score 713; next: add targeted patch-index, parity, and governance documentation
 - `1046_sprint69_dynamic_container_shadow_sampler_tool.sql` — high_review, score 677; next: add targeted patch-index, parity, and governance documentation
 - `20260716_self_healing_release_advisor_mutation_policy.sql` — high_review, score 550; next: add targeted patch-index, parity, and governance documentation
-- `20260715_dynamic_container_rollout_readiness_current_evidence.sql` — high_review, score 545; next: add targeted patch-index, parity, and governance documentation
+- `20260715_dynamic_container_rollout_readiness_current_evidence.sql` — high_review, score 544; next: add targeted patch-index, parity, and governance documentation
 - `20260716_github_list_repository_issues_array_contract.sql` — high_review, score 537; next: add targeted patch-index, parity, and governance documentation
 - `20260712_github_rerun_workflow_response_schema_alignment.sql` — high_review, score 534; next: add targeted patch-index, parity, and governance documentation
 - `20260715_supervisor_behavioral_certification_capability_policy.sql` — high_review, score 519; next: add targeted patch-index, parity, and governance documentation

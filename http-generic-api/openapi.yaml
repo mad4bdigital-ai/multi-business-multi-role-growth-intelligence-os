@@ -8216,6 +8216,118 @@ paths:
         "404": { description: Case not found within tenant or workspace scope., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "409": { description: Case state conflict or action not allowed., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
+  /tenant/resolution/cases/{caseId}/task-source-repair/preview:
+    post:
+      tags: [activation]
+      security:
+        - userJwtAuth: []
+      operationId: previewTenantTaskSourceRepair
+      x-custom-gpt-exclude: false
+      x-openai-isConsequential: true
+      summary: Preview a tenant task source repair
+      description: Builds and persists a tenant-scoped repair preflight without changing the task registry, calling providers, applying a repair, dispatching execution, or resolving the case.
+      parameters:
+        - in: path
+          name: caseId
+          required: true
+          schema: { type: string, maxLength: 64 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                workspace_id: { type: string, maxLength: 64 }
+                task_id: { type: string, maxLength: 36 }
+                task_key: { type: string, maxLength: 191 }
+                evidence_ref: { type: string, maxLength: 512 }
+                lookup:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    task_id: { type: string, maxLength: 36 }
+                    task_key: { type: string, maxLength: 191 }
+                proposed_values:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    task_id: { type: string, maxLength: 36 }
+                    task_key: { type: string, maxLength: 191 }
+                    title: { type: string, maxLength: 255 }
+                    source_surface: { type: string, maxLength: 191 }
+                    source_ref: { type: string, maxLength: 500 }
+      responses:
+        "200":
+          description: Task source repair preview result.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, activation_layer, changed, case, task, preview, policy, secrets_included]
+                properties:
+                  ok: { type: boolean }
+                  activation_layer: { type: string, enum: [tenant_task_source_repair_preview] }
+                  changed: { type: boolean }
+                  case:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      case_id: { type: string }
+                      tenant_id: { type: string }
+                      workspace_id: { type: [string, 'null'] }
+                      root_family: { type: string, enum: [task_source_quality] }
+                      playbook_key: { type: string, enum: [task_source_repair_v1] }
+                      status: { type: string }
+                      current_step_key: { type: [string, 'null'] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  task:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      task_id: { type: [string, 'null'] }
+                      task_key: { type: [string, 'null'] }
+                      title: { type: [string, 'null'] }
+                      owner_scope: { type: [string, 'null'] }
+                      tenant_id: { type: [string, 'null'] }
+                      source_surface: { type: [string, 'null'] }
+                      source_ref: { type: [string, 'null'] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  preview:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      preview_id: { type: string }
+                      generated_at: { type: string, format: date-time }
+                      preview_fingerprint_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+                      ready_for_apply_gate: { type: boolean }
+                      approval_required: { type: boolean, enum: [true] }
+                      readback_required: { type: boolean, enum: [true] }
+                      provider_call_allowed: { type: boolean, enum: [false] }
+                      external_write_allowed: { type: boolean, enum: [false] }
+                      task_registry_write_allowed: { type: boolean, enum: [false] }
+                      repair_apply_allowed: { type: boolean, enum: [false] }
+                      execution_dispatched: { type: boolean, enum: [false] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  policy:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      tenant_scoped: { type: boolean, enum: [true] }
+                      internal_registry_read_only: { type: boolean, enum: [true] }
+                      task_registry_write_allowed: { type: boolean, enum: [false] }
+                      repair_apply_allowed: { type: boolean, enum: [false] }
+                      resolved_transition_allowed: { type: boolean, enum: [false] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { description: Invalid lookup or proposed values., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { description: User JWT required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "403": { description: Active tenant membership required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "404": { description: Case or task not found within tenant scope., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "409": { description: Incompatible case, binding mismatch, or concurrent update., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
   /tenant/activation/dynamic-tabs/detail:
     get:
       tags: [activation]
