@@ -1,8 +1,8 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": "f3b4eca6d461dc22f11b757b9c58712c071226cf",
-    "source_digest": "ef5a0a492b33ccba3999b052b3955979c4da2b413f69eb36dd9999a7733d9eb9",
+    "ref": "6aa62b2963217881537b85b80b223e9de8563792",
+    "source_digest": "20dd6beb41f86e535a345bb36c4a362889920aa01e7b7d7f47e68b631171687d",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -606,7 +606,7 @@
       },
       {
         "file": "routes/repositoryMainMovedTriggerRoutes.js",
-        "sha256": "33d6ee070ecec894df23a14092d281ca6239cf970e607ac4b333c18aa30bf79a",
+        "sha256": "4c2611c23179a10a6eea5798585da0f8a6420ee2063bc088bf05dd5d93cbc7ac",
         "present": true
       },
       {
@@ -841,7 +841,7 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "50f8877b50b3717b157f07f3b733c7a0b75fbc84fb6349440ba4ca544dda5f09",
+        "sha256": "eadbafcff8c1bc7d16b225267132e9202cd082637083b6cb50b88d327e13fbb7",
         "present": true
       },
       {
@@ -977,11 +977,10 @@
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 381,
     "auth_parity_counts": {
-      "equivalent": 942,
-      "exempt": 16,
-      "unknown": 1
+      "equivalent": 943,
+      "exempt": 16
     },
-    "auth_contract_gap_count": 1,
+    "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 583,
     "unresolved_operation_class_count": 551,
@@ -16947,7 +16946,7 @@
       "family_key": "repository-main-moved-trigger.admin",
       "label": "repository main moved trigger (admin)",
       "source_file": "routes/repositoryMainMovedTriggerRoutes.js",
-      "source_digest": "33d6ee070ecec894df23a14092d281ca6239cf970e607ac4b333c18aa30bf79a",
+      "source_digest": "4c2611c23179a10a6eea5798585da0f8a6420ee2063bc088bf05dd5d93cbc7ac",
       "mount_prefix": "/",
       "mount_order": 13990,
       "split_from_mixed_scope_file": true,
@@ -17141,32 +17140,42 @@
       "wave": "F3-admin-workspaces"
     },
     {
-      "family_key": "repository-main-moved-trigger.unresolved",
-      "label": "repository main moved trigger (unresolved)",
+      "family_key": "repository-main-moved-trigger.developer",
+      "label": "repository main moved trigger (developer)",
       "source_file": "routes/repositoryMainMovedTriggerRoutes.js",
-      "source_digest": "33d6ee070ecec894df23a14092d281ca6239cf970e607ac4b333c18aa30bf79a",
+      "source_digest": "4c2611c23179a10a6eea5798585da0f8a6420ee2063bc088bf05dd5d93cbc7ac",
       "mount_prefix": "/",
       "mount_order": 13990,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
       "group": "platform-core",
-      "scope": "unresolved",
+      "scope": "developer",
       "operations": [
         {
           "method": "POST",
           "path": "/webhooks/github/repository-main-moved",
           "signature": "POST /webhooks/github/repository-main-moved",
           "source_file": "routes/repositoryMainMovedTriggerRoutes.js",
-          "scope": "unresolved",
+          "scope": "developer",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "github_webhook_hmac",
+            "alternatives": [
+              [
+                "githubWebhookSignature"
+              ]
+            ],
+            "principal": "github_webhook",
+            "guard_chain": [
+              "requireGitHubWebhookSignature"
+            ],
+            "evidence": [
+              "route:requireGitHubWebhookSignature"
+            ],
+            "configuration_dependencies": [
+              "GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi/github-repository-main-moved-webhook.yaml",
@@ -17179,10 +17188,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -17211,15 +17218,7 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
-      "auth_contract_gaps": [
-        {
-          "signature": "POST /webhooks/github/repository-main-moved",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        }
-      ],
+      "auth_contract_gaps": [],
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
@@ -17255,10 +17254,10 @@
         }
       ],
       "risk": {
-        "score": 13,
-        "class": "critical"
+        "score": 6,
+        "class": "high"
       },
-      "wave": "F0-authority-resolution"
+      "wave": "F5-developer-evidence"
     },
     {
       "family_key": "operational-console",
@@ -78639,48 +78638,6 @@
       ]
     },
     {
-      "task_key": "frontend.repository-main-moved-trigger.unresolved",
-      "title": "Resolve and deliver repository main moved trigger (unresolved)",
-      "wave": "F0-authority-resolution",
-      "state": "blocked",
-      "blockers": [
-        "scope_unresolved",
-        "auth_contract_gap",
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
-      ],
-      "dependencies": [
-        "F0-source-baseline",
-        "operation-classification"
-      ],
-      "source_refs": [
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/github-repository-main-moved-webhook.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/repositoryMainMovedTriggerRoutes.js",
-        "scripts/test-manifest.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
-      ]
-    },
-    {
       "task_key": "frontend.resource-api.unresolved",
       "title": "Resolve and deliver resource api (unresolved)",
       "wave": "F0-authority-resolution",
@@ -84838,6 +84795,47 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/mcpRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
+      "task_key": "frontend.repository-main-moved-trigger.developer",
+      "title": "Resolve and deliver repository main moved trigger (developer)",
+      "wave": "F5-developer-evidence",
+      "state": "blocked",
+      "blockers": [
+        "test_ownership_gap",
+        "surface_policy_decision_required",
+        "operation_classification_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context",
+        "operation-classification"
+      ],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/github-repository-main-moved-webhook.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/repositoryMainMovedTriggerRoutes.js",
         "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
