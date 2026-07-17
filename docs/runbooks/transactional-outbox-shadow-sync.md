@@ -77,6 +77,31 @@ try {
 
 The caller owns commit and rollback when a connection is supplied.
 
+### Growth Intelligence development producer
+
+`persistGrowthIntelligencePilot` keeps `outbox_mode=disabled` by default. The only enabled producer mode in this phase is:
+
+```text
+outbox_mode=dev_transactional
+```
+
+That mode must fail before the first business write unless `SELECT DATABASE()` returns a name ending in `_dev`. The report records, insights, actions, approval holds, and one `growth_intelligence.report_persisted` event must commit in one transaction. Any event validation or insert failure must roll back the whole transaction.
+
+The event payload is limited to report/workflow/brand identifiers, schema and status fields, aggregate counts, and a registry-resolved business activity key when available. Report bodies, executive summaries, insight/action text, user identity, credentials, tokens, provider responses, and raw evidence are forbidden.
+
+After deployment, run exactly one governed development pilot with `outbox_mode=dev_transactional`, then verify:
+
+```text
+event_count increases by exactly 1
+event_type=growth_intelligence.report_persisted
+delivery_counts remain unchanged
+consumer status remains disabled
+transport remains noop
+external request count remains 0
+```
+
+Do not enable the producer on production until the production outbox foundation and event-type migrations have their own approved rollout and readback.
+
 ## Payload rules
 
 Never include:
