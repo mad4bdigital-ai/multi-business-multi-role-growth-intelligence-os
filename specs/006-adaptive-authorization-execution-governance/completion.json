@@ -192,7 +192,7 @@
     },
     "production_rollout": {
       "status": "pending",
-      "reason": "T052 through T053 verification and rollout evidence, T061 through T062 closeout, and D010 final delivery closeout remain incomplete."
+      "reason": "T053 verification and rollout evidence, T061 through T062 closeout, and D010 final delivery closeout remain incomplete."
     }
   },
   "sensitive_values_included": false
