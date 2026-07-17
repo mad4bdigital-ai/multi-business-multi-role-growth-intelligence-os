@@ -716,7 +716,8 @@ export function buildAuthRoutes(deps) {
   }
 
   async function loginUserCredential(input = {}) {
-    const { email, password } = input;
+    const { email: rawEmail, password } = input;
+    const email = normalizeAuthEmail(rawEmail);
     if (!email || !password) {
       throw authRouteFailure(400, "missing_fields", "email and password are required.");
     }
