@@ -25,6 +25,7 @@ const ADAPTER_KEY = "tenant_connection_self_repair_routes_v1";
 const CERTIFICATION_ID = "shadow-cert:tenant-connection-effective-credential-plan-view:v1";
 const EVIDENCE_ID = "shadow-cert-evidence:tenant-connection-effective-credential-plan-view:v1";
 const CERTIFICATION_STATUS = "shadow_certified";
+const CONTRACT_CERTIFICATION_STATUS = "certified";
 const CERTIFICATION_TTL_DAYS = 7;
 
 const FIXED_PLAN = Object.freeze({
@@ -37,7 +38,7 @@ const FIXED_PLAN = Object.freeze({
   certification_type: "shadow_read_only",
   certification_status: CERTIFICATION_STATUS,
   contract_status_required: "shadow",
-  contract_certification_status_after: CERTIFICATION_STATUS,
+  contract_certification_status_after: CONTRACT_CERTIFICATION_STATUS,
   effect_class_required: "read_only",
   tenant_tool_enabled_after: false,
   runtime_dispatch_changed: false,
@@ -173,7 +174,7 @@ function verifyPreconditions(state) {
   if (state.contract && state.contract.adapter_key !== ADAPTER_KEY) errors.push("CONTRACT_ADAPTER_MISMATCH");
   if (state.contract && state.contract.expected_effect_class !== "read_only") errors.push("CONTRACT_EFFECT_CLASS_MISMATCH");
   if (state.contract && state.contract.status !== "shadow") errors.push("CONTRACT_MUST_REMAIN_SHADOW");
-  if (state.contract && !["pending", CERTIFICATION_STATUS].includes(state.contract.certification_status)) {
+  if (state.contract && !["pending", CONTRACT_CERTIFICATION_STATUS].includes(state.contract.certification_status)) {
     errors.push("CONTRACT_CERTIFICATION_STATUS_INVALID");
   }
   if (state.contract && Number(state.contract.secrets_included || 0) !== 0) errors.push("CONTRACT_SECRET_POLICY_VIOLATION");
@@ -196,7 +197,7 @@ function verifyReadback(state) {
   if (!state.evidence) errors.push("CERTIFICATION_EVIDENCE_MISSING");
   if (state.evidence && state.evidence.evidence_status !== "passed") errors.push("CERTIFICATION_EVIDENCE_NOT_PASSED");
   if (state.evidence && Number(state.evidence.secrets_included || 0) !== 0) errors.push("EVIDENCE_SECRET_POLICY_VIOLATION");
-  if (state.contract && state.contract.certification_status !== CERTIFICATION_STATUS) errors.push("CONTRACT_CERTIFICATION_NOT_LINKED");
+  if (state.contract && state.contract.certification_status !== CONTRACT_CERTIFICATION_STATUS) errors.push("CONTRACT_CERTIFICATION_NOT_LINKED");
   return { ok: errors.length === 0, errors, ...boundedState(state) };
 }
 
@@ -292,7 +293,7 @@ export async function issuePlatformCapabilityShadowCertification(args = {}, deps
       contract_key: CONTRACT_KEY,
       adapter_key: ADAPTER_KEY,
       contract_status_after: "shadow",
-      contract_certification_status_after: CERTIFICATION_STATUS,
+      contract_certification_status_after: CONTRACT_CERTIFICATION_STATUS,
       tenant_tool_enabled_after: false,
       runtime_dispatch_changed: false,
       provider_calls_performed: false,
@@ -370,7 +371,7 @@ export async function issuePlatformCapabilityShadowCertification(args = {}, deps
         WHERE contract_key=? AND is_current=1 AND status='shadow'
           AND capability_key=? AND adapter_key=? AND expected_effect_class='read_only'
           AND secrets_included=0`,
-      [CERTIFICATION_STATUS, CONTRACT_KEY, CAPABILITY_KEY, ADAPTER_KEY],
+      [CONTRACT_CERTIFICATION_STATUS, CONTRACT_KEY, CAPABILITY_KEY, ADAPTER_KEY],
     );
     if (Number(contractUpdate?.affectedRows || 0) !== 1) {
       fail("platform_capability_shadow_certification_contract_update_failed", "Exactly one shadow contract must be updated.", 409);
