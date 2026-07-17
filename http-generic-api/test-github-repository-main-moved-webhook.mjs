@@ -173,6 +173,25 @@ assert.equal(pingResult.event_type, "ping");
 assert.equal(pingResult.accepted, true);
 assert.equal(pingResult.execution_allowed, false);
 
+const middlewareVerifiedPing = await handleGitHubRepositoryMainMovedWebhook(
+  {
+    headers: {
+      "x-github-event": "ping",
+      "x-github-delivery": "delivery-middleware-verified",
+    },
+    body: pingPayload,
+    rawBody: pingRawBody,
+    signature_verified: true,
+  },
+  {
+    resolveCredentialReference: async () => {
+      throw new Error("middleware-verified requests must not resolve the webhook secret twice");
+    },
+  },
+);
+assert.equal(middlewareVerifiedPing.event_type, "ping");
+assert.equal(middlewareVerifiedPing.accepted, true);
+
 await assert.rejects(
   handleGitHubRepositoryMainMovedWebhook(
     { headers, body: payload, rawBody },
