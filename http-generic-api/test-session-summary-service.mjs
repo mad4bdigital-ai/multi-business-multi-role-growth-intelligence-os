@@ -17,6 +17,14 @@ import {
   writeProvidedSessionSummary,
 } from "./sessionSummaryService.js";
 
+function isSessionSummaryMemoryReadQuery(compact) {
+  return (
+    compact.includes("FROM `session_summaries` ss") &&
+    compact.includes("ss.summary_id") &&
+    compact.includes("ss.workspace_key")
+  );
+}
+
 function makePool() {
   const state = {
     calls: [],
