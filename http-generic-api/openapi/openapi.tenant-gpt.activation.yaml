@@ -2429,7 +2429,7 @@ paths:
       operationId: applyTenantTaskSourceRepair
       x-openai-isConsequential: true
       summary: Apply an approved tenant task source repair
-      description: Applies one approved, no-drift Task Source Repair preview to a tenant-owned pending task, performs same-cycle field readback, consumes the capability envelope, and moves the case only to verifying. Provider calls, external writes, task-id changes, tenant-scope changes, resolved transitions, and secrets are forbidden.
+      description: Applies an approved, no-drift Task Source Repair preview to one tenant task, performs same-cycle field readback, consumes the capability envelope, and moves the case to verifying. Provider calls, external writes, task-id or tenant-scope changes, resolved transitions, and secrets are forbidden.
       parameters:
         - in: path
           name: caseId
