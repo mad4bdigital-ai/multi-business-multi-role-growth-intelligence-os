@@ -3,6 +3,7 @@ import {
   createRepositoryMainMovedTriggerEvent,
   getRepositoryMainMovedTriggerEvent,
 } from "../repositoryMainMovedTriggerService.js";
+import { handleGitHubRepositoryMainMovedWebhook } from "../githubRepositoryMainMovedWebhookService.js";
 
 function actorFromRequest(req) {
   return {
