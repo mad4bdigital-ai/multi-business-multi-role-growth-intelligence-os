@@ -106,9 +106,27 @@ async function getText(baseUrl, path, { headers = {} } = {}) {
 const oauthTokenDiagnostics = [];
 const tenantGptActivationContexts = [];
 const oauthCredentialRequests = [];
+const durableOAuthCodes = new Map();
 
 const oauthClientPool = {
   async query(sql, params) {
+    if (sql.includes("INSERT INTO `tenant_gpt_oauth_authorization_codes`")) {
+      durableOAuthCodes.set(params[0], {
+        client_id: params[3],
+        redirect_uri_hash: params[4],
+        status: "issued",
+      });
+      return [{ affectedRows: 1 }];
+    }
+    if (sql.includes("UPDATE `tenant_gpt_oauth_authorization_codes`")) {
+      const record = durableOAuthCodes.get(params[0]);
+      const canConsume = record
+        && record.client_id === params[1]
+        && record.redirect_uri_hash === params[2]
+        && record.status === "issued";
+      if (canConsume) record.status = "consumed";
+      return [{ affectedRows: canConsume ? 1 : 0 }];
+    }
     if (sql.includes("INSERT INTO `execution_log`")) {
       oauthTokenDiagnostics.push({
         execution_status: params[4],
