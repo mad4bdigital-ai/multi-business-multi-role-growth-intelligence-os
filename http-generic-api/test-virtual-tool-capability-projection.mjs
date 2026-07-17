@@ -2,8 +2,41 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const migration = readFileSync(new URL("./migrations/20260717_virtual_tool_capability_projection.sql", import.meta.url), "utf8");
-assert.match(migration, /v_platform_virtual_tool_capabilities_current/);
-assert.match(migration, /CAPABILITY_AMBIGUOUS/);
-assert.match(migration, /apply_allowed,0/);
+const bindingMigration = readFileSync(new URL("./migrations/311_sprint69_platform_tool_dispatch_binding_integrity.sql", import.meta.url), "utf8");
+
+for (const view of [
+  "v_platform_virtual_tool_bindings_classified",
+  "v_platform_virtual_tool_identity_resolution",
+  "v_platform_virtual_tool_capabilities_current",
+  "v_platform_virtual_tool_bindings_current",
+  "v_platform_virtual_tool_exports_current",
+  "v_platform_governed_capabilities_current",
+  "v_platform_governed_bindings_current",
+  "v_platform_governed_exports_current",
+  "v_platform_virtual_tool_capability_gaps",
+]) assert.match(migration, new RegExp(`CREATE OR REPLACE VIEW ${view}`));
+
+for (const marker of [
+  "no_provider_call=true",
+  "no_credential_payload_read=true",
+  "no_raw_secrets=true",
+  "no_external_send=true",
+  "no_external_write=true",
+  "secrets_included=false",
+  "CAPABILITY_IDENTITY_MISSING",
+  "CAPABILITY_AMBIGUOUS",
+  "PROJECTION_SCOPE_AMBIGUOUS",
+  "OPERATION_CLASS_AMBIGUOUS",
+  "READBACK_CONTRACT_REQUIRED",
+  "TENANT_TO_ADMIN_SURFACE_BLOCKED",
+  "CANONICAL_SOURCE_COLLISION_REVIEW_REQUIRED",
+  "apply_allowed,0",
+]) assert.match(migration, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+
 assert.doesNotMatch(migration, /\bDROP\s+(TABLE|DATABASE)|\bTRUNCATE\s+TABLE|\bDELETE\s+FROM/i);
+assert.doesNotMatch(migration, /WHERE\s+[^;]*tool_key\s*=\s*['\"]repo_patch_batch_apply['\"]/i);
+assert.match(bindingMigration, /'repo_patch_batch_apply'/);
+assert.match(bindingMigration, /'github_file_patch_apply'/);
+assert.match(bindingMigration, /'github_change_set_branch_head_v1'/);
+
 console.log("virtual tool capability projection tests passed");
