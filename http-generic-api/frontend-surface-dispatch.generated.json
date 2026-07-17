@@ -1,8 +1,8 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": "7290d6460b2fe818bf24bc7f06c94e42fe02bd84",
-    "source_digest": "9481efaff4a1b7a910640f6dabf210d14808cdf46525e5bd21506bb09ae53590",
+    "ref": "f3b4eca6d461dc22f11b757b9c58712c071226cf",
+    "source_digest": "ef5a0a492b33ccba3999b052b3955979c4da2b413f69eb36dd9999a7733d9eb9",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -431,7 +431,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "6785d914533a9a4b1a82f428b7bfbb70e414db14322d8bf11c098d019c0bd64d",
+        "sha256": "5104d8843a832ec999329366de77881d5c2140c7aba61d3170792d4fb99c5f32",
         "present": true
       },
       {
@@ -35786,7 +35786,7 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "6785d914533a9a4b1a82f428b7bfbb70e414db14322d8bf11c098d019c0bd64d",
+      "source_digest": "5104d8843a832ec999329366de77881d5c2140c7aba61d3170792d4fb99c5f32",
       "mount_prefix": "/",
       "mount_order": 15593,
       "split_from_mixed_scope_file": false,
