@@ -4,6 +4,8 @@ import {
   listSessionInsightPromotionReviews,
 } from "./sessionInsightPromotionReviewService.js";
 
+// frontend-surface-operation: POST /platform/session-insight-promotions/review/list
+
 function makePool() {
   const state = {
     calls: [],
@@ -118,6 +120,11 @@ function makePool() {
   assert(
     pool.state.calls.some((call) => String(call.sql).includes("p.secrets_included = 0")),
     "review list should filter out secret-flagged proposals"
+  );
+  assert.equal(
+    pool.state.calls.every(({ sql }) => String(sql).trimStart().startsWith("SELECT")),
+    true,
+    "promotion review list read action must execute SELECT statements only"
   );
 }
 

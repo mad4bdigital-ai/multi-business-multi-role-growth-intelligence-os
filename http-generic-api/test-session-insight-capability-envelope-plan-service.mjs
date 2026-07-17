@@ -4,6 +4,8 @@ import {
   listSessionInsightCapabilityEnvelopePlans,
 } from "./sessionInsightCapabilityEnvelopePlanService.js";
 
+// frontend-surface-operation: POST /platform/session-insight-promotions/capability-envelope-plans/list
+
 function makePool() {
   const state = { calls: [], insert: null, plan: null };
   return {
@@ -120,6 +122,7 @@ function makePool() {
 {
   const pool = makePool();
   await createSessionInsightCapabilityEnvelopePlan({ pool, input: { apply_request_id: "promo_apply_req_1" } });
+  pool.state.calls.length = 0;
   const result = await listSessionInsightCapabilityEnvelopePlans({ pool, filters: { limit: 5 } });
   assert.equal(result.ok, true);
   assert.equal(result.count, 1);
@@ -130,6 +133,11 @@ function makePool() {
   assert.equal(result.plan_policy.plan_only, true);
   assert.equal(result.plan_policy.actual_capability_envelope_requested, false);
   assert.equal(result.plan_policy.secrets_included, false);
+  assert.equal(
+    pool.state.calls.every(({ sql }) => String(sql).trimStart().startsWith("SELECT")),
+    true,
+    "capability envelope plan list read action must execute SELECT statements only"
+  );
 }
 
 {
