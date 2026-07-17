@@ -45,6 +45,13 @@
         "role": "session_insight_capability_envelope_lifecycle_read_model_contracts_and_classification",
         "status": "merged",
         "merge_sha": "bcfb1e73add75869755f80e5b04cb677163459b0"
+      },
+      {
+        "number": 2749,
+        "branch": "gpt/frontend-dispatch-t018d-read-models-wave4-20260717",
+        "role": "session_insight_capability_envelope_request_approval_dispatch_readback_contracts_and_classification",
+        "status": "merged",
+        "merge_sha": "6ea87be48d656e138a8862c0edebf773d5bbef37"
       }
     ],
     "closeout_pr": {
@@ -72,14 +79,14 @@
       "canonical_runtime_auth_error_envelope_alignment": true,
       "runtime_openapi_auth_contract_gap_count": 0,
       "openapi_operation_presence_gap_count": 0,
-      "canonical_openapi_operation_count": 559,
-      "operation_index_detail_gap_count": 383,
-      "canonical_session_insight_read_model_count": 12,
+      "canonical_openapi_operation_count": 561,
+      "operation_index_detail_gap_count": 381,
+      "canonical_session_insight_read_model_count": 14,
       "operation_level_mutation_governance": true,
-      "classified_non_mutating_action_count": 25,
-      "unresolved_non_get_operation_count": 553,
+      "classified_non_mutating_action_count": 28,
+      "unresolved_non_get_operation_count": 550,
       "generated_runtime_openapi_index": true,
-      "t018_status": "auth_and_presence_complete_first_twelve_session_insight_read_models_canonical_and_classified_remaining_detail_classification_and_compensation_fail_closed",
+      "t018_status": "auth_and_presence_complete_first_fourteen_session_insight_read_models_canonical_lifecycle_enums_migration_aligned_and_next_three_select_only_actions_classified_remaining_detail_classification_and_compensation_fail_closed",
       "platform_shell": true,
       "browser_safe_surface_catalog": true,
       "light_dark_system_theme": true,
