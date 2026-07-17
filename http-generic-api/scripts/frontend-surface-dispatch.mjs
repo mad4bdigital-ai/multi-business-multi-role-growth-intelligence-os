@@ -715,7 +715,7 @@ function scopeFor({ path: routePath, source, declaration = "", sourceIndex = 0, 
     if (runtimeAuth.profile === "admin_backend") return "admin";
     if (runtimeAuth.profile === "user_jwt") return "tenant";
     if (runtimeAuth.profile === "local_manager") return "local_device";
-    if (["mcp_query_token", "signed_query_token"].includes(runtimeAuth.profile)) return "developer";
+    if (["mcp_query_token", "signed_query_token", "github_webhook_hmac"].includes(runtimeAuth.profile)) return "developer";
   }
   if (/^\/(?:connect$|connect\/assets(?:\/|$)|platform$|platform\/assets(?:\/|$)|platform\/ui-surfaces$|favicon\.ico$|robots\.txt$|legal(?:\/|$))/.test(routePath)) return "public";
   if (/local-manager|local-gateway|connector\/(?:devices?|routes?)/i.test(routePath)) return "local_device";
