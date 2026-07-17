@@ -11,6 +11,7 @@ const MUTATING_TOOLS = new Set([
   "governed_migration_apply_policy_bootstrap",
   "capability_resolution_envelope_apply_authorize",
   "capability_resolution_envelope_lifecycle",
+  "growth_intelligence_pilot_run",
 ]);
 
 const ALLOWED_TOOLS = new Set([
@@ -75,6 +76,39 @@ export function validateShellAliasInvocation(alias, extraArgs) {
     throw new Error("platform_outbox_worker only permits --action=status or --action=dry-run.");
   }
   return { mutation_requested: false, extra_args: extraArgs };
+}
+
+const GROWTH_INTELLIGENCE_PILOT_ALLOWED_KEYS = new Set([
+  "tenant_id",
+  "brand_key",
+  "business_activity_type_key",
+  "persistence_mode",
+  "outbox_mode",
+  "evidence_limit",
+  "report_id",
+  "requested_by",
+]);
+
+export function validateGrowthIntelligencePilotArgs(toolArgs) {
+  if (!toolArgs || typeof toolArgs !== "object" || Array.isArray(toolArgs)) {
+    throw new Error("Growth Intelligence pilot arguments must be a JSON object.");
+  }
+  const unknownKeys = Object.keys(toolArgs).filter((key) => !GROWTH_INTELLIGENCE_PILOT_ALLOWED_KEYS.has(key));
+  if (unknownKeys.length > 0) throw new Error(`Unsupported Growth Intelligence pilot argument: ${unknownKeys[0]}`);
+  if (!/^[0-9a-f-]{36}$/i.test(String(toolArgs.tenant_id || ""))) throw new Error("Growth Intelligence pilot requires a tenant UUID.");
+  if (!/^[A-Za-z0-9._-]{1,128}$/.test(String(toolArgs.brand_key || ""))) throw new Error("Invalid Growth Intelligence brand key.");
+  if (toolArgs.persistence_mode !== "internal_registry") throw new Error("Growth Intelligence dev pilot requires persistence_mode=internal_registry.");
+  if (toolArgs.outbox_mode !== "dev_transactional") throw new Error("Growth Intelligence dev pilot requires outbox_mode=dev_transactional.");
+  if (toolArgs.business_activity_type_key !== undefined && !/^[A-Za-z0-9._-]{1,128}$/.test(String(toolArgs.business_activity_type_key))) {
+    throw new Error("Invalid Growth Intelligence business activity type key.");
+  }
+  if (toolArgs.evidence_limit !== undefined && (!Number.isInteger(toolArgs.evidence_limit) || toolArgs.evidence_limit < 1 || toolArgs.evidence_limit > 50)) {
+    throw new Error("Growth Intelligence evidence_limit must be between 1 and 50.");
+  }
+  for (const key of ["report_id", "requested_by"]) {
+    if (toolArgs[key] !== undefined && !/^[A-Za-z0-9._:-]{1,128}$/.test(String(toolArgs[key]))) throw new Error(`Invalid Growth Intelligence ${key}.`);
+  }
+  return toolArgs;
 }
 
 const SENSITIVE_KEY_PATTERN = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
@@ -168,7 +202,7 @@ function requireApplyAuthorization(context, reason) {
   }
 }
 
-function isToolMutation(tool, toolArgs) {
+export function isToolMutation(tool, toolArgs) {
   if (MUTATING_TOOLS.has(tool)) return true;
   return tool === "governed_migration_execute" && String(toolArgs?.mode || "dry_run") === "apply";
 }
@@ -272,6 +306,7 @@ export async function runClient(args = parseArgs()) {
     if (!ALLOWED_TOOLS.has(target)) throw new Error(`Tool is not allowlisted for dev migration client: ${target || "<empty>"}`);
     const toolArgs = decodeJson(args.tool_args_json, args.tool_args_base64, {});
     if (!toolArgs || typeof toolArgs !== "object" || Array.isArray(toolArgs)) throw new Error("tool_args must decode to a JSON object.");
+    if (target === "growth_intelligence_pilot_run") validateGrowthIntelligencePilotArgs(toolArgs);
     mutationRequested = isToolMutation(target, toolArgs);
     if (mutationRequested) {
       applyAuthoritySource = requireApplyAuthorization({
