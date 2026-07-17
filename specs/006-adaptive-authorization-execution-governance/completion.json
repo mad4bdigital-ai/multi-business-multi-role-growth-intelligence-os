@@ -110,6 +110,13 @@
         "pull_request": 2757,
         "merge_sha": "8dff0c5e690a72cb38e31bbecb184ba54dc7a3a1",
         "status": "merged_and_branch_deleted"
+      },
+      {
+        "sequence": 15,
+        "role": "final_verification_release_readiness_and_closeout_evidence",
+        "pull_request": 2763,
+        "merge_sha": "835daf1366847035a694a7f1c8043e4e980c7f96",
+        "status": "merged_and_branch_deleted"
       }
     ],
     "remaining_task_loop": {
