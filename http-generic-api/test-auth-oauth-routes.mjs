@@ -378,6 +378,16 @@ try {
   assert("OAuth access JWT stays compact", exchange.body.access_token.length < 1000, String(exchange.body.access_token.length));
   assert("access JWT carries tenant GPT purpose", accessPayload.purpose === "tenant_gpt_access", JSON.stringify(accessPayload));
 
+  const replay = await postForm(baseUrl, "/auth/oauth/token", {
+    grant_type: "authorization_code",
+    code: codeResult.body.code,
+    redirect_uri: redirectUri,
+    client_id: "mad4b-tenant-gpt",
+    client_secret: "test-client-secret",
+  }, { headers: { "x-forwarded-host": "activation.mad4b.com" } });
+  assert("token endpoint rejects authorization code replay", replay.status === 400, `${replay.status}`);
+  assert("authorization code replay reports invalid_grant", replay.body.error === "invalid_grant", JSON.stringify(replay.body));
+
   const mismatch = await postForm(baseUrl, "/auth/oauth/token", {
     grant_type: "authorization_code",
     code: codeResult.body.code,
