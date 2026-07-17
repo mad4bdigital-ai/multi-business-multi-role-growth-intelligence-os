@@ -801,6 +801,28 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "capability_resolution_envelope_batch_expire",
+    displayName: "Expire Capability Resolution Envelopes in a Bounded Batch",
+    description: "Dry-run or apply a bounded expiration batch for envelopes that are already past expires_at, were requested by one actor, remain not_executed, have no execution_ref, contain no secrets, and are still in a pre-execution lifecycle state. Apply requires an exact reviewed plan hash, typed confirmation, a dedicated capability envelope, transactional row locking, same-cycle readback, and governance-envelope consumption. No provider call, external write, deploy, restart, gate mutation, or unrelated envelope transition.",
+    method: "VIRTUAL",
+    path: "internal://capability-resolution-envelope-batch-expire",
+    tags: ["admin", "capability_resolution", "lifecycle", "batch", "mutation", "dry_run_default", "typed_confirmation", "capability_envelope", "same_cycle_readback", "internal_sql_only", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: CAPABILITY_ENVELOPE_BATCH_EXPIRE_MODES, default: "dry_run" },
+        requested_by: { type: "string", minLength: 1, maxLength: 191, default: "gpt_admin" },
+        expired_before: { type: "string", format: "date-time" },
+        max_items: { type: "integer", minimum: 1, maximum: 100, default: 50 },
+        expected_plan_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        confirm: { type: "string", pattern: "^EXPIRE_CAPABILITY_ENVELOPES_[0-9A-F]{12}$" },
+        capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+        reason: { type: "string", minLength: 20, maxLength: 512 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "capability_resolution_envelope_lifecycle",
     displayName: "Transition Capability Resolution Envelope Lifecycle",
     description: "Transition one capability resolution envelope lifecycle state by using the governed lifecycle actions consume, cancel, or expire. Internal registry mutation only; no provider call, external write, credential payload read, or secret return.",
