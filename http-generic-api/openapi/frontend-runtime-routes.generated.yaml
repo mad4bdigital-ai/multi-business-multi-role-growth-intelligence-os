@@ -9,6 +9,92 @@ tags:
   - name: runtime-route-index
     description: Fail-closed generated inventory of runtime operations with explicit authentication evidence.
 paths:
+  /:
+    delete:
+      operationId: deleted81d1ce6
+      summary: DELETE / (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/rootDiscoveryRoutes.js
+      x-mad4b-runtime-auth:
+        profile: public
+        principal: anonymous
+        guard_chain: []
+        configuration_dependencies: &a1 []
+    get:
+      operationId: getc767025d
+      summary: GET / (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/rootDiscoveryRoutes.js
+      x-mad4b-runtime-auth:
+        profile: public
+        principal: anonymous
+        guard_chain: []
+        configuration_dependencies: *a1
+    patch:
+      operationId: patche11ce362
+      summary: PATCH / (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/rootDiscoveryRoutes.js
+      x-mad4b-runtime-auth:
+        profile: public
+        principal: anonymous
+        guard_chain: []
+        configuration_dependencies: *a1
+    post:
+      operationId: post7571cce8
+      summary: POST / (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/rootDiscoveryRoutes.js
+      x-mad4b-runtime-auth:
+        profile: public
+        principal: anonymous
+        guard_chain: []
+        configuration_dependencies: *a1
+    put:
+      operationId: put1e71fdac
+      summary: PUT / (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/rootDiscoveryRoutes.js
+      x-mad4b-runtime-auth:
+        profile: public
+        principal: anonymous
+        guard_chain: []
+        configuration_dependencies: *a1
   /agents/{id}/skills/{skill_id}:
     delete:
       operationId: deleteAgentsByIdSkillsBySkillId51649c3c

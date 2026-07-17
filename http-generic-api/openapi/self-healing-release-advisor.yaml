@@ -6,7 +6,8 @@ info:
 servers:
   - url: https://auth.mad4b.com
 security:
-  - backendApiKey: []
+  - adminBearerAuth: []
+  - backendApiKeyAuth: []
 tags:
   - name: release-advisor
 paths:
@@ -44,6 +45,17 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
 components:
   securitySchemes:
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key
+      description: Backend API key supplied as a bearer token and accepted only when the runtime admin-principal guard also succeeds.
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: |
+        Admin/service Custom GPT-safe backend authentication header. Send x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
     backendApiKey: { type: apiKey, in: header, name: x-api-key }
   parameters:
     AdvisorRunId:
