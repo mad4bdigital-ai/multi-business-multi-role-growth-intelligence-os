@@ -141,9 +141,10 @@
         "T042",
         "T043",
         "T050",
-        "T051"
+        "T051",
+        "T052"
       ],
-      "latest_task": "T051",
+      "latest_task": "T052",
       "provider_mutation_allowed": false,
       "external_write_allowed": false,
       "enforcement_cutover_allowed": false,
