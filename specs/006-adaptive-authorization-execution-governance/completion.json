@@ -4,7 +4,7 @@
   "title": "Adaptive Authorization and Execution Governance",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-17T00:51:27Z",
+  "last_updated_at": "2026-07-17T16:02:00Z",
   "delivery": {
     "implementation_prs": [
       {
@@ -103,10 +103,17 @@
         "pull_request": 2725,
         "merge_sha": "1ad6382e5af5d390ebb0b7ff85d2c3178cb55c88",
         "status": "merged_and_branch_deleted"
+      },
+      {
+        "sequence": 14,
+        "role": "canonical_and_agent_knowledge_guide_alignment",
+        "pull_request": 2757,
+        "merge_sha": "8dff0c5e690a72cb38e31bbecb184ba54dc7a3a1",
+        "status": "merged_and_branch_deleted"
       }
     ],
     "remaining_task_loop": {
-      "status": "t052_next_canonicals_and_knowledge_guide",
+      "status": "t053_next_verification_release_readiness",
       "provider_mutation": false,
       "external_write": false,
       "migration_execution": "not_started",
@@ -115,9 +122,9 @@
       "route_removal": false
     },
     "next_pr": {
-      "sequence": 14,
-      "scope": "T052 update canonicals and AI_Agent_Knowledge_Guide.md",
-      "status": "ready_after_t051_ledger_closeout"
+      "sequence": 15,
+      "scope": "T053 run CI, dev verification, release readiness, rollback rehearsal, production parity, and post-merge audit",
+      "status": "ready_after_t052_ledger_closeout"
     }
   },
   "evidence": {
@@ -134,9 +141,10 @@
         "T042",
         "T043",
         "T050",
-        "T051"
+        "T051",
+        "T052"
       ],
-      "latest_task": "T051",
+      "latest_task": "T052",
       "provider_mutation_allowed": false,
       "external_write_allowed": false,
       "enforcement_cutover_allowed": false,
@@ -164,17 +172,17 @@
         "T042",
         "T043",
         "T050",
-        "T051"
+        "T051",
+        "T052"
       ],
-      "next_task_scope": "T052 update canonicals and AI_Agent_Knowledge_Guide.md",
+      "next_task_scope": "T053 run CI, dev verification, release readiness, rollback rehearsal, production parity, and post-merge audit",
       "remaining_tasks": [
-        "T052",
         "T053",
         "T061",
         "T062",
         "D010"
       ],
-      "remaining_task_count": 5,
+      "remaining_task_count": 4,
       "provider_mutation_allowed": false,
       "external_write_allowed": false,
       "enforcement_change_allowed": false,
@@ -184,7 +192,7 @@
     },
     "production_rollout": {
       "status": "pending",
-      "reason": "T052 through T053 verification and rollout evidence, T061 through T062 closeout, and D010 final delivery closeout remain incomplete."
+      "reason": "T053 verification and rollout evidence, T061 through T062 closeout, and D010 final delivery closeout remain incomplete."
     }
   },
   "sensitive_values_included": false
