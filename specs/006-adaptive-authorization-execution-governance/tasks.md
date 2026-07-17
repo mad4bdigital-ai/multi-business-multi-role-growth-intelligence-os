@@ -36,7 +36,7 @@
 ## Verification and completion
 
 - [x] T050 Register unit, integration, isolation, replay, stale-revision, ambiguity, and redaction tests.
-- [ ] T051 Add OpenAPI lint and compatibility checks.
+- [x] T051 Add OpenAPI lint and compatibility checks.
 - [ ] T052 Update canonicals and `AI_Agent_Knowledge_Guide.md` during implementation.
 - [ ] T053 Run CI, dev verification, release readiness, rollback rehearsal, production parity, and post-merge audit.
 - [x] T060 Select `multi_pr` delivery.
