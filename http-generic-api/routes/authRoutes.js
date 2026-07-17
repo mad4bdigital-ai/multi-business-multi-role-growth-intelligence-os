@@ -665,7 +665,8 @@ export function buildAuthRoutes(deps) {
   const oauthGoogleClient = deps?.googleClient || googleClient;
 
   async function registerUserCredential(input = {}) {
-    const { email, password, display_name, tenant_display_name } = input;
+    const { email: rawEmail, password, display_name, tenant_display_name } = input;
+    const email = normalizeAuthEmail(rawEmail);
     if (!email || !password || !display_name) {
       throw authRouteFailure(400, "missing_fields", "email, password, and display_name are required.");
     }
