@@ -172,17 +172,17 @@
         "T042",
         "T043",
         "T050",
-        "T051"
+        "T051",
+        "T052"
       ],
-      "next_task_scope": "T052 update canonicals and AI_Agent_Knowledge_Guide.md",
+      "next_task_scope": "T053 run CI, dev verification, release readiness, rollback rehearsal, production parity, and post-merge audit",
       "remaining_tasks": [
-        "T052",
         "T053",
         "T061",
         "T062",
         "D010"
       ],
-      "remaining_task_count": 5,
+      "remaining_task_count": 4,
       "provider_mutation_allowed": false,
       "external_write_allowed": false,
       "enforcement_change_allowed": false,
