@@ -47,7 +47,7 @@ paths:
         envelope that requires approval is returned as a conflict and is not
         dispatched.
       security:
-        - TenantBearer: []
+        - userJwtAuth: []
       requestBody:
         $ref: '#/components/requestBodies/ExecutionRequest'
       responses:
