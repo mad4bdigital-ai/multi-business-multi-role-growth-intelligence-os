@@ -57,6 +57,7 @@ Tenant GPTs must not use admin repo tools. Tenant knowledge must come from OAuth
 | `brands` | Brand context, auth target binding |
 | `hosting_accounts` | Per-target credentials |
 | `connected_systems` | MCP/external connectors |
+| `v_activation_connected_app_connections` | Active app-level connections used by Activation auth-gap classification when no traditional `connected_systems` row exists; traditional connector counts remain unchanged |
 | `business_type_profiles` | Business-type knowledge and engine compatibility |
 | `output_artifacts` | Canonical store for agent-generated outputs |
 | `sink_dispatch_log` | Audit trail for output routing decisions |
