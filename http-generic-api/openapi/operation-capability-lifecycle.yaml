@@ -69,15 +69,15 @@ paths:
           $ref: '#/components/responses/Unavailable'
 components:
   securitySchemes:
-    BackendApiKey:
+    backendApiKeyAuth:
       type: apiKey
       in: header
       name: x-api-key
-    AdminBearer:
+    adminBearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-    TenantBearer:
+    userJwtAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
