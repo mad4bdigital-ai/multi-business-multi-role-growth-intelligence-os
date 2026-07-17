@@ -38,7 +38,7 @@ paths:
         Requires active Tenant membership. Object-level authorization limits
         the result to the Tenant and user that acquired the worker lease.
       security:
-        - TenantBearer: []
+        - userJwtAuth: []
       parameters:
         - $ref: '#/components/parameters/WorkerId'
       responses:
