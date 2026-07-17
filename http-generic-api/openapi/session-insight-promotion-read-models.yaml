@@ -709,6 +709,36 @@ components:
             message: { type: string }
             details: {}
         secrets_included: { type: boolean, const: false }
+    RuntimeUnauthorizedErrorEnvelope:
+      type: object
+      additionalProperties: false
+      description: Exact missing-authentication body emitted by the shared backend-key guard before the read-model route handler runs.
+      required: [ok, error]
+      properties:
+        ok: { type: boolean, const: false }
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, status]
+          properties:
+            code: { type: string, const: missing_backend_api_key }
+            message: { type: string }
+            status: { type: integer, const: 401 }
+    RuntimeForbiddenErrorEnvelope:
+      type: object
+      additionalProperties: false
+      description: Exact invalid-authentication or non-admin body emitted by the shared backend-key and admin-principal guards before the read-model route handler runs.
+      required: [ok, error]
+      properties:
+        ok: { type: boolean, const: false }
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, status]
+          properties:
+            code: { type: string, enum: [invalid_backend_api_key, invalid_auth_token, admin_backend_api_key_required] }
+            message: { type: string }
+            status: { type: integer, const: 403 }
   responses:
     BadRequest:
       description: The bounded filter document contains an unsupported value.
@@ -716,15 +746,15 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorEnvelope' }
     Unauthorized:
-      description: Administrative backend authentication is missing or invalid.
+      description: Administrative backend authentication is missing.
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+          schema: { $ref: '#/components/schemas/RuntimeUnauthorizedErrorEnvelope' }
     Forbidden:
-      description: The authenticated principal lacks administrative authority.
+      description: Administrative backend authentication is invalid or the authenticated principal lacks administrative authority.
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+          schema: { $ref: '#/components/schemas/RuntimeForbiddenErrorEnvelope' }
     InternalError:
       description: The read model query failed without exposing stack traces or secrets.
       content:
