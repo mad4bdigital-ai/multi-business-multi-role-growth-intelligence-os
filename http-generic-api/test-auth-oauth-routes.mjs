@@ -195,10 +195,10 @@ try {
     assert("authorize carries requested OAuth scope", result.text.includes(TENANT_SCOPE));
     assert("authorize carries device id", result.text.includes('"device_id":"my-laptop"'));
     assert("authorize preselects signup panel", result.text.includes('const INITIAL_PANEL = "register"'));
-    assert("authorize setup link always targets auth host", result.text.includes('href="https://auth.mad4b.com/connect"'));
+    assert("authorize does not emit application onboarding link", !result.text.includes('href="https://auth.mad4b.com/connect"'));
     assert("authorize privacy link always targets auth host", result.text.includes('href="https://auth.mad4b.com/privacy-policy"'));
     assert("authorize terms link always targets auth host", result.text.includes('href="https://auth.mad4b.com/terms-of-use"'));
-    assert("authorize does not emit activation-host setup link", !result.text.includes('href="/connect"'));
+    assert("authorize does not emit relative setup link", !result.text.includes('href="/connect"'));
     assert("authorize includes configured Google client", result.text.includes(process.env.GOOGLE_CLIENT_ID));
     assert("authorize preserves requested ChatGPT callback", result.text.includes(redirectUri));
     assert("authorize does not rewrite callback before ChatGPT state validation", !result.text.includes('const REDIRECT_URI = "https://chatgpt.com'));

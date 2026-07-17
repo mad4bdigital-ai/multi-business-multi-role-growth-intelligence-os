@@ -538,7 +538,7 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
 <body>
   <main>
     <h1>Growth Intelligence Platform</h1>
-    <p>Sign in to connect this GPT to your tenant workspace and continue activation.</p>
+    <p>Sign in or create your workspace to continue securely in ChatGPT.</p>
     <nav aria-label="Sign-in options">
       ${showGoogle ? '<button type="button" data-panel="google">Google</button>' : ''}
       ${showEmail ? '<button type="button" data-panel="email">Existing account</button>' : ''}
@@ -563,8 +563,6 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
     </section>` : ''}
     <div id="error" class="error" role="alert"></div>
     <div class="links">
-      <a href="https://auth.mad4b.com/connect" target="_blank" rel="noopener">Open setup page</a>
-      <span aria-hidden="true"> | </span>
       <a href="https://auth.mad4b.com/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a>
       <span aria-hidden="true"> | </span>
       <a href="https://auth.mad4b.com/terms-of-use" target="_blank" rel="noopener">Terms of Use</a>
