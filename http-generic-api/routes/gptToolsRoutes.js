@@ -2505,6 +2505,39 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       }
     }
 
+    if (callerType === "admin" && toolKey === "capability_resolution_envelope_batch_expire") {
+      try {
+        const result = await runCapabilityEnvelopeBatchExpire({
+          pool: getPool(),
+          mode: String(args?.mode || "dry_run").trim(),
+          requestedBy: String(args?.requested_by || "gpt_admin").trim(),
+          expiredBefore: args?.expired_before || null,
+          maxItems: args?.max_items ?? 50,
+          expectedPlanSha256: String(args?.expected_plan_sha256 || "").trim(),
+          confirm: String(args?.confirm || "").trim(),
+          capabilityEnvelopeId: String(args?.capability_envelope_id || "").trim(),
+          reason: String(args?.reason || "").trim(),
+        });
+        return { status: 200, body: result };
+      } catch (err) {
+        return {
+          status: Number(err?.status) || 500,
+          body: {
+            ok: false,
+            error: {
+              code: err?.code || "capability_envelope_batch_expire_failed",
+              message: err?.message || "Capability envelope batch expiration failed.",
+              details: err?.details || undefined,
+            },
+            execution_allowed: false,
+            provider_write: false,
+            external_write: false,
+            secrets_included: false,
+          },
+        };
+      }
+    }
+
     if (callerType === "admin" && toolKey === "capability_resolution_envelope_lifecycle") {
       try {
         const result = await transitionCapabilityEnvelopeLifecycle({
