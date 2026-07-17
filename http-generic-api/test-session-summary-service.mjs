@@ -71,7 +71,7 @@ function makePool() {
         }
         return [[]];
       }
-      if (compact.startsWith("SELECT summary_id, session_id, tenant_id, user_id, workspace_key,")) {
+      if (isSessionSummaryMemoryReadQuery(compact)) {
         if (state.insertedSummary && (!params[0] || params[0] === state.insertedSummary.params[1])) {
           return [[{
             summary_id: state.insertedSummary.params[0],
