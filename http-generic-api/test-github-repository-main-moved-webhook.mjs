@@ -63,6 +63,51 @@ assert.throws(
   (error) => error.code === "github_webhook_signature_required" && error.status === 401,
 );
 
+const verifiedRequest = await verifyGitHubRepositoryMainMovedWebhookRequest(
+  { headers, rawBody },
+  { resolveCredentialReference: async () => ({ status: "resolved", secret }) },
+);
+assert.equal(verifiedRequest.signature_verified, true);
+assert.equal(verifiedRequest.secrets_included, false);
+assert.equal(JSON.stringify(verifiedRequest).includes(secret), false);
+
+const guard = createGitHubRepositoryMainMovedWebhookSignatureGuard({
+  resolveCredentialReference: async () => ({ status: "resolved", secret }),
+});
+const guardedRequest = { headers, rawBody };
+const guardedResponse = responseRecorder();
+let nextCalls = 0;
+await guard(guardedRequest, guardedResponse, () => {
+  nextCalls += 1;
+});
+assert.equal(nextCalls, 1);
+assert.equal(guardedResponse.statusCode, null);
+assert.equal(guardedRequest.githubWebhookSignatureVerification?.signature_verified, true);
+
+const missingSignatureResponse = responseRecorder();
+await guard({ headers: { ...headers, "x-hub-signature-256": "" }, rawBody }, missingSignatureResponse, () => {
+  throw new Error("missing signature must not reach next");
+});
+assert.equal(missingSignatureResponse.statusCode, 401);
+assert.equal(missingSignatureResponse.body?.error?.code, "github_webhook_signature_required");
+
+const invalidSignatureResponse = responseRecorder();
+await guard({ headers: { ...headers, "x-hub-signature-256": `sha256=${"0".repeat(64)}` }, rawBody }, invalidSignatureResponse, () => {
+  throw new Error("invalid signature must not reach next");
+});
+assert.equal(invalidSignatureResponse.statusCode, 401);
+assert.equal(invalidSignatureResponse.body?.error?.code, "github_webhook_signature_invalid");
+
+const unavailableGuard = createGitHubRepositoryMainMovedWebhookSignatureGuard({
+  resolveCredentialReference: async () => ({ status: "blocked_missing_secret" }),
+});
+const unavailableResponse = responseRecorder();
+await unavailableGuard({ headers, rawBody }, unavailableResponse, () => {
+  throw new Error("missing secret must not reach next");
+});
+assert.equal(unavailableResponse.statusCode, 503);
+assert.equal(unavailableResponse.body?.error?.code, "github_webhook_secret_unavailable");
+
 const normalized = normalizeGitHubRepositoryMainMovedWebhook({ headers, body: payload });
 assert.equal(normalized.event_type, "push");
 assert.equal(normalized.delivery_id, "delivery-123");
