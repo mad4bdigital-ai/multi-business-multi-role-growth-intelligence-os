@@ -4,6 +4,8 @@ import {
   listSessionInsightCapabilityEnvelopeActualRequestPreflights,
 } from "./sessionInsightCapabilityEnvelopeActualRequestPreflightService.js";
 
+// frontend-surface-operation: POST /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/list
+
 function makePool() {
   const state = {
     calls: [],
@@ -169,6 +171,7 @@ function makePool() {
 {
   const pool = makePool();
   await createSessionInsightCapabilityEnvelopeActualRequestPreflight({ pool, input: { dispatch_dry_run_id: "capability_dispatch_dry_run_1" } });
+  const listCallStart = pool.state.calls.length;
   const result = await listSessionInsightCapabilityEnvelopeActualRequestPreflights({ pool, filters: { limit: 5 } });
   assert.equal(result.ok, true);
   assert.equal(result.count, 1);
@@ -180,6 +183,11 @@ function makePool() {
   assert.equal(result.actual_request_preflight_policy.preflight_only, true);
   assert.equal(result.actual_request_preflight_policy.calls_capability_resolution, false);
   assert.equal(result.actual_request_preflight_policy.secrets_included, false);
+  assert.equal(
+    pool.state.calls.slice(listCallStart).every(({ sql }) => String(sql).trimStart().startsWith("SELECT")),
+    true,
+    "actual-request preflight list read action must execute SELECT statements only"
+  );
 }
 
 {

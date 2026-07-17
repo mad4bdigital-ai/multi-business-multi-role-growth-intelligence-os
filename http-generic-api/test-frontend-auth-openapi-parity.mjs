@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import YAML from "yaml";
+import { createBackendApiKeyMiddleware } from "./runtimeGuards.js";
+import { requireAdminPrincipal } from "./routes/adminCliRoutes.js";
 
 const plan = JSON.parse(fs.readFileSync("frontend-surface-dispatch.generated.json", "utf8"));
 const operations = plan.families.flatMap((family) => family.operations.map((operation) => ({ ...operation, family_key: family.family_key })));
@@ -8,6 +11,51 @@ function operation(signature, sourceFile = null) {
   const matches = operations.filter((entry) => entry.signature === signature && (!sourceFile || entry.source_file === sourceFile));
   assert.equal(matches.length, 1, `expected one dispatch operation for ${signature}${sourceFile ? ` in ${sourceFile}` : ""}`);
   return matches[0];
+}
+
+async function invokeMiddleware(middleware, { headers = {}, auth } = {}) {
+  const normalizedHeaders = Object.fromEntries(
+    Object.entries(headers).map(([name, value]) => [name.toLowerCase(), value])
+  );
+  let statusCode = 200;
+  let body;
+  let nextCalled = false;
+  const req = {
+    auth,
+    headers: normalizedHeaders,
+    header(name) {
+      return normalizedHeaders[String(name).toLowerCase()] || "";
+    },
+  };
+  const res = {
+    status(value) {
+      statusCode = value;
+      return this;
+    },
+    json(value) {
+      body = value;
+      return value;
+    },
+  };
+  await middleware(req, res, () => {
+    nextCalled = true;
+  });
+  return { statusCode, body, nextCalled };
+}
+
+function assertRuntimeAuthEnvelope(result, schema) {
+  const errorSchema = schema.properties.error;
+  assert.equal(result.nextCalled, false);
+  assert.equal(result.body.ok, false);
+  assert.deepEqual(Object.keys(result.body).sort(), [...schema.required].sort());
+  assert.deepEqual(Object.keys(result.body.error).sort(), [...errorSchema.required].sort());
+  assert.equal(result.statusCode, errorSchema.properties.status.const);
+  assert.equal(result.body.error.status, errorSchema.properties.status.const);
+  if (errorSchema.properties.code.const) {
+    assert.equal(result.body.error.code, errorSchema.properties.code.const);
+  } else {
+    assert(errorSchema.properties.code.enum.includes(result.body.error.code));
+  }
 }
 
 const userJwtOperations = [
@@ -75,5 +123,25 @@ assert.equal(plan.coverage.operation_policy_issue_count, 0, "all exact auth and 
 assert(plan.coverage.openapi_generated_index_count > 0, "high-confidence runtime operations must be represented in the generated OpenAPI index");
 assert.equal(plan.coverage.openapi_gap_count, 0, "every mounted runtime operation must have canonical, generated-index, or explicit exemption presence");
 assert(plan.coverage.openapi_detail_gap_count > 0, "operation indexing must not be misreported as reviewed request/response schema completion");
+
+const readModelOpenApi = YAML.parse(fs.readFileSync("openapi/session-insight-promotion-read-models.yaml", "utf8"));
+const unauthorizedRef = readModelOpenApi.components.responses.Unauthorized.content["application/json"].schema.$ref;
+const forbiddenRef = readModelOpenApi.components.responses.Forbidden.content["application/json"].schema.$ref;
+const unauthorizedSchema = readModelOpenApi.components.schemas[unauthorizedRef.split("/").at(-1)];
+const forbiddenSchema = readModelOpenApi.components.schemas[forbiddenRef.split("/").at(-1)];
+const requireBackendApiKey = createBackendApiKeyMiddleware({
+  BACKEND_API_KEY: "test-backend-api-key",
+  JWT_SECRET: "test-jwt-secret",
+});
+
+assertRuntimeAuthEnvelope(await invokeMiddleware(requireBackendApiKey), unauthorizedSchema);
+assertRuntimeAuthEnvelope(
+  await invokeMiddleware(requireBackendApiKey, { headers: { "x-api-key": "invalid-backend-api-key" } }),
+  forbiddenSchema
+);
+assertRuntimeAuthEnvelope(
+  await invokeMiddleware(requireAdminPrincipal, { auth: { mode: "user_jwt", is_admin: false } }),
+  forbiddenSchema
+);
 
 console.log("frontend runtime auth, OpenAPI parity, and per-operation mutation governance tests passed");

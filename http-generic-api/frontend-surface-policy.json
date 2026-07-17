@@ -421,6 +421,60 @@
       "owner": "platform-intelligence",
       "rationale": "The endpoint reads readiness, summary, and issue views with SELECT queries only and cannot approve, execute, or write an adapter operation.",
       "evidence_refs": ["sessionInsightAdapterApplyReadinessGateService.js", "test-session-insight-adapter-apply-readiness-gate-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-promotion-review-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/review/list",
+      "source_file": "routes/sessionInsightPromotionReviewRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint runs two secret-filtered SELECT queries to return promotion proposals and aggregate review status; it cannot approve, reject, promote, or assign an executor.",
+      "evidence_refs": ["sessionInsightPromotionReviewService.js", "test-session-insight-promotion-review-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-payload-preview-review-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/payload-preview/review/list",
+      "source_file": "routes/sessionInsightPayloadPreviewReviewRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint runs two secret-filtered SELECT queries to return payload-preview review rows and aggregates; it cannot decide a review, enable execution, or write a target surface.",
+      "evidence_refs": ["sessionInsightPayloadPreviewReviewService.js", "test-session-insight-payload-preview-review-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-plan-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-plans/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopePlanRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads capability-envelope plan rows, aggregates, and issue views with SELECT queries only; it cannot create or request an envelope, execute an adapter, or enable target writes.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopePlanService.js", "test-session-insight-capability-envelope-plan-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-request-gate-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-request-gates/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeRequestGateRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads request-gate rows, review-state aggregates, and issue views with SELECT queries only; it cannot create or review a gate, request an envelope, create an approval hold, execute an adapter, or enable target writes.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeRequestGateService.js", "test-session-insight-capability-envelope-request-gate-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-dispatch-dry-run-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeDispatchDryRunRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads dispatch dry-run rows, aggregates, and issue views with SELECT queries only; it cannot generate or review a dry-run, call capability resolution, request an envelope, execute an adapter, or write a target surface.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeDispatchDryRunService.js", "test-session-insight-capability-envelope-dispatch-dry-run-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-actual-request-preflight-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeActualRequestPreflightRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads actual-request preflight rows, aggregates, and issue views with SELECT queries only; it cannot create a preflight, call capability resolution, request an envelope, execute an adapter, or enable target writes.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeActualRequestPreflightService.js", "test-session-insight-capability-envelope-actual-request-preflight-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
     }
   ],
   "secrets_included": false
