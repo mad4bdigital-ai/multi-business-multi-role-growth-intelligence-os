@@ -4,17 +4,18 @@
 - Queue schema: surface-contract-gap-queue-v1
 - Triage schema: surface-contract-gap-triage-v1
 - Gate schema: surface-contract-new-gap-gate-v1
-- Queue items: 18
-- Triaged items: 18
-- Gate candidates: 18
+- Queue items: 19
+- Triaged items: 19
+- Gate candidates: 19
 - New-gap gate: fail
-- Blocking new items: 18
-- Docs completion: 96.6%
-- SQL route OpenAPI coverage: 90.48%
+- Blocking new items: 19
+- Docs completion: 96.42%
+- SQL route OpenAPI coverage: 90.91%
 
 ## Top immediate items
 
 - `20260714_validate_hostinger_connection_and_complete_continuation_task.sql` — critical_review, classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `20260717_tenant_task_source_repair_apply_gate.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260715_platform_capability_shadow_certification_issue.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260715_dynamic_container_canary_runtime_observability.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260714_tenant_connection_shadow_contract_bootstrap.sql` — critical_review, add targeted patch-index, parity, and governance documentation
