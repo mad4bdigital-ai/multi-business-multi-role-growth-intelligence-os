@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   buildOutboxBatch,
+  enqueuePlatformOutboxEvent,
   findSensitivePayloadPaths,
   getPlatformOutboxStatus,
   sanitizeOutboxPayload,
@@ -223,6 +224,112 @@ const blockedEndpointReadiness = validateConsumerReadiness({
 assert.equal(blockedEndpointReadiness.ready, false);
 assert.ok(blockedEndpointReadiness.reasons.includes("endpoint_embedded_credentials_forbidden"));
 assert.ok(blockedEndpointReadiness.reasons.includes("endpoint_secret_query_parameter_forbidden"));
+
+const activeEventType = {
+  event_type: "growth_intelligence.report_persisted",
+  current_schema_version: 1,
+  payload_classification: "internal",
+  contains_pii: 0,
+  status: "active",
+};
+const eventInput = {
+  eventId: "11111111-1111-4111-8111-111111111112",
+  eventType: activeEventType.event_type,
+  schemaVersion: 1,
+  aggregateType: "growth_intelligence_report",
+  aggregateId: "report-1",
+  payload: { report_id: "report-1" },
+  metadata: { producer_key: "growth_intelligence_registry" },
+  sourceEnvironment: "development",
+  occurredAt: new Date("2026-07-17T00:00:00.000Z"),
+  availableAt: new Date("2026-07-17T00:00:00.000Z"),
+};
+
+const callerQueries = [];
+const callerResult = await enqueuePlatformOutboxEvent({
+  connection: {
+    async query(sql) {
+      callerQueries.push(sql);
+      if (/FROM platform_outbox_event_types/.test(sql)) return [[activeEventType]];
+      return [{ affectedRows: 1 }];
+    },
+  },
+  ...eventInput,
+});
+assert.equal(callerResult.transaction_owner, "caller");
+assert.equal(callerQueries.length, 3);
+
+const ownedSteps = [];
+const ownedResult = await enqueuePlatformOutboxEvent({
+  pool: {
+    async query() {
+      ownedSteps.push("event_type_query");
+      return [[activeEventType]];
+    },
+    async getConnection() {
+      ownedSteps.push("get_connection");
+      return {
+        async beginTransaction() { ownedSteps.push("begin"); },
+        async query(sql) {
+          ownedSteps.push(/INSERT INTO platform_outbox_events/.test(sql) ? "insert_event" : "insert_deliveries");
+          return [{ affectedRows: 1 }];
+        },
+        async commit() { ownedSteps.push("commit"); },
+        async rollback() { ownedSteps.push("rollback"); },
+        release() { ownedSteps.push("release"); },
+      };
+    },
+  },
+  ...eventInput,
+  eventId: "11111111-1111-4111-8111-111111111113",
+});
+assert.equal(ownedResult.transaction_owner, "outbox_service");
+assert.deepEqual(ownedSteps, [
+  "event_type_query",
+  "get_connection",
+  "begin",
+  "insert_event",
+  "insert_deliveries",
+  "commit",
+  "release",
+]);
+
+const failureSteps = [];
+await assert.rejects(
+  enqueuePlatformOutboxEvent({
+    pool: {
+      async query() {
+        failureSteps.push("event_type_query");
+        return [[activeEventType]];
+      },
+      async getConnection() {
+        failureSteps.push("get_connection");
+        return {
+          async beginTransaction() { failureSteps.push("begin"); },
+          async query() {
+            failureSteps.push("insert_event");
+            throw new Error("synthetic outbox insert failure");
+          },
+          async commit() { failureSteps.push("commit"); },
+          async rollback() { failureSteps.push("rollback"); },
+          release() { failureSteps.push("release"); },
+        };
+      },
+    },
+    ...eventInput,
+    eventId: "11111111-1111-4111-8111-111111111114",
+  }),
+  /synthetic outbox insert failure/
+);
+assert.deepEqual(failureSteps, [
+  "event_type_query",
+  "get_connection",
+  "begin",
+  "insert_event",
+  "rollback",
+  "release",
+]);
+
 
 const outboxSource = await fs.readFile(path.join(root, "platformOutbox.js"), "utf8");
 assert.match(outboxSource, /async function releaseExpiredClaims/);
