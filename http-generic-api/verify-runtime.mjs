@@ -83,7 +83,7 @@ function nonEmpty(value) {
 
 function isBotVerificationResponse(response) {
   const raw = String(response?.body?._raw || "").toLowerCase();
-  return response?.status === 403 && (
+  return Boolean(raw) && (
     raw.includes("bot verification") ||
     raw.includes("verifying that you are not a robot") ||
     raw.includes("recaptcha") ||
@@ -113,23 +113,39 @@ function isAllowedSentinel(value, allowed = []) {
 async function get(path, opts = {}) {
   const headers = { "Content-Type": "application/json" };
   if (API_KEY) headers.Authorization = `Bearer ${API_KEY}`;
-  try {
-    const res = await fetch(`${BASE_URL}${path}`, {
-      headers,
-      signal: AbortSignal.timeout(10000),
-      ...opts
-    });
-    const text = await res.text();
-    let body;
+  const attempts = Math.max(1, Math.min(Number(opts.bot_challenge_attempts || 3), 5));
+  const fetchOptions = { ...opts };
+  delete fetchOptions.bot_challenge_attempts;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
-      body = JSON.parse(text);
-    } catch {
-      body = { _raw: text };
+      const res = await fetch(`${BASE_URL}${path}`, {
+        headers,
+        signal: AbortSignal.timeout(10000),
+        ...fetchOptions
+      });
+      const text = await res.text();
+      let body;
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = { _raw: text };
+      }
+      const result = { ok: res.ok, status: res.status, body };
+      if (isBotVerificationResponse(result) && attempt < attempts) {
+        await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
+        continue;
+      }
+      return result;
+    } catch (err) {
+      if (attempt === attempts) {
+        return { ok: false, status: 0, body: null, error: err?.message || String(err) };
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
     }
-    return { ok: res.ok, status: res.status, body };
-  } catch (err) {
-    return { ok: false, status: 0, body: null, error: err?.message || String(err) };
   }
+
+  return { ok: false, status: 0, body: null, error: "runtime_get_retry_exhausted" };
 }
 
 async function post(path, payload) {
