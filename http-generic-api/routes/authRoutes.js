@@ -1114,11 +1114,16 @@ export function buildAuthRoutes(deps) {
         logTokenExchange("failed", "redirect_uri_mismatch", 400);
         return res.status(400).json({ error: "invalid_grant", error_description: "redirect_uri does not match the issued code." });
       }
-      if (_isOAuthCodeUsed(codePayload.jti)) {
-        logTokenExchange("failed", "oauth_code_reuse", 400);
-        return res.status(400).json({ error: "invalid_grant", error_description: "OAuth code has already been used." });
+      const codeConsumption = await consumeTenantGptOAuthAuthorizationCode({
+        query: tokenQuery,
+        jti: codePayload.jti,
+        client_id: clientValidation.client_id,
+        redirect_uri: codePayload.redirect_uri,
+      });
+      if (!codeConsumption.consumed) {
+        logTokenExchange("failed", "oauth_code_reuse_or_binding_mismatch", 400);
+        return res.status(400).json({ error: "invalid_grant", error_description: "OAuth code has already been used or does not match this client." });
       }
-      _markOAuthCodeUsed(codePayload.jti, codePayload.exp);
 
       const pool = resolvePool();
       const [userRows] = await pool.query(
