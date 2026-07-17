@@ -33,6 +33,24 @@ const headers = {
   "x-hub-signature-256": signature,
 };
 
+function responseRecorder() {
+  return {
+    statusCode: null,
+    body: null,
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json(body) {
+      this.body = body;
+      return body;
+    },
+    getHeader() {
+      return undefined;
+    },
+  };
+}
+
 assert.equal(GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PATH, "/webhooks/github/repository-main-moved");
 assert.equal(GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET_REF, "ref:secret:GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET");
 assert.equal(verifyGitHubWebhookSignature({ rawBody, signature, secret }), true);
