@@ -1,6 +1,6 @@
 # Frontend Dispatch Coverage Baseline
 
-**Baseline ref**: `b31fc028027c3daaabde5c2fd8b7484bc6600c1b`
+**Baseline ref**: `eaed12936e12bd1852e4303c0eb78cdf86a03e65`
 **Generated contract**: `http-generic-api/frontend-surface-dispatch.generated.json`  
 **Policy**: fail closed; unresolved items are work, not exemptions.
 
@@ -12,19 +12,19 @@
 | Scope/policy-split surface families | 158 |
 | Mixed-scope route files | 21 |
 | HTTP operations | 958 |
-| Canonical OpenAPI operations | 550 |
-| Generated auth-backed operation index | 392 |
+| Canonical OpenAPI operations | 553 |
+| Generated auth-backed operation index | 389 |
 | Explicit OpenAPI exemptions | 16 |
 | Remaining OpenAPI operation-presence gaps | 0 |
-| Generated operations still missing reviewed detail contracts | 392 |
-| Explicitly test-owned operations | 14 |
-| Operations without explicit test claims | 944 |
+| Generated operations still missing reviewed detail contracts | 389 |
+| Explicitly test-owned operations | 17 |
+| Operations without explicit test claims | 941 |
 | Fully test-owned families | 4 |
 | Families with test ownership gaps | 154 |
 | Ready tasks | 1 |
 | Blocked tasks | 157 |
 
-The inventory includes optional dynamically imported route builders, expands optional Express parameters into both served path variants, expands `router.all` registrations across every governed HTTP method, ignores commented legacy registrations, and splits route families at explicit surface-policy and auth boundaries. Generated Custom GPT projections and the runtime operation index are excluded from canonical detail coverage: they supply projection or presence/auth evidence only and never count as reviewed request/response contracts. Three session-insight adapter read models now have reviewed request/response schemas and explicit test ownership.
+The inventory includes optional dynamically imported route builders, expands optional Express parameters into both served path variants, expands `router.all` registrations across every governed HTTP method, ignores commented legacy registrations, and splits route families at explicit surface-policy and auth boundaries. Generated Custom GPT projections and the runtime operation index are excluded from canonical detail coverage: they supply projection or presence/auth evidence only and never count as reviewed request/response contracts. Six session-insight read models now have reviewed request/response schemas and explicit test ownership.
 
 ## Auth and operation governance
 
@@ -37,11 +37,11 @@ The inventory includes optional dynamically imported route builders, expands opt
 | Runtime auth unresolved | 0 |
 | Non-GET operation candidates | 582 |
 | Explicitly classified state changes | 4 |
-| Explicitly classified non-mutating actions | 16 |
-| Non-GET candidates awaiting classification | 562 |
+| Explicitly classified non-mutating actions | 19 |
+| Non-GET candidates awaiting classification | 559 |
 | Fully governed state changes | 0 |
 
-Exact auth rules now cover handler-level, imported-handler, public bootstrap, connector bearer, signed-query-token, and multi-method root-discovery cases. They cannot weaken a statically discovered guard: a conflicting rule fails closed. Twelve newly mounted admin operations were synchronized to the runtime admin bearer/API-key alternatives. The adapter-contract, target-adapter, and adapter-apply-readiness POST filters are classified as SELECT-only read actions with canonical contracts and executable tests. The four classified resource mutations have proven same-cycle repository readback, but remain blocked on failure rollback/post-commit compensation; the baseline does not convert readback evidence into a rollback claim.
+Exact auth rules now cover handler-level, imported-handler, public bootstrap, connector bearer, signed-query-token, and multi-method root-discovery cases. They cannot weaken a statically discovered guard: a conflicting rule fails closed. Twelve newly mounted admin operations were synchronized to the runtime admin bearer/API-key alternatives. The adapter-contract, target-adapter, adapter-apply-readiness, promotion-review, payload-preview-review, and capability-envelope-plan POST filters are classified as SELECT-only read actions with canonical contracts and executable tests. The four classified resource mutations have proven same-cycle repository readback, but remain blocked on failure rollback/post-commit compensation; the baseline does not convert readback evidence into a rollback claim.
 
 ## Scope distribution
 
