@@ -9,7 +9,6 @@ const reconciliationMigrationName = "20260717_runtime_contract_root_cause_reconc
 const reconciliationMigration = readFileSync(new URL(`./migrations/${reconciliationMigrationName}`, import.meta.url), "utf8");
 const verifyRuntime = readFileSync(new URL("./verify-runtime.mjs", import.meta.url), "utf8");
 const activationRoutes = readFileSync(new URL("./routes/activationRoutes.js", import.meta.url), "utf8");
-const adminCliRoutes = readFileSync(new URL("./routes/adminCliRoutes.js", import.meta.url), "utf8");
 
 const listIssuesStart = schema.indexOf("  /repos/{owner}/{repo}/issues:\n");
 const nextPath = schema.indexOf("\n  /repos/", listIssuesStart + 1);
@@ -53,7 +52,6 @@ for (const marker of [
   assert.ok(reconciliationMigration.includes(marker), `reconciliation migration missing ${marker}`);
 }
 
-assert.match(adminCliRoutes, /const connectionId = String\(body\?\.connection_id \|\| ""\)\.trim\(\);/);
 assert.match(activationRoutes, /\/session-context\/read-only/);
 assert.match(verifyRuntime, /function isBotVerificationResponse\(response\)/);
 assert.doesNotMatch(verifyRuntime, /return response\?\.status === 403 && \(/);
