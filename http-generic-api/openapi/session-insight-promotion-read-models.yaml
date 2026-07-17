@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Session Insight Promotion Read Models API
-  version: 1.3.0
+  version: 1.4.0
   description: Canonical, secret-free contracts for administrative session-insight promotion read models. The POST methods accept bounded filter documents but execute SELECT-only read actions.
 servers:
   - url: https://auth.mad4b.com
@@ -266,6 +266,48 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '500': { $ref: '#/components/responses/InternalError' }
+  /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightCapabilityEnvelopeAdapterExecutionGates
+      summary: List capability-envelope adapter execution gates
+      description: Runs three secret-filtered SELECT queries only. It does not create an execution gate, request or execute an adapter apply, enable execution or promotion, or write a target surface.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CapabilityEnvelopeAdapterExecutionGateListRequest' }
+      responses:
+        '200':
+          description: Bounded adapter execution gates with aggregate status and safety issues.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CapabilityEnvelopeAdapterExecutionGateListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /platform/session-insight-promotions/backlog-target-writes/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightBacklogTargetWrites
+      summary: List internal backlog target writes
+      description: Runs two secret-filtered SELECT queries only. It reads the internal SQL target-write ledger and issue view but cannot execute or roll back a write, modify a target item, call a provider, or perform an external write.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BacklogTargetWriteListRequest' }
+      responses:
+        '200':
+          description: Bounded internal backlog target writes with safety issues and policy evidence.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BacklogTargetWriteListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
 components:
   securitySchemes:
     adminBearerAuth:
@@ -425,6 +467,26 @@ components:
         actual_request_id: { type: string, minLength: 1, maxLength: 128 }
         actual_capability_envelope_id: { type: string, minLength: 1, maxLength: 128 }
         promotion_id: { type: string, minLength: 1, maxLength: 96 }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    CapabilityEnvelopeAdapterExecutionGateListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        adapter_execution_gate_id: { type: string, minLength: 1, maxLength: 128 }
+        dispatch_readback_id: { type: string, minLength: 1, maxLength: 128 }
+        actual_request_id: { type: string, minLength: 1, maxLength: 128 }
+        actual_capability_envelope_id: { type: string, minLength: 1, maxLength: 128 }
+        promotion_id: { type: string, minLength: 1, maxLength: 96 }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    BacklogTargetWriteListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        target_write_id: { type: string, minLength: 1, maxLength: 128 }
+        remaining_scope_completion_id: { type: string, minLength: 1, maxLength: 128 }
+        target_item_id: { type: string, minLength: 1, maxLength: 128 }
+        promotion_id: { type: string, minLength: 1, maxLength: 96 }
+        target_surface: { type: string, enum: [development_backlog, integration_backlog, runtime_repair_backlog] }
         limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
     AdapterContractListResponse:
       type: object
@@ -1156,8 +1218,8 @@ components:
         capability_key: { type: string }
         operation_intent: { type: string }
         runtime_surface: { type: string }
-        actual_request_status: { type: string, const: actual_envelope_requested }
-        actual_request_policy_status: { type: string, const: actual_envelope_requested_but_not_approved }
+        actual_request_status: { type: string, enum: [actual_envelope_requested, actual_envelope_request_blocked, superseded] }
+        actual_request_policy_status: { type: string, enum: [actual_envelope_requested_but_not_approved, blocked] }
         actual_capability_envelope_requested: { type: boolean, const: true }
         actual_capability_envelope_id: { type: [string, 'null'] }
         actual_capability_envelope_status: { type: [string, 'null'] }
@@ -1178,8 +1240,8 @@ components:
       additionalProperties: false
       required: [actual_request_status, actual_request_policy_status, approval_hold_created, execution_allowed, target_write_allowed, count]
       properties:
-        actual_request_status: { type: string, const: actual_envelope_requested }
-        actual_request_policy_status: { type: string, const: actual_envelope_requested_but_not_approved }
+        actual_request_status: { type: string, enum: [actual_envelope_requested, actual_envelope_request_blocked, superseded] }
+        actual_request_policy_status: { type: string, enum: [actual_envelope_requested_but_not_approved, blocked] }
         approval_hold_created: { type: boolean, const: false }
         execution_allowed: { type: boolean, const: false }
         target_write_allowed: { type: boolean, const: false }
@@ -1233,8 +1295,8 @@ components:
         operation_intent: { type: string }
         runtime_surface: { type: string }
         actual_capability_envelope_id: { type: string }
-        approval_decision_status: { type: string, const: actual_envelope_approved }
-        approval_policy_status: { type: string, const: approved_but_not_executed }
+        approval_decision_status: { type: string, enum: [actual_envelope_approved, actual_envelope_approval_blocked, superseded] }
+        approval_policy_status: { type: string, enum: [approved_but_not_executed, blocked] }
         approval_hold_created: { type: boolean, const: true }
         approval_hold_id: { type: [string, 'null'] }
         envelope_status_after_approval: { type: [string, 'null'] }
@@ -1254,8 +1316,8 @@ components:
       additionalProperties: false
       required: [approval_decision_status, approval_policy_status, approval_hold_created, execution_allowed, target_write_allowed, adapter_apply_executed, count]
       properties:
-        approval_decision_status: { type: string, const: actual_envelope_approved }
-        approval_policy_status: { type: string, const: approved_but_not_executed }
+        approval_decision_status: { type: string, enum: [actual_envelope_approved, actual_envelope_approval_blocked, superseded] }
+        approval_policy_status: { type: string, enum: [approved_but_not_executed, blocked] }
         approval_hold_created: { type: boolean, const: true }
         execution_allowed: { type: boolean, const: false }
         target_write_allowed: { type: boolean, const: false }
@@ -1309,8 +1371,8 @@ components:
         operation_intent: { type: string }
         runtime_surface: { type: string }
         actual_capability_envelope_id: { type: string }
-        dispatch_readback_status: { type: string, const: dispatch_readback_passed }
-        dispatch_readback_policy_status: { type: string, const: ready_for_adapter_execution_gate }
+        dispatch_readback_status: { type: string, enum: [dispatch_readback_passed, dispatch_readback_blocked, superseded] }
+        dispatch_readback_policy_status: { type: string, enum: [ready_for_adapter_execution_gate, blocked] }
         approval_hold_created: { type: boolean, const: true }
         approval_hold_id: { type: [string, 'null'] }
         envelope_status: { type: string }
@@ -1332,8 +1394,8 @@ components:
       additionalProperties: false
       required: [dispatch_readback_status, dispatch_readback_policy_status, adapter_apply_executed, execution_allowed, target_write_allowed, count]
       properties:
-        dispatch_readback_status: { type: string, const: dispatch_readback_passed }
-        dispatch_readback_policy_status: { type: string, const: ready_for_adapter_execution_gate }
+        dispatch_readback_status: { type: string, enum: [dispatch_readback_passed, dispatch_readback_blocked, superseded] }
+        dispatch_readback_policy_status: { type: string, enum: [ready_for_adapter_execution_gate, blocked] }
         adapter_apply_executed: { type: boolean, const: false }
         execution_allowed: { type: boolean, const: false }
         target_write_allowed: { type: boolean, const: false }
@@ -1349,6 +1411,146 @@ components:
         adapter_apply_executed: { type: boolean, const: false }
         execution_allowed: { type: boolean, const: false }
         target_write_allowed: { type: boolean, const: false }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeAdapterExecutionGateListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, count, adapter_execution_gates, summary, issues, adapter_execution_gate_policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        count: { type: integer, minimum: 0 }
+        adapter_execution_gates:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeAdapterExecutionGate' }
+        summary:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeAdapterExecutionGateSummary' }
+        issues:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeReadModelIssue' }
+        adapter_execution_gate_policy: { $ref: '#/components/schemas/CapabilityEnvelopeAdapterExecutionGatePolicy' }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeAdapterExecutionGate:
+      type: object
+      additionalProperties: false
+      required: [adapter_execution_gate_id, dispatch_readback_id, approval_decision_id, actual_request_id, actual_request_preflight_id, dispatch_dry_run_id, request_gate_id, capability_plan_id, promotion_id, insight_id, capability_key, operation_intent, runtime_surface, actual_capability_envelope_id, adapter_execution_gate_status, adapter_execution_policy_status, typed_confirm, adapter_apply_requested, adapter_apply_executed, execution_allowed, target_write_allowed, promotion_allowed, gate_result_json, safety_contract, created_by, created_at, secrets_included]
+      properties:
+        adapter_execution_gate_id: { type: string }
+        dispatch_readback_id: { type: string }
+        approval_decision_id: { type: string }
+        actual_request_id: { type: string }
+        actual_request_preflight_id: { type: string }
+        dispatch_dry_run_id: { type: string }
+        request_gate_id: { type: string }
+        capability_plan_id: { type: string }
+        promotion_id: { type: string }
+        insight_id: { type: string }
+        capability_key: { type: string }
+        operation_intent: { type: string }
+        runtime_surface: { type: string }
+        actual_capability_envelope_id: { type: string }
+        adapter_execution_gate_status: { type: string, enum: [adapter_execution_gate_ready, adapter_execution_gate_blocked, superseded] }
+        adapter_execution_policy_status: { type: string, enum: [ready_for_adapter_apply_dispatch, blocked] }
+        typed_confirm: { type: string }
+        adapter_apply_requested: { type: boolean, const: false }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        promotion_allowed: { type: boolean, const: false }
+        gate_result_json: { type: [object, 'null'], additionalProperties: true }
+        safety_contract: { type: [object, 'null'], additionalProperties: true }
+        created_by: { type: [string, 'null'] }
+        created_at: { type: [string, 'null'] }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeAdapterExecutionGateSummary:
+      type: object
+      additionalProperties: false
+      required: [adapter_execution_gate_status, adapter_execution_policy_status, adapter_apply_requested, adapter_apply_executed, execution_allowed, target_write_allowed, promotion_allowed, count]
+      properties:
+        adapter_execution_gate_status: { type: string, enum: [adapter_execution_gate_ready, adapter_execution_gate_blocked, superseded] }
+        adapter_execution_policy_status: { type: string, enum: [ready_for_adapter_apply_dispatch, blocked] }
+        adapter_apply_requested: { type: boolean, const: false }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        promotion_allowed: { type: boolean, const: false }
+        count: { type: integer, minimum: 0 }
+    CapabilityEnvelopeAdapterExecutionGatePolicy:
+      type: object
+      additionalProperties: false
+      required: [requires_typed_confirm, adapter_execution_gate_only, adapter_apply_dispatch_not_implemented, adapter_apply_requested, adapter_apply_executed, execution_allowed, target_write_allowed, raw_transcript_included, secrets_included]
+      properties:
+        requires_typed_confirm: { type: string, const: OPEN_ADAPTER_EXECUTION_GATE_NO_APPLY }
+        adapter_execution_gate_only: { type: boolean, const: true }
+        adapter_apply_dispatch_not_implemented: { type: boolean, const: true }
+        adapter_apply_requested: { type: boolean, const: false }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    BacklogTargetWriteListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, count, target_writes, issues, policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        count: { type: integer, minimum: 0 }
+        target_writes:
+          type: array
+          items: { $ref: '#/components/schemas/BacklogTargetWrite' }
+        issues:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeReadModelIssue' }
+        policy: { $ref: '#/components/schemas/BacklogTargetWritePolicy' }
+        secrets_included: { type: boolean, const: false }
+    BacklogTargetWrite:
+      type: object
+      additionalProperties: false
+      required: [target_write_id, remaining_scope_completion_id, adapter_execution_gate_id, actual_request_id, actual_capability_envelope_id, promotion_id, insight_id, target_surface, promotion_type, target_item_id, target_write_status, target_write_allowed, target_write_executed, promotion_allowed, provider_call_executed, credential_payload_read, external_write_executed, raw_transcript_included, write_payload, write_result, rollback_plan, rollback_result, safety_contract, created_by, rolled_back_by, rolled_back_at, created_at, secrets_included]
+      properties:
+        target_write_id: { type: string }
+        remaining_scope_completion_id: { type: string }
+        adapter_execution_gate_id: { type: string }
+        actual_request_id: { type: string }
+        actual_capability_envelope_id: { type: string }
+        promotion_id: { type: string }
+        insight_id: { type: string }
+        target_surface: { type: string, enum: [development_backlog, integration_backlog, runtime_repair_backlog] }
+        promotion_type: { type: string }
+        target_item_id: { type: string }
+        target_write_status: { type: string, enum: [target_write_executed, rolled_back] }
+        target_write_allowed: { type: boolean, const: true }
+        target_write_executed: { type: boolean, const: true }
+        promotion_allowed: { type: boolean, const: true }
+        provider_call_executed: { type: boolean, const: false }
+        credential_payload_read: { type: boolean, const: false }
+        external_write_executed: { type: boolean, const: false }
+        raw_transcript_included: { type: boolean, const: false }
+        write_payload: { type: [object, 'null'], additionalProperties: true }
+        write_result: { type: [object, 'null'], additionalProperties: true }
+        rollback_plan: { type: [object, 'null'], additionalProperties: true }
+        rollback_result: { type: [object, 'null'], additionalProperties: true }
+        safety_contract: { type: [object, 'null'], additionalProperties: true }
+        created_by: { type: [string, 'null'] }
+        rolled_back_by: { type: [string, 'null'] }
+        rolled_back_at: { type: [string, 'null'] }
+        created_at: { type: [string, 'null'] }
+        secrets_included: { type: boolean, const: false }
+    BacklogTargetWritePolicy:
+      type: object
+      additionalProperties: false
+      required: [execute_typed_confirm, rollback_typed_confirm, target_write_allowed, target_write_executed, internal_sql_only, provider_call_executed, credential_payload_read, external_write_executed, raw_transcript_included, secrets_included]
+      properties:
+        execute_typed_confirm: { type: string, const: EXECUTE_SESSION_INSIGHT_BACKLOG_TARGET_WRITE }
+        rollback_typed_confirm: { type: string, const: ROLLBACK_SESSION_INSIGHT_BACKLOG_TARGET_WRITE }
+        target_write_allowed: { type: boolean, const: true }
+        target_write_executed: { type: boolean, const: true }
+        internal_sql_only: { type: boolean, const: true }
+        provider_call_executed: { type: boolean, const: false }
+        credential_payload_read: { type: boolean, const: false }
+        external_write_executed: { type: boolean, const: false }
         raw_transcript_included: { type: boolean, const: false }
         secrets_included: { type: boolean, const: false }
     ErrorEnvelope:

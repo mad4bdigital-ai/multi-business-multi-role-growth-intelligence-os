@@ -5,6 +5,8 @@ import {
   rollbackSessionInsightBacklogTargetWrite,
 } from "./sessionInsightBacklogTargetWriteService.js";
 
+// frontend-surface-operation: POST /platform/session-insight-promotions/backlog-target-writes/list
+
 function makePool(overrides = {}) {
   const state = {
     context: {
@@ -141,10 +143,16 @@ assert.equal(created.target_write.secrets_included, false);
 assert.equal(created.target_item.target_item_status, "open");
 assert.equal(created.target_item.title, "Write actual backlog item");
 
+const listCallStart = pool.state.calls.length;
 const listed = await listSessionInsightBacklogTargetWrites({ pool, filters: { limit: 5 } });
 assert.equal(listed.ok, true);
 assert.equal(listed.count, 1);
 assert.equal(listed.policy.internal_sql_only, true);
+assert.equal(
+  pool.state.calls.slice(listCallStart).every(({ sql }) => String(sql).trimStart().startsWith("SELECT")),
+  true,
+  "backlog target-write list read action must execute SELECT statements only"
+);
 
 const rolledBack = await rollbackSessionInsightBacklogTargetWrite({ pool, input: {
   target_write_id: created.target_write.target_write_id,
