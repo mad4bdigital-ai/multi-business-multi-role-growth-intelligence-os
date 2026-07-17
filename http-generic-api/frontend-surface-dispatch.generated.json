@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "b31fc028027c3daaabde5c2fd8b7484bc6600c1b",
-    "source_digest": "e8bc49ec5d62b28d93e58eb515957da28c2e94831628a983a8b093938637a0c7",
+    "source_digest": "d5b92deca6b93bc70bc1eeb07c908ed43951271abb1d5b1d2b8326dcc79bc39c",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -101,7 +101,7 @@
       },
       {
         "file": "openapi/session-insight-promotion-read-models.yaml",
-        "sha256": "13a4829757f1207509cbd80f21689ebbb83c87ded38f8e0ab8e59c1cf32257df",
+        "sha256": "4a1c9d831953cba5e6fa9b31545d18bdbb5e186d18846e5c1fd070ba71fe31b1",
         "present": true
       },
       {
@@ -861,7 +861,7 @@
       },
       {
         "file": "test-session-insight-adapter-apply-readiness-gate-service.mjs",
-        "sha256": "d1850de1503b34637b53cd1686e7e14fda2cb9479bf9d61597d5f8f2e70cd31f",
+        "sha256": "37ed176b084e93f51319295f9e11da3435f06f41aca7c611af851c9a1d7171a9",
         "present": true
       },
       {
@@ -871,7 +871,7 @@
       },
       {
         "file": "test-session-insight-target-adapter-registry-service.mjs",
-        "sha256": "6fd09fe08ed8215ab6625214429e1bf4f11721ac1bfdf95d39b08ca1c92ce549",
+        "sha256": "36eb05de37818b49823a1217ba10cdd0883db0706978f3350b1ddfd6ce0f142f",
         "present": true
       },
       {

@@ -224,8 +224,8 @@ components:
         target_surface: { type: string }
         target_operation: { type: string }
         adapter_family: { type: string }
-        implementation_status: { type: string, enum: [skeleton] }
-        execution_mode: { type: string, enum: [registry_only] }
+        implementation_status: { type: string, enum: [skeleton, implemented, deprecated] }
+        execution_mode: { type: string, enum: [registry_only, dry_run, apply] }
         apply_supported: { type: boolean, const: false }
         capability_key_required: { type: [string, 'null'] }
         capability_envelope_required: { type: boolean }
@@ -312,7 +312,7 @@ components:
         capability_envelope_required: { type: boolean }
         capability_envelope_id: { type: [string, 'null'] }
         target_adapter_key: { type: [string, 'null'] }
-        promotion_allowed: { type: boolean, const: false }
+        promotion_allowed: { type: boolean }
         execution_allowed: { type: boolean, const: false }
         target_write_allowed: { type: boolean, const: false }
         adapter_apply_supported: { type: boolean, const: false }

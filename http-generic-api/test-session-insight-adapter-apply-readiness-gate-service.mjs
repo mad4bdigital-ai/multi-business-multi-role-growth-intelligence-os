@@ -3,7 +3,7 @@ import { listSessionInsightAdapterApplyReadinessGate } from "./sessionInsightAda
 
 // frontend-surface-operation: POST /platform/session-insight-promotions/adapter-apply-readiness/list
 
-function makePool() {
+function makePool({ gateOverrides = {} } = {}) {
   const state = { calls: [] };
   return {
     state,
@@ -55,6 +55,7 @@ function makePool() {
             secrets_included: false,
           }),
           secrets_included: 0,
+          ...gateOverrides,
         }]];
       }
       if (compact.startsWith("SELECT gate_status")) {
@@ -103,6 +104,18 @@ function makePool() {
     true,
     "adapter readiness read action must execute SELECT statements only"
   );
+}
+
+{
+  const pool = makePool({
+    gateOverrides: {
+      promotion_allowed: 1,
+      gate_status: "invalid_promotion_already_execution_enabled",
+    },
+  });
+  const result = await listSessionInsightAdapterApplyReadinessGate({ pool, filters: { limit: 5 } });
+  assert.equal(result.gates[0].promotion_allowed, true);
+  assert.equal(result.gates[0].gate_status, "invalid_promotion_already_execution_enabled");
 }
 
 console.log("session insight adapter apply readiness gate service tests passed");
