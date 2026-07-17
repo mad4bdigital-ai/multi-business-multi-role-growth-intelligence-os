@@ -4,6 +4,8 @@ import {
   listSessionInsightCapabilityEnvelopeAdapterExecutionGates,
 } from "./sessionInsightCapabilityEnvelopeAdapterExecutionGateService.js";
 
+// frontend-surface-operation: POST /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/list
+
 const REQUIRED_TYPED_CONFIRM = "OPEN_ADAPTER_EXECUTION_GATE_NO_APPLY";
 
 function makePool() {
@@ -154,6 +156,7 @@ function makePool() {
 {
   const pool = makePool();
   await createSessionInsightCapabilityEnvelopeAdapterExecutionGate({ pool, input: { dispatch_readback_id: "dispatch_readback_1", typed_confirm: REQUIRED_TYPED_CONFIRM } });
+  const listCallStart = pool.state.calls.length;
   const result = await listSessionInsightCapabilityEnvelopeAdapterExecutionGates({ pool, filters: { limit: 5 } });
   assert.equal(result.ok, true);
   assert.equal(result.count, 1);
@@ -166,6 +169,11 @@ function makePool() {
   assert.equal(result.adapter_execution_gate_policy.requires_typed_confirm, REQUIRED_TYPED_CONFIRM);
   assert.equal(result.adapter_execution_gate_policy.adapter_apply_dispatch_not_implemented, true);
   assert.equal(result.adapter_execution_gate_policy.secrets_included, false);
+  assert.equal(
+    pool.state.calls.slice(listCallStart).every(({ sql }) => String(sql).trimStart().startsWith("SELECT")),
+    true,
+    "adapter execution-gate list read action must execute SELECT statements only"
+  );
 }
 
 {
