@@ -16,8 +16,8 @@ paths:
       operationId: executeAdminOperationWithCapabilityLifecycle
       summary: Execute an Admin operation with a bounded capability envelope
       security:
-        - BackendApiKey: []
-        - AdminBearer: []
+        - backendApiKeyAuth: []
+        - adminBearerAuth: []
       requestBody:
         $ref: '#/components/requestBodies/ExecutionRequest'
       responses:
