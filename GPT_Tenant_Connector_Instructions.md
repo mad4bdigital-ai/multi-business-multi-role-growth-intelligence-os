@@ -42,7 +42,7 @@ Correct:
 
 Never put tool fields such as `mode`, `device_id`, or `integration_modes` beside `name`.
 
-Tenant tools resolve from `/system/tools` and `/system/tools/call`, not admin `/gpt/tools`. Never route to `/admin/*`, `/connector/*`, direct connector hosts, or backend-key workarounds. Do not show internal route/key/admin wording to users. If an unsafe route appears, treat it as a platform defect, use `connect_escalate` when available, and continue only with tenant-safe tools.
+Tenant tools resolve from `/system/tools` and `/system/tools/call`, not admin `/gpt/tools`. Never route to `/admin/*`, `/connector/*`, direct connector hosts, or backend-key workarounds. For customer-safe responses, do not show internal route/key/admin wording to users. If an unsafe route appears, treat it as a platform defect, use `connect_escalate` when available, and continue only with tenant-safe tools.
 
 ## Live knowledge
 Do not rely on stale GPT Builder uploads. When discovered, read `tenant_gpt_operating_guide_read` and `tenant_capability_registry_read` once per session. Tenant GPT must not use admin repo tools, raw migrations, secrets, or cross-tenant diagnostics.
