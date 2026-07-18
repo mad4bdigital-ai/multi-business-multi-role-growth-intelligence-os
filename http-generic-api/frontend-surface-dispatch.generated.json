@@ -1,12 +1,12 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": "6ea87be48d656e138a8862c0edebf773d5bbef37",
-    "source_digest": "3e512440931499c8fe9734c21e0221d857889f6f87f909dc8462aa38a2be5b29",
+    "ref": "main",
+    "source_digest": "5d391c917205a8bbc21609028523cb1e6681dd07f82329e334fca4fc9b130d3b",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
-        "sha256": "431cee85ee253aebd7eb452f33af29781ffacaee5c360258efeed7722fcc5b93",
+        "sha256": "b4270707af6cda659d010eb510d396afbea5c49bcdd31a12790cbe30bf543522",
         "present": true
       },
       {
@@ -21,7 +21,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "3790fd7850d85fd8a45e9e10fd9c718c412d183c6bee2731e50ee14aa57aaada",
+        "sha256": "006a6a227373fcfc2d5acc8681f7e633b16fd8b4c823d515474fbba6d15618a9",
         "present": true
       },
       {
@@ -41,12 +41,17 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "9331120f6bf83879b49cef9f5a00ad9641e5ccfb29e2b79b550db3cd7270a898",
+        "sha256": "3fde436efd2f317c4e49adee5d19ae80d9f0bbec3e556b04f43aa674f1217c31",
         "present": true
       },
       {
         "file": "openapi/github-actions-diagnostics.yaml",
         "sha256": "6b6b16507e24d10cebb5c1fe192892339d1a082be848366b124e05db87213f37",
+        "present": true
+      },
+      {
+        "file": "openapi/github-repository-main-moved-webhook.yaml",
+        "sha256": "0ea543bac60016af9d25ea618f3dde4f4e9d28f12654b6e4af57dc895a41dd38",
         "present": true
       },
       {
@@ -196,7 +201,7 @@
       },
       {
         "file": "routes/activationAwarenessRoutes.js",
-        "sha256": "2e096f0106c80c58d05c9285dd9160246053714f40b3d52f2b3331f9d0749c20",
+        "sha256": "5b5cd23ac1b285b945bedeaeac7c4fb149e290331611b4d3b32a01c4b4ea2e0d",
         "present": true
       },
       {
@@ -216,7 +221,7 @@
       },
       {
         "file": "routes/activationRoutes.js",
-        "sha256": "29023d9ac7b4c9e989ac0fbba7a6bc39001983f3cca931b2167cf2b4c898d518",
+        "sha256": "4a6e1bfc4b8f40b7389a7d2e3b8e263daf3361441b874114b04f8918264588ef",
         "present": true
       },
       {
@@ -421,12 +426,12 @@
       },
       {
         "file": "routes/gptSessionRoutes.js",
-        "sha256": "c27bde1848b0e7acdd6af6df6e1579eab12f56fc4748081257f1ab5a11ac29b1",
+        "sha256": "55e784f96285bbdfd04d5ef391a6736ee56235b655e3fbf8fa5ad5e5ce449d9f",
         "present": true
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "6785d914533a9a4b1a82f428b7bfbb70e414db14322d8bf11c098d019c0bd64d",
+        "sha256": "0ebf6603ebddc18a21d0ff1ba7d7239669c4acfae8b271c164e25eda90cda7dd",
         "present": true
       },
       {
@@ -466,7 +471,7 @@
       },
       {
         "file": "routes/localConnectorInstallRoutes.js",
-        "sha256": "a5d5a15bb43a0abe02d25714289563e9dd735930caf2d766608856de29500fe6",
+        "sha256": "a6822804ee4ae3448265d1b2364e80d64dca1cb88c89a9e5748013f06059d9bc",
         "present": true
       },
       {
@@ -481,7 +486,7 @@
       },
       {
         "file": "routes/localManagerBetaRoutes.js",
-        "sha256": "5665942d0315aa4877f737b0ebf0c08bd0e23cfedc741894e1d19a1df6f50d2d",
+        "sha256": "a25e0fccef21a22f7b782ccfc625e2ea84ce20194a393f69ebc2235f32a45362",
         "present": true
       },
       {
@@ -601,7 +606,7 @@
       },
       {
         "file": "routes/repositoryMainMovedTriggerRoutes.js",
-        "sha256": "eae46c543aad555f8387b28e5f1d6706a1ce5e09de911394d2bdad7bfed78f3d",
+        "sha256": "4c2611c23179a10a6eea5798585da0f8a6420ee2063bc088bf05dd5d93cbc7ac",
         "present": true
       },
       {
@@ -746,7 +751,7 @@
       },
       {
         "file": "routes/sessionRoutes.js",
-        "sha256": "c1f9598ba99186c1358159ad596f1ad3451fb7e5f008c96950d727d81355bb66",
+        "sha256": "4bff5975d41a7f2ab993764c8a75255643b465bea12eb2bf2b910412bd39125f",
         "present": true
       },
       {
@@ -836,12 +841,12 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "50f8877b50b3717b157f07f3b733c7a0b75fbc84fb6349440ba4ca544dda5f09",
+        "sha256": "eadbafcff8c1bc7d16b225267132e9202cd082637083b6cb50b88d327e13fbb7",
         "present": true
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "a2a1d843c0e75aff6fcae3914ece6b575092787318d022bbc5bac8cf2d9a8b91",
+        "sha256": "5c694f29dfd1c62f4a3d1ec2ab7aabd7f94ff9159af702532fdf880131967f42",
         "present": true
       },
       {
@@ -961,34 +966,34 @@
     "issues": []
   },
   "coverage": {
-    "mounted_family_count": 158,
+    "mounted_family_count": 159,
     "mounted_route_file_count": 129,
-    "mixed_scope_route_file_count": 21,
-    "operation_count": 958,
-    "openapi_documented_count": 942,
-    "openapi_canonical_documented_count": 561,
-    "openapi_generated_index_count": 381,
+    "mixed_scope_route_file_count": 22,
+    "operation_count": 959,
+    "openapi_documented_count": 943,
+    "openapi_canonical_documented_count": 564,
+    "openapi_generated_index_count": 379,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 381,
+    "openapi_detail_gap_count": 379,
     "auth_parity_counts": {
-      "equivalent": 942,
+      "equivalent": 943,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 582,
-    "unresolved_operation_class_count": 550,
+    "non_get_candidate_count": 583,
+    "unresolved_operation_class_count": 551,
     "classified_mutation_count": 4,
     "governed_mutation_operation_count": 0,
     "embedded_ui_family_count": 7,
-    "unresolved_surface_decision_count": 147,
+    "unresolved_surface_decision_count": 148,
     "test_owned_family_count": 4,
-    "untested_family_count": 154,
+    "untested_family_count": 155,
     "test_owned_operation_count": 26,
-    "untested_operation_count": 932,
+    "untested_operation_count": 933,
     "ready_task_count": 1,
-    "blocked_task_count": 157,
+    "blocked_task_count": 158,
     "coverage_complete": false
   },
   "waves": [
@@ -2848,7 +2853,7 @@
       "family_key": "local-manager-beta.admin",
       "label": "local manager beta (admin)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "5665942d0315aa4877f737b0ebf0c08bd0e23cfedc741894e1d19a1df6f50d2d",
+      "source_digest": "a25e0fccef21a22f7b782ccfc625e2ea84ce20194a393f69ebc2235f32a45362",
       "mount_prefix": "/",
       "mount_order": 11743,
       "split_from_mixed_scope_file": true,
@@ -2974,7 +2979,7 @@
       "family_key": "local-manager-beta.local_device",
       "label": "local manager beta (local_device)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "5665942d0315aa4877f737b0ebf0c08bd0e23cfedc741894e1d19a1df6f50d2d",
+      "source_digest": "a25e0fccef21a22f7b782ccfc625e2ea84ce20194a393f69ebc2235f32a45362",
       "mount_prefix": "/",
       "mount_order": 11743,
       "split_from_mixed_scope_file": true,
@@ -3347,7 +3352,7 @@
       "family_key": "local-manager-beta.public.default",
       "label": "local manager beta (public) [default]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "5665942d0315aa4877f737b0ebf0c08bd0e23cfedc741894e1d19a1df6f50d2d",
+      "source_digest": "a25e0fccef21a22f7b782ccfc625e2ea84ce20194a393f69ebc2235f32a45362",
       "mount_prefix": "/",
       "mount_order": 11743,
       "split_from_mixed_scope_file": true,
@@ -3990,7 +3995,7 @@
       "family_key": "local-manager-beta.public.local-manager",
       "label": "local manager beta (public) [local-manager]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "5665942d0315aa4877f737b0ebf0c08bd0e23cfedc741894e1d19a1df6f50d2d",
+      "source_digest": "a25e0fccef21a22f7b782ccfc625e2ea84ce20194a393f69ebc2235f32a45362",
       "mount_prefix": "/",
       "mount_order": 11743,
       "split_from_mixed_scope_file": true,
@@ -4606,7 +4611,7 @@
       "family_key": "local-connector-install.admin",
       "label": "local connector install (admin)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "a5d5a15bb43a0abe02d25714289563e9dd735930caf2d766608856de29500fe6",
+      "source_digest": "a6822804ee4ae3448265d1b2364e80d64dca1cb88c89a9e5748013f06059d9bc",
       "mount_prefix": "/",
       "mount_order": 11905,
       "split_from_mixed_scope_file": true,
@@ -4959,7 +4964,7 @@
       "family_key": "local-connector-install.developer",
       "label": "local connector install (developer)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "a5d5a15bb43a0abe02d25714289563e9dd735930caf2d766608856de29500fe6",
+      "source_digest": "a6822804ee4ae3448265d1b2364e80d64dca1cb88c89a9e5748013f06059d9bc",
       "mount_prefix": "/",
       "mount_order": 11905,
       "split_from_mixed_scope_file": true,
@@ -5071,7 +5076,7 @@
       "family_key": "local-connector-install.local_device",
       "label": "local connector install (local_device)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "a5d5a15bb43a0abe02d25714289563e9dd735930caf2d766608856de29500fe6",
+      "source_digest": "a6822804ee4ae3448265d1b2364e80d64dca1cb88c89a9e5748013f06059d9bc",
       "mount_prefix": "/",
       "mount_order": 11905,
       "split_from_mixed_scope_file": true,
@@ -12366,7 +12371,7 @@
       "family_key": "activation-awareness.tenant",
       "label": "activation awareness (tenant)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "2e096f0106c80c58d05c9285dd9160246053714f40b3d52f2b3331f9d0749c20",
+      "source_digest": "5b5cd23ac1b285b945bedeaeac7c4fb149e290331611b4d3b32a01c4b4ea2e0d",
       "mount_prefix": "/",
       "mount_order": 13285,
       "split_from_mixed_scope_file": true,
@@ -13251,7 +13256,7 @@
       "family_key": "activation-awareness.unresolved",
       "label": "activation awareness (unresolved)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "2e096f0106c80c58d05c9285dd9160246053714f40b3d52f2b3331f9d0749c20",
+      "source_digest": "5b5cd23ac1b285b945bedeaeac7c4fb149e290331611b4d3b32a01c4b4ea2e0d",
       "mount_prefix": "/",
       "mount_order": 13285,
       "split_from_mixed_scope_file": true,
@@ -13801,7 +13806,7 @@
       "family_key": "activation",
       "label": "activation",
       "source_file": "routes/activationRoutes.js",
-      "source_digest": "29023d9ac7b4c9e989ac0fbba7a6bc39001983f3cca931b2167cf2b4c898d518",
+      "source_digest": "4a6e1bfc4b8f40b7389a7d2e3b8e263daf3361441b874114b04f8918264588ef",
       "mount_prefix": "/",
       "mount_order": 13390,
       "split_from_mixed_scope_file": false,
@@ -16938,13 +16943,13 @@
       "wave": "F3-admin-workspaces"
     },
     {
-      "family_key": "repository-main-moved-trigger",
-      "label": "repository main moved trigger",
+      "family_key": "repository-main-moved-trigger.admin",
+      "label": "repository main moved trigger (admin)",
       "source_file": "routes/repositoryMainMovedTriggerRoutes.js",
-      "source_digest": "eae46c543aad555f8387b28e5f1d6706a1ce5e09de911394d2bdad7bfed78f3d",
+      "source_digest": "4c2611c23179a10a6eea5798585da0f8a6420ee2063bc088bf05dd5d93cbc7ac",
       "mount_prefix": "/",
       "mount_order": 13990,
-      "split_from_mixed_scope_file": false,
+      "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
       "group": "platform-core",
@@ -17133,6 +17138,126 @@
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
+    },
+    {
+      "family_key": "repository-main-moved-trigger.developer",
+      "label": "repository main moved trigger (developer)",
+      "source_file": "routes/repositoryMainMovedTriggerRoutes.js",
+      "source_digest": "4c2611c23179a10a6eea5798585da0f8a6420ee2063bc088bf05dd5d93cbc7ac",
+      "mount_prefix": "/",
+      "mount_order": 13990,
+      "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
+      "group": "platform-core",
+      "scope": "developer",
+      "operations": [
+        {
+          "method": "POST",
+          "path": "/webhooks/github/repository-main-moved",
+          "signature": "POST /webhooks/github/repository-main-moved",
+          "source_file": "routes/repositoryMainMovedTriggerRoutes.js",
+          "scope": "developer",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "github_webhook_hmac",
+            "alternatives": [
+              [
+                "githubWebhookSignature"
+              ]
+            ],
+            "principal": "github_webhook",
+            "guard_chain": [
+              "requireGitHubWebhookSignature"
+            ],
+            "evidence": [
+              "route:requireGitHubWebhookSignature"
+            ],
+            "configuration_dependencies": [
+              "GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/github-repository-main-moved-webhook.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "githubWebhookSignature"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        }
+      ],
+      "openapi_gaps": [],
+      "openapi_exemptions": [],
+      "openapi_detail_gaps": [],
+      "auth_contract_gaps": [],
+      "evidence_routes": [],
+      "tests": [],
+      "untested_operations": [
+        "POST /webhooks/github/repository-main-moved"
+      ],
+      "resources": [],
+      "embedded_ui": false,
+      "embedded_ui_operations": [],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/github-repository-main-moved-webhook.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/repositoryMainMovedTriggerRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "surface_decision": {
+        "decision": "requires_review",
+        "rationale": "No repository policy decision covers this route family.",
+        "owner": null
+      },
+      "operation_blockers": [
+        {
+          "signature": "POST /webhooks/github/repository-main-moved",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        }
+      ],
+      "risk": {
+        "score": 6,
+        "class": "high"
+      },
+      "wave": "F5-developer-evidence"
     },
     {
       "family_key": "operational-console",
@@ -35148,7 +35273,7 @@
       "family_key": "gpt-session",
       "label": "gpt session",
       "source_file": "routes/gptSessionRoutes.js",
-      "source_digest": "c27bde1848b0e7acdd6af6df6e1579eab12f56fc4748081257f1ab5a11ac29b1",
+      "source_digest": "55e784f96285bbdfd04d5ef391a6736ee56235b655e3fbf8fa5ad5e5ce449d9f",
       "mount_prefix": "/",
       "mount_order": 15553,
       "split_from_mixed_scope_file": false,
@@ -35463,7 +35588,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -35480,9 +35605,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -35577,8 +35702,7 @@
       "openapi_detail_gaps": [
         "POST /gpt/sessions/{id}/conversation-ref",
         "POST /gpt/sessions/{id}/conversation-ref/capture-current",
-        "POST /gpt/sessions/{id}/conversation-ref/mark-primary",
-        "POST /gpt/sessions/{id}/turns"
+        "POST /gpt/sessions/{id}/conversation-ref/mark-primary"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
@@ -35660,7 +35784,7 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "6785d914533a9a4b1a82f428b7bfbb70e414db14322d8bf11c098d019c0bd64d",
+      "source_digest": "0ebf6603ebddc18a21d0ff1ba7d7239669c4acfae8b271c164e25eda90cda7dd",
       "mount_prefix": "/",
       "mount_order": 15593,
       "split_from_mixed_scope_file": false,
@@ -65234,7 +65358,7 @@
       "family_key": "session",
       "label": "session",
       "source_file": "routes/sessionRoutes.js",
-      "source_digest": "c1f9598ba99186c1358159ad596f1ad3451fb7e5f008c96950d727d81355bb66",
+      "source_digest": "4bff5975d41a7f2ab993764c8a75255643b465bea12eb2bf2b910412bd39125f",
       "mount_prefix": "/",
       "mount_order": 19255,
       "split_from_mixed_scope_file": false,
@@ -65411,7 +65535,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -65428,9 +65552,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -66136,7 +66260,6 @@
       "openapi_detail_gaps": [
         "POST /sessions/ingest",
         "POST /sessions/{id}/complete",
-        "GET /sessions",
         "GET /sessions/{id}",
         "GET /sessions/{id}/turns",
         "GET /sessions/{id}/events",
@@ -82701,8 +82824,8 @@
       ]
     },
     {
-      "task_key": "frontend.repository-main-moved-trigger",
-      "title": "Resolve and deliver repository main moved trigger",
+      "task_key": "frontend.repository-main-moved-trigger.admin",
+      "title": "Resolve and deliver repository main moved trigger (admin)",
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
@@ -84670,6 +84793,47 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/mcpRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
+      "task_key": "frontend.repository-main-moved-trigger.developer",
+      "title": "Resolve and deliver repository main moved trigger (developer)",
+      "wave": "F5-developer-evidence",
+      "state": "blocked",
+      "blockers": [
+        "test_ownership_gap",
+        "surface_policy_decision_required",
+        "operation_classification_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context",
+        "operation-classification"
+      ],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/github-repository-main-moved-webhook.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/repositoryMainMovedTriggerRoutes.js",
         "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
