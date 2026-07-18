@@ -1171,25 +1171,26 @@ export async function createSupportTicketStepRuns({ tenant_id, ticket_id, run_id
       created.push({ step_run_id: stepRunId, step_key: step.key, step_type: step.type, status: "pending" });
     }
     const firstStep = created[0]?.step_key || steps[0]?.key || null;
-    await connection.query("UPDATE workflow_runs SET status = 'running', current_step = COALESCE(current_step, ?), started_at = COALESCE(started_at, NOW()), updated_at = NOW() WHERE tenant_id = ? AND run_id = ?", [firstStep, tenant_id, run.run_id]);
-    await connection.query("UPDATE execution_plans SET plan_status = 'executing', updated_at = NOW() WHERE tenant_id = ? AND plan_id = ?", [tenant_id, plan.plan_id]);
-    await connection.query("UPDATE tickets SET status = 'in_review', lifecycle_state = 'automation_running', customer_status = 'in_progress', updated_at = NOW() WHERE tenant_id = ? AND ticket_id = ?", [tenant_id, ticket_id]);
+    const initialState = initialWorkflowStateForPlan(plan, "running");
+    await connection.query("UPDATE workflow_runs SET status = ?, current_step = COALESCE(current_step, ?), started_at = CASE WHEN ? = 1 THEN COALESCE(started_at, NOW()) ELSE NULL END, updated_at = NOW() WHERE tenant_id = ? AND run_id = ?", [initialState.run_status, firstStep, initialState.started_at_allowed ? 1 : 0, tenant_id, run.run_id]);
+    await connection.query("UPDATE execution_plans SET plan_status = ?, updated_at = NOW() WHERE tenant_id = ? AND plan_id = ?", [initialState.plan_status, tenant_id, plan.plan_id]);
+    await connection.query("UPDATE tickets SET status = ?, lifecycle_state = ?, customer_status = ?, updated_at = NOW() WHERE tenant_id = ? AND ticket_id = ?", [initialState.ticket_status, initialState.lifecycle_state, initialState.customer_status, tenant_id, ticket_id]);
     await insertLifecycleEvent(connection, {
       ticket_id,
       tenant_id,
       event_type: "step_runs_created",
       from_state: ticket.lifecycle_state || null,
-      to_state: "automation_running",
+      to_state: initialState.lifecycle_state,
       actor_id,
       actor_type,
       visibility: "internal_support",
       summary: reason,
-      payload_json: { run_id: run.run_id, plan_id: plan.plan_id, created_count: created.length, step_keys: created.map((step) => step.step_key), evidence_json, secrets_included: false },
+      payload_json: { run_id: run.run_id, plan_id: plan.plan_id, created_count: created.length, step_keys: created.map((step) => step.step_key), runtime_state: initialState, evidence_json, secrets_included: false },
     });
-    await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_step_runs_created", after_json: { run_id: run.run_id, plan_id: plan.plan_id, created_count: created.length, secrets_included: false } });
+    await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_step_runs_created", after_json: { run_id: run.run_id, plan_id: plan.plan_id, created_count: created.length, runtime_state: initialState, secrets_included: false } });
     const updated = await fetchTicketById(connection, tenant_id, ticket_id);
     if (ownsConnection) await connection.commit();
-    return { ok: true, run_id: run.run_id, plan_id: plan.plan_id, created_count: created.length, steps: created, ticket: compactTicket(updated), secrets_included: false };
+    return { ok: true, run_id: run.run_id, plan_id: plan.plan_id, created_count: created.length, steps: created, runtime_state: initialState, ticket: compactTicket(updated), secrets_included: false };
   } catch (error) {
     if (ownsConnection) await connection.rollback();
     throw error;
