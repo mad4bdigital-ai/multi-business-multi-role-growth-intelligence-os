@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "5d391c917205a8bbc21609028523cb1e6681dd07f82329e334fca4fc9b130d3b",
+    "source_digest": "e02cd78e1d83f0aba7c3e86484f53f36b075cc2a8a1f41b28196cc6a487e4b44",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -21,7 +21,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "006a6a227373fcfc2d5acc8681f7e633b16fd8b4c823d515474fbba6d15618a9",
+        "sha256": "5d4064b8093b1f2de9adb24df47ee1af79fdc3c6a02e91a8124f5b1b9c730f58",
         "present": true
       },
       {
@@ -221,7 +221,7 @@
       },
       {
         "file": "routes/activationRoutes.js",
-        "sha256": "4a6e1bfc4b8f40b7389a7d2e3b8e263daf3361441b874114b04f8918264588ef",
+        "sha256": "56f5bdc8561bfc9bfbbbdb2376801a43583df302f9c8e585e6d5bd1ea82a3400",
         "present": true
       },
       {
@@ -781,7 +781,7 @@
       },
       {
         "file": "routes/tenantActivationOverlayRoutes.js",
-        "sha256": "d23a6ef955367f466b93cd944fa3988222f4904c14fa337c3bb15118f2f88719",
+        "sha256": "0cf3b00dad274dd22d0c6afe9f0d72b8046300c6020c388e87f11f7efdbe0507",
         "present": true
       },
       {
@@ -846,7 +846,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "5c694f29dfd1c62f4a3d1ec2ab7aabd7f94ff9159af702532fdf880131967f42",
+        "sha256": "d931010173ced0b4115c79c7695a6e863622f7034905c80aff84c1f8288a5ae8",
         "present": true
       },
       {
@@ -12186,7 +12186,7 @@
       "family_key": "tenant-activation-overlay",
       "label": "tenant activation overlay",
       "source_file": "routes/tenantActivationOverlayRoutes.js",
-      "source_digest": "d23a6ef955367f466b93cd944fa3988222f4904c14fa337c3bb15118f2f88719",
+      "source_digest": "0cf3b00dad274dd22d0c6afe9f0d72b8046300c6020c388e87f11f7efdbe0507",
       "mount_prefix": "/",
       "mount_order": 13176,
       "split_from_mixed_scope_file": false,
@@ -13806,7 +13806,7 @@
       "family_key": "activation",
       "label": "activation",
       "source_file": "routes/activationRoutes.js",
-      "source_digest": "4a6e1bfc4b8f40b7389a7d2e3b8e263daf3361441b874114b04f8918264588ef",
+      "source_digest": "56f5bdc8561bfc9bfbbbdb2376801a43583df302f9c8e585e6d5bd1ea82a3400",
       "mount_prefix": "/",
       "mount_order": 13390,
       "split_from_mixed_scope_file": false,
