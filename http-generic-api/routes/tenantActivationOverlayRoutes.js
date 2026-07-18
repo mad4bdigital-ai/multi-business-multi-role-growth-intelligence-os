@@ -35,7 +35,15 @@ function compactError(error, fallback) {
   };
 }
 
-export function buildTenantActivationOverlayRoutes({ requireBackendApiKey } = {}) {
+export function buildTenantActivationOverlayRoutes({
+  requireBackendApiKey,
+  buildSessionContext = buildActivationSessionContext,
+  buildGrowthDashboard = buildTenantGrowthDashboard,
+  getRuntimePool = getPool,
+  markRunPrepared = markActivationRunPrepared,
+  markRunDelivered = markActivationRunDelivered,
+  chunkResponse = maybeChunkToolResponseBody,
+} = {}) {
   const router = Router();
   const guards = [requireBackendApiKey].filter(Boolean);
 
@@ -77,9 +85,9 @@ export function buildTenantActivationOverlayRoutes({ requireBackendApiKey } = {}
     }
 
     try {
-      const context = await buildActivationSessionContext(req);
+      const context = await buildSessionContext(req);
       const responseProfile = normalizeActivationResponseProfile(req.query.response_profile || "evidence");
-      const productGuidance = await buildTenantGrowthDashboard({
+      const productGuidance = await buildGrowthDashboard({
         tenantId: req.auth.tenant_id,
         userId: req.auth.user_id,
         containerKey: req.query.container_key || null,
@@ -113,7 +121,7 @@ export function buildTenantActivationOverlayRoutes({ requireBackendApiKey } = {}
         secrets_included: false,
       };
       const responseBytes = Buffer.byteLength(JSON.stringify(responseBody), "utf8");
-      await markActivationRunPrepared(getPool(), {
+      await markRunPrepared(getRuntimePool(), {
         runId: context.run_id || null,
         responseProfile,
         responseBytes,
@@ -127,7 +135,7 @@ export function buildTenantActivationOverlayRoutes({ requireBackendApiKey } = {}
         },
       }).catch(() => {});
       res.on("finish", () => {
-        markActivationRunDelivered(getPool(), {
+        markRunDelivered(getRuntimePool(), {
           runId: context.run_id || null,
           statusCode: res.statusCode,
           deliveryState: res.statusCode < 500 ? "delivered" : "delivery_failed",
@@ -136,7 +144,7 @@ export function buildTenantActivationOverlayRoutes({ requireBackendApiKey } = {}
       const maxChars = Math.min(Math.max(Number(req.query.max_response_chars || 40000), 5000), 150000);
       const chunkTtlMinutes = Math.min(Math.max(Number(req.query.chunk_ttl_minutes || 20), 5), 120);
       const transportBody = responseBytes > maxChars
-        ? await maybeChunkToolResponseBody(responseBody, {
+        ? await chunkResponse(responseBody, {
             response_options: {
               max_chars: maxChars,
               chunk_ttl_minutes: chunkTtlMinutes,
