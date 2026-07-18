@@ -34,10 +34,23 @@ The dispatcher rejects caller-supplied raw methods and URLs. GitHub authorizatio
 Supported initial endpoint keys:
 
 - `github_update_pull_request`
+- `github_list_issue_comments`
 - `github_list_issue_labels`
 - `github_add_issue_labels`
 - `github_set_issue_labels`
 - `github_remove_issue_label`
+
+## Issue and pull request comments
+
+`github_list_issue_comments` reads conversation comments from
+`GET /repos/{owner}/{repo}/issues/{issue_number}/comments`. GitHub uses the
+Issues API for both issues and pull-request conversation threads, so the same
+endpoint reads ordinary discussion comments on either resource. It does not
+read pull-request review comments, which are a separate GitHub REST resource.
+
+The operation is read-only, accepts optional `since`, `page`, and `per_page`
+query parameters, and remains bound to server-side GitHub App authentication.
+The caller cannot provide a raw method, URL, or authorization header.
 
 ## Canonical row eligibility
 

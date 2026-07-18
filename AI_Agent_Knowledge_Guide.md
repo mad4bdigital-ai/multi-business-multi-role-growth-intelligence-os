@@ -10,6 +10,16 @@ Activation host requests may serve only `/`, `/health`, Activation OpenAPI schem
 
 This boundary exists because GPT Builder requires distinct public servers across Action schemas. Do not collapse Activation schemas back to `https://auth.mad4b.com`. Production deployment for this Hostinger Cloud app is the GitHub-to-Hostinger auto-deploy path: merge the approved PR to `main`, then Hostinger deploys the latest main automatically. Do not use SSH restart/deploy or Cloudflare Worker rollout as the normal promotion path. Cloudflare Worker Activation Gateway rollout remains separate and disabled unless its signed attestation, resource binding, feature gate, dark-deploy readback, and custom-domain rollout evidence are complete.
 
+## Tenant Activation Session Context Isolation
+
+`GET /tenant/activation/session-context` is the Tenant-safe alias for opening or reusing Activation session context. Tenant and user identity, plus any workspace and brand context, must come from the signed OAuth JWT and authenticated membership context; Tenant callers must not override `tenant_id`, `user_id`, `workspace_id`, `workspace_key`, or `brand_key` through query parameters. The shared subject resolver rejects cross-user and cross-tenant overrides with structured `403` errors.
+
+Tenant Activation does not expose raw turn content by default. The Tenant schema and route policy must not expose `include_turns` or `context_scope`; unknown query parameters are rejected. Stored turn availability, bounded session summaries, graph memory, and product guidance remain scoped to the signed Tenant/User/Workspace/Brand context, and responses must keep `secrets_included=false`. Admin-only `/activation/session-context` remains a separate surface with `admin_service` authorization.
+
+`buildTenantActivationOverlayRoutes` accepts injectable route dependencies only to support deterministic regression tests. Production defaults remain `buildActivationSessionContext`, `buildTenantGrowthDashboard`, the runtime SQL pool, activation run lifecycle writers, and governed chunking. Dependency injection must not become caller-controlled configuration, widen Tenant permissions, expose raw turns, bypass OAuth, call providers, or change production behavior.
+
+Regression coverage must prove cross-tenant isolation, rejection of identity and raw-turn query overrides, Tenant/Admin OpenAPI separation, gateway auth-profile separation, no-secret responses, and preservation of production defaults. No per-Tenant migration or duplicated route implementation is required because the shared resolver and Tenant overlay enforce the contract centrally.
+
 ## Dynamic Container Projection Closeout Authority
 
 Spec 006 Dynamic Container projection preview must remain dry-run, SQL-source-only, and shadow-only until a separately authorized projection apply and production verification complete. The projection source loader reads authority sources sequentially to avoid exhausting the bounded MySQL pool. A source-read dependency failure returns `503` with `container_projection_source_load_failed`, `stage=load_projection_sources`, and a bounded source name through the shared error envelope. It must not expose SQL text, stack traces, credential identifiers, tokens, headers, secrets, or raw provider payloads.
@@ -380,6 +390,8 @@ Capability -> Envelope -> Evidence -> Authority -> Dispatch -> Readback -> Certi
 ```
 
 Migration `314_sprint69_capability_assurance_graph.sql` adds the additive canonical plugin/capability graph, generic evidence and certification registries, persistent capability debt, closure threads, source provenance, and hash-only secret movement evidence. Compatibility views remain valid until canonical parity and cutover evidence pass.
+
+Virtual governed tools must be projected from `platform_tool_dispatch_bindings` through deterministic registry reconciliation. Tool names and aliases are not authority. Identity, scope, operation, readback, or source conflicts create persistent debt and block execution. Virtual Admin surfaces must not project to Tenant, shadow readback readiness remains separate from generic certification, and all projected state-changing capabilities remain `apply_allowed=0` until certification and shadow/canary evidence pass.
 
 Agents must keep static capability requirements separate from invocation evidence. A fresh capability envelope is scoped to one actor, tenant, workspace, operation, resource, policy state, and expiry window. Admin or Tenant exposure and POST method alone do not prove an external-resource authority requirement.
 
