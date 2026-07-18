@@ -11,7 +11,8 @@ on:
       - "http-generic-api/test-openapi-builder-schema-guard.mjs"
       - "http-generic-api/openapi.yaml"
       - "http-generic-api/openapi.*.yaml"
-      - "http-generic-api/openapi-route-coverage.allowlist.json"
+      - "http-generic-api/openapi/**/*.yaml"
+      - "http-generic-api/openapi-route-coverage.allowlist.json"}}
       - "http-generic-api/package.json"
       - "http-generic-api/package-lock.json"
       - "http-generic-api/scripts/openapi-*.mjs"
