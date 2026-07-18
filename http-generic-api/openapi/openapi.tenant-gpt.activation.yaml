@@ -10,6 +10,7 @@ servers:
 tags:
   - name: activation
     description: Once-per-session activation probes, session history, and scope context.
+  - name: session-archive
 components:
   securitySchemes:
     userBearerAuth:
@@ -2486,6 +2487,337 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /tenant/activation/sessions:
+    get:
+      tags:
+        - activation
+        - session-archive
+      operationId: listSessions
+      x-openai-isConsequential: false
+      summary: List the signed tenant user's safe Activation session metadata
+      description: Returns a bounded, secret-free projection of sessions owned by the tenant and user from the signed OAuth JWT. Tenant, user, workspace, brand, and context-scope overrides are rejected and raw instructions, repository metadata, emails, and turn content are never selected.
+      parameters:
+        - name: session_status
+          in: query
+          schema:
+            type: string
+            enum:
+              - pending
+              - active
+              - completed
+              - failed
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 50
+      responses:
+        "200":
+          description: Tenant-scoped safe session list
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - ok
+                  - activation_layer
+                  - subject
+                  - sessions
+                  - total
+                  - secrets_included
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  activation_layer:
+                    type: string
+                    enum:
+                      - session_list
+                  subject:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - tenant_id
+                      - user_id
+                      - is_admin
+                    properties:
+                      tenant_id:
+                        type: string
+                      user_id:
+                        type: string
+                      is_admin:
+                        type: boolean
+                        enum:
+                          - false
+                  sessions:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                        - session_id
+                        - originator
+                        - session_status
+                        - brand_key
+                        - workspace_key
+                        - turn_count
+                        - started_at
+                        - ended_at
+                        - created_at
+                      properties:
+                        session_id:
+                          type: string
+                        originator:
+                          type:
+                            - string
+                            - "null"
+                        session_status:
+                          type: string
+                          enum:
+                            - pending
+                            - active
+                            - completed
+                            - failed
+                        brand_key:
+                          type:
+                            - string
+                            - "null"
+                        workspace_key:
+                          type:
+                            - string
+                            - "null"
+                        turn_count:
+                          type: integer
+                          minimum: 0
+                        started_at:
+                          type:
+                            - string
+                            - "null"
+                          format: date-time
+                        ended_at:
+                          type:
+                            - string
+                            - "null"
+                          format: date-time
+                        created_at:
+                          type:
+                            - string
+                            - "null"
+                          format: date-time
+                  total:
+                    type: integer
+                    minimum: 0
+                    maximum: 50
+                  secrets_included:
+                    type: boolean
+                    enum:
+                      - false
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Tenant Activation session list failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+  /tenant/activation/sessions/{id}/turns:
+    post:
+      tags:
+        - activation
+        - session-archive
+      operationId: writeGptSessionTurns
+      x-openai-isConsequential: true
+      summary: Append a bounded conversational exchange to the active tenant session archive
+      description: Uses the session_archive_write capability family, exact JWT tenant and user scope, a maximum of 20 turns, and same-cycle per-turn archive readback. System-role turns and identity overrides are rejected.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - turns
+              properties:
+                turns:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - role
+                      - content
+                    properties:
+                      role:
+                        type: string
+                        enum:
+                          - user
+                          - assistant
+                          - tool
+                      content:
+                        type: string
+                        minLength: 1
+                        maxLength: 120000
+                      action_key:
+                        type:
+                          - string
+                          - "null"
+                      workspace_key:
+                        type: string
+                      brand_key:
+                        type: string
+                      target_key:
+                        type: string
+                        description: Alias for brand_key.
+                      business_type_key:
+                        type: string
+                      business_activity_type_key:
+                        type: string
+                      activity_key:
+                        type: string
+                      knowledge_profile_key:
+                        type: string
+      responses:
+        "200":
+          description: Turns appended with archive readback
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - ok
+                  - session_id
+                  - turn_count
+                  - turns
+                  - capture_policy
+                  - secrets_included
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  session_id:
+                    type: string
+                  turn_count:
+                    type: integer
+                    minimum: 1
+                    maximum: 20
+                  turns:
+                    type: array
+                    minItems: 1
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                        - role
+                        - turn_index
+                        - turn_id
+                        - drive_doc_id
+                        - drive_doc_part
+                        - drive_anchor
+                        - archive_status
+                      properties:
+                        role:
+                          type: string
+                          enum:
+                            - user
+                            - assistant
+                            - tool
+                        turn_index:
+                          type: integer
+                          minimum: 0
+                        turn_id:
+                          type: string
+                        drive_doc_id:
+                          type:
+                            - string
+                            - "null"
+                        drive_doc_part:
+                          type:
+                            - integer
+                            - "null"
+                          minimum: 1
+                        drive_anchor:
+                          type:
+                            - string
+                            - "null"
+                        archive_status:
+                          type: string
+                  capture_policy:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - intended_use
+                      - sql_content_mode
+                      - full_content_storage
+                      - secrets_included
+                    properties:
+                      intended_use:
+                        type: string
+                      sql_content_mode:
+                        type: string
+                        enum:
+                          - preview_hash_only
+                      full_content_storage:
+                        type: string
+                        enum:
+                          - drive_doc_and_jsonl
+                      secrets_included:
+                        type: boolean
+                        enum:
+                          - false
+                  secrets_included:
+                    type: boolean
+                    enum:
+                      - false
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Capability-family or tenant/user scope authorization denied.
+        "404":
+          description: Session not found.
+        "409":
+          description: Session is closed.
+        "500":
+          description: Session archive write failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
 x-gpt-action-auth-preset:
   authentication_type: OAuth
   schema_url: https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml
