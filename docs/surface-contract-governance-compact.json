@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 96.42,
+  "docs_completion_percent": 96.24,
   "docs_complete_count": 512,
-  "docs_gap_count": 19,
-  "queue_items": 19,
-  "blocking_new_item_count": 19,
+  "docs_gap_count": 20,
+  "queue_items": 20,
+  "blocking_new_item_count": 20,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -23,7 +23,7 @@
     {
       "migration_file": "20260715_platform_capability_shadow_certification_issue.sql",
       "queue_class": "critical_review",
-      "score": 985,
+      "score": 984,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
@@ -57,28 +57,28 @@
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
-      "migration_file": "20260716_self_healing_release_advisor.sql",
+      "migration_file": "20260716_repository_main_moved_trigger_coordinator.sql",
       "queue_class": "critical_review",
-      "score": 784,
+      "score": 783,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
-      "migration_file": "20260716_repository_main_moved_trigger_coordinator.sql",
+      "migration_file": "20260716_self_healing_release_advisor.sql",
       "queue_class": "critical_review",
       "score": 783,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
   "openapi_missing_sql_route_count": 2,
-  "openapi_exempt_sql_route_count": 656,
-  "total_sql_route_like_count": 678,
+  "openapi_exempt_sql_route_count": 659,
+  "total_sql_route_like_count": 681,
   "safety_marker_gap_migrations": 1,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 19,
-    "warning_new_item_count": 19
+    "blocking_new_item_count": 20,
+    "warning_new_item_count": 20
   },
   "safety": {
     "executes_provider_calls": false,

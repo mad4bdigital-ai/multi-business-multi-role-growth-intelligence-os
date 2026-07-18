@@ -4,27 +4,28 @@
 
 ## Summary
 
-- Triaged items: 19
-- Gate candidates: 19
+- Triaged items: 20
+- Gate candidates: 20
 - New-gap gate: fail
-- Blocking new items: 19
+- Blocking new items: 20
 
 ## Class counts
 
-- new_surface_immediate_review: 19
+- new_surface_immediate_review: 20
 
 ## Immediate review candidates
 
 - `20260714_validate_hostinger_connection_and_complete_continuation_task.sql` — critical_review, score 1077; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `20260717_tenant_task_source_repair_apply_gate.sql` — critical_review, score 1058; next: add targeted patch-index, parity, and governance documentation
-- `20260715_platform_capability_shadow_certification_issue.sql` — critical_review, score 985; next: add targeted patch-index, parity, and governance documentation
+- `20260715_platform_capability_shadow_certification_issue.sql` — critical_review, score 984; next: add targeted patch-index, parity, and governance documentation
 - `20260715_dynamic_container_canary_runtime_observability.sql` — critical_review, score 888; next: add targeted patch-index, parity, and governance documentation
 - `20260714_tenant_connection_shadow_contract_bootstrap.sql` — critical_review, score 839; next: add targeted patch-index, parity, and governance documentation
 - `20260715_capability_envelope_template_resolver.sql` — critical_review, score 818; next: add targeted patch-index, parity, and governance documentation
 - `20260715_dynamic_container_canary_promotion_tool.sql` — critical_review, score 806; next: add targeted patch-index, parity, and governance documentation
 - `20260714_async_release_deploy_contract.sql` — critical_review, score 789; next: add targeted patch-index, parity, and governance documentation
-- `20260716_self_healing_release_advisor.sql` — critical_review, score 784; next: add targeted patch-index, parity, and governance documentation
 - `20260716_repository_main_moved_trigger_coordinator.sql` — critical_review, score 783; next: add targeted patch-index, parity, and governance documentation
+- `20260716_self_healing_release_advisor.sql` — critical_review, score 783; next: add targeted patch-index, parity, and governance documentation
+- `20260717_runtime_contract_root_cause_reconciliation.sql` — critical_review, score 738; next: add targeted patch-index, parity, and governance documentation
 - `20260715_dynamic_container_canary_probe_sampler_tool.sql` — critical_review, score 730; next: add targeted patch-index, parity, and governance documentation
 - `20260714_supervisor_runtime_admin_tool_exports.sql` — critical_review, score 723; next: add targeted patch-index, parity, and governance documentation
 - `20260716_dynamic_container_preview_canary_probe_sampler_tool.sql` — critical_review, score 713; next: add targeted patch-index, parity, and governance documentation
