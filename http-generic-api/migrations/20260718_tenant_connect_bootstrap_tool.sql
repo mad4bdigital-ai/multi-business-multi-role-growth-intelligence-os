@@ -1,4 +1,5 @@
 -- Register the Tenant GPT managed onboarding bootstrap tool.
+-- Canonical activation mode: 'managed'.
 -- Idempotent registry upsert; identity and tenant context are derived from the user JWT.
 
 INSERT INTO `tenant_platform_endpoint_tools`
