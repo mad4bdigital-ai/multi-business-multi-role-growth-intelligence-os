@@ -8783,7 +8783,7 @@ paths:
       x-tenant-gpt-operationId: activateSession
       x-openai-isConsequential: false
       summary: Open or reuse the signed tenant user's Activation session context
-      description: Tenant-only Activation session surface. Tenant, user, workspace, and brand context come from the signed OAuth JWT and authenticated membership context. Identity overrides, include_turns, context_scope, raw dumps, and unknown query parameters are rejected; raw turn content remains unavailable by default. Session summaries, graph memory, and product guidance remain scoped to the signed principal, responses remain no-secret, and the separate Admin session-context surface retains admin_service authorization.
+      description: Tenant-only Activation session surface. Tenant, user, workspace, and brand scope comes from signed OAuth JWT and membership. Identity overrides, include_turns, context_scope, raw dumps, and unknown parameters are rejected. Raw turns stay unavailable; responses remain scoped and secret-free.
       parameters:
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 10 } }
         - { name: offset, in: query, schema: { type: integer, minimum: 0, default: 0 } }
