@@ -121,7 +121,7 @@ export function buildTenantActivationOverlayRoutes({
         secrets_included: false,
       };
       const responseBytes = Buffer.byteLength(JSON.stringify(responseBody), "utf8");
-      await markActivationRunPrepared(getPool(), {
+      await markRunPrepared(getRuntimePool(), {
         runId: context.run_id || null,
         responseProfile,
         responseBytes,
