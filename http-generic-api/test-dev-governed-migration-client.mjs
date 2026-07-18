@@ -9,6 +9,7 @@ import {
   resolveApplyAuthoritySource,
   sanitizeResult,
   validateDevBaseUrl,
+  validateGovernanceResolveContextArgs,
   validateGrowthIntelligencePilotArgs,
   validateShellAliasInvocation,
 } from "./scripts/dev-governed-migration-client.mjs";
@@ -86,6 +87,23 @@ for (const blockedPilotArgs of [
   { ...safePilotArgs, evidence_limit: 51 },
 ]) {
   assert.throws(() => validateGrowthIntelligencePilotArgs(blockedPilotArgs));
+}
+
+const safeGovernanceContextArgs = {
+  business_type_key: "hvac_air_conditioning_services",
+  brand_key: "arab_cooling",
+  target_key: "arab_cooling",
+};
+assert.equal(validateGovernanceResolveContextArgs(safeGovernanceContextArgs), safeGovernanceContextArgs);
+assert.equal(isToolMutation("governance_resolve_context", safeGovernanceContextArgs), false);
+for (const blockedContextArgs of [
+  { ...safeGovernanceContextArgs, data_source: "sql" },
+  { ...safeGovernanceContextArgs, business_type_key: "" },
+  { ...safeGovernanceContextArgs, brand_key: "bad brand" },
+  { ...safeGovernanceContextArgs, target_key: "../target" },
+  { business_type_key: "hvac_air_conditioning_services", brand_key: "arab_cooling" },
+]) {
+  assert.throws(() => validateGovernanceResolveContextArgs(blockedContextArgs));
 }
 
 const capabilityEnvelopeId = "70891f74-0200-4942-843e-18cf4ba6643a";
