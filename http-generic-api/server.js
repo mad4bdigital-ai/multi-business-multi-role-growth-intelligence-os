@@ -1,5 +1,6 @@
 import * as authService from './authService.js';
 import { generateDeploymentManifest } from "./scripts/generate-deployment-manifest.mjs";
+import { reconcileRuntimeParityOnStartup } from "./runtimeParityStartupReconciler.js";
 import { startDynamicAuditScheduler } from "./dynamicAuditRuntime.js";
 import { startOpenApiEndpointInventorySync } from "./openApiEndpointInventorySync.js";
 import { createLocalConnectorOrchestrator } from "./services/localConnectorOrchestrator.js";
@@ -353,7 +354,15 @@ function requireEnv(name) {
 
 
 const app = express();
-app.use(express.json({ limit: JSON_BODY_LIMIT }));
+app.use(express.json({
+  limit: JSON_BODY_LIMIT,
+  verify: (req, _res, buffer) => {
+    const requestPath = String(req.originalUrl || req.url || "").split("?", 1)[0];
+    if (req.method === "POST" && requestPath === "/webhooks/github/repository-main-moved") {
+      req.rawBody = Buffer.from(buffer);
+    }
+  },
+}));
 
 
 
@@ -3228,6 +3237,30 @@ if (!isBackendApiKeyEnabled(process.env)) {
 
 app.listen(port, () => {
   console.log(`http_generic_api_connector listening on port ${port}`);
+  const configuredParityDelay = Number(process.env.RUNTIME_PARITY_STARTUP_RECONCILE_DELAY_MS || 5000);
+  const parityDelayMs = Number.isFinite(configuredParityDelay)
+    ? Math.max(0, configuredParityDelay)
+    : 5000;
+  const parityReconcileTimer = setTimeout(() => {
+    reconcileRuntimeParityOnStartup({ env: process.env })
+      .then((result) => {
+        console.log(JSON.stringify({
+          event: "runtime_parity_startup_reconcile",
+          ...result,
+          secrets_included: false,
+        }));
+      })
+      .catch((error) => {
+        console.error(JSON.stringify({
+          event: "runtime_parity_startup_reconcile",
+          ok: false,
+          status: "degraded",
+          error_code: error?.code || "runtime_parity_startup_reconciliation_failed",
+          secrets_included: false,
+        }));
+      });
+  }, parityDelayMs);
+  parityReconcileTimer.unref?.();
   startDynamicAuditScheduler()
     .then((result) => {
       console.log(JSON.stringify({

@@ -8,6 +8,11 @@
  * Run: node test-platform-routes.mjs
  */
 
+// frontend-surface-operation: POST /
+// frontend-surface-operation: PUT /
+// frontend-surface-operation: PATCH /
+// frontend-surface-operation: DELETE /
+
 import assert from "node:assert/strict";
 import express from "express";
 import { buildTenantsRoutes }          from "./routes/tenantsRoutes.js";
@@ -115,8 +120,12 @@ async function getTextWithHost(path, host) {
 }
 
 async function postWithHost(path, host, body = {}) {
+  return requestWithHost("POST", path, host, body);
+}
+
+async function requestWithHost(method, path, host, body = {}) {
   const res = await fetch(`${base}${path}`, {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json", "x-forwarded-host": host },
     body: JSON.stringify(body),
   });
@@ -237,11 +246,13 @@ section("GET /tenant-gpt/oauth-preset - public auth preset");
   ok("wrong host cannot fetch tenant OAuth preset", wrongHost.status === 404, `got ${wrongHost.status}`);
 }
 
-section("POST / - root discovery stays non-mutating JSON");
+section("router.all / - root discovery stays non-mutating JSON");
 {
-  const r = await postWithHost("/", "admin.mad4b.com", { accidental: true });
-  ok("POST dev root returns 200 discovery", r.status === 200, `got ${r.status}`);
-  ok("POST dev root points to /admin/control", r.body.primary_paths?.includes("/admin/control"), `body: ${JSON.stringify(r.body)}`);
+  for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+    const r = await requestWithHost(method, "/", "admin.mad4b.com", { accidental: true });
+    ok(`${method} admin root returns 200 discovery`, r.status === 200, `got ${r.status}`);
+    ok(`${method} admin root points to /admin/control`, r.body.primary_paths?.includes("/admin/control"), `body: ${JSON.stringify(r.body)}`);
+  }
 }
 
 section("POST /tenants — input validation");

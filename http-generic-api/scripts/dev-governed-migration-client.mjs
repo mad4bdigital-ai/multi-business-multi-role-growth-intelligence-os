@@ -11,6 +11,7 @@ const MUTATING_TOOLS = new Set([
   "governed_migration_apply_policy_bootstrap",
   "capability_resolution_envelope_apply_authorize",
   "capability_resolution_envelope_lifecycle",
+  "growth_intelligence_pilot_run",
 ]);
 
 const ALLOWED_TOOLS = new Set([
@@ -18,6 +19,15 @@ const ALLOWED_TOOLS = new Set([
   ...MUTATING_TOOLS,
   "governed_migration_execute",
 ]);
+
+const PERSISTED_ENVELOPE_GATED_TOOLS = new Set([
+  "governed_migration_authorization_bootstrap",
+  "governed_migration_apply_policy_bootstrap",
+  "capability_resolution_envelope_apply_authorize",
+  "governed_migration_execute",
+]);
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const ALLOWED_SHELL_ALIASES = new Set([
   "capability_resolution_envelope_create",
@@ -66,6 +76,39 @@ export function validateShellAliasInvocation(alias, extraArgs) {
     throw new Error("platform_outbox_worker only permits --action=status or --action=dry-run.");
   }
   return { mutation_requested: false, extra_args: extraArgs };
+}
+
+const GROWTH_INTELLIGENCE_PILOT_ALLOWED_KEYS = new Set([
+  "tenant_id",
+  "brand_key",
+  "business_activity_type_key",
+  "persistence_mode",
+  "outbox_mode",
+  "evidence_limit",
+  "report_id",
+  "requested_by",
+]);
+
+export function validateGrowthIntelligencePilotArgs(toolArgs) {
+  if (!toolArgs || typeof toolArgs !== "object" || Array.isArray(toolArgs)) {
+    throw new Error("Growth Intelligence pilot arguments must be a JSON object.");
+  }
+  const unknownKeys = Object.keys(toolArgs).filter((key) => !GROWTH_INTELLIGENCE_PILOT_ALLOWED_KEYS.has(key));
+  if (unknownKeys.length > 0) throw new Error(`Unsupported Growth Intelligence pilot argument: ${unknownKeys[0]}`);
+  if (!/^[0-9a-f-]{36}$/i.test(String(toolArgs.tenant_id || ""))) throw new Error("Growth Intelligence pilot requires a tenant UUID.");
+  if (!/^[A-Za-z0-9._-]{1,128}$/.test(String(toolArgs.brand_key || ""))) throw new Error("Invalid Growth Intelligence brand key.");
+  if (toolArgs.persistence_mode !== "internal_registry") throw new Error("Growth Intelligence dev pilot requires persistence_mode=internal_registry.");
+  if (toolArgs.outbox_mode !== "dev_transactional") throw new Error("Growth Intelligence dev pilot requires outbox_mode=dev_transactional.");
+  if (toolArgs.business_activity_type_key !== undefined && !/^[A-Za-z0-9._-]{1,128}$/.test(String(toolArgs.business_activity_type_key))) {
+    throw new Error("Invalid Growth Intelligence business activity type key.");
+  }
+  if (toolArgs.evidence_limit !== undefined && (!Number.isInteger(toolArgs.evidence_limit) || toolArgs.evidence_limit < 1 || toolArgs.evidence_limit > 50)) {
+    throw new Error("Growth Intelligence evidence_limit must be between 1 and 50.");
+  }
+  for (const key of ["report_id", "requested_by"]) {
+    if (toolArgs[key] !== undefined && !/^[A-Za-z0-9._:-]{1,128}$/.test(String(toolArgs[key]))) throw new Error(`Invalid Growth Intelligence ${key}.`);
+  }
+  return toolArgs;
 }
 
 const SENSITIVE_KEY_PATTERN = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
@@ -130,16 +173,36 @@ function decodeJson(value, base64Value, fallback) {
   return fallback;
 }
 
-function requireApplyAuthorization(args, reason) {
-  if (args.apply !== true) throw new Error(`${reason} requires --apply.`);
-  if (process.env.DEV_MIGRATION_APPLY_ENABLED !== "true") {
-    const error = new Error("DEV_MIGRATION_APPLY_ENABLED=true is required for state-changing dev operations.");
-    error.code = "dev_migration_apply_feature_flag_disabled";
+function persistedEnvelopeIdForTool(tool, toolArgs) {
+  if (!PERSISTED_ENVELOPE_GATED_TOOLS.has(tool)) return "";
+  const candidate = tool === "capability_resolution_envelope_apply_authorize"
+    ? toolArgs?.envelope_id
+    : toolArgs?.capability_envelope_id;
+  const value = String(candidate || "").trim();
+  return UUID_PATTERN.test(value) ? value : "";
+}
+
+export function resolveApplyAuthoritySource({ args, action, target, payload, env = process.env }) {
+  if (args?.apply !== true) throw new Error(`${target || action || "State-changing dev operation"} requires --apply.`);
+  if (env?.DEV_MIGRATION_APPLY_ENABLED === "true") return "environment_flag";
+  if (action === "tool-call" && persistedEnvelopeIdForTool(target, payload)) return "capability_envelope";
+  const error = new Error("State-changing dev operations require DEV_MIGRATION_APPLY_ENABLED=true or a valid persisted capability envelope identifier for an allowlisted tool call.");
+  error.code = "dev_migration_apply_authority_required";
+  throw error;
+}
+
+function requireApplyAuthorization(context, reason) {
+  try {
+    return resolveApplyAuthoritySource(context);
+  } catch (error) {
+    if (error?.message?.includes("requires --apply")) {
+      error.message = `${reason} requires --apply.`;
+    }
     throw error;
   }
 }
 
-function isToolMutation(tool, toolArgs) {
+export function isToolMutation(tool, toolArgs) {
   if (MUTATING_TOOLS.has(tool)) return true;
   return tool === "governed_migration_execute" && String(toolArgs?.mode || "dry_run") === "apply";
 }
@@ -218,6 +281,7 @@ export async function runClient(args = parseArgs()) {
   let response;
   let target = null;
   let mutationRequested = false;
+  let applyAuthoritySource = null;
 
   if (action === "status") {
     return {
@@ -242,8 +306,16 @@ export async function runClient(args = parseArgs()) {
     if (!ALLOWED_TOOLS.has(target)) throw new Error(`Tool is not allowlisted for dev migration client: ${target || "<empty>"}`);
     const toolArgs = decodeJson(args.tool_args_json, args.tool_args_base64, {});
     if (!toolArgs || typeof toolArgs !== "object" || Array.isArray(toolArgs)) throw new Error("tool_args must decode to a JSON object.");
+    if (target === "growth_intelligence_pilot_run") validateGrowthIntelligencePilotArgs(toolArgs);
     mutationRequested = isToolMutation(target, toolArgs);
-    if (mutationRequested) requireApplyAuthorization(args, `Tool ${target}`);
+    if (mutationRequested) {
+      applyAuthoritySource = requireApplyAuthorization({
+        args,
+        action,
+        target,
+        payload: toolArgs,
+      }, `Tool ${target}`);
+    }
     response = await callTool(base, apiKey, target, toolArgs);
   } else if (action === "shell-alias") {
     target = String(args.alias || "").trim();
@@ -251,7 +323,14 @@ export async function runClient(args = parseArgs()) {
     const extraArgs = decodeJson(args.extra_args_json, args.extra_args_base64, []);
     const invocation = validateShellAliasInvocation(target, extraArgs);
     mutationRequested = invocation.mutation_requested;
-    if (mutationRequested) requireApplyAuthorization(args, `Shell alias ${target}`);
+    if (mutationRequested) {
+      applyAuthoritySource = requireApplyAuthorization({
+        args,
+        action,
+        target,
+        payload: null,
+      }, `Shell alias ${target}`);
+    }
     response = await runShellAlias(base, apiKey, target, invocation.extra_args);
   } else {
     throw new Error("Unsupported action. Use status, probe, tool-call, or shell-alias.");
@@ -272,6 +351,7 @@ export async function runClient(args = parseArgs()) {
     },
     status_after: statusAfter,
     mutation_requested: mutationRequested,
+    apply_authority_source: applyAuthoritySource,
     apply_flag_present: args.apply === true,
     apply_feature_flag_enabled: process.env.DEV_MIGRATION_APPLY_ENABLED === "true",
     secrets_included: false,

@@ -11,6 +11,11 @@ assert.equal(_testingPlatformCapabilityShadowCertification.CONTRACT_KEY, "tenant
 assert.equal(_testingPlatformCapabilityShadowCertification.ADAPTER_KEY, "tenant_connection_self_repair_routes_v1");
 assert.equal(_testingPlatformCapabilityShadowCertification.FIXED_PLAN.contract_status_required, "shadow");
 assert.equal(_testingPlatformCapabilityShadowCertification.FIXED_PLAN.certification_status, "shadow_certified");
+assert.equal(_testingPlatformCapabilityShadowCertification.FIXED_PLAN.contract_certification_status_after, "certified");
+assert.notEqual(
+  _testingPlatformCapabilityShadowCertification.FIXED_PLAN.contract_certification_status_after,
+  _testingPlatformCapabilityShadowCertification.FIXED_PLAN.certification_status,
+);
 assert.equal(_testingPlatformCapabilityShadowCertification.FIXED_PLAN.runtime_dispatch_changed, false);
 
 const fakePool = {
@@ -69,7 +74,7 @@ const safeReadback = _testingPlatformCapabilityShadowCertification.verifyReadbac
     capability_key: "tenant_tool.tenant_connection_effective_credential_plan_view",
     adapter_key: "tenant_connection_self_repair_routes_v1",
     expected_effect_class: "read_only",
-    certification_status: "shadow_certified",
+    certification_status: "certified",
     status: "shadow",
     secrets_included: 0,
   },
@@ -110,4 +115,9 @@ for (const marker of [
 assert.doesNotMatch(migration, /UPDATE\s+`?tenant_platform_endpoint_tools`?\s+SET\s+`?is_enabled`?\s*=\s*1/i);
 assert.doesNotMatch(migration, /INSERT\s+INTO\s+`?platform_capability_certifications`?/i);
 
-console.log("platform capability shadow certification issue core tests passed");
+const routeSource = fs.readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
+assert(routeSource.includes("name: \"platform_capability_shadow_certification_issue\""));
+assert(routeSource.includes("toolKey === \"platform_capability_shadow_certification_issue\""));
+assert(routeSource.includes("issuePlatformCapabilityShadowCertification"));
+
+console.log("platform capability shadow certification issue tests passed");

@@ -247,6 +247,7 @@ flowchart TD
 | `release_readiness_orchestration_gate_policy_v1` | 1 |
 | `repo_conflict_policy_v1` | 1 |
 | `repository_close_superseded_positive_smoke_policy_v1` | 1 |
+| `repository_main_moved_trigger_policy_v1` | 1 |
 | `resource_authority_policy_v1` | 2 |
 | `resource_reference_interpretation_policy_v1` | 1 |
 | `runtime_agent_loop_policy_v1` | 1 |
@@ -257,6 +258,7 @@ flowchart TD
 | `runtime_repo_mutation_policy_v1` | 1 |
 | `runtime_wordpress_apply_reason_policy_v1` | 1 |
 | `schema_cleanup_policy_v1` | 1 |
+| `self_healing_release_advisor_policy_v1` | 1 |
 | `session_insight_adapter_apply_readiness_gate_policy_v1` | 1 |
 | `session_insight_adapter_dry_run_contract_policy_v1` | 1 |
 | `session_insight_backlog_target_write_executor_policy_v1` | 1 |
@@ -298,5 +300,6 @@ flowchart TD
 | `tenant_proactive_guidance_policy_v1` | 1 |
 | `tenant_repository_advisory_comment_v5_tool_wiring_policy_v1` | 2 |
 | `tenant_repository_intelligence_v3_v4_tool_wiring_policy_v1` | 1 |
+| `tenant_task_source_repair_apply_policy_v1` | 1 |
 | `tool_bus_gated_read_only_dispatch_policy_v1` | 1 |
 | `validation_semantics_policy_v1` | 1 |

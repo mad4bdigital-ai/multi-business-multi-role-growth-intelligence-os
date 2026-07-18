@@ -2,182 +2,155 @@
   "schema_version": 1,
   "feature_key": "006-adaptive-authorization-execution-governance",
   "title": "Adaptive Authorization and Execution Governance",
-  "status": "in_progress",
+  "status": "complete",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-14T22:00:20Z",
+  "last_updated_at": "2026-07-18T00:20:00Z",
+  "requirements": {
+    "migration": false,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
   "delivery": {
     "implementation_prs": [
       {
-        "sequence": 1,
-        "role": "state_semantics_and_operational_projections",
-        "pull_request": 1936,
+        "number": 1936,
+        "status": "merged",
         "merge_sha": "809e81f9dc3c9198a2a4c2d45b4cd4177ef7b158",
-        "status": "merged"
+        "role": "state_semantics_and_operational_projections"
       },
       {
-        "sequence": 2,
-        "role": "decision_plane_capability_resolver_and_shadow_metadata",
-        "pull_request": 2290,
+        "number": 2290,
+        "status": "merged",
         "merge_sha": "332875c0143c622c287f4629f725381ccda5fe84",
-        "status": "merged_and_branch_deleted"
+        "role": "decision_plane_capability_resolver_and_shadow_metadata"
       },
       {
-        "sequence": 3,
-        "role": "dynamic_shared_enforcement_kernel",
-        "pull_request": 2322,
+        "number": 2322,
+        "status": "merged",
         "merge_sha": "a5ae2aefdafbc2e786c7dd90f9469d85d9784b17",
-        "status": "merged_and_branch_deleted"
+        "role": "dynamic_shared_enforcement_kernel"
       },
       {
-        "sequence": 4,
-        "role": "revision_bound_execution_envelopes",
-        "pull_request": 2346,
+        "number": 2346,
+        "status": "merged",
         "merge_sha": "dfd1fb9378997cad7fdfb97ff0ad702922ae0809",
-        "status": "merged_and_branch_deleted"
+        "role": "revision_bound_execution_envelopes"
       },
       {
-        "sequence": 5,
-        "role": "scoped_approval_requests_and_append_only_decisions",
-        "pull_request": 2365,
+        "number": 2365,
+        "status": "merged",
         "merge_sha": "06b48fa31d0784a64297f010b1ba2fec7e1f9917",
-        "status": "merged_and_branch_deleted"
+        "role": "scoped_approval_requests_and_append_only_decisions"
       },
       {
-        "sequence": 6,
-        "role": "stale_envelope_idempotency_and_concurrency_controls",
-        "pull_request": 2380,
+        "number": 2380,
+        "status": "merged",
         "merge_sha": "95a2c024047c719dc743dcd6fef90ed6a23b694b",
-        "status": "merged_and_branch_deleted"
+        "role": "stale_envelope_idempotency_and_concurrency_controls"
       },
       {
-        "sequence": 7,
-        "role": "adapter_binding_certification_readback_and_drift_contracts",
-        "pull_request": 2389,
+        "number": 2389,
+        "status": "merged",
         "merge_sha": "04bb276759f3c266745e363a0005f542d7a71902",
-        "status": "merged",
-        "branch_deleted_verified": false
+        "role": "adapter_binding_certification_readback_and_drift_contracts"
       },
       {
-        "sequence": 8,
-        "role": "shadow_pilot_parity_without_provider_mutation",
-        "pull_request": 2440,
+        "number": 2440,
+        "status": "merged",
         "merge_sha": "c06224f60179406ba65765c23de9c472be3a1231",
-        "status": "merged",
-        "branch_deleted_verified": false
+        "role": "shadow_pilot_parity_without_provider_mutation"
       },
       {
-        "sequence": 9,
-        "role": "shadow_mismatch_classification_only",
-        "pull_request": 2460,
+        "number": 2460,
+        "status": "merged",
         "merge_sha": "b5c8369c78ee87a19573554faf5083e8b4f7a5d4",
-        "status": "merged",
-        "branch_deleted_verified": false
+        "role": "shadow_mismatch_classification_only"
       },
       {
-        "sequence": 10,
-        "role": "parity_threshold_approval_contract_only",
-        "pull_request": 2513,
+        "number": 2513,
+        "status": "merged",
         "merge_sha": "1bebe286bd2ee97efd3e4c71ac13e155f4a580f8",
-        "status": "merged",
-        "branch_deleted_verified": false
+        "role": "parity_threshold_approval_contract_only"
       },
       {
-        "sequence": 11,
-        "role": "legacy_compatibility_wrapper_and_measured_deprecation_metadata",
-        "pull_request": 2531,
+        "number": 2531,
+        "status": "merged",
         "merge_sha": "9c9c5ec0ad7cb4f8f3b6860a02ecadd993dc80d0",
-        "status": "merged",
-        "branch_deleted_verified": true
+        "role": "legacy_compatibility_wrapper_and_measured_deprecation_metadata"
       },
       {
-        "sequence": 12,
-        "role": "verification_test_registration_and_contract_metadata",
-        "pull_request": 2581,
-        "merge_sha": "5f96be1cd83a90e3b8e8f23f40afaac6d8fa1342",
+        "number": 2581,
         "status": "merged",
-        "branch_deleted_verified": false
+        "merge_sha": "5f96be1cd83a90e3b8e8f23f40afaac6d8fa1342",
+        "role": "verification_test_registration_and_contract_metadata"
+      },
+      {
+        "number": 2725,
+        "status": "merged",
+        "merge_sha": "1ad6382e5af5d390ebb0b7ff85d2c3178cb55c88",
+        "role": "openapi_lint_and_compatibility_checks"
+      },
+      {
+        "number": 2757,
+        "status": "merged",
+        "merge_sha": "8dff0c5e690a72cb38e31bbecb184ba54dc7a3a1",
+        "role": "canonical_and_agent_knowledge_guide_alignment"
+      },
+      {
+        "number": 2763,
+        "status": "merged",
+        "merge_sha": "835daf1366847035a694a7f1c8043e4e980c7f96",
+        "role": "final_verification_release_readiness_and_closeout_evidence"
       }
     ],
-    "remaining_task_loop": {
-      "status": "t051_next_openapi_lint_and_compatibility_checks",
-      "provider_mutation": false,
-      "external_write": false,
-      "migration_execution": "not_started",
-      "enforcement_change": false,
-      "canary_activation": false,
-      "route_removal": false
-    },
-    "next_pr": {
-      "sequence": 13,
-      "scope": "T051 add OpenAPI lint and compatibility checks",
-      "status": "ready_after_t050_ledger_closeout"
+    "closeout_pr": {
+      "number": 2768,
+      "branch": "gpt/feature-006-final-ledger-closeout",
+      "role": "completion",
+      "status": "current_pr"
     }
   },
   "evidence": {
-    "execution_governance": {
-      "status": "in_progress",
-      "completed_tasks": [
-        "T020",
-        "T021",
-        "T022",
-        "T023",
-        "T030",
-        "T040",
-        "T041",
-        "T042",
-        "T043",
-        "T050"
-      ],
-      "latest_task": "T050",
+    "ci": {
+      "status": "pass",
+      "head_sha": "cc58dac809ab12436408e0d8e811773ded81d250",
+      "checks_passed": 4,
+      "checks_total": 4,
+      "completion_gate": "pass"
+    },
+    "release_readiness": {
+      "status": "pass",
+      "checks_passed": 4,
+      "checks_total": 4
+    },
+    "production_verification": {
+      "status": "verified",
+      "run_id": "2743ec87-263c-443b-9154-7a9d3764d4a6",
+      "expected_commit_sha": "1e89c416678020b17a6d1974bf37e3bb475b698c",
+      "deployed_commit_sha": "1e89c416678020b17a6d1974bf37e3bb475b698c"
+    },
+    "post_merge_audit": {
+      "status": "completed",
+      "run_id": "github-static-cleanup-readback-audit-1e89c416",
+      "new_feature_gate_findings": 0
+    },
+    "rollback_rehearsal": {
+      "status": "pass",
+      "mode": "dry_run",
+      "dispatch_ready": true,
+      "will_execute": false,
+      "executed": false
+    },
+    "safety_readback": {
       "provider_mutation_allowed": false,
       "external_write_allowed": false,
-      "enforcement_cutover_allowed": false,
       "migration_execution_authorized": false,
       "new_authority_tables_allowed": false,
+      "enforcement_cutover_allowed": false,
       "canary_activation_allowed": false,
       "route_removal_allowed": false
-    },
-    "implementation": {
-      "status": "in_progress",
-      "completed_tasks": [
-        "T010",
-        "T011",
-        "T012",
-        "T013",
-        "T014",
-        "T015",
-        "T020",
-        "T021",
-        "T022",
-        "T023",
-        "T030",
-        "T040",
-        "T041",
-        "T042",
-        "T043",
-        "T050"
-      ],
-      "next_task_scope": "T051 add OpenAPI lint and compatibility checks",
-      "remaining_tasks": [
-        "T051",
-        "T052",
-        "T053",
-        "T061",
-        "T062",
-        "D010"
-      ],
-      "remaining_task_count": 6,
-      "provider_mutation_allowed": false,
-      "external_write_allowed": false,
-      "enforcement_change_allowed": false,
-      "new_authority_tables_allowed": false,
-      "canary_activation_allowed": false,
-      "route_removal_allowed": false
-    },
-    "production_rollout": {
-      "status": "pending",
-      "reason": "T051 through T053 verification and rollout evidence, T061 through T062 closeout, and D010 final delivery closeout remain incomplete."
     }
   },
+  "secrets_included": false,
   "sensitive_values_included": false
 }

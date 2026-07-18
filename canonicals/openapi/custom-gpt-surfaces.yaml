@@ -79,9 +79,11 @@ surfaces:
         - tenantPlatformPluginInstall
         - tenantPlatformPluginCredentialIntakeSessionCreate
         - tenantPlatformPluginResolve
+        - listSessions
         - listTenantSkillApprovals
         - decideTenantSkillApproval
         - writeSessionTurn
+        - writeGptSessionTurns
         - endSession
 
   tenant_activation:
@@ -92,8 +94,8 @@ surfaces:
     oauth_endpoints:
       authorization_url: https://activation.mad4b.com/auth/oauth/authorize
       token_url: https://activation.mad4b.com/auth/oauth/token
-    hard_operation_limit: 10
-    warning_operation_limit: 8
+    hard_operation_limit: 30
+    warning_operation_limit: 26
     gateway_policy: activation_gateway
     info:
       title: Growth Intelligence Platform - Tenant Activation Actions
@@ -110,6 +112,7 @@ surfaces:
         - getTenantResolutionCase
         - transitionTenantResolutionCase
         - runTenantResolutionDiagnosticAction
+        - previewTenantTaskSourceRepair
         - readTenantActivationDynamicTabDetail
 
   local_connector_admin:

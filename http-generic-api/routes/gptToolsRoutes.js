@@ -35,10 +35,12 @@ import {
 import { buildActivationGatewayRolloutPlan, runActivationGatewayDarkDeploy } from "../activationGatewayRolloutTool.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import {
+  CAPABILITY_ENVELOPE_BATCH_EXPIRE_MODES,
   CAPABILITY_ENVELOPE_LIFECYCLE_ACTIONS,
   capabilityEnvelopeError,
   markCapabilityEnvelopeReferenced,
   resolveCapabilityExecutionEnvelope,
+  runCapabilityEnvelopeBatchExpire,
   transitionCapabilityEnvelopeLifecycle,
 } from "../capabilityResolutionEnvelopeGuard.js";
 import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBranchFastForwardToBase, runGithubBranchMergeCommitCreate } from "../adminBranchReconciliationAdapter.js";
@@ -61,6 +63,10 @@ import {
   TENANT_CONNECTION_SHADOW_CONTRACT_BOOTSTRAP_CONFIRM,
   bootstrapTenantConnectionShadowContracts,
 } from "../tenantConnectionShadowContractBootstrap.js";
+import {
+  PLATFORM_CAPABILITY_SHADOW_CERTIFICATION_CONFIRM,
+  issuePlatformCapabilityShadowCertification,
+} from "../platformCapabilityShadowCertificationIssuer.js";
 import { runGrowthIntelligencePilotAdmin } from "../growthIntelligenceAdminTool.js";
 import {
   approveRepositoryAdvisoryCommentApprovalHoldAdmin,
@@ -177,6 +183,43 @@ export function resolveGptSessionPin(req, args = {}) {
   ];
   const value = candidates.find((candidate) => String(candidate || "").trim());
   return value ? String(value).trim() : null;
+}
+
+export function resolveGptSessionContext(req, args = {}) {
+  const body = args && typeof args === "object" ? args : {};
+  const workspaceCandidates = [
+    body.workspace_key,
+    body.workspaceKey,
+    body._workspace_key,
+    req?.headers?.["x-workspace-key"],
+  ];
+  const brandCandidates = [
+    body.brand_key,
+    body.brandKey,
+    body.target_key,
+    body.targetKey,
+    body._brand_key,
+    req?.headers?.["x-brand-key"],
+    req?.headers?.["x-target-key"],
+  ];
+  const businessTypeCandidates = [body.business_type_key, body.businessTypeKey, req?.headers?.["x-business-type-key"]];
+  const businessActivityCandidates = [body.business_activity_type_key, body.businessActivityTypeKey, body.activity_type_key, body.activityTypeKey, req?.headers?.["x-business-activity-type-key"], req?.headers?.["x-activity-type-key"]];
+  const activityCandidates = [body.activity_key, body.activityKey, req?.headers?.["x-activity-key"]];
+  const knowledgeProfileCandidates = [body.knowledge_profile_key, body.knowledgeProfileKey, req?.headers?.["x-knowledge-profile-key"]];
+  const workspace = workspaceCandidates.find((candidate) => String(candidate || "").trim());
+  const brand = brandCandidates.find((candidate) => String(candidate || "").trim());
+  const businessType = businessTypeCandidates.find((candidate) => String(candidate || "").trim());
+  const businessActivity = businessActivityCandidates.find((candidate) => String(candidate || "").trim());
+  const activity = activityCandidates.find((candidate) => String(candidate || "").trim());
+  const knowledgeProfile = knowledgeProfileCandidates.find((candidate) => String(candidate || "").trim());
+  return {
+    workspace_key: workspace ? String(workspace).trim() : null,
+    brand_key: brand ? String(brand).trim() : null,
+    business_type_key: businessType ? String(businessType).trim() : null,
+    business_activity_type_key: businessActivity ? String(businessActivity).trim() : null,
+    activity_key: activity ? String(activity).trim() : null,
+    knowledge_profile_key: knowledgeProfile ? String(knowledgeProfile).trim() : null,
+  };
 }
 
 async function countConversationTurns(pool, sessionId) {
@@ -324,6 +367,14 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       truncatedResult,
     ].join("\n");
 
+    const {
+      workspace_key: workspaceKey,
+      brand_key: brandKey,
+      business_type_key: businessTypeKey,
+      business_activity_type_key: businessActivityTypeKey,
+      activity_key: activityKey,
+      knowledge_profile_key: knowledgeProfileKey,
+    } = resolveGptSessionContext(req, args);
     const writeback = await recordGptSessionTurn({
       pool,
       session,
@@ -331,6 +382,12 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       content,
       action_key: toolKey,
       turnIndex,
+      workspace_key: workspaceKey,
+      brand_key: brandKey,
+      business_type_key: businessTypeKey,
+      business_activity_type_key: businessActivityTypeKey,
+      activity_key: activityKey,
+      knowledge_profile_key: knowledgeProfileKey,
     });
     return { ok: true, ...writeback };
   } catch (err) {
@@ -631,6 +688,24 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "platform_capability_shadow_certification_issue",
+    displayName: "Issue Fixed Platform Capability Shadow Certification",
+    description: "Dry-run or apply one fixed shadow certification for tenant_connection_effective_credential_plan_view. Apply requires typed confirmation and an apply-authorized platform_orchestration capability envelope. It keeps the Tenant tool disabled, keeps the readback contract status shadow, never writes runtime dispatch certification, creates no active Tenant export, calls no provider, and returns no secrets.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-shadow-certification-issue",
+    tags: ["admin", "capability", "tenant_connection", "certification", "shadow", "read_only", "state_changing", "dry_run_default", "typed_confirmation", "capability_envelope", "same_cycle_readback", "no_provider_call", "no_external_write", "no_tenant_authority_change", "no_runtime_dispatch_change", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
+        expected_plan_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        confirm: { type: "string", const: PLATFORM_CAPABILITY_SHADOW_CERTIFICATION_CONFIRM },
+        capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "tenant_connection_shadow_contract_bootstrap",
     displayName: "Bootstrap Tenant Connection Shadow Contracts",
     description: "Dry-run or apply one fixed internal bootstrap for a non-write-capable Tenant connection adapter and nine shadow readback contracts. Apply requires typed confirmation and an apply-authorized platform_orchestration capability envelope. It never enables Tenant tools, creates Tenant exports, issues certifications, calls providers, performs external writes, or returns secrets.",
@@ -772,6 +847,28 @@ const VIRTUAL_ADMIN_TOOLS = [
         authorized_by: { type: "string", minLength: 1, maxLength: 64 },
         decision_note: { type: "string", minLength: 20, maxLength: 512 },
         ttl_minutes: { type: "integer", minimum: 5, maximum: 240, default: 60 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "capability_resolution_envelope_batch_expire",
+    displayName: "Expire Capability Resolution Envelopes in a Bounded Batch",
+    description: "Dry-run or apply a bounded expiration batch for envelopes that are already past expires_at, were requested by one actor, remain not_executed, have no execution_ref, contain no secrets, and are still in a pre-execution lifecycle state. Apply requires an exact reviewed plan hash, typed confirmation, a dedicated capability envelope, transactional row locking, same-cycle readback, and governance-envelope consumption. No provider call, external write, deploy, restart, gate mutation, or unrelated envelope transition.",
+    method: "VIRTUAL",
+    path: "internal://capability-resolution-envelope-batch-expire",
+    tags: ["admin", "capability_resolution", "lifecycle", "batch", "mutation", "dry_run_default", "typed_confirmation", "capability_envelope", "same_cycle_readback", "internal_sql_only", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: CAPABILITY_ENVELOPE_BATCH_EXPIRE_MODES, default: "dry_run" },
+        requested_by: { type: "string", minLength: 1, maxLength: 191, default: "gpt_admin" },
+        expired_before: { type: "string", format: "date-time" },
+        max_items: { type: "integer", minimum: 1, maximum: 100, default: 50 },
+        expected_plan_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        confirm: { type: "string", pattern: "^EXPIRE_CAPABILITY_ENVELOPES_[0-9A-F]{12}$" },
+        capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+        reason: { type: "string", minLength: 20, maxLength: 512 },
       },
       additionalProperties: false,
     },
@@ -1188,6 +1285,7 @@ const VIRTUAL_ADMIN_TOOLS = [
         brand_key: { type: "string", minLength: 1, maxLength: 128 },
         business_activity_type_key: { type: "string", default: "business_and_industrial_products" },
         persistence_mode: { type: "string", enum: ["internal_registry"], default: "internal_registry" },
+        outbox_mode: { type: "string", enum: ["disabled", "dev_transactional"], default: "disabled", description: "Optional dev-only transactional outbox producer. dev_transactional is rejected unless the active database name ends in _dev." },
         evidence_limit: { type: "integer", minimum: 1, maximum: 50, default: 20 },
         report_id: { type: "string", maxLength: 64 },
         requested_by: { type: "string", maxLength: 128 },
@@ -2322,6 +2420,12 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     });
     return { status: 200, body: { ok: true, name: toolKey, result } };
   }
+  if (callerType === "admin" && toolKey === "platform_capability_shadow_certification_issue") {
+    const result = await issuePlatformCapabilityShadowCertification(args || {}, {
+      auth: req?.auth || {},
+    });
+    return { status: 200, body: { ok: true, name: toolKey, result } };
+  }
   if (callerType === "admin" && toolKey === "tenant_connection_shadow_contract_bootstrap") {
     const result = await bootstrapTenantConnectionShadowContracts(args || {}, {
       auth: req?.auth || {},
@@ -2450,6 +2554,39 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
         };
       } catch (err) {
         return { status: err?.status || 500, body: { ok: false, error: { code: err?.code || "admin_control_db_mutation_serialization_smoke_failed", message: err?.message }, secrets_included: false } };
+      }
+    }
+
+    if (callerType === "admin" && toolKey === "capability_resolution_envelope_batch_expire") {
+      try {
+        const result = await runCapabilityEnvelopeBatchExpire({
+          pool: getPool(),
+          mode: String(args?.mode || "dry_run").trim(),
+          requestedBy: String(args?.requested_by || "gpt_admin").trim(),
+          expiredBefore: args?.expired_before || null,
+          maxItems: args?.max_items ?? 50,
+          expectedPlanSha256: String(args?.expected_plan_sha256 || "").trim(),
+          confirm: String(args?.confirm || "").trim(),
+          capabilityEnvelopeId: String(args?.capability_envelope_id || "").trim(),
+          reason: String(args?.reason || "").trim(),
+        });
+        return { status: 200, body: result };
+      } catch (err) {
+        return {
+          status: Number(err?.status) || 500,
+          body: {
+            ok: false,
+            error: {
+              code: err?.code || "capability_envelope_batch_expire_failed",
+              message: err?.message || "Capability envelope batch expiration failed.",
+              details: err?.details || undefined,
+            },
+            execution_allowed: false,
+            provider_write: false,
+            external_write: false,
+            secrets_included: false,
+          },
+        };
       }
     }
 

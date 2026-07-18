@@ -112,6 +112,8 @@ import { buildReleaseOperationRoutes } from "./releaseOperationRoutes.js";
 import { buildReleaseGateManagerRoutes } from "./releaseGateManagerRoutes.js";
 import { buildAsyncReleaseDeployRoutes } from "./asyncReleaseDeployRoutes.js";
 import { buildCapabilityEnvelopeTemplateRoutes } from "./capabilityEnvelopeTemplateRoutes.js";
+import { buildSelfHealingReleaseAdvisorRoutes } from "./selfHealingReleaseAdvisorRoutes.js";
+import { buildRepositoryMainMovedTriggerRoutes } from "./repositoryMainMovedTriggerRoutes.js";
 import { buildOperationalConsoleRoutes } from "./operationalConsoleRoutes.js";
 import { buildActivationGuidanceRoutes } from "./activationGuidanceRoutes.js";
 import { buildGrowthIntelligenceRoutes } from "./growthIntelligenceRoutes.js";
@@ -188,6 +190,8 @@ export function registerRoutes(app, deps) {
   app.use(buildReleaseGateManagerRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAsyncReleaseDeployRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildCapabilityEnvelopeTemplateRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildSelfHealingReleaseAdvisorRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildRepositoryMainMovedTriggerRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildOperationalConsoleRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildHealthRoutes(deps));
   app.use(buildMcpRoutes(deps));

@@ -1,0 +1,131 @@
+openapi: 3.1.0
+info:
+  title: Self-Healing Release Advisor API
+  version: 1.0.0
+  description: Advisory-only release remediation planning from governed runtime verification evidence.
+servers:
+  - url: https://auth.mad4b.com
+security:
+  - adminBearerAuth: []
+  - backendApiKeyAuth: []
+tags:
+  - name: release-advisor
+paths:
+  /admin/release-advisor-runs:
+    post:
+      tags: [release-advisor]
+      operationId: createReleaseAdvisorRun
+      summary: Create or deduplicate a release advisor plan
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAdvisorRunRequest' }
+      responses:
+        '201':
+          description: Advisor plan created
+          content: { application/json: { schema: { $ref: '#/components/schemas/AdvisorRunResponse' } } }
+        '200':
+          description: Existing identical advisor plan returned
+          content: { application/json: { schema: { $ref: '#/components/schemas/AdvisorRunResponse' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/release-advisor-runs/{advisorRunId}:
+    get:
+      tags: [release-advisor]
+      operationId: getReleaseAdvisorRun
+      summary: Read one release advisor plan
+      parameters:
+        - $ref: '#/components/parameters/AdvisorRunId'
+      responses:
+        '200':
+          description: Advisor plan
+          content: { application/json: { schema: { $ref: '#/components/schemas/AdvisorRunResponse' } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+components:
+  securitySchemes:
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key
+      description: Backend API key supplied as a bearer token and accepted only when the runtime admin-principal guard also succeeds.
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: |
+        Admin/service Custom GPT-safe backend authentication header. Send x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
+    backendApiKey: { type: apiKey, in: header, name: x-api-key }
+  parameters:
+    AdvisorRunId:
+      in: path
+      name: advisorRunId
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    CreateAdvisorRunRequest:
+      type: object
+      properties:
+        environment_key: { type: string, maxLength: 64, default: production }
+        runtime_verification_run_id: { type: string, format: uuid }
+        release_operation_id: { type: string, format: uuid }
+        target_id: { type: string, format: uuid }
+        expected_commit_sha: { type: string, pattern: '^[0-9a-fA-F]{40}$' }
+        context: { type: object, additionalProperties: true }
+      additionalProperties: false
+    AdvisorRunResponse:
+      type: object
+      required: [ok, advisor_run, recommendations, execution_allowed, provider_write, external_write, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        deduplicated: { type: boolean }
+        advisor_run: { type: object, additionalProperties: true }
+        recommendations:
+          type: array
+          items: { $ref: '#/components/schemas/Recommendation' }
+        execution_allowed: { type: boolean, const: false }
+        provider_write: { type: boolean, const: false }
+        external_write: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: false
+    Recommendation:
+      type: object
+      required: [recommendation_id, action_key, approval_required, execution_allowed, provider_write, external_write, recommendation_json, secrets_included]
+      properties:
+        recommendation_id: { type: string, format: uuid }
+        recommendation_key: { type: string }
+        gap_key: { type: [string, 'null'] }
+        classification: { type: [string, 'null'] }
+        severity: { type: string, enum: [info, low, medium, high, critical] }
+        remediation_type: { type: string }
+        action_key: { type: string }
+        template_key: { type: [string, 'null'] }
+        approval_required: { type: boolean }
+        auto_fix_allowed: { type: boolean }
+        execution_allowed: { type: boolean, const: false }
+        provider_write: { type: boolean, const: false }
+        external_write: { type: boolean, const: false }
+        recommendation_json: { type: object, additionalProperties: true }
+        runbook_json: { type: object, additionalProperties: true }
+        evidence_ref: { type: [string, 'null'] }
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: true
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: {}
+            requestId: { type: string }
+          additionalProperties: false
+      additionalProperties: false
+  responses:
+    BadRequest: { description: Invalid request, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    NotFound: { description: Required evidence or advisor run not found, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Conflict: { description: State conflict, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
