@@ -48,6 +48,20 @@
   ],
   "auth_rules": [
     {
+      "rule_id": "github-repository-main-moved-webhook-auth",
+      "operation": "POST /webhooks/github/repository-main-moved",
+      "source_file": "routes/repositoryMainMovedTriggerRoutes.js",
+      "profile": "github_webhook_signature",
+      "owner": "repository-automation",
+      "rationale": "The webhook verifies X-Hub-Signature-256 against the preserved raw request body before ingestion. This policy exposes that inline HMAC guarantee to route inventory without changing runtime behavior.",
+      "evidence_refs": [
+        "routes/repositoryMainMovedTriggerRoutes.js",
+        "githubRepositoryMainMovedWebhookService.js",
+        "openapi/github-repository-main-moved-webhook.yaml",
+        "test-github-repository-main-moved-webhook.mjs"
+      ]
+    },
+    {
       "rule_id": "public-runtime-metadata-auth",
       "operations": [
         "GET /deployment-info",
