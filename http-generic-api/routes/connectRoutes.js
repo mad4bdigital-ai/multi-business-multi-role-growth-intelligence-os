@@ -27,6 +27,7 @@ import {
 } from "../agentSurfaceRuntimeService.js";
 import { resolveActivationGraphContext } from "../activationGraphContext.js";
 import { createOrAppendSupportTicket } from "../supportTicketService.js";
+import { orchestrateTenantConnectBootstrap } from "../tenantConnectBootstrapService.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONNECT_STATIC = join(__dirname, "../public/connect");
