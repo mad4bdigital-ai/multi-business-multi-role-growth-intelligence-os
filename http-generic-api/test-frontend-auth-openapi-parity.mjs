@@ -117,50 +117,18 @@ for (const signature of resourceMutationSignatures) {
   assert(entry.governance.blockers.includes("mutation_rollback_gap"), `${signature} must remain blocked until failure rollback/compensation is implemented`);
 }
 
-const generatorDiagnostics = {
-  coverage: {
-    undefined_scheme_count: plan.coverage.auth_parity_counts.undefined_scheme || 0,
-    auth_contract_gap_count: plan.coverage.auth_contract_gap_count,
-    operation_policy_issue_count: plan.coverage.operation_policy_issue_count,
-    openapi_generated_index_count: plan.coverage.openapi_generated_index_count,
-    openapi_gap_count: plan.coverage.openapi_gap_count,
-    openapi_detail_gap_count: plan.coverage.openapi_detail_gap_count,
-  },
-  auth_contract_gaps: plan.families.flatMap((family) =>
-    (family.auth_contract_gaps || []).map((gap) => ({
-      family_key: family.family_key,
-      source_file: family.source_file,
-      ...gap,
-    })),
-  ),
-  policy_issues: plan.policy?.issues || [],
-  openapi_gaps: plan.families.flatMap((family) =>
-    (family.openapi_gaps || []).map((signature) => ({
-      family_key: family.family_key,
-      source_file: family.source_file,
-      signature,
-    })),
-  ),
-};
-
-const generatorContractFailure =
-  generatorDiagnostics.coverage.undefined_scheme_count > 0 ||
-  generatorDiagnostics.coverage.auth_contract_gap_count > 0 ||
-  generatorDiagnostics.coverage.operation_policy_issue_count > 0 ||
-  generatorDiagnostics.coverage.openapi_generated_index_count <= 0 ||
-  generatorDiagnostics.coverage.openapi_gap_count > 0 ||
-  generatorDiagnostics.coverage.openapi_detail_gap_count <= 0;
-
-if (generatorContractFailure) {
-  const annotation = JSON.stringify(generatorDiagnostics)
-    .slice(0, 6000)
-    .replace(/%/g, "%25")
-    .replace(/\r/g, "%0D")
-    .replace(/\n/g, "%0A");
-  console.error(`::error title=Frontend generator contract diagnostics::${annotation}`);
-}
-
 assert.equal(plan.coverage.auth_parity_counts.undefined_scheme || 0, 0, "every referenced OpenAPI security scheme must be defined in its source document");
+const authContractGaps = operations
+  .filter((entry) => entry.auth_parity?.state === "unknown")
+  .map((entry) => ({
+    signature: entry.signature,
+    source_file: entry.source_file,
+    runtime_auth: entry.runtime_auth,
+    auth_parity: entry.auth_parity,
+  }));
+if (authContractGaps.length > 0) {
+  console.error("frontend auth parity gaps", JSON.stringify(authContractGaps, null, 2));
+}
 assert.equal(plan.coverage.auth_contract_gap_count, 0, "runtime and canonical OpenAPI authentication must have complete parity");
 assert.equal(plan.coverage.operation_policy_issue_count, 0, "all exact auth and operation rules must resolve uniquely");
 assert(plan.coverage.openapi_generated_index_count > 0, "high-confidence runtime operations must be represented in the generated OpenAPI index");
