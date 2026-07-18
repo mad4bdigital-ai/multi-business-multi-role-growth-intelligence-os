@@ -1,8 +1,8 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": "main",
-    "source_digest": "b301c29d89fe63b2a36747c8b01ba523854634216c3a703a815f5cb3d4b7a500",
+    "ref": "b2fb307234775f62e287d8017177af94b2fa08f2",
+    "source_digest": "cfb26ea50ddbd24c6868e6b4252f9c78b17d24bd6c74e34cfc86b7f0624d0340",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "7d46b226442d6989276f37133093ac70225f62929a0cb59ed54182e2cdf90ff8",
+        "sha256": "6383ccb13104f512314e66b4a948b2b83eeb92c9abbaf5ebf0eab8810e1d84cb",
         "present": true
       },
       {
@@ -21,7 +21,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "94475ff66ad35a964d815901dae23be6be108306875b97388663658777588022",
+        "sha256": "423239751b20fefcfd4b5829b59d5fcc4165e2642e8af4d282bebd6e6c798275",
         "present": true
       },
       {
@@ -286,7 +286,7 @@
       },
       {
         "file": "routes/authRoutes.js",
-        "sha256": "587221dea9b575d238fb6df05bd27a643134213f09b0f5c704b212d758f7be3d",
+        "sha256": "ba16da261a16f8f54539515c4215e02aa5295d9b0bf13a3cea3c794142e794d9",
         "present": true
       },
       {
@@ -321,7 +321,7 @@
       },
       {
         "file": "routes/connectRoutes.js",
-        "sha256": "b37e1f25a1dc0a45aed95897ed6ebf0093a123a64623546ab6beba84673f454e",
+        "sha256": "99eb1ba3cb71d318dda821dcffbf7270678cb4245806ba997cad869ab6088243",
         "present": true
       },
       {
@@ -781,7 +781,7 @@
       },
       {
         "file": "routes/tenantActivationOverlayRoutes.js",
-        "sha256": "3b130c2c7bd16d25a2961cfaa2c7c3d4fb2bc825ce394ed37d78ff33bef35fc4",
+        "sha256": "aa252a12bc5c114b341313eb7b91420c13886c11996cb904c35e3a18f35d9adb",
         "present": true
       },
       {
@@ -850,8 +850,33 @@
         "present": true
       },
       {
+        "file": "test-action-endpoint-tool-manifest-resolver.mjs",
+        "sha256": "ecf338e9f724535bdfa9a8ef8f50f57ff4efb99fcbad42dbe1c644ae073b1aef",
+        "present": true
+      },
+      {
+        "file": "test-ads-governance-snapshot-proposal.mjs",
+        "sha256": "c341f0159e9cea3153bcac871b04866589dcfb9e219fee717be6cd9e0a9f3a38",
+        "present": true
+      },
+      {
+        "file": "test-agent-intelligence-runtime.mjs",
+        "sha256": "06559c86c2f4213f38f606c01bcd2702f316fdf097f734d6784316cd52ecc966",
+        "present": true
+      },
+      {
+        "file": "test-connect-routes.mjs",
+        "sha256": "2c67eee9a8967d4a2fc7ae26ede865185c055c8e603e4bdf25ec62afc5a0c5c5",
+        "present": true
+      },
+      {
         "file": "test-gpt-session-turn-batch-capture.mjs",
         "sha256": "b9f86fcb979a7cc3a51474a0398f4a5fe930912c75b70009420bd964d06314b8",
+        "present": true
+      },
+      {
+        "file": "test-orchestration-readback-surface.mjs",
+        "sha256": "a2d402998c5dc5a03b252f80a007fcf22346ecafe290408257d3387da6f60c3a",
         "present": true
       },
       {
@@ -860,13 +885,28 @@
         "present": true
       },
       {
+        "file": "test-platform-plugin-private-runtime.mjs",
+        "sha256": "41de935403a87a7ae8c57dc327fd1a4e69baa7805867ec810560d20f24ab074f",
+        "present": true
+      },
+      {
         "file": "test-platform-plugin-public-rest-dispatch.mjs",
-        "sha256": "608de995411ec3bf744e4684a14f28819718c45bdc2b487291477cc1f0d52102",
+        "sha256": "a0eadd9e833d23df6a05d8b49f8fcbafaaba80252a17539321ca096654f59c4d",
         "present": true
       },
       {
         "file": "test-platform-routes.mjs",
         "sha256": "afc50b0e59a76219ffd91253ef31c8547e498711f54766a39c429ad507f309a8",
+        "present": true
+      },
+      {
+        "file": "test-remote-runtime-catalog-probe.mjs",
+        "sha256": "1869379cac484fa665670de3662d5b22e6d62c3ec27fb4ecb864ad9b9ca69b39",
+        "present": true
+      },
+      {
+        "file": "test-repository-automation-control-plane.mjs",
+        "sha256": "91cd708eafc3b659f47547948c2b3461bd9e904b2e4ea413bb241d72ae0ce582",
         "present": true
       },
       {
@@ -955,8 +995,13 @@
         "present": true
       },
       {
+        "file": "test-support-ticket-lifecycle-snapshot-proposal.mjs",
+        "sha256": "d78c3bcabd333392449016b652861e593a67c76f0e69cd73f27dfd0391c55235",
+        "present": true
+      },
+      {
         "file": "test-tenant-activation-session-alias.mjs",
-        "sha256": "b64d003f9d19280cbc2c19101ec4bcdf74066bfcfa658c55da35c153d3423c0c",
+        "sha256": "a0859e12c49019c3f719b9b3b869f3e90580699d4e59b10ccf044c79b8f33960",
         "present": true
       },
       {
@@ -989,29 +1034,29 @@
     "mounted_family_count": 161,
     "mounted_route_file_count": 129,
     "mixed_scope_route_file_count": 24,
-    "operation_count": 961,
-    "openapi_documented_count": 945,
-    "openapi_canonical_documented_count": 567,
+    "operation_count": 962,
+    "openapi_documented_count": 946,
+    "openapi_canonical_documented_count": 568,
     "openapi_generated_index_count": 378,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 378,
     "auth_parity_counts": {
-      "equivalent": 945,
+      "equivalent": 946,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 584,
-    "unresolved_operation_class_count": 546,
-    "classified_mutation_count": 6,
+    "non_get_candidate_count": 585,
+    "unresolved_operation_class_count": 529,
+    "classified_mutation_count": 7,
     "governed_mutation_operation_count": 2,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 146,
     "test_owned_family_count": 6,
     "untested_family_count": 155,
-    "test_owned_operation_count": 34,
-    "untested_operation_count": 927,
+    "test_owned_operation_count": 52,
+    "untested_operation_count": 910,
     "ready_task_count": 3,
     "blocked_task_count": 158,
     "coverage_complete": false
@@ -6911,7 +6956,7 @@
       "family_key": "connect.public.connect-assets",
       "label": "connect (public) [connect-assets]",
       "source_file": "routes/connectRoutes.js",
-      "source_digest": "b37e1f25a1dc0a45aed95897ed6ebf0093a123a64623546ab6beba84673f454e",
+      "source_digest": "99eb1ba3cb71d318dda821dcffbf7270678cb4245806ba997cad869ab6088243",
       "mount_prefix": "/",
       "mount_order": 12529,
       "split_from_mixed_scope_file": true,
@@ -7017,7 +7062,7 @@
       "family_key": "connect.public.default",
       "label": "connect (public) [default]",
       "source_file": "routes/connectRoutes.js",
-      "source_digest": "b37e1f25a1dc0a45aed95897ed6ebf0093a123a64623546ab6beba84673f454e",
+      "source_digest": "99eb1ba3cb71d318dda821dcffbf7270678cb4245806ba997cad869ab6088243",
       "mount_prefix": "/",
       "mount_order": 12529,
       "split_from_mixed_scope_file": true,
@@ -7184,7 +7229,7 @@
       "family_key": "connect.tenant",
       "label": "connect (tenant)",
       "source_file": "routes/connectRoutes.js",
-      "source_digest": "b37e1f25a1dc0a45aed95897ed6ebf0093a123a64623546ab6beba84673f454e",
+      "source_digest": "99eb1ba3cb71d318dda821dcffbf7270678cb4245806ba997cad869ab6088243",
       "mount_prefix": "/",
       "mount_order": 12529,
       "split_from_mixed_scope_file": true,
@@ -7312,6 +7357,96 @@
           },
           "mutation_candidate": false,
           "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/connect/bootstrap",
+          "signature": "POST /connect/bootstrap",
+          "source_file": "routes/connectRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireUserJwt"
+            ],
+            "evidence": [
+              "route:requireUserJwt"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-connect-routes.mjs"
+          ],
+          "governance": {
+            "classification": "state_change",
+            "classification_source": "operation_rule",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": {
+              "preflight": {
+                "mode": "inline_capability_check"
+              },
+              "approval": {
+                "mode": "runtime_authorization"
+              },
+              "readback": {
+                "mode": "inline_post_commit",
+                "same_cycle": true
+              },
+              "rollback": null
+            },
+            "parameter_bindings": {
+              "user_id": "auth.user_id",
+              "tenant_id": "auth.tenant_id|response.principal.workspace_key",
+              "mode": "request.body.mode|managed"
+            },
+            "blockers": [
+              "mutation_rollback_gap"
+            ],
+            "rule_id": "tenant-connect-bootstrap-governance",
+            "owner": "tenant-activation",
+            "rationale": "The signed-user bootstrap idempotently provisions a workspace when none exists, activates Managed mode, and verifies the resulting connection in the same cycle. Workspace creation and activation currently use separate committed database units, so compensation after a partial success remains an explicit blocker rather than an inferred rollback guarantee.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "routes/connectRoutes.js",
+              "tenantConnectBootstrapService.js",
+              "test-connect-routes.mjs",
+              "test-tenant-connect-bootstrap-service.mjs"
+            ]
+          },
+          "mutation_candidate": true,
+          "mutation": true
         },
         {
           "method": "POST",
@@ -7935,7 +8070,9 @@
       "evidence_routes": [
         "GET /connect/status"
       ],
-      "tests": [],
+      "tests": [
+        "test-connect-routes.mjs"
+      ],
       "untested_operations": [
         "GET /connect/status",
         "GET /connect/onboarding-state",
@@ -7963,7 +8100,8 @@
         "resource-api-coverage.manifest.json",
         "routes/connectRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-connect-routes.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -7971,6 +8109,12 @@
         "owner": null
       },
       "operation_blockers": [
+        {
+          "signature": "POST /connect/bootstrap",
+          "blockers": [
+            "mutation_rollback_gap"
+          ]
+        },
         {
           "signature": "POST /connect/workspace",
           "blockers": [
@@ -8015,7 +8159,7 @@
         }
       ],
       "risk": {
-        "score": 6,
+        "score": 8,
         "class": "high"
       },
       "wave": "F1-tenant-shell"
@@ -9983,7 +10127,7 @@
       "family_key": "auth.admin",
       "label": "auth (admin)",
       "source_file": "routes/authRoutes.js",
-      "source_digest": "587221dea9b575d238fb6df05bd27a643134213f09b0f5c704b212d758f7be3d",
+      "source_digest": "ba16da261a16f8f54539515c4215e02aa5295d9b0bf13a3cea3c794142e794d9",
       "mount_prefix": "/auth",
       "mount_order": 12847,
       "split_from_mixed_scope_file": true,
@@ -10110,7 +10254,7 @@
       "family_key": "auth.public",
       "label": "auth (public)",
       "source_file": "routes/authRoutes.js",
-      "source_digest": "587221dea9b575d238fb6df05bd27a643134213f09b0f5c704b212d758f7be3d",
+      "source_digest": "ba16da261a16f8f54539515c4215e02aa5295d9b0bf13a3cea3c794142e794d9",
       "mount_prefix": "/auth",
       "mount_order": 12847,
       "split_from_mixed_scope_file": true,
@@ -10623,7 +10767,7 @@
       "family_key": "auth.unresolved",
       "label": "auth (unresolved)",
       "source_file": "routes/authRoutes.js",
-      "source_digest": "587221dea9b575d238fb6df05bd27a643134213f09b0f5c704b212d758f7be3d",
+      "source_digest": "ba16da261a16f8f54539515c4215e02aa5295d9b0bf13a3cea3c794142e794d9",
       "mount_prefix": "/auth",
       "mount_order": 12847,
       "split_from_mixed_scope_file": true,
@@ -12206,7 +12350,7 @@
       "family_key": "tenant-activation-overlay.tenant",
       "label": "tenant activation overlay (tenant)",
       "source_file": "routes/tenantActivationOverlayRoutes.js",
-      "source_digest": "3b130c2c7bd16d25a2961cfaa2c7c3d4fb2bc825ce394ed37d78ff33bef35fc4",
+      "source_digest": "aa252a12bc5c114b341313eb7b91420c13886c11996cb904c35e3a18f35d9adb",
       "mount_prefix": "/",
       "mount_order": 13176,
       "split_from_mixed_scope_file": true,
@@ -12393,7 +12537,7 @@
       "family_key": "tenant-activation-overlay.unresolved",
       "label": "tenant activation overlay (unresolved)",
       "source_file": "routes/tenantActivationOverlayRoutes.js",
-      "source_digest": "3b130c2c7bd16d25a2961cfaa2c7c3d4fb2bc825ce394ed37d78ff33bef35fc4",
+      "source_digest": "aa252a12bc5c114b341313eb7b91420c13886c11996cb904c35e3a18f35d9adb",
       "mount_prefix": "/",
       "mount_order": 13176,
       "split_from_mixed_scope_file": true,
@@ -23262,17 +23406,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-repository-automation-control-plane.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "repository-automation-plan-read-action",
+            "owner": "repository-automation",
+            "rationale": "The endpoint deterministically builds and hashes an automation plan in memory. It does not persist a run, dispatch a repository tool, update a branch, execute CI, deploy, or clean up resources.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "repositoryAutomationControlPlane.js",
+              "test-repository-automation-control-plane.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -23501,9 +23653,10 @@
       "evidence_routes": [
         "POST /admin/repository-automation/status"
       ],
-      "tests": [],
+      "tests": [
+        "test-repository-automation-control-plane.mjs"
+      ],
       "untested_operations": [
-        "POST /admin/repository-automation/plan",
         "POST /admin/repository-automation/run",
         "POST /admin/repository-automation/status",
         "POST /admin/repository-automation/hygiene-scan"
@@ -23521,7 +23674,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/repositoryAutomationRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-repository-automation-control-plane.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -23529,12 +23683,6 @@
         "owner": null
       },
       "operation_blockers": [
-        {
-          "signature": "POST /admin/repository-automation/plan",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
         {
           "signature": "POST /admin/repository-automation/run",
           "blockers": [
@@ -45970,17 +46118,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-action-endpoint-tool-manifest-resolver.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-action-manifest-resolve-read-action",
+            "owner": "platform-runtime",
+            "rationale": "The endpoint resolves the action, endpoint, and tool authority manifest and evaluates the dispatch guard as an in-memory preview. Its response fixes will_execute=false and it neither dispatches a tool nor persists a decision.",
+            "evidence_refs": [
+              "actionManifestDiagnostic.js",
+              "openapi.yaml",
+              "test-action-endpoint-tool-manifest-resolver.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46042,17 +46198,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-action-endpoint-tool-manifest-resolver.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-execution-readiness-dry-run-read-action",
+            "owner": "platform-runtime",
+            "rationale": "The endpoint performs bounded registry and graph SELECT reads, combines them with the manifest guard preview, and always returns will_execute=false. It cannot dispatch a tool, call a provider, or mutate readiness state.",
+            "evidence_refs": [
+              "executionReadinessDryRun.js",
+              "openapi.yaml",
+              "test-action-endpoint-tool-manifest-resolver.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46114,17 +46278,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-orchestration-readback-surface.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-orchestration-readback-read-action",
+            "owner": "platform-runtime",
+            "rationale": "The endpoint reads bounded orchestration graph, readiness, snapshot, and recommendation views. Its contract explicitly forbids provider calls, credential payload reads, spend changes, external writes, deploys, and publishing.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformOrchestrationReadback.js",
+              "test-orchestration-readback-surface.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46186,17 +46358,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-health-scorecard-read-action",
+            "owner": "platform-runtime",
+            "rationale": "The endpoint reads the aggregate platform health scorecard view and optional component rows with SELECT statements only. Snapshot recording is exposed as a separate operation.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformHealthScorecard.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46330,17 +46510,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-health-scorecard-remediation-plan-read-action",
+            "owner": "platform-runtime",
+            "rationale": "The endpoint reads the bounded remediation-plan view and returns recommendation-only safety evidence. It does not record a scorecard snapshot or execute remediation.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformHealthScorecard.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46402,17 +46590,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-health-scorecard-tenant-rollout-read-action",
+            "owner": "platform-runtime",
+            "rationale": "The endpoint reads tenant rollout-readiness rows and summarizes eligibility in memory. It cannot enable a tenant rollout, change policy, or perform an external write.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformHealthScorecard.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46474,17 +46670,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-health-scorecard-ledger-hygiene-read-action",
+            "owner": "platform-runtime",
+            "rationale": "The endpoint reads the ledger-hygiene view and returns bounded diagnostics only. It does not delete, rewrite, compact, or repair ledger rows.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformHealthScorecard.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46546,17 +46750,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-ads-governance-snapshot-proposal.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "ads-provider-governance-snapshot-proposal-read-action",
+            "owner": "platform-runtime",
+            "rationale": "The endpoint uses bounded SELECT queries to build snapshot and recommendation candidates, reports writes_database=false, and cannot call a provider, read credential payloads, change spend, record a snapshot, deploy, or publish.",
+            "evidence_refs": [
+              "adsProviderGovernanceSnapshotProposal.js",
+              "openapi.yaml",
+              "test-ads-governance-snapshot-proposal.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46690,17 +46902,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-support-ticket-lifecycle-snapshot-proposal.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "support-ticket-lifecycle-snapshot-proposal-read-action",
+            "owner": "platform-runtime",
+            "rationale": "The endpoint reads ticket lifecycle and linked workflow evidence to build proposal objects, reports writes_database=false, and cannot mutate the ticket, dispatch a workflow, decide approval, send externally, record a snapshot, deploy, or publish.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "supportTicketLifecycleSnapshotProposal.js",
+              "test-support-ticket-lifecycle-snapshot-proposal.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -47218,17 +47438,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-plugin-smoke-recertification-policy-history-read-action",
+            "owner": "platform-plugins",
+            "rationale": "The endpoint executes a bounded SELECT over execution-log audit rows, projects sanitized before and after policy summaries, and filters them in memory. It cannot upsert or roll back a policy.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformPluginSmokeRecertificationPolicyHistory.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -47290,17 +47518,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-plugin-smoke-recertification-policy-rollback-preview-read-action",
+            "owner": "platform-plugins",
+            "rationale": "The endpoint reads one sanitized audit snapshot and the current policy, computes changed fields in memory, and explicitly does not replay notes content. Applying rollback is a separate consequential operation.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformPluginSmokeRecertificationPolicyHistory.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -47434,17 +47670,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-plugin-smoke-recertification-queue-read-action",
+            "owner": "platform-plugins",
+            "rationale": "The endpoint reads bounded certification, endpoint, connection-metadata, and policy rows and classifies recertification needs in memory. Recertification dispatch and certification updates are confined to the separate batch operation.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformPluginSmokeRecertification.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -48080,17 +48324,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-remote-runtime-catalog-probe.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "remote-runtime-target-catalog-read-action",
+            "owner": "remote-runtime",
+            "rationale": "The endpoint performs bounded SELECT queries over remote-runtime targets and command allowlists and returns safe public projections. It cannot validate, probe, execute, deploy, or update a target.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "remoteRuntime.js",
+              "test-remote-runtime-catalog-probe.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -48872,17 +49124,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-private-runtime.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-plugin-private-contribution-resolve-read-action",
+            "owner": "platform-plugins",
+            "rationale": "The endpoint reads one safe contribution projection and evaluates owner scope, action binding, status, and credential-scope policy in memory. It cannot activate, promote, certify, dispatch, or mutate the platform base.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformPluginContribution.js",
+              "test-platform-plugin-private-runtime.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -49118,29 +49378,23 @@
         "POST /platform/plugins/smoke-certifications/policies/rollback-preview"
       ],
       "tests": [
-        "test-platform-plugin-public-rest-dispatch.mjs"
+        "test-action-endpoint-tool-manifest-resolver.mjs",
+        "test-ads-governance-snapshot-proposal.mjs",
+        "test-orchestration-readback-surface.mjs",
+        "test-platform-plugin-private-runtime.mjs",
+        "test-platform-plugin-public-rest-dispatch.mjs",
+        "test-remote-runtime-catalog-probe.mjs",
+        "test-support-ticket-lifecycle-snapshot-proposal.mjs"
       ],
       "untested_operations": [
         "GET /platform/plugins/catalog",
         "POST /platform/plugins/resolve",
-        "POST /platform/action-manifest/resolve",
-        "POST /platform/execution-readiness/dry-run",
-        "POST /platform/orchestration/readback",
-        "POST /platform/health/scorecard",
         "POST /platform/health/scorecard/snapshot-record",
-        "POST /platform/health/scorecard/remediation-plan",
-        "POST /platform/health/scorecard/tenant-rollout",
-        "POST /platform/health/scorecard/ledger-hygiene",
-        "POST /platform/orchestration/ads-provider/snapshot-propose",
         "POST /platform/orchestration/ads-provider/snapshot-record",
-        "POST /platform/orchestration/support-ticket/snapshot-propose",
         "POST /platform/orchestration/support-ticket/snapshot-record",
         "POST /platform/plugins/smoke-certifications/certify",
         "POST /platform/plugins/smoke-certifications/policies/upsert",
-        "POST /platform/plugins/smoke-certifications/policies/history",
-        "POST /platform/plugins/smoke-certifications/policies/rollback-preview",
         "POST /platform/plugins/smoke-certifications/policies/rollback-apply",
-        "POST /platform/plugins/smoke-certifications/recertification-queue",
         "POST /platform/plugins/smoke-certifications/recertification-batch",
         "POST /platform/remote-runtime/targets/upsert",
         "POST /platform/remote-runtime/targets/validate",
@@ -49149,7 +49403,6 @@
         "POST /platform/remote-runtime/hosting/deploy-release",
         "GET /platform/remote-runtime/hosting/deploy-runs/{deploymentRunId}",
         "POST /platform/remote-runtime/local-path/execute-readonly",
-        "POST /platform/remote-runtime/targets/catalog",
         "POST /platform/remote-runtime/probe",
         "POST /platform/plugins/install-policy",
         "POST /platform/plugins/action-templates",
@@ -49160,7 +49413,6 @@
         "POST /platform/plugins/contributions/certify",
         "POST /platform/plugins/contributions/promote",
         "POST /platform/plugins/contributions/activate-private",
-        "POST /platform/plugins/contributions/resolve-private",
         "POST /platform/plugins/contributions/dispatch-rest",
         "GET /platform/plugins/contributions",
         "GET /platform/plugins/contributions/{contribution_id}"
@@ -49180,7 +49432,13 @@
         "routes/index.js",
         "routes/platformPluginRoutes.js",
         "scripts/test-manifest.mjs",
-        "test-platform-plugin-public-rest-dispatch.mjs"
+        "test-action-endpoint-tool-manifest-resolver.mjs",
+        "test-ads-governance-snapshot-proposal.mjs",
+        "test-orchestration-readback-surface.mjs",
+        "test-platform-plugin-private-runtime.mjs",
+        "test-platform-plugin-public-rest-dispatch.mjs",
+        "test-remote-runtime-catalog-probe.mjs",
+        "test-support-ticket-lifecycle-snapshot-proposal.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -49195,67 +49453,13 @@
           ]
         },
         {
-          "signature": "POST /platform/action-manifest/resolve",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/execution-readiness/dry-run",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/orchestration/readback",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/health/scorecard",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
           "signature": "POST /platform/health/scorecard/snapshot-record",
           "blockers": [
             "operation_classification_gap"
           ]
         },
         {
-          "signature": "POST /platform/health/scorecard/remediation-plan",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/health/scorecard/tenant-rollout",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/health/scorecard/ledger-hygiene",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/orchestration/ads-provider/snapshot-propose",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
           "signature": "POST /platform/orchestration/ads-provider/snapshot-record",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/orchestration/support-ticket/snapshot-propose",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -49279,25 +49483,7 @@
           ]
         },
         {
-          "signature": "POST /platform/plugins/smoke-certifications/policies/history",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/plugins/smoke-certifications/policies/rollback-preview",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
           "signature": "POST /platform/plugins/smoke-certifications/policies/rollback-apply",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/plugins/smoke-certifications/recertification-queue",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -49340,12 +49526,6 @@
         },
         {
           "signature": "POST /platform/remote-runtime/local-path/execute-readonly",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/remote-runtime/targets/catalog",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -49406,12 +49586,6 @@
         },
         {
           "signature": "POST /platform/plugins/contributions/activate-private",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/plugins/contributions/resolve-private",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -51424,17 +51598,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-agent-intelligence-runtime.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "agent-model-run-plan-read-action",
+            "owner": "agent-runtime",
+            "rationale": "The endpoint builds a canonical model-run plan entirely in memory and returns dry_run_only=true. The plan fixes will_call_model=false and keeps model execution and tool execution disabled.",
+            "evidence_refs": [
+              "agentIntelligenceRuntime.js",
+              "openapi.yaml",
+              "test-agent-intelligence-runtime.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -51566,17 +51748,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-agent-intelligence-runtime.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "agent-tool-search-read-action",
+            "owner": "agent-runtime",
+            "rationale": "The endpoint filters a supplied tool list or reads the derived tool index with SELECT queries and returns normalized metadata only. It does not expose the raw catalog, execute a tool, call a model, or mutate registry state.",
+            "evidence_refs": [
+              "agentIntelligenceRuntime.js",
+              "openapi.yaml",
+              "test-agent-intelligence-runtime.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -51587,11 +51777,11 @@
       "openapi_detail_gaps": [],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
+      "tests": [
+        "test-agent-intelligence-runtime.mjs"
+      ],
       "untested_operations": [
-        "POST /ai/model-runs",
-        "GET /ai/model-runs/{id}/events",
-        "POST /ai/tool-search"
+        "GET /ai/model-runs/{id}/events"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -51606,27 +51796,15 @@
         "resource-api-coverage.manifest.json",
         "routes/agentIntelligenceRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-agent-intelligence-runtime.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
         "rationale": "No repository policy decision covers this route family.",
         "owner": null
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /ai/model-runs",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /ai/tool-search",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
         "score": 11,
         "class": "critical"
@@ -79635,12 +79813,15 @@
       "blockers": [
         "test_ownership_gap",
         "surface_policy_decision_required",
+        "mutation_rollback_gap",
         "operation_classification_gap"
       ],
       "dependencies": [
         "F0-source-baseline",
         "F1-tenant-workspace-context",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-surface-policy.json",
@@ -79652,7 +79833,8 @@
         "resource-api-coverage.manifest.json",
         "routes/connectRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-connect-routes.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -79660,11 +79842,13 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-connect-routes.mjs"
       ]
     },
     {
@@ -80947,8 +81131,7 @@
       "state": "blocked",
       "blockers": [
         "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
+        "surface_policy_decision_required"
       ],
       "dependencies": [
         "F0-source-baseline",
@@ -80965,7 +81148,8 @@
         "resource-api-coverage.manifest.json",
         "routes/agentIntelligenceRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-agent-intelligence-runtime.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -80977,7 +81161,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-agent-intelligence-runtime.mjs"
       ]
     },
     {
@@ -82979,7 +83164,13 @@
         "routes/index.js",
         "routes/platformPluginRoutes.js",
         "scripts/test-manifest.mjs",
-        "test-platform-plugin-public-rest-dispatch.mjs"
+        "test-action-endpoint-tool-manifest-resolver.mjs",
+        "test-ads-governance-snapshot-proposal.mjs",
+        "test-orchestration-readback-surface.mjs",
+        "test-platform-plugin-private-runtime.mjs",
+        "test-platform-plugin-public-rest-dispatch.mjs",
+        "test-remote-runtime-catalog-probe.mjs",
+        "test-support-ticket-lifecycle-snapshot-proposal.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -82992,7 +83183,13 @@
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-platform-plugin-public-rest-dispatch.mjs"
+        "node test-action-endpoint-tool-manifest-resolver.mjs",
+        "node test-ads-governance-snapshot-proposal.mjs",
+        "node test-orchestration-readback-surface.mjs",
+        "node test-platform-plugin-private-runtime.mjs",
+        "node test-platform-plugin-public-rest-dispatch.mjs",
+        "node test-remote-runtime-catalog-probe.mjs",
+        "node test-support-ticket-lifecycle-snapshot-proposal.mjs"
       ]
     },
     {
@@ -83225,7 +83422,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/repositoryAutomationRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-repository-automation-control-plane.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -83237,7 +83435,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-repository-automation-control-plane.mjs"
       ]
     },
     {
