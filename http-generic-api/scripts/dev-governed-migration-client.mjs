@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 const READ_ONLY_TOOLS = new Set([
   "admin_tool_catalog_search",
   "governed_migration_schema_readback",
+  "governance_resolve_context",
 ]);
 
 const MUTATING_TOOLS = new Set([
@@ -107,6 +108,26 @@ export function validateGrowthIntelligencePilotArgs(toolArgs) {
   }
   for (const key of ["report_id", "requested_by"]) {
     if (toolArgs[key] !== undefined && !/^[A-Za-z0-9._:-]{1,128}$/.test(String(toolArgs[key]))) throw new Error(`Invalid Growth Intelligence ${key}.`);
+  }
+  return toolArgs;
+}
+
+const GOVERNANCE_CONTEXT_ALLOWED_KEYS = new Set([
+  "business_type_key",
+  "brand_key",
+  "target_key",
+]);
+
+export function validateGovernanceResolveContextArgs(toolArgs) {
+  if (!toolArgs || typeof toolArgs !== "object" || Array.isArray(toolArgs)) {
+    throw new Error("Governance context arguments must be a JSON object.");
+  }
+  const unknownKeys = Object.keys(toolArgs).filter((key) => !GOVERNANCE_CONTEXT_ALLOWED_KEYS.has(key));
+  if (unknownKeys.length > 0) throw new Error(`Unsupported governance context argument: ${unknownKeys[0]}`);
+  for (const key of GOVERNANCE_CONTEXT_ALLOWED_KEYS) {
+    if (!/^[A-Za-z0-9._-]{1,128}$/.test(String(toolArgs[key] || ""))) {
+      throw new Error(`Invalid governance context ${key}.`);
+    }
   }
   return toolArgs;
 }
@@ -307,6 +328,7 @@ export async function runClient(args = parseArgs()) {
     const toolArgs = decodeJson(args.tool_args_json, args.tool_args_base64, {});
     if (!toolArgs || typeof toolArgs !== "object" || Array.isArray(toolArgs)) throw new Error("tool_args must decode to a JSON object.");
     if (target === "growth_intelligence_pilot_run") validateGrowthIntelligencePilotArgs(toolArgs);
+    if (target === "governance_resolve_context") validateGovernanceResolveContextArgs(toolArgs);
     mutationRequested = isToolMutation(target, toolArgs);
     if (mutationRequested) {
       applyAuthoritySource = requireApplyAuthorization({
