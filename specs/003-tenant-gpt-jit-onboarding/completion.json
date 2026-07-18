@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "feature_key": "003-tenant-gpt-jit-onboarding",
+  "title": "Tenant GPT JIT Signup and In-Chat Activation",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "last_updated_at": "2026-07-18T10:35:00Z",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": "current",
+      "branch": "gpt/003-tenant-gpt-jit-onboarding",
+      "role": "completion",
+      "status": "current_pr"
+    }
+  },
+  "evidence": {
+    "ci": {
+      "status": "pending",
+      "head_sha": "318e466341c5c97b56d28b020c80998204b06f28"
+    },
+    "release_readiness": {
+      "status": "pending"
+    },
+    "migration": {
+      "status": "pending"
+    },
+    "production_verification": {
+      "status": "pending"
+    },
+    "post_merge_audit": {
+      "status": "pending"
+    }
+  },
+  "secrets_included": false
+}
