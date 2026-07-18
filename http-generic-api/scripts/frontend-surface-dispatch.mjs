@@ -26,6 +26,7 @@ const AUTH_GUARDS = new Set([
   "requireFreshLocalManagerDeviceForPrivilegedInstaller",
   "requireMcpToken",
   "verifyInstallerDownloadToken",
+  "requireGitHubWebhookSignature",
 ]);
 const AUTH_SCHEME_ALIASES = new Map([
   ["userBearerAuth", "userJwtAuth"],
@@ -41,6 +42,7 @@ const AUTH_PROFILES = {
   local_manager: { alternatives: [["localManagerBearerAuth"]], principal: "local_manager", configuration_dependencies: ["JWT_SECRET"] },
   mcp_query_token: { alternatives: [["mcpQueryTokenAuth"]], principal: "mcp_client", configuration_dependencies: ["MCP_QUERY_TOKEN"] },
   signed_query_token: { alternatives: [["signedQueryTokenAuth"]], principal: "signed_link", configuration_dependencies: [] },
+  github_webhook_hmac: { alternatives: [["githubWebhookSignature"]], principal: "github_webhook", configuration_dependencies: ["GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET"] },
 };
 const OPERATION_CLASSIFICATIONS = new Set(["read", "read_action", "preflight", "state_change", "external_effect", "disabled", "unresolved"]);
 
@@ -596,8 +598,9 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
   const hasLocal = guardChain.some((guard) => ["requireLocalManagerDevice", "requireLocalManagerUser", "requireFreshLocalManagerDeviceForPrivilegedInstaller"].includes(guard));
   const hasMcp = guardChain.includes("requireMcpToken");
   const hasSignedQuery = guardChain.includes("verifyInstallerDownloadToken");
+  const hasGitHubWebhook = guardChain.includes("requireGitHubWebhookSignature");
   const hasBackendAuthenticator = hasBackend || hasBackendOrUser;
-  const isolatedModes = [hasLocal, hasMcp, hasSignedQuery].filter(Boolean).length;
+  const isolatedModes = [hasLocal, hasMcp, hasSignedQuery, hasGitHubWebhook].filter(Boolean).length;
   if (isolatedModes > 1 || (isolatedModes === 1 && (hasBackendAuthenticator || hasAdmin || hasUser))) {
     return { state: "unresolved", profile: "mixed_guard_chain", alternatives: null, principal: null, guard_chain: guardChain, evidence, configuration_dependencies: [] };
   }
@@ -620,6 +623,7 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
   if (hasLocal) return { state: "resolved", profile: "local_manager", alternatives: [["localManagerBearerAuth"]], principal: "local_manager", guard_chain: guardChain, evidence, configuration_dependencies: [] };
   if (hasMcp) return { state: "resolved", profile: "mcp_query_token", alternatives: [["mcpQueryTokenAuth"]], principal: "mcp_client", guard_chain: guardChain, evidence, configuration_dependencies: ["MCP_QUERY_TOKEN"] };
   if (hasSignedQuery) return { state: "resolved", profile: "signed_query_token", alternatives: [["signedQueryTokenAuth"]], principal: "signed_link", guard_chain: guardChain, evidence, configuration_dependencies: [] };
+  if (hasGitHubWebhook) return { state: "resolved", profile: "github_webhook_hmac", alternatives: [["githubWebhookSignature"]], principal: "github_webhook", guard_chain: guardChain, evidence, configuration_dependencies: ["GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET"] };
   if (/^\/(?:connect$|connect\/assets(?:\/|$)|platform$|platform\/assets(?:\/|$)|platform\/ui-surfaces$|favicon\.ico$|robots\.txt$)/.test(routePath)) {
     return { state: "resolved", profile: "public", alternatives: [], principal: "anonymous", guard_chain: [], evidence: ["explicit_public_route_allowlist"], configuration_dependencies: [] };
   }
@@ -711,7 +715,7 @@ function scopeFor({ path: routePath, source, declaration = "", sourceIndex = 0, 
     if (runtimeAuth.profile === "admin_backend") return "admin";
     if (runtimeAuth.profile === "user_jwt") return "tenant";
     if (runtimeAuth.profile === "local_manager") return "local_device";
-    if (["mcp_query_token", "signed_query_token"].includes(runtimeAuth.profile)) return "developer";
+    if (["mcp_query_token", "signed_query_token", "github_webhook_hmac"].includes(runtimeAuth.profile)) return "developer";
   }
   if (/^\/(?:connect$|connect\/assets(?:\/|$)|platform$|platform\/assets(?:\/|$)|platform\/ui-surfaces$|favicon\.ico$|robots\.txt$|legal(?:\/|$))/.test(routePath)) return "public";
   if (/local-manager|local-gateway|connector\/(?:devices?|routes?)/i.test(routePath)) return "local_device";

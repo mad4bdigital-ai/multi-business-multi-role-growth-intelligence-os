@@ -43,7 +43,7 @@ jobs:
           cache-dependency-path: http-generic-api/package-lock.json
       - run: npm ci
       - name: Generate source-pinned dispatch plan
-        run: npm run frontend:dispatch:generate -- --baseline-ref="${{ github.event.pull_request.base.sha || github.sha }}"
+        run: npm run frontend:dispatch:generate -- --baseline-ref="${{ github.event.pull_request.base.ref || github.event.repository.default_branch || 'main' }}"
       - name: Verify generator contract
         run: |
           node test-frontend-surface-dispatch.mjs

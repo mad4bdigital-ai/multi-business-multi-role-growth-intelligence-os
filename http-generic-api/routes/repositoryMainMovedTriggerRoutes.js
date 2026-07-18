@@ -3,7 +3,10 @@ import {
   createRepositoryMainMovedTriggerEvent,
   getRepositoryMainMovedTriggerEvent,
 } from "../repositoryMainMovedTriggerService.js";
-import { handleGitHubRepositoryMainMovedWebhook } from "../githubRepositoryMainMovedWebhookService.js";
+import {
+  handleGitHubRepositoryMainMovedWebhook,
+  verifyGitHubRepositoryMainMovedWebhookRequest,
+} from "../githubRepositoryMainMovedWebhookService.js";
 
 function actorFromRequest(req) {
   return {
@@ -24,19 +27,35 @@ function sendError(res, error) {
   });
 }
 
+export function createGitHubRepositoryMainMovedWebhookSignatureGuard(deps = {}) {
+  return async function requireGitHubWebhookSignature(req, res, next) {
+    try {
+      req.githubWebhookSignatureVerification = await verifyGitHubRepositoryMainMovedWebhookRequest({
+        headers: req.headers || {},
+        rawBody: req.rawBody,
+      }, deps);
+      return next();
+    } catch (error) {
+      return sendError(res, error);
+    }
+  };
+}
+
 export function buildRepositoryMainMovedTriggerRoutes({
   requireBackendApiKey,
   requireAdminPrincipal,
 } = {}) {
   const router = Router();
   const guards = [requireBackendApiKey, requireAdminPrincipal].filter(Boolean);
+  const requireGitHubWebhookSignature = createGitHubRepositoryMainMovedWebhookSignatureGuard();
 
-  router.post("/webhooks/github/repository-main-moved", async (req, res) => {
+  router.post("/webhooks/github/repository-main-moved", requireGitHubWebhookSignature, async (req, res) => {
     try {
       const result = await handleGitHubRepositoryMainMovedWebhook({
         headers: req.headers || {},
         body: req.body || {},
         rawBody: req.rawBody,
+        signature_verified: req.githubWebhookSignatureVerification?.signature_verified === true,
       });
       return res.status(result.event_type === "ping" || result.deduplicated ? 200 : 201).json(result);
     } catch (error) {
