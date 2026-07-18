@@ -19,6 +19,10 @@ import {
   consumeTenantGptOAuthAuthorizationCode,
   persistTenantGptOAuthAuthorizationCode,
 } from "../tenantGptOAuthAuthorizationCodeStore.js";
+import {
+  isDuplicateEntryError,
+  recoverGoogleJitIdentityAfterDuplicate,
+} from "../tenantGptGoogleJitRecovery.js";
 
 // Default fallback secret for development if missing.
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
