@@ -959,6 +959,7 @@ export async function createSupportTicketWorkflowRun({ tenant_id, ticket_id, pla
       throw err;
     }
     const runId = randomUUID();
+    const initialState = initialWorkflowStateForPlan(plan, validStatus);
     const finalInput = input_json || {
       ticket_id,
       plan_id: plan.plan_id,
@@ -972,38 +973,37 @@ export async function createSupportTicketWorkflowRun({ tenant_id, ticket_id, pla
       `INSERT INTO workflow_runs
          (run_id, tenant_id, user_id, actor_id, actor_type, request_id, correlation_id, execution_context_json, workflow_key, agent_id, plan_id, service_mode, status, current_step, input_json, started_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'running' THEN NOW() ELSE NULL END)`,
-      [runId, tenant_id, ticket.user_id || plan.user_id || null, actor_id || null, actor_type || null, ticket_id, `ticket:${ticket_id}`, jsonOrNull({ ticket_id, plan_id: plan.plan_id, source: "support_ticket", reason, evidence_json, secrets_included: false }), plan.workflow_key, plan.agent_id || null, plan.plan_id, plan.service_mode || ticket.service_mode || "managed", validStatus, current_step || null, jsonOrNull(finalInput), validStatus]
+      [runId, tenant_id, ticket.user_id || plan.user_id || null, actor_id || null, actor_type || null, ticket_id, `ticket:${ticket_id}`, jsonOrNull({ ticket_id, plan_id: plan.plan_id, source: "support_ticket", reason, evidence_json, secrets_included: false }), plan.workflow_key, plan.agent_id || null, plan.plan_id, plan.service_mode || ticket.service_mode || "managed", initialState.run_status, current_step || null, jsonOrNull(finalInput), initialState.run_status]
     );
-    await connection.query("UPDATE execution_plans SET plan_status = 'executing', updated_at = NOW() WHERE tenant_id = ? AND plan_id = ?", [tenant_id, plan.plan_id]);
+    await connection.query("UPDATE execution_plans SET plan_status = ?, updated_at = NOW() WHERE tenant_id = ? AND plan_id = ?", [initialState.plan_status, tenant_id, plan.plan_id]);
     await connection.query(
       `INSERT INTO ticket_workflow_links
          (link_id, ticket_id, tenant_id, plan_id, run_id, relationship, status, evidence_json)
        VALUES (?, ?, ?, ?, ?, 'workflow_run', 'linked', ?)`,
-      [randomUUID(), ticket_id, tenant_id, plan.plan_id, runId, jsonOrNull({ workflow_key: plan.workflow_key, status: validStatus, reason, evidence_json, secrets_included: false })]
+      [randomUUID(), ticket_id, tenant_id, plan.plan_id, runId, jsonOrNull({ workflow_key: plan.workflow_key, status: initialState.run_status, reason, evidence_json, secrets_included: false })]
     );
-    const runtimeState = ticketStateFromRuntime({ run: { status: validStatus }, plan: { plan_status: "executing" } });
     await connection.query(
       `UPDATE tickets
           SET status = COALESCE(?, status), lifecycle_state = COALESCE(?, lifecycle_state), customer_status = COALESCE(?, customer_status), updated_at = NOW()
         WHERE tenant_id = ? AND ticket_id = ?`,
-      [runtimeState.status, runtimeState.lifecycle_state, runtimeState.customer_status, tenant_id, ticket_id]
+      [initialState.ticket_status, initialState.lifecycle_state, initialState.customer_status, tenant_id, ticket_id]
     );
     await insertLifecycleEvent(connection, {
       ticket_id,
       tenant_id,
       event_type: "workflow_run_created",
       from_state: ticket.lifecycle_state || null,
-      to_state: runtimeState.lifecycle_state || ticket.lifecycle_state || null,
+      to_state: initialState.lifecycle_state || ticket.lifecycle_state || null,
       actor_id,
       actor_type,
       visibility: "internal_support",
       summary: reason,
-      payload_json: { run_id: runId, plan_id: plan.plan_id, workflow_key: plan.workflow_key, status: validStatus, runtime_state: runtimeState, secrets_included: false },
+      payload_json: { run_id: runId, plan_id: plan.plan_id, workflow_key: plan.workflow_key, status: initialState.run_status, runtime_state: initialState, secrets_included: false },
     });
-    await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_workflow_run_created", after_json: { run_id: runId, plan_id: plan.plan_id, workflow_key: plan.workflow_key, status: validStatus, secrets_included: false } });
+    await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_workflow_run_created", after_json: { run_id: runId, plan_id: plan.plan_id, workflow_key: plan.workflow_key, status: initialState.run_status, secrets_included: false } });
     const updated = await fetchTicketById(connection, tenant_id, ticket_id);
     if (ownsConnection) await connection.commit();
-    return { ok: true, run_id: runId, plan_id: plan.plan_id, workflow_key: plan.workflow_key, status: validStatus, ticket: compactTicket(updated), secrets_included: false };
+    return { ok: true, run_id: runId, plan_id: plan.plan_id, workflow_key: plan.workflow_key, status: initialState.run_status, ticket: compactTicket(updated), secrets_included: false };
   } catch (error) {
     if (ownsConnection) await connection.rollback();
     throw error;
