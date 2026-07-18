@@ -4,12 +4,12 @@
 - Queue schema: surface-contract-gap-queue-v1
 - Triage schema: surface-contract-gap-triage-v1
 - Gate schema: surface-contract-new-gap-gate-v1
-- Queue items: 20
-- Triaged items: 20
-- Gate candidates: 20
+- Queue items: 25
+- Triaged items: 25
+- Gate candidates: 25
 - New-gap gate: fail
-- Blocking new items: 20
-- Docs completion: 96.24%
+- Blocking new items: 25
+- Docs completion: 95.34%
 - SQL route OpenAPI coverage: 90.91%
 
 ## Top immediate items
@@ -18,19 +18,19 @@
 - `20260717_tenant_task_source_repair_apply_gate.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260715_platform_capability_shadow_certification_issue.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260715_dynamic_container_canary_runtime_observability.sql` — critical_review, add targeted patch-index, parity, and governance documentation
+- `20260718_github_list_issue_comments_endpoint.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260714_tenant_connection_shadow_contract_bootstrap.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260715_capability_envelope_template_resolver.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260715_dynamic_container_canary_promotion_tool.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260714_async_release_deploy_contract.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260716_repository_main_moved_trigger_coordinator.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260716_self_healing_release_advisor.sql` — critical_review, add targeted patch-index, parity, and governance documentation
+- `20260717_virtual_tool_capability_projection.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260717_runtime_contract_root_cause_reconciliation.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260715_dynamic_container_canary_probe_sampler_tool.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260714_supervisor_runtime_admin_tool_exports.sql` — critical_review, add targeted patch-index, parity, and governance documentation
+- `20260718_repair_activation_session_context_tool_registration.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260716_dynamic_container_preview_canary_probe_sampler_tool.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `1046_sprint69_dynamic_container_shadow_sampler_tool.sql` — high_review, add targeted patch-index, parity, and governance documentation
-- `20260716_self_healing_release_advisor_mutation_policy.sql` — high_review, add targeted patch-index, parity, and governance documentation
-- `20260715_dynamic_container_rollout_readiness_current_evidence.sql` — high_review, add targeted patch-index, parity, and governance documentation
-- `20260716_github_list_repository_issues_array_contract.sql` — high_review, add targeted patch-index, parity, and governance documentation
-- `20260712_github_rerun_workflow_response_schema_alignment.sql` — high_review, add targeted patch-index, parity, and governance documentation
-- `20260715_supervisor_behavioral_certification_capability_policy.sql` — high_review, add targeted patch-index, parity, and governance documentation
+- `20260718_expand_resource_authority_shell_alias_contract.sql` — high_review, add targeted patch-index, parity, and governance documentation
+- `20260717_virtual_tool_readback_readiness.sql` — high_review, add targeted patch-index, parity, and governance documentation
