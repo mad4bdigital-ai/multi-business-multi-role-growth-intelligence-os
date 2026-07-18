@@ -49,6 +49,13 @@ export function assertGrowthIntelligencePilotAdminSafety(args = {}) {
       "The governed admin pilot only supports persistence_mode=internal_registry."
     );
   }
+  const outboxMode = text(args.outbox_mode, "disabled");
+  if (!["disabled", "dev_transactional"].includes(outboxMode)) {
+    throw fail(
+      "growth_pilot_admin_outbox_mode_invalid",
+      "outbox_mode must be disabled or dev_transactional."
+    );
+  }
   if (
     args.apply === true
     || args.live_execution === true
@@ -215,6 +222,7 @@ export async function runGrowthIntelligencePilotAdmin(args = {}, dependencies = 
   const tenantId = text(args.tenant_id);
   const brandKey = text(args.brand_key);
   const activityKey = text(args.business_activity_type_key, DEFAULT_ACTIVITY_KEY);
+  const outboxMode = text(args.outbox_mode, "disabled");
   const requestedBy = text(args.requested_by, "gpt_admin_growth_intelligence_pilot");
 
   const context = await resolveGrowthIntelligencePilotAdminContext({
@@ -269,7 +277,7 @@ export async function runGrowthIntelligencePilotAdmin(args = {}, dependencies = 
       delete stage.reason;
     }
   }
-  result.registry = await persistPilot(result, { pool, requestedBy });
+  result.registry = await persistPilot(result, { pool, requestedBy, outboxMode });
   const approvalStage = result.workflow?.stages?.find((stage) => stage.stage === "approval_hold");
   if (approvalStage) {
     approvalStage.status = "pass";

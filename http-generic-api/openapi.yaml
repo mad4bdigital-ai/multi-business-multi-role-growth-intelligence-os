@@ -4689,6 +4689,52 @@ paths:
         '403': { description: Resource access forbidden }
         '404': { description: Resource not found }
         '409': { description: Operation conflicts with lifecycle or policy }
+  /sessions:
+    get:
+      operationId: listSessions
+      summary: List customer sessions with optional session or turn-level context filters
+      tags: [session-archive]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: user_id
+          in: query
+          schema: { type: string }
+        - name: originator
+          in: query
+          schema: { type: string }
+        - name: session_status
+          in: query
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          schema: { type: string }
+          description: Optional brand context filter.
+        - name: workspace_key
+          in: query
+          schema: { type: string }
+          description: Optional workspace context filter.
+        - name: context_scope
+          in: query
+          schema:
+            type: string
+            enum: [session, turn, any]
+            default: session
+          description: Select whether brand_key and workspace_key filters apply to session defaults, turn-level context, or either surface.
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        '200': { description: Sessions matching the requested context scope. }
+        '400': { description: Invalid query or context_scope value. }
+        '401': { description: Authentication required. }
+        '403': { description: Not authorized to list sessions. }
+
   /gpt/sessions:
     get:
       operationId: getGptSessions
@@ -4744,6 +4790,58 @@ paths:
         '404': { description: Resource not found }
         '409': { description: Operation conflicts with lifecycle or policy }
   /gpt/sessions/{id}/turns:
+    post:
+      operationId: writeGptSessionTurns
+      summary: Append multiple turns to a customer session archive
+      tags: [session-archive]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [turns]
+              properties:
+                turns:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [role, content]
+                    properties:
+                      role:
+                        type: string
+                        enum: [user, assistant, tool, system]
+                      content:
+                        type: string
+                        maxLength: 120000
+                      action_key:
+                        type: string
+                        nullable: true
+                      workspace_key:
+                        type: string
+                        description: Optional turn-level workspace context
+                      brand_key:
+                        type: string
+                        description: Optional turn-level brand context
+                      target_key:
+                        type: string
+                        description: Alias for brand_key
+      responses:
+        '200': { description: Turns appended successfully. }
+        '400': { description: Invalid request body. }
+        '401': { description: Authentication required. }
+        '403': { description: Not authorized to append turns. }
+        '404': { description: Session not found. }
+        '409': { description: Session is closed. }
     get:
       operationId: getGptSessionsIdTurns
       summary: "GET /gpt/sessions/{id}/turns"
@@ -8327,6 +8425,130 @@ paths:
         "403": { description: Active tenant membership required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "404": { description: Case or task not found within tenant scope., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "409": { description: Incompatible case, binding mismatch, or concurrent update., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /tenant/resolution/cases/{caseId}/task-source-repair/apply:
+    post:
+      tags: [activation]
+      security:
+        - userJwtAuth: []
+      operationId: applyTenantTaskSourceRepair
+      x-custom-gpt-exclude: false
+      x-openai-isConsequential: true
+      summary: Apply an approved tenant task source repair
+      description: Applies one approved, no-drift Task Source Repair preview to a tenant-owned pending task, performs same-cycle field readback, consumes the capability envelope, and moves the case only to verifying. Provider calls, external writes, task-id changes, tenant-scope changes, resolved transitions, and secrets are forbidden.
+      parameters:
+        - in: path
+          name: caseId
+          required: true
+          schema: { type: string, maxLength: 64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [preview_fingerprint_sha256, capability_envelope_id, approval_hold_id, confirm]
+              properties:
+                workspace_id: { type: string, maxLength: 64 }
+                preview_fingerprint_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+                capability_envelope_id: { type: string, maxLength: 64 }
+                approval_hold_id: { type: string, maxLength: 64 }
+                confirm:
+                  type: string
+                  maxLength: 80
+                  description: APPLY_TASK_SOURCE_REPAIR_ followed by the uppercase first 12 characters of the preview fingerprint.
+      responses:
+        "200":
+          description: Task source repair was applied and the case entered verifying.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, activation_layer, changed, case, task, apply, envelope, policy, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  activation_layer: { type: string, enum: [tenant_task_source_repair_apply_gate] }
+                  changed: { type: boolean, enum: [true] }
+                  case:
+                    type: object
+                    additionalProperties: false
+                    required: [case_id, tenant_id, status, current_step_key, readback_status, secrets_included]
+                    properties:
+                      case_id: { type: string }
+                      tenant_id: { type: string }
+                      workspace_id: { type: [string, 'null'] }
+                      status: { type: string, enum: [verifying] }
+                      current_step_key: { type: string, enum: [task_source_repair_verifying] }
+                      readback_status: { type: string, enum: [not_run] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  task:
+                    type: object
+                    additionalProperties: false
+                    required: [task_id, task_key, title, source_surface, source_ref, secrets_included]
+                    properties:
+                      task_id: { type: string }
+                      task_key: { type: string }
+                      title: { type: string }
+                      source_surface: { type: string }
+                      source_ref: { type: string }
+                      secrets_included: { type: boolean, enum: [false] }
+                  apply:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      phase: { type: string, enum: [applied_pending_verification] }
+                      applied_at: { type: string, format: date-time }
+                      preview_fingerprint_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+                      capability_envelope_id: { type: string }
+                      approval_hold_id: { type: string }
+                      task_id: { type: string }
+                      changed_fields:
+                        type: array
+                        items: { type: string, enum: [task_key, title, source_surface, source_ref] }
+                      mutation_readback:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          status: { type: string, enum: [passed] }
+                          checked_fields:
+                            type: array
+                            items: { type: string, enum: [task_key, title, source_surface, source_ref] }
+                      lifecycle_readback_status: { type: string, enum: [not_run] }
+                      provider_call_allowed: { type: boolean, enum: [false] }
+                      external_write_allowed: { type: boolean, enum: [false] }
+                      resolved_transition_allowed: { type: boolean, enum: [false] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  envelope:
+                    type: object
+                    additionalProperties: false
+                    required: [envelope_id, execution_status, consumed, secrets_included]
+                    properties:
+                      envelope_id: { type: string }
+                      execution_status: { type: string, enum: [executed] }
+                      consumed: { type: boolean, enum: [true] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  policy:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      tenant_scoped: { type: boolean, enum: [true] }
+                      approval_hold_required: { type: boolean, enum: [true] }
+                      typed_confirmation_required: { type: boolean, enum: [true] }
+                      no_drift_required: { type: boolean, enum: [true] }
+                      internal_registry_write_only: { type: boolean, enum: [true] }
+                      provider_call_allowed: { type: boolean, enum: [false] }
+                      external_write_allowed: { type: boolean, enum: [false] }
+                      resolved_transition_allowed: { type: boolean, enum: [false] }
+                      lifecycle_readback_required: { type: boolean, enum: [true] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { description: Invalid fingerprint, authority input, or typed confirmation., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { description: User JWT required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "403": { description: Tenant membership, capability envelope, or approved hold is missing or invalid., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "404": { description: Resolution case or pending task was not found within tenant scope., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "409": { description: Case state, preflight, drift, uniqueness, mutation readback, or envelope lifecycle conflict., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /tenant/activation/dynamic-tabs/detail:
     get:

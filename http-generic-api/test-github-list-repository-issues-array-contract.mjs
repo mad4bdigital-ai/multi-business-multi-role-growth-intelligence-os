@@ -3,8 +3,14 @@ import { readFileSync } from "node:fs";
 import { assessMigrationSqlPreflight } from "./releaseReadiness.js";
 
 const schema = readFileSync(new URL("./schemas/github/github_rest.yaml", import.meta.url), "utf8");
-const migrationName = "20260716_github_list_repository_issues_array_contract.sql";
-const migration = readFileSync(new URL(`./migrations/${migrationName}`, import.meta.url), "utf8");
+const activeMigrationName = "20260716_github_list_repository_issues_array_contract.sql";
+const activeMigration = readFileSync(new URL(`./migrations/${activeMigrationName}`, import.meta.url), "utf8");
+const reconciliationMigrationName = "20260717_runtime_contract_root_cause_reconciliation.sql";
+const reconciliationMigration = readFileSync(new URL(`./migrations/${reconciliationMigrationName}`, import.meta.url), "utf8");
+const repairMigrationName = "20260718_repair_activation_session_context_tool_registration.sql";
+const repairMigration = readFileSync(new URL(`./migrations/${repairMigrationName}`, import.meta.url), "utf8");
+const verifyRuntime = readFileSync(new URL("./verify-runtime.mjs", import.meta.url), "utf8");
+const activationRoutes = readFileSync(new URL("./routes/activationRoutes.js", import.meta.url), "utf8");
 
 const listIssuesStart = schema.indexOf("  /repos/{owner}/{repo}/issues:\n");
 const nextPath = schema.indexOf("\n  /repos/", listIssuesStart + 1);
@@ -28,25 +34,75 @@ for (const marker of [
   "'items', JSON_OBJECT",
   "'additionalProperties', TRUE",
 ]) {
-  assert.ok(migration.includes(marker), `migration missing ${marker}`);
+  assert.ok(activeMigration.includes(marker), `active migration missing ${marker}`);
 }
-assert.doesNotMatch(migration, /^\s*(DELETE FROM|DROP|TRUNCATE|ALTER)\b/mi);
-assert.doesNotMatch(migration, /private_key|refresh_token|client_secret|access_token|value_ciphertext/i);
 
 for (const marker of [
-  "no_provider_call=true",
-  "no_credential_payload_read=true",
-  "no_raw_secrets=true",
-  "no_external_send=true",
-  "no_external_write=true",
-  "secrets_included=false",
+  "admin_hostinger",
+  "$.properties.connection_id",
+  "d43275c7-2e41-4686-9c32-b3fff36efb7d",
+  "activation_session_context_read_only",
+  "/activation/session-context/read-only",
+  "listRepositoryIssues",
+  "status = 'archived'",
+  "superseded_by_github_list_repository_issues",
+  "github_get_git_blob_chunk",
+  "degraded_contract_proxy_path_misrouted",
+  "$.responses.200.content.\"application/json\".schema",
+  "'type', 'array'",
 ]) {
-  assert.ok(migration.includes(marker), `missing safety marker ${marker}`);
+  assert.ok(reconciliationMigration.includes(marker), `reconciliation migration missing ${marker}`);
 }
 
-const preflight = assessMigrationSqlPreflight(migrationName, migration);
-assert.equal(preflight.status, "pass", JSON.stringify(preflight, null, 2));
-assert.equal(preflight.risk_count, 0, JSON.stringify(preflight, null, 2));
-assert.equal(preflight.secrets_included, false, JSON.stringify(preflight, null, 2));
+const registrationStart = reconciliationMigration.indexOf("INSERT INTO admin_platform_endpoint_tools");
+const registrationEnd = reconciliationMigration.indexOf("ON DUPLICATE KEY UPDATE", registrationStart);
+assert.ok(registrationStart >= 0 && registrationEnd > registrationStart, "session-context tool registration must exist");
+const registrationSql = reconciliationMigration.slice(registrationStart, registrationEnd);
+assert.doesNotMatch(registrationSql, /^\s*id\s*,/mi);
+assert.doesNotMatch(registrationSql, /\bUUID\s*\(/i);
 
-console.log("GitHub list-repository-issues array contract tests passed.");
+for (const marker of [
+  "WHERE tool_key = 'health_check'",
+  "'Health Check'",
+  "'/health'",
+  "activation_session_context_read_only",
+  "/activation/session-context/read-only",
+  "INSERT INTO admin_platform_endpoint_tools",
+]) {
+  assert.ok(repairMigration.includes(marker), `repair migration missing ${marker}`);
+}
+assert.doesNotMatch(repairMigration, /^\s*id\s*,/mi);
+assert.doesNotMatch(repairMigration, /\bUUID\s*\(/i);
+
+assert.match(activationRoutes, /\/session-context\/read-only/);
+assert.match(verifyRuntime, /function isBotVerificationResponse\(response\)/);
+assert.doesNotMatch(verifyRuntime, /return response\?\.status === 403 && \(/);
+assert.match(verifyRuntime, /bot_challenge_attempts/);
+assert.match(verifyRuntime, /250 \* attempt/);
+
+for (const [migrationName, migration] of [
+  [activeMigrationName, activeMigration],
+  [reconciliationMigrationName, reconciliationMigration],
+  [repairMigrationName, repairMigration],
+]) {
+  assert.doesNotMatch(migration, /^\s*(DELETE FROM|DROP|TRUNCATE|ALTER)\b/mi);
+  assert.doesNotMatch(migration, /private_key|refresh_token|client_secret|access_token|value_ciphertext/i);
+
+  for (const marker of [
+    "no_provider_call=true",
+    "no_credential_payload_read=true",
+    "no_raw_secrets=true",
+    "no_external_send=true",
+    "no_external_write=true",
+    "secrets_included=false",
+  ]) {
+    assert.ok(migration.includes(marker), `${migrationName} missing safety marker ${marker}`);
+  }
+
+  const preflight = assessMigrationSqlPreflight(migrationName, migration);
+  assert.equal(preflight.status, "pass", JSON.stringify(preflight, null, 2));
+  assert.equal(preflight.risk_count, 0, JSON.stringify(preflight, null, 2));
+  assert.equal(preflight.secrets_included, false, JSON.stringify(preflight, null, 2));
+}
+
+console.log("Runtime contract root-cause reconciliation tests passed.");

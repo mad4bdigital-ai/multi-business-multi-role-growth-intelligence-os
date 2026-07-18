@@ -206,11 +206,11 @@ Rules:
 3. Verify the event type is `draft` and no events or deliveries are created.
 4. Add deterministic producer tests using a caller-owned transaction.
 5. Promote the event type to `active` through `20260716_activate_growth_intelligence_report_persisted_outbox_event.sql` only when readback proves schema version `1`, producer `growth_intelligence_registry`, classification `internal`, `contains_pii=false`, and current status `draft`. After apply, read back `status=active` and confirm event/delivery counts remain zero before producer wiring.
-6. Wire `persistGrowthIntelligencePilot` to enqueue one event before commit.
-7. Verify report persistence and outbox insertion commit or roll back together.
-8. Confirm the disabled/noop consumer produces zero deliveries.
-9. Certify a receiver against this contract before configuring an endpoint.
-10. Activate transport and consumer status only through a separate plan-bound rollout.
+6. Keep `outbox_mode=disabled` as the default. Permit `outbox_mode=dev_transactional` only when the caller-owned transaction proves `SELECT DATABASE()` ends in `_dev` and the event registry row is active.
+7. Enqueue `growth_intelligence.report_persisted` before the same transaction commits. The event payload is allowlisted to identifiers, status, and aggregate counts; report bodies, insight/action text, user identity, credentials, tokens, provider responses, and raw evidence remain forbidden.
+8. Verify report persistence and outbox insertion commit or roll back together, including a forced outbox-insert failure test that ends in `ROLLBACK` with no `COMMIT`.
+9. Run one governed development pilot and confirm exactly one event is created while the disabled/noop consumer produces zero deliveries and performs no external request.
+10. Certify a receiver against this contract before configuring an endpoint. Activate transport and consumer status only through a separate plan-bound rollout.
 
 ## Non-goals
 

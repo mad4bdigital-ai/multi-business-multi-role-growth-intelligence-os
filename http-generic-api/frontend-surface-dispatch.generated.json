@@ -1,17 +1,17 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": "9a9476f76bc71aa288b497b0c339c83304ecd3c1",
-    "source_digest": "d7a2bda1b417fe2d9b11f90fefc11121ebbb0d33b8a4ffc5ce8a1f2fa1e26eef",
+    "ref": "main",
+    "source_digest": "5d391c917205a8bbc21609028523cb1e6681dd07f82329e334fca4fc9b130d3b",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
-        "sha256": "431cee85ee253aebd7eb452f33af29781ffacaee5c360258efeed7722fcc5b93",
+        "sha256": "b4270707af6cda659d010eb510d396afbea5c49bcdd31a12790cbe30bf543522",
         "present": true
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "52c50c55a372f36ad651163dd614aebcc8ffa1af24d2ef5c0142affc1b9b95dc",
+        "sha256": "3e9338c594d25122e825be047b69c0a70c098874a95ae922115512629bdd8964",
         "present": true
       },
       {
@@ -21,7 +21,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "3790fd7850d85fd8a45e9e10fd9c718c412d183c6bee2731e50ee14aa57aaada",
+        "sha256": "006a6a227373fcfc2d5acc8681f7e633b16fd8b4c823d515474fbba6d15618a9",
         "present": true
       },
       {
@@ -41,12 +41,17 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "8f8c724e396d4f721bd590cf5a2e9dc84bc896b82d04bd6b536b402c32e075dd",
+        "sha256": "3fde436efd2f317c4e49adee5d19ae80d9f0bbec3e556b04f43aa674f1217c31",
         "present": true
       },
       {
         "file": "openapi/github-actions-diagnostics.yaml",
         "sha256": "6b6b16507e24d10cebb5c1fe192892339d1a082be848366b124e05db87213f37",
+        "present": true
+      },
+      {
+        "file": "openapi/github-repository-main-moved-webhook.yaml",
+        "sha256": "0ea543bac60016af9d25ea618f3dde4f4e9d28f12654b6e4af57dc895a41dd38",
         "present": true
       },
       {
@@ -97,6 +102,11 @@
       {
         "file": "openapi/self-healing-release-advisor.yaml",
         "sha256": "a4bc9145d36e9803552d752e148f8a442452b780b34b0332ac5eefb251b80d9c",
+        "present": true
+      },
+      {
+        "file": "openapi/session-insight-promotion-read-models.yaml",
+        "sha256": "f8f629bcca64eb66b87c6a2ea55993f797ba4e4f26dd5489d45fba7e83cd1f43",
         "present": true
       },
       {
@@ -191,7 +201,7 @@
       },
       {
         "file": "routes/activationAwarenessRoutes.js",
-        "sha256": "2e096f0106c80c58d05c9285dd9160246053714f40b3d52f2b3331f9d0749c20",
+        "sha256": "5b5cd23ac1b285b945bedeaeac7c4fb149e290331611b4d3b32a01c4b4ea2e0d",
         "present": true
       },
       {
@@ -211,7 +221,7 @@
       },
       {
         "file": "routes/activationRoutes.js",
-        "sha256": "c162b50497fa6bdefe090622e80f7fe93d0974c01b917f1b02a545a83d593b63",
+        "sha256": "4a6e1bfc4b8f40b7389a7d2e3b8e263daf3361441b874114b04f8918264588ef",
         "present": true
       },
       {
@@ -416,12 +426,12 @@
       },
       {
         "file": "routes/gptSessionRoutes.js",
-        "sha256": "c27bde1848b0e7acdd6af6df6e1579eab12f56fc4748081257f1ab5a11ac29b1",
+        "sha256": "55e784f96285bbdfd04d5ef391a6736ee56235b655e3fbf8fa5ad5e5ce449d9f",
         "present": true
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "6785d914533a9a4b1a82f428b7bfbb70e414db14322d8bf11c098d019c0bd64d",
+        "sha256": "0ebf6603ebddc18a21d0ff1ba7d7239669c4acfae8b271c164e25eda90cda7dd",
         "present": true
       },
       {
@@ -461,7 +471,7 @@
       },
       {
         "file": "routes/localConnectorInstallRoutes.js",
-        "sha256": "a5d5a15bb43a0abe02d25714289563e9dd735930caf2d766608856de29500fe6",
+        "sha256": "a6822804ee4ae3448265d1b2364e80d64dca1cb88c89a9e5748013f06059d9bc",
         "present": true
       },
       {
@@ -476,7 +486,7 @@
       },
       {
         "file": "routes/localManagerBetaRoutes.js",
-        "sha256": "5665942d0315aa4877f737b0ebf0c08bd0e23cfedc741894e1d19a1df6f50d2d",
+        "sha256": "a25e0fccef21a22f7b782ccfc625e2ea84ce20194a393f69ebc2235f32a45362",
         "present": true
       },
       {
@@ -596,7 +606,7 @@
       },
       {
         "file": "routes/repositoryMainMovedTriggerRoutes.js",
-        "sha256": "eae46c543aad555f8387b28e5f1d6706a1ce5e09de911394d2bdad7bfed78f3d",
+        "sha256": "4c2611c23179a10a6eea5798585da0f8a6420ee2063bc088bf05dd5d93cbc7ac",
         "present": true
       },
       {
@@ -741,7 +751,7 @@
       },
       {
         "file": "routes/sessionRoutes.js",
-        "sha256": "c1f9598ba99186c1358159ad596f1ad3451fb7e5f008c96950d727d81355bb66",
+        "sha256": "4bff5975d41a7f2ab993764c8a75255643b465bea12eb2bf2b910412bd39125f",
         "present": true
       },
       {
@@ -766,7 +776,7 @@
       },
       {
         "file": "routes/systemLayerRoutes.js",
-        "sha256": "0fd1ff143a820262d3b0e8ceb8f0d5adf34d5d0f5f690e1b87de3d7ea9dad31c",
+        "sha256": "9a97f354998c892411b277c513a3260cfe46697af2130409fe927c04fd6c42d2",
         "present": true
       },
       {
@@ -831,12 +841,12 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "50f8877b50b3717b157f07f3b733c7a0b75fbc84fb6349440ba4ca544dda5f09",
+        "sha256": "eadbafcff8c1bc7d16b225267132e9202cd082637083b6cb50b88d327e13fbb7",
         "present": true
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "a2a1d843c0e75aff6fcae3914ece6b575092787318d022bbc5bac8cf2d9a8b91",
+        "sha256": "5c694f29dfd1c62f4a3d1ec2ab7aabd7f94ff9159af702532fdf880131967f42",
         "present": true
       },
       {
@@ -852,6 +862,81 @@
       {
         "file": "test-resource-api-service.mjs",
         "sha256": "7b9447a56dc3417fc14668a808ae7966355db171d7c20adf71092d50cb89f44a",
+        "present": true
+      },
+      {
+        "file": "test-session-insight-adapter-apply-readiness-gate-service.mjs",
+        "sha256": "37ed176b084e93f51319295f9e11da3435f06f41aca7c611af851c9a1d7171a9",
+        "present": true
+      },
+      {
+        "file": "test-session-insight-adapter-contract-service.mjs",
+        "sha256": "3d4472357ab778889ef178fd8bdd66e946948fd260a9d1d74e78e5855ceea2b3",
+        "present": true
+      },
+      {
+        "file": "test-session-insight-backlog-target-write-service.mjs",
+        "sha256": "33b687a506e8f30df1b76798118962e40e371b350810bd84068f752c6e82b7a9",
+        "present": true
+      },
+      {
+        "file": "test-session-insight-capability-envelope-actual-request-preflight-service.mjs",
+        "sha256": "29e13c55deb7529e65e86091c441b021fef88dca003fae9b07764d79101f20b2",
+        "present": true
+      },
+      {
+        "file": "test-session-insight-capability-envelope-actual-request-service.mjs",
+        "sha256": "40fe55266035e3d67b30b884369c283a867d6c798e33151f520cb1c472274f11",
+        "present": true
+      },
+      {
+        "file": "test-session-insight-capability-envelope-adapter-execution-gate-service.mjs",
+        "sha256": "02ecf532b9295ecc1a0475e683ea020a0a7454925217d379cd7c82a9c6c7d743",
+        "present": true
+      },
+      {
+        "file": "test-session-insight-capability-envelope-approval-service.mjs",
+        "sha256": "4a36f093dda20493f356a1dba74082e0ba3692269f9e2abbf78eb220379584a2",
+        "present": true
+      },
+      {
+        "file": "test-session-insight-capability-envelope-dispatch-dry-run-service.mjs",
+        "sha256": "8612923701b94e1887ef9356f82b1d865af9e03985c720cf5f0d3a8dc2ed02fa",
+        "present": true
+      },
+      {
+        "file": "test-session-insight-capability-envelope-dispatch-readback-service.mjs",
+        "sha256": "d33a41bf087d246e43410adefc36ac6ac5baced106ce7b6659b68a373cf3459a",
+        "present": true
+      },
+      {
+        "file": "test-session-insight-capability-envelope-plan-service.mjs",
+        "sha256": "8e6ae5609593c2eb863d97b42b41a4cbae088083a9a58eaf3fee0b2c96848647",
+        "present": true
+      },
+      {
+        "file": "test-session-insight-capability-envelope-request-gate-service.mjs",
+        "sha256": "b6b1b8492b6be8c24ce7080c5a8e6350479263d8636eb5bab8c2254b7029e167",
+        "present": true
+      },
+      {
+        "file": "test-session-insight-payload-preview-review-service.mjs",
+        "sha256": "f61200ab695047aa546e751cbab12b4e5be1c73a0dca57ced779d5641069f7ba",
+        "present": true
+      },
+      {
+        "file": "test-session-insight-promotion-review-service.mjs",
+        "sha256": "e41400188dbaf3ac190d73cece23c9c8b2b0c30ec04bf31ff506969c8657a08f",
+        "present": true
+      },
+      {
+        "file": "test-session-insight-target-adapter-registry-service.mjs",
+        "sha256": "36eb05de37818b49823a1217ba10cdd0883db0706978f3350b1ddfd6ce0f142f",
+        "present": true
+      },
+      {
+        "file": "test-session-insight-target-write-readback-service.mjs",
+        "sha256": "0028f8f91f08b07ae9383fba74945d8cc201d959fbe794e2d827603420e04b5a",
         "present": true
       },
       {
@@ -881,34 +966,34 @@
     "issues": []
   },
   "coverage": {
-    "mounted_family_count": 158,
+    "mounted_family_count": 159,
     "mounted_route_file_count": 129,
-    "mixed_scope_route_file_count": 21,
-    "operation_count": 958,
-    "openapi_documented_count": 942,
-    "openapi_canonical_documented_count": 547,
-    "openapi_generated_index_count": 395,
+    "mixed_scope_route_file_count": 22,
+    "operation_count": 959,
+    "openapi_documented_count": 943,
+    "openapi_canonical_documented_count": 564,
+    "openapi_generated_index_count": 379,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 395,
+    "openapi_detail_gap_count": 379,
     "auth_parity_counts": {
-      "equivalent": 942,
+      "equivalent": 943,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 582,
-    "unresolved_operation_class_count": 565,
+    "non_get_candidate_count": 583,
+    "unresolved_operation_class_count": 551,
     "classified_mutation_count": 4,
     "governed_mutation_operation_count": 0,
     "embedded_ui_family_count": 7,
-    "unresolved_surface_decision_count": 147,
-    "test_owned_family_count": 1,
-    "untested_family_count": 157,
-    "test_owned_operation_count": 11,
-    "untested_operation_count": 947,
+    "unresolved_surface_decision_count": 148,
+    "test_owned_family_count": 4,
+    "untested_family_count": 155,
+    "test_owned_operation_count": 26,
+    "untested_operation_count": 933,
     "ready_task_count": 1,
-    "blocked_task_count": 157,
+    "blocked_task_count": 158,
     "coverage_complete": false
   },
   "waves": [
@@ -2768,7 +2853,7 @@
       "family_key": "local-manager-beta.admin",
       "label": "local manager beta (admin)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "5665942d0315aa4877f737b0ebf0c08bd0e23cfedc741894e1d19a1df6f50d2d",
+      "source_digest": "a25e0fccef21a22f7b782ccfc625e2ea84ce20194a393f69ebc2235f32a45362",
       "mount_prefix": "/",
       "mount_order": 11743,
       "split_from_mixed_scope_file": true,
@@ -2894,7 +2979,7 @@
       "family_key": "local-manager-beta.local_device",
       "label": "local manager beta (local_device)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "5665942d0315aa4877f737b0ebf0c08bd0e23cfedc741894e1d19a1df6f50d2d",
+      "source_digest": "a25e0fccef21a22f7b782ccfc625e2ea84ce20194a393f69ebc2235f32a45362",
       "mount_prefix": "/",
       "mount_order": 11743,
       "split_from_mixed_scope_file": true,
@@ -3267,7 +3352,7 @@
       "family_key": "local-manager-beta.public.default",
       "label": "local manager beta (public) [default]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "5665942d0315aa4877f737b0ebf0c08bd0e23cfedc741894e1d19a1df6f50d2d",
+      "source_digest": "a25e0fccef21a22f7b782ccfc625e2ea84ce20194a393f69ebc2235f32a45362",
       "mount_prefix": "/",
       "mount_order": 11743,
       "split_from_mixed_scope_file": true,
@@ -3910,7 +3995,7 @@
       "family_key": "local-manager-beta.public.local-manager",
       "label": "local manager beta (public) [local-manager]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "5665942d0315aa4877f737b0ebf0c08bd0e23cfedc741894e1d19a1df6f50d2d",
+      "source_digest": "a25e0fccef21a22f7b782ccfc625e2ea84ce20194a393f69ebc2235f32a45362",
       "mount_prefix": "/",
       "mount_order": 11743,
       "split_from_mixed_scope_file": true,
@@ -4526,7 +4611,7 @@
       "family_key": "local-connector-install.admin",
       "label": "local connector install (admin)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "a5d5a15bb43a0abe02d25714289563e9dd735930caf2d766608856de29500fe6",
+      "source_digest": "a6822804ee4ae3448265d1b2364e80d64dca1cb88c89a9e5748013f06059d9bc",
       "mount_prefix": "/",
       "mount_order": 11905,
       "split_from_mixed_scope_file": true,
@@ -4879,7 +4964,7 @@
       "family_key": "local-connector-install.developer",
       "label": "local connector install (developer)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "a5d5a15bb43a0abe02d25714289563e9dd735930caf2d766608856de29500fe6",
+      "source_digest": "a6822804ee4ae3448265d1b2364e80d64dca1cb88c89a9e5748013f06059d9bc",
       "mount_prefix": "/",
       "mount_order": 11905,
       "split_from_mixed_scope_file": true,
@@ -4991,7 +5076,7 @@
       "family_key": "local-connector-install.local_device",
       "label": "local connector install (local_device)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "a5d5a15bb43a0abe02d25714289563e9dd735930caf2d766608856de29500fe6",
+      "source_digest": "a6822804ee4ae3448265d1b2364e80d64dca1cb88c89a9e5748013f06059d9bc",
       "mount_prefix": "/",
       "mount_order": 11905,
       "split_from_mixed_scope_file": true,
@@ -8853,7 +8938,7 @@
       "family_key": "system-layer.admin",
       "label": "system layer (admin)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "0fd1ff143a820262d3b0e8ceb8f0d5adf34d5d0f5f690e1b87de3d7ea9dad31c",
+      "source_digest": "9a97f354998c892411b277c513a3260cfe46697af2130409fe927c04fd6c42d2",
       "mount_prefix": "/",
       "mount_order": 12806,
       "split_from_mixed_scope_file": true,
@@ -9548,7 +9633,7 @@
       "family_key": "system-layer.unresolved",
       "label": "system layer (unresolved)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "0fd1ff143a820262d3b0e8ceb8f0d5adf34d5d0f5f690e1b87de3d7ea9dad31c",
+      "source_digest": "9a97f354998c892411b277c513a3260cfe46697af2130409fe927c04fd6c42d2",
       "mount_prefix": "/",
       "mount_order": 12806,
       "split_from_mixed_scope_file": true,
@@ -12286,7 +12371,7 @@
       "family_key": "activation-awareness.tenant",
       "label": "activation awareness (tenant)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "2e096f0106c80c58d05c9285dd9160246053714f40b3d52f2b3331f9d0749c20",
+      "source_digest": "5b5cd23ac1b285b945bedeaeac7c4fb149e290331611b4d3b32a01c4b4ea2e0d",
       "mount_prefix": "/",
       "mount_order": 13285,
       "split_from_mixed_scope_file": true,
@@ -13171,7 +13256,7 @@
       "family_key": "activation-awareness.unresolved",
       "label": "activation awareness (unresolved)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "2e096f0106c80c58d05c9285dd9160246053714f40b3d52f2b3331f9d0749c20",
+      "source_digest": "5b5cd23ac1b285b945bedeaeac7c4fb149e290331611b4d3b32a01c4b4ea2e0d",
       "mount_prefix": "/",
       "mount_order": 13285,
       "split_from_mixed_scope_file": true,
@@ -13721,7 +13806,7 @@
       "family_key": "activation",
       "label": "activation",
       "source_file": "routes/activationRoutes.js",
-      "source_digest": "c162b50497fa6bdefe090622e80f7fe93d0974c01b917f1b02a545a83d593b63",
+      "source_digest": "4a6e1bfc4b8f40b7389a7d2e3b8e263daf3361441b874114b04f8918264588ef",
       "mount_prefix": "/",
       "mount_order": 13390,
       "split_from_mixed_scope_file": false,
@@ -16858,13 +16943,13 @@
       "wave": "F3-admin-workspaces"
     },
     {
-      "family_key": "repository-main-moved-trigger",
-      "label": "repository main moved trigger",
+      "family_key": "repository-main-moved-trigger.admin",
+      "label": "repository main moved trigger (admin)",
       "source_file": "routes/repositoryMainMovedTriggerRoutes.js",
-      "source_digest": "eae46c543aad555f8387b28e5f1d6706a1ce5e09de911394d2bdad7bfed78f3d",
+      "source_digest": "4c2611c23179a10a6eea5798585da0f8a6420ee2063bc088bf05dd5d93cbc7ac",
       "mount_prefix": "/",
       "mount_order": 13990,
-      "split_from_mixed_scope_file": false,
+      "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
       "group": "platform-core",
@@ -17053,6 +17138,126 @@
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
+    },
+    {
+      "family_key": "repository-main-moved-trigger.developer",
+      "label": "repository main moved trigger (developer)",
+      "source_file": "routes/repositoryMainMovedTriggerRoutes.js",
+      "source_digest": "4c2611c23179a10a6eea5798585da0f8a6420ee2063bc088bf05dd5d93cbc7ac",
+      "mount_prefix": "/",
+      "mount_order": 13990,
+      "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
+      "group": "platform-core",
+      "scope": "developer",
+      "operations": [
+        {
+          "method": "POST",
+          "path": "/webhooks/github/repository-main-moved",
+          "signature": "POST /webhooks/github/repository-main-moved",
+          "source_file": "routes/repositoryMainMovedTriggerRoutes.js",
+          "scope": "developer",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "github_webhook_hmac",
+            "alternatives": [
+              [
+                "githubWebhookSignature"
+              ]
+            ],
+            "principal": "github_webhook",
+            "guard_chain": [
+              "requireGitHubWebhookSignature"
+            ],
+            "evidence": [
+              "route:requireGitHubWebhookSignature"
+            ],
+            "configuration_dependencies": [
+              "GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/github-repository-main-moved-webhook.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "githubWebhookSignature"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        }
+      ],
+      "openapi_gaps": [],
+      "openapi_exemptions": [],
+      "openapi_detail_gaps": [],
+      "auth_contract_gaps": [],
+      "evidence_routes": [],
+      "tests": [],
+      "untested_operations": [
+        "POST /webhooks/github/repository-main-moved"
+      ],
+      "resources": [],
+      "embedded_ui": false,
+      "embedded_ui_operations": [],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/github-repository-main-moved-webhook.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/repositoryMainMovedTriggerRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "surface_decision": {
+        "decision": "requires_review",
+        "rationale": "No repository policy decision covers this route family.",
+        "owner": null
+      },
+      "operation_blockers": [
+        {
+          "signature": "POST /webhooks/github/repository-main-moved",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        }
+      ],
+      "risk": {
+        "score": 6,
+        "class": "high"
+      },
+      "wave": "F5-developer-evidence"
     },
     {
       "family_key": "operational-console",
@@ -35068,7 +35273,7 @@
       "family_key": "gpt-session",
       "label": "gpt session",
       "source_file": "routes/gptSessionRoutes.js",
-      "source_digest": "c27bde1848b0e7acdd6af6df6e1579eab12f56fc4748081257f1ab5a11ac29b1",
+      "source_digest": "55e784f96285bbdfd04d5ef391a6736ee56235b655e3fbf8fa5ad5e5ce449d9f",
       "mount_prefix": "/",
       "mount_order": 15553,
       "split_from_mixed_scope_file": false,
@@ -35383,7 +35588,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -35400,9 +35605,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -35497,8 +35702,7 @@
       "openapi_detail_gaps": [
         "POST /gpt/sessions/{id}/conversation-ref",
         "POST /gpt/sessions/{id}/conversation-ref/capture-current",
-        "POST /gpt/sessions/{id}/conversation-ref/mark-primary",
-        "POST /gpt/sessions/{id}/turns"
+        "POST /gpt/sessions/{id}/conversation-ref/mark-primary"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
@@ -35580,7 +35784,7 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "6785d914533a9a4b1a82f428b7bfbb70e414db14322d8bf11c098d019c0bd64d",
+      "source_digest": "0ebf6603ebddc18a21d0ff1ba7d7239669c4acfae8b271c164e25eda90cda7dd",
       "mount_prefix": "/",
       "mount_order": 15593,
       "split_from_mixed_scope_file": false,
@@ -41392,8 +41596,8 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
+            "source_file": "openapi/session-insight-promotion-read-models.yaml",
+            "security_declared": false,
             "security_alternatives": [
               [
                 "adminBearerAuth"
@@ -41409,24 +41613,32 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-promotion-review-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "session-insight-promotion-review-list-read-action",
+            "owner": "platform-intelligence",
+            "rationale": "The endpoint runs two secret-filtered SELECT queries to return promotion proposals and aggregate review status; it cannot approve, reject, promote, or assign an executor.",
+            "evidence_refs": [
+              "openapi/session-insight-promotion-read-models.yaml",
+              "sessionInsightPromotionReviewService.js",
+              "test-session-insight-promotion-review-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -41505,14 +41717,14 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
-        "POST /platform/session-insight-promotions/review/list",
         "POST /platform/session-insight-promotions/review/decision"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
+      "tests": [
+        "test-session-insight-promotion-review-service.mjs"
+      ],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/review/list",
         "POST /platform/session-insight-promotions/review/decision"
       ],
       "resources": [],
@@ -41525,11 +41737,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPromotionReviewRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-promotion-review-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -41537,12 +41751,6 @@
         "owner": null
       },
       "operation_blockers": [
-        {
-          "signature": "POST /platform/session-insight-promotions/review/list",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
         {
           "signature": "POST /platform/session-insight-promotions/review/decision",
           "blockers": [
@@ -41860,8 +42068,8 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
+            "source_file": "openapi/session-insight-promotion-read-models.yaml",
+            "security_declared": false,
             "security_alternatives": [
               [
                 "adminBearerAuth"
@@ -41877,24 +42085,32 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-target-adapter-registry-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "session-insight-target-adapter-list-read-action",
+            "owner": "platform-intelligence",
+            "rationale": "The endpoint runs two secret-filtered SELECT queries to return the skeleton adapter registry and apply-request mappings; it performs no insert, update, provider call, or external write.",
+            "evidence_refs": [
+              "openapi/session-insight-promotion-read-models.yaml",
+              "sessionInsightPromotionTargetAdapterRegistryService.js",
+              "test-session-insight-target-adapter-registry-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -41902,15 +42118,13 @@
       ],
       "openapi_gaps": [],
       "openapi_exemptions": [],
-      "openapi_detail_gaps": [
-        "POST /platform/session-insight-promotions/target-adapters/list"
-      ],
+      "openapi_detail_gaps": [],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
-      "untested_operations": [
-        "POST /platform/session-insight-promotions/target-adapters/list"
+      "tests": [
+        "test-session-insight-target-adapter-registry-service.mjs"
       ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -41919,29 +42133,23 @@
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
         "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPromotionTargetAdapterRegistryRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-target-adapter-registry-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
         "rationale": "No repository policy decision covers this route family.",
         "owner": null
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /platform/session-insight-promotions/target-adapters/list",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
-        "score": 12,
+        "score": 9,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -41990,8 +42198,8 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
+            "source_file": "openapi/session-insight-promotion-read-models.yaml",
+            "security_declared": false,
             "security_alternatives": [
               [
                 "adminBearerAuth"
@@ -42007,24 +42215,32 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-adapter-contract-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "session-insight-adapter-contract-list-read-action",
+            "owner": "platform-intelligence",
+            "rationale": "The endpoint runs two secret-filtered SELECT queries to return dry-run adapter contracts and apply-request mappings; it performs no insert, update, provider call, or external write.",
+            "evidence_refs": [
+              "openapi/session-insight-promotion-read-models.yaml",
+              "sessionInsightPromotionAdapterContractService.js",
+              "test-session-insight-adapter-contract-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -42032,15 +42248,13 @@
       ],
       "openapi_gaps": [],
       "openapi_exemptions": [],
-      "openapi_detail_gaps": [
-        "POST /platform/session-insight-promotions/adapter-contracts/list"
-      ],
+      "openapi_detail_gaps": [],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
-      "untested_operations": [
-        "POST /platform/session-insight-promotions/adapter-contracts/list"
+      "tests": [
+        "test-session-insight-adapter-contract-service.mjs"
       ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -42049,29 +42263,23 @@
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
         "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPromotionAdapterContractRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-adapter-contract-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
         "rationale": "No repository policy decision covers this route family.",
         "owner": null
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /platform/session-insight-promotions/adapter-contracts/list",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
-        "score": 12,
+        "score": 9,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -42252,8 +42460,8 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
+            "source_file": "openapi/session-insight-promotion-read-models.yaml",
+            "security_declared": false,
             "security_alternatives": [
               [
                 "adminBearerAuth"
@@ -42269,24 +42477,32 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": true,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-payload-preview-review-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "session-insight-payload-preview-review-list-read-action",
+            "owner": "platform-intelligence",
+            "rationale": "The endpoint runs two secret-filtered SELECT queries to return payload-preview review rows and aggregates; it cannot decide a review, enable execution, or write a target surface.",
+            "evidence_refs": [
+              "openapi/session-insight-promotion-read-models.yaml",
+              "sessionInsightPayloadPreviewReviewService.js",
+              "test-session-insight-payload-preview-review-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -42365,7 +42581,6 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
-        "POST /platform/session-insight-promotions/payload-preview/review/list",
         "POST /platform/session-insight-promotions/payload-preview/review/decision"
       ],
       "auth_contract_gaps": [],
@@ -42373,9 +42588,10 @@
         "POST /platform/session-insight-promotions/payload-preview/review/list",
         "POST /platform/session-insight-promotions/payload-preview/review/decision"
       ],
-      "tests": [],
+      "tests": [
+        "test-session-insight-payload-preview-review-service.mjs"
+      ],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/payload-preview/review/list",
         "POST /platform/session-insight-promotions/payload-preview/review/decision"
       ],
       "resources": [],
@@ -42388,11 +42604,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPayloadPreviewReviewRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-payload-preview-review-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -42400,12 +42618,6 @@
         "owner": null
       },
       "operation_blockers": [
-        {
-          "signature": "POST /platform/session-insight-promotions/payload-preview/review/list",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
         {
           "signature": "POST /platform/session-insight-promotions/payload-preview/review/decision",
           "blockers": [
@@ -42463,8 +42675,8 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
+            "source_file": "openapi/session-insight-promotion-read-models.yaml",
+            "security_declared": false,
             "security_alternatives": [
               [
                 "adminBearerAuth"
@@ -42480,24 +42692,32 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-adapter-apply-readiness-gate-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "session-insight-adapter-readiness-list-read-action",
+            "owner": "platform-intelligence",
+            "rationale": "The endpoint reads readiness, summary, and issue views with SELECT queries only and cannot approve, execute, or write an adapter operation.",
+            "evidence_refs": [
+              "openapi/session-insight-promotion-read-models.yaml",
+              "sessionInsightAdapterApplyReadinessGateService.js",
+              "test-session-insight-adapter-apply-readiness-gate-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -42505,15 +42725,13 @@
       ],
       "openapi_gaps": [],
       "openapi_exemptions": [],
-      "openapi_detail_gaps": [
-        "POST /platform/session-insight-promotions/adapter-apply-readiness/list"
-      ],
+      "openapi_detail_gaps": [],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
-      "untested_operations": [
-        "POST /platform/session-insight-promotions/adapter-apply-readiness/list"
+      "tests": [
+        "test-session-insight-adapter-apply-readiness-gate-service.mjs"
       ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -42522,29 +42740,23 @@
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
         "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightAdapterApplyReadinessGateRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-adapter-apply-readiness-gate-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
         "rationale": "No repository policy decision covers this route family.",
         "owner": null
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /platform/session-insight-promotions/adapter-apply-readiness/list",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
-        "score": 12,
+        "score": 9,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -42663,8 +42875,8 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
+            "source_file": "openapi/session-insight-promotion-read-models.yaml",
+            "security_declared": false,
             "security_alternatives": [
               [
                 "adminBearerAuth"
@@ -42680,24 +42892,32 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-capability-envelope-plan-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "session-insight-capability-envelope-plan-list-read-action",
+            "owner": "platform-intelligence",
+            "rationale": "The endpoint reads capability-envelope plan rows, aggregates, and issue views with SELECT queries only; it cannot create or request an envelope, execute an adapter, or enable target writes.",
+            "evidence_refs": [
+              "openapi/session-insight-promotion-read-models.yaml",
+              "sessionInsightCapabilityEnvelopePlanService.js",
+              "test-session-insight-capability-envelope-plan-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -42706,15 +42926,15 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
-        "POST /platform/session-insight-promotions/capability-envelope-plans/create",
-        "POST /platform/session-insight-promotions/capability-envelope-plans/list"
+        "POST /platform/session-insight-promotions/capability-envelope-plans/create"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
+      "tests": [
+        "test-session-insight-capability-envelope-plan-service.mjs"
+      ],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-plans/create",
-        "POST /platform/session-insight-promotions/capability-envelope-plans/list"
+        "POST /platform/session-insight-promotions/capability-envelope-plans/create"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -42726,11 +42946,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopePlanRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-capability-envelope-plan-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -42740,12 +42962,6 @@
       "operation_blockers": [
         {
           "signature": "POST /platform/session-insight-promotions/capability-envelope-plans/create",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/session-insight-promotions/capability-envelope-plans/list",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -42871,8 +43087,8 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
+            "source_file": "openapi/session-insight-promotion-read-models.yaml",
+            "security_declared": false,
             "security_alternatives": [
               [
                 "adminBearerAuth"
@@ -42888,24 +43104,32 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-capability-envelope-request-gate-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "session-insight-capability-envelope-request-gate-list-read-action",
+            "owner": "platform-intelligence",
+            "rationale": "The endpoint reads request-gate rows, review-state aggregates, and issue views with SELECT queries only; it cannot create or review a gate, request an envelope, create an approval hold, execute an adapter, or enable target writes.",
+            "evidence_refs": [
+              "openapi/session-insight-promotion-read-models.yaml",
+              "sessionInsightCapabilityEnvelopeRequestGateService.js",
+              "test-session-insight-capability-envelope-request-gate-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -42914,15 +43138,15 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
-        "POST /platform/session-insight-promotions/capability-envelope-request-gates/create",
-        "POST /platform/session-insight-promotions/capability-envelope-request-gates/list"
+        "POST /platform/session-insight-promotions/capability-envelope-request-gates/create"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
+      "tests": [
+        "test-session-insight-capability-envelope-request-gate-service.mjs"
+      ],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-request-gates/create",
-        "POST /platform/session-insight-promotions/capability-envelope-request-gates/list"
+        "POST /platform/session-insight-promotions/capability-envelope-request-gates/create"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -42934,11 +43158,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeRequestGateRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-capability-envelope-request-gate-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -42948,12 +43174,6 @@
       "operation_blockers": [
         {
           "signature": "POST /platform/session-insight-promotions/capability-envelope-request-gates/create",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/session-insight-promotions/capability-envelope-request-gates/list",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -43209,8 +43429,8 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
+            "source_file": "openapi/session-insight-promotion-read-models.yaml",
+            "security_declared": false,
             "security_alternatives": [
               [
                 "adminBearerAuth"
@@ -43226,24 +43446,32 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-capability-envelope-dispatch-dry-run-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "session-insight-capability-envelope-dispatch-dry-run-list-read-action",
+            "owner": "platform-intelligence",
+            "rationale": "The endpoint reads dispatch dry-run rows, aggregates, and issue views with SELECT queries only; it cannot generate or review a dry-run, call capability resolution, request an envelope, execute an adapter, or write a target surface.",
+            "evidence_refs": [
+              "openapi/session-insight-promotion-read-models.yaml",
+              "sessionInsightCapabilityEnvelopeDispatchDryRunService.js",
+              "test-session-insight-capability-envelope-dispatch-dry-run-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -43252,15 +43480,15 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
-        "POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create",
-        "POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/list"
+        "POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
+      "tests": [
+        "test-session-insight-capability-envelope-dispatch-dry-run-service.mjs"
+      ],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create",
-        "POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/list"
+        "POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -43272,11 +43500,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeDispatchDryRunRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-capability-envelope-dispatch-dry-run-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -43286,12 +43516,6 @@
       "operation_blockers": [
         {
           "signature": "POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/list",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -43547,8 +43771,8 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
+            "source_file": "openapi/session-insight-promotion-read-models.yaml",
+            "security_declared": false,
             "security_alternatives": [
               [
                 "adminBearerAuth"
@@ -43564,24 +43788,32 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-capability-envelope-actual-request-preflight-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "session-insight-capability-envelope-actual-request-preflight-list-read-action",
+            "owner": "platform-intelligence",
+            "rationale": "The endpoint reads actual-request preflight rows, aggregates, and issue views with SELECT queries only; it cannot create a preflight, call capability resolution, request an envelope, execute an adapter, or enable target writes.",
+            "evidence_refs": [
+              "openapi/session-insight-promotion-read-models.yaml",
+              "sessionInsightCapabilityEnvelopeActualRequestPreflightService.js",
+              "test-session-insight-capability-envelope-actual-request-preflight-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -43590,15 +43822,15 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
-        "POST /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/create",
-        "POST /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/list"
+        "POST /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/create"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
+      "tests": [
+        "test-session-insight-capability-envelope-actual-request-preflight-service.mjs"
+      ],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/create",
-        "POST /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/list"
+        "POST /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/create"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -43610,11 +43842,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeActualRequestPreflightRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-capability-envelope-actual-request-preflight-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -43624,12 +43858,6 @@
       "operation_blockers": [
         {
           "signature": "POST /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/create",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/list",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -43755,8 +43983,8 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
+            "source_file": "openapi/session-insight-promotion-read-models.yaml",
+            "security_declared": false,
             "security_alternatives": [
               [
                 "adminBearerAuth"
@@ -43772,24 +44000,32 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-capability-envelope-actual-request-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "session-insight-capability-envelope-actual-request-list-read-action",
+            "owner": "platform-intelligence",
+            "rationale": "The endpoint reads actual capability-envelope request rows, aggregates, and issue views with SELECT queries only; it cannot request an envelope, create an approval hold, execute an adapter, or enable target writes.",
+            "evidence_refs": [
+              "openapi/session-insight-promotion-read-models.yaml",
+              "sessionInsightCapabilityEnvelopeActualRequestService.js",
+              "test-session-insight-capability-envelope-actual-request-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -43798,15 +44034,15 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
-        "POST /platform/session-insight-promotions/capability-envelope-actual-requests/create",
-        "POST /platform/session-insight-promotions/capability-envelope-actual-requests/list"
+        "POST /platform/session-insight-promotions/capability-envelope-actual-requests/create"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
+      "tests": [
+        "test-session-insight-capability-envelope-actual-request-service.mjs"
+      ],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-actual-requests/create",
-        "POST /platform/session-insight-promotions/capability-envelope-actual-requests/list"
+        "POST /platform/session-insight-promotions/capability-envelope-actual-requests/create"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -43818,11 +44054,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeActualRequestRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-capability-envelope-actual-request-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -43832,12 +44070,6 @@
       "operation_blockers": [
         {
           "signature": "POST /platform/session-insight-promotions/capability-envelope-actual-requests/create",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/session-insight-promotions/capability-envelope-actual-requests/list",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -43963,8 +44195,8 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
+            "source_file": "openapi/session-insight-promotion-read-models.yaml",
+            "security_declared": false,
             "security_alternatives": [
               [
                 "adminBearerAuth"
@@ -43980,24 +44212,32 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-capability-envelope-approval-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "session-insight-capability-envelope-approval-list-read-action",
+            "owner": "platform-intelligence",
+            "rationale": "The endpoint reads capability-envelope approval decisions, aggregates, and issue views with SELECT queries only; it cannot approve an envelope, create an approval hold, execute an adapter, or enable target writes.",
+            "evidence_refs": [
+              "openapi/session-insight-promotion-read-models.yaml",
+              "sessionInsightCapabilityEnvelopeApprovalService.js",
+              "test-session-insight-capability-envelope-approval-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -44006,15 +44246,15 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
-        "POST /platform/session-insight-promotions/capability-envelope-approvals/decision",
-        "POST /platform/session-insight-promotions/capability-envelope-approvals/list"
+        "POST /platform/session-insight-promotions/capability-envelope-approvals/decision"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
+      "tests": [
+        "test-session-insight-capability-envelope-approval-service.mjs"
+      ],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-approvals/decision",
-        "POST /platform/session-insight-promotions/capability-envelope-approvals/list"
+        "POST /platform/session-insight-promotions/capability-envelope-approvals/decision"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -44026,11 +44266,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeApprovalRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-capability-envelope-approval-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -44040,12 +44282,6 @@
       "operation_blockers": [
         {
           "signature": "POST /platform/session-insight-promotions/capability-envelope-approvals/decision",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/session-insight-promotions/capability-envelope-approvals/list",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -44171,8 +44407,8 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
+            "source_file": "openapi/session-insight-promotion-read-models.yaml",
+            "security_declared": false,
             "security_alternatives": [
               [
                 "adminBearerAuth"
@@ -44188,24 +44424,32 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": true,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-capability-envelope-dispatch-readback-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "session-insight-capability-envelope-dispatch-readback-list-read-action",
+            "owner": "platform-intelligence",
+            "rationale": "The endpoint reads capability-envelope dispatch readbacks, aggregates, and issue views with SELECT queries only; it cannot create a readback or execution gate, dispatch an envelope, execute an adapter, or enable target writes.",
+            "evidence_refs": [
+              "openapi/session-insight-promotion-read-models.yaml",
+              "sessionInsightCapabilityEnvelopeDispatchReadbackService.js",
+              "test-session-insight-capability-envelope-dispatch-readback-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -44214,18 +44458,18 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
-        "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create",
-        "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/list"
+        "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [
         "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create",
         "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/list"
       ],
-      "tests": [],
+      "tests": [
+        "test-session-insight-capability-envelope-dispatch-readback-service.mjs"
+      ],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create",
-        "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/list"
+        "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -44237,11 +44481,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeDispatchReadbackRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-capability-envelope-dispatch-readback-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -44251,12 +44497,6 @@
       "operation_blockers": [
         {
           "signature": "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/list",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -44382,8 +44622,8 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
+            "source_file": "openapi/session-insight-promotion-read-models.yaml",
+            "security_declared": false,
             "security_alternatives": [
               [
                 "adminBearerAuth"
@@ -44399,24 +44639,32 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-capability-envelope-adapter-execution-gate-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "session-insight-capability-envelope-adapter-execution-gate-list-read-action",
+            "owner": "platform-intelligence",
+            "rationale": "The endpoint reads capability-envelope adapter execution gates, aggregates, and issue views with SELECT queries only; it cannot create a gate, request or execute an adapter apply, enable execution or promotion, or write a target surface.",
+            "evidence_refs": [
+              "openapi/session-insight-promotion-read-models.yaml",
+              "sessionInsightCapabilityEnvelopeAdapterExecutionGateService.js",
+              "test-session-insight-capability-envelope-adapter-execution-gate-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -44425,15 +44673,15 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
-        "POST /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/create",
-        "POST /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/list"
+        "POST /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/create"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
+      "tests": [
+        "test-session-insight-capability-envelope-adapter-execution-gate-service.mjs"
+      ],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/create",
-        "POST /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/list"
+        "POST /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/create"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -44445,11 +44693,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeAdapterExecutionGateRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-capability-envelope-adapter-execution-gate-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -44459,12 +44709,6 @@
       "operation_blockers": [
         {
           "signature": "POST /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/create",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/list",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -44798,8 +45042,8 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
+            "source_file": "openapi/session-insight-promotion-read-models.yaml",
+            "security_declared": false,
             "security_alternatives": [
               [
                 "adminBearerAuth"
@@ -44815,24 +45059,32 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-backlog-target-write-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "session-insight-backlog-target-write-list-read-action",
+            "owner": "platform-intelligence",
+            "rationale": "The endpoint reads the internal SQL backlog target-write ledger and issue view with SELECT queries only; execute and rollback are separate operations, so this endpoint cannot create, modify, roll back, or externally dispatch a target write.",
+            "evidence_refs": [
+              "openapi/session-insight-promotion-read-models.yaml",
+              "sessionInsightBacklogTargetWriteService.js",
+              "test-session-insight-backlog-target-write-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -44912,15 +45164,15 @@
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
         "POST /platform/session-insight-promotions/backlog-target-writes/execute",
-        "POST /platform/session-insight-promotions/backlog-target-writes/list",
         "POST /platform/session-insight-promotions/backlog-target-writes/rollback"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
+      "tests": [
+        "test-session-insight-backlog-target-write-service.mjs"
+      ],
       "untested_operations": [
         "POST /platform/session-insight-promotions/backlog-target-writes/execute",
-        "POST /platform/session-insight-promotions/backlog-target-writes/list",
         "POST /platform/session-insight-promotions/backlog-target-writes/rollback"
       ],
       "resources": [],
@@ -44933,11 +45185,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightBacklogTargetWriteRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-backlog-target-write-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -44947,12 +45201,6 @@
       "operation_blockers": [
         {
           "signature": "POST /platform/session-insight-promotions/backlog-target-writes/execute",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/session-insight-promotions/backlog-target-writes/list",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -45108,17 +45356,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-target-write-readback-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "session-insight-target-write-readback-list-read-action",
+            "owner": "platform-intelligence",
+            "rationale": "The endpoint reads target-write readback evidence and issue views with SELECT queries only; it cannot create readback evidence, modify a target item, execute rollback, call a provider, or perform an external write.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "sessionInsightTargetWriteReadbackService.js",
+              "test-session-insight-target-write-readback-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -45132,10 +45388,11 @@
         "POST /platform/session-insight-promotions/target-write-readbacks/create",
         "POST /platform/session-insight-promotions/target-write-readbacks/list"
       ],
-      "tests": [],
+      "tests": [
+        "test-session-insight-target-write-readback-service.mjs"
+      ],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/target-write-readbacks/create",
-        "POST /platform/session-insight-promotions/target-write-readbacks/list"
+        "POST /platform/session-insight-promotions/target-write-readbacks/create"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -45150,7 +45407,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightTargetWriteReadbackRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-target-write-readback-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -45160,12 +45418,6 @@
       "operation_blockers": [
         {
           "signature": "POST /platform/session-insight-promotions/target-write-readbacks/create",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/session-insight-promotions/target-write-readbacks/list",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -65106,7 +65358,7 @@
       "family_key": "session",
       "label": "session",
       "source_file": "routes/sessionRoutes.js",
-      "source_digest": "c1f9598ba99186c1358159ad596f1ad3451fb7e5f008c96950d727d81355bb66",
+      "source_digest": "4bff5975d41a7f2ab993764c8a75255643b465bea12eb2bf2b910412bd39125f",
       "mount_prefix": "/",
       "mount_order": 19255,
       "split_from_mixed_scope_file": false,
@@ -65283,7 +65535,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -65300,9 +65552,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -66008,7 +66260,6 @@
       "openapi_detail_gaps": [
         "POST /sessions/ingest",
         "POST /sessions/{id}/complete",
-        "GET /sessions",
         "GET /sessions/{id}",
         "GET /sessions/{id}/turns",
         "GET /sessions/{id}/events",
@@ -82573,8 +82824,8 @@
       ]
     },
     {
-      "task_key": "frontend.repository-main-moved-trigger",
-      "title": "Resolve and deliver repository main moved trigger",
+      "task_key": "frontend.repository-main-moved-trigger.admin",
+      "title": "Resolve and deliver repository main moved trigger (admin)",
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
@@ -82908,10 +83159,7 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
-        "openapi_detail_contract_gap",
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
+        "surface_policy_decision_required"
       ],
       "dependencies": [
         "F0-source-baseline",
@@ -82923,13 +83171,14 @@
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
         "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightAdapterApplyReadinessGateRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-adapter-apply-readiness-gate-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -82941,7 +83190,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-adapter-apply-readiness-gate-service.mjs"
       ]
     },
     {
@@ -82967,11 +83217,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightBacklogTargetWriteRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-backlog-target-write-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -82983,7 +83235,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-backlog-target-write-service.mjs"
       ]
     },
     {
@@ -83009,11 +83262,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeActualRequestRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-capability-envelope-actual-request-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -83025,7 +83280,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-capability-envelope-actual-request-service.mjs"
       ]
     },
     {
@@ -83051,11 +83307,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeActualRequestPreflightRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-capability-envelope-actual-request-preflight-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -83067,7 +83325,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-capability-envelope-actual-request-preflight-service.mjs"
       ]
     },
     {
@@ -83093,11 +83352,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeAdapterExecutionGateRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-capability-envelope-adapter-execution-gate-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -83109,7 +83370,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-capability-envelope-adapter-execution-gate-service.mjs"
       ]
     },
     {
@@ -83135,11 +83397,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeApprovalRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-capability-envelope-approval-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -83151,7 +83415,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-capability-envelope-approval-service.mjs"
       ]
     },
     {
@@ -83177,11 +83442,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeDispatchDryRunRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-capability-envelope-dispatch-dry-run-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -83193,7 +83460,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-capability-envelope-dispatch-dry-run-service.mjs"
       ]
     },
     {
@@ -83261,11 +83529,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeDispatchReadbackRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-capability-envelope-dispatch-readback-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -83277,7 +83547,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-capability-envelope-dispatch-readback-service.mjs"
       ]
     },
     {
@@ -83303,11 +83574,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopePlanRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-capability-envelope-plan-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -83319,7 +83592,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-capability-envelope-plan-service.mjs"
       ]
     },
     {
@@ -83345,11 +83619,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeRequestGateRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-capability-envelope-request-gate-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -83361,7 +83637,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-capability-envelope-request-gate-service.mjs"
       ]
     },
     {
@@ -83429,11 +83706,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPayloadPreviewReviewRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-payload-preview-review-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -83445,7 +83724,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-payload-preview-review-service.mjs"
       ]
     },
     {
@@ -83454,10 +83734,7 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
-        "openapi_detail_contract_gap",
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
+        "surface_policy_decision_required"
       ],
       "dependencies": [
         "F0-source-baseline",
@@ -83469,13 +83746,14 @@
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
         "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPromotionAdapterContractRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-adapter-contract-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -83487,7 +83765,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-adapter-contract-service.mjs"
       ]
     },
     {
@@ -83639,11 +83918,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPromotionReviewRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-promotion-review-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -83655,7 +83936,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-promotion-review-service.mjs"
       ]
     },
     {
@@ -83664,10 +83946,7 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
-        "openapi_detail_contract_gap",
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
+        "surface_policy_decision_required"
       ],
       "dependencies": [
         "F0-source-baseline",
@@ -83679,13 +83958,14 @@
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
         "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPromotionTargetAdapterRegistryRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-target-adapter-registry-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -83697,7 +83977,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-target-adapter-registry-service.mjs"
       ]
     },
     {
@@ -83767,7 +84048,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightTargetWriteReadbackRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-target-write-readback-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -83779,7 +84061,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-target-write-readback-service.mjs"
       ]
     },
     {
@@ -84510,6 +84793,47 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/mcpRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
+      "task_key": "frontend.repository-main-moved-trigger.developer",
+      "title": "Resolve and deliver repository main moved trigger (developer)",
+      "wave": "F5-developer-evidence",
+      "state": "blocked",
+      "blockers": [
+        "test_ownership_gap",
+        "surface_policy_decision_required",
+        "operation_classification_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context",
+        "operation-classification"
+      ],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/github-repository-main-moved-webhook.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/repositoryMainMovedTriggerRoutes.js",
         "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [

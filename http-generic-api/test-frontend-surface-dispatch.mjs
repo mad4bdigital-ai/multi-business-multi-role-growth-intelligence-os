@@ -263,6 +263,15 @@ write(apiRoot, "frontend-surface-policy.json", JSON.stringify({
   ]
 }));
 
+const frontendDispatchWorkflow = fs.readFileSync(new URL("../.github/workflows/frontend-surface-dispatch.yml", import.meta.url), "utf8");
+assert.match(frontendDispatchWorkflow, /github\.event\.pull_request\.base\.ref/);
+assert.doesNotMatch(frontendDispatchWorkflow, /github\.event\.pull_request\.base\.sha/);
+if (process.env.GITHUB_EVENT_NAME !== "workflow_dispatch") {
+  assert.match(frontendDispatchWorkflow, /permissions:\s*\n\s*contents:\s*read/);
+  assert.doesNotMatch(frontendDispatchWorkflow, /Commit generated evidence on manual dispatch/);
+  assert.doesNotMatch(frontendDispatchWorkflow, /baseline_ref:/);
+}
+
 assert.equal(isDirectExecution(new URL("./scripts/frontend-surface-dispatch.mjs", import.meta.url).href, process.argv[1]), false);
 assert.equal(normalizeRoutePath("/runtime/parity/:environmentKey?"), "/runtime/parity/{environmentKey}");
 assert.deepEqual(expandRoutePaths("/runtime/parity/:environmentKey?"), ["/runtime/parity", "/runtime/parity/{environmentKey}"]);
