@@ -7,6 +7,10 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 import { validateOpenApiFiles } from "./openapi-builder-schema-guard.mjs";
+import {
+  formatOpenApiResponseObjectIssue,
+  validateOpenApiResponseFiles,
+} from "./openapi-response-object-guard.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_ROOT = path.resolve(__dirname, "..");
