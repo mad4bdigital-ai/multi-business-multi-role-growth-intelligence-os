@@ -1,12 +1,12 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": "6856ecfd66e3d758036bf599dad417bc4150c32c",
-    "source_digest": "d0c4169cfac70a87beb5522e593eb01a1d43aecac5422fb059641b0736494531",
+    "ref": "main",
+    "source_digest": "5d391c917205a8bbc21609028523cb1e6681dd07f82329e334fca4fc9b130d3b",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
-        "sha256": "431cee85ee253aebd7eb452f33af29781ffacaee5c360258efeed7722fcc5b93",
+        "sha256": "b4270707af6cda659d010eb510d396afbea5c49bcdd31a12790cbe30bf543522",
         "present": true
       },
       {
@@ -21,7 +21,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "387e22b426c255660a0f23434f3030773ff758f263aea77e92be0a70c9818233",
+        "sha256": "006a6a227373fcfc2d5acc8681f7e633b16fd8b4c823d515474fbba6d15618a9",
         "present": true
       },
       {
@@ -41,7 +41,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "9331120f6bf83879b49cef9f5a00ad9641e5ccfb29e2b79b550db3cd7270a898",
+        "sha256": "3fde436efd2f317c4e49adee5d19ae80d9f0bbec3e556b04f43aa674f1217c31",
         "present": true
       },
       {
@@ -221,7 +221,7 @@
       },
       {
         "file": "routes/activationRoutes.js",
-        "sha256": "29023d9ac7b4c9e989ac0fbba7a6bc39001983f3cca931b2167cf2b4c898d518",
+        "sha256": "4a6e1bfc4b8f40b7389a7d2e3b8e263daf3361441b874114b04f8918264588ef",
         "present": true
       },
       {
@@ -426,12 +426,12 @@
       },
       {
         "file": "routes/gptSessionRoutes.js",
-        "sha256": "c27bde1848b0e7acdd6af6df6e1579eab12f56fc4748081257f1ab5a11ac29b1",
+        "sha256": "55e784f96285bbdfd04d5ef391a6736ee56235b655e3fbf8fa5ad5e5ce449d9f",
         "present": true
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "5104d8843a832ec999329366de77881d5c2140c7aba61d3170792d4fb99c5f32",
+        "sha256": "0ebf6603ebddc18a21d0ff1ba7d7239669c4acfae8b271c164e25eda90cda7dd",
         "present": true
       },
       {
@@ -751,7 +751,7 @@
       },
       {
         "file": "routes/sessionRoutes.js",
-        "sha256": "c1f9598ba99186c1358159ad596f1ad3451fb7e5f008c96950d727d81355bb66",
+        "sha256": "4bff5975d41a7f2ab993764c8a75255643b465bea12eb2bf2b910412bd39125f",
         "present": true
       },
       {
@@ -971,11 +971,11 @@
     "mixed_scope_route_file_count": 22,
     "operation_count": 959,
     "openapi_documented_count": 943,
-    "openapi_canonical_documented_count": 562,
-    "openapi_generated_index_count": 381,
+    "openapi_canonical_documented_count": 564,
+    "openapi_generated_index_count": 379,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 381,
+    "openapi_detail_gap_count": 379,
     "auth_parity_counts": {
       "equivalent": 943,
       "exempt": 16
@@ -13806,7 +13806,7 @@
       "family_key": "activation",
       "label": "activation",
       "source_file": "routes/activationRoutes.js",
-      "source_digest": "29023d9ac7b4c9e989ac0fbba7a6bc39001983f3cca931b2167cf2b4c898d518",
+      "source_digest": "4a6e1bfc4b8f40b7389a7d2e3b8e263daf3361441b874114b04f8918264588ef",
       "mount_prefix": "/",
       "mount_order": 13390,
       "split_from_mixed_scope_file": false,
@@ -35273,7 +35273,7 @@
       "family_key": "gpt-session",
       "label": "gpt session",
       "source_file": "routes/gptSessionRoutes.js",
-      "source_digest": "c27bde1848b0e7acdd6af6df6e1579eab12f56fc4748081257f1ab5a11ac29b1",
+      "source_digest": "55e784f96285bbdfd04d5ef391a6736ee56235b655e3fbf8fa5ad5e5ce449d9f",
       "mount_prefix": "/",
       "mount_order": 15553,
       "split_from_mixed_scope_file": false,
@@ -35588,7 +35588,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -35605,9 +35605,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -35702,8 +35702,7 @@
       "openapi_detail_gaps": [
         "POST /gpt/sessions/{id}/conversation-ref",
         "POST /gpt/sessions/{id}/conversation-ref/capture-current",
-        "POST /gpt/sessions/{id}/conversation-ref/mark-primary",
-        "POST /gpt/sessions/{id}/turns"
+        "POST /gpt/sessions/{id}/conversation-ref/mark-primary"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
@@ -35785,7 +35784,7 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "5104d8843a832ec999329366de77881d5c2140c7aba61d3170792d4fb99c5f32",
+      "source_digest": "0ebf6603ebddc18a21d0ff1ba7d7239669c4acfae8b271c164e25eda90cda7dd",
       "mount_prefix": "/",
       "mount_order": 15593,
       "split_from_mixed_scope_file": false,
@@ -65359,7 +65358,7 @@
       "family_key": "session",
       "label": "session",
       "source_file": "routes/sessionRoutes.js",
-      "source_digest": "c1f9598ba99186c1358159ad596f1ad3451fb7e5f008c96950d727d81355bb66",
+      "source_digest": "4bff5975d41a7f2ab993764c8a75255643b465bea12eb2bf2b910412bd39125f",
       "mount_prefix": "/",
       "mount_order": 19255,
       "split_from_mixed_scope_file": false,
@@ -65536,7 +65535,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -65553,9 +65552,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -66261,7 +66260,6 @@
       "openapi_detail_gaps": [
         "POST /sessions/ingest",
         "POST /sessions/{id}/complete",
-        "GET /sessions",
         "GET /sessions/{id}",
         "GET /sessions/{id}/turns",
         "GET /sessions/{id}/events",
