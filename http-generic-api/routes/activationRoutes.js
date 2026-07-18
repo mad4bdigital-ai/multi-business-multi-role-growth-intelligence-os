@@ -761,6 +761,13 @@ export function resolveSessionContextSubject(req = {}) {
     throw err;
   }
 
+  if (!isAdmin && requestedTenantId && requestedTenantId !== authTenantId) {
+    const err = new Error("User JWT cannot inspect another tenant's activation session context.");
+    err.status = 403;
+    err.code = "session_context_tenant_scope_forbidden";
+    throw err;
+  }
+
   return {
     user_id: userId || null,
     tenant_id: tenantId || null,
