@@ -323,6 +323,7 @@ function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface) {
 }
 
 function validateGeneratedDoc(doc, sourceDoc, surfaceKey, surface) {
+  assertOpenApiResponseObjects(doc, { source: surface.output_file || surfaceKey });
   const sourcePairs = new Set(collectOperations(sourceDoc).map((entry) => `${entry.method.toUpperCase()} ${entry.pathKey}`));
   const seenIds = new Set();
   for (const entry of collectOperations(doc)) {
