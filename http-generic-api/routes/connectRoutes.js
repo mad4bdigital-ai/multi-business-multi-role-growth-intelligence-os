@@ -217,7 +217,11 @@ async function assessAgentSurfacesSafe({ tenantId, userId }) {
 
 async function fetchActiveMemberships(userId) {
   const [rows] = await getPool().query(
-    `SELECT m.tenant_id, m.role, m.status, t.display_name AS tenant_display_name
+    `SELECT m.tenant_id,
+            m.role,
+            m.status,
+            t.status AS tenant_status,
+            t.display_name AS tenant_display_name
        FROM memberships m
        JOIN tenants t ON t.tenant_id = m.tenant_id
       WHERE m.user_id = ? AND m.status = 'active'
