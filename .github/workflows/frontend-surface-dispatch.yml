@@ -23,11 +23,6 @@ on:
       - "specs/010-unified-platform-frontend/**"
       - ".github/workflows/frontend-surface-dispatch.yml"
   workflow_dispatch:
-    inputs:
-      baseline_ref:
-        description: "Exact PR base SHA for deterministic generated evidence"
-        required: true
-        type: string
 
 permissions:
   contents: write
