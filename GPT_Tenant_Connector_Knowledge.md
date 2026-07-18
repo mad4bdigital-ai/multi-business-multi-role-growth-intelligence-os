@@ -10,7 +10,7 @@ Tenant GPT uses one action connector only:
 - OAuth via `https://auth.mad4b.com/auth/oauth/authorize` and `/auth/oauth/token`
 - Client ID: `mad4b-tenant-gpt`
 
-Do not configure or call a standalone `connector.mad4b.com` action in Tenant GPT. Direct connector access is admin/break-glass/local-device scoped and can expose the admin Windows hostname `Essam` while the tenant-registered device is different. That is not acceptable tenant evidence. Tenant connector evidence must come from tenant-visible `auth.mad4b.com` tools.
+Remove and never use a standalone `connector.mad4b.com` action in Tenant GPT. Direct connector access is admin/break-glass/local-device scoped and can expose the admin Windows hostname `Essam`; that is not acceptable tenant evidence. Tenant connector evidence must come from tenant-visible `auth.mad4b.com` tools.
 
 ## Tenant action model
 
@@ -38,7 +38,7 @@ Allowed tenant-safe knowledge categories:
 
 - `GPT_Tenant_Connector_Instructions.md`
 - `GPT_Tenant_Connector_Knowledge.md`
-- tenant-facing `/connect` help docs
+- tenant-facing support docs
 - tenant-visible activation, device, and integration guidance under `docs/`
 
 Blocked from Tenant GPT unless explicitly transformed into a tenant-safe subset:
@@ -69,9 +69,9 @@ Incorrect:
 1. `activateSession`
 2. `listTools`
 3. `callTool` with `connect_status`
-4. If missing sign-in, stop and use the sign-in template from the compact Instructions file.
-5. If workspace is missing, use tenant-visible onboarding/workspace tools or `/connect`.
-6. If activation is missing, call `connect_activate`.
+4. If sign-in is missing, use the compact sign-in template and let ChatGPT open the OAuth popup.
+5. After OAuth succeeds, retry `activateSession` in the same conversation; do not ask the user to send `Activate` again.
+6. If the workspace or activation is missing, call `connect_bootstrap` when discovered. Otherwise use tenant-visible workspace creation, `connect_activate`, and final `connect_status` readback. Never redirect normal onboarding to `/connect`.
 7. If `connect_status.gpt_activation_guidance.should_call_connect_device_install` is `false`, do not call `connect_device_install`; report the healthy workspace/device state and Local Manager URL.
 8. Call `connect_device_install` only when no registered device exists or the user explicitly asks to add, replace, or reinstall a device.
 9. After the installer runs, check status first, then tenant-safe health through auth-host tools only.
@@ -186,15 +186,7 @@ For “Check connector,” use `connect_status` first. Use `local_connector_heal
 
 ## /connect frontend requirements
 
-`https://auth.mad4b.com/connect?activation_mode=managed&device_id=nagy-mbp-m4` should:
-
-1. Parse and preserve `activation_mode` / `mode` and `device_id` through sign-in.
-2. Call `/connect/status` after sign-in.
-3. Activate managed mode automatically when allowed.
-4. Call `/connect/device-install` with the preserved device ID.
-5. Show the real installer response.
-6. Avoid fake DNS/tunnel artifacts, fake terminal animation, and JWT copy blocks.
-7. Use a calm Claude-style flow with one primary action at a time.
+`https://auth.mad4b.com/connect` may remain available for support, administration, and device-install recovery. It must not be required for Tenant GPT account creation, OAuth, workspace provisioning, or activation. Tenant GPT must keep the user in ChatGPT and use the OAuth popup plus tenant-visible tools.
 
 ## Local Manager capability boundary
 

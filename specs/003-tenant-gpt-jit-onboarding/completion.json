@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "feature_key": "003-tenant-gpt-jit-onboarding",
+  "title": "Tenant GPT JIT Signup and In-Chat Activation",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "last_updated_at": "2026-07-18T21:38:00Z",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "implementation_prs": [
+      {
+        "number": 2779,
+        "branch": "gpt/003-tenant-gpt-jit-onboarding",
+        "role": "implementation",
+        "status": "current_pr",
+        "head_sha": "86419e28b513b82b5a2dc4e6eeec90f105af6009"
+      }
+    ],
+    "closeout_pr": {
+      "number": "planned",
+      "branch": "planned-after-production-verification",
+      "role": "completion",
+      "status": "planned"
+    }
+  },
+  "evidence": {
+    "ci": {
+      "status": "pass",
+      "head_sha": "86419e28b513b82b5a2dc4e6eeec90f105af6009",
+      "required_checks": 4,
+      "successful_checks": 4
+    },
+    "release_readiness": {
+      "status": "pass",
+      "scope": "current_main_before_pr_merge",
+      "checked_commit_sha": "dbe66eab5a3d45f5fb31a99cf9a3d28779d7502a",
+      "run_id": "17602a73-f6e8-40bc-9026-bc736d317b11",
+      "blocking_gaps": 0
+    },
+    "migration": {
+      "status": "pending_post_merge",
+      "reason": "Governed migration authorization requires merged PR evidence and a merge SHA. Dry-run cannot resolve branch-only migration files before merge."
+    },
+    "production_verification": {
+      "status": "pending_post_merge",
+      "reason": "Production verification must target the deployed merge commit after production parity readback."
+    },
+    "post_merge_audit": {
+      "status": "pending_post_merge",
+      "reason": "A closeout PR will record migration ledger, production smoke, and post-merge audit evidence."
+    }
+  },
+  "secrets_included": false
+}

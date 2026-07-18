@@ -15,7 +15,10 @@ import { readFileSync } from "node:fs";
 
 const { buildAuthRoutes } = await import("./routes/authRoutes.js");
 const { buildActivationHostGatewayRoutes } = await import("./routes/activationHostGatewayRoutes.js");
+const { hasVerifiedGoogleIdentity, normalizeAuthEmail } = await import("./authIdentityNormalization.js");
 await import("./test-tenant-gpt-oauth-live-smoke.mjs");
+await import("./test-tenant-gpt-oauth-authorization-code-store.mjs");
+await import("./test-tenant-gpt-google-jit-recovery.mjs");
 
 const TENANT_SCOPE_LINKS = [
   "https://auth.mad4b.com/scopes/tenant.links",
@@ -42,6 +45,19 @@ function assert(label, condition, detail = "") {
 function section(name) {
   console.log(`\n== ${name}`);
 }
+
+section("identity normalization");
+assert("email normalization trims and lowercases", normalizeAuthEmail("  User@Example.COM  ") === "user@example.com");
+assert("verified Google identity is accepted", hasVerifiedGoogleIdentity({ sub: "google-sub", email: "User@Example.COM", email_verified: true }));
+assert("unverified Google identity is rejected", !hasVerifiedGoogleIdentity({ sub: "google-sub", email: "user@example.com", email_verified: false }));
+assert("missing Google verification claim is rejected", !hasVerifiedGoogleIdentity({ sub: "google-sub", email: "user@example.com" }));
+assert("missing Google subject is rejected", !hasVerifiedGoogleIdentity({ email: "user@example.com", email_verified: true }));
+
+const identityHardeningMigration = readFileSync(new URL("./migrations/20260717_tenant_gpt_jit_identity_hardening.sql", import.meta.url), "utf8");
+assert("identity migration fails closed on duplicate subjects", identityHardeningMigration.includes("SIGNAL SQLSTATE ''45000''"));
+assert("identity migration ignores empty provider subjects", identityHardeningMigration.includes("TRIM(provider_id) <> ''"));
+assert("identity migration adds provider subject uniqueness", identityHardeningMigration.includes("UNIQUE KEY uq_user_credentials_provider_subject (auth_provider, provider_id)"));
+assert("identity migration is idempotent", identityHardeningMigration.includes("information_schema.statistics"));
 
 function startServer(app) {
   return new Promise((resolve) => {
@@ -92,9 +108,27 @@ async function getText(baseUrl, path, { headers = {} } = {}) {
 const oauthTokenDiagnostics = [];
 const tenantGptActivationContexts = [];
 const oauthCredentialRequests = [];
+const durableOAuthCodes = new Map();
 
 const oauthClientPool = {
   async query(sql, params) {
+    if (sql.includes("INSERT INTO `tenant_gpt_oauth_authorization_codes`")) {
+      durableOAuthCodes.set(params[0], {
+        client_id: params[3],
+        redirect_uri_hash: params[4],
+        status: "issued",
+      });
+      return [{ affectedRows: 1 }];
+    }
+    if (sql.includes("UPDATE `tenant_gpt_oauth_authorization_codes`")) {
+      const record = durableOAuthCodes.get(params[0]);
+      const canConsume = record
+        && record.client_id === params[1]
+        && record.redirect_uri_hash === params[2]
+        && record.status === "issued";
+      if (canConsume) record.status = "consumed";
+      return [{ affectedRows: canConsume ? 1 : 0 }];
+    }
     if (sql.includes("INSERT INTO `execution_log`")) {
       oauthTokenDiagnostics.push({
         execution_status: params[4],
@@ -195,10 +229,10 @@ try {
     assert("authorize carries requested OAuth scope", result.text.includes(TENANT_SCOPE));
     assert("authorize carries device id", result.text.includes('"device_id":"my-laptop"'));
     assert("authorize preselects signup panel", result.text.includes('const INITIAL_PANEL = "register"'));
-    assert("authorize setup link always targets auth host", result.text.includes('href="https://auth.mad4b.com/connect"'));
+    assert("authorize does not emit application onboarding link", !result.text.includes('href="https://auth.mad4b.com/connect"'));
     assert("authorize privacy link always targets auth host", result.text.includes('href="https://auth.mad4b.com/privacy-policy"'));
     assert("authorize terms link always targets auth host", result.text.includes('href="https://auth.mad4b.com/terms-of-use"'));
-    assert("authorize does not emit activation-host setup link", !result.text.includes('href="/connect"'));
+    assert("authorize does not emit relative setup link", !result.text.includes('href="/connect"'));
     assert("authorize includes configured Google client", result.text.includes(process.env.GOOGLE_CLIENT_ID));
     assert("authorize preserves requested ChatGPT callback", result.text.includes(redirectUri));
     assert("authorize does not rewrite callback before ChatGPT state validation", !result.text.includes('const REDIRECT_URI = "https://chatgpt.com'));
@@ -344,6 +378,16 @@ try {
   assert("OAuth access JWT omits duplicated client id", accessPayload.client_id === undefined, JSON.stringify(accessPayload));
   assert("OAuth access JWT stays compact", exchange.body.access_token.length < 1000, String(exchange.body.access_token.length));
   assert("access JWT carries tenant GPT purpose", accessPayload.purpose === "tenant_gpt_access", JSON.stringify(accessPayload));
+
+  const replay = await postForm(baseUrl, "/auth/oauth/token", {
+    grant_type: "authorization_code",
+    code: codeResult.body.code,
+    redirect_uri: redirectUri,
+    client_id: "mad4b-tenant-gpt",
+    client_secret: "test-client-secret",
+  }, { headers: { "x-forwarded-host": "activation.mad4b.com" } });
+  assert("token endpoint rejects authorization code replay", replay.status === 400, `${replay.status}`);
+  assert("authorization code replay reports invalid_grant", replay.body.error === "invalid_grant", JSON.stringify(replay.body));
 
   const mismatch = await postForm(baseUrl, "/auth/oauth/token", {
     grant_type: "authorization_code",

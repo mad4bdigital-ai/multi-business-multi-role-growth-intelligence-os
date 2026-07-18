@@ -1,0 +1,7 @@
+{
+  "surface_key": "tenant_gpt_oauth_authorization_codes",
+  "source_table": "tenant_gpt_oauth_authorization_codes",
+  "reason": "Excluded because this table stores internal-only OAuth authorization-code replay-control metadata, including hashes and expiry/consumption state, and has no user-visible authorization or activation meaning.",
+  "owner": "platform-security",
+  "review_after": "2027-01-31"
+}
