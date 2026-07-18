@@ -13,6 +13,7 @@ import YAML from "yaml";
 import { buildConnectRoutes, _testingSanitizeMetadataPayload, _testingAllowlists } from "./routes/connectRoutes.js";
 import { buildConnectApiRoutes } from "./routes/connectApiRoutes.js";
 import { buildOnboardingRoutes } from "./routes/onboardingRoutes.js";
+await import("./test-tenant-connect-bootstrap-service.mjs");
 
 const TENANT_SCOPE_LINKS = [
   "https://auth.mad4b.com/scopes/tenant.links",
