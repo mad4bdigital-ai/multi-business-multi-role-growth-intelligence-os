@@ -698,6 +698,33 @@ export function buildConnectRoutes(deps) {
     }
   });
 
+  // POST /connect/bootstrap — idempotently provision a workspace, activate Managed mode, and verify readback.
+  router.post("/connect/bootstrap", requireUserJwt, async (req, res) => {
+    try {
+      const result = await orchestrateTenantConnectBootstrap({
+        user_id: req.auth.user_id,
+        jwt_tenant_id: req.auth.tenant_id || null,
+        workspace_name: req.body?.workspace_name || req.body?.display_name || null,
+        mode: req.body?.mode || "managed",
+      }, {
+        resolveState: resolveConnectState,
+        createWorkspace: createWorkspaceForUser,
+        activateManaged: activateManagedConnectionForTenant,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: {
+          code: err.code || "connect_bootstrap_failed",
+          message: err.message,
+          ...(err.details ? { details: err.details } : {}),
+          requestId: req.requestId || req.id || null,
+        },
+      });
+    }
+  });
+
   // POST /connect/workspace — idempotently create a workspace for a signed-in user with no tenant.
   router.post("/connect/workspace", requireUserJwt, async (req, res) => {
     try {
