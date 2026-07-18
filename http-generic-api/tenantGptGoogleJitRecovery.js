@@ -74,7 +74,8 @@ export async function recoverGoogleJitIdentityAfterDuplicate({
     throw recoveryFailure(403, "account_inactive", "The existing account is not active.");
   }
 
-  const connection = await pool.getConnection();
+  const ownsConnection = !providedConnection;
+  const connection = providedConnection || await pool.getConnection();
   try {
     await connection.beginTransaction();
     await connection.query(
