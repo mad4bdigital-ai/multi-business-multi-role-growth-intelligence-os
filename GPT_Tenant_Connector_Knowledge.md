@@ -184,7 +184,7 @@ Device IDs must be stable lowercase IDs with letters, numbers, and hyphens only.
 
 For “Check connector,” use `connect_status` first. Use `local_connector_health` only when it is discovered as a tenant-safe tool and call it with `tool_args.device_id` only; user and tenant IDs must come from the JWT. Do not call `connector.mad4b.com`. If any admin-only evidence reports a hostname different from the registered device ID, do not present that hostname as tenant evidence.
 
-## /connect support boundary
+## /connect frontend requirements
 
 `https://auth.mad4b.com/connect` may remain available for support, administration, and device-install recovery. It must not be required for Tenant GPT account creation, OAuth, workspace provisioning, or activation. Tenant GPT must keep the user in ChatGPT and use the OAuth popup plus tenant-visible tools.
 
