@@ -4,20 +4,36 @@ import { getPool } from "./db.js";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SHA_RE = /^[0-9a-f]{40}$/i;
 const GITHUB_RE = /^github:\/\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/;
+const SHELL_ALIAS_RE = /^shell:\/\/([A-Za-z0-9._-]+)$/;
 const PROTECTED_BRANCHES = new Set(["main", "master", "production", "prod", "staging", "release"]);
 
 const RECIPES = Object.freeze({
   repo_patch_apply: {
+    resource_type: "github_repo",
     permission_level: "patch",
     allowed_modes: ["write_file", "replace_block", "apply_unified_diff", "delete_file"],
   },
   repo_patch_batch_apply: {
+    resource_type: "github_repo",
     permission_level: "patch",
     allowed_modes: ["write_file", "replace_block", "apply_unified_diff", "delete_file", "atomic_change_set"],
   },
   github_pr_create: {
+    resource_type: "github_repo",
     permission_level: "admin",
     allowed_modes: ["create_pull_request"],
+  },
+  dev_growth_intelligence_pilot_read: {
+    resource_type: "shell_alias",
+    permission_level: "diagnostic",
+    allowed_modes: ["dev_governed_migration_client"],
+    allowed_aliases: ["dev_governed_migration_client"],
+  },
+  dev_growth_intelligence_pilot_apply: {
+    resource_type: "shell_alias",
+    permission_level: "patch",
+    allowed_modes: ["dev_governed_migration_client_apply"],
+    allowed_aliases: ["dev_governed_migration_client_apply"],
   },
 });
 
@@ -63,6 +79,20 @@ function normalizeGithubResourceUri(value) {
   return { resource_uri: `github://${match[1]}/${match[2]}`, owner: match[1], repo: match[2] };
 }
 
+function normalizeShellAliasResourceUri(value, recipe) {
+  const uri = text(value, 512);
+  const match = uri.match(SHELL_ALIAS_RE);
+  const alias = match?.[1] || "";
+  if (!alias || !recipe.allowed_aliases?.includes(alias)) {
+    throw badRequest(
+      "platform_resource_authority_grant_shell_alias_not_allowed",
+      "resource_uri must target the exact allowlisted shell alias for this recipe.",
+      { resource_uri: uri, allowed_aliases: recipe.allowed_aliases || [] }
+    );
+  }
+  return { resource_uri: `shell://${alias}`, alias };
+}
+
 function normalizeBranch(value) {
   const branch = text(value, 255);
   if (!branch) {
@@ -91,7 +121,8 @@ function normalizeAllowedModes(value, recipe) {
 }
 
 export function expectedResourceAuthorityGrantConfirmation(plan) {
-  const material = [plan.recipe_key, plan.resource_uri, plan.resource_ref.branch, plan.resource_ref.expected_commit_sha].join(":");
+  const resourceTarget = plan.resource_ref.branch || plan.resource_ref.alias || plan.resource_uri;
+  const material = [plan.recipe_key, plan.resource_uri, resourceTarget, plan.resource_ref.expected_commit_sha].join(":");
   const suffix = material.toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 96);
   return `GRANT_RESOURCE_AUTHORITY_${suffix}`;
 }
@@ -105,10 +136,6 @@ export function buildPlatformResourceAuthorityGrantPlan(args = {}) {
   const tenant_id = requireUuid(args.tenant_id, "tenant_id");
   const workspace_id = requireUuid(args.workspace_id, "workspace_id");
   const user_id = requireUuid(args.user_id, "user_id");
-  const resource_type = text(args.resource_type, 128);
-  if (resource_type !== "github_repo") {
-    throw badRequest("platform_resource_authority_grant_resource_type_not_allowed", "Only github_repo bootstrap grants are supported.", { resource_type });
-  }
 
   const recipe_key = text(args.recipe_key, 128);
   const recipe = RECIPES[recipe_key];
@@ -119,10 +146,52 @@ export function buildPlatformResourceAuthorityGrantPlan(args = {}) {
     });
   }
 
-  const normalizedUri = normalizeGithubResourceUri(args.resource_uri);
+  const resource_type = text(args.resource_type, 128);
+  if (resource_type !== recipe.resource_type) {
+    throw badRequest(
+      "platform_resource_authority_grant_resource_type_not_allowed",
+      "resource_type does not match the selected grant recipe.",
+      { resource_type, required_resource_type: recipe.resource_type }
+    );
+  }
+
   const resourceRef = args.resource_ref && typeof args.resource_ref === "object" && !Array.isArray(args.resource_ref) ? args.resource_ref : {};
-  const branch = normalizeBranch(resourceRef.branch || args.branch);
-  const expected_commit_sha = requireSha(resourceRef.expected_commit_sha || resourceRef.base_sha || args.expected_commit_sha, "resource_ref.expected_commit_sha");
+  const expected_commit_sha = requireSha(
+    resourceRef.expected_commit_sha || resourceRef.base_sha || args.expected_commit_sha,
+    "resource_ref.expected_commit_sha"
+  );
+
+  let normalizedUri;
+  let normalizedResourceRef;
+  if (resource_type === "github_repo") {
+    normalizedUri = normalizeGithubResourceUri(args.resource_uri);
+    const branch = normalizeBranch(resourceRef.branch || args.branch);
+    normalizedResourceRef = {
+      owner: normalizedUri.owner,
+      repo: normalizedUri.repo,
+      branch,
+      expected_commit_sha,
+      main_write_allowed: false,
+      protected_branch_write_allowed: false,
+      requires_expected_commit_sha: true,
+      requires_typed_confirmation: true,
+      requires_same_cycle_readback: true,
+      secrets_included: false,
+    };
+  } else {
+    normalizedUri = normalizeShellAliasResourceUri(args.resource_uri, recipe);
+    normalizedResourceRef = {
+      alias: normalizedUri.alias,
+      expected_commit_sha,
+      arbitrary_shell_allowed: false,
+      production_execution_allowed: false,
+      requires_expected_commit_sha: true,
+      requires_typed_confirmation: true,
+      requires_same_cycle_readback: true,
+      secrets_included: false,
+    };
+  }
+
   const permission_level = text(args.permission_level || recipe.permission_level, 32);
   if (permission_level !== recipe.permission_level) {
     throw badRequest("platform_resource_authority_grant_permission_not_allowed", "permission_level cannot exceed the recipe permission.", {
@@ -152,18 +221,7 @@ export function buildPlatformResourceAuthorityGrantPlan(args = {}) {
     expires_at_required: true,
     authority_source: text(args.authority_source || "dynamic_resource_authority_grant_tool", 128),
     created_by: text(args.created_by || args.createdBy || "gpt_admin", 64),
-    resource_ref: {
-      owner: normalizedUri.owner,
-      repo: normalizedUri.repo,
-      branch,
-      expected_commit_sha,
-      main_write_allowed: false,
-      protected_branch_write_allowed: false,
-      requires_expected_commit_sha: true,
-      requires_typed_confirmation: true,
-      requires_same_cycle_readback: true,
-      secrets_included: false,
-    },
+    resource_ref: normalizedResourceRef,
     notes: text(args.notes || "Bounded dynamic resource authority grant created by governed admin tool.", 1000),
     secrets_included: false,
   };
