@@ -428,6 +428,11 @@ Managed and dedicated activation modes are governed by `activationModePolicy.js`
 
 ### Development environment governance
 
+Growth Intelligence development pilots must run only through the fixed `dev_governed_migration_client` and `dev_governed_migration_client_apply` aliases after deployment readback proves the expected commit and a database name ending in `_dev`. Dynamic authority for these aliases must use the dedicated `dev_growth_intelligence_pilot_read` or `dev_growth_intelligence_pilot_apply` recipe, an exact `shell://<alias>` resource URI, the matching single operation mode, a pinned commit SHA, bounded TTL, typed confirmation, and same-cycle readback. These recipes never authorize arbitrary shell commands, production execution, provider writes, external sends, consumer activation, or transport activation.
+
+The apply alias may dispatch only the allowlisted `growth_intelligence_pilot_run` contract with `persistence_mode=internal_registry` and `outbox_mode=dev_transactional`. Capture database and Outbox baselines before execution, require exactly one report/event outcome, confirm delivery counts remain unchanged, and keep consumer and transport states disabled/noop unless a separate governed rollout is explicitly approved.
+
+
 `dev.mad4b.com` is the governed development/staging environment for testing repo-branch deployments before production. It is not a brand site and must not be treated as production. Its active evidence should include GitHub branch, commit SHA, deployment mode, Hostinger root, and latest validation result.
 
 Use the separate dev dispatcher OpenAPI schema (`http-generic-api/openapi.gpt-action.dev-dispatcher.yaml`) for passive checks only: `/health`, `/deployment-info`, and protected `/dev/db/status`. Run production control, schema import, release readiness, and provider mutations through `auth.mad4b.com` and the governed dispatcher.
