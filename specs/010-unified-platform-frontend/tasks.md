@@ -26,13 +26,14 @@
     - [x] T018d.1 Resolve all runtime/canonical auth mismatches, missing comparisons, handler-level tokens, imported guards, and invalid/duplicate auth rules.
     - [x] T018d.2 Close operation-presence gaps with reviewed canonical public entrypoint contracts while keeping generated projections non-canonical.
     - [x] T018d.3 Classify thirteen proven non-mutating actions: nine capability-vault planning/resolution operations and four `router.all` root-discovery variants.
-    - [ ] T018d.4 Replace 380 remaining operation-index-only entries with reviewed request/response detail contracts.
+    - [ ] T018d.4 Replace 378 remaining operation-index-only entries with reviewed request/response detail contracts.
       - [x] T018d.4a Replace the first three entries with canonical adapter-contract, target-adapter, and apply-readiness read-model contracts.
       - [x] T018d.4b Replace three additional entries with canonical promotion-review, payload-preview-review, and capability-envelope-plan read-model contracts.
       - [x] T018d.4c Replace three capability-envelope lifecycle entries with canonical request-gate, dispatch-dry-run, and actual-request-preflight read-model contracts.
       - [x] T018d.4d Replace three capability-envelope request, approval, and dispatch-readback entries with canonical read-model contracts.
       - [x] T018d.4e Replace adapter-execution-gate and backlog-target-write entries with canonical read-model contracts, and align lifecycle status enums with all migration-permitted values.
       - [x] T018d.4f Replace the remaining-scope-completion entry with a canonical read-model contract and migration-aligned lifecycle enums.
+      - [x] T018d.4g Add canonical signed-user contracts for the tenant Activation session list and bounded turn-batch archive write.
     - [ ] T018d.5 Classify 546 remaining non-GET candidates with exact evidence and controls where consequential.
       - [x] T018d.5a Classify the three SELECT-only session-insight adapter read models and register explicit test ownership.
       - [x] T018d.5b Classify the three SELECT-only promotion review and capability planning read models and register explicit test ownership.
@@ -40,6 +41,7 @@
       - [x] T018d.5d Classify the three SELECT-only capability-envelope request, approval, and dispatch-readback read models and register explicit test ownership.
       - [x] T018d.5e Classify the SELECT-only adapter-execution-gate, backlog-target-write, and target-write-readback list operations and register explicit test ownership.
       - [x] T018d.5f Classify the SELECT-only remaining-scope list and three Platform Plugin smoke-certification status/policy read actions with explicit test ownership.
+      - [x] T018d.5g Govern the raw and tenant Activation turn-batch archive mutations with capability-family authorization, same-cycle readback, and immutable-audit compensation rationale.
     - [ ] T018d.6 Add rollback/post-commit compensation for the four classified resource mutations.
 - [x] T019 Add generated-plan schema contract and changed-scope CI drift gate.
 

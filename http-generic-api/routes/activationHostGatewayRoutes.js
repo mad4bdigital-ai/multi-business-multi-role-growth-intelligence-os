@@ -20,12 +20,24 @@ const ACTIVATION_SCHEMA_FILES_BY_PATH = new Map([
 const ALLOWED_EXACT_PATHS = new Set([
   "/",
   "/health",
+  "/privacy-policy",
+  "/status",
+  "/tenant-gpt/oauth-preset",
+  "/terms-of-use",
   ...ACTIVATION_SCHEMA_FILES_BY_PATH.keys(),
 ]);
 
 const ALLOWED_PREFIXES = [
   "/activation/",
   "/tenant/activation/",
+];
+
+const ALLOWED_TENANT_RESOLUTION_ROUTES = [
+  { methods: new Set(["GET"]), pattern: /^\/tenant\/resolution\/problem-cards$/ },
+  { methods: new Set(["GET", "POST"]), pattern: /^\/tenant\/resolution\/cases$/ },
+  { methods: new Set(["GET"]), pattern: /^\/tenant\/resolution\/cases\/[^/]+$/ },
+  { methods: new Set(["POST"]), pattern: /^\/tenant\/resolution\/cases\/[^/]+\/(?:transitions|diagnostics)$/ },
+  { methods: new Set(["POST"]), pattern: /^\/tenant\/resolution\/cases\/[^/]+\/task-source-repair\/preview$/ },
 ];
 
 const TENANT_GPT_OAUTH_HANDOFF_ROUTES = new Map([
@@ -91,9 +103,15 @@ function isActivationSchemaHost(host, activationHost) {
   return host === activationHost || host === AUTH_HOST;
 }
 
-function isActivationHostAllowedPath(pathname) {
+function isActivationHostAllowedPath(pathname, method) {
   return ALLOWED_EXACT_PATHS.has(pathname)
-    || ALLOWED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+    || ALLOWED_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+    || ALLOWED_TENANT_RESOLUTION_ROUTES.some((route) =>
+      route.methods.has(String(method || "").toUpperCase()) && route.pattern.test(pathname));
+}
+
+export function activationHostGatewayAllowsOperation(method, pathname) {
+  return isActivationHostAllowedPath(pathname, method);
 }
 
 function routeKey(method, pathname) {
@@ -173,7 +191,7 @@ export function buildActivationHostGatewayRoutes({
       return next();
     }
 
-    if (isAuthPath(pathname) || !isActivationHostAllowedPath(pathname)) {
+    if (isAuthPath(pathname) || !isActivationHostAllowedPath(pathname, req.method)) {
       return res.status(404).json(errorResponse(
         "ACTIVATION_HOST_ROUTE_NOT_ALLOWED",
         "This host only serves Activation transport routes and Activation OpenAPI schemas.",
