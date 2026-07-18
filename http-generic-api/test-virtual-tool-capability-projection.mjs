@@ -32,7 +32,7 @@ for (const marker of [
   "READBACK_CONTRACT_REQUIRED",
   "TENANT_TO_ADMIN_SURFACE_BLOCKED",
   "CANONICAL_SOURCE_COLLISION_REVIEW_REQUIRED",
-  "apply_allowed,0",
+  "v.dispatch_allowed,0",
 ]) assert.match(projection, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 
 for (const marker of [
