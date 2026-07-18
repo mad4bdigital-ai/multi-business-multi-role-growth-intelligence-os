@@ -91,7 +91,7 @@ jobs:
         id: diff
         shell: bash
         run: |
-          CHANGED_FILES="$(git diff --name-only --             http-generic-api/openapi.yaml             http-generic-api/openapi.*.yaml             canonicals/openapi/**/*.yaml             edge/activation-gateway/**             docs/**/*.md             canonicals/**/*.md             '*.md')"
+          CHANGED_FILES="$(git diff --name-only --             http-generic-api/openapi.yaml             http-generic-api/openapi.*.yaml             http-generic-api/openapi/**/*.yaml             canonicals/openapi/**/*.yaml             edge/activation-gateway/**             docs/**/*.md             canonicals/**/*.md             '*.md')"
 
           if [ -z "$CHANGED_FILES" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
