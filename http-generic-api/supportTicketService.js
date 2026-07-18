@@ -1092,6 +1092,32 @@ function workflowStateFromSteps({ run = null, stepRows = [] } = {}) {
   return { run_status: run?.status || "pending", plan_status: null, ticket_status: null, lifecycle_state: null, customer_status: null, current_step: run?.current_step || null, reason: "no_steps" };
 }
 
+export function initialWorkflowStateForPlan(plan = {}, requestedRunStatus = "running") {
+  const accessDecision = normalizeString(plan.access_decision).toUpperCase();
+  const approvalRequired = requestedRunStatus === "awaiting_approval"
+    || ["REQUIRE_SUPERVISOR_APPROVAL", "REQUIRE_REVIEW"].includes(accessDecision);
+  const runStatus = approvalRequired ? "awaiting_approval" : requestedRunStatus;
+  const planStatus = approvalRequired ? "awaiting_approval" : "executing";
+  const ticketState = approvalRequired
+    ? {
+        status: "awaiting_approval",
+        lifecycle_state: "awaiting_internal_approval",
+        customer_status: "waiting_for_approval",
+        reason: "approval_required",
+      }
+    : ticketStateFromRuntime({ run: { status: runStatus }, plan: { plan_status: planStatus } });
+  return {
+    approval_required: approvalRequired,
+    run_status: runStatus,
+    plan_status: planStatus,
+    ticket_status: ticketState.status,
+    lifecycle_state: ticketState.lifecycle_state,
+    customer_status: ticketState.customer_status,
+    reason: ticketState.reason,
+    started_at_allowed: !approvalRequired,
+  };
+}
+
 export async function createSupportTicketStepRuns({ tenant_id, ticket_id, run_id = null, plan_id = null, actor_id = null, actor_type = "system", reason = "Step runs created from support ticket workflow run.", evidence_json = {} } = {}, options = {}) {
   const pool = options.pool || getPool();
   const connection = options.connection || await pool.getConnection();
