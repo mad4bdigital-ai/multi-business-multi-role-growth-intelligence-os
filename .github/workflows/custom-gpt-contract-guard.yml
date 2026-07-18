@@ -37,6 +37,7 @@ on:
     branches: [main]
     paths:
       - "http-generic-api/openapi*.yaml"
+      - "http-generic-api/openapi/**/*.yaml"
       - "canonicals/openapi/**/*.yaml"
       - "http-generic-api/package.json"
       - "http-generic-api/scripts/split-openapi.mjs"
