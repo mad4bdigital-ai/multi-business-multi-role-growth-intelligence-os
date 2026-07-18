@@ -35,7 +35,15 @@ function compactError(error, fallback) {
   };
 }
 
-export function buildTenantActivationOverlayRoutes({ requireBackendApiKey } = {}) {
+export function buildTenantActivationOverlayRoutes({
+  requireBackendApiKey,
+  buildSessionContext = buildActivationSessionContext,
+  buildGrowthDashboard = buildTenantGrowthDashboard,
+  getRuntimePool = getPool,
+  markRunPrepared = markActivationRunPrepared,
+  markRunDelivered = markActivationRunDelivered,
+  chunkResponse = maybeChunkToolResponseBody,
+} = {}) {
   const router = Router();
   const guards = [requireBackendApiKey].filter(Boolean);
 
