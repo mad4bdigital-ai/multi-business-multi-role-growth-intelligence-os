@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { buildPlatformResourceAuthorityGrantPlan } from "./platformResourceAuthorityGrantTool.js";
+import { assessMigrationSqlPreflight } from "./releaseReadiness.js";
 
 const base = {
   tenant_id: "00000000-0000-0000-0000-000000000000",
@@ -20,6 +21,8 @@ assert.equal(dry.mode, "dry_run");
 assert.equal(dry.permission_level, "patch");
 assert.equal(dry.resource_ref.main_write_allowed, false);
 assert.equal(dry.resource_ref.protected_branch_write_allowed, false);
+assert.equal(dry.resource_ref.requires_expected_commit_sha, true);
+assert.equal(dry.resource_ref.requires_typed_confirmation, true);
 assert.equal(dry.resource_ref.requires_same_cycle_readback, true);
 assert.equal(dry.secrets_included, false);
 assert.match(dry.expected_confirm, /^GRANT_RESOURCE_AUTHORITY_/);
@@ -85,5 +88,38 @@ assert(migration.includes("typed_confirmation"));
 assert(migration.includes("readback"));
 assert(migration.includes("no_secrets"));
 assert(!/\bDROP\s+TABLE\b|\bTRUNCATE\b|\bDELETE\s+FROM\b/i.test(migration));
+
+const contractMigrationName = "20260718_expand_resource_authority_shell_alias_contract.sql";
+const contractMigration = fs.readFileSync(new URL(`./migrations/${contractMigrationName}`, import.meta.url), "utf8");
+for (const marker of [
+  "platform_resource_authority_grant_apply",
+  "shell_alias",
+  "dev_growth_intelligence_pilot_read",
+  "dev_growth_intelligence_pilot_apply",
+  "dev_governed_migration_client",
+  "dev_governed_migration_client_apply",
+  "no_arbitrary_shell",
+  "expected_commit_sha",
+]) {
+  assert.ok(contractMigration.includes(marker), `shell alias contract migration missing ${marker}`);
+}
+assert.doesNotMatch(contractMigration, /shell:\/\/powershell|shell:\/\/bash|arbitrary_shell_allowed[^\n]*true/i);
+assert.doesNotMatch(contractMigration, /^\s*(DELETE FROM|DROP|TRUNCATE|ALTER)\b/mi);
+
+for (const marker of [
+  "no_provider_call=true",
+  "no_credential_payload_read=true",
+  "no_raw_secrets=true",
+  "no_external_send=true",
+  "no_external_write=true",
+  "secrets_included=false",
+]) {
+  assert.ok(contractMigration.includes(marker), `shell alias contract migration missing safety marker ${marker}`);
+}
+
+const contractPreflight = assessMigrationSqlPreflight(contractMigrationName, contractMigration);
+assert.equal(contractPreflight.status, "pass", JSON.stringify(contractPreflight, null, 2));
+assert.equal(contractPreflight.risk_count, 0, JSON.stringify(contractPreflight, null, 2));
+assert.equal(contractPreflight.secrets_included, false, JSON.stringify(contractPreflight, null, 2));
 
 console.log("platform resource authority grant tool tests passed");
