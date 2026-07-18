@@ -34,7 +34,7 @@
       - [x] T018d.4e Replace adapter-execution-gate and backlog-target-write entries with canonical read-model contracts, and align lifecycle status enums with all migration-permitted values.
       - [x] T018d.4f Replace the remaining-scope-completion entry with a canonical read-model contract and migration-aligned lifecycle enums.
       - [x] T018d.4g Add canonical signed-user contracts for the tenant Activation session list and bounded turn-batch archive write.
-    - [ ] T018d.5 Classify 546 remaining non-GET candidates with exact evidence and controls where consequential.
+    - [ ] T018d.5 Classify 529 remaining non-GET candidates with exact evidence and controls where consequential.
       - [x] T018d.5a Classify the three SELECT-only session-insight adapter read models and register explicit test ownership.
       - [x] T018d.5b Classify the three SELECT-only promotion review and capability planning read models and register explicit test ownership.
       - [x] T018d.5c Classify the three SELECT-only capability-envelope lifecycle read models and register explicit test ownership.
@@ -42,7 +42,9 @@
       - [x] T018d.5e Classify the SELECT-only adapter-execution-gate, backlog-target-write, and target-write-readback list operations and register explicit test ownership.
       - [x] T018d.5f Classify the SELECT-only remaining-scope list and three Platform Plugin smoke-certification status/policy read actions with explicit test ownership.
       - [x] T018d.5g Govern the raw and tenant Activation turn-batch archive mutations with capability-family authorization, same-cycle readback, and immutable-audit compensation rationale.
-    - [ ] T018d.6 Add rollback/post-commit compensation for the four classified resource mutations.
+      - [x] T018d.5h Classify seventeen source-proven read actions across manifest resolution, readiness/readback, health planning, governance proposals, smoke-certification policy history/preview/queue, runtime catalog, private contribution resolution, agent intelligence, and repository automation, with explicit test ownership.
+      - [x] T018d.5i Govern the signed-user `POST /connect/bootstrap` state change with exact Managed-mode preflight and same-cycle readback while retaining its partial-success compensation gap as an explicit blocker.
+    - [ ] T018d.6 Add rollback/post-commit compensation for the four classified resource mutations and the tenant bootstrap partial-success path.
 - [x] T019 Add generated-plan schema contract and changed-scope CI drift gate.
 
 ## F1 tenant shell

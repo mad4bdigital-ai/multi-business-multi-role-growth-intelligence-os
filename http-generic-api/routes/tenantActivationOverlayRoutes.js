@@ -144,7 +144,9 @@ export function buildTenantActivationOverlayRoutes({
       let sql = `SELECT session_id, originator, session_status, brand_key, workspace_key,
                         turn_count, started_at, ended_at, created_at
                    FROM \`customer_sessions\`
-                  WHERE tenant_id = ? AND user_id = ?`;
+                  WHERE tenant_id = ?
+                    AND user_id = ?
+                    AND originator = 'gpt_action'`;
       const params = [subject.tenant_id, subject.user_id];
       if (sessionStatus) {
         sql += " AND session_status = ?";

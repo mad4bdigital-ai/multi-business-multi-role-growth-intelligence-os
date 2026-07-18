@@ -9,6 +9,13 @@ import {
 // frontend-surface-operation: POST /platform/plugins/smoke-certifications/status
 // frontend-surface-operation: POST /platform/plugins/smoke-certifications/policies/resolve
 // frontend-surface-operation: POST /platform/plugins/smoke-certifications/policies/list
+// frontend-surface-operation: POST /platform/health/scorecard
+// frontend-surface-operation: POST /platform/health/scorecard/remediation-plan
+// frontend-surface-operation: POST /platform/health/scorecard/tenant-rollout
+// frontend-surface-operation: POST /platform/health/scorecard/ledger-hygiene
+// frontend-surface-operation: POST /platform/plugins/smoke-certifications/policies/history
+// frontend-surface-operation: POST /platform/plugins/smoke-certifications/policies/rollback-preview
+// frontend-surface-operation: POST /platform/plugins/smoke-certifications/recertification-queue
 
 const service = readFileSync("platformPluginRestDispatch.js", "utf8");
 const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
@@ -28,9 +35,47 @@ const smokeCertSource = readFileSync("platformPluginSmokeCertification.js", "utf
 const smokeRecertSource = readFileSync("platformPluginSmokeRecertification.js", "utf8");
 const smokeRecertPolicySource = readFileSync("platformPluginSmokeRecertificationPolicy.js", "utf8");
 const smokeRecertPolicyHistorySource = readFileSync("platformPluginSmokeRecertificationPolicyHistory.js", "utf8");
+const healthScorecardSource = readFileSync("platformHealthScorecard.js", "utf8");
 const pluginResolverSource = readFileSync("platformPluginResolver.js", "utf8");
 const promotionSource = readFileSync("platformPluginPromotion.js", "utf8");
 const openapi = readFileSync("openapi.yaml", "utf8");
+
+function exportedFunctionSlice(source, name) {
+  const marker = `export async function ${name}`;
+  const start = source.indexOf(marker);
+  assert.notEqual(start, -1, `${name} must be exported`);
+  const next = source.indexOf("\nexport async function ", start + marker.length);
+  return source.slice(start, next === -1 ? source.length : next);
+}
+
+for (const [operationPath, functionName] of [
+  ["/platform/health/scorecard", "readPlatformHealthScorecard"],
+  ["/platform/health/scorecard/remediation-plan", "readPlatformHealthScorecardRemediationPlan"],
+  ["/platform/health/scorecard/tenant-rollout", "readPlatformHealthScorecardTenantRollout"],
+  ["/platform/health/scorecard/ledger-hygiene", "readPlatformHealthScorecardLedgerHygiene"],
+]) {
+  const functionSource = exportedFunctionSlice(healthScorecardSource, functionName);
+  assert(routes.includes(operationPath), `${operationPath} must remain mounted`);
+  assert.match(functionSource, /\bSELECT\b/i, `${functionName} must read its governed view`);
+  assert.doesNotMatch(functionSource, /\b(?:INSERT\s+INTO|UPDATE\s+\w|DELETE\s+FROM)\b/i, `${functionName} must not mutate scorecard state`);
+}
+
+const policyHistoryReaderSource = exportedFunctionSlice(
+  smokeRecertPolicyHistorySource,
+  "listPlatformPluginSmokeRecertificationPolicyHistory",
+);
+const policyRollbackPreviewSource = exportedFunctionSlice(
+  smokeRecertPolicyHistorySource,
+  "previewPlatformPluginSmokeRecertificationPolicyRollback",
+);
+const recertificationQueueSource = exportedFunctionSlice(
+  smokeRecertSource,
+  "listPlatformPluginSmokeRecertificationQueue",
+);
+assert(!policyHistoryReaderSource.includes("upsertPlatformPluginSmokeRecertificationPolicy"), "policy history reader must not upsert policy state");
+assert(!policyRollbackPreviewSource.includes("upsertPlatformPluginSmokeRecertificationPolicy"), "rollback preview must not apply policy state");
+assert(!recertificationQueueSource.includes("dispatchPlatformPluginRestAction"), "recertification queue must not dispatch provider calls");
+assert(!recertificationQueueSource.includes("certifyPlatformPluginSmoke"), "recertification queue must not write certification state");
 
 assert(service.includes("resolveExecutionReadinessDryRun"), "public dispatcher must run full execution readiness dry-run before dispatch");
 assert(service.includes("execution_readiness_not_dispatch_ready"), "public dispatcher must block when readiness dry-run is not dispatch_ready");
