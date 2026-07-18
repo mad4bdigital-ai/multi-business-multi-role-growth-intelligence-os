@@ -32,7 +32,7 @@ assert.doesNotMatch(migration, /fetch\s*\(/);
 assert.doesNotMatch(migration, /axios\s*\(/);
 assert.match(docs, /github_list_issue_comments/);
 assert.match(docs, /conversation comments/i);
-assert.match(docs, /not pull-request review comments/i);
+assert.match(docs, /does not\s+read pull-request review comments/i);
 assert.match(manifest, /test-github-list-issue-comments-endpoint\.mjs/);
 
 console.log("github list issue comments endpoint tests passed");
